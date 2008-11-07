@@ -18,10 +18,13 @@
 #define _AUDIO_STREAM_IN_OMAP_H_
 
 #include <hardware/AudioHardwareInterface.h>
-#include "AudioHardwareOmap.h"
 #include <alsa/asoundlib.h>
 
+#include "AudioHardwareOmap.h"
+
 using namespace android;
+
+class AudioHardwareOmap;
 
 class AudioStreamInOmap : public AudioStreamIn
 {

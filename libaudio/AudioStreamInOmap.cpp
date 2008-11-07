@@ -31,9 +31,9 @@
 #include <utils/Log.h>
 #include <utils/String8.h>
 
+#include <hardware/AudioHardwareInterface.h>
 #include <alsa/asoundlib.h>
 
-#include <hardware/AudioHardwareInterface.h>
 #include "AudioHardwareOmap.h"
 #include "AudioStreamInOmap.h"
 
@@ -47,8 +47,13 @@ AudioStreamIn::~AudioStreamIn()
 /* Constructor */
 AudioStreamInOmap::AudioStreamInOmap()
 {
+	int ret = 0;
+
 	mAudioHardware = 0;
-	snd_pcm_hw_params_alloca(&hwParams);
+	ret = snd_pcm_hw_params_malloc(&hwParams);
+	if (ret) {
+		LOGE("Error allocating hardware params");
+	}
 }
 
 /* Destructor */
@@ -63,11 +68,37 @@ AudioStreamInOmap::~AudioStreamInOmap()
 status_t AudioStreamInOmap::set(AudioHardwareOmap *hw, snd_pcm_t *handle,
 				int format, int channels, uint32_t rate)
 {
+	snd_pcm_format_t alsa_format;
+	unsigned int alsa_channels = channels;
+	unsigned int alsa_rate = rate;
+	snd_pcm_uframes_t  alsa_buffer_size;
 	int ret = 0;
+
+	if (format == AudioSystem::PCM_8_BIT)
+		alsa_format = SND_PCM_FORMAT_S8;
+	else if (format == AudioSystem::PCM_16_BIT)
+		alsa_format = SND_PCM_FORMAT_S16_LE;
+	else if (format == 0)
+		alsa_format = SND_PCM_FORMAT_S16_LE;
+	/* If not specified */
+	else
+		alsa_format = SND_PCM_FORMAT_UNKNOWN;
+
+	/* If not specified */
+	if (channels == 0)
+		alsa_channels = 1;
+
+	/* If not specified */
+	if (rate == 0)
+		alsa_rate = 8000;
+
+	/* Default capture buffer size */
+	alsa_buffer_size = 1024;
 
 	ret = snd_pcm_hw_params_any(handle, hwParams);
 	if (ret) {
 		LOGE("Error initializing input hardware parameters");
+		return BAD_VALUE;
 	}
 
 	ret = snd_pcm_hw_params_set_access(handle, hwParams, SND_PCM_ACCESS_RW_INTERLEAVED);
@@ -75,31 +106,37 @@ status_t AudioStreamInOmap::set(AudioHardwareOmap *hw, snd_pcm_t *handle,
 		LOGE("Error setting input access type");
 		return BAD_VALUE;
 	}
-
-	ret = snd_pcm_hw_params_set_format(handle, hwParams, SND_PCM_FORMAT_S16_LE);
+	
+	ret = snd_pcm_hw_params_set_format(handle, hwParams, alsa_format);
 	if (ret) {
 		LOGE("Error setting input format");
 		return BAD_VALUE;
 	}
-
-	ret = snd_pcm_hw_params_set_rate(handle, hwParams, rate, 0);
+	
+	ret = snd_pcm_hw_params_set_rate(handle, hwParams, alsa_rate, 0);
 	if (ret) {
-		LOGE("Error setting input sample rate");
+		LOGE("Error setting input sample rate %d", alsa_rate);
 		return BAD_VALUE;
-	}
+	} 
 
-	ret = snd_pcm_hw_params_set_channels(handle, hwParams, channels);
+	ret = snd_pcm_hw_params_set_channels(handle, hwParams, alsa_channels);
 	if (ret) {
 		LOGE("Error setting number of input channels");
 		return BAD_VALUE;
 	}
-
+	
+	ret = snd_pcm_hw_params_set_buffer_size(handle, hwParams, alsa_buffer_size);
+	if (ret) {
+		LOGE("Error setting buffer size");
+		return BAD_VALUE;
+	}
+	
 	ret = snd_pcm_hw_params(handle, hwParams);
 	if (ret) {
 		LOGE("Error applying parameters to PCM device");
 		return BAD_VALUE;
 	}
-
+		
 	mAudioHardware = hw;
 	pcmHandle = handle;
 
@@ -201,7 +238,7 @@ int AudioStreamInOmap::format() const
 					break;
 	case SND_PCM_FORMAT_S16_LE:	inFormat = AudioSystem::PCM_16_BIT;
 					break;
-	default:			inFormat = 0;
+	default:			inFormat = AudioSystem::INVALID_FORMAT;
 					LOGE("Invalid input format");
 					break;
 	}
@@ -220,16 +257,32 @@ ssize_t AudioStreamInOmap::read(void* buffer, ssize_t bytes)
 {
 	snd_pcm_uframes_t frames;
 	snd_pcm_sframes_t rFrames;
+	Mutex *inStream = new Mutex();
+	int ret = 0;
+
+	mAudioHardware->reconfigureHardware(AudioHardwareOmap::INPUT_STREAM);
 
 	frames = bytes / bytesPerFrame();
 
-	AutoMutex lock(mLock);
+//	AutoMutex lock(mLock);
+	inStream->lock();
 	rFrames = snd_pcm_readi(pcmHandle, buffer, frames);
+	inStream->unlock();
 	if (rFrames < 0) {
-		snd_pcm_prepare(pcmHandle);
 		LOGW("Buffer overrun");
+		ret = snd_pcm_recover(pcmHandle, rFrames, 0);
+		if (ret) {
+			LOGE("Error recovering from audio error");
+		}
 	}
-
+	if ((rFrames > 0) && ((unsigned int) rFrames < frames)) {
+		LOGW("Short read %d instead of %d frames", (int) rFrames, (int) frames);
+		ret = snd_pcm_prepare(pcmHandle);
+		if (ret) {
+			LOGE("Error recovering from audio error");
+		}
+	}
+	
 	return (ssize_t) rFrames;
 }
 

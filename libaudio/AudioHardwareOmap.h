@@ -18,14 +18,17 @@
 #define _AUDIO_HARDWARE_OMAP_H_
 
 #include <hardware/AudioHardwareInterface.h>
-
 #include <alsa/asoundlib.h>
+
+#include "AudioStreamInOmap.h"
+#include "AudioStreamOutOmap.h"
 
 using namespace android;
 
 class AudioHardwareOmap : public AudioHardwareInterface
 {
 	public:
+		enum StreamDirection {INVALID, INPUT_STREAM, OUTPUT_STREAM};
 		AudioHardwareOmap();
 		virtual ~AudioHardwareOmap();
 		virtual status_t initCheck();
@@ -38,6 +41,7 @@ class AudioHardwareOmap : public AudioHardwareInterface
 		void closeOutputStream(AudioStreamOut *out);
 		virtual AudioStreamIn* openInputStream(int format, int channelCount, uint32_t sampleRate);
 		void closeInputStream(AudioStreamIn* in);
+		status_t reconfigureHardware(int stream);
 		static AudioHardwareInterface* create();
 	protected:
 		virtual status_t doRouting();
@@ -46,8 +50,9 @@ class AudioHardwareOmap : public AudioHardwareInterface
 		uint32_t mRoutes[AudioSystem::NUM_MODES];
 	private:
 		Mutex mLock;
-		AudioStreamOut *mOutput;
-		AudioStreamIn *mInput;
+		AudioStreamInOmap *mInput;
+		AudioStreamOutOmap *mOutput;
+		int currentStream;
 		bool mMicMute;
 		/* ALSA specific */
 		char *pcmName;

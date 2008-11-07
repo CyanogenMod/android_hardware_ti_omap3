@@ -160,7 +160,6 @@ status_t AudioHardwareOmap::getMicMute(bool* state)
 	return NO_ERROR;
 }
 
-//status_t AudioHardwareOmap::setParameter(const char* key, const char* value)
 status_t AudioHardwareInterface::setParameter(const char* key, const char* value)
 {
 	return NO_ERROR;
@@ -191,6 +190,8 @@ AudioStreamOut* AudioHardwareOmap::openOutputStream(int format, int channelCount
 		LOGW("Error setting output hardware parameters");
 		delete out;
 	}
+
+	currentStream = AudioHardwareOmap::OUTPUT_STREAM;
 
 	return mOutput;
 }
@@ -230,6 +231,8 @@ AudioStreamIn* AudioHardwareOmap::openInputStream(int format, int channelCount, 
 		delete in;
 	}
 
+	currentStream = AudioHardwareOmap::INPUT_STREAM;
+
 	return mInput;
 }
 
@@ -240,6 +243,47 @@ void AudioHardwareOmap::closeInputStream(AudioStreamIn* in)
 		snd_pcm_close(pcmInHandle);
 		mInput = 0;
 	}
+}
+
+/* Configure hardware to stream in/out */
+status_t AudioHardwareOmap::reconfigureHardware(int stream)
+{
+	snd_pcm_state_t streamState;
+	int ret = 0;
+
+	if (currentStream == stream) {
+		return NO_ERROR;
+	}
+
+	if (stream == AudioHardwareOmap::INPUT_STREAM) {
+		snd_pcm_close(pcmInHandle);
+		ret = snd_pcm_open(&pcmInHandle, pcmName, SND_PCM_STREAM_CAPTURE, 0);
+		if (ret) {
+			LOGE("Error opening PCM interface");
+			return ret;
+		}
+		ret = mInput->set(this, pcmInHandle, 0, 0, 0);
+		if (ret) {
+			LOGW("Error setting input hardware parameters");
+			return ret;
+		}
+	} else if (stream == AudioHardwareOmap::OUTPUT_STREAM) {
+		snd_pcm_close(pcmOutHandle);
+		ret = snd_pcm_open(&pcmOutHandle, pcmName, SND_PCM_STREAM_PLAYBACK, 0);
+		if (ret) {
+			LOGE("Error opening PCM interface");
+			return ret;
+		}
+		ret = mOutput->set(this, pcmOutHandle, 0, 0, 0);
+		if (ret) {
+			LOGW("Error setting output hardware parameters");
+			return ret;
+		}
+	}
+
+	currentStream = stream;
+
+	return NO_ERROR;
 }
 
 /* Dump the current state of audio hardware */

@@ -20,7 +20,11 @@
 #include <hardware/AudioHardwareInterface.h>
 #include <alsa/asoundlib.h>
 
+#include "AudioHardwareOmap.h"
+
 using namespace android;
+
+class AudioHardwareOmap;
 
 class AudioStreamOutOmap : public AudioStreamOut
 {
