@@ -10,6 +10,9 @@ LOCAL_SHARED_LIBRARIES := \
        libmedia \
        libhardware
 
+LOCAL_STATIC_LIBRARIES += \
+	libaudiointerface
+
 LOCAL_SRC_FILES += \
        AudioStreamInOmap.cpp \
        AudioStreamOutOmap.cpp \

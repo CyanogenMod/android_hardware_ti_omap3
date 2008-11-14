@@ -39,11 +39,6 @@
 
 using namespace android;
 
-/* AudioStreamIn constructor */
-AudioStreamIn::~AudioStreamIn()
-{
-}
-
 /* Constructor */
 AudioStreamInOmap::AudioStreamInOmap()
 {

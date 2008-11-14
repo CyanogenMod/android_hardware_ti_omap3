@@ -39,11 +39,6 @@
 
 using namespace android;
 
-/* AudioStreamOut constructor */
-AudioStreamOut::~AudioStreamOut()
-{
-}
-
 /* Constructor */
 AudioStreamOutOmap::AudioStreamOutOmap()
 {

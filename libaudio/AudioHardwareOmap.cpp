@@ -40,15 +40,8 @@
 
 using namespace android;
 
-AudioHardwareInterface* createAudioHardware(void)
-{
-	return 0;
-}
-
-AudioHardwareInterface::AudioHardwareInterface()
-{
-	memset(&mRoutes, 0, sizeof(mRoutes));
-	mMode = 0;
+extern "C" AudioHardwareInterface* createAudioHardware(void) {
+	return new AudioHardwareOmap();
 }
 
 /* Constructor */
@@ -91,61 +84,6 @@ status_t AudioHardwareOmap::setMasterVolume(float volume)
 	return INVALID_OPERATION;
 }
 
-/* Set routes for a mode */
-status_t AudioHardwareInterface::setRouting(int mode, uint32_t routes)
-{
-	uint32_t old = 0;
-
-	if ((mode < 0) || (mode >= AudioSystem::NUM_MODES)) {
-		return BAD_VALUE;
-	}
-	if (mode == AudioSystem::MODE_CURRENT) {
-		mode = mMode;
-	}
-	old = mRoutes[mode];
-	mRoutes[mode] = routes;
-	if ((mode != mMode) || (old == routes)) {
-		return NO_ERROR;
-	}
-
-	return doRouting();
-}
-
-/* Get routes */
-status_t AudioHardwareInterface::getRouting(int mode, uint32_t* routes)
-{
-	if ((mode < 0) || (mode >= AudioSystem::NUM_MODES)) {
-		return BAD_VALUE;
-	}
-	if (mode == AudioSystem::MODE_CURRENT) {
-		mode = mMode;
-	}
-	*routes = mRoutes[mode];
-
-	return NO_ERROR;
-}
-
-/* Set mode when audio mode changes */
-status_t AudioHardwareInterface::setMode(int mode)
-{
-	if ((mode < 0) || (mode >= AudioSystem::NUM_MODES)) {
-		return BAD_VALUE;
-	}
-	if (mMode == mode) {
-		return NO_ERROR;
-	}
-	mMode = mode;
-
-	return doRouting();
-}
-
-/* Get current audio mode */
-status_t AudioHardwareInterface::getMode(int* mode)
-{
-	*mode = mMode;
-	return NO_ERROR;
-}
-
 /* Set hardware mute */
 status_t AudioHardwareOmap::setMicMute(bool state)
 {
@@ -157,11 +95,6 @@ status_t AudioHardwareOmap::setMicMute(bool state)
 status_t AudioHardwareOmap::getMicMute(bool* state)
 {
 	*state = mMicMute;
-	return NO_ERROR;
-}
-
-status_t AudioHardwareInterface::setParameter(const char* key, const char* value)
-{
 	return NO_ERROR;
 }
 
@@ -284,24 +217,6 @@ status_t AudioHardwareOmap::reconfigureHardware(int stream)
 	currentStream = stream;
 
 	return NO_ERROR;
-}
-
-/* Dump the current state of audio hardware */
-status_t AudioHardwareInterface::dumpState(int fd, const Vector<String16>& args)
-{
-	return NO_ERROR;
-}
-
-/* Create an instance of AudioHardwareOmap */
-AudioHardwareInterface* AudioHardwareInterface::create()
-{
-	AudioHardwareInterface* hw = new AudioHardwareOmap();
-	if (hw->initCheck() != NO_ERROR) {
-		LOGE("Error checking hardware initialization");
-		delete hw;
-	}
-
-	return hw;
 }
 
 status_t AudioHardwareOmap::doRouting()
