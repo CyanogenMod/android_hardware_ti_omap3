@@ -88,7 +88,7 @@ status_t AudioStreamOutOmap::set(AudioHardwareOmap *hw, snd_pcm_t *handle,
 		alsa_rate = 44100;
 
 	/* Default render buffer size */
-	alsa_buffer_size = 2048;
+	alsa_buffer_size = 16384;
 
 	ret = snd_pcm_hw_params_any(handle, hwParams);
 	if (ret) {
