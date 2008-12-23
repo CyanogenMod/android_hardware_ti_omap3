@@ -1,3 +1,6 @@
+
+ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
+
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
@@ -27,3 +30,4 @@ LOCAL_C_INCLUDES += \
 
 include $(BUILD_SHARED_LIBRARY)
 
+endif
