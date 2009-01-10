@@ -1,3 +1,4 @@
+ifdef $(HARDWARE_OMX)
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -24,4 +25,4 @@ LOCAL_MODULE:= libcamera
 LOCAL_CFLAGS += -fno-short-enums
 
 include $(BUILD_SHARED_LIBRARY)
-
+endif
