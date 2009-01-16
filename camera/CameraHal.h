@@ -33,9 +33,10 @@
 #include <utils/MemoryHeapBase.h>
 #include <utils/threads.h>
 #include <ui/CameraHardwareInterface.h>
+#if HARDWARE_OMX
 #include "SkImageEncoder_libtijpeg.h"
 #include "SkBitmap.h"
-
+#endif
 
 namespace android {
 
@@ -45,6 +46,8 @@ public:
 
     virtual status_t    startPreview(preview_callback cb, void* user);
     virtual void        stopPreview();
+    virtual bool        previewEnabled();
+
     virtual status_t    autoFocus(autofocus_callback, void *user);
     virtual status_t    takePicture(shutter_callback,
                                     raw_callback,
@@ -96,19 +99,21 @@ private:
 
     int validateSize(int w, int h);
     void* cropImage(unsigned long buffer);
-    void convertYUYVtoUYVY(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
     void convertYUYVtoYUV422SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
+#if HARDWARE_OMX
+    void convertYUYVtoUYVY(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
     sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
-    
+#endif
+
     int fcount;
     mutable Mutex       mLock;
 
     CameraParameters    mParameters;
 
     sp<MemoryHeapBase>  mHeap;
-    sp<MemoryHeapBase>  mSurfaceFlingerHeap;    
+    sp<MemoryHeapBase>  mSurfaceFlingerHeap;
     sp<MemoryBase>      mBuffers[kBufferCount];
-    sp<MemoryBase>      mSurfaceFlingerBuffer;    
+    sp<MemoryBase>      mSurfaceFlingerBuffer;
 
     bool                mPreviewRunning;
     int                 mPreviewFrameSize;

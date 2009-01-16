@@ -27,8 +27,8 @@
 #include "CameraHal.h"
 
 #define VIDEO_DEVICE        "/dev/video5"
-#define MIN_WIDTH           960 //820
-#define MIN_HEIGHT          800 //616
+#define MIN_WIDTH           208 // 960 //820
+#define MIN_HEIGHT          154 // 800 //616
 #define PIXEL_FORMAT           V4L2_PIX_FMT_YUYV
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
 
@@ -81,11 +81,11 @@ void CameraHal::initDefaultParameters()
 bool CameraHal::initHeapLocked()
 {
     LOG_FUNCTION_NAME
-        
+
     int width, height;
     int nSizeBytes;
     struct v4l2_requestbuffers creqbuf;
-    
+
     mParameters.getPreviewSize(&width, &height);
 
     LOGD("initHeapLocked: preview size=%dx%d", width, height);
@@ -93,7 +93,7 @@ bool CameraHal::initHeapLocked()
     // Note that we enforce yuv422 in setParameters().
     int how_big = width * height * 2;
     nSizeBytes =  how_big;
-    
+
     if (nSizeBytes & 0xfff)
     {
         how_big = (nSizeBytes & 0xfffff000) + 0x1000;
@@ -106,15 +106,15 @@ bool CameraHal::initHeapLocked()
 
     mPreviewFrameSize = how_big;
     LOGD("mPreviewFrameSize = 0x%x = %d", mPreviewFrameSize, mPreviewFrameSize);
-    
-    // Make a new mmap'ed heap that can be shared across processes. 
+
+    // Make a new mmap'ed heap that can be shared across processes.
     // use code below to test with pmem
     int nSurfaceFlingerHeapSize = mPreviewFrameSize;
     if (doubledPreviewWidth) nSurfaceFlingerHeapSize = nSurfaceFlingerHeapSize >> 1;
     if (doubledPreviewHeight) nSurfaceFlingerHeapSize = nSurfaceFlingerHeapSize >> 1;
     mSurfaceFlingerHeap = new MemoryHeapBase(nSurfaceFlingerHeapSize);
     mSurfaceFlingerBuffer = new MemoryBase(mSurfaceFlingerHeap, 0, nSurfaceFlingerHeapSize);
-    
+
     //Need to add 0x20 to align to 32 byte boundary later
     //Need to add 256 to align to 128 byte boundary later
     mHeap = new MemoryHeapBase((mPreviewFrameSize + 0x20 + 256)* kBufferCount);
@@ -129,13 +129,13 @@ bool CameraHal::initHeapLocked()
         /*Align buffer to 32 byte boundary */
         while ((base & 0x1f) != 0)
         {
-            base++;  
+            base++;
         }
         /* Buffer pointer shifted to avoid DSP cache issues */
         base += 128;
         offset = base - (unsigned long)mHeap->getBase();
         mBuffers[i] = new MemoryBase(mHeap, offset, mPreviewFrameSize);
-        
+
         LOGD("Buffer %d: Base = %p Offset = 0x%x", i, base, offset);
         base = base + mPreviewFrameSize + 128;
     }
@@ -145,14 +145,14 @@ bool CameraHal::initHeapLocked()
 
     creqbuf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     creqbuf.memory = V4L2_MEMORY_USERPTR;
-    creqbuf.count  = kBufferCount; 
+    creqbuf.count  = kBufferCount;
     if (ioctl(camera_device, VIDIOC_REQBUFS, &creqbuf) < 0){
         LOGE ("VIDIOC_REQBUFS Failed. errno = %d", errno);
         return false;
     }
 
 
-    /* allocate user memory, and queue each buffer */ 
+    /* allocate user memory, and queue each buffer */
     for (unsigned int i = 0; i < creqbuf.count; ++i) {
 
         struct v4l2_buffer buffer;
@@ -169,9 +169,9 @@ bool CameraHal::initHeapLocked()
         ssize_t offset;
         size_t size;
         mBuffers[i]->getMemory(&offset, &size);
-        buffer.length = mPreviewFrameSize;  
+        buffer.length = mPreviewFrameSize;
         buffer.m.userptr = (unsigned long) (mHeap->getBase()) + offset;
-            
+
         LOGD("User Buffer [%d].start = %p  length = %d\n", i, (void*)buffer.m.userptr, buffer.length);
 
 
@@ -209,21 +209,30 @@ int CameraHal::previewThread()
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
 
     if (!previewStopped){
-        
-        /* De-queue the next avaliable buffer */ 
+
+        /* De-queue the next avaliable buffer */
         while (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
             LOGE("VIDIOC_DQBUF Failed");
         }
         nDequeued++;
-        
-        LOGV("previewThread: generated frame to buffer %d", mCurrentPreviewFrame++);
 
-        croppedImage = cropImage(cfilledbuffer.m.userptr);
+        //LOGV("previewThread: generated frame to buffer %d", mCurrentPreviewFrame++);
+
         mParameters.getPreviewSize(&w, &h);
-        if (doubledPreviewWidth) w = w >> 1;
-        if (doubledPreviewHeight) h = h >> 1;
+        if (doubledPreviewWidth || doubledPreviewHeight){
+            croppedImage = cropImage(cfilledbuffer.m.userptr);
+            if (doubledPreviewWidth) w = w >> 1;
+            if (doubledPreviewHeight) h = h >> 1;
+        }
+        else {
+            croppedImage = (void*)cfilledbuffer.m.userptr;
+        }
+            
         convertYUYVtoYUV422SP((uint8_t*)croppedImage, (uint8_t *) (mSurfaceFlingerHeap->getBase()), w, h);
-        free(croppedImage);
+        if (doubledPreviewWidth || doubledPreviewHeight){
+            free(croppedImage);
+        }
+        
         // Notify the client of a new frame.
         mPreviewCallback(mSurfaceFlingerBuffer, mPreviewCallbackCookie);
 
@@ -234,14 +243,14 @@ int CameraHal::previewThread()
             nQueued++;
         }
     }
-    
+
     return NO_ERROR;
 }
 
 status_t CameraHal::startPreview(preview_callback cb, void* user)
 {
     LOG_FUNCTION_NAME
- 
+
     Mutex::Autolock lock(mLock);
     if (mPreviewThread != 0) {
         // already running
@@ -266,22 +275,22 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
         LOGE ("Failed to set VIDIOC_S_FMT.");
         return -1;
     }
-    
+
     if (!initHeapLocked()){
         LOGE("initHeapLocked failed");
         return -1;
     }
 
-    /* turn on streaming */ 
+    /* turn on streaming */
     struct v4l2_requestbuffers creqbuf;
-    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;    
+    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(camera_device, VIDIOC_STREAMON, &creqbuf.type) < 0) {
         LOGE("VIDIOC_STREAMON Failed");
         return -1;
     }
 
     previewStopped = false;
-    
+
     mPreviewCallback = cb;
     mPreviewCallbackCookie = user;
     mPreviewThread = new PreviewThread(this);
@@ -291,7 +300,7 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
 void CameraHal::stopPreview()
 {
     LOG_FUNCTION_NAME
- 
+
     sp<PreviewThread> previewThread;
     struct v4l2_requestbuffers creqbuf;
 
@@ -299,7 +308,7 @@ void CameraHal::stopPreview()
         Mutex::Autolock lock(mLock);
         previewStopped = true;
     }
-    
+
     if (mPreviewThread != 0) {
 
         struct v4l2_buffer cfilledbuffer;
@@ -310,16 +319,16 @@ void CameraHal::stopPreview()
             LOGE("Something seriously wrong. Dequeued > Queued");
 
         LOGD("No. of buffers remaining to be dequeued = %d", DQcount);
-#if 0        
+#if 0
         for (int i = 0; i < DQcount; i++){
-            /* De-queue the next avaliable buffer */ 
+            /* De-queue the next avaliable buffer */
             if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
                 LOGE("VIDIOC_DQBUF Failed");
             }
             LOGE("VIDIOC_DQBUF %d", i);
-        }    
+        }
 #endif
-        /* Turn off streaming */ 
+        /* Turn off streaming */
         creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
             LOGE("VIDIOC_STREAMOFF Failed");
@@ -329,7 +338,7 @@ void CameraHal::stopPreview()
 
         close(camera_device);
     }
-    
+
     { // scope for the lock
         Mutex::Autolock lock(mLock);
         previewThread = mPreviewThread;
@@ -344,12 +353,17 @@ void CameraHal::stopPreview()
     mPreviewThread.clear();
 }
 
+bool CameraHal::previewEnabled()
+{
+    return (!previewStopped);
+}
+
 // ---------------------------------------------------------------------------
 
 int CameraHal::beginAutoFocusThread(void *cookie)
 {
     LOG_FUNCTION_NAME
- 
+
     CameraHal *c = (CameraHal *)cookie;
     return c->autoFocusThread();
 }
@@ -363,7 +377,7 @@ int CameraHal::autoFocusThread()
         mAutoFocusCallback = NULL;
 
     LOG_FUNCTION_NAME
-        
+
         return NO_ERROR;
     }
     return UNKNOWN_ERROR;
@@ -373,7 +387,7 @@ status_t CameraHal::autoFocus(autofocus_callback af_cb,
                                        void *user)
 {
     LOG_FUNCTION_NAME
- 
+
     Mutex::Autolock lock(mLock);
 
     if (mAutoFocusCallback != NULL) {
@@ -390,7 +404,7 @@ status_t CameraHal::autoFocus(autofocus_callback af_cb,
 /*static*/ int CameraHal::beginPictureThread(void *cookie)
 {
     LOG_FUNCTION_NAME
- 
+
     CameraHal *c = (CameraHal *)cookie;
     return c->pictureThread();
 }
@@ -398,9 +412,9 @@ status_t CameraHal::autoFocus(autofocus_callback af_cb,
 int CameraHal::pictureThread()
 {
 
-    int w, h;    
+    int w, h;
     int pictureSize;
-    unsigned long base, offset;    
+    unsigned long base, offset;
     struct v4l2_buffer buffer;
     struct v4l2_format format;
     struct v4l2_buffer cfilledbuffer;
@@ -410,7 +424,7 @@ int CameraHal::pictureThread()
     sp<MemoryBase> memBase;
 
     LOG_FUNCTION_NAME
-    
+
     if (mShutterCallback)
         mShutterCallback(mPictureCallbackCookie);
 
@@ -433,10 +447,10 @@ int CameraHal::pictureThread()
         return -1;
     }
 
-    /* Check if the camera driver can accept 1 buffer */ 
+    /* Check if the camera driver can accept 1 buffer */
     creqbuf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     creqbuf.memory = V4L2_MEMORY_USERPTR;
-    creqbuf.count  = 1; 
+    creqbuf.count  = 1;
     if (ioctl(camera_device, VIDIOC_REQBUFS, &creqbuf) < 0){
         LOGE ("VIDIOC_REQBUFS Failed. errno = %d", errno);
         return -1;
@@ -449,24 +463,24 @@ int CameraHal::pictureThread()
     }
     LOGD("pictureFrameSize = 0x%x = %d", pictureSize, pictureSize);
 
-    // Make a new mmap'ed heap that can be shared across processes. 
+    // Make a new mmap'ed heap that can be shared across processes.
     mPictureHeap = new MemoryHeapBase(pictureSize + 0x20 + 256);
-    
+
     base = (unsigned long)mPictureHeap->getBase();
-    
+
     /*Align buffer to 32 byte boundary */
     while ((base & 0x1f) != 0)
     {
-        base++;  
+        base++;
     }
 
     /* Buffer pointer shifted to avoid DSP cache issues */
     base += 128;
     offset = base - (unsigned long)mPictureHeap->getBase();
     mPictureBuffer = new MemoryBase(mPictureHeap, offset, pictureSize);
-    
+
     LOGD("Picture Buffer: Base = %p Offset = 0x%x", base, offset);
-    
+
     buffer.type = creqbuf.type;
     buffer.memory = creqbuf.memory;
     buffer.index = 0;
@@ -478,14 +492,14 @@ int CameraHal::pictureThread()
 
     buffer.length = pictureSize;
     buffer.m.userptr = (unsigned long) (mPictureHeap->getBase()) + offset;
-            
+
     if (ioctl(camera_device, VIDIOC_QBUF, &buffer) < 0) {
         LOGE("CAMERA VIDIOC_QBUF Failed");
         return -1;
     }
 
-    /* turn on streaming */ 
-    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;    
+    /* turn on streaming */
+    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(camera_device, VIDIOC_STREAMON, &creqbuf.type) < 0) {
         LOGE("VIDIOC_STREAMON Failed");
         return -1;
@@ -493,7 +507,7 @@ int CameraHal::pictureThread()
 
     LOGD("De-queue the next avaliable buffer");
 
-    /* De-queue the next avaliable buffer */ 
+    /* De-queue the next avaliable buffer */
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     while (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
@@ -502,15 +516,15 @@ int CameraHal::pictureThread()
 
     LOGD("pictureThread: generated a picture");
 
-    /* turn off streaming */ 
-    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;    
+    /* turn off streaming */
+    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) < 0) {
         LOGE("VIDIOC_STREAMON Failed");
         return -1;
     }
 
     close(camera_device);
-    
+
     if (mRawPictureCallback) {
         sp<MemoryHeapBase> mYUV422SPPictureHeap = new MemoryHeapBase(cfilledbuffer.length + 256);
         memBase = new MemoryBase(mYUV422SPPictureHeap, 128, cfilledbuffer.length);
@@ -521,6 +535,8 @@ int CameraHal::pictureThread()
 
 
     if (mJpegPictureCallback) {
+
+#if HARDWARE_OMX
 
         void *yuv422buffer = malloc(cfilledbuffer.length + 256);
         yuv422buffer = (void *)((unsigned long)yuv422buffer + 128);
@@ -533,17 +549,14 @@ int CameraHal::pictureThread()
 
         mJpegPictureCallback(jpegMemBase, mPictureCallbackCookie);
 
-
 /*
-
-
-
-
-
-        
         sp<MemoryBase> jpegMemBase = encodeImage((void*)(cfilledbuffer.m.userptr), cfilledbuffer.length);
         mJpegPictureCallback(jpegMemBase, mPictureCallbackCookie);
-*/        
+*/
+#else
+        mJpegPictureCallback(mPictureBuffer, mPictureCallbackCookie);
+#endif
+
     }
 
     return NO_ERROR;
@@ -555,7 +568,7 @@ status_t CameraHal::takePicture(shutter_callback shutter_cb,
                                          void* user)
 {
     LOG_FUNCTION_NAME
- 
+
     stopPreview();
     mShutterCallback = shutter_cb;
     mRawPictureCallback = raw_cb;
@@ -565,7 +578,7 @@ status_t CameraHal::takePicture(shutter_callback shutter_cb,
     //##############################TODO use  thread
     //##############################TODO use  thread
     //##############################TODO use  thread
-    //##############################TODO use  thread    
+    //##############################TODO use  thread
 /*if (createThread(beginPictureThread, this) == false)
         return -1;
 */
@@ -579,7 +592,7 @@ status_t CameraHal::cancelPicture(bool cancel_shutter,
                                            bool cancel_jpeg)
 {
     LOG_FUNCTION_NAME
- 
+
     if (cancel_shutter) mShutterCallback = NULL;
     if (cancel_raw) mRawPictureCallback = NULL;
     if (cancel_jpeg) mJpegPictureCallback = NULL;
@@ -617,10 +630,10 @@ int CameraHal::validateSize(int w, int h)
 status_t CameraHal::setParameters(const CameraParameters& params)
 {
     LOG_FUNCTION_NAME
- 
+
     int w, h;
     int framerate;
-    
+
     Mutex::Autolock lock(mLock);
 
     if (strcmp(params.getPreviewFormat(), "yuv422sp") != 0) {
@@ -647,12 +660,12 @@ status_t CameraHal::setParameters(const CameraParameters& params)
 
     framerate = params.getPreviewFrameRate();
     // validate framerate
-    
+
     mParameters = params;
 
     mParameters.getPreviewSize(&w, &h);
     doubledPreviewWidth = false;
-    doubledPreviewHeight = false;    
+    doubledPreviewHeight = false;
     if (w < MIN_WIDTH){
         w = w << 1;
         doubledPreviewWidth = true;
@@ -661,7 +674,7 @@ status_t CameraHal::setParameters(const CameraParameters& params)
     if (h < MIN_HEIGHT){
         h= h << 1;
         doubledPreviewHeight = true;
-        LOGE("Double Preview Height");        
+        LOGE("Double Preview Height");
     }
     mParameters.setPreviewSize(w, h);
 
@@ -687,13 +700,13 @@ CameraParameters CameraHal::getParameters() const
         h= h >> 1;
     }
     params.setPreviewSize(w, h);
-    return params;    
+    return params;
 }
 
 void CameraHal::release()
 {
     LOG_FUNCTION_NAME
- 
+
     close(camera_device);
 }
 
@@ -701,16 +714,16 @@ void CameraHal::release()
 sp<CameraHardwareInterface> CameraHal::createInstance()
 {
     LOG_FUNCTION_NAME
- 
+
     if (singleton != 0) {
         sp<CameraHardwareInterface> hardware = singleton.promote();
         if (hardware != 0) {
             return hardware;
         }
     }
-    
+
     sp<CameraHardwareInterface> hardware(new CameraHal());
-    
+
     singleton = hardware;
     return hardware;
 }
@@ -718,7 +731,7 @@ sp<CameraHardwareInterface> CameraHal::createInstance()
 
 void* CameraHal::cropImage(unsigned long buffer)
 {
-    void *croppedImage;    
+    void *croppedImage;
     int w, h, w2, h2, src, dest, src_incr, dest_incr, count;
 
     mParameters.getPreviewSize(&w2, &h2);
@@ -738,18 +751,6 @@ void* CameraHal::cropImage(unsigned long buffer)
     return croppedImage;
 }
 
-void CameraHal::convertYUYVtoUYVY(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height)
-{
-    int buffSize;
-    buffSize = width * height * 2;
-
-    for(int i = 0; i < buffSize; i+=2)
-    {
-        outputBuffer[i] = inputBuffer[i+1]; 
-        outputBuffer[i+1] = inputBuffer[i];
-    }
-}
-
 void CameraHal::convertYUYVtoYUV422SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height)
 {
     int buffSize;
@@ -760,7 +761,7 @@ void CameraHal::convertYUYVtoYUV422SP(uint8_t *inputBuffer, uint8_t *outputBuffe
     y = 0;
     u = buffSize >> 1;
     v = u + (u >> 1);
-    
+
     for(i = 0; i < buffSize; i+=4)
     {
         outputBuffer[y] = inputBuffer[i+0]; y++;
@@ -770,33 +771,47 @@ void CameraHal::convertYUYVtoYUV422SP(uint8_t *inputBuffer, uint8_t *outputBuffe
     }
 }
 
+#if HARDWARE_OMX
+
+void CameraHal::convertYUYVtoUYVY(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height)
+{
+    int buffSize;
+    buffSize = width * height * 2;
+
+    for(int i = 0; i < buffSize; i+=2)
+    {
+        outputBuffer[i] = inputBuffer[i+1];
+        outputBuffer[i+1] = inputBuffer[i];
+    }
+}
+
 
 sp<MemoryBase> CameraHal::encodeImage(void *buffer, uint32_t bufflen)
 {
     int w, h, size;
     SkTIJPEGImageEncoder encoder;
-    
+
     LOG_FUNCTION_NAME
     mParameters.getPictureSize(&w, &h);
     size =  w * h;
-    
-    // Make a new mmap'ed heap that can be shared across processes. 
+
+    // Make a new mmap'ed heap that can be shared across processes.
     sp<MemoryHeapBase> mJpegImageHeap = new MemoryHeapBase(size + 256);
-    // Make an IMemory for each frame 
+    // Make an IMemory for each frame
     sp<MemoryBase>mJpegBuffer = new MemoryBase(mJpegImageHeap, 128, size);
     void *outBuffer = (OMX_U8 *)((unsigned long)(mJpegImageHeap->getBase()) + 128);
 
     encoder.encodeImage(outBuffer, size, buffer, bufflen, w, h, 100);
-    
+
     return mJpegBuffer;
 }
 
-
+#endif
 
 extern "C" sp<CameraHardwareInterface> openCameraHardware()
 {
     LOG_FUNCTION_NAME
- 
+
     return CameraHal::createInstance();
 }
 
