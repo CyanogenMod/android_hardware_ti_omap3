@@ -14,7 +14,7 @@ LOCAL_SHARED_LIBRARIES:= \
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/ui
 
-ifdef $(HARDWARE_OMX)
+ifdef HARDWARE_OMX
 
 LOCAL_C_INCLUDES += \
 	external/skia/libsgl/images \
