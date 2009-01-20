@@ -17,7 +17,7 @@
 #ifndef _AUDIO_STREAM_OUT_OMAP_H_
 #define _AUDIO_STREAM_OUT_OMAP_H_
 
-#include <hardware/AudioHardwareInterface.h>
+#include <hardware_legacy/AudioHardwareInterface.h>
 #include <alsa/asoundlib.h>
 
 #include "AudioHardwareOmap.h"

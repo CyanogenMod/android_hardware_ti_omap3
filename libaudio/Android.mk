@@ -11,7 +11,7 @@ LOCAL_SHARED_LIBRARIES := \
        libcutils \
        libutils \
        libmedia \
-       libhardware
+       libhardware_legacy
 
 LOCAL_STATIC_LIBRARIES += \
 	libaudiointerface
