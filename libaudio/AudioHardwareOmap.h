@@ -32,16 +32,22 @@ class AudioHardwareOmap : public AudioHardwareInterface
 		AudioHardwareOmap();
 		virtual ~AudioHardwareOmap();
 		virtual status_t initCheck();
-		virtual status_t standby();
+		virtual status_t setRouting(int mode, uint32_t routes);
+		virtual status_t getRouting(int mode, uint32_t* routes);
+		virtual status_t setMode(int mode);
+		virtual status_t getMode(int* mode);
+		virtual status_t setParameter(const char* key, const char* value);
+		virtual size_t getInputBufferSize(uint32_t sampleRate, int format, int channelCount);
 		virtual status_t setVoiceVolume(float volume);
 		virtual status_t setMasterVolume(float volume);
 		virtual status_t setMicMute(bool state);
 		virtual status_t getMicMute(bool* state);
-		virtual AudioStreamOut* openOutputStream(int format, int channelCount, uint32_t sampleRate);
+		virtual AudioStreamOut* openOutputStream(int format=0, int channelCount=0, uint32_t sampleRate=0, status_t *status=0);
 		void closeOutputStream(AudioStreamOut *out);
-		virtual AudioStreamIn* openInputStream(int format, int channelCount, uint32_t sampleRate);
+		virtual AudioStreamIn* openInputStream(int format, int channelCount, uint32_t sampleRate, status_t *status);
 		void closeInputStream(AudioStreamIn* in);
 		status_t reconfigureHardware(int stream);
+		virtual status_t dumpState(int fd, const Vector<String16>& args);
 		static AudioHardwareInterface* create();
 	protected:
 		virtual status_t doRouting();

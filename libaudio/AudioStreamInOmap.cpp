@@ -287,4 +287,9 @@ status_t AudioStreamInOmap::dump(int fd, const Vector<String16>& args)
 	return NO_ERROR;
 }
 
+status_t AudioStreamInOmap::standby()
+{
+	return NO_ERROR;
+}
+
 #endif

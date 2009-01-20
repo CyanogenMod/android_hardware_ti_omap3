@@ -66,10 +66,36 @@ status_t AudioHardwareOmap::initCheck()
 	return NO_ERROR;
 }
 
-/* Put the audio hardware into standby mode to conserve power */
-status_t AudioHardwareOmap::standby()
+status_t AudioHardwareOmap::setRouting(int mode, uint32_t routes)
 {
 	return NO_ERROR;
+}
+
+status_t AudioHardwareOmap::getRouting(int mode, uint32_t* routes)
+{
+	return NO_ERROR;
+}
+
+status_t AudioHardwareOmap::setMode(int mode)
+{
+	return NO_ERROR;
+}
+
+status_t AudioHardwareOmap::getMode(int* mode)
+{
+	return NO_ERROR;
+}
+
+status_t AudioHardwareOmap::setParameter(const char* key, const char* value)
+{
+	return NO_ERROR;
+}
+
+size_t AudioHardwareOmap::getInputBufferSize(uint32_t sampleRate, int format, int channelCount)
+{
+        /* Default capture buffer size */
+	/* FIXME: Change to avoid a hardcoded value */
+	return 1024;
 }
 
 /* Set audio volume for a voice call */
@@ -99,9 +125,10 @@ status_t AudioHardwareOmap::getMicMute(bool* state)
 }
 
 /* Create and open audio hardware output stream */
-AudioStreamOut* AudioHardwareOmap::openOutputStream(int format, int channelCount, uint32_t sampleRate)
+AudioStreamOut* AudioHardwareOmap::openOutputStream(int format, int channelCount, uint32_t sampleRate, status_t *status)
 {
 	int ret = 0;
+	*status = 0;
 
 	AutoMutex lock(mLock);
 	/* only one output stream allowed */
@@ -139,9 +166,10 @@ void AudioHardwareOmap::closeOutputStream(AudioStreamOut *out)
 }
 
 /* Create and open audio hardware input stream */
-AudioStreamIn* AudioHardwareOmap::openInputStream(int format, int channelCount, uint32_t sampleRate)
+AudioStreamIn* AudioHardwareOmap::openInputStream(int format, int channelCount, uint32_t sampleRate, status_t *status)
 {
 	int ret = 0;
+	*status = 0;
 
 	AutoMutex lock(mLock);
 	/* only one output stream allowed */
@@ -216,6 +244,11 @@ status_t AudioHardwareOmap::reconfigureHardware(int stream)
 
 	currentStream = stream;
 
+	return NO_ERROR;
+}
+
+status_t AudioHardwareOmap::dumpState(int fd, const Vector<String16>& args)
+{
 	return NO_ERROR;
 }
 

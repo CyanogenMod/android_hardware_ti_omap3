@@ -42,6 +42,7 @@ class AudioStreamOutOmap : public AudioStreamOut
 		virtual status_t setVolume(float volume);
 		virtual ssize_t write(const void* buffer, size_t bytes);
 		virtual status_t dump(int fd, const Vector<String16>& args);
+		virtual status_t standby();
 	private:
 		AudioHardwareOmap *mAudioHardware;
 		snd_pcm_hw_params_t *hwParams;

@@ -41,6 +41,7 @@ class AudioStreamInOmap : public AudioStreamIn
 		virtual status_t setGain(float gain);
 		virtual ssize_t read(void* buffer, ssize_t bytes);
 		virtual status_t dump(int fd, const Vector<String16>& args);
+		virtual status_t standby();
 	private:
 		AudioHardwareOmap *mAudioHardware;
 		snd_pcm_hw_params_t *hwParams;
