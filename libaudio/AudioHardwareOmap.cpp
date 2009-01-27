@@ -40,7 +40,8 @@
 
 using namespace android;
 
-extern "C" AudioHardwareInterface* createAudioHardware(void) {
+extern "C" AudioHardwareInterface* createAudioHardware(void)
+{
 	return new AudioHardwareOmap();
 }
 
@@ -50,7 +51,6 @@ AudioHardwareOmap::AudioHardwareOmap()
 	mInput = 0;
 	mOutput = 0;
 	mMicMute = false;
-	pcmName = strdup("default");
 }
 
 /* Destructor */
@@ -132,37 +132,19 @@ AudioStreamOut* AudioHardwareOmap::openOutputStream(int format, int channelCount
 
 	AutoMutex lock(mLock);
 	/* only one output stream allowed */
-	if (mOutput) {
+       if (mOutput)
 		return 0;
-	}
-
-	ret = snd_pcm_open(&pcmOutHandle, pcmName, SND_PCM_STREAM_PLAYBACK, 0);
-	if (ret) {
-		LOGE("Error opening PCM interface");
-		return mOutput;
-	}
 
 	/* Create new output stream */
 	AudioStreamOutOmap* out = new AudioStreamOutOmap();
-	if (out->set(this, pcmOutHandle, format, channelCount, sampleRate) == NO_ERROR) {
+       if (out->set(format, channelCount, sampleRate, 16384 * 4) == NO_ERROR) {
 		mOutput = out;
 	} else {
 		LOGW("Error setting output hardware parameters");
 		delete out;
 	}
 
-	currentStream = AudioHardwareOmap::OUTPUT_STREAM;
-
 	return mOutput;
-}
-
-/* Close output stream */
-void AudioHardwareOmap::closeOutputStream(AudioStreamOut *out)
-{
-	if (out == mOutput) {
-		snd_pcm_close(pcmOutHandle);
-		mOutput = 0;
-	}
 }
 
 /* Create and open audio hardware input stream */
@@ -173,78 +155,19 @@ AudioStreamIn* AudioHardwareOmap::openInputStream(int format, int channelCount, 
 
 	AutoMutex lock(mLock);
 	/* only one output stream allowed */
-	if (mInput) {
+       if (mInput)
 		return 0;
-	}
-
-	ret = snd_pcm_open(&pcmInHandle, pcmName, SND_PCM_STREAM_CAPTURE, 0);
-	if (ret) {
-		LOGE("Error opening input stream");
-		return mInput;
-	}
 
 	/* Create new output stream */
 	AudioStreamInOmap* in = new AudioStreamInOmap();
-	if (in->set(this, pcmInHandle, format, channelCount, sampleRate) == NO_ERROR) {
+       if (in->set(format, channelCount, sampleRate, 16384 * 2) == NO_ERROR) {
 		mInput = in;
 	} else {
 		LOGW("Error setting input hardware parameters");
 		delete in;
 	}
 
-	currentStream = AudioHardwareOmap::INPUT_STREAM;
-
 	return mInput;
-}
-
-/* Close input stream */
-void AudioHardwareOmap::closeInputStream(AudioStreamIn* in)
-{
-	if (in == mInput) {
-		snd_pcm_close(pcmInHandle);
-		mInput = 0;
-	}
-}
-
-/* Configure hardware to stream in/out */
-status_t AudioHardwareOmap::reconfigureHardware(int stream)
-{
-	snd_pcm_state_t streamState;
-	int ret = 0;
-
-	if (currentStream == stream) {
-		return NO_ERROR;
-	}
-
-	if (stream == AudioHardwareOmap::INPUT_STREAM) {
-		snd_pcm_close(pcmInHandle);
-		ret = snd_pcm_open(&pcmInHandle, pcmName, SND_PCM_STREAM_CAPTURE, 0);
-		if (ret) {
-			LOGE("Error opening PCM interface");
-			return ret;
-		}
-		ret = mInput->set(this, pcmInHandle, 0, 0, 0);
-		if (ret) {
-			LOGW("Error setting input hardware parameters");
-			return ret;
-		}
-	} else if (stream == AudioHardwareOmap::OUTPUT_STREAM) {
-		snd_pcm_close(pcmOutHandle);
-		ret = snd_pcm_open(&pcmOutHandle, pcmName, SND_PCM_STREAM_PLAYBACK, 0);
-		if (ret) {
-			LOGE("Error opening PCM interface");
-			return ret;
-		}
-		ret = mOutput->set(this, pcmOutHandle, 0, 0, 0);
-		if (ret) {
-			LOGW("Error setting output hardware parameters");
-			return ret;
-		}
-	}
-
-	currentStream = stream;
-
-	return NO_ERROR;
 }
 
 status_t AudioHardwareOmap::dumpState(int fd, const Vector<String16>& args)

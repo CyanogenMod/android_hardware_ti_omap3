@@ -25,12 +25,13 @@
 
 using namespace android;
 
+
+
 class AudioHardwareOmap : public AudioHardwareInterface
 {
 	public:
-		enum StreamDirection {INVALID, INPUT_STREAM, OUTPUT_STREAM};
 		AudioHardwareOmap();
-		virtual ~AudioHardwareOmap();
+               ~AudioHardwareOmap();
 		virtual status_t initCheck();
 		virtual status_t setRouting(int mode, uint32_t routes);
 		virtual status_t getRouting(int mode, uint32_t* routes);
@@ -43,10 +44,7 @@ class AudioHardwareOmap : public AudioHardwareInterface
 		virtual status_t setMicMute(bool state);
 		virtual status_t getMicMute(bool* state);
 		virtual AudioStreamOut* openOutputStream(int format=0, int channelCount=0, uint32_t sampleRate=0, status_t *status=0);
-		void closeOutputStream(AudioStreamOut *out);
 		virtual AudioStreamIn* openInputStream(int format, int channelCount, uint32_t sampleRate, status_t *status);
-		void closeInputStream(AudioStreamIn* in);
-		status_t reconfigureHardware(int stream);
 		virtual status_t dumpState(int fd, const Vector<String16>& args);
 		static AudioHardwareInterface* create();
 	protected:
@@ -58,12 +56,7 @@ class AudioHardwareOmap : public AudioHardwareInterface
 		Mutex mLock;
 		AudioStreamInOmap *mInput;
 		AudioStreamOutOmap *mOutput;
-		int currentStream;
 		bool mMicMute;
-		/* ALSA specific */
-		char *pcmName;
-		snd_pcm_t *pcmInHandle;
-		snd_pcm_t *pcmOutHandle;
 };
 
 #endif

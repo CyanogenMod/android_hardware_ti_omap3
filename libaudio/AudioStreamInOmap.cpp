@@ -34,7 +34,7 @@
 #include <hardware_legacy/AudioHardwareInterface.h>
 #include <alsa/asoundlib.h>
 
-#include "AudioHardwareOmap.h"
+#include "AudioStreamOmap.h"
 #include "AudioStreamInOmap.h"
 
 using namespace android;
@@ -42,53 +42,36 @@ using namespace android;
 /* Constructor */
 AudioStreamInOmap::AudioStreamInOmap()
 {
-	int ret = 0;
-
-	mAudioHardware = 0;
-	ret = snd_pcm_hw_params_malloc(&hwParams);
-	if (ret) {
-		LOGE("Error allocating hardware params");
-	}
+       streaming = false;
 }
 
 /* Destructor */
 AudioStreamInOmap::~AudioStreamInOmap()
 {
-	if (mAudioHardware) {
-		mAudioHardware->closeInputStream(this);
-	}
+       /* If stream is not already closed */
+       closeStream();
 }
 
-/* Set properties */
-status_t AudioStreamInOmap::set(AudioHardwareOmap *hw, snd_pcm_t *handle,
-				int format, int channels, uint32_t rate)
+status_t AudioStreamInOmap::openStream()
 {
-	snd_pcm_format_t alsa_format;
-	unsigned int alsa_channels = channels;
-	unsigned int alsa_rate = rate;
-	snd_pcm_uframes_t  alsa_buffer_size;
+       snd_pcm_t *handle;
+       snd_pcm_hw_params_t *hwParams;
+       char *pcmName;
 	int ret = 0;
 
-	if (format == AudioSystem::PCM_8_BIT)
-		alsa_format = SND_PCM_FORMAT_S8;
-	else if (format == AudioSystem::PCM_16_BIT)
-		alsa_format = SND_PCM_FORMAT_S16_LE;
-	else if (format == 0)
-		alsa_format = SND_PCM_FORMAT_S16_LE;
-	/* If not specified */
-	else
-		alsa_format = SND_PCM_FORMAT_UNKNOWN;
+       pcmName = strdup("default");
 
-	/* If not specified */
-	if (channels == 0)
-		alsa_channels = 1;
+       ret = snd_pcm_hw_params_malloc(&hwParams);
+       if (ret) {
+               LOGE("Error allocating hardware params");
+               return BAD_VALUE;
+       }
 
-	/* If not specified */
-	if (rate == 0)
-		alsa_rate = 8000;
-
-	/* Default capture buffer size */
-	alsa_buffer_size = 1024;
+       ret = snd_pcm_open(&handle, pcmName, SND_PCM_STREAM_CAPTURE, 0);
+       if (ret) {
+               LOGE("Error opening PCM interface");
+               return BAD_VALUE;
+       }
 
 	ret = snd_pcm_hw_params_any(handle, hwParams);
 	if (ret) {
@@ -101,26 +84,26 @@ status_t AudioStreamInOmap::set(AudioHardwareOmap *hw, snd_pcm_t *handle,
 		LOGE("Error setting input access type");
 		return BAD_VALUE;
 	}
-	
-	ret = snd_pcm_hw_params_set_format(handle, hwParams, alsa_format);
+
+       ret = snd_pcm_hw_params_set_format(handle, hwParams, properties.format);
 	if (ret) {
 		LOGE("Error setting input format");
 		return BAD_VALUE;
 	}
-	
-	ret = snd_pcm_hw_params_set_rate(handle, hwParams, alsa_rate, 0);
-	if (ret) {
-		LOGE("Error setting input sample rate %d", alsa_rate);
-		return BAD_VALUE;
-	} 
 
-	ret = snd_pcm_hw_params_set_channels(handle, hwParams, alsa_channels);
+       ret = snd_pcm_hw_params_set_rate(handle, hwParams, properties.rate, 0);
+	if (ret) {
+               LOGE("Error setting input sample rate %d", properties.rate);
+		return BAD_VALUE;
+       }
+
+       ret = snd_pcm_hw_params_set_channels(handle, hwParams, properties.channels);
 	if (ret) {
 		LOGE("Error setting number of input channels");
 		return BAD_VALUE;
 	}
-	
-	ret = snd_pcm_hw_params_set_buffer_size(handle, hwParams, alsa_buffer_size);
+
+       ret = snd_pcm_hw_params_set_buffer_size(handle, hwParams, properties.buffer_size);
 	if (ret) {
 		LOGE("Error setting buffer size");
 		return BAD_VALUE;
@@ -131,9 +114,47 @@ status_t AudioStreamInOmap::set(AudioHardwareOmap *hw, snd_pcm_t *handle,
 		LOGE("Error applying parameters to PCM device");
 		return BAD_VALUE;
 	}
-		
-	mAudioHardware = hw;
+
 	pcmHandle = handle;
+       streaming = true;
+
+       return NO_ERROR;
+}
+
+status_t AudioStreamInOmap::closeStream()
+{
+       if (pcmHandle)
+               snd_pcm_close(pcmHandle);
+
+       streaming = false;
+
+       return NO_ERROR;
+}
+
+/* Set properties */
+status_t AudioStreamInOmap::set(int format, int channels, uint32_t rate, int buffer_size)
+{
+       if (format == AudioSystem::PCM_8_BIT)
+               properties.format = SND_PCM_FORMAT_S8;
+       else if (format == AudioSystem::PCM_16_BIT)
+               properties.format = SND_PCM_FORMAT_S16_LE;
+       else if (format == 0)   /* If not specified */
+               properties.format = SND_PCM_FORMAT_S16_LE;
+       else
+               properties.format = SND_PCM_FORMAT_UNKNOWN;
+
+       if (channels > 0)
+               properties.channels = channels;
+       else                    /* If not specified */
+               properties.channels = 1;
+
+       if (rate > 0)
+               properties.rate = rate;
+       else                    /* If not specified */
+               properties.rate = 8000;
+
+       /* Convert buffer size from bytes to frames */
+       properties.buffer_size = buffer_size / bytesPerFrame();
 
 	return NO_ERROR;
 }
@@ -141,17 +162,9 @@ status_t AudioStreamInOmap::set(AudioHardwareOmap *hw, snd_pcm_t *handle,
 /* Get number of bytes per frame */
 int AudioStreamInOmap::bytesPerFrame() const
 {
-	snd_pcm_format_t format;
 	int bytesPerFrame = 0;
-	int ret = 0;
 
-	ret = snd_pcm_hw_params_get_format(hwParams, &format);
-	if (ret) {
-		LOGE("Error getting input format");
-		return 0;
-	}
-
-	switch(format) {
+       switch(properties.format) {
 	case SND_PCM_FORMAT_S8:		bytesPerFrame = 1;
 					break;
 	case SND_PCM_FORMAT_S16_LE:	bytesPerFrame = 2;
@@ -169,66 +182,27 @@ int AudioStreamInOmap::bytesPerFrame() const
 /* Get sample rate */
 uint32_t AudioStreamInOmap::sampleRate() const
 {
-	unsigned int val = 0;
-	int dir = 0;
-	int ret = 0;
-
-	ret = snd_pcm_hw_params_get_rate(hwParams, &val, &dir);
-	if (ret) {
-		LOGE("Error getting input sample rate");
-		return 0;
-	}
-
-	return val;
+       return properties.rate;
 }
 
 /* Get buffer size */
 size_t AudioStreamInOmap::bufferSize() const
 {
-	snd_pcm_uframes_t val;
-	size_t bufferSize = 0;
-	int ret = 0;
-
-	ret = snd_pcm_hw_params_get_buffer_size(hwParams, &val);
-	if (ret) {
-		LOGE("Error getting input buffer size");
-		return 0;
-	}
-
-	bufferSize = val * bytesPerFrame();
-
-	return bufferSize;
+       return properties.buffer_size * bytesPerFrame();
 }
 
 /* Get number of channels */
 int AudioStreamInOmap::channelCount() const
 {
-	unsigned int val = 0;
-	int ret = 0;
-
-	ret = snd_pcm_hw_params_get_channels(hwParams, &val);
-	if (ret) {
-		LOGE("Error getting number of input channels");
-		return 0;
-	}
-
-	return val;
+       return properties.channels;
 }
 
 /* Get pcm format */
 int AudioStreamInOmap::format() const
 {
-	snd_pcm_format_t format;
 	int inFormat;
-	int ret = 0;
 
-	ret = snd_pcm_hw_params_get_format(hwParams, &format);
-	if (ret) {
-		LOGE("Error getting input format");
-		return 0;
-	}
-
-	switch(format) {
+       switch(properties.format) {
 	case SND_PCM_FORMAT_S8:		inFormat = AudioSystem::PCM_8_BIT;
 					break;
 	case SND_PCM_FORMAT_S16_LE:	inFormat = AudioSystem::PCM_16_BIT;
@@ -252,17 +226,16 @@ ssize_t AudioStreamInOmap::read(void* buffer, ssize_t bytes)
 {
 	snd_pcm_uframes_t frames;
 	snd_pcm_sframes_t rFrames;
-	Mutex *inStream = new Mutex();
 	int ret = 0;
-
-	mAudioHardware->reconfigureHardware(AudioHardwareOmap::INPUT_STREAM);
 
 	frames = bytes / bytesPerFrame();
 
-//	AutoMutex lock(mLock);
-	inStream->lock();
+       if (!streaming)
+               if  (openStream() != NO_ERROR)
+                       return 0;
+
+       AutoMutex lock(mLock);
 	rFrames = snd_pcm_readi(pcmHandle, buffer, frames);
-	inStream->unlock();
 	if (rFrames < 0) {
 		LOGW("Buffer overrun");
 		ret = snd_pcm_recover(pcmHandle, rFrames, 0);
@@ -289,6 +262,13 @@ status_t AudioStreamInOmap::dump(int fd, const Vector<String16>& args)
 
 status_t AudioStreamInOmap::standby()
 {
+       AutoMutex lock(mLock);
+
+       if(pcmHandle) {
+               snd_pcm_drain(pcmHandle);
+               closeStream();
+       }
+
 	return NO_ERROR;
 }
 

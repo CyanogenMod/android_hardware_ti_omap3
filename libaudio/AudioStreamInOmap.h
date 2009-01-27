@@ -19,21 +19,16 @@
 
 #include <hardware_legacy/AudioHardwareInterface.h>
 #include <alsa/asoundlib.h>
-
-#include "AudioHardwareOmap.h"
+#include "AudioStreamOmap.h"
 
 using namespace android;
-
-class AudioHardwareOmap;
 
 class AudioStreamInOmap : public AudioStreamIn
 {
 	public:
 		AudioStreamInOmap();
-		virtual  ~AudioStreamInOmap();
-		virtual status_t set(AudioHardwareOmap *hw, snd_pcm_t *handle,
-					int format, int channels, uint32_t rate);
-		int bytesPerFrame() const;
+               ~AudioStreamInOmap();
+               status_t set(int format, int channels, uint32_t rate, int buffer_size);
 		uint32_t sampleRate() const;
 		virtual size_t bufferSize() const;
 		virtual int channelCount() const;
@@ -43,8 +38,12 @@ class AudioStreamInOmap : public AudioStreamIn
 		virtual status_t dump(int fd, const Vector<String16>& args);
 		virtual status_t standby();
 	private:
-		AudioHardwareOmap *mAudioHardware;
-		snd_pcm_hw_params_t *hwParams;
+               status_t openStream();
+               status_t closeStream();
+               int bytesPerFrame() const;
+
+               bool streaming;
+               struct StreamProperties properties;
 		snd_pcm_t *pcmHandle;
 		Mutex mLock;
 };
