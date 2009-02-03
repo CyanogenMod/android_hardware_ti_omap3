@@ -29,6 +29,8 @@
 #define VIDEO_DEVICE        "/dev/video5"
 #define MIN_WIDTH           208 // 960 //820
 #define MIN_HEIGHT          154 // 800 //616
+#define PICTURE_WIDTH   3280 //8mp
+#define PICTURE_HEIGHT  2464 //8mp
 #define PIXEL_FORMAT           V4L2_PIX_FMT_YUYV
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
 
@@ -69,7 +71,7 @@ void CameraHal::initDefaultParameters()
     p.setPreviewFrameRate(15);
     p.setPreviewFormat("yuv422sp");
 
-    p.setPictureSize(MIN_WIDTH, MIN_HEIGHT);
+    p.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
     p.setPictureFormat("jpeg");
 
     if (setParameters(p) != NO_ERROR) {

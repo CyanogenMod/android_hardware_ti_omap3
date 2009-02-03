@@ -17,8 +17,8 @@ LOCAL_C_INCLUDES += \
 ifdef HARDWARE_OMX
 
 LOCAL_C_INCLUDES += \
-	external/skia/libsgl/images \
-	external/skia/include/corecg \
+	external/skia/include/images \
+	external/skia/include/core \
 	external/skia/include/graphics \
 	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
 	hardware/ti/omx/image/src/openmax_il/jpeg_enc/inc \
