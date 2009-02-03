@@ -31,8 +31,6 @@
 #endif
 
 /* If compiled with the MUX_ANDROID flag this mux will be enabled to run under Android */
-/* If compiled with the MUXLOG and not MUX_ANDROID flag all logs will be captured a file */
-
 
 /**************************/
 /* INCLUDES                          */
@@ -63,45 +61,51 @@
 /**************************/
 /* DEFINES                            */
 /**************************/
-/*Logging*/
+/*Logging*/\
 #ifndef MUX_ANDROID
-  #include <syslog.h>
-  //#define LOG(lvl, f, ...) do{if(lvl<=syslog_level)syslog(lvl,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
-  #ifdef MUXLOG //will enable logging to file
-  static FILE * mylogfile;
-  #define LOGMUXD(f, ...) do{ fprintf(mylogfile,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);fflush(mylogfile);}while(0)
-  #define LOGMUXE(f, ...) do{ fprintf(mylogfile,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);fflush(mylogfile);}while(0)
-  #define LOGMUXW(f, ...) do{ fprintf(mylogfile,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);fflush(mylogfile);}while(0)
-  #define LOGMUXI(f, ...) do{ fprintf(mylogfile,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);fflush(mylogfile);}while(0)
-  #else //will enable logging to stderr
-  #define LOGMUXD(f, ...) do{ fprintf(stderr,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
-  #define LOGMUXE(f, ...) do{ fprintf(stderr,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
-  #define LOGMUXW(f, ...) do{ fprintf(stderr,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
-  #define LOGMUXI(f, ...) do{ fprintf(stderr,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
-  #endif
+#include <syslog.h>
+//  #define LOG(lvl, f, ...) do{if(lvl<=syslog_level)syslog(lvl,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
+#define LOGMUX(lvl,f,...) do{if(lvl<=syslog_level){\
+								if (logtofile){\
+								  fprintf(muxlogfile,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);\
+								  fflush(muxlogfile);}\
+								else\
+								  fprintf(stderr,"%s:%d:%s(): " f "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);\
+								}\
+							}while(0)
 #else //will enable logging using android logging framework (not to file)
-  #define LOG_TAG "MUXD"
-  #include <utils/Log.h> //all LOGD, LOGE, LOGW macros are defined here
-  #define LOGMUXD(f, ...) do{ LOGD("%s:%d:%s(): " f, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
-  #define LOGMUXE(f, ...) do{ LOGE("%s:%d:%s(): " f, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
-  #define LOGMUXW(f, ...) do{ LOGW("%s:%d:%s(): " f, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
-  #define LOGMUXI(f, ...) do{ LOGI("%s:%d:%s(): " f, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}while(0)
+#define LOG_TAG "MUXD"
+#include <utils/Log.h> //all Android LOG macros are defined here.
+#define LOGMUX(lvl,f,...) do{if(lvl<=syslog_level){\
+								LOG_PRI(android_log_lvl_convert[lvl],LOG_TAG,"%s:%d:%s(): " f, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}\
+						  }while(0)
 
-  //just dummy defines since were not including syslog.h. ONLY temporary
-  #define LOG_EMERG	0
-  #define LOG_ALERT	1
-  #define LOG_CRIT	2
-  #define LOG_ERR		3
-  #define LOG_WARNING	4
-  #define LOG_NOTICE	5
-  #define LOG_INFO	6
-  #define LOG_DEBUG	7
+//just dummy defines since were not including syslog.h.
+#define LOG_EMERG	0
+#define LOG_ALERT	1
+#define LOG_CRIT	2
+#define LOG_ERR		3
+#define LOG_WARNING	4
+#define LOG_NOTICE	5
+#define LOG_INFO	6
+#define LOG_DEBUG	7
+
+/* Android's log level are in opposite order of syslog.h */
+  int android_log_lvl_convert[8]={ANDROID_LOG_SILENT,
+  								  ANDROID_LOG_FATAL,
+  								  ANDROID_LOG_ERROR,
+  								  ANDROID_LOG_WARN,
+  								  ANDROID_LOG_INFO,
+  								  ANDROID_LOG_DEBUG,
+  								  ANDROID_LOG_VERBOSE,
+  								  ANDROID_LOG_DEFAULT};
 #endif /*MUX_ANDROID*/
 
-#define SYSCHECK(c) do{if((c)<0){\
- LOGMUXE( "system-error: '%s' (code: %d)", strerror(errno), errno);\
- return -1;\
- }}while(0)
+#define SYSCHECK(c) do{if((c)<0){LOGMUX(LOG_ERR,"system-error: '%s' (code: %d)", strerror(errno), errno);\
+						return -1;}\
+					}while(0)
+
+
 
 /*MUX defines */
 #define GSM0710_FRAME_FLAG 0xF9// basic mode flag for frame start and end
@@ -207,7 +211,6 @@ typedef enum MuxerStates
 typedef struct Serial
 {
 	char *devicename;
-	char* pm_base_dir;
 	int fd;
 	MuxerStates state;
 	GSM0710_Buffer *in_buf;// input buffer
@@ -283,17 +286,25 @@ static const unsigned char r_crctable[] = {//reversed, 8-bit, poly=0x07
 	0x2C, 0x5E, 0xCF, };
 // config stuff
 static char* revision = "$Rev: 295 $";
-//static int no_daemon = 1;
 static int no_daemon = 0;
 static int pin_code = -1;
 static int use_ping = 0;
 static int use_timeout = 0;
-
-#ifdef MUXLOG
-static int syslog_level = LOG_DEBUG;
-#else
+static int logtofile = 0;
 static int syslog_level = LOG_INFO;
-#endif
+static FILE * muxlogfile;
+static int vir_ports = 1; //number of virtual ports to create
+/*misc global vars */
+static int main_exit_signal=0;  /* 1:main() received exit signal */
+static int uih_pf_bit_received = 0;
+
+/*pthread */
+pthread_t ser_read_thread;
+pthread_t pseudo_terminal[GSM0710_MAX_CHANNELS-1]; // -1 because control channel cannot be mapped to pseudo-terminal /dev/pts/*
+pthread_attr_t thread_attr;
+pthread_mutex_t syslogdump_lock;
+pthread_mutex_t write_frame_lock;
+pthread_mutex_t main_exit_signal_lock;
 
 // serial io
 static Serial serial;
@@ -331,17 +342,6 @@ static speed_t baud_bits[] = {
 	0, B9600, B19200, B38400, B57600, B115200, B230400, B460800
 };
 
-/*misc global vars */
-int main_exit_signal=0;  /* 1:main() received exit signal */
-int uih_pf_bit_received = 0;
-int vir_ports = 1; //number of virtual ports to create
-/*pthread */
-pthread_t ser_read_thread;
-pthread_t pseudo_terminal[GSM0710_MAX_CHANNELS-1]; // -1 because control channel cannot be mapped to pseudo-terminal /dev/pts/*
-pthread_attr_t thread_attr;
-pthread_mutex_t syslogdump_lock;
-pthread_mutex_t write_frame_lock;
-pthread_mutex_t main_exit_signal_lock;
 
 /**************************/
 /* MAIN CODE                        */
@@ -350,7 +350,7 @@ pthread_mutex_t main_exit_signal_lock;
 static int baud_rate_index(
 	int baud_rate)
 {
-	int i;
+	unsigned int i;
 	for (i = 0; i < sizeof(baud_rates) / sizeof(*baud_rates); ++i)
 		if (baud_rates[i] == baud_rate)
 			return i;
@@ -411,13 +411,13 @@ static int syslogdump(
 	const unsigned char *ptr,
 	unsigned int length)
 {
-	if (LOG_DEBUG>syslog_level)
+	if (LOG_DEBUG>syslog_level) /*No need for all frame logging if it's not to be seen */
 		return 0;
 	char buffer[100];
 	unsigned int offset = 0l;
 	int i;
-	//new lock
-	pthread_mutex_lock(&syslogdump_lock);
+	
+	pthread_mutex_lock(&syslogdump_lock); 	//new lock
 	while (offset < length)
 	{
 		int off;
@@ -427,10 +427,12 @@ static int syslogdump(
 		off = strlen(buffer);
 		for (i = 0; i < 16; i++)
 		{
-			if (offset + i < length)
+			if (offset + i < length){
 				SYSCHECK(snprintf(buffer + off, sizeof(buffer) - off, "%02x%c", ptr[offset + i], i == 7 ? '-' : ' '));
-			else
+				}
+			else{
 				SYSCHECK(snprintf(buffer + off, sizeof(buffer) - off, " .%c", i == 7 ? '-' : ' '));
+				}
 			off = strlen(buffer);
 		}
 		SYSCHECK(snprintf(buffer + off, sizeof(buffer) - off, " "));
@@ -442,10 +444,9 @@ static int syslogdump(
 				off = strlen(buffer);
 			}
 		offset += 16;
-		LOGMUXD("%s", buffer);
+		LOGMUX(LOG_DEBUG,"%s", buffer);
 	}
-	//new lock
-	pthread_mutex_unlock(&syslogdump_lock);
+	pthread_mutex_unlock(&syslogdump_lock);/*new lock*/
 
 	return 0;
 }
@@ -471,7 +472,7 @@ static int write_frame(
 {
 	//new lock
 	pthread_mutex_lock(&write_frame_lock);
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 //flag, GSM0710_EA=1 C channel, frame type, length 1-2
 	unsigned char prefix[5] = { GSM0710_FRAME_FLAG, GSM0710_EA | GSM0710_CR, 0, 0, 0 };
 	unsigned char postfix[2] = { 0xFF, GSM0710_FRAME_FLAG };
@@ -498,8 +499,8 @@ static int write_frame(
 //			count++;
 //	} while (w != wakeup_sequence[0] && count < cmux_N2);
 //	if (w != wakeup_sequence[0])
-//		LOGMUXW( "Didn't get frame-flag after wakeup");
-	LOGMUXD( "Sending frame to channel %d", channel);
+//		LOGMUX(LOG_WARNING, "Didn't get frame-flag after wakeup");
+	LOGMUX(LOG_DEBUG, "Sending frame to channel %d", channel);
 //GSM0710_EA=1, Command, let's add address
 	prefix[1] = prefix[1] | ((63 & (unsigned char) channel) << 2);
 //let's set control field
@@ -509,7 +510,7 @@ static int write_frame(
 	    GSM0710_COMMAND_IS(input[0],GSM0710_CONTROL_MSC) ){
 	  prefix[2] = prefix[2] | GSM0710_PF; //Set the P/F bit in Response if Command from modem had it set
 	  uih_pf_bit_received = 0; //Reset the variable, so it is ready for next command
-	  LOGMUXD( "uih_pf_bit_received is %d", uih_pf_bit_received );
+//	  LOGMUX(LOG_DEBUG, "uih_pf_bit_received is %d", uih_pf_bit_received );
 
 	}
 //let's not use too big frames
@@ -528,30 +529,30 @@ static int write_frame(
 		else
 			prefix[3] = 1 | (length << 1);
 		postfix[0] = frame_calc_crc(prefix + 1, prefix_length - 1);
-syslogdump(">s ", prefix,prefix_length); //syslogdump for basic mode
+		syslogdump(">s ", prefix,prefix_length); //syslogdump for basic mode
 		c = write(serial.fd, prefix, prefix_length);
 		if (c != prefix_length)
 		{
-			LOGMUXW( "Couldn't write the whole prefix to the serial port for the virtual port %d. Wrote only %d bytes",
+			LOGMUX(LOG_WARNING, "Couldn't write the whole prefix to the serial port for the virtual port %d. Wrote only %d bytes",
 				channel, c);
 			return 0;
 		}
 		if (length > 0)
 		{
-syslogdump(">s ", input,length); //syslogdump for basic mode
+		syslogdump(">s ", input,length); //syslogdump for basic mode
 			c = write(serial.fd, input, length);
 			if (length != c)
 			{
-				LOGMUXW( "Couldn't write all data to the serial port from the virtual port %d. Wrote only %d bytes",
+				LOGMUX(LOG_WARNING, "Couldn't write all data to the serial port from the virtual port %d. Wrote only %d bytes",
 					channel, c);
 				return 0;
 			}
 		}
-syslogdump(">s ", postfix,2); //syslogdump for basic mode
+		syslogdump(">s ", postfix,2); //syslogdump for basic mode
 		c = write(serial.fd, postfix, 2);
 		if (c != 2)
 		{
-			LOGMUXW( "Couldn't write the whole postfix to the serial port for the virtual port %d. Wrote only %d bytes",
+			LOGMUX(LOG_WARNING, "Couldn't write the whole postfix to the serial port for the virtual port %d. Wrote only %d bytes",
 				channel, c);
 			return 0;
 		}
@@ -562,7 +563,7 @@ syslogdump(">s ", postfix,2); //syslogdump for basic mode
 		serial.adv_frame_buf[0] = GSM0710_FRAME_ADV_FLAG;
 		offs += fill_adv_frame_buf(serial.adv_frame_buf + offs, prefix + 1, 2);// address, control
 		offs += fill_adv_frame_buf(serial.adv_frame_buf + offs, input, length);// data
-//CRC checksum
+		//CRC checksum
 		postfix[0] = frame_calc_crc(prefix + 1, 2);
 		offs += fill_adv_frame_buf(serial.adv_frame_buf + offs, postfix, 1);// fcs
 		serial.adv_frame_buf[offs] = GSM0710_FRAME_ADV_FLAG;
@@ -571,12 +572,12 @@ syslogdump(">s ", postfix,2); //syslogdump for basic mode
 		c = write(serial.fd, serial.adv_frame_buf, offs);
 		if (c != offs)
 		{
-			LOGMUXW( "Couldn't write the whole advanced option packet to the serial port for the virtual port %d. Wrote only %d bytes",
+			LOGMUX(LOG_WARNING, "Couldn't write the whole advanced option packet to the serial port for the virtual port %d. Wrote only %d bytes",
 				channel, c);
 			return 0;
 		}
 	}
-	LOGMUXD( "Leave");
+	LOGMUX(LOG_DEBUG, "Leave");
 	//new lock
 	pthread_mutex_unlock(&write_frame_lock);
 	return length;
@@ -605,7 +606,7 @@ static int handle_channel_data(
 			i++;
 	}
 	if (i == GSM0710_WRITE_RETRIES)
-		LOGMUXW( "Couldn't write data to channel %d. Wrote only %d bytes, when should have written %d",
+		LOGMUX(LOG_WARNING, "Couldn't write data to channel %d. Wrote only %d bytes, when should have written %d",
 				channel, written, len);
 	return 0;
 }
@@ -643,21 +644,21 @@ static int logical_channel_init(Channel* channel, int id)
 
 int pseudo_device_read(void * vargp)
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 	Channel* channel = (Channel*)vargp;
 		unsigned char buf[4096];
 		//information from virtual port
 		int len = read(channel->fd, buf + channel->remaining, sizeof(buf) - channel->remaining);
 		if (!channel->opened)
 		{
-			LOGMUXW( "Write to a channel which wasn't acked to be open.");
+			LOGMUX(LOG_WARNING, "Write to a channel which wasn't acked to be open.");
 			write_frame(channel->id, NULL, 0, GSM0710_TYPE_SABM | GSM0710_PF);
-			LOGMUXD( "Leave");
+			LOGMUX(LOG_DEBUG, "Leave");
 			return 1;
 		}
 		if (len >= 0)
 		{
-			LOGMUXD( "Data from channel %d, %d bytes", channel->id, len);
+			LOGMUX(LOG_DEBUG, "Data from channel %d, %d bytes", channel->id, len);
 			if (channel->remaining > 0)
 			{
 				memcpy(buf, channel->tmp, channel->remaining);
@@ -672,18 +673,24 @@ int pseudo_device_read(void * vargp)
 				channel->tmp = malloc(channel->remaining);
 				memcpy(channel->tmp, buf + sizeof(buf) - channel->remaining, channel->remaining);
 			}
-			LOGMUXD( "Leave");
+			LOGMUX(LOG_DEBUG, "Leave");
 			return 0;
 		}
-		// dropped connection
+		// dropped connection but keep channel and /dev/pts/x alive
+		int keep_alive=0;
+		if(keep_alive){
+			LOGMUX(LOG_INFO, "Dropped SW connection but keeping virtual channel %d (%s) open", channel->id, channel->ptsname);
+			return 0;	
+		}	
+		// dropped connection and close channel and /dev/pts/x
 		if (cmux_mode)
 			write_frame(channel->id, NULL, 0, GSM0710_CONTROL_CLD | GSM0710_CR);
 		else
 			write_frame(channel->id, close_channel_cmd, 2, GSM0710_TYPE_UIH);
-		LOGMUXI( "Logical channel %d for %s closed", channel->id, channel->origin);
+		LOGMUX(LOG_INFO, "Dropped SW connection. Logical channel %d for %s closed", channel->id, channel->origin);
 		logical_channel_close(channel);
-
-	LOGMUXD( "Leave");
+		
+	LOGMUX(LOG_DEBUG, "Leave");
 	return 1;
 }
 
@@ -698,13 +705,13 @@ return: 1 if fail, 0 if success
 */
 static int c_alloc_channel(const char* origin, pthread_t * thread_id)
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 	int i;
 	if (serial.state == MUX_STATE_MUXING)
 		for (i=1;i<GSM0710_MAX_CHANNELS;i++)
 			if (channellist[i].fd < 0) // is this channel free?
 			{
-				LOGMUXD( "Found free channel %d fd %d on %s", i, channellist[i].fd, channellist[i].devicename);
+				LOGMUX(LOG_DEBUG, "Found free channel %d fd %d on %s", i, channellist[i].fd, channellist[i].devicename);
 				channellist[i].origin = strdup(origin);
 				SYSCHECK(channellist[i].fd = open(channellist[i].devicename, O_RDWR | O_NONBLOCK)); //open pseudo terminal devices from /dev/ptmx master
 				char* pts = ptsname(channellist[i].fd);
@@ -724,23 +731,23 @@ static int c_alloc_channel(const char* origin, pthread_t * thread_id)
 				}
 				channellist[i].v24_signals = GSM0710_SIGNAL_DV | GSM0710_SIGNAL_RTR | GSM0710_SIGNAL_RTC | GSM0710_EA;
 				//create thread
-                LOGMUXD( "New channel properties: number: %d fd: %d device: %s", i, channellist[i].fd, channellist[i].devicename);
+                LOGMUX(LOG_DEBUG, "New channel properties: number: %d fd: %d device: %s", i, channellist[i].fd, channellist[i].devicename);
                 Poll_Thread_Arg* poll_thread_arg = (Poll_Thread_Arg*) malloc(sizeof(Poll_Thread_Arg)); //iniitialize pointer to thread args
                 poll_thread_arg->fd = channellist[i].fd;
                 poll_thread_arg->read_function_ptr = &pseudo_device_read;
                 poll_thread_arg->read_function_arg = (void *) (channellist+i);
               	if(create_thread(thread_id, poll_thread,(void*) poll_thread_arg)!=0){ //create thread for reading input from virtual port
-              	  LOGMUXE("Could not create thread for listening on %s", channellist[i].ptsname);
+              	  LOGMUX(LOG_ERR,"Could not create thread for listening on %s", channellist[i].ptsname);
               	  return 1;
               	}
-              	LOGMUXD( "Thread is running and listening on %s", channellist[i].ptsname);
+              	LOGMUX(LOG_DEBUG, "Thread is running and listening on %s", channellist[i].ptsname);
 
 				write_frame(i, NULL, 0, GSM0710_TYPE_SABM | GSM0710_PF); //should be moved?? messy
-				LOGMUXI( "Connecting %s to virtual channel %d for %s on %s",
+				LOGMUX(LOG_INFO, "Connecting %s to virtual channel %d for %s on %s",
 					channellist[i].ptsname, channellist[i].id, channellist[i].origin, serial.devicename);
 				return 0;
 			}
-	LOGMUXE( "not muxing or no free channel found");
+	LOGMUX(LOG_ERR, "Not muxing or no free channel found");
 	return 0;
 }
 
@@ -792,7 +799,7 @@ static int gsm0710_buffer_write(
 	const unsigned char *input,
 	int length)
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 	int c = buf->endp - buf->writep;
 	length = min(length, gsm0710_buffer_free(buf));
 	if (length > c)
@@ -808,8 +815,8 @@ static int gsm0710_buffer_write(
 		if (buf->writep == buf->endp)
 			buf->writep = buf->data;
 	}
-	LOGMUXD( "Leave");
-	LOGMUXD("Bytes actually written to GSM0710 buffer: %d", length);
+	LOGMUX(LOG_DEBUG,"Leave");
+	LOGMUX(LOG_DEBUG,"Bytes actually written to GSM0710 buffer: %d", length);
 	return length;
 }
 
@@ -840,7 +847,7 @@ static GSM0710_Frame* gsm0710_base_buffer_get_frame(
 	unsigned char *data;
 	unsigned char fcs = 0xFF;
 	GSM0710_Frame *frame = NULL;
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 //Find start flag
 	while (!buf->flag_found && gsm0710_buffer_length(buf) > 0)
 	{
@@ -850,7 +857,7 @@ static GSM0710_Frame* gsm0710_base_buffer_get_frame(
 	}
 	if (!buf->flag_found)// no frame started
 		{
-		LOGMUXE( "Leave. No start frame 0xf9 found in bytes stored in GSM0710 buffer");
+		LOGMUX(LOG_DEBUG, "Leave. No start frame 0xf9 found in bytes stored in GSM0710 buffer");
 		return NULL;
 		}
 //skip empty frames (this causes troubles if we're using DLC 62)
@@ -873,7 +880,7 @@ static GSM0710_Frame* gsm0710_base_buffer_get_frame(
 			fcs = r_crctable[fcs ^ *data];
 		}
 		else
-			LOGMUXE( "Out of memory, when allocating space for frame");
+			LOGMUX(LOG_ERR, "Out of memory, when allocating space for frame");
 		if ((*data & 1) == 0)
 		{
 //Current spec (version 7.1.0) states these kind of
@@ -895,7 +902,7 @@ static GSM0710_Frame* gsm0710_base_buffer_get_frame(
 		if (!(gsm0710_buffer_length(buf) >= length_needed))
 		{
 			free(frame);
-			LOGMUXE( "Leave. Frame extraction cancelled. Frame freed, it is not completely stored in GSM0710 buffer");
+			LOGMUX(LOG_DEBUG, "Leave. Frame extraction cancelled. Frame freed, it is not completely stored in GSM0710 buffer");
 			return NULL;
 		}
 		gsm0710_buffer_inc(buf, data);
@@ -926,14 +933,14 @@ static GSM0710_Frame* gsm0710_base_buffer_get_frame(
 			}
 			else
 			{
-				LOGMUXE( "Out of memory, when allocating space for frame data");
+				LOGMUX(LOG_ERR, "Out of memory, when allocating space for frame data");
 				frame->length = 0;
 			}
 		}
 //check FCS
 		if (r_crctable[fcs ^ (*data)] != 0xCF)
 		{
-			LOGMUXW( "Dropping frame: FCS doesn't match");
+			LOGMUX(LOG_WARNING, "Dropping frame: FCS doesn't match");
 			destroy_frame(frame);
 			buf->flag_found = 0;
 			buf->dropped_count++;
@@ -946,7 +953,7 @@ static GSM0710_Frame* gsm0710_base_buffer_get_frame(
 			gsm0710_buffer_inc(buf, data);
 			if (*data != GSM0710_FRAME_FLAG)
 			{
-				LOGMUXW( "Dropping frame: End flag not found. Instead: %d", *data);
+				LOGMUX(LOG_WARNING, "Dropping frame: End flag not found. Instead: %d", *data);
 				destroy_frame(frame);
 				buf->flag_found = 0;
 				buf->dropped_count++;
@@ -959,7 +966,7 @@ static GSM0710_Frame* gsm0710_base_buffer_get_frame(
 		}
 		buf->readp = data;
 	}
-		LOGMUXD( "Leave, frame found");
+		LOGMUX(LOG_DEBUG, "Leave, frame found");
 	return frame;
 }
 
@@ -974,7 +981,7 @@ static GSM0710_Frame* gsm0710_base_buffer_get_frame(
 static GSM0710_Frame *gsm0710_advanced_buffer_get_frame(
 	GSM0710_Buffer * buf)
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 l_begin:
 //Find start flag
 	while (!buf->flag_found && gsm0710_buffer_length(buf) > 0)
@@ -1003,7 +1010,7 @@ l_begin:
 			gsm0710_buffer_inc(buf, buf->readp);
 			if (buf->adv_length < 3)
 			{
-				LOGMUXW( "Too short adv frame, length:%d", buf->adv_length);
+				LOGMUX(LOG_WARNING, "Too short adv frame, length:%d", buf->adv_length);
 				buf->flag_found = 0;
 				goto l_begin;
 			}
@@ -1016,7 +1023,7 @@ l_begin:
 				frame->length = buf->adv_length - 3;
 			}
 			else
-				LOGMUXE("Out of memory, when allocating space for frame");
+				LOGMUX(LOG_ERR,"Out of memory, when allocating space for frame");
 //extract data
 			if (frame->length > 0)
 			{
@@ -1032,7 +1039,7 @@ l_begin:
 				}
 				else
 				{
-					LOGMUXE("Out of memory, when allocating space for frame data");
+					LOGMUX(LOG_ERR,"Out of memory, when allocating space for frame data");
 					buf->flag_found = 0;
 					goto l_begin;
 				}
@@ -1040,7 +1047,7 @@ l_begin:
 //check FCS
 			if (r_crctable[fcs ^ data[buf->adv_length - 1]] != 0xCF)
 			{
-				LOGMUXW( "Dropping frame: FCS doesn't match");
+				LOGMUX(LOG_WARNING, "Dropping frame: FCS doesn't match");
 				destroy_frame(frame);
 				buf->flag_found = 0;
 				buf->dropped_count++;
@@ -1050,13 +1057,13 @@ l_begin:
 			{
 				buf->received_count++;
 				buf->flag_found = 0;
-				LOGMUXD( "Leave success");
+				LOGMUX(LOG_DEBUG, "Leave success");
 				return frame;
 			}
 		}
 		if (buf->adv_length >= sizeof(buf->adv_data))
 		{
-			LOGMUXW( "Too long adv frame, length:%d", buf->adv_length);
+			LOGMUX(LOG_WARNING, "Too long adv frame, length:%d", buf->adv_length);
 			buf->flag_found = 0;
 			buf->dropped_count++;
 			goto l_begin;
@@ -1116,14 +1123,14 @@ static int chat(
 	char *cmd,
 	int to)
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 	unsigned char buf[1024];
 	int sel;
 	int len;
 	int wrote = 0;
 	syslogdump(">s ", (unsigned char *) cmd, strlen(cmd));
 	SYSCHECK(wrote = write(serial_device_fd, cmd, strlen(cmd)));
-	LOGMUXD( "Wrote %d bytes", wrote);
+	LOGMUX(LOG_DEBUG, "Wrote %d bytes", wrote);
 
 
 #ifdef MUX_ANDROID
@@ -1142,23 +1149,23 @@ SYSCHECK(tcdrain(serial_device_fd));
 	do
 	{
 		SYSCHECK(sel = select(serial_device_fd + 1, &rfds, NULL, NULL, &timeout));
-		LOGMUXD( "Selected %d", sel);
+		LOGMUX(LOG_DEBUG, "Selected %d", sel);
 		if (FD_ISSET(serial_device_fd, &rfds))
 		{
 			memset(buf, 0, sizeof(buf));
 			len = read(serial_device_fd, buf, sizeof(buf));
 			SYSCHECK(len);
-			LOGMUXD( "Read %d bytes from serial device", len);
+			LOGMUX(LOG_DEBUG, "Read %d bytes from serial device", len);
 			syslogdump("<s ", buf, len);
 			errno = 0;
 			if (memstr((char *) buf, len, "OK"))
 			{
-				LOGMUXD( "Received OK");
+				LOGMUX(LOG_DEBUG, "Received OK");
 				return 0;
 			}
 			if (memstr((char *) buf, len, "ERROR"))
 			{
-				LOGMUXD( "Received ERROR");
+				LOGMUX(LOG_DEBUG, "Received ERROR");
 				return -1;
 			}
 		}
@@ -1172,7 +1179,7 @@ SYSCHECK(tcdrain(serial_device_fd));
 static int handle_command(
 	GSM0710_Frame * frame)
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 	unsigned char type, signals;
 	int length = 0, i, type_length, channel, supported = 1;
 	unsigned char *response;
@@ -1197,16 +1204,16 @@ static int handle_command(
 			switch ((type & ~GSM0710_CR))
 			{
 			case GSM0710_CONTROL_CLD:
-				LOGMUXI( "The mobile station requested mux-mode termination");
+				LOGMUX(LOG_INFO, "The mobile station requested mux-mode termination");
 				serial.state = MUX_STATE_CLOSING;
 				break;
 			case GSM0710_CONTROL_PSC:
-				LOGMUXD( "Power Service Control command: ***");
-				LOGMUXD( "Frame->data = %s / frame->length = %d", frame->data + i, frame->length - i);
+				LOGMUX(LOG_DEBUG, "Power Service Control command: ***");
+				LOGMUX(LOG_DEBUG, "Frame->data = %s / frame->length = %d", frame->data + i, frame->length - i);
 			break;
 			case GSM0710_CONTROL_TEST:
-				LOGMUXD( "Test command: ");
-				LOGMUXD( "Frame->data = %s / frame->length = %d", frame->data + i, frame->length - i);
+				LOGMUX(LOG_DEBUG, "Test command: ");
+				LOGMUX(LOG_DEBUG, "Frame->data = %s / frame->length = %d", frame->data + i, frame->length - i);
 				//serial->ping_number = 0;
 				break;
 			case GSM0710_CONTROL_MSC:
@@ -1218,36 +1225,36 @@ static int handle_command(
 //op.op = USSP_MSC;
 //op.arg = USSP_RTS;
 //op.len = 0;
-					LOGMUXD( "Modem status command on channel %d", channel);
+					LOGMUX(LOG_DEBUG, "Modem status command on channel %d", channel);
 					if ((signals & GSM0710_SIGNAL_FC) == GSM0710_SIGNAL_FC)
-						LOGMUXD( "No frames allowed");
+						LOGMUX(LOG_DEBUG, "No frames allowed");
 					else
 					{
 //op.arg |= USSP_CTS;
-						LOGMUXD( "Frames allowed");
+						LOGMUX(LOG_DEBUG, "Frames allowed");
 					}
 					if ((signals & GSM0710_SIGNAL_RTC) == GSM0710_SIGNAL_RTC)
 					{
 //op.arg |= USSP_DSR;
-						LOGMUXD( "Signal RTC");
+						LOGMUX(LOG_DEBUG, "Signal RTC");
 					}
 					if ((signals & GSM0710_SIGNAL_IC) == GSM0710_SIGNAL_IC)
 					{
 //op.arg |= USSP_RI;
-						LOGMUXD( "Signal Ring");
+						LOGMUX(LOG_DEBUG, "Signal Ring");
 					}
 					if ((signals & GSM0710_SIGNAL_DV) == GSM0710_SIGNAL_DV)
 					{
 //op.arg |= USSP_DCD;
-						LOGMUXD( "Signal DV");
+						LOGMUX(LOG_DEBUG, "Signal DV");
 					}
 				}
 				else
-					LOGMUXE( "Modem status command, but no info. i: %d, len: %d, data-len: %d",
+					LOGMUX(LOG_ERR, "Modem status command, but no info. i: %d, len: %d, data-len: %d",
 						i, length, frame->length);
 				break;
 			default:
-				LOGMUXE("Unknown command (%d) from the control channel", type);
+				LOGMUX(LOG_ERR,"Unknown command (%d) from the control channel", type);
 				if ((response = malloc(sizeof(char) * (2 + type_length))) != NULL)
 				{
 					i = 0;
@@ -1264,7 +1271,7 @@ static int handle_command(
 					supported = 0;
 				}
 				else
-					LOGMUXE("Out of memory, when allocating space for response");
+					LOGMUX(LOG_ERR,"Out of memory, when allocating space for response");
 				break;
 			}
 			if (supported)
@@ -1277,7 +1284,7 @@ static int handle_command(
 				    if (frame->control & GSM0710_PF){ //Check if the P/F var needs to be set again (cleared in write_frame)
 				      uih_pf_bit_received = 1;
 				    }
-				    LOGMUXD( "Sending 1st MSC command App->Modem");
+				    LOGMUX(LOG_DEBUG, "Sending 1st MSC command App->Modem");
 				    frame->data[0] = frame->data[0] | GSM0710_CR; //setting the C/R bit to "command"
 				    write_frame(0, frame->data, frame->length, GSM0710_TYPE_UIH);
 				    break;
@@ -1290,9 +1297,9 @@ static int handle_command(
 		{
 //received ack for a command
 			if (GSM0710_COMMAND_IS(type, GSM0710_CONTROL_NSC))
-				LOGMUXE( "The mobile station didn't support the command sent");
+				LOGMUX(LOG_ERR, "The mobile station didn't support the command sent");
 			else
-				LOGMUXD( "Command acknowledged by the mobile station");
+				LOGMUX(LOG_DEBUG, "Command acknowledged by the mobile station");
 		}
 	}
 	return 0;
@@ -1305,7 +1312,7 @@ static int handle_command(
 int extract_frames(
 	GSM0710_Buffer* buf)
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 //version test for Siemens terminals to enable version 2 functions
 	int frames_extracted = 0;
 	GSM0710_Frame *frame;
@@ -1316,14 +1323,14 @@ int extract_frames(
 		frames_extracted++;
 		if ((GSM0710_FRAME_IS(GSM0710_TYPE_UI, frame) || GSM0710_FRAME_IS(GSM0710_TYPE_UIH, frame)))
 		{
-			LOGMUXD( "Frame is UI or UIH");
+			LOGMUX(LOG_DEBUG, "Frame is UI or UIH");
 			if (frame->control & GSM0710_PF){
 			  uih_pf_bit_received = 1;
 			}
 
 			if (frame->channel > 0)
 			{
-				LOGMUXD( "Frame channel %d, pseudo channel",frame->channel);
+				LOGMUX(LOG_DEBUG, "Frame channel %d, pseudo channel",frame->channel);
 //data from logical channel
 				syslogdump("Frame:", frame->data, frame->length);
 				write(channellist[frame->channel].fd, frame->data, frame->length);
@@ -1331,22 +1338,22 @@ int extract_frames(
 			else
 			{
 //control channel command
-				LOGMUXD( "Frame channel == 0, control channel command");
+				LOGMUX(LOG_DEBUG, "Frame channel == 0, control channel command");
 				handle_command(frame);
 			}
 		}
 		else
 		{
 //not an information frame
-			LOGMUXD( "Not an information frame");
+			LOGMUX(LOG_DEBUG, "Not an information frame");
 			switch ((frame->control & ~GSM0710_PF))
 			{
 			case GSM0710_TYPE_UA:
-				LOGMUXD( "Frame is UA");
+				LOGMUX(LOG_DEBUG, "Frame is UA");
 				if (channellist[frame->channel].opened)
 				{
 					SYSCHECK(logical_channel_close(channellist+frame->channel));
-					LOGMUXI( "Logical channel %d for %s closed",
+					LOGMUX(LOG_INFO, "Logical channel %d for %s closed",
 						frame->channel, channellist[frame->channel].origin);
 				}
 				else
@@ -1354,32 +1361,32 @@ int extract_frames(
 					channellist[frame->channel].opened = 1;
 					if (frame->channel == 0)
 					{
-						LOGMUXD( "Control channel opened");
+						LOGMUX(LOG_DEBUG, "Control channel opened");
 						//send version Siemens version test
 						//static unsigned char version_test[] = "\x23\x21\x04TEMUXVERSION2\0";
 						//write_frame(0, version_test, sizeof(version_test), GSM0710_TYPE_UIH);
 					}
 					else
-						LOGMUXI( "Logical channel %d opened", frame->channel);
+						LOGMUX(LOG_INFO, "Logical channel %d opened", frame->channel);
 				}
 				break;
 			case GSM0710_TYPE_DM:
 				if (channellist[frame->channel].opened)
 				{
 					SYSCHECK(logical_channel_close(channellist+frame->channel));
-					LOGMUXI( "DM received, so the channel %d for %s was already closed",
+					LOGMUX(LOG_INFO, "DM received, so the channel %d for %s was already closed",
 						frame->channel, channellist[frame->channel].origin);
 				}
 				else
 				{
 					if (frame->channel == 0)
 					{
-						LOGMUXI( "Couldn't open control channel.\n->Terminating");
+						LOGMUX(LOG_INFO, "Couldn't open control channel.\n->Terminating");
 						serial.state = MUX_STATE_CLOSING;
 //close channels
 					}
 					else
-						LOGMUXI( "Logical channel %d for %s couldn't be opened", frame->channel, channellist[frame->channel].origin);
+						LOGMUX(LOG_INFO, "Logical channel %d for %s couldn't be opened", frame->channel, channellist[frame->channel].origin);
 				}
 				break;
 			case GSM0710_TYPE_DISC:
@@ -1390,15 +1397,15 @@ int extract_frames(
 					if (frame->channel == 0)
 					{
 						serial.state = MUX_STATE_CLOSING;
-						LOGMUXI( "Control channel closed");
+						LOGMUX(LOG_INFO, "Control channel closed");
 					}
 					else
-						LOGMUXI( "Logical channel %d for %s closed", frame->channel, channellist[frame->channel].origin);
+						LOGMUX(LOG_INFO, "Logical channel %d for %s closed", frame->channel, channellist[frame->channel].origin);
 				}
 				else
 				{
 //channel already closed
-					LOGMUXW( "Received DISC even though channel %d for %s was already closed",
+					LOGMUX(LOG_WARNING, "Received DISC even though channel %d for %s was already closed",
 							frame->channel, channellist[frame->channel].origin);
 					write_frame(frame->channel, NULL, 0, GSM0710_TYPE_DM | GSM0710_PF);
 				}
@@ -1408,14 +1415,14 @@ int extract_frames(
 				if (channellist[frame->channel].opened)
 				{
 					if (frame->channel == 0)
-						LOGMUXI( "Control channel opened");
+						LOGMUX(LOG_INFO, "Control channel opened");
 					else
-						LOGMUXI( "Logical channel %d for %s opened",
+						LOGMUX(LOG_INFO, "Logical channel %d for %s opened",
 							frame->channel, channellist[frame->channel].origin);
 				}
 				else
 //channel already opened
-					LOGMUXW( "Received SABM even though channel %d for %s was already closed",
+					LOGMUX(LOG_WARNING, "Received SABM even though channel %d for %s was already closed",
 						frame->channel, channellist[frame->channel].origin);
 				channellist[frame->channel].opened = 1;
 				write_frame(frame->channel, NULL, 0, GSM0710_TYPE_UA | GSM0710_PF);
@@ -1424,7 +1431,7 @@ int extract_frames(
 		}
 		destroy_frame(frame);
 	}
-	LOGMUXD( "Leave");
+	LOGMUX(LOG_DEBUG, "Leave");
 	return frames_extracted;
 }
 
@@ -1461,7 +1468,7 @@ void signal_treatment(
 int thread_serial_device_read(void * vargp)
 {
 	Serial * serial = (Serial*) vargp;
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 	{
 		switch (serial->state)
 		{
@@ -1470,19 +1477,13 @@ int thread_serial_device_read(void * vargp)
 			unsigned char buf[4096];
 			int len;
 			//input from serial port
-			LOGMUXD( "Serial Data");
+			LOGMUX(LOG_DEBUG, "Serial Data");
 			int length;
-/* debug log
-			int free_chars = gsm0710_buffer_free(serial->in_buf);
-			int stored_chars = gsm0710_buffer_length(serial->in_buf);
-			LOGMUXD("Free Bytes in GSM0710 Buffer (length): %d", free_chars);
-			LOGMUXD("Bytes not yet read from GSM0710 Buffer (%d - length): %d", GSM0710_BUFFER_SIZE, stored_chars);
-*/
 			if ((length = gsm0710_buffer_free(serial->in_buf)) > 0
 			&& (len = read(serial->fd, buf, min(length, sizeof(buf)))) > 0)
 			{
 				syslogdump("<s ", buf, len);
-				//LOGMUXD("Bytes to be written to GSM0710 buffer (len): %d", len); //debug log
+				//LOGMUX(LOG_DEBUG,"Bytes to be written to GSM0710 buffer (len): %d", len); //debug log
 				gsm0710_buffer_write(serial->in_buf, buf, len);
 				//extract and handle ready frames
 				if (extract_frames(serial->in_buf) > 0)
@@ -1491,16 +1492,16 @@ int thread_serial_device_read(void * vargp)
 					serial->ping_number = 0;
 				}
 			}
-			LOGMUXD( "Leave keep watching");
+			LOGMUX(LOG_DEBUG, "Leave keep watching");
 			return 0;
 		}
 		break;
 		default:
-			LOGMUXW( "Don't know how to handle reading in state %d", serial->state);
+			LOGMUX(LOG_WARNING, "Don't know how to handle reading in state %d", serial->state);
 		break;
 		}
 	}
-	LOGMUXD( "Leave stop watching");
+	LOGMUX(LOG_DEBUG, "Leave stop watching");
 	return 1;
 }
 
@@ -1509,13 +1510,13 @@ int open_serial_device(
 	Serial* serial
 	)
 {
-	LOGMUXD( "Enter");
-	int i;
+	LOGMUX(LOG_DEBUG, "Enter");
+	unsigned int i;
 	for (i=0;i<GSM0710_MAX_CHANNELS;i++)
 		SYSCHECK(logical_channel_init(channellist+i, i));
 //open the serial port
 	SYSCHECK(serial->fd = open(serial->devicename, O_RDWR | O_NOCTTY | O_NONBLOCK));
-	LOGMUXI( "Opened serial port");
+	LOGMUX(LOG_INFO, "Opened serial port");
 	int fdflags;
 	SYSCHECK(fdflags = fcntl(serial->fd, F_GETFL));
 	SYSCHECK(fcntl(serial->fd, F_SETFL, fdflags & ~O_NONBLOCK));
@@ -1524,7 +1525,6 @@ int open_serial_device(
 	t.c_cflag &= ~(CSIZE | CSTOPB | PARENB | PARODD);	
 	t.c_cflag |= CREAD | CLOCAL | CS8 ;
 	t.c_cflag &= ~(CRTSCTS);
-	t.c_cflag |= CREAD | CLOCAL | CS8 | CRTSCTS;
 	t.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ISIG);
 	t.c_iflag &= ~(INPCK | IGNPAR | PARMRK | ISTRIP | IXANY | ICRNL);
 	t.c_iflag &= ~(IXON | IXOFF);
@@ -1536,11 +1536,10 @@ int open_serial_device(
 	long posix_vdisable;
 	char cur_path[FILENAME_MAX];
        if (!getcwd(cur_path, sizeof(cur_path))){
-         LOGMUXE("_getcwd returned errno %d",errno);
+         LOGMUX(LOG_ERR,"_getcwd returned errno %d",errno);
          return 1;
        }
-       posix_vdisable = pathconf(cur_path, _PC_VDISABLE);
-	LOGMUXD("posix_vdisable is %d",posix_vdisable);
+    posix_vdisable = pathconf(cur_path, _PC_VDISABLE);
 	t.c_cc[VINTR] = posix_vdisable;
 	t.c_cc[VQUIT] = posix_vdisable;
 	t.c_cc[VSTART] = posix_vdisable;
@@ -1560,11 +1559,11 @@ int open_serial_device(
 	SYSCHECK(tcsetattr(serial->fd, TCSANOW, &t));
 	int status = TIOCM_DTR | TIOCM_RTS;
 	ioctl(serial->fd, TIOCMBIS, &status);
-	LOGMUXI( "Configured serial device");
+	LOGMUX(LOG_INFO, "Configured serial device");
 	serial->ping_number = 0;
 	time(&serial->frame_receive_time); //get the current time
 	serial->state = MUX_STATE_INITILIZING;
-	LOGMUXD( "Switched Mux state to %d ",serial->state);
+	LOGMUX(LOG_DEBUG, "Switched Mux state to %d ",serial->state);
 	return 0;
 }
 
@@ -1572,12 +1571,12 @@ int start_muxer(
 	Serial* serial
 	)
 {
-	LOGMUXI( "Configuring modem");
+	LOGMUX(LOG_INFO, "Configuring modem");
 	char gsm_command[100];
 	//check if communication with modem is online
 	if (chat(serial->fd, "AT\r\n", 1) < 0)
 	{
-		LOGMUXW( "Modem does not respond to AT commands, trying close mux mode");
+		LOGMUX(LOG_WARNING, "Modem does not respond to AT commands, trying close mux mode");
 		//if (cmux_mode) we do not know now so write both
 			write_frame(0, NULL, 0, GSM0710_CONTROL_CLD | GSM0710_CR);
 		//else
@@ -1596,7 +1595,7 @@ int start_muxer(
 	}
 	if (pin_code >= 0)
 	{
-		LOGMUXD( "send pin %04d", pin_code);
+		LOGMUX(LOG_DEBUG, "send pin %04d", pin_code);
 //Some modems, such as webbox, will sometimes hang if SIM code is given in virtual channel
 		SYSCHECK(snprintf(gsm_command, sizeof(gsm_command), "AT+CPIN=%04d\r\n", pin_code));
 		SYSCHECK(chat(serial->fd, gsm_command, 10));
@@ -1614,19 +1613,19 @@ else {
 			));
 }
 
-	LOGMUXI( "Starting mux mode");
+	LOGMUX(LOG_INFO, "Starting mux mode");
 	SYSCHECK(chat(serial->fd, gsm_command, 3));
 	serial->state = MUX_STATE_MUXING;
-	LOGMUXD( "Switched Mux state to %d ",serial->state);
-	LOGMUXI( "Waiting for mux-mode");
+	LOGMUX(LOG_DEBUG, "Switched Mux state to %d ",serial->state);
+	LOGMUX(LOG_INFO, "Waiting for mux-mode");
 	sleep(1);
-	LOGMUXI( "Init control channel");
+	LOGMUX(LOG_INFO, "Init control channel");
 	return 0;
 }
 
 static int close_devices()
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 	int i;
 	for (i=1;i<GSM0710_MAX_CHANNELS;i++)
 	{
@@ -1636,14 +1635,14 @@ static int close_devices()
 		{
 			if (channellist[i].opened)
 			{
-				LOGMUXI( "Closing down the logical channel %d", i);
+				LOGMUX(LOG_INFO, "Closing down the logical channel %d", i);
 				if (cmux_mode)
 					write_frame(i, NULL, 0, GSM0710_CONTROL_CLD | GSM0710_CR);
 				else
 					write_frame(i, close_channel_cmd, 2, GSM0710_TYPE_UIH);
 				SYSCHECK(logical_channel_close(channellist+i));
 			}
-			LOGMUXI( "Logical channel %d closed", channellist[i].id);
+			LOGMUX(LOG_INFO, "Logical channel %d closed", channellist[i].id);
 		}
 	}
 	if (serial.fd >= 0)
@@ -1669,20 +1668,20 @@ return: 1 if error, 0 if success
 */
 static int watchdog(Serial * serial)
 {
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 
-	LOGMUXD( "Serial state is %d", serial->state);
+	LOGMUX(LOG_DEBUG, "Serial state is %d", serial->state);
 	switch (serial->state)
 	{
 	case MUX_STATE_OPENING:
 		if (open_serial_device(serial) != 0){
-			LOGMUXW( "Could not open serial device and start muxer");
+			LOGMUX(LOG_WARNING, "Could not open serial device and start muxer");
                      return 1;
               }
-		LOGMUXI( "Watchdog started");
+		LOGMUX(LOG_INFO, "Watchdog started");
 	case MUX_STATE_INITILIZING:
               if (start_muxer(serial) < 0)
-              LOGMUXW( "Could not open all devices and start muxer errno=%d", errno);
+              LOGMUX(LOG_WARNING, "Could not open all devices and start muxer errno=%d", errno);
 //new thread
 
               Poll_Thread_Arg* poll_thread_arg = (Poll_Thread_Arg*) malloc(sizeof(Poll_Thread_Arg)); //iniitialize pointer to thread args ;
@@ -1690,23 +1689,23 @@ static int watchdog(Serial * serial)
               poll_thread_arg->read_function_ptr = &thread_serial_device_read;
               poll_thread_arg->read_function_arg = (void *) serial;
 		if(create_thread(&ser_read_thread, poll_thread,(void*) poll_thread_arg)!=0){ //create thread for reading input from serial device
-		  LOGMUXE("Could not create thread for listening on %s", serial->devicename);
+		  LOGMUX(LOG_ERR,"Could not create thread for listening on %s", serial->devicename);
 		  return 1;
 		}
-	       LOGMUXD( "Thread is running and listening on %s", serial->devicename); //listening on serial port
+	       LOGMUX(LOG_DEBUG, "Thread is running and listening on %s", serial->devicename); //listening on serial port
 	       write_frame(0, NULL, 0, GSM0710_TYPE_SABM | GSM0710_PF); //need to move? messy
 
 		//tempary solution. call to allocate virtual port(s)
               if (vir_ports<GSM0710_MAX_CHANNELS){
                      int i;
        		for (i=1;i<=vir_ports;i++){
-       		  LOGMUXD( "Allocating logical channel %d/%d ",i,vir_ports);
+       		  LOGMUX(LOG_INFO, "Allocating logical channel %d/%d ",i,vir_ports);
        		  c_alloc_channel("watchdog_init", &pseudo_terminal[i]);
        		  sleep(1); //perhaps not necessary
        		}
        	}
        	else{
-                LOGMUXE("Cannot allocate %d virtual ports", vir_ports);
+                LOGMUX(LOG_ERR,"Cannot allocate %d virtual ports", vir_ports);
                 return 1;
        	}
 
@@ -1716,13 +1715,13 @@ static int watchdog(Serial * serial)
 		{
 			if (serial->ping_number > use_ping)
 			{
-				LOGMUXD( "no ping reply for %d times, resetting modem", serial->ping_number);
+				LOGMUX(LOG_DEBUG, "no ping reply for %d times, resetting modem", serial->ping_number);
 				serial->state = MUX_STATE_CLOSING;
-				LOGMUXD( "Switched Mux state to %d ",serial->state);
+				LOGMUX(LOG_DEBUG, "Switched Mux state to %d ",serial->state);
 			}
 			else
 			{
-				LOGMUXD( "Sending PING to the modem");
+				LOGMUX(LOG_DEBUG, "Sending PING to the modem");
 				//write_frame(0, psc_channel_cmd, sizeof(psc_channel_cmd), GSM0710_TYPE_UI);
 				write_frame(0, test_channel_cmd, sizeof(test_channel_cmd), GSM0710_TYPE_UI);
 				serial->ping_number++;
@@ -1734,9 +1733,9 @@ static int watchdog(Serial * serial)
 			time(&current_time); //get the current time
 			if (current_time - serial->frame_receive_time > use_timeout)
 			{
-				LOGMUXD( "timeout, resetting modem");
+				LOGMUX(LOG_DEBUG, "timeout, resetting modem");
 				serial->state = MUX_STATE_CLOSING;
-				LOGMUXD( "Switched Mux state to %d ",serial->state);
+				LOGMUX(LOG_DEBUG, "Switched Mux state to %d ",serial->state);
 			}
 
 		}
@@ -1745,10 +1744,10 @@ static int watchdog(Serial * serial)
 	case MUX_STATE_CLOSING:
 		close_devices();
 		serial->state = MUX_STATE_OPENING;
-		LOGMUXD( "Switched Mux state to %d ",serial->state);
+		LOGMUX(LOG_DEBUG, "Switched Mux state to %d ",serial->state);
 	break;
 	default:
-		LOGMUXW( "Don't know how to handle state %d", serial->state);
+		LOGMUX(LOG_WARNING, "Don't know how to handle state %d", serial->state);
 	break;
 	}
 	return 0;
@@ -1764,18 +1763,18 @@ static int usage(
 	fprintf(stderr, "Options:\n");
 	// process control
 	fprintf(stderr, "\t-d: Fork, get a daemon [%s]\n", no_daemon?"no":"yes");
-	fprintf(stderr, "\t-v: verbose logging\n");
+	fprintf(stderr, "\t-v: Set verbose logging level. 0 (Silent) - 7 (Debug) [%d]\n",syslog_level);
 	// modem control
 	fprintf(stderr, "\t-s <serial port name>: Serial port device to connect to [%s]\n", serial.devicename);
 	fprintf(stderr, "\t-t <timeout>: reset modem after this number of seconds of silence [%d]\n", use_timeout);
 	fprintf(stderr, "\t-P <pin-code>: PIN code to unlock SIM [%d]\n", pin_code);
 	fprintf(stderr, "\t-p <number>: use ping and reset modem after this number of unanswered pings [%d]\n", use_ping);
-	fprintf(stderr, "\t-x <dir>: power managment base dir [%s]\n", serial.pm_base_dir?serial.pm_base_dir:"<not set>");
 	// legacy - will be removed
 	fprintf(stderr, "\t-b <baudrate>: mode baudrate [%d]\n", baud_rates[cmux_port_speed]);
 	fprintf(stderr, "\t-m <modem>: Mode (basic, advanced) [%s]\n", cmux_mode?"advanced":"basic");
 	fprintf(stderr, "\t-f <framsize>: Frame size [%d]\n", cmux_N1);
 	fprintf(stderr, "\t-n <number of ports>: Number of virtual ports to create, must be in range 1-31 [%d]\n", vir_ports);
+	fprintf(stderr, "\t-o <output log to file>: Output log to /tmp/gsm0710muxd.log [%s]\n", logtofile?"yes":"no");
 	//
 	fprintf(stderr, "\t-h: Show this help message and show current settings.\n");
 	return -1;
@@ -1796,22 +1795,22 @@ input: pointer to pthread_t id, void pointer to thread function, void pointer to
 return: 0 if success, 1 if fail */
 
 int create_thread(pthread_t * thread_id, void * thread_function, void * thread_function_arg ){
-LOGMUXD("Enter");
+LOGMUX(LOG_DEBUG,"Enter");
               pthread_attr_init(&thread_attr);
               pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
 
 		if(pthread_create(thread_id, &thread_attr, thread_function, thread_function_arg)!=0){
                 switch (errno){
                   case EAGAIN:
-                    LOGMUXE("Interrupt signal EAGAIN caught");
+                    LOGMUX(LOG_ERR,"Interrupt signal EAGAIN caught");
                     break;
                   case EINVAL:
-                    LOGMUXE("Interrupt signal EINVAL caught");
+                    LOGMUX(LOG_ERR,"Interrupt signal EINVAL caught");
                     break;
                   default:
-                    LOGMUXE("Unknown interrupt signal caught");
+                    LOGMUX(LOG_ERR,"Unknown interrupt signal caught");
                 }
-                LOGMUXE("Could not create thread");
+                LOGMUX(LOG_ERR,"Could not create thread");
                 set_main_exit_signal(1); //exit main function if thread couldn't be created
                 return 1;
               }
@@ -1834,10 +1833,10 @@ if select returns data to be read. call a reading function for the particular de
 input: void* vargp, a pointer to a Poll_Thread_Arg struct.
 */
 void* poll_thread(void *vargp) {
-  LOGMUXD("Enter");
+  LOGMUX(LOG_DEBUG,"Enter");
   Poll_Thread_Arg* poll_thread_arg = (Poll_Thread_Arg*)vargp;
   if(poll_thread_arg->fd== -1 ){
-    LOGMUXE( "Serial port not initialized");
+    LOGMUX(LOG_ERR, "Serial port not initialized");
     goto terminate;
   }
   while (1)
@@ -1849,7 +1848,7 @@ void* poll_thread(void *vargp) {
     if (select((1+poll_thread_arg->fd),&fdr,&fdw,NULL,NULL)>0) {
       if (FD_ISSET(poll_thread_arg->fd,&fdr)) {
         if((*(poll_thread_arg->read_function_ptr))(poll_thread_arg->read_function_arg)!=0){ /*Call reading function*/
-          LOGMUXD( "Device read function returned error");
+          LOGMUX(LOG_WARNING, "Device read function returned error");
           goto terminate;
         }
       }
@@ -1857,19 +1856,19 @@ void* poll_thread(void *vargp) {
     else{ //No need to evaluate retval=0 case, since no use of timeout in select()
       switch (errno){
         case EINTR:
-          LOGMUXE("Interrupt signal EINTR caught");
+          LOGMUX(LOG_ERR,"Interrupt signal EINTR caught");
           break;
         case EAGAIN:
-          LOGMUXE("Interrupt signal EAGAIN caught");
+          LOGMUX(LOG_ERR,"Interrupt signal EAGAIN caught");
           break;
         case EBADF:
-          LOGMUXE("Interrupt signal EBADF caught");
+          LOGMUX(LOG_ERR,"Interrupt signal EBADF caught");
           break;
         case EINVAL:
-          LOGMUXE("Interrupt signal EINVAL caught");
+          LOGMUX(LOG_ERR,"Interrupt signal EINVAL caught");
           break;
         default:
-          LOGMUXE("Unknown interrupt signal caught\n");
+          LOGMUX(LOG_ERR,"Unknown interrupt signal caught\n");
       }
       goto terminate;
     }
@@ -1877,13 +1876,10 @@ void* poll_thread(void *vargp) {
   goto terminate;
 
   terminate:
-    LOGMUXE( "Device polling thread terminated");
+    LOGMUX(LOG_ERR, "Device polling thread terminated");
     free(poll_thread_arg);  //free the memory allocated for the thread args before exiting thread
     return NULL;
 }
-
-
-
 
 
 
@@ -1895,29 +1891,36 @@ int main(
 	char *argv[],
 	char *env[])
 {
-
-#ifndef MUX_ANDROID
-  #ifdef MUXLOG  
-  mylogfile = fopen("/tmp/mylogfile","w+");
-  #endif
-#endif
-
-	LOGMUXD( "Enter");
+	LOGMUX(LOG_DEBUG, "Enter");
 	int opt;
 //for fault tolerance
 	serial.devicename = "/dev/ttyS0";
-	while ((opt = getopt(argc, argv, "dvs:t:p:f:n:h?m:b:P:x:")) > 0)
+	while ((opt = getopt(argc, argv, "dov:s:t:p:f:n:h?m:b:P:")) > 0)
 	{
 		switch (opt)
 		{
 		case 'v':
-			syslog_level++;
+			syslog_level = atoi(optarg);
+			if ((syslog_level>LOG_DEBUG) || (syslog_level < 0)){
+              usage(argv[0]);
+			  exit(0);
+			#ifdef MUX_ANDROID
+			syslog_level=android_log_lvl_convert[syslog_level];
+			#endif
+			}
 			break;
+		case 'o':
+			logtofile = 1;
+			if ((muxlogfile=fopen("/tmp/gsm0710muxd.log", "w+")) == NULL){
+				 fprintf(stderr, "Error: %s.\n", strerror(errno));
+				 usage(argv[0]);
+				 exit(0);
+				 }
+			else
+				fprintf(stderr, "gsm0710muxd log is output to /tmp/gsm0710muxd.log\n");
+			break;			
 		case 'd':
 			no_daemon = !no_daemon;
-			break;
-		case 'x':
-			serial.pm_base_dir = optarg;
 			break;
 		case 's':
 			serial.devicename = optarg;
@@ -1962,7 +1965,6 @@ int main(
 		}
 	}
 
-
 	umask(0);
 //signals treatment
 	signal(SIGHUP, signal_treatment);
@@ -1982,28 +1984,29 @@ int main(
 	if ((serial.in_buf = gsm0710_buffer_init()) == NULL
 	 || (serial.adv_frame_buf = (unsigned char*)malloc((cmux_N1 + 3) * 2 + 2)) == NULL)
 	{
-		LOGMUXE("Out of memory");
+		LOGMUX(LOG_ERR,"Out of memory");
 		exit(-1);
 	}
-	LOGMUXD( "%s %s starting", *argv, revision);
+	LOGMUX(LOG_DEBUG, "%s %s starting", *argv, revision);
 //Initialize modem and virtual ports
 	serial.state = MUX_STATE_OPENING;
 
-	LOGMUXI("Called with following options:\n");
+	LOGMUX(LOG_INFO,"Called with following options:");
 	// process control
-	LOGMUXI("\t-d: Fork, get a daemon [%s]\n", no_daemon?"no":"yes");
-	LOGMUXI("\t-v: verbose logging\n");
+	LOGMUX(LOG_INFO,"\t-d: Fork, get a daemon [%s]", no_daemon?"no":"yes");
+	LOGMUX(LOG_INFO,"\t-v: Set verbose logging level. 0 (Silent) - 7 (Debug) [%d]",syslog_level);
 	// modem control
-	LOGMUXI("\t-s <serial port name>: Serial port device to connect to [%s]\n", serial.devicename);
-	LOGMUXI("\t-t <timeout>: reset modem after this number of seconds of silence [%d]\n", use_timeout);
-	LOGMUXI("\t-P <pin-code>: PIN code to unlock SIM [%d]\n", pin_code);
-	LOGMUXI("\t-p <number>: use ping and reset modem after this number of unanswered pings [%d]\n", use_ping);
-	LOGMUXI("\t-x <dir>: power managment base dir [%s]\n", serial.pm_base_dir?serial.pm_base_dir:"<not set>");
+	LOGMUX(LOG_INFO,"\t-s <serial port name>: Serial port device to connect to [%s]", serial.devicename);
+	LOGMUX(LOG_INFO,"\t-t <timeout>: reset modem after this number of seconds of silence [%d]", use_timeout);
+	LOGMUX(LOG_INFO,"\t-P <pin-code>: PIN code to unlock SIM [%d]", pin_code);
+	LOGMUX(LOG_INFO,"\t-p <number>: use ping and reset modem after this number of unanswered pings [%d]", use_ping);
 	// legacy - will be removed
-	LOGMUXI("\t-b <baudrate>: mode baudrate [%d]\n", baud_rates[cmux_port_speed]);
-	LOGMUXI("\t-m <modem>: Mode (basic, advanced) [%s]\n", cmux_mode?"advanced":"basic");
-	LOGMUXI("\t-f <framsize>: Frame size [%d]\n", cmux_N1);
-	LOGMUXI("\t-n <number of ports>: Number of virtual ports to create, must be in range 1-31 [%d]\n", vir_ports);
+	LOGMUX(LOG_INFO,"\t-b <baudrate>: mode baudrate [%d]", baud_rates[cmux_port_speed]);
+	LOGMUX(LOG_INFO,"\t-m <modem>: Mode (basic, advanced) [%s]", cmux_mode?"advanced":"basic");
+	LOGMUX(LOG_INFO,"\t-f <framsize>: Frame size [%d]", cmux_N1);
+	LOGMUX(LOG_INFO,"\t-n <number of ports>: Number of virtual ports to create, must be in range 1-31 [%d]", vir_ports);
+	LOGMUX(LOG_INFO,"\t-o <output log to file>: Output log to /tmp/gsm0710muxd.log [%s]", logtofile?"yes":"no");
+
 	//
 while(main_exit_signal==0){
 	watchdog(&serial);
@@ -2011,15 +2014,21 @@ while(main_exit_signal==0){
 }
 
 
-
 //finalize everything
 	SYSCHECK(close_devices());
 	free(serial.adv_frame_buf);
 	gsm0710_buffer_destroy(serial.in_buf);
-	LOGMUXI( "Received %ld frames and dropped %ld received frames during the mux-mode",
+	LOGMUX(LOG_INFO, "Received %ld frames and dropped %ld received frames during the mux-mode",
 		serial.in_buf->received_count, serial.in_buf->dropped_count);
-	LOGMUXD( "%s finished", argv[0]);
+	LOGMUX(LOG_DEBUG, "%s finished", argv[0]);
+
+#ifndef MUX_ANDROID	
 	closelog();// close syslog
-	return 0;
+#endif
+
+if (logtofile)
+  fclose(muxlogfile);	
+
+return 0;
 }
 

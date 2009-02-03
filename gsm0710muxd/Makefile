@@ -18,7 +18,7 @@
 
 #command line variable. Location of cross compiler, eg. /usr/bin/arm-2007q3/bin/arm-none-linux-gnueabi-
 CROSS_COMPILE=
-#commands line variable. Extra compiler flags, eg. -DMUXLOG
+#commands line variable. Extra compiler flags
 EXTRA_CFLAGS=
 
 CC:=gcc
