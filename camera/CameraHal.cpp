@@ -29,8 +29,8 @@
 #define VIDEO_DEVICE        "/dev/video5"
 #define MIN_WIDTH           208 // 960 //820
 #define MIN_HEIGHT          154 // 800 //616
-#define PICTURE_WIDTH   3280 //8mp
-#define PICTURE_HEIGHT  2464 //8mp
+#define PICTURE_WIDTH   2560 /* 5mp. 8mp - 3280 */
+#define PICTURE_HEIGHT  2048 /* 5mp. 8mp - 2464 */
 #define PIXEL_FORMAT           V4L2_PIX_FMT_YUYV
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
 
@@ -44,6 +44,7 @@ wp<CameraHardwareInterface> CameraHal::singleton;
 CameraHal::CameraHal()
                   : mParameters(),
                     mHeap(0),
+                    mPictureHeap(0),
                     fcount(6),
                     nQueued(0),
                     nDequeued(0),
@@ -421,7 +422,6 @@ int CameraHal::pictureThread()
     struct v4l2_format format;
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_requestbuffers creqbuf;
-    sp<MemoryHeapBase>  mPictureHeap;
     sp<MemoryBase> mPictureBuffer;
     sp<MemoryBase> memBase;
 
@@ -466,8 +466,9 @@ int CameraHal::pictureThread()
     LOGD("pictureFrameSize = 0x%x = %d", pictureSize, pictureSize);
 
     // Make a new mmap'ed heap that can be shared across processes.
-    mPictureHeap = new MemoryHeapBase(pictureSize + 0x20 + 256);
-
+    if (mPictureHeap == 0) {
+	    mPictureHeap = new MemoryHeapBase(pictureSize + 0x20 + 256);
+    }
     base = (unsigned long)mPictureHeap->getBase();
 
     /*Align buffer to 32 byte boundary */
@@ -795,7 +796,7 @@ sp<MemoryBase> CameraHal::encodeImage(void *buffer, uint32_t bufflen)
 
     LOG_FUNCTION_NAME
     mParameters.getPictureSize(&w, &h);
-    size =  w * h;
+    size =  (w * h) + 12288;
 
     // Make a new mmap'ed heap that can be shared across processes.
     sp<MemoryHeapBase> mJpegImageHeap = new MemoryHeapBase(size + 256);

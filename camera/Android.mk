@@ -24,6 +24,8 @@ LOCAL_C_INCLUDES += \
 	hardware/ti/omx/image/src/openmax_il/jpeg_enc/inc \
 	frameworks/base/include/ui
 
+LOCAL_CFLAGS += -DHARDWARE_OMX
+
 endif
 
 LOCAL_MODULE:= libcamera

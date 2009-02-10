@@ -112,6 +112,7 @@ private:
 
     sp<MemoryHeapBase>  mHeap;
     sp<MemoryHeapBase>  mSurfaceFlingerHeap;
+    sp<MemoryHeapBase>  mPictureHeap;
     sp<MemoryBase>      mBuffers[kBufferCount];
     sp<MemoryBase>      mSurfaceFlingerBuffer;
 
