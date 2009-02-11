@@ -33,9 +33,12 @@
 #include <utils/MemoryHeapBase.h>
 #include <utils/threads.h>
 #include <ui/CameraHardwareInterface.h>
+#include <ui/Overlay.h>
 #if HARDWARE_OMX
 #include "SkImageEncoder_libtijpeg.h"
 #include "SkBitmap.h"
+#else
+#include "CannedJpeg.h"
 #endif
 
 namespace android {
@@ -45,6 +48,8 @@ public:
     virtual sp<IMemoryHeap> getPreviewHeap() const;
 
     virtual status_t    startPreview(preview_callback cb, void* user);
+    virtual bool        useOverlay() { return true; }
+    virtual status_t    setOverlay(const sp<Overlay> &overlay);
     virtual void        stopPreview();
     virtual bool        previewEnabled();
 
@@ -69,7 +74,7 @@ private:
 
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
-    static const int kBufferCount = 4;
+    //static const int kBufferCount = 4;
 
     class PreviewThread : public Thread {
         CameraHal* mHardware;
@@ -113,7 +118,7 @@ private:
     sp<MemoryHeapBase>  mHeap;
     sp<MemoryHeapBase>  mSurfaceFlingerHeap;
     sp<MemoryHeapBase>  mPictureHeap;
-    sp<MemoryBase>      mBuffers[kBufferCount];
+//    sp<MemoryBase>      mBuffers[kBufferCount];
     sp<MemoryBase>      mSurfaceFlingerBuffer;
 
     bool                mPreviewRunning;
@@ -125,6 +130,7 @@ private:
     void                *mPictureCallbackCookie;
 
     // protected by mLock
+    sp<Overlay>         mOverlay;
     sp<PreviewThread>   mPreviewThread;
     preview_callback    mPreviewCallback;
     void                *mPreviewCallbackCookie;

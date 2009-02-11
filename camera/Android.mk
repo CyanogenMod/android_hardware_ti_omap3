@@ -12,7 +12,8 @@ LOCAL_SHARED_LIBRARIES:= \
     libsgl
 
 LOCAL_C_INCLUDES += \
-	frameworks/base/include/ui
+	frameworks/base/include/ui \
+	frameworks/base/camera/libcameraservice
 
 ifdef HARDWARE_OMX
 
