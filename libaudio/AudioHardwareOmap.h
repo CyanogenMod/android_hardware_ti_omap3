@@ -25,8 +25,6 @@
 
 using namespace android;
 
-
-
 class AudioHardwareOmap : public AudioHardwareInterface
 {
 	public:
@@ -50,9 +48,12 @@ class AudioHardwareOmap : public AudioHardwareInterface
 	protected:
 		virtual status_t doRouting();
 		virtual status_t dump(int fd, const Vector<String16>& args);
+		status_t setControlRoute(snd_mixer_elem_t *elem, uint32_t route, uint32_t current_routes);
+		status_t setEnumeratedItem(snd_mixer_elem_t *elem, const char *selected_name);
 		int mMode;
 		uint32_t mRoutes[AudioSystem::NUM_MODES];
 	private:
+		int to_index(int route);
 		Mutex mLock;
 		AudioStreamInOmap *mInput;
 		AudioStreamOutOmap *mOutput;
