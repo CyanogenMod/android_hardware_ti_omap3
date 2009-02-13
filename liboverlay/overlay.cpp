@@ -34,6 +34,8 @@ extern "C" {
 
 /*****************************************************************************/
 
+pthread_mutex_t global_mutex; 
+
 struct overlay_control_context_t {
     struct overlay_control_device_t device;
     /* our private state goes below here */
@@ -185,10 +187,12 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
         return NULL;
     }
 
+    pthread_mutex_lock(&global_mutex);
     fd = v4l2_overlay_open(V4L2_OVERLAY_PLANE_VIDEO1);
-    LOGI("Anu: opened video1 fd=%d", fd);
+    pthread_mutex_unlock(&global_mutex); 
+    
+    LOGI("Opened video1 fd=%d", fd);
 
-	LOGD("Overlay Create open device %d", fd);
     if (fd < 0) {
         LOGE("Can't open overlay device");
         return NULL;
@@ -224,26 +228,23 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
     overlay_control_context_t *ctx = (overlay_control_context_t *)dev;
     int fd = static_cast<overlay_object *>(overlay)->ctl_fd();
 
-    LOGD("@@@@@@@@@@@@@@@@ calling v4l2_overlay_stream_off  @@@@@@@@@@@@@@@@");     
-    pthread_mutex_t mutex; 
-    pthread_mutex_init(&mutex, NULL);    
-    pthread_mutex_lock(&mutex); 
-    
-    v4l2_overlay_stream_off(fd);
-    LOGD("@@@@@@@@@@@@@@@@ called v4l2_overlay_stream_off  @@@@@@@@@@@@@@@@");            
 
-    //if (v4l2_overlay_set_colorkey(fd, 0 /*disable*/, 0) < 0)
+    pthread_mutex_lock(&global_mutex); 
+   
+    v4l2_overlay_stream_off(fd);
+
+    if (v4l2_overlay_set_colorkey(fd, 0 /*disable*/, 0) < 0)
     {
         LOGE("Error disabling color key");
     }
 
     LOGI("@@@@@@@@@@@@@@@@:Closed video1 fd =%d", fd);
     close(fd);
+ 
 
     LOGI("Destroy overlay");
     if (!overlay){
-        pthread_mutex_unlock(&mutex); 
-        pthread_mutex_destroy(&mutex);
+        pthread_mutex_unlock(&global_mutex); 
         return;
     }
 
@@ -257,8 +258,8 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
     /* should I also free the overlay_t? */
 
     delete overlay;
-    pthread_mutex_unlock(&mutex);
-    pthread_mutex_destroy(&mutex);
+    pthread_mutex_unlock(&global_mutex);
+    
 }
 
 static int overlay_setPosition(struct overlay_control_device_t *dev,
@@ -266,28 +267,31 @@ static int overlay_setPosition(struct overlay_control_device_t *dev,
                                int x, int y, uint32_t w, uint32_t h) {
 
     //LOG_FUNCTION_NAME   
+    int ret = 0;
     int fd = static_cast<overlay_object *>(overlay)->ctl_fd();
-    //mutable Mutex mLock;
-    int ret;
-    pthread_mutex_t mutex; 
-    pthread_mutex_init(&mutex, NULL);    
     
-    { //scope for lock
-    pthread_mutex_lock(&mutex); 
-        //Mutex::Autolock lock(mLock);
-        if (v4l2_overlay_stream_off(fd))
-            return -EINVAL;
-        if (v4l2_overlay_set_position(fd, x, y, w, h))
-            return -EINVAL;
-        if (v4l2_overlay_stream_on(fd))
-            return -EINVAL;
-    pthread_mutex_unlock(&mutex); 
-        
+    pthread_mutex_lock(&global_mutex); 
+    if (v4l2_overlay_stream_off(fd))
+    {
+        ret = -EINVAL;
+        goto EXIT;
     }
-    pthread_mutex_destroy(&mutex);
+    if (v4l2_overlay_set_position(fd, x, y, w, h))
+    {
+        ret = -EINVAL;
+        goto EXIT;
+    }
+    if (v4l2_overlay_stream_on(fd))
+    {
+        ret = -EINVAL;
+        goto EXIT;
+    }
+
     LOGI("position set by sf to x=%d y=%d w=%u h=%u", x, y, w, h);
 
-    return 0;
+EXIT:
+    pthread_mutex_unlock(&global_mutex);     
+    return ret;
 }
 
 static int overlay_getPosition(struct overlay_control_device_t *dev,
@@ -328,8 +332,8 @@ static int overlay_setParameter(struct overlay_control_device_t *dev,
         case OVERLAY_DITHER:
             LOGI("Set Dither");
             
-            //LOGI("Set Color Key");            
-            //result = v4l2_overlay_set_colorkey(fd, 1 /*enable*/, 0);
+            LOGI("Set Color Key");            
+            result = v4l2_overlay_set_colorkey(fd, 1 /*enable*/, 0);
             break;
             
         case OVERLAY_TRANSFORM:
@@ -365,6 +369,7 @@ static int overlay_control_close(struct hw_device_t *dev)
         /* should i free the overlay_t's here? */
 
         free(ctx);
+        pthread_mutex_destroy(&global_mutex);
     }
     return 0;
 }
@@ -497,6 +502,10 @@ static int overlay_device_open(const struct hw_module_t* module,
     //LOG_FUNCTION_NAME   
     int status = -EINVAL;
     if (!strcmp(name, OVERLAY_HARDWARE_CONTROL)) {
+
+        if (pthread_mutex_init(&global_mutex, NULL))
+            LOGD("pthread_mutex_init failed");    
+
         struct overlay_control_context_t *dev;
         dev = (overlay_control_context_t*)malloc(sizeof(*dev));
 
