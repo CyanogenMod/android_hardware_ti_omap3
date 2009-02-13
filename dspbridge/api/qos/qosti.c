@@ -41,7 +41,7 @@ INT iMode = EDynamicLoad;
     desc    Dynamic qos node DLL.
     ============================================================================
 */
-CHAR pszNodeDll[] = "/dspbridge/qosdyn_3430.dll64P";
+
 /* This is a much better way than DEBUGMSG... */
 void DbgMsg(DWORD dwZone, char *szFormat, ...)
 {
@@ -136,27 +136,6 @@ DSP_STATUS QosTI_Create()
 		/* Attach to a DSP (first by default) */
 		status = DSPProcessor_Attach(procId, NULL, &hProcessor);
 		if (DSP_SUCCEEDED(status)) {
-			if (iMode == EDynamicLoad) {
-				/*  Register the node object. */
-				status = DSPManager_RegisterObject(
-						(struct DSP_UUID *)&QOS_TI_UUID,
-						DSP_DCDNODETYPE, pszNodeDll);
-				if (DSP_SUCCEEDED(status)) {
-					/*  Register the node DLL. */
-					status = DSPManager_RegisterObject(
-					&QOS_TI_UUID, DSP_DCDLIBRARYTYPE,
-						pszNodeDll);
-					if (DSP_FAILED(status))
-						DbgMsg(DSPAPI_ZONE_TEST,
-						"DSPManager_RegisterObject "
-						"failed: 0x%x\n",
-						(PVOID) status);
-				} else
-					DbgMsg(DSPAPI_ZONE_TEST,
-					"DSPManager_RegisterObject "
-					"failed: 0x%x\n", (PVOID) status);
-
-			}
 			/* Perform node level initialization. */
 			/* Allocate the node, passing arguments for node */
 			/* create phase. */
