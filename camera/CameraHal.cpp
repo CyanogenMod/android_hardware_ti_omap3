@@ -32,7 +32,7 @@
 #define MIN_HEIGHT          154 // 800 //616
 #define PICTURE_WIDTH   2560 /* 5mp. 8mp - 3280 */
 #define PICTURE_HEIGHT  2048 /* 5mp. 8mp - 2464 */
-#define PIXEL_FORMAT           V4L2_PIX_FMT_YUYV
+#define PIXEL_FORMAT      V4L2_PIX_FMT_UYVY     //V4L2_PIX_FMT_YUYV
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
 
 
@@ -111,8 +111,6 @@ bool CameraHal::initHeapLocked()
     mPreviewFrameSize = how_big;
     LOGD("mPreviewFrameSize = 0x%x = %d", mPreviewFrameSize, mPreviewFrameSize);
 
-    // Make a new mmap'ed heap that can be shared across processes.
-    // use code below to test with pmem
 
     int buffer_count = mOverlay->getBufferCount();
     LOGD("number of buffers = %d\n", buffer_count);
@@ -186,7 +184,7 @@ CameraHal::~CameraHal()
 sp<IMemoryHeap> CameraHal::getPreviewHeap() const
 {
     LOG_FUNCTION_NAME
-    //return mHeap;
+
     return mSurfaceFlingerHeap;
 }
 
@@ -197,10 +195,11 @@ int CameraHal::previewThread()
     int w, h;
     unsigned long offset;
     void *croppedImage;
+    overlay_buffer_t overlaybuffer;    
     struct v4l2_buffer cfilledbuffer;
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-
+    
     if (!previewStopped){
 
         /* De-queue the next avaliable buffer */
@@ -211,18 +210,21 @@ int CameraHal::previewThread()
 
         mCurrentPreviewFrame++;
 
-        //LOGV("previewThread: generated frame to buffer %d", mCurrentPreviewFrame++);
-        
+        //LOGD("previewThread: generated frame to buffer %d", mCurrentPreviewFrame);
+       
         // Notify the client of a new frame.
         mOverlay->queueBuffer((void*)cfilledbuffer.index);
 
+        //memcpy(mSurfaceFlingerHeap->getBase(), (void*)(cfilledbuffer.m.userptr), cfilledbuffer.length);
+
+        // Notify the client of a new frame.
+        //mPreviewCallback(mSurfaceFlingerBuffer, mPreviewCallbackCookie);
+
         if (!previewStopped){
-            /* should be fixed when overlay v4l2 buffer management is fixed */
-            /*
-            overlay_buffer_t new_buf;
-            mOverlay->dequeueBuffer(&new_buf);
-            cfilledbuffer.index = (int)new_buf;
-            */
+
+            //mOverlay->dequeueBuffer(&overlaybuffer);
+            //cfilledbuffer.index = (int)overlaybuffer;
+
             /* queue the buffer back to camera */
             while (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
                 LOGE("VIDIOC_QBUF Failed.");
@@ -292,7 +294,8 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
     LOGD("camera is streaming...");
 
     previewStopped = false;
-
+    nQueued = 0; 
+    nDequeued = 0;
     mPreviewCallback = cb;
     mPreviewCallbackCookie = user;
     mPreviewThread = new PreviewThread(this);
@@ -317,6 +320,9 @@ void CameraHal::stopPreview()
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
         int DQcount = nQueued - nDequeued;
+        nQueued = 0; 
+        nDequeued = 0;
+        
         if (DQcount < 0)
             LOGE("Something seriously wrong. Dequeued > Queued");
 
@@ -335,10 +341,9 @@ void CameraHal::stopPreview()
         creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
             LOGE("VIDIOC_STREAMOFF Failed");
-            //return;
         }
-        LOGD("Turned off Streaming");
-
+        LOGD("Turned off Streaming\n");
+        
         close(camera_device);
         mOverlay->destroy();
     }
@@ -638,7 +643,6 @@ status_t CameraHal::setParameters(const CameraParameters& params)
     }
 
     framerate = params.getPreviewFrameRate();
-    // validate framerate
 
     mParameters = params;
 
