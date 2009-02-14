@@ -1,3 +1,4 @@
+ifdef COMPILE_CAMERA
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -35,3 +36,4 @@ LOCAL_CFLAGS += -fno-short-enums
 
 include $(BUILD_SHARED_LIBRARY)
 
+endif
