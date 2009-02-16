@@ -39,6 +39,8 @@
 #include "AudioStreamInOmap.h"
 #include "AudioStreamOutOmap.h"
 
+#define ROUTE_INPUT_MIC		(1 << 5)
+
 using namespace android;
 
 struct mixer_route_control {
@@ -54,7 +56,7 @@ struct mixer_volume_control {
 	long max;
 };
 
-static const mixer_route_control twl4030_controls[5] = {
+static const mixer_route_control twl4030_controls[6] = {
 /* Mono earpiece */
 {"Earpiece Mux",  "DACL2",  "",  ""},
 /* Stereo speaker */
@@ -65,10 +67,15 @@ static const mixer_route_control twl4030_controls[5] = {
 {"HeadsetL Mux", "DACL2", "HeadsetR Mux", "DACR2"},
 /* Bluetooth A2DP */
 {"", "", "", ""},
+/* Main/sub mic */
+{"Analog Left", "Main mic", "Analog Right", "Sub mic"},
 };
 
-static mixer_volume_control twl4030_master_vol_control = {
-"DAC2 Analog", 0, 0,
+static mixer_volume_control twl4030_master_vol_control[2] = {
+/* Output volume */
+{"DAC2 Analog", 0, 0},
+/* Input volume */
+{"Analog", 0, 0},
 };
 
 extern "C" AudioHardwareInterface* createAudioHardware(void)
@@ -174,7 +181,7 @@ status_t AudioHardwareOmap::setMasterVolume(float volume)
         const char *elem_name;
         long vol, min, max;
 	status_t changed = NO_ERROR;
-	int ret;
+	int ret = 0;
 
 	ret = snd_mixer_open(&handle, 0);
 	if (ret < 0) {
@@ -212,22 +219,21 @@ status_t AudioHardwareOmap::setMasterVolume(float volume)
 		snd_mixer_selem_get_id(elem, sid);
 		elem_name = snd_mixer_selem_id_get_name(sid);
 	
-		if (snd_mixer_selem_has_playback_volume(elem)) {
-			if (!strcmp(twl4030_master_vol_control.ctl, elem_name)) {
-				snd_mixer_selem_get_playback_dB_range(elem,
-						&min,
-						&max);
-				LOGW("Setting mixer control: %s to %.2f", elem_name, volume);
-				vol = (long)((max - min)* volume) + min;
-				ret = snd_mixer_selem_set_playback_dB_all(elem, vol, 0);
-				if (ret < 0) {
-					LOGE("Master volume setting error: %s", snd_strerror(ret));
-					changed = BAD_VALUE;
-				} else {
-					changed = NO_ERROR;
-				}
-				break;
-			}
+		if (!strcmp(twl4030_master_vol_control[0].ctl, elem_name)) {
+			snd_mixer_selem_get_playback_dB_range(elem, &min, &max);
+			LOGI("Setting mixer control: %s to %.2f", elem_name, volume);
+			vol = (long)((max - min)* volume) + min;
+			ret = snd_mixer_selem_set_playback_dB_all(elem, vol, 0);
+		} else if (!strcmp(twl4030_master_vol_control[1].ctl, elem_name)) {
+			snd_mixer_selem_get_capture_dB_range(elem, &min, &max);
+			LOGI("Setting mixer control: %s to %.2f", elem_name, volume);
+			vol = (long)((max - min)* volume) + min;
+			ret = snd_mixer_selem_set_capture_dB_all(elem, vol, 0);
+		}
+		if (ret < 0) {
+			LOGE("Master volume setting error: %s", snd_strerror(ret));
+			changed = BAD_VALUE;
+			break;
 		}
 	}
 
@@ -286,7 +292,7 @@ AudioStreamIn* AudioHardwareOmap::openInputStream(int format, int channelCount, 
 
 	/* Create new output stream */
 	AudioStreamInOmap* in = new AudioStreamInOmap();
-       if (in->set(format, channelCount, sampleRate, 16384 * 2) == NO_ERROR) {
+       if (in->set(format, channelCount, sampleRate, 1024 * 2) == NO_ERROR) {
 		mInput = in;
 	} else {
 		LOGW("Error setting input hardware parameters");
@@ -379,6 +385,13 @@ status_t AudioHardwareOmap::doRouting()
 		setControlRoute(elem, AudioSystem::ROUTE_BLUETOOTH_A2DP, routes);
 		if (routed != NO_ERROR) {
 			LOGE("Bluetooth A2DP routing error.");
+			snd_mixer_close(handle);
+			return routed;
+		}
+		/* Capture path */
+		setControlRoute(elem, ROUTE_INPUT_MIC, ROUTE_INPUT_MIC);
+		if (routed != NO_ERROR) {
+			LOGE("Main/Sub mic routing error.");
 			snd_mixer_close(handle);
 			return routed;
 		}
