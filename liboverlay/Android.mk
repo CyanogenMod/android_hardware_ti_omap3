@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifdef COMPILE_OVERLAY
-
 LOCAL_PATH:= $(call my-dir)
 # HAL module implemenation, not prelinked and stored in
 # hw/<COPYPIX_HARDWARE_MODULE_ID>.<ro.product.board>.so
@@ -32,6 +30,4 @@ LOCAL_SHARED_LIBRARIES := liblog
 LOCAL_SRC_FILES := v4l2_utils.c v4l2_test.c
 LOCAL_MODULE := v4l2_test
 include $(BUILD_EXECUTABLE)
-
-endif
 
