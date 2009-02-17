@@ -293,7 +293,7 @@ static int use_timeout = 0;
 static int logtofile = 0;
 static int syslog_level = LOG_INFO;
 static FILE * muxlogfile;
-static int vir_ports = 1; //number of virtual ports to create
+static int vir_ports = 2; //number of virtual ports to create
 /*misc global vars */
 static int main_exit_signal=0;  /* 1:main() received exit signal */
 static int uih_pf_bit_received = 0;
@@ -336,10 +336,10 @@ static int cmux_k = 2;
  * baud id of CMUX the command.
  */
 static int baud_rates[] = {
-	0, 9600, 19200, 38400, 57600, 115200, 230400, 460800
+  0, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600
 };
 static speed_t baud_bits[] = {
-	0, B9600, B19200, B38400, B57600, B115200, B230400, B460800
+  0, B9600, B19200, B38400, B57600, B115200, B230400, B460800, B921600
 };
 
 
