@@ -268,7 +268,7 @@ AudioStreamOut* AudioHardwareOmap::openOutputStream(int format, int channelCount
 		return 0;
 
 	/* Create new output stream */
-	AudioStreamOutOmap* out = new AudioStreamOutOmap();
+	AudioStreamOutOmap* out = new AudioStreamOutOmap(this);
 	if (out->set(format, channelCount, sampleRate, 2048 * 4) == NO_ERROR) {
 		mOutput = out;
 	} else {
@@ -291,7 +291,7 @@ AudioStreamIn* AudioHardwareOmap::openInputStream(int format, int channelCount, 
 		return 0;
 
 	/* Create new output stream */
-	AudioStreamInOmap* in = new AudioStreamInOmap();
+	AudioStreamInOmap* in = new AudioStreamInOmap(this);
        if (in->set(format, channelCount, sampleRate, 1024 * 2) == NO_ERROR) {
 		mInput = in;
 	} else {
@@ -461,6 +461,16 @@ status_t AudioHardwareOmap::dump(int fd, const Vector<String16>& args)
 	}
 
 	return NO_ERROR;
+}
+
+void AudioHardwareOmap::setInputStream(AudioStreamInOmap *input)
+{
+	mInput = input;
+}
+
+void AudioHardwareOmap::setOutputStream(AudioStreamOutOmap *output)
+{
+	mOutput = output;
 }
 
 #endif

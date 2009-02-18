@@ -20,13 +20,16 @@
 #include <hardware_legacy/AudioHardwareInterface.h>
 #include <alsa/asoundlib.h>
 #include "AudioStreamOmap.h"
+#include "AudioHardwareOmap.h"
 
 using namespace android;
+
+class AudioHardwareOmap;
 
 class AudioStreamInOmap : public AudioStreamIn
 {
 	public:
-		AudioStreamInOmap();
+		AudioStreamInOmap(AudioHardwareOmap *parent);
                ~AudioStreamInOmap();
                status_t set(int format, int channels, uint32_t rate, int buffer_size);
 		uint32_t sampleRate() const;
@@ -45,6 +48,7 @@ class AudioStreamInOmap : public AudioStreamIn
                bool streaming;
                struct StreamProperties properties;
 		snd_pcm_t *pcmHandle;
+		AudioHardwareOmap *hardware;
 		Mutex mLock;
 };
 

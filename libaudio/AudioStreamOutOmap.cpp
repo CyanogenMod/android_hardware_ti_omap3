@@ -34,15 +34,17 @@
 #include <hardware_legacy/AudioHardwareInterface.h>
 #include <alsa/asoundlib.h>
 
+#include "AudioHardwareOmap.h"
 #include "AudioStreamOmap.h"
 #include "AudioStreamOutOmap.h"
 
 using namespace android;
 
 /* Constructor */
-AudioStreamOutOmap::AudioStreamOutOmap()
+AudioStreamOutOmap::AudioStreamOutOmap(AudioHardwareOmap *parent)
 {
        streaming = false;
+	hardware = parent;
 }
 
 /* Destructor */
@@ -50,6 +52,7 @@ AudioStreamOutOmap::~AudioStreamOutOmap()
 {
        /* If stream is not already closed */
        closeStream();
+	hardware->setOutputStream(NULL);
 }
 
 status_t AudioStreamOutOmap::openStream()

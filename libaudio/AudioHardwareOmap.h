@@ -44,6 +44,8 @@ class AudioHardwareOmap : public AudioHardwareInterface
 		virtual AudioStreamOut* openOutputStream(int format=0, int channelCount=0, uint32_t sampleRate=0, status_t *status=0);
 		virtual AudioStreamIn* openInputStream(int format, int channelCount, uint32_t sampleRate, status_t *status);
 		virtual status_t dumpState(int fd, const Vector<String16>& args);
+		void setInputStream(AudioStreamInOmap *input);
+		void setOutputStream(AudioStreamOutOmap *output);
 		static AudioHardwareInterface* create();
 	protected:
 		virtual status_t doRouting();
