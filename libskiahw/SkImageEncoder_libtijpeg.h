@@ -32,17 +32,8 @@ Memcpy into bm upon receiving fillbufferdone
 
 Replace Allocate Buffer with UseBuffer(using bm) for output buffer.
 
-Replace print stmts
-
 Better Error handling
 */
-#if 0
-#include "SkUtils.h"
-#include "SkDither.h"
-#include "SkStream.h"
-#include "SkColorPriv.h"
-#include "SkTemplates.h"
-#endif
 #include "SkBitmap.h"
 #include "SkStream.h"
 #include "SkImageEncoder.h"
@@ -52,7 +43,6 @@ Better Error handling
 extern "C" {
     #include "OMX_Component.h"
     #include "OMX_IVCommon.h"
-//    #include "OMX_JpegEnc_CustomCmd.h"
 }
 
 class SkTIJPEGImageEncoder :public SkImageEncoder
