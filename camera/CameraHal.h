@@ -23,6 +23,7 @@
 #define ANDROID_HARDWARE_CAMERA_HARDWARE_H
 
 #include <stdio.h>
+#include <dlfcn.h>
 #include <V4L2.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -36,7 +37,6 @@
 #include <ui/Overlay.h>
 #if HARDWARE_OMX
 #include "SkImageEncoder_libtijpeg.h"
-#include "SkBitmap.h"
 #else
 #include "CannedJpeg.h"
 #endif
@@ -108,11 +108,12 @@ private:
 #if HARDWARE_OMX
     void convertYUYVtoUYVY(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
     sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
+
+    SkTIJPEGImageEncoder *encoder;	
+    void                    *mLibHandle;    
 #endif
 
-    int fcount;
     mutable Mutex       mLock;
-
     CameraParameters    mParameters;
 
     sp<MemoryHeapBase>  mHeap;
@@ -140,10 +141,9 @@ private:
 
     // only used from PreviewThread
     int                 mCurrentPreviewFrame;
-
+    int nOverlayBuffersQueued;
     int nQueued;
     int nDequeued;
-    bool previewStopped;
     bool doubledPreviewWidth;
     bool doubledPreviewHeight;
 };

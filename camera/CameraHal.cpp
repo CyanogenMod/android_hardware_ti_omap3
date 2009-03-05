@@ -30,8 +30,8 @@
 #define VIDEO_DEVICE        "/dev/video5"
 #define MIN_WIDTH           208 // 960 //820
 #define MIN_HEIGHT          154 // 800 //616
-#define PICTURE_WIDTH   2560 /* 5mp. 8mp - 3280 */
-#define PICTURE_HEIGHT  2048 /* 5mp. 8mp - 2464 */
+#define PICTURE_WIDTH   2560 /* 5mp - 2560. 8mp - 3280 */
+#define PICTURE_HEIGHT  2048 /* 5mp - 2048. 8mp - 2464 */
 #define PIXEL_FORMAT      V4L2_PIX_FMT_UYVY     //V4L2_PIX_FMT_YUYV
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
 
@@ -46,12 +46,6 @@ CameraHal::CameraHal()
                   : mParameters(),
                     mHeap(0),
                     mPictureHeap(0),
-                    fcount(6),
-                    nQueued(0),
-                    nDequeued(0),
-                    previewStopped(true),
-                    doubledPreviewWidth(false),
-                    doubledPreviewHeight(false),
                     mPreviewFrameSize(0),
                     mRawPictureCallback(0),
                     mJpegPictureCallback(0),
@@ -60,9 +54,40 @@ CameraHal::CameraHal()
                     mPreviewCallbackCookie(0),
                     mAutoFocusCallback(0),
                     mAutoFocusCallbackCookie(0),
-                    mCurrentPreviewFrame(0)
+                    mCurrentPreviewFrame(0),
+                    nQueued(0),
+                    nDequeued(0),
+                    doubledPreviewWidth(false),
+                    doubledPreviewHeight(false)                    
 {
     initDefaultParameters();
+
+#if HARDWARE_OMX
+
+    mLibHandle = NULL;
+    encoder == NULL;
+
+    // attempt to load device-specific jpeg codec
+    mLibHandle = dlopen("libskiahw.so", RTLD_NOW);
+    if( mLibHandle == NULL ) {
+        LOGE ("Failed to load libskiahw.so because %s", dlerror());
+        return;
+    }
+    LOGD ("Loaded libskiahw.so");
+
+    typedef SkTIJPEGImageEncoder* (*TIJpegEncFactory)();
+
+    TIJpegEncFactory f = (TIJpegEncFactory) dlsym(mLibHandle, "SkImageEncoder_TIJPEG_Factory");
+    if (f == NULL) 
+    {
+        LOGE("Unable to Load Hardware Specific Jpeg Decoder Factory because %s", dlerror());
+        dlclose(mLibHandle);		
+        return;
+    }
+    encoder = f();
+
+#endif
+
 }
 
 void CameraHal::initDefaultParameters()
@@ -87,7 +112,6 @@ bool CameraHal::initHeapLocked()
     LOG_FUNCTION_NAME
 
     int width, height;
-    int nSizeBytes;
     struct v4l2_requestbuffers creqbuf;
 
     mParameters.getPreviewSize(&width, &height);
@@ -95,22 +119,14 @@ bool CameraHal::initHeapLocked()
     LOGD("initHeapLocked: preview size=%dx%d", width, height);
 
     // Note that we enforce yuv422 in setParameters().
-    int how_big = width * height * 2;
-    nSizeBytes =  how_big;
+    mPreviewFrameSize = width * height * 2;
 
-    if (nSizeBytes & 0xfff)
+    if (mPreviewFrameSize & 0xfff)
     {
-        how_big = (nSizeBytes & 0xfffff000) + 0x1000;
+        mPreviewFrameSize = (mPreviewFrameSize & 0xfffff000) + 0x1000;
     }
 
-    // If we are being reinitialized to the same size as before, no
-    // work needs to be done.
-    //if (how_big == mPreviewFrameSize)
-        //return true;
-
-    mPreviewFrameSize = how_big;
     LOGD("mPreviewFrameSize = 0x%x = %d", mPreviewFrameSize, mPreviewFrameSize);
-
 
     int buffer_count = mOverlay->getBufferCount();
     LOGD("number of buffers = %d\n", buffer_count);
@@ -123,7 +139,7 @@ bool CameraHal::initHeapLocked()
         return false;
     }
 
-    for (int i = 0; i < creqbuf.count; i++) {
+    for (unsigned int i = 0; i < creqbuf.count; i++) {
 
         struct v4l2_buffer buffer;
         buffer.type = creqbuf.type;
@@ -132,8 +148,8 @@ bool CameraHal::initHeapLocked()
 
         LOGD("VIDIOC_QUERYBUF");
         LOGD("buffer.type = %d", buffer.type);
-        LOGD("buffer.memory = %x", buffer.memory);        
-        LOGD("buffer.index = %d", buffer.index);                
+        LOGD("buffer.memory = %x", buffer.memory);
+        LOGD("buffer.index = %d", buffer.index);
         if (ioctl(camera_device, VIDIOC_QUERYBUF, &buffer) < 0) {
             LOGE("VIDIOC_QUERYBUF Failed. errno = %d", errno);
             return false;
@@ -144,17 +160,6 @@ bool CameraHal::initHeapLocked()
         // XXX: rschultz: check this to make sure sizes work
         buffer.length = mPreviewFrameSize;
 
-        /* this only works becuase both the camera and the overlays use
-         * v4l2 and thus the overlay_buffer_t == index into array of overlays,
-         * this must be fixed when the v4l2 buffer overlay management
-         * is fixed so dequeue buffers works properly */
-#if 0
-        overlay_buffer_t overlay_buffer;
-        if (mOverlay->dequeueBuffer(&overlay_buffer) != NO_ERROR) {
-            LOGE("Camera dequeue buffer failed");
-            return false;
-        }
-#endif
         buffer.m.userptr = (unsigned long)mOverlay->getBufferAddress((void*)i);
         strcpy((char *)buffer.m.userptr, "hello");
         if (strcmp((char *)buffer.m.userptr, "hello")) {
@@ -178,6 +183,10 @@ bool CameraHal::initHeapLocked()
 
 CameraHal::~CameraHal()
 {
+#if HARDWARE_OMX
+    if (encoder) delete encoder;
+    if (mLibHandle) dlclose(mLibHandle);
+#endif	
     singleton.clear();
 }
 
@@ -195,43 +204,33 @@ int CameraHal::previewThread()
     int w, h;
     unsigned long offset;
     void *croppedImage;
-    overlay_buffer_t overlaybuffer;    
+    overlay_buffer_t overlaybuffer;
     struct v4l2_buffer cfilledbuffer;
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-    
-    if (!previewStopped){
 
-        /* De-queue the next avaliable buffer */
-        while (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
-            LOGE("VIDIOC_DQBUF Failed");
-        }
-        nDequeued++;
-
-        mCurrentPreviewFrame++;
-
-        //LOGD("previewThread: generated frame to buffer %d", mCurrentPreviewFrame);
-       
-        // Notify the client of a new frame.
-        mOverlay->queueBuffer((void*)cfilledbuffer.index);
-
-        //memcpy(mSurfaceFlingerHeap->getBase(), (void*)(cfilledbuffer.m.userptr), cfilledbuffer.length);
-
-        // Notify the client of a new frame.
-        //mPreviewCallback(mSurfaceFlingerBuffer, mPreviewCallbackCookie);
-
-        if (!previewStopped){
-
-            //mOverlay->dequeueBuffer(&overlaybuffer);
-            //cfilledbuffer.index = (int)overlaybuffer;
-
-            /* queue the buffer back to camera */
-            while (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                LOGE("VIDIOC_QBUF Failed.");
-            }
-            nQueued++;
-        }
+    /* De-queue the next avaliable buffer */
+    while (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
+        LOGE("VIDIOC_DQBUF Failed");
     }
+    nDequeued++;
+
+    mCurrentPreviewFrame++;
+
+    // Notify the client of a new frame.
+    mOverlay->queueBuffer((void*)cfilledbuffer.index);
+    nOverlayBuffersQueued++;
+	
+    mOverlay->dequeueBuffer(&overlaybuffer);
+    nOverlayBuffersQueued--;
+    cfilledbuffer.index = (int)overlaybuffer;
+
+    /* queue the buffer back to camera */
+    while (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+        LOGE("VIDIOC_QBUF Failed.");
+    }
+    nQueued++;
+
     return NO_ERROR;
 }
 
@@ -250,7 +249,7 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
 
     Mutex::Autolock lock(mLock);
     if (mPreviewThread != 0) {
-        // already running
+        LOGE("Preview already running");
         return INVALID_OPERATION;
     }
 
@@ -293,8 +292,8 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
     }
     LOGD("camera is streaming...");
 
-    previewStopped = false;
-    nQueued = 0; 
+    nOverlayBuffersQueued = 0;
+    nQueued = 0;
     nDequeued = 0;
     mPreviewCallback = cb;
     mPreviewCallbackCookie = user;
@@ -307,47 +306,7 @@ void CameraHal::stopPreview()
     LOG_FUNCTION_NAME
 
     sp<PreviewThread> previewThread;
-    struct v4l2_requestbuffers creqbuf;
-
-    { // scope for the lock
-        Mutex::Autolock lock(mLock);
-        previewStopped = true;
-    }
-
-    if (mPreviewThread != 0) {
-
-        struct v4l2_buffer cfilledbuffer;
-        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-        int DQcount = nQueued - nDequeued;
-        nQueued = 0; 
-        nDequeued = 0;
-        
-        if (DQcount < 0)
-            LOGE("Something seriously wrong. Dequeued > Queued");
-
-        LOGD("No. of buffers remaining to be dequeued = %d", DQcount);
-
-        //for (int i = 0; i < DQcount; i++){
-        for (int i = 1; i < DQcount; i++){            
-            /* De-queue the next avaliable buffer */
-            if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
-                LOGE("VIDIOC_DQBUF Failed");
-            }
-            LOGE("VIDIOC_DQBUF %d", i);
-        }
-
-        /* Turn off streaming */
-        creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
-            LOGE("VIDIOC_STREAMOFF Failed");
-        }
-        LOGD("Turned off Streaming\n");
-        
-        close(camera_device);
-        mOverlay->destroy();
-    }
-
+    
     { // scope for the lock
         Mutex::Autolock lock(mLock);
         previewThread = mPreviewThread;
@@ -358,13 +317,52 @@ void CameraHal::stopPreview()
         previewThread->requestExitAndWait();
     }
 
-    Mutex::Autolock lock(mLock);
-    mPreviewThread.clear();
+    { // scope for the lock
+        Mutex::Autolock lock(mLock);
+        mPreviewThread.clear();
+    }
+	
+    int DQcount = nQueued - nDequeued;	
+    struct v4l2_requestbuffers creqbuf;
+
+    if (DQcount < 0)
+        LOGE("Something seriously wrong. Dequeued > Queued");
+
+    LOGD("No. of buffers remaining to be dequeued = %d. nQueued = %d, nDequeued = %d.", DQcount, nQueued, nDequeued);
+    LOGD("No. of overlay buffers remaining to be dequeued = %d.", nOverlayBuffersQueued);
+	
+    LOGD("Turn off Streaming\n");
+
+    /* Turn off streaming */
+    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
+        LOGE("VIDIOC_STREAMOFF Failed");
+    }
+    LOGD("Turned off Streaming\n");
+
+    struct v4l2_buffer cfilledbuffer;
+    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
+
+    for (int i = 0; i < DQcount; i++){
+        LOGE("Before VIDIOC_DQBUF %d", i);
+		
+        /* De-queue the next avaliable buffer */
+        if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
+            LOGE("VIDIOC_DQBUF Failed");
+        }
+        LOGE("VIDIOC_DQBUF %d", i);
+    }
+
+    close(camera_device);
+    mOverlay->destroy();
+
 }
+
 
 bool CameraHal::previewEnabled()
 {
-    return (!previewStopped);
+    return mPreviewThread != 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -473,7 +471,7 @@ int CameraHal::pictureThread()
 
     // Make a new mmap'ed heap that can be shared across processes.
     if (mPictureHeap == 0) {
-	    mPictureHeap = new MemoryHeapBase(pictureSize + 0x20 + 256);
+        mPictureHeap = new MemoryHeapBase(pictureSize + 0x20 + 256);
     }
     base = (unsigned long)mPictureHeap->getBase();
 
@@ -488,7 +486,7 @@ int CameraHal::pictureThread()
     offset = base - (unsigned long)mPictureHeap->getBase();
     mPictureBuffer = new MemoryBase(mPictureHeap, offset, pictureSize);
 
-    LOGD("Picture Buffer: Base = %p Offset = 0x%x", base, offset);
+    LOGD("Picture Buffer: Base = %p Offset = 0x%x", (void *)base, (unsigned int)offset);
 
     buffer.type = creqbuf.type;
     buffer.memory = creqbuf.memory;
@@ -536,13 +534,13 @@ int CameraHal::pictureThread()
 
     if (mRawPictureCallback) {
         mRawPictureCallback(mPictureBuffer, mPictureCallbackCookie);
-/*        
+/*
         sp<MemoryHeapBase> mYUV422SPPictureHeap = new MemoryHeapBase(cfilledbuffer.length + 256);
         memBase = new MemoryBase(mYUV422SPPictureHeap, 128, cfilledbuffer.length);
         void *yuv422buffer = (void *)((unsigned long)mYUV422SPPictureHeap->getBase() + 128);
         convertYUYVtoYUV422SP((uint8_t*)(cfilledbuffer.m.userptr), (uint8_t *) yuv422buffer, w, h);
         mRawPictureCallback(memBase, mPictureCallbackCookie);
-*/        
+*/
     }
 
 
@@ -714,21 +712,22 @@ sp<CameraHardwareInterface> CameraHal::createInstance()
 sp<MemoryBase> CameraHal::encodeImage(void *buffer, uint32_t bufflen)
 {
     int w, h, size;
-    SkTIJPEGImageEncoder encoder;
-
+	
     LOG_FUNCTION_NAME
     mParameters.getPictureSize(&w, &h);
     size =  (w * h) + 12288;
 
-    // Make a new mmap'ed heap that can be shared across processes.
     sp<MemoryHeapBase> mJpegImageHeap = new MemoryHeapBase(size + 256);
-    // Make an IMemory for each frame
     sp<MemoryBase>mJpegBuffer = new MemoryBase(mJpegImageHeap, 128, size);
-    void *outBuffer = (OMX_U8 *)((unsigned long)(mJpegImageHeap->getBase()) + 128);
-
-    encoder.encodeImage(outBuffer, size, buffer, bufflen, w, h, 100);
+    void *outBuffer = (void *)((unsigned long)(mJpegImageHeap->getBase()) + 128);
+	
+    if (encoder == NULL)
+        return mJpegBuffer;
+	
+    encoder->encodeImage(outBuffer, size, buffer, bufflen, w, h, 100);
 
     return mJpegBuffer;
+
 }
 
 #endif

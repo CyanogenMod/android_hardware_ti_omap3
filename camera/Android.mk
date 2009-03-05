@@ -6,24 +6,26 @@ LOCAL_SRC_FILES:=               \
     CameraHal.cpp
 
 LOCAL_SHARED_LIBRARIES:= \
+    libdl \
     libui \
     libutils \
     libcutils \
-    libsgl
+    libskiahw\
+
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/ui \
 	frameworks/base/camera/libcameraservice
+
+LOCAL_CFLAGS += -fno-short-enums 
 
 ifdef HARDWARE_OMX
 
 LOCAL_C_INCLUDES += \
 	external/skia/include/images \
 	external/skia/include/core \
-	external/skia/include/graphics \
+	hardware/ti/omap3/libskiahw \
 	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
-	hardware/ti/omx/image/src/openmax_il/jpeg_enc/inc \
-	frameworks/base/include/ui
 
 LOCAL_CFLAGS += -DHARDWARE_OMX
 
@@ -31,7 +33,7 @@ endif
 
 LOCAL_MODULE:= libcamera
 
-LOCAL_CFLAGS += -fno-short-enums
+
 
 include $(BUILD_SHARED_LIBRARY)
 
