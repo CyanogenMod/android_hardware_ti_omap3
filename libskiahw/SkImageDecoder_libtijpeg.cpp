@@ -341,20 +341,6 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
 
 void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
 {
-
-    OMX_U32 i;
-    OMX_U8 temp;
-    
-    if (OutPortDef.format.image.eColorFormat == OMX_COLOR_Format32bitARGB8888)
-    {
-        for(i = 0; i < nFilledLen; i+=4)
-        {
-            temp = pBuffer[i];
-            pBuffer[i] = pBuffer[i+2];
-            pBuffer[i+2] = temp;
-        }
-    }
-
     memcpy(bitmap->getPixels(), pBuffer, nFilledLen);
     iLastState = iState;
     iState = STATE_FILL_BUFFER_DONE_CALLED;
