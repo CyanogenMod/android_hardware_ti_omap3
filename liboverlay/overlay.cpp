@@ -340,9 +340,9 @@ static int overlay_setParameter(struct overlay_control_device_t *dev,
             
         case OVERLAY_TRANSFORM:
             switch(value){
-                case OVERLAY_TRANSFORM_ROT_0:
-			rotation = 0;
-			break;
+                //case OVERLAY_TRANSFORM_ROT_0:
+			//rotation = 0;
+			//break;
                 case OVERLAY_TRANSFORM_ROT_90:
 			rotation = 90;
 			break;
