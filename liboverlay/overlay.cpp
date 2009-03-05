@@ -34,6 +34,8 @@ extern "C" {
 
 /*****************************************************************************/
 
+#define LOG_FUNCTION_NAME    LOGD(" %s ###### Calling %s() ######",  __FILE__, __FUNCTION__);
+
 pthread_mutex_t global_mutex; 
 
 struct overlay_control_context_t {
@@ -206,6 +208,8 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     }
     ret = v4l2_overlay_req_buf(fd, &num_buffers);
 
+    ret = v4l2_overlay_set_colorkey(fd, 1 /*enable*/, 0);
+
     /* Create overlay object. Talk to the h/w here and adjust to what it can
      * do. the overlay_t returned can  be a C++ object, subclassing overlay_t
      * if needed.
@@ -314,6 +318,7 @@ static int overlay_setParameter(struct overlay_control_device_t *dev,
     //LOG_FUNCTION_NAME
     int fd = static_cast<overlay_object *>(overlay)->ctl_fd();        
     int result = 0;
+    int rotation = 0;
 
     switch (param) {
 
@@ -326,18 +331,35 @@ static int overlay_setParameter(struct overlay_control_device_t *dev,
                 result = -EINVAL;
                 break;
             }
-            //result = v4l2_overlay_set_rotation(fd, value, 0);
+            result = v4l2_overlay_set_rotation(fd, value, 0);
             break;
             
         case OVERLAY_DITHER:
             LOGI("Set Dither");
-            
-            LOGI("Set Color Key");            
-            result = v4l2_overlay_set_colorkey(fd, 1 /*enable*/, 0);
             break;
             
         case OVERLAY_TRANSFORM:
-            // see OVERLAY_TRANSFORM_*
+            switch(value){
+                case OVERLAY_TRANSFORM_ROT_0:
+			rotation = 0;
+			break;
+                case OVERLAY_TRANSFORM_ROT_90:
+			rotation = 90;
+			break;
+                case OVERLAY_TRANSFORM_ROT_180:
+			rotation = 180;
+			break;
+                case OVERLAY_TRANSFORM_ROT_270:
+			rotation = 270;
+			break;
+                case OVERLAY_TRANSFORM_FLIP_H:
+                case OVERLAY_TRANSFORM_FLIP_V:					
+			return result;
+                default:
+                    result = -EINVAL;
+                    break;
+            }
+            result = v4l2_overlay_set_rotation(fd, rotation, 0);
             break;
             
         default:
@@ -482,7 +504,7 @@ static int overlay_data_close(struct hw_device_t *dev)
          */
         for (int i = 0; i < ctx->num_buffers; i++) {
             /* in case they are queued, dq them */
-            v4l2_overlay_dq_buf(ctx->ctl_fd, &buf);
+            //v4l2_overlay_dq_buf(ctx->ctl_fd, &buf);
             /* unmap them */
             v4l2_overlay_unmap_buf(ctx->buffers[buf],
                                    ctx->buffers_len[buf]);
