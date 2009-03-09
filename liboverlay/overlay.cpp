@@ -359,7 +359,7 @@ static int overlay_setParameter(struct overlay_control_device_t *dev,
                     result = -EINVAL;
                     break;
             }
-            result = v4l2_overlay_set_rotation(fd, rotation, 0);
+            //result = v4l2_overlay_set_rotation(fd, rotation, 0);
             break;
             
         default:
