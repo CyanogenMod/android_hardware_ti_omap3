@@ -1,3 +1,5 @@
+ifdef BOARD_USES_TI_CAMERA_HAL
+
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -10,7 +12,6 @@ LOCAL_SHARED_LIBRARIES:= \
     libui \
     libutils \
     libcutils \
-    libskiahw\
 
 
 LOCAL_C_INCLUDES += \
@@ -29,11 +30,12 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_CFLAGS += -DHARDWARE_OMX
 
+LOCAL_SHARED_LIBRARIES += libskiahw
+
 endif
 
 LOCAL_MODULE:= libcamera
 
-
-
 include $(BUILD_SHARED_LIBRARY)
 
+endif
