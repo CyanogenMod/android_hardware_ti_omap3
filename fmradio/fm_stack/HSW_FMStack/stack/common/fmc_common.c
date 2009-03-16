@@ -329,7 +329,13 @@ FMC_ListNode *FMCI_GetCmdsQueue(void)
 
 void _FMC_TaskEventCallback(FmcOsEvent evtMask)
 {
-	sleep(1);
+#ifdef ANDROID
+	FMC_OS_Sleep(30);
+	if (_fmcInitState == _FMC_INIT_STATE_DEINIT_STARTED)
+	{
+		FMC_OS_Sleep(100);
+	}
+#endif
     /* Lock the Mutex on entry to FM state machine */
     FMC_FUNC_START_AND_LOCK("Fm_Stack_EventCallback");
     if(_fmcInitState !=_FMC_INIT_STATE_DEINIT_STARTED)
