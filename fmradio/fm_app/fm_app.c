@@ -1526,6 +1526,9 @@ fm_status fmapp_set_emphasis_filter(void *fm_context)
 	return ret;
 }
 
+fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context,char interactive,char *cmd, int *index);
+fm_status fmapp_unset_audio_routing(fm_rx_context_s *fm_context,char interactive,char *cmd, int *index);
+
 #if 0
 fm_status fmapp_get_audio_routing(fm_rx_context_s *fm_context)
 {
@@ -2731,6 +2734,7 @@ fm_status fmapp_init_stack(void  **fm_context)
 	else
 		ret = FMC_STATUS_SUCCESS;
 
+	fmapp_set_audio_routing(*fm_context,0,0,NULL);
 	FMAPP_END();
 	return ret;
 }
@@ -2739,6 +2743,9 @@ fm_status fmapp_deinit_stack(void  **fm_context)
 {
 	fm_status ret = FMC_STATUS_FAILED;
 	FMAPP_BEGIN();
+
+	fmapp_unset_audio_routing(NULL,1,0,NULL);
+	sleep(1);
 
 	if (g_fmapp_rxtx_mode == FMAPP_RX_MODE)
 		ret = deinit_rx_stack((fm_rx_context_s **) fm_context);
@@ -2982,9 +2989,9 @@ fm_status fmapp_execute_rx_other_command(char *cmd, int *index, fm_rx_context_s 
 	case 'e':
 		ret = fmapp_set_emphasis_filter(*fm_context);
 		break;
-//	case 'o':
-//		ret = fmapp_set_audio_routing(*fm_context);
-//		break;
+	case 'o':
+		ret = fmapp_set_audio_routing(*fm_context, interactive,cmd+1,index);
+		break;
 	case 'z':
 		ret = fmapp_set_rds_system(*fm_context);
 		break;
@@ -3558,82 +3565,334 @@ fastout:
 
 
 #ifdef ANDROID
-#define control_element_of_interest "Capture Source"
+const char *control_elements_of_interest[] = {
+	"Analog Capture Volume",
+	"Analog Left Capture Route",
+	"Analog Right Capture Route",
+	"Left2 Analog Loopback Switch",
+	"Right2 Analog Loopback Switch"
+};
+/* TODO:
+ * replace the hard-coded _enumerated/_boolean/_integer by
+ * something better, also remove the hard-coded values_of_control
+ */
+int values_of_control[] = {5,3,2,1,1};
 const char card[]="default";
 
 fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context,
 	char interactive,char *cmd, int *index)
 {       
-	int err;
-        unsigned int count, value_of_control=2;
+	int err, i=0;
+        unsigned int count;
         static snd_ctl_t *handle = NULL;
 
-	snd_ctl_elem_info_t *info;
-        snd_ctl_elem_id_t *id;
-        snd_ctl_elem_value_t *control;
+	snd_ctl_elem_info_t *info=NULL;
+        snd_ctl_elem_id_t *id=NULL;
+        snd_ctl_elem_value_t *control[5]={NULL};
         snd_ctl_elem_type_t type;
 
         fm_status ret = FMC_STATUS_SUCCESS;
         FMAPP_BEGIN();
 
-	if (interactive == FMAPP_INTERACTIVE)
+/*
+ * if (interactive == FMAPP_INTERACTIVE)
 		sscanf(cmd, "%u", &value_of_control);
+*/
 
         snd_ctl_elem_info_alloca(&info);
-        snd_ctl_elem_id_alloca(&id);
-        snd_ctl_elem_value_alloca(&control);
-
+       	snd_ctl_elem_id_alloca(&id);
+        snd_ctl_elem_value_alloca(&control[0]);
+        snd_ctl_elem_value_alloca(&control[1]);
+        snd_ctl_elem_value_alloca(&control[2]);
+       	snd_ctl_elem_value_alloca(&control[3]);
+        snd_ctl_elem_value_alloca(&control[4]);
 
 	snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
-//        snd_ctl_elem_id_set_numid(id, /* ID here */17);
-	//sscanf(cmd,"%d",&id);
-        snd_ctl_elem_id_set_name(id, control_element_of_interest);
 
-        if (handle == NULL &&
-		                (err = snd_ctl_open(&handle, card, 0)) < 0) {
-	                FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-		                return err;
-			        }
-
-        snd_ctl_elem_info_set_id(info, id);
-        if ((err = snd_ctl_elem_info(handle, info)) < 0) {
-		printf("Err here\n");
-		FMAPP_ERROR("Cannot find the given element from control %s\n", card);
-		if (! handle) {
-			snd_ctl_close(handle);
-			handle = NULL;
-		}
+	if (interactive)
+	{
+		printf("In De-init 16mar\n");
+		/* Using interactive to reset mixer controls */
+//		goto de_init_mixer_controls;
+		values_of_control[0]=5;
+		values_of_control[1]=1;
+		values_of_control[2]=1;
+		values_of_control[3]=0;
+		values_of_control[4]=0;
 	}
-        snd_ctl_elem_info_get_id(info, id);
-        /* FIXME: Remove it when hctl find works ok !!! */
-        type = snd_ctl_elem_info_get_type(info);
-//        printf("Type is %d [%d]\n", type, SND_CTL_ELEM_TYPE_BOOLEAN);
-	printf(" Modifying numid=%u[%s] to value %u\n",
-			snd_ctl_elem_id_get_numid(id),
+	i=0;        
+	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+	            FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+	            return err;
+	}
+	FMAPP_TRACE(" Modifying %s to value %u\n",
 			snd_ctl_elem_id_get_name(id),
-			value_of_control);
-	count = snd_ctl_elem_info_get_count(info);
-	snd_ctl_elem_value_set_id(control, id);
-//	snd_ctl_elem_value_set_boolean(control, 0, /*Volume/Switch here*/2);
-	snd_ctl_elem_value_set_enumerated(control, 0, value_of_control);
+			values_of_control[i]);
+	snd_ctl_elem_value_set_id(control[i], id);
+	snd_ctl_elem_value_set_integer(control[i], 0, values_of_control[i]);
 
-	if ((err = snd_ctl_elem_write(handle, control)) < 0) {
+	if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
 		FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
 		if (!handle) {
 			snd_ctl_close(handle);
 			handle = NULL;
 		}
 	}
-	printf("If the previous didn't work, it should work now\n");
+
+	i=1;
+        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+                    return err;
+        }
+
+	FMAPP_TRACE(" Modifying %s to value %u\n",
+                        snd_ctl_elem_id_get_name(id),
+                        values_of_control[i]);
+        snd_ctl_elem_value_set_id(control[i], id);
+        snd_ctl_elem_value_set_enumerated(control[i], 0, values_of_control[i]);
+
+        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+                if (!handle) {
+                        snd_ctl_close(handle);
+                        handle = NULL;
+                }
+	}
+
+	i=2;
+        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+                    return err;
+        }
+	FMAPP_TRACE(" Modifying %s to value %u\n",
+                        snd_ctl_elem_id_get_name(id),
+                        values_of_control[i]);
+        snd_ctl_elem_value_set_id(control[i], id);
+        snd_ctl_elem_value_set_enumerated(control[i], 0, values_of_control[i]);
+
+        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+                if (!handle) {
+                        snd_ctl_close(handle);
+                        handle = NULL;
+                }
+	}
+
+	i=3;
+        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+                    return err;
+        }
+        FMAPP_TRACE(" Modifying %s to value %u\n",
+                        snd_ctl_elem_id_get_name(id),
+                        values_of_control[i]);
+        snd_ctl_elem_value_set_id(control[i], id);
+        snd_ctl_elem_value_set_boolean(control[i], 0, values_of_control[i]);
+
+        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+                if (!handle) {
+                        snd_ctl_close(handle);
+                        handle = NULL;
+                }
+	}
+
+	i=4;
+	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+                    return err;
+        }
+     	FMAPP_TRACE(" Modifying %s to value %u\n",
+                        snd_ctl_elem_id_get_name(id),
+                        values_of_control[i]);
+        snd_ctl_elem_value_set_id(control[i], id);
+        snd_ctl_elem_value_set_boolean(control[i], 0, values_of_control[i]);
+
+        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+                if (!handle) {
+                        snd_ctl_close(handle);
+                        handle = NULL;
+                }
+	}
+
 
 //	sleep(1);
-//        snd_ctl_elem_info_free(info);
-//        snd_ctl_elem_id_free(id);
-//        snd_ctl_elem_value_free(control);
-
+#if 0
+        snd_ctl_elem_info_free(info);
+        snd_ctl_elem_id_free(id);
+        snd_ctl_elem_value_free(control);
+#endif
 	snd_ctl_close(handle);
-
-	FMAPP_END();
 }
+
+
+fm_status fmapp_unset_audio_routing(fm_rx_context_s *fm_context,
+	char interactive,char *cmd, int *index)
+{       
+	int err, i=0;
+        unsigned int count;
+        static snd_ctl_t *handle = NULL;
+
+	snd_ctl_elem_info_t *info=NULL;
+        snd_ctl_elem_id_t *id=NULL;
+        snd_ctl_elem_value_t *control[5]={NULL};
+        snd_ctl_elem_type_t type;
+
+        fm_status ret = FMC_STATUS_SUCCESS;
+        FMAPP_BEGIN();
+
+/*
+ * if (interactive == FMAPP_INTERACTIVE)
+		sscanf(cmd, "%u", &value_of_control);
+*/
+
+        snd_ctl_elem_info_alloca(&info);
+       	snd_ctl_elem_id_alloca(&id);
+        snd_ctl_elem_value_alloca(&control[0]);
+        snd_ctl_elem_value_alloca(&control[1]);
+        snd_ctl_elem_value_alloca(&control[2]);
+       	snd_ctl_elem_value_alloca(&control[3]);
+        snd_ctl_elem_value_alloca(&control[4]);
+
+	snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
+
+	if (interactive)
+	{
+		FMAPP_TRACE("In De-init 16mar\n");
+		/* Using interactive to reset mixer controls */
+//		goto de_init_mixer_controls;
+		values_of_control[0]=5;
+		values_of_control[1]=1;
+		values_of_control[2]=1;
+		values_of_control[3]=0;
+		values_of_control[4]=0;
+	}
+	i=0;        
+	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+	            FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+	            return err;
+	}
+	FMAPP_TRACE(" Modifying %s to value %u\n",
+			snd_ctl_elem_id_get_name(id),
+			values_of_control[i]);
+	snd_ctl_elem_value_set_id(control[i], id);
+	snd_ctl_elem_value_set_integer(control[i], 0, values_of_control[i]);
+
+	if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+		FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+		if (!handle) {
+			snd_ctl_close(handle);
+			handle = NULL;
+		}
+	}
+
+	i=1;
+        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+                    return err;
+        }
+
+	FMAPP_TRACE(" Modifying %s to value %u\n",
+                        snd_ctl_elem_id_get_name(id),
+                        values_of_control[i]);
+        snd_ctl_elem_value_set_id(control[i], id);
+        snd_ctl_elem_value_set_enumerated(control[i], 0, values_of_control[i]);
+
+        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+                if (!handle) {
+                        snd_ctl_close(handle);
+                        handle = NULL;
+                }
+	}
+
+	i=2;
+        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+                    return err;
+        }
+	FMAPP_TRACE(" Modifying %s to value %u\n",
+                        snd_ctl_elem_id_get_name(id),
+                        values_of_control[i]);
+        snd_ctl_elem_value_set_id(control[i], id);
+        snd_ctl_elem_value_set_enumerated(control[i], 0, values_of_control[i]);
+
+        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+                if (!handle) {
+                        snd_ctl_close(handle);
+                        handle = NULL;
+                }
+	}
+
+	i=3;
+        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+                    return err;
+        }
+        FMAPP_TRACE(" Modifying %s to value %u\n",
+                        snd_ctl_elem_id_get_name(id),
+                        values_of_control[i]);
+        snd_ctl_elem_value_set_id(control[i], id);
+        snd_ctl_elem_value_set_boolean(control[i], 0, values_of_control[i]);
+
+        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+                if (!handle) {
+                        snd_ctl_close(handle);
+                        handle = NULL;
+                }
+	}
+
+	i=4;
+	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
+        if (handle == NULL &&
+           (err = snd_ctl_open(&handle, card, 0)) < 0) {
+                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
+                    return err;
+        }
+     	FMAPP_TRACE(" Modifying %s to value %u\n",
+                        snd_ctl_elem_id_get_name(id),
+                        values_of_control[i]);
+        snd_ctl_elem_value_set_id(control[i], id);
+        snd_ctl_elem_value_set_boolean(control[i], 0, values_of_control[i]);
+
+        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
+                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
+                if (!handle) {
+                        snd_ctl_close(handle);
+                        handle = NULL;
+                }
+	}
+
+
+//	sleep(1);
+#if 0
+        snd_ctl_elem_info_free(info);
+        snd_ctl_elem_id_free(id);
+        snd_ctl_elem_value_free(control);
+#endif
+	snd_ctl_close(handle);
+}
+
 
 #endif
