@@ -111,7 +111,8 @@ static int handle_height(const overlay_handle_t overlay) {
 class overlay_object : public overlay_t {
 
     handle_t mHandle;
-
+    int rotation;
+	
     static overlay_handle_t getHandleRef(struct overlay_t* overlay) {
         /* returns a reference to the handle, caller doesn't take ownership */
         return &(static_cast<overlay_object *>(overlay)->mHandle);
@@ -131,9 +132,12 @@ public:
         this->w = w;
         this->h = h;
         this->format = format;
+        rotation = 0;
     }
 
     int ctl_fd() { return mHandle.ctl_fd; }
+    int getRotation() { return rotation; }	
+    void setRotation(int rot) { rotation = rot; }		
     int num_buffers() { return mHandle.num_buffers; }
 };
 
@@ -206,6 +210,11 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
         LOGE("Error initializing overlays");
         return NULL;
     }
+
+    ret = v4l2_overlay_set_crop(fd, 0, 0, w, h);
+
+    ret = v4l2_overlay_set_rotation(fd, 0, 0);
+
     ret = v4l2_overlay_req_buf(fd, &num_buffers);
 
     ret = v4l2_overlay_set_colorkey(fd, 1 /*enable*/, 0);
@@ -273,7 +282,29 @@ static int overlay_setPosition(struct overlay_control_device_t *dev,
     //LOG_FUNCTION_NAME   
     int ret = 0;
     int fd = static_cast<overlay_object *>(overlay)->ctl_fd();
-    
+    int temp_x;
+    uint32_t temp_w;
+    int32_t gx, gy, gw, gh;
+
+    v4l2_overlay_get_position(fd, &gx, &gy, &gw, &gh);
+
+    // if same as before, then return
+    if (((static_cast<overlay_object *>(overlay)->getRotation())%180) == 0)    
+    {
+        if ((x == gx) && (y == gy) && (w == gw) && (h == gh)) return ret;
+    }
+    else
+    {
+        if ((x == gy) && (y == gx) && (w == gh) && (h == gw)) 	return ret;
+    }
+		
+    if (((static_cast<overlay_object *>(overlay)->getRotation())%180) != 0)    
+    {
+        temp_x = x; x = y; y = temp_x;
+        temp_w = w; w = h; h = temp_w;
+        LOGI("Swapped (x and y) and (w and h) because of rotation");
+    }
+
     pthread_mutex_lock(&global_mutex); 
     if (v4l2_overlay_stream_off(fd))
     {
@@ -315,11 +346,13 @@ static int overlay_getPosition(struct overlay_control_device_t *dev,
 static int overlay_setParameter(struct overlay_control_device_t *dev,
          overlay_t* overlay, int param, int value) {
 
-    //LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME
     int fd = static_cast<overlay_object *>(overlay)->ctl_fd();        
     int result = 0;
     int rotation = 0;
-
+    int32_t x, y, w, h;
+    uint32_t pix_w, pix_h;	
+	
     switch (param) {
 
         case OVERLAY_ROTATION_DEG:
@@ -341,8 +374,9 @@ static int overlay_setParameter(struct overlay_control_device_t *dev,
         case OVERLAY_TRANSFORM:
             switch(value){
                 //case OVERLAY_TRANSFORM_ROT_0:
-			//rotation = 0;
-			//break;
+                case 0:
+			rotation = 0;
+			break;
                 case OVERLAY_TRANSFORM_ROT_90:
 			rotation = 90;
 			break;
@@ -359,7 +393,20 @@ static int overlay_setParameter(struct overlay_control_device_t *dev,
                     result = -EINVAL;
                     break;
             }
-            //result = v4l2_overlay_set_rotation(fd, rotation, 0);
+			
+            if ((static_cast<overlay_object *>(overlay)->getRotation()) != rotation)
+            {
+                v4l2_overlay_stream_off(fd);
+                result = v4l2_overlay_set_rotation(fd, rotation, 0);
+                if (result) break;
+                LOGI("Rotated by %d degrees", rotation);
+                static_cast<overlay_object *>(overlay)->setRotation(rotation);				
+                if ((rotation % 180) != 0){
+                    v4l2_overlay_get_position(fd, &x, &y, &w, &h);
+                    v4l2_overlay_set_position(fd, y, x, h, w);
+                }			
+                v4l2_overlay_stream_on(fd);				
+            }
             break;
             
         default:
@@ -431,6 +478,52 @@ int overlay_initialize(struct overlay_data_device_t *dev,
                              &ctx->buffers_len[i]);
     return 0;
 }
+
+
+static int overlay_setCrop(struct overlay_data_device_t *dev,
+                                    uint32_t x, uint32_t y, uint32_t w, uint32_t h) 
+{
+
+    //LOG_FUNCTION_NAME   
+    int ret = 0;
+    struct overlay_data_context_t* ctx =
+            (struct overlay_data_context_t*)dev;
+
+    pthread_mutex_lock(&global_mutex); 
+    if (v4l2_overlay_stream_off(ctx->ctl_fd))
+    {
+        ret = -EINVAL;
+        goto EXIT;
+    }
+    if (v4l2_overlay_set_crop(ctx->ctl_fd, x, y, w, h))
+    {
+        ret = -EINVAL;
+        goto EXIT;
+    }		
+    if (v4l2_overlay_stream_on(ctx->ctl_fd))
+    {
+        ret = -EINVAL;
+        goto EXIT;
+    }
+
+    LOGI("Set Crop to x=%d y=%d w=%u h=%u", x, y, w, h);
+
+EXIT:
+    pthread_mutex_unlock(&global_mutex);     
+    return ret;
+}
+
+
+static int overlay_getCrop(struct overlay_data_device_t *dev,
+                           uint32_t* x, uint32_t* y, uint32_t* w, uint32_t* h) 
+{
+    //LOG_FUNCTION_NAME
+    struct overlay_data_context_t* ctx =
+            (struct overlay_data_context_t*)dev;
+    
+    return v4l2_overlay_get_crop(ctx->ctl_fd, x, y, w, h);
+}
+
 
 int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
                           overlay_buffer_t *buffer)

@@ -232,25 +232,6 @@ void get_window(struct v4l2_format *format, int32_t *x,
     *h = format->fmt.win.w.height;
 }
 
-static int set_crop(int fd, int32_t left, int32_t top, int32_t width,
-                    int32_t height)
-{
-    LOG_FUNCTION_NAME
-
-    struct v4l2_crop crop;
-    int ret;
-
-    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_CROP, &crop, "set crop");
-    crop.c.left = left;
-    crop.c.top = top;
-    crop.c.width = width;
-    crop.c.height = height;
-    crop.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-
-    return v4l2_overlay_ioctl(fd, VIDIOC_S_CROP, &crop, "set crop");
-}
-
-
 int v4l2_overlay_init(int fd, uint32_t w, uint32_t h, uint32_t fmt)
 {
     LOG_FUNCTION_NAME
@@ -328,6 +309,40 @@ int v4l2_overlay_get_position(int fd, int32_t *x, int32_t *y, int32_t *w, int32_
        return ret;
     get_window(&format, x, y, w, h);
     return 0;
+}
+
+int v4l2_overlay_set_crop(int fd, uint32_t x, uint32_t y, uint32_t w, uint32_t h)
+{
+    LOG_FUNCTION_NAME
+
+    struct v4l2_crop crop;
+    int ret;
+
+    crop.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_CROP, &crop, "get crop");
+    crop.c.left = x;
+    crop.c.top = y;
+    crop.c.width = w;
+    crop.c.height = h;
+    crop.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+
+    return v4l2_overlay_ioctl(fd, VIDIOC_S_CROP, &crop, "set crop");
+}
+
+int v4l2_overlay_get_crop(int fd, uint32_t *x, uint32_t *y, uint32_t *w, uint32_t *h)
+{
+    LOG_FUNCTION_NAME
+
+    struct v4l2_crop crop;
+    int ret;
+
+    crop.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_CROP, &crop, "get crop");
+    *x = crop.c.left;
+    *y = crop.c.top;
+    *w = crop.c.width;
+    *h = crop.c.height;
+    return ret;
 }
 
 
