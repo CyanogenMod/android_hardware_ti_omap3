@@ -61,33 +61,6 @@ CameraHal::CameraHal()
                     doubledPreviewHeight(false)                    
 {
     initDefaultParameters();
-
-#if HARDWARE_OMX
-
-    mLibHandle = NULL;
-    encoder == NULL;
-
-    // attempt to load device-specific jpeg codec
-    mLibHandle = dlopen("libskiahw.so", RTLD_NOW);
-    if( mLibHandle == NULL ) {
-        LOGE ("Failed to load libskiahw.so because %s", dlerror());
-        return;
-    }
-    LOGD ("Loaded libskiahw.so");
-
-    typedef SkTIJPEGImageEncoder* (*TIJpegEncFactory)();
-
-    TIJpegEncFactory f = (TIJpegEncFactory) dlsym(mLibHandle, "SkImageEncoder_TIJPEG_Factory");
-    if (f == NULL) 
-    {
-        LOGE("Unable to Load Hardware Specific Jpeg Decoder Factory because %s", dlerror());
-        dlclose(mLibHandle);		
-        return;
-    }
-    encoder = f();
-
-#endif
-
 }
 
 void CameraHal::initDefaultParameters()
@@ -183,10 +156,6 @@ bool CameraHal::initHeapLocked()
 
 CameraHal::~CameraHal()
 {
-#if HARDWARE_OMX
-    if (encoder) delete encoder;
-    if (mLibHandle) dlclose(mLibHandle);
-#endif	
     singleton.clear();
 }
 
@@ -201,7 +170,7 @@ sp<IMemoryHeap> CameraHal::getPreviewHeap() const
 
 int CameraHal::previewThread()
 {
-    int w, h;
+    int w, h, ret;
     unsigned long offset;
     void *croppedImage;
     overlay_buffer_t overlaybuffer;
@@ -218,7 +187,13 @@ int CameraHal::previewThread()
     mCurrentPreviewFrame++;
 
     // Notify the client of a new frame.
-    mOverlay->queueBuffer((void*)cfilledbuffer.index);
+    do {
+    ret = mOverlay->queueBuffer((void*)cfilledbuffer.index);
+
+    if (ret != 0)
+        LOGD("qbuf failed. May be bcos stream was not turned on yet. So try again");
+	
+    }while (ret != 0);
     nOverlayBuffersQueued++;
 	
     mOverlay->dequeueBuffer(&overlaybuffer);
@@ -349,7 +324,7 @@ void CameraHal::stopPreview()
 		
         /* De-queue the next avaliable buffer */
         if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
-            LOGE("VIDIOC_DQBUF Failed");
+            LOGE("VIDIOC_DQBUF Failed. errno = %d", errno);
         }
         LOGE("VIDIOC_DQBUF %d", i);
     }
@@ -500,6 +475,9 @@ int CameraHal::pictureThread()
     buffer.length = pictureSize;
     buffer.m.userptr = (unsigned long) (mPictureHeap->getBase()) + offset;
 
+    struct timeval tv1, tv2;
+    gettimeofday(&tv1, NULL);	
+	
     if (ioctl(camera_device, VIDIOC_QBUF, &buffer) < 0) {
         LOGE("CAMERA VIDIOC_QBUF Failed");
         return -1;
@@ -549,6 +527,11 @@ int CameraHal::pictureThread()
         sp<MemoryBase> jpegMemBase = encodeImage((void*)(cfilledbuffer.m.userptr), cfilledbuffer.length);
         mJpegPictureCallback(jpegMemBase, mPictureCallbackCookie);
 
+        ssize_t tempoffset;
+        size_t tempsize;
+        sp<IMemoryHeap> tempheap = jpegMemBase->getMemory(&tempoffset, &tempsize);
+        tempheap.clear();
+
 #else
         sp<MemoryHeapBase> heap = new MemoryHeapBase(kCannedJpegSize);
         sp<MemoryBase> mem = new MemoryBase(heap, 0, kCannedJpegSize);
@@ -556,7 +539,9 @@ int CameraHal::pictureThread()
         if (mJpegPictureCallback)
             mJpegPictureCallback(mem, mPictureCallbackCookie);
 #endif
-
+        
+        gettimeofday(&tv2, NULL);
+        LOGD("Shot to Encode Latency: %ld %ld %ld %ld\n", tv1.tv_sec, tv1.tv_usec, tv2.tv_sec, tv2.tv_usec);
     }
 
     return NO_ERROR;
@@ -720,14 +705,11 @@ sp<MemoryBase> CameraHal::encodeImage(void *buffer, uint32_t bufflen)
     sp<MemoryHeapBase> mJpegImageHeap = new MemoryHeapBase(size + 256);
     sp<MemoryBase>mJpegBuffer = new MemoryBase(mJpegImageHeap, 128, size);
     void *outBuffer = (void *)((unsigned long)(mJpegImageHeap->getBase()) + 128);
-	
-    if (encoder == NULL)
-        return mJpegBuffer;
-	
-    encoder->encodeImage(outBuffer, size, buffer, bufflen, w, h, 100);
+
+    SkTIJPEGImageEncoder* encoder  = SkImageEncoder_TIJPEG_Factory();
+    encoder->encodeImage(outBuffer, size, buffer, bufflen, w, h, 100, SkBitmap::kNo_Config);
 
     return mJpegBuffer;
-
 }
 
 #endif

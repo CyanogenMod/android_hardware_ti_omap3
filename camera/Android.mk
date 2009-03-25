@@ -12,7 +12,7 @@ LOCAL_SHARED_LIBRARIES:= \
     libui \
     libutils \
     libcutils \
-
+    libskiahw \
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/ui \

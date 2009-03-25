@@ -86,7 +86,7 @@ public:
 
     SkTIJPEGImageEncoder();
     ~SkTIJPEGImageEncoder();
-    bool encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality);    
+    bool encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, SkBitmap::Config config);    
     bool SetJpegEncodeParameters(JpegEncoderParams * jep) {memcpy(&jpegEncParams, jep, sizeof(JpegEncoderParams)); return true;}
     void Run();
     void PrintState();
@@ -111,7 +111,7 @@ private:
 };
 
 
-SkImageEncoder* SkImageEncoder_HWJPEG_Factory() {
+extern "C" SkImageEncoder* SkImageEncoder_HWJPEG_Factory() {
     return SkNEW(SkTIJPEGImageEncoder);
 }
 

@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <dlfcn.h>
 #include <V4L2.h>
+#include <time.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -37,6 +38,7 @@
 #include <ui/Overlay.h>
 #if HARDWARE_OMX
 #include "SkImageEncoder_libtijpeg.h"
+#include "SkBitmap.h"
 #else
 #include "CannedJpeg.h"
 #endif
@@ -106,11 +108,7 @@ private:
     void* cropImage(unsigned long buffer);
     void convertYUYVtoYUV422SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
 #if HARDWARE_OMX
-    void convertYUYVtoUYVY(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
     sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
-
-    SkTIJPEGImageEncoder *encoder;	
-    void                    *mLibHandle;    
 #endif
 
     mutable Mutex       mLock;

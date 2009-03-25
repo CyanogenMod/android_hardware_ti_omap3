@@ -33,11 +33,18 @@
 */
 
 #include "SkImageEncoder_libtijpeg.h"
+#include <string.h>
 
+#define JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT 0
+
+#if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
+	int eOutputCount = 0;
+	int eInputCount = 0;
+#endif
 
 OMX_ERRORTYPE OMX_JPEGE_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffHead)
 {
-    SkDebugf("OutBufHeader %p, pBuffer = %p, FilledLen = %ld \n", pBuffHead, pBuffHead->pBuffer, pBuffHead->nFilledLen);
+    SkDebugf("OMX_FillBufferDone: pBuffHead = %p, pBuffer = %p, n    FilledLen = %ld \n", pBuffHead, pBuffHead->pBuffer, pBuffHead->nFilledLen);
     ((SkTIJPEGImageEncoder *)ptr)->FillBufferDone(pBuffHead->pBuffer,  pBuffHead->nFilledLen);
     return OMX_ErrorNone;
 }
@@ -83,6 +90,24 @@ SkTIJPEGImageEncoder::~SkTIJPEGImageEncoder()
 
 void SkTIJPEGImageEncoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 size)
 {
+
+#if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
+    
+    char path[50];
+    snprintf(path, sizeof(path), "/temp/JEO_%d.jpg", eOutputCount);
+
+    SkDebugf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+    
+    SkFILEWStream tempFile(path);
+    if (tempFile.write(pBuffer, size) == false)
+        SkDebugf("Writing to %s failed\n", path);
+    else
+        SkDebugf("Writing to %s succeeded\n", path);
+
+    eOutputCount++;
+    SkDebugf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+#endif
+
     iLastState = iState;
     iState = STATE_FILL_BUFFER_DONE_CALLED;
 
@@ -99,7 +124,7 @@ void SkTIJPEGImageEncoder::EventHandler(OMX_HANDLETYPE hComponent,
                                             OMX_PTR pEventData)
 {
 
-    SkDebugf("\nEventHandler:: eEvent = %x, nData1 = %x, nData2 = %x\n\n", eEvent, (unsigned int)nData1, (unsigned int)nData2);
+    //SkDebugf("\nEventHandler:: eEvent = %x, nData1 = %x, nData2 = %x\n\n", eEvent, (unsigned int)nData1, (unsigned int)nData2);
 
     switch ( eEvent ) {
 
@@ -108,21 +133,21 @@ void SkTIJPEGImageEncoder::EventHandler(OMX_HANDLETYPE hComponent,
             /* We do not want to apply them in cases when these conditions are not met. */
             if ((nData1 == OMX_CommandStateSet) && (nData2 == OMX_StateIdle))
             {
-                SkDebugf ("Component State Changed To OMX_StateIdle\n");
+                //SkDebugf ("Component State Changed To OMX_StateIdle\n");
                 iLastState = iState;
                 iState = STATE_IDLE;
                 sem_post(semaphore) ;
             }
             else if ((nData1 == OMX_CommandStateSet) && (nData2 == OMX_StateExecuting))
             {
-                SkDebugf ("Component State Changed To OMX_StateExecuting\n");
+                //SkDebugf ("Component State Changed To OMX_StateExecuting\n");
                 iLastState = iState;
                 iState = STATE_EXECUTING;
                 sem_post(semaphore) ;
             }
             else if ((nData1 == OMX_CommandStateSet) && (nData2 == OMX_StateLoaded))
             {
-                SkDebugf ("Component State Changed To OMX_StateLoaded\n");
+                //SkDebugf ("Component State Changed To OMX_StateLoaded\n");
                 iLastState = iState;
                 iState = STATE_LOADED;
                 sem_post(semaphore) ;
@@ -148,17 +173,16 @@ void SkTIJPEGImageEncoder::EventHandler(OMX_HANDLETYPE hComponent,
 bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int quality)
 {
 
-    SkDebugf("\nCalling TI Image Encoder.\n");
+    SkDebugf("\nUsing TI Image Encoder.\n");
 
     SkAutoLockPixels alp(bm);
     if (NULL == bm.getPixels()) {
         return false;
     }
 
-    OMX_U32 inBuffSize = bm.width() * bm.height() * 2;
-    void* inputBuffer = malloc(inBuffSize + 256);
+    void* inputBuffer = malloc(bm.getSize() + 256);
     inputBuffer = (void*)((OMX_U32)inputBuffer + 128);
-    memcpy(inputBuffer, bm.getPixels(), inBuffSize);
+    memcpy(inputBuffer, bm.getPixels(), bm.getSize());
 
     /*Minimum buffer size requirement */
     OMX_U32 outBuffSize = bm.width() * bm.height();
@@ -172,12 +196,10 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
     /*Adding memory to include Thumbnail, comments & markers information and header (depends on the app)*/
     outBuffSize += 12288;
 
-    SkDebugf("APP:: Output buffer size is %ld\n", outBuffSize);
-
     void* outputBuffer = malloc(outBuffSize + 256);
     outputBuffer = (void*)((OMX_U32)outputBuffer + 128);
 
-    if (encodeImage(outputBuffer, outBuffSize, inputBuffer, inBuffSize, bm.width(), bm.height(), quality)){
+    if (encodeImage(outputBuffer, outBuffSize, inputBuffer, bm.getSize(), bm.width(), bm.height(), quality, bm.config())){
         stream->write(pEncodedOutputBuffer, nEncodedOutputFilledLen);
         return true;        
     }            
@@ -186,7 +208,7 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
 }
 
 
-bool SkTIJPEGImageEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality)
+bool SkTIJPEGImageEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, SkBitmap::Config config)
 {
 
     int nRetval;
@@ -204,6 +226,30 @@ bool SkTIJPEGImageEncoder::encodeImage(void* outputBuffer, int outBuffSize, void
     OMX_IMAGE_PARAM_QFACTORTYPE QfactorType;
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
     OMX_CALLBACKTYPE JPEGCallBack ={OMX_JPEGE_EventHandler, OMX_JPEGE_EmptyBufferDone, OMX_JPEGE_FillBufferDone};
+
+    SkDebugf("width = %d", width);
+    SkDebugf("height = %d", height);
+    SkDebugf("config = %d", config);
+    SkDebugf("quality = %d", quality);			
+    SkDebugf("inBuffSize = %d", inBuffSize);				
+    SkDebugf("outBuffSize = %d", outBuffSize);			
+
+#if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
+
+    char path[50];
+    snprintf(path, sizeof(path), "/temp/JEI_%d_%d_%dx%d.raw", eInputCount, config, width, height);
+
+    SkDebugf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+    
+    SkFILEWStream tempFile(path);
+    if (tempFile.write(inputBuffer, inBuffSize) == false)
+        SkDebugf("Writing to %s failed\n", path);
+    else
+        SkDebugf("Writing to %s succeeded\n", path);
+
+    eInputCount++;
+    SkDebugf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+#endif
 
 
     eError = TIOMX_Init();
@@ -261,8 +307,14 @@ bool SkTIJPEGImageEncoder::encodeImage(void* outputBuffer, int outBuffSize, void
     InPortDef.format.image.nSliceHeight = -1;
     InPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
     InPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingUnused;
-    InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
     InPortDef.nBufferSize = inBuffSize;
+    if (config == SkBitmap::kNo_Config)
+        InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;	
+    else if (config == SkBitmap::kRGB_565_Config)
+        InPortDef.format.image.eColorFormat = OMX_COLOR_Format16bitRGB565;	
+    else if (config == SkBitmap::kARGB_8888_Config)
+        InPortDef.format.image.eColorFormat = OMX_COLOR_Format32bitARGB8888;	
+
 
     if (InPortDef.eDir == nIndex1 ) {
         InPortDef.nPortIndex = nIndex1;
@@ -379,7 +431,7 @@ EXIT:
 
 void SkTIJPEGImageEncoder::PrintState()
 {
-    SkDebugf("\niLastState = %x\n", iLastState);
+    //SkDebugf("\niLastState = %x\n", iLastState);
     switch(iState)
     {
         case STATE_LOADED:
@@ -454,14 +506,14 @@ while(1){
                     /*
                     eError = OMX_SendCommand(pOMXHandle, OMX_CommandPortDisable, 0x0, NULL);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("APP:: Error from SendCommand-PortDisable function. Input port.\n");
+                        SkDebugf("Error from SendCommand-PortDisable function. Input port.\n");
                         iState = STATE_ERROR;
                         break;
                     }
 
                     eError = OMX_SendCommand(pOMXHandle, OMX_CommandPortDisable, 0x1, NULL);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("APP:: Error from SendCommand-PortDisable function. Output port.\n");
+                        SkDebugf("Error from SendCommand-PortDisable function. Output port.\n");
                         iState = STATE_ERROR;
                         break;
                     }
@@ -469,14 +521,14 @@ while(1){
                     /* Free buffers */
                     eError = OMX_FreeBuffer(pOMXHandle, InPortDef.nPortIndex, pInBuffHead);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("APP:: Error from OMX_FreeBuffer. Input port.\n");
+                        SkDebugf("Error from OMX_FreeBuffer. Input port.\n");
                         iState = STATE_ERROR;
                         break;
                     }
 
                     eError = OMX_FreeBuffer(pOMXHandle, OutPortDef.nPortIndex, pOutBuffHead);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("APP:: Error from OMX_FreeBuffer. Output port.\n");
+                        SkDebugf("Error from OMX_FreeBuffer. Output port.\n");
                         iState = STATE_ERROR;
                         break;
                     }
