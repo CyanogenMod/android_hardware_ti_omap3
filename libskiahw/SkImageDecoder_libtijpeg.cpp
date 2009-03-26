@@ -366,7 +366,7 @@ void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
 #endif
 
     /* Set alpha to 0xFF. */
-    if (bitmap->config() == kARGB_8888_Config)
+    if (bitmap->config() == SkBitmap::kARGB_8888_Config)
     {
         for(int i = 3; i < nFilledLen; i+=4)
             pBuffer[i] = 0xFF;
