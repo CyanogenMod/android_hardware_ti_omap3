@@ -103,14 +103,14 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
 
 PVMFStatus AndroidSurfaceOutputOmap34xx::WriteFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info)
 {
-	LOGD(" calling Vendor Speicifc(34xx) writeFrameBuf call");
+	//LOGD(" calling Vendor Speicifc(34xx) writeFrameBuf call");
     if (mSurface == 0) return PVMFFailure;
   
     if (mUseOverlay) {
     	if(mBuffer_count == 0) {
     		mBuffer_count=mRecycle_buffer_count;
     		//FIX ME : there is no more buffers left for data copy
-    		 LOGD("buffer number = %d\n", mBuffer_count);
+    		 //LOGD("buffer number = %d\n", mBuffer_count);
     	 }
     	memcpy(mOverlay_buffer_address[mBuffer_count-1],aData,aDataLen);
     	mOverlay->queueBuffer((void*)(mBuffer_count-1));
