@@ -3632,6 +3632,8 @@ fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context,
 			values_of_control[i]);
 	snd_ctl_elem_value_set_id(control[i], id);
 	snd_ctl_elem_value_set_integer(control[i], 0, values_of_control[i]);
+	/* Set volume 5 to both Analog L/R */
+	snd_ctl_elem_value_set_integer(control[i], 1, values_of_control[i]);
 
 	if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
 		FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
