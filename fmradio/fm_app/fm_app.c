@@ -2734,6 +2734,8 @@ fm_status fmapp_init_stack(void  **fm_context)
 	else
 		ret = FMC_STATUS_SUCCESS;
 
+	if (set_fm_chip_enable(1) < 0)
+		ret = FMC_STATUS_FAILED;
 	fmapp_set_audio_routing(*fm_context,0,0,NULL);
 	FMAPP_END();
 	return ret;
@@ -2755,6 +2757,8 @@ fm_status fmapp_deinit_stack(void  **fm_context)
 		FMAPP_ERROR("failed to deinitialize FM stack (%s)",
 						STATUS_DBG_STR(ret));
 
+	if (set_fm_chip_enable(0) < 0)
+		ret = FMC_STATUS_FAILED;
 	FMAPP_END();
 	return ret;
 }
@@ -3492,6 +3496,37 @@ fm_status parse_options(int argc, char **argv, char **script, int *startup_len)
 
 	FMAPP_END();
 	return ret;
+}
+
+int set_fm_chip_enable(int enable)
+{
+	const char enable_path[]="/sys/wl127x/fm_enable";
+	char buffer='0';
+	int ret;
+	/* set /sys/wl127x/fm_enable=0 to enable FM chip */
+	ret = open(enable_path, O_RDWR);
+	if (ret < 0)
+	{
+		FMAPP_ERROR("Unable to open %s\n", enable_path);
+		return -1;
+	}
+	/* FIXME: why does this require a pulse, and
+	 * not just a transition from high to low
+	 */
+	buffer='0';
+	write(ret,&buffer,1);
+	buffer='1';
+	write(ret,&buffer,1);
+	buffer='0';
+	write(ret,&buffer,1);
+
+	if (!enable)
+	{
+		buffer='1';
+		write(ret,&buffer,1);
+	}
+	close(ret);
+	/* end of change for Zoom2+pg-2.0 */
 }
 
 int main(int argc, char **argv)
