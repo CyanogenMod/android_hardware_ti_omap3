@@ -101,5 +101,17 @@ DSP_STATUS QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize,
 								UINT *memUsed, UINT *memLargestFreeBlockSize,
 								UINT *memFreeBlocks, UINT *memAllocBlocks);
 
+/*  ========================================================================
+ *  func   QosTI_GetProcLoadStat
+ *  desc  Get the Processor load statistics
+ *  arg   OUT currentLoad
+ *  arg   OUT predLoad
+ *  arg   OUT currDspFreq
+ *  arg   OUT predictedFreq
+ *  ret   DSP_SOK if successful.
+ *  ======================================================================== */
+DSP_STATUS QosTI_GetProcLoadStat(UINT *currentLoad, UINT *predLoad,
+				UINT *currDspFreq, UINT *predictedFreq);
+
 #endif				/* _RQOSTI_H*/
 
