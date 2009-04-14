@@ -44,33 +44,26 @@
 #define MAXNAMELEN    64	/* Max length of event name.             */
 #define MAXMSGLEN     128	/* Max length of MessageBox msg.         */
 
-/*
- *  ======== main ========
- */
-int main(int argc, char **argv)
-{
-#if 0
-	PING_TASK pingTask;	/* Ping task context                    */
-	UINT msgCount;		/* Number of messages DSP sends         */
-	PING_NODEDATA argsBuf;	/* Task Node args.                      */
-#endif
-	DSP_STATUS status = DSP_SOK;
-	struct QOSREGISTRY *registry;
-	struct QOSDATA **results = NULL;
-	ULONG NumFound;
-	UINT id;
-	struct QOSDATA *data;
-	struct QOSRESOURCE_MEMORY *m;
-	struct QOSRESOURCE_STREAM *s;
-	struct QOSRESOURCE_PROCESSOR *p;
-	ULONG i;
-	bool MemoryIsPresent = false;
-	bool ProcessorIsPresent = false;
-	struct QOSCOMPONENT *comp;
-	struct QOSDYNDEPLIB *dyndep;
-	ULONG NumTestsPassed = 0;
-	ULONG NumRegistryTestsPassed = 0;
 
+static DSP_STATUS status = DSP_SOK;
+static struct QOSREGISTRY *registry;
+static struct QOSDATA **results = NULL;
+static ULONG NumFound;
+static UINT id;
+static struct QOSDATA *data;
+static struct QOSRESOURCE_MEMORY *m;
+static struct QOSRESOURCE_STREAM *s;
+static struct QOSRESOURCE_PROCESSOR *p;
+static ULONG i;
+static bool MemoryIsPresent = false;
+static bool ProcessorIsPresent = false;
+static struct QOSCOMPONENT *comp;
+static struct QOSDYNDEPLIB *dyndep;
+static ULONG NumTestsPassed = 0;
+static ULONG NumRegistryTestsPassed = 0;
+
+void DataStructuresTest (void)
+{
 	printf("\n****************************\n");
 	printf("*** QOS Test version 1.0 ***\n");
 	printf("****************************\n");
@@ -83,29 +76,74 @@ int main(int argc, char **argv)
 		printf("SUCCESS\n");
 		printf("Calling data delete...");
 		status = DSPData_Delete(data);
-		if (DSP_SUCCEEDED(status)) {
+		if (DSP_SUCCEEDED(status))
 			printf("SUCCESS\n");
-		} else {
+		else
 			printf("FAILED\n");
-		}
-	} else {
+	} else
 		printf("FAILED\n");
-	}
 
 	if (data && DSP_SUCCEEDED(status)) {
 		printf("\nPASSED: data structures can be created and deleted\n");
 		NumTestsPassed++;
 		NumRegistryTestsPassed++;
-	} else {
+	} else
 		printf("\nFAILED: failed to create and delete data structures\n");
-	}
+}
 
+void processorMonitor()
+{
+	unsigned currLoad, predLoad, currDSPFreq, predFreq;
+	printf("\n*** Processor Info ***\n");
+	QosTI_GetProcLoadStat(&currLoad, &predLoad, &currDSPFreq, &predFreq);
+	printf("RESOURCE TYPE (Processor): \n");
+	printf ("%%current Load= %d, %%predicted Load= %d, "
+			"current frequency =%d, predicted frequency=%d\n",
+			currLoad, predLoad, currDSPFreq, predFreq);
+}
+
+void memoryMonitor()
+{
+	unsigned memInitSize, memUsed, memLargestFreeBlockSize, memFreeBlocks;
+	unsigned memAllocBlocks, i;
+
+	printf("\n*** Memory Info ***\n");
+	for (i = EDynloadDaram; i <= EDynloadSram; i++) {
+		QosTI_GetDynLoaderMemStat(i, &memInitSize, &memUsed,
+				&memLargestFreeBlockSize, &memFreeBlocks,
+				&memAllocBlocks);
+		switch(i) {
+		case EDynloadDaram:
+			printf("RESOURCE TYPE (Daram Memory): \n");
+			break;
+		case EDynloadSaram:
+			printf("RESOURCE TYPE (Saram Memory): \n");
+			break;
+		case EDynloadExternal:
+			printf("RESOURCE TYPE (External Memory): \n");
+			break;
+		case EDynloadSram:
+			printf("RESOURCE TYPE (Sram Memory): \n");
+			break;
+		default:
+			break;
+		}
+		printf("heap=%d,Init size=%d,used =%d, Largest free block= %d,"
+			"FreeBlocks=%d,Alloc Blocks=%d\n\n", i, memInitSize, memUsed,
+			memLargestFreeBlockSize, memFreeBlocks,
+			memAllocBlocks);
+	}
+}
+
+void enumeratingTest(void)
+{
+	status = DSP_SOK;
 	printf("\n*** TEST CASE 2: Enumerating Resources ***\n");
 	printf("Calling registry create...\n\n");
 	registry = DSPRegistry_Create();
 	if ( !registry) {
 		printf("FAILED\n");
-		goto func_end;
+		return;
 	}
 	printf("SUCCESS: Created Registry\n");
 	for (i = 3; i > 0; i--) {
@@ -197,11 +235,21 @@ int main(int argc, char **argv)
 		printf("FAILED: resource enumeration - Either memory or "
 											"processor was not present.\n");
 	}
-	printf("\n*** TEST CASE 3: Creating, registering, and deleting "
-														"a component ***\n");
-	printf("Creating required data structures...");
+}
+
+void componentTest(void) {
 	MemoryIsPresent = false;
 	status = DSP_EFAIL;
+
+	printf("\n*** TEST CASE 3: Creating, registering, and deleting "
+														"a component ***\n");
+/*
+	registry = DSPRegistry_Create();
+	if ( !registry) {
+		printf("FAILED create Registry\n");
+		return;
+	}*/
+	printf("Creating required data structures...");
 	comp = (struct QOSCOMPONENT *)DSPData_Create(QOSDataType_Component);
 	dyndep =(struct QOSDYNDEPLIB *)DSPData_Create(
 											QOSDataType_DynDependentLibrary);
@@ -328,11 +376,14 @@ func_cont:
 	if (MemoryIsPresent && DSP_SUCCEEDED(status)) {
 		printf("\nPASSED: All registry calls were successful!\n");
 		NumTestsPassed++;
-	} else {
+	} else
 		printf("\nFAILED: Registry calls were not successful\n");
-	}
-	printf("\n*** TEST CASE 4: Getting number of Dynamic Allocation "
-														"Memory Heaps ***\n");
+}
+
+
+void dynamicAllocationTest(void) {
+printf("\n*** TEST CASE 4: Getting number of Dynamic Allocation "
+							"Memory Heaps ***\n");
 	status = DSPQos_TypeSpecific((struct QOSDATA *)registry,
 								QOS_FN_GetNumDynAllocMemHeaps,(ULONG)&NumFound);
 	if (DSP_SUCCEEDED(status)) {
@@ -342,8 +393,11 @@ func_cont:
 	} else {
 		printf("\nFAILED\n");
 	}
-	printf("\n*** TEST CASE 5: Querying the database for required "
-														"resources ***\n");
+}
+
+void QueryingDataBaseTest(void) {
+printf("\n*** TEST CASE 5: Querying the database for required "
+							"resources ***\n");
 	printf("Calling data create...");
 	MemoryIsPresent = false;
 	ProcessorIsPresent = false;
@@ -363,7 +417,7 @@ func_cont:
 	}
 	printf("Calling data create...");
 	p = (struct QOSRESOURCE_PROCESSOR *)
-									DSPData_Create(QOSDataType_Processor_C6X);
+					DSPData_Create(QOSDataType_Processor_C6X);
 	if (p) {
 		printf("SUCCESS\n");
 		p->Utilization = 10;
@@ -384,23 +438,85 @@ func_cont:
 	printf("\n*** TEST CASES END: Calling registry delete... ***\n");
 	DSPRegistry_Delete(registry);
 	printf("DONE.\n");
-func_end:
-	printf("\n****************************\n");
-	printf("***** END OF TEST RUN ******\n");
-	printf("****************************\n");
-	printf("*** %ld/%d Qos Test Cases PASSED\n", NumTestsPassed, 5);
-	printf("*** %ld/%d Registry Test Cases PASSED\n", NumRegistryTestsPassed,4);
-	if (NumTestsPassed < 5) {
-		printf("Some SR's failed!!!\n");
-		if (NumRegistryTestsPassed < 4) {
-			printf("Registry SR FAILED!!!\n");
-		} else {
-			printf("Registry SR PASSED!!!\n");
+}
+
+
+/*
+ *  ======== main ========
+ */
+int main(int argc, char **argv)
+{
+
+	DSP_STATUS status = DSP_SOK;
+	bool memory = false;
+	bool processor = false;
+	unsigned count =0;
+	unsigned rate = 3000;
+	unsigned i;
+
+	for (i = 1; i <argc; i++)
+	{
+		if(!strcmp("p", argv[i]))
+			processor = true;
+		if(!strcmp("m", argv[i]))
+			memory = true;
+		if(!strcmp("n", argv[i])) {
+			if (argv[++i])
+				sscanf(argv[i], "%u", &count);
+			else {
+				printf("Invalid number of interations\n");
+				exit(0);
+			}
 		}
-	} else {
-		printf("All SR's verified!!!\n");
+		if(!strcmp("t", argv[i])) {
+			if (argv[++i])
+				sscanf(argv[i], "%u", &rate);
+			else {
+				printf("Invalid refresh rate\n");
+				exit(0);
+			}
+		}
+
 	}
 
+	if (processor ||memory ) {
+		if (DSP_FAILED(QosTI_Create())) {
+			printf("Error creating QosTI");
+			return -1;
+		}
+		while (true)
+		{
+			if (processor)
+				processorMonitor();
+			if (memory)
+				memoryMonitor();
+			if (count != 0 && !(--count))
+				break;
+			(rate > 1000) ? sleep(rate /1000) : usleep(rate * 1000);
+		}
+		QosTI_Delete();
+	} else {
+
+		DataStructuresTest();
+		enumeratingTest();
+		componentTest();
+		dynamicAllocationTest();
+		QueryingDataBaseTest();
+		printf("\n****************************\n");
+		printf("***** END OF TEST RUN ******\n");
+		printf("****************************\n");
+		printf("*** %ld/%d Qos Test Cases PASSED\n", NumTestsPassed, 5);
+		printf("*** %ld/%d Registry Test Cases PASSED\n", NumRegistryTestsPassed,4);
+		if (NumTestsPassed < 5) {
+			printf("Some SR's failed!!!\n");
+			if (NumRegistryTestsPassed < 4) {
+				printf("Registry SR FAILED!!!\n");
+			} else {
+				printf("Registry SR PASSED!!!\n");
+			}
+		} else
+			printf("All SR's verified!!!\n");
+	}
 	return (DSP_SUCCEEDED(status) ? 0 : -1);
 }
 
