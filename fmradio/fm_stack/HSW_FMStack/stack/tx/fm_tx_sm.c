@@ -1393,7 +1393,7 @@ FMC_STATIC FMC_U8 smNumOfCmdInQueue = 0;
 *
 */
 #define FM_TX_SM_TIMOUT_TIME_FOR_LONG_CMD       (50000)
-#define FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD        (5000)
+#define FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD        (20000)
 
 /*
 *   end
@@ -1645,7 +1645,9 @@ void    _FM_TX_SM_InitDefualtConfigValues()
 
     _fmTxSmData.context.vacParams.eSampleFreq = CAL_SAMPLE_FREQ_48000;
 
-    _fmTxSmData.context.vacParams.audioSource = FM_TX_AUDIO_SOURCE_FM_ANALOG;
+    /* _fmTxSmData.context.vacParams.audioSource = FM_TX_AUDIO_SOURCE_FM_ANALOG; */
+    /* Use the below line to have Audio coming from omap [mcbsp-4] */
+    _fmTxSmData.context.vacParams.audioSource = FM_TX_AUDIO_SOURCE_I2SH;
 
     FMC_OS_StrCpy(_fmTxSmData.context.fwCache.psMsg, (const FMC_U8 *)FMC_CONFIG_TX_DEFAULT_RDS_PS_MSG);/*need to configure on startup */
     
