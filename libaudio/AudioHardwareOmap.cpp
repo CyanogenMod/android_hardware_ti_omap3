@@ -39,36 +39,12 @@
 #include "AudioStreamInOmap.h"
 #include "AudioStreamOutOmap.h"
 
-#define ROUTE_INPUT_MIC		(1 << 5)
-
 using namespace android;
-
-struct mixer_route_control {
-	const char *ctlL;
-	const char *valL;
-	const char *ctlR;
-	const char *valR;
-};
 
 struct mixer_volume_control {
 	const char *ctl;
 	long min;
 	long max;
-};
-
-static const mixer_route_control twl4030_controls[6] = {
-/* Mono earpiece */
-{"Earpiece Mux",  "DACL2",  "",  ""},
-/* Stereo speaker */
-{"HandsfreeL Mux", "DACL2", "HandsfreeR Mux", "DACR2"},
-/* Bluetooth SCO */
-{"", "", "", ""},
-/* Headset */
-{"HeadsetL Mux", "DACL2", "HeadsetR Mux", "DACR2"},
-/* Bluetooth A2DP */
-{"", "", "", ""},
-/* Main/sub mic */
-{"Analog Left", "Main mic", "Analog Right", "Sub mic"},
 };
 
 static mixer_volume_control twl4030_master_vol_control[2] = {
@@ -311,20 +287,11 @@ status_t AudioHardwareOmap::dumpState(int fd, const Vector<String16>& args)
 	return NO_ERROR;
 }
 
-int AudioHardwareOmap::to_index(int route)
-{
-	int index = 0;
-
-	while (route = route >> 1)
-		index++;
-
-	return index;
-}
-
 status_t AudioHardwareOmap::doRouting()
 {
 	snd_mixer_t *handle;
 	snd_mixer_elem_t *elem;
+	snd_mixer_selem_id_t *sid;
 	char *device = strdup("default");
 	uint32_t routes = mRoutes[mMode];
 	status_t routed;
@@ -357,47 +324,92 @@ status_t AudioHardwareOmap::doRouting()
 		return BAD_VALUE;
 	}
 
+	snd_mixer_selem_id_alloca(&sid);
+
 	/* Iterate over all mixer controls */
 	for (elem = snd_mixer_first_elem(handle); elem; elem = snd_mixer_elem_next(elem)) {
 		if (!snd_mixer_selem_is_active(elem))
 			continue;
-		routed = setControlRoute(elem, AudioSystem::ROUTE_EARPIECE, routes);
-		if (routed != NO_ERROR) {
-			LOGE("Earpiece routing error.");
-			snd_mixer_close(handle);
-			return routed;
+
+		snd_mixer_selem_get_id(elem, sid);
+
+		/* Earpiece */
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "Earpiece Mixer AudioL2")) {
+			if (routes & AudioSystem::ROUTE_EARPIECE)
+				ret = setSwitchItem(elem, true);
+			else
+				ret = setSwitchItem(elem, false);
+			if (ret != NO_ERROR) {
+				LOGE("Earpiece routing error");
+				snd_mixer_close(handle);
+				return ret;
+			}
 		}
 
-		routed = setControlRoute(elem, AudioSystem::ROUTE_SPEAKER, routes);
-		if (routed != NO_ERROR) {
-			LOGE("Speaker routing error.");
-			snd_mixer_close(handle);
-			return routed;
+		/* Speaker */
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "HandsfreeL Mux")) {
+			if (routes & AudioSystem::ROUTE_SPEAKER)
+				ret = setEnumeratedItem(elem, "AudioL2");
+			else
+				ret = setEnumeratedItem(elem, "AudioL1");
+			if (ret != NO_ERROR) {
+				LOGE("Speaker left routing error");
+				snd_mixer_close(handle);
+				return ret;
+			}
 		}
-		setControlRoute(elem, AudioSystem::ROUTE_BLUETOOTH_SCO, routes);
-		if (routed != NO_ERROR) {
-			LOGE("Bluetooth SCO routing error.");
-			snd_mixer_close(handle);
-			return routed;
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "HandsfreeR Mux")) {
+			if (routes & AudioSystem::ROUTE_SPEAKER)
+				ret = setEnumeratedItem(elem, "AudioR2");
+			else
+				ret = setEnumeratedItem(elem, "AudioL1");
+			if (ret != NO_ERROR) {
+				LOGE("Speaker right routing error");
+				snd_mixer_close(handle);
+				return ret;
+			}
 		}
-		setControlRoute(elem, AudioSystem::ROUTE_HEADSET, routes);
-		if (routed != NO_ERROR) {
-			LOGE("Headset routing error.");
-			snd_mixer_close(handle);
-			return routed;
+
+		/* Headset */
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "HeadsetL Mixer AudioL2")) {
+			if (routes & AudioSystem::ROUTE_HEADSET)
+				ret = setSwitchItem(elem, true);
+			else
+				ret = setSwitchItem(elem, false);
+			if (ret != NO_ERROR) {
+				LOGE("Headset left routing error");
+				snd_mixer_close(handle);
+				return ret;
+			}
 		}
-		setControlRoute(elem, AudioSystem::ROUTE_BLUETOOTH_A2DP, routes);
-		if (routed != NO_ERROR) {
-			LOGE("Bluetooth A2DP routing error.");
-			snd_mixer_close(handle);
-			return routed;
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "HeadsetR Mixer AudioR2")) {
+			if (routes & AudioSystem::ROUTE_HEADSET)
+				ret = setSwitchItem(elem, true);
+			else
+				ret = setSwitchItem(elem, false);
+			if (ret != NO_ERROR) {
+				LOGE("Headset right routing error");
+				snd_mixer_close(handle);
+				return ret;
+			}
 		}
-		/* Capture path */
-		setControlRoute(elem, ROUTE_INPUT_MIC, ROUTE_INPUT_MIC);
-		if (routed != NO_ERROR) {
-			LOGE("Main/Sub mic routing error.");
-			snd_mixer_close(handle);
-			return routed;
+
+		/* Microphone */
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "Analog Left")) {
+			ret = setEnumeratedItem(elem, "Main mic");
+			if (ret != NO_ERROR) {
+				LOGE("Main microphone routing error");
+				snd_mixer_close(handle);
+				return ret;
+			}
+		}
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "Analog Right")) {
+			ret = setEnumeratedItem(elem, "Sub mic");
+			if (ret != NO_ERROR) {
+				LOGE("Sub microphone routing error");
+				snd_mixer_close(handle);
+				return ret;
+			}
 		}
 	}
 
@@ -406,50 +418,80 @@ status_t AudioHardwareOmap::doRouting()
 	return NO_ERROR;
 }
 
-status_t AudioHardwareOmap::setControlRoute(snd_mixer_elem_t *elem, uint32_t route, uint32_t current_routes)
+status_t AudioHardwareOmap::setEnumeratedItem(snd_mixer_elem_t *elem, const char *selected_name)
 {
 	snd_mixer_selem_id_t *sid;
-        const char *elem_name;
-	int index = to_index(route);
-	status_t ret = NO_ERROR;
+	char item_name[20];
+	unsigned int i;
+	status_t ret = NAME_NOT_FOUND;
 
 	snd_mixer_selem_id_alloca(&sid);
 	snd_mixer_selem_get_id(elem, sid);
-	elem_name = snd_mixer_selem_id_get_name(sid);
 
-	/* Exercise control only if that route is selected */
-	if ((current_routes & route) == route) {
-		if (!strcmp(twl4030_controls[index].ctlL, elem_name)) {
-			ret = setEnumeratedItem(elem, twl4030_controls[index].valL);
-		}
-		else if (!strcmp(twl4030_controls[index].ctlR, elem_name)) {
-			ret = setEnumeratedItem(elem, twl4030_controls[index].valR);
+	/* Mixer element is not an enumeration */
+	if (!snd_mixer_selem_is_enumerated(elem)) {
+		LOGE("Mixer element %s is not an enumerated control", snd_mixer_selem_id_get_name(sid));
+		return BAD_TYPE;
+	}
+
+	/* Search for matching item name */
+	for (i = 0; i < (unsigned int) snd_mixer_selem_get_enum_items(elem); i++) {
+		snd_mixer_selem_get_enum_item_name(elem, i, 20, item_name);
+		if (!strcmp(selected_name, item_name)) {
+			ret = snd_mixer_selem_set_enum_item(elem, SND_MIXER_SCHN_FRONT_LEFT, i);
+			LOGI("%s: %s", snd_mixer_selem_id_get_name(sid), selected_name);
+			break;
 		}
 	}
 
 	return ret;
 }
 
-status_t AudioHardwareOmap::setEnumeratedItem(snd_mixer_elem_t *elem, const char *selected_name)
+status_t AudioHardwareOmap::setEnumeratedItem(snd_mixer_elem_t *elem, int index)
 {
+	snd_mixer_selem_id_t *sid;
 	char item_name[20];
 	unsigned int i;
-	status_t ret = NAME_NOT_FOUND;
-	unsigned int selected;
 
+	snd_mixer_selem_id_alloca(&sid);
+	snd_mixer_selem_get_id(elem, sid);
+
+	/* Mixer element is not an anumeration */
 	if (!snd_mixer_selem_is_enumerated(elem)) {
-		LOGE("Unable to set option to a non-enumerated item.");
+		LOGE("Mixer element %s is not an enumerated control", snd_mixer_selem_id_get_name(sid));
 		return BAD_TYPE;
 	}
 
-	for (i = 0; i < (unsigned int) snd_mixer_selem_get_enum_items(elem); i++) {
-		snd_mixer_selem_get_enum_item_name(elem, i, 20, item_name);
-		if (!strcmp(selected_name, item_name)) {
-			LOGW("Setting mixer control: %s %d", selected_name, SND_MIXER_SCHN_FRONT_LEFT);
-			snd_mixer_selem_set_enum_item(elem, SND_MIXER_SCHN_FRONT_LEFT, i);
-			ret = NO_ERROR;
-			break;
-		}
+	/* Not a valid index */
+	if (snd_mixer_selem_get_enum_items(elem) > index) {
+		LOGE("Mixer element %s has no index %d", snd_mixer_selem_id_get_name(sid), index);
+		return BAD_VALUE;
+	}
+
+	snd_mixer_selem_set_enum_item(elem, SND_MIXER_SCHN_FRONT_LEFT, index);
+	snd_mixer_selem_get_enum_item_name(elem, index, 20, item_name);
+	LOGI("%s: %s (%d)", snd_mixer_selem_id_get_name(sid), item_name, index);
+
+	return NO_ERROR;
+}
+
+status_t AudioHardwareOmap::setSwitchItem(snd_mixer_elem_t *elem, bool enable)
+{
+	snd_mixer_selem_id_t *sid;
+	status_t ret;
+
+	snd_mixer_selem_id_alloca(&sid);
+	snd_mixer_selem_get_id(elem, sid);
+
+	if (snd_mixer_selem_has_playback_switch(elem)) {
+		ret = snd_mixer_selem_set_playback_switch_all(elem, (int) enable);
+		LOGI("%s: %d", snd_mixer_selem_id_get_name(sid), (int)enable);
+	} else if (snd_mixer_selem_has_capture_switch(elem)) {
+		ret = snd_mixer_selem_set_capture_switch_all(elem, (int) enable);
+		LOGI("%s: %d", snd_mixer_selem_id_get_name(sid), (int)enable);
+	} else {
+		LOGE("Mixer element %s has no switch control", snd_mixer_selem_id_get_name(sid));
+		return BAD_TYPE;
 	}
 
 	return ret;
