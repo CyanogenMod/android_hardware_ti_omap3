@@ -42,7 +42,11 @@ class AudioHardwareOmap : public AudioHardwareInterface
 		virtual status_t setMicMute(bool state);
 		virtual status_t getMicMute(bool* state);
 		virtual AudioStreamOut* openOutputStream(int format=0, int channelCount=0, uint32_t sampleRate=0, status_t *status=0);
-		virtual AudioStreamIn* openInputStream(int format, int channelCount, uint32_t sampleRate, status_t *status);
+		virtual AudioStreamIn* openInputStream(int format,
+						int channelCount,
+						uint32_t sampleRate,
+						status_t *status,
+						AudioSystem::audio_in_acoustics acoustics);
 		virtual status_t dumpState(int fd, const Vector<String16>& args);
 		void setInputStream(AudioStreamInOmap *input);
 		void setOutputStream(AudioStreamOutOmap *output);
