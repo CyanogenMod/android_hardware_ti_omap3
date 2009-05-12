@@ -180,8 +180,30 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
         return false;
     }
 
-    void* inputBuffer = malloc(bm.getSize() + 256);
-    inputBuffer = (void*)((OMX_U32)inputBuffer + 128);
+    int nWidthNew, nHeightNew, nMultFactor, nBytesPerPixel;
+    OMX_U32 inBuffSize;
+	
+    nMultFactor = (bm.width() + 16 - 1)/16;
+    nWidthNew = (int)(nMultFactor) * 16;
+
+    nMultFactor = (bm.height() + 16 - 1)/16;
+    nHeightNew = (int)(nMultFactor) * 16;
+
+    if (bm.config() == SkBitmap::kRGB_565_Config)
+        nBytesPerPixel = 2;
+    else if (bm.config() == SkBitmap::kARGB_8888_Config)
+        nBytesPerPixel = 4;
+    else{
+        SkDebugf("This format is not supported!");
+        return false;
+    }
+
+    inBuffSize = nWidthNew * nHeightNew * nBytesPerPixel;
+    if (inBuffSize < 1600)
+        inBuffSize = 1600;
+	
+    void* inBuffer = malloc(inBuffSize + 256);
+    void *inputBuffer = (void*)((OMX_U32)inBuffer + 128);
     memcpy(inputBuffer, bm.getPixels(), bm.getSize());
 
     /*Minimum buffer size requirement */
@@ -196,14 +218,18 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
     /*Adding memory to include Thumbnail, comments & markers information and header (depends on the app)*/
     outBuffSize += 12288;
 
-    void* outputBuffer = malloc(outBuffSize + 256);
-    outputBuffer = (void*)((OMX_U32)outputBuffer + 128);
+    void* outBuffer = malloc(outBuffSize + 256);
+    void *outputBuffer = (void*)((OMX_U32)outBuffer + 128);
 
-    if (encodeImage(outputBuffer, outBuffSize, inputBuffer, bm.getSize(), bm.width(), bm.height(), quality, bm.config())){
+    if (encodeImage(outputBuffer, outBuffSize, inputBuffer, inBuffSize, bm.width(), bm.height(), quality, bm.config())){
         stream->write(pEncodedOutputBuffer, nEncodedOutputFilledLen);
+        free(inBuffer);
+        free(outBuffer);
         return true;        
     }            
 
+    free(inBuffer);
+    free(outBuffer);
     return false;
 }
 
