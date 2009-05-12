@@ -14,6 +14,7 @@ int v4l2_overlay_stream_off(int fd);
 int v4l2_overlay_q_buf(int fd, int index);
 int v4l2_overlay_dq_buf(int fd, int *index);
 int v4l2_overlay_init(int fd, uint32_t w, uint32_t h, uint32_t fmt);
+int v4l2_overlay_get_input_size(int fd, uint32_t *w, uint32_t *h, uint32_t *fmt);
 int v4l2_overlay_set_position(int fd, int32_t x, int32_t y, int32_t w,
                               int32_t h);
 int v4l2_overlay_get_position(int fd, int32_t *x, int32_t *y, int32_t *w,
