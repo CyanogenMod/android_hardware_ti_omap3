@@ -27,7 +27,7 @@ LOCAL_C_INCLUDES:=\
 	$(ALSA_PATH)/include 
 
 
-LOCAL_CFLAGS:= -g -c -W -Wall -O2
+LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE 
 
 #Files in Directories which aren't compiled in as of yet!!
 

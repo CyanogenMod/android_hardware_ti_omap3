@@ -1005,6 +1005,7 @@ close:
 out:
 	FM_END();
 	pthread_exit((void *)ret);
+	return 0;
 }
 
 void FMC_OS_RegisterFMInterruptCallback(FmcOsEventCallback func)
