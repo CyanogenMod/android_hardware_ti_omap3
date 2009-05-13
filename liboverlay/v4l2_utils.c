@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#define OVERLAY_DEBUG 1
-#define LOG_TAG "Overlay"
+//#define OVERLAY_DEBUG 0
+#define LOG_TAG "Overlay-V4L2"
 
 #include <fcntl.h>
 #include <errno.h>
@@ -27,7 +27,7 @@
 #include <sys/mman.h>
 #include "v4l2_utils.h"
 
-#define LOG_FUNCTION_NAME    LOGD(" %s ###### Calling %s() ######",  __FILE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME    LOGD(" %s ###### Calling %s() ######",  __FILE__,  __FUNCTION__);
 
 #ifndef LOGE
 #define LOGE(fmt,args...) \
@@ -160,7 +160,7 @@ void v4l2_overlay_dump_state(int fd)
 
 static void error(int fd, const char *msg)
 {
-  LOGE("Error = %s from %s", strerror(errno), msg);
+  LOGE("Error = %s from %s. errno = %d", strerror(errno), msg, errno);
 #ifdef OVERLAY_DEBUG
   v4l2_overlay_dump_state(fd);
 #endif
@@ -260,7 +260,7 @@ int v4l2_overlay_init(int fd, uint32_t w, uint32_t h, uint32_t fmt)
 
     format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     configure_pixfmt(&format.fmt.pix, fmt, w, h);
-    LOGI("v4l2_overlay_init:: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);
+    LOGI("v4l2_overlay_init:: w=%d h=%d fmt=%d", format.fmt.pix.width, format.fmt.pix.height, fmt);
     ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &format, "set output format");
 
     format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
@@ -268,6 +268,25 @@ int v4l2_overlay_init(int fd, uint32_t w, uint32_t h, uint32_t fmt)
     LOGI("v4l2_overlay_init:: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);
     return ret;
 }
+
+int v4l2_overlay_get_input_size_and_format(int fd, uint32_t *w, uint32_t *h, uint32_t *fmt)
+{
+    LOG_FUNCTION_NAME
+
+    struct v4l2_format format;
+    int ret;
+
+    format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format, "get format");
+    *w = format.fmt.pix.width;
+    *h = format.fmt.pix.height;
+    if (format.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY)
+    //if (format.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
+        *fmt = OVERLAY_FORMAT_YCbCr_422_I;
+    else return -EINVAL;
+    return ret;
+}
+
 
 int v4l2_overlay_set_position(int fd, int32_t x, int32_t y, int32_t w, int32_t h)
 {
