@@ -2700,6 +2700,7 @@ fm_status fmapp_change_tx_transmission_mode(fm_tx_context_s *fm_context)
 	g_fmapp_tx_transission_mode = (g_fmapp_tx_transission_mode ? 0 : 1);
 
 	if (g_fmapp_tx_transission_mode) {
+		property_set("route.stream.to", "fm");
 		ret = FM_TX_StartTransmission(fm_context);
 		if (ret != FMC_STATUS_PENDING && ret != FMC_STATUS_SUCCESS)
 			FMAPP_ERROR("failed to start TX transmission: %s",
@@ -2746,6 +2747,7 @@ fm_status fmapp_deinit_stack(void  **fm_context)
 	fm_status ret = FMC_STATUS_FAILED;
 	FMAPP_BEGIN();
 
+	property_set("route.stream.to", "default");
 	fmapp_unset_audio_routing(NULL,1,0,NULL);
 	sleep(1);
 
