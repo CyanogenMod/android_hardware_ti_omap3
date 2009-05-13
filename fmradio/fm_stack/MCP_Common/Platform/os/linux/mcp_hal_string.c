@@ -114,12 +114,14 @@ McpS32 MCP_HAL_STRING_StriCmpUtf8(const McpUtf8 *Str1, const McpUtf8 *Str2)
 {	
 	//Not yet implemented
 	FMC_ASSERT(0);
+	return 1;
 }
 
 McpUtf16 MCP_HAL_STRING_StrLenUtf8(const McpUtf8 *Str)
 {
 	//Not yet implemented
 	FMC_ASSERT(0);
+	return 1;
 }
 
 McpUtf8 MCP_HAL_STRING_StrCmpUtf8(const McpUtf8 *Str1, const McpUtf8 *Str2)
@@ -142,23 +144,27 @@ McpUtf8* MCP_HAL_STRING_StrnCpyUtf8(McpUtf8* StrDest, const McpUtf8 *StrSource, 
 {
 	//Not yet implemented
 	FMC_ASSERT(0);
+	return 1;
 }
 
 McpUtf8 *MCP_HAL_STRING_StrCatUtf8(McpUtf8 *strDest, const McpUtf8 *strSource)
 {
 	//Not yet implemented
 	FMC_ASSERT(0);
+	return 1;
 }
 
 McpUtf8 *MCP_HAL_STRING_StrrChrUtf8(const McpUtf8 *Str, McpU32 c)
 {
 	//Not yet implemented
 	FMC_ASSERT(0);
+	return 1;
 }
 
 McpUtf8* MCP_HAL_STRING_StrCpyUtf8(McpUtf8* StrDest, const McpUtf8 *StrSource)
 {
 	//Not yet implemented
 	FMC_ASSERT(0);
+	return 1;
 }
 
