@@ -7,7 +7,7 @@ ifneq ($(TARGET_SIMULATOR),true)
 #
 LOCAL_SRC_FILES:= \
 	async.c conf.c confmisc.c dlmisc.c error.c \
-	input.c names.c output.c shmarea.c socket.c userfile.c \
+	input.c names.c output.c socket.c userfile.c \
 	mixer/bag.c mixer/mixer.c  mixer/simple_abst.c mixer/simple.c mixer/simple_none.c \
 	rawmidi/rawmidi.c rawmidi/rawmidi_hw.c rawmidi/rawmidi_symbols.c rawmidi/rawmidi_virt.c \
 	timer/timer.c timer/timer_hw.c timer/timer_query.c timer/timer_query_hw.c timer/timer_symbols.c \
@@ -27,9 +27,10 @@ LOCAL_SRC_FILES:= \
 	pcm/pcm_adpcm.c \
 	pcm/pcm_plug.c pcm/pcm_copy.c\
 	seq/seq.c seq/seq_event.c seq/seq_hw.c seq/seqmid.c seq/seq_midi_event.c seq/seq_symbols.c \
-	control/cards.c control/control.c control/control_ext.c control/control_hw.c control/control_shm.c \
+	control/cards.c control/control.c control/control_ext.c control/control_hw.c \
 	control/control_symbols.c control/hcontrol.c control/setup.c \
 	vsscanf.c
+
 # pulled vsscan.c over from bionic because it was left out 
 # include it here as a temp hack to get things to compile
 # take out once vsscanf is put into libc

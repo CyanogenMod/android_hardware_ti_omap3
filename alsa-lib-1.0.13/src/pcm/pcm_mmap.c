@@ -23,7 +23,6 @@
 #include <string.h>
 #include <sys/poll.h>
 #include <sys/mman.h>
-#include <sys/shm.h>
 #include "pcm_local.h"
 
 size_t page_size(void)
@@ -347,10 +346,6 @@ int snd_pcm_mmap(snd_pcm_t *pcm)
 				    i1->u.mmap.offset != i->u.mmap.offset)
 					continue;
 				break;
-			case SND_PCM_AREA_SHM:
-				if (i1->u.shm.shmid != i->u.shm.shmid)
-					continue;
-				break;
 			case SND_PCM_AREA_LOCAL:
 				break;
 			default:
@@ -368,51 +363,6 @@ int snd_pcm_mmap(snd_pcm_t *pcm)
 			if (ptr == MAP_FAILED) {
 				SYSERR("mmap failed");
 				return -errno;
-			}
-			i->addr = ptr;
-			break;
-		case SND_PCM_AREA_SHM:
-			if (i->u.shm.shmid < 0) {
-				int id;
-				/* FIXME: safer permission? */
-				id = shmget(IPC_PRIVATE, size, 0666);
-				if (id < 0) {
-					SYSERR("shmget failed");
-					return -errno;
-				}
-				i->u.shm.shmid = id;
-				ptr = shmat(i->u.shm.shmid, 0, 0);
-				if (ptr == (void *) -1) {
-					SYSERR("shmat failed");
-					return -errno;
-				}
-				/* automatically remove segment if not used */
-				if (shmctl(id, IPC_RMID, NULL) < 0){
-					SYSERR("shmctl mark remove failed");
-					return -errno;
-				}
-				i->u.shm.area = snd_shm_area_create(id, ptr);
-				if (i->u.shm.area == NULL) {
-					SYSERR("snd_shm_area_create failed");
-					return -ENOMEM;
-				}
-				if (pcm->access == SND_PCM_ACCESS_MMAP_INTERLEAVED ||
-				    pcm->access == SND_PCM_ACCESS_RW_INTERLEAVED) {
-					unsigned int c1;
-					for (c1 = c + 1; c1 < pcm->channels; c1++) {
-						snd_pcm_channel_info_t *i1 = &pcm->mmap_channels[c1];
-						if (i1->u.shm.shmid < 0) {
-							i1->u.shm.shmid = id;
-							i1->u.shm.area = snd_shm_area_share(i->u.shm.area);
-						}
-					}
-				}
-			} else {
-				ptr = shmat(i->u.shm.shmid, 0, 0);
-				if (ptr == (void*) -1) {
-					SYSERR("shmat failed");
-					return -errno;
-				}
 			}
 			i->addr = ptr;
 			break;
@@ -437,9 +387,6 @@ int snd_pcm_mmap(snd_pcm_t *pcm)
                                     i1->u.mmap.offset != i->u.mmap.offset)
 					continue;
 				break;
-			case SND_PCM_AREA_SHM:
-				if (i1->u.shm.shmid != i->u.shm.shmid)
-					continue;
 				/* follow thru */
 			case SND_PCM_AREA_LOCAL:
 				if (pcm->access != SND_PCM_ACCESS_MMAP_INTERLEAVED &&
@@ -495,23 +442,6 @@ int snd_pcm_munmap(snd_pcm_t *pcm)
 				return -errno;
 			}
 			errno = 0;
-			break;
-		case SND_PCM_AREA_SHM:
-			if (i->u.shm.area) {
-				snd_shm_area_destroy(i->u.shm.area);
-				i->u.shm.area = NULL;
-				if (pcm->access == SND_PCM_ACCESS_MMAP_INTERLEAVED ||
-				    pcm->access == SND_PCM_ACCESS_RW_INTERLEAVED) {
-					unsigned int c1;
-					for (c1 = c + 1; c1 < pcm->channels; c1++) {
-						snd_pcm_channel_info_t *i1 = &pcm->mmap_channels[c1];
-						if (i1->u.shm.area) {
-							snd_shm_area_destroy(i1->u.shm.area);
-							i1->u.shm.area = NULL;
-						}
-					}
-				}
-			}
 			break;
 		case SND_PCM_AREA_LOCAL:
 			free(i->addr);
