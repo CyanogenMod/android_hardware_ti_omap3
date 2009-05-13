@@ -280,7 +280,11 @@ AudioStreamOut* AudioHardwareOmap::openOutputStream(int format, int channelCount
 }
 
 /* Create and open audio hardware input stream */
-AudioStreamIn* AudioHardwareOmap::openInputStream(int format, int channelCount, uint32_t sampleRate, status_t *status)
+AudioStreamIn* AudioHardwareOmap::openInputStream(int format,
+                                       int channelCount,
+                                       uint32_t sampleRate,
+                                       status_t *status,
+                                       AudioSystem::audio_in_acoustics acoustics)
 {
 	int ret = 0;
 	*status = 0;
