@@ -43,7 +43,7 @@ LOCAL_SHARED_LIBRARIES += \
 endif
 
 
-#ifdef FW3A
+ifdef FW3A
 
 LOCAL_C_INCLUDES += \
 	hardware/ti/omap3/mm_isp/ipp/inc \
@@ -57,7 +57,7 @@ LOCAL_SHARED_LIBRARIES += \
 
 LOCAL_CFLAGS += -O0 -g3 -DIPP_LINUX -D___ANDROID___ -DFW3A -DICAP -DIMAGE_PROCESSING_PIPELINE
 
-#endif
+endif
 
 LOCAL_MODULE:= libcamera
 
