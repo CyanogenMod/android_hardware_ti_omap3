@@ -7,7 +7,7 @@ include $(CLEAR_VARS)
 LOCAL_ARM_MODE := arm
 
 # do not prelink
-LOCAL_PRELINK_MODULE := false
+LOCAL_PRELINK_MODULE := true
 
 LOCAL_SHARED_LIBRARIES := \
 	libcorecg \
