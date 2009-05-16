@@ -90,15 +90,16 @@ JpegEncoder::~JpegEncoder()
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
-    eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF("\nError from SendCommand-Idle(nStop) State function\n");
-        iState = STATE_ERROR;
-        sem_post(semaphore) ;
+    if(iLastState || iState){
+        eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("\nError from SendCommand-Idle(nStop) State function\n");
+            iState = STATE_ERROR;
+            sem_post(semaphore) ;
+        }
+
+        Run();
     }
-
-    Run();
-
     free(semaphore) ;
     semaphore=NULL;
 }

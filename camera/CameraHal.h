@@ -69,8 +69,8 @@
 #define VIDEO_DEVICE        "/dev/video5"
 #define MIN_WIDTH           208 // 960 //820
 #define MIN_HEIGHT          154 // 800 //616
-#define PICTURE_WIDTH   2560 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
-#define PICTURE_HEIGHT  2048 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
+#define PICTURE_WIDTH   3280 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
+#define PICTURE_HEIGHT  2464 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
@@ -328,6 +328,7 @@ private:
     autofocus_callback  mAutoFocusCallback;
     void *mAutoFocusCallbackCookie;
     int nOverlayBuffersQueued;
+    int nCameraBuffersQueued;
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
     struct timeval ppm;
