@@ -44,8 +44,6 @@
 #include "pvmf_video.h"
 #include <media/PVPlayer.h>
 
-#define CACHEABLE_BUFFERS 0x1
-
 using namespace android;
 
 
@@ -99,8 +97,6 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
         LOGV("using Vendor Speicifc(34xx) codec");
         sp<OverlayRef> ref = mSurface->createOverlay(displayWidth, displayHeight,videoFormat);
         mOverlay = new Overlay(ref);
-	mOverlay->setAttributes(CACHEABLE_BUFFERS, 0);
-//	mOverlay->resizeInput(displayWidth, displayHeight);
 
         mbufferAlloc.maxBuffers = mOverlay->getBufferCount();
         mbufferAlloc.bufferSize = iBufferSize;
