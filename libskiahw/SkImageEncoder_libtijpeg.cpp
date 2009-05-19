@@ -221,7 +221,10 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
     void* outBuffer = malloc(outBuffSize + 256);
     void *outputBuffer = (void*)((OMX_U32)outBuffer + 128);
 
-    if (encodeImage(outputBuffer, outBuffSize, inputBuffer, inBuffSize, bm.width(), bm.height(), quality, bm.config())){
+    SkDebugf("\nOriginal: w = %d, h = %d", bm.width(), bm.height());
+    SkDebugf("\nModified: w = %d, h = %d", nWidthNew, nHeightNew);
+    //if (encodeImage(outputBuffer, outBuffSize, inputBuffer, inBuffSize, bm.width(), bm.height(), quality, bm.config())){
+    if (encodeImage(outputBuffer, outBuffSize, inputBuffer, inBuffSize, nWidthNew, nHeightNew, quality, bm.config())){
         stream->write(pEncodedOutputBuffer, nEncodedOutputFilledLen);
         free(inBuffer);
         free(outBuffer);
