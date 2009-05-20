@@ -6,7 +6,7 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES := $(PV_INCLUDES)
 
 LOCAL_SRC_FILES := \
-	android_surface_output_omap34xx.cpp buffer_alloc_omap34xx.cpp
+	android_surface_output_omap34xx.cpp
 
 LOCAL_CFLAGS := $(PV_CFLAGS)
 
