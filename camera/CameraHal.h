@@ -74,6 +74,7 @@
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
+#define VIDEO_FRAME_COUNT_MAX    4
 #define OPEN_CLOSE_WORKAROUND	 1
 
 namespace android {
@@ -318,13 +319,19 @@ private:
     sp<Overlay>  mOverlay;
     sp<PreviewThread>  mPreviewThread;
     bool mPreviewRunning;
+    Mutex               mRecordingLock;
     int mRecordingFrameSize;
     recording_callback mRecordingCallback;
     void  *mRecordingCallbackCookie;
-    static const int   videoBufferCount = 4;
+    // Video Frame Begin
+    int                 mVideoBufferCount;
     sp<MemoryHeapBase>  mVideoHeap;
-    sp<MemoryBase> mVideoBuffer[videoBufferCount];
-    int  mVideoBufferUsing[videoBufferCount];
+    sp<MemoryBase>      mVideoBuffer[VIDEO_FRAME_COUNT_MAX];
+    v4l2_buffer         mfilledbuffer[VIDEO_FRAME_COUNT_MAX];
+    unsigned long       mVideoBufferPtr[VIDEO_FRAME_COUNT_MAX];
+    int                 mVideoBufferUsing[VIDEO_FRAME_COUNT_MAX];
+    int                 mRecordingFrameCount;
+    // ...
     autofocus_callback  mAutoFocusCallback;
     void *mAutoFocusCallbackCookie;
     int nOverlayBuffersQueued;
