@@ -5,9 +5,9 @@
 int main(int argc, char **argv)
 {
     char inFilename[50]; 
-    char *inputfilename = "/face_176x144_32bit.raw";
+    char *inputfilename = "JPGE_CONF_003.yuv";
     char outFilename[50];
-    char *outputfilename= "/face_32bit";
+    char *outputfilename= "/E";
     char path[50];	
     int w = 176;
     int h= 144;
@@ -102,6 +102,8 @@ int main(int argc, char **argv)
         }
     }    
 	
+    inBuffer = (void*)((int)inBuffer - 128);
+    outBuffer = (void*)((int)outBuffer - 128);    
     free(inBuffer);
     free(outBuffer);
     delete JpegEnc;

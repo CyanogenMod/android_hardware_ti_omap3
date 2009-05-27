@@ -39,6 +39,7 @@
 //#define PRINTF printf
 
 #define JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT 0
+#define OPTIMIZE 0
 
 #if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
 	int eOutputCount = 0;
@@ -81,15 +82,12 @@ JpegEncoder::JpegEncoder()
     semaphore = NULL;
     semaphore = (sem_t*)malloc(sizeof(sem_t)) ;
     sem_init(semaphore, 0x00, 0x00);
-    iLastState = STATE_LOADED;
-    iState = STATE_LOADED;
-
 }
 
 JpegEncoder::~JpegEncoder()
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-
+#if OPTIMIZE
     if(iLastState || iState){
         eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
         if ( eError != OMX_ErrorNone ) {
@@ -100,6 +98,7 @@ JpegEncoder::~JpegEncoder()
 
         Run();
     }
+#endif    
     free(semaphore) ;
     semaphore=NULL;
 }
@@ -396,7 +395,7 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
     eInputCount++;
     PRINTF("\nrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
 #endif
-
+#if OPTIMIZE
     if (
         (mWidth == width) &&
         (mHeight == height) &&
@@ -416,6 +415,7 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
 
     }
     else
+#endif    
     {
         mOutputBuffer = outputBuffer;
         mOutBuffSize = outBuffSize;
@@ -424,6 +424,8 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
         mWidth = width;
         mHeight = height;
         mQuality = quality;
+        iLastState = STATE_LOADED;
+        iState = STATE_LOADED;
     
         ret = StartFromLoadedState();
         if (ret == false)
@@ -560,6 +562,15 @@ while(1){
             break;
 
         case STATE_EMPTY_BUFFER_DONE_CALLED:
+#if OPTIMIZE        
+            // do nothing
+#else
+            eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
+            if ( eError != OMX_ErrorNone ) {
+                PRINTF("Error from SendCommand-Idle(nStop) State function\n");
+                iState = STATE_ERROR;
+            }
+#endif        
             break;
 
         case STATE_LOADED:
@@ -589,8 +600,11 @@ while(1){
     }
 
     if (iState == STATE_ERROR) sem_post(semaphore) ;
-    if (iState == STATE_EMPTY_BUFFER_DONE_CALLED) break ;    
     if (iState == STATE_EXIT) break;
+#if OPTIMIZE
+    if (iState == STATE_EMPTY_BUFFER_DONE_CALLED) break ;    
+#endif    
+
     }
 
 }
