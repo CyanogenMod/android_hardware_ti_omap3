@@ -49,11 +49,18 @@ Better Error handling
 #include "SkImageDecoder.h"
 #include <stdio.h>
 #include <semaphore.h>
+#include <utils/threads.h> 
+
 
 extern "C" {
 	#include "OMX_Component.h"
 	#include "OMX_IVCommon.h"
 }
+
+namespace android {
+    Mutex       gTIJpegDecMutex;
+}; //namespace android
+
 
 #define M_SOF0  0xC0            /* nStart Of Frame N*/
 #define M_SOF1  0xC1            /* N indicates which compression process*/

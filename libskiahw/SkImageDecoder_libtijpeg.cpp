@@ -460,6 +460,11 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* st
 bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, Mode mode)
 {
 
+    android::gTIJpegDecMutex.lock();
+    /* Critical section */
+    SkDebugf("Entering Critical Section \n");
+
+
     int nRetval;
     int nIndex1;
     int nIndex2;
@@ -519,6 +524,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     SkDebugf("bm->config() = %d\n", bm->config());
     SkDebugf("bm->getSize() = %d\n", bm->getSize());		
     if (SkImageDecoder::kDecodeBounds_Mode == mode) {
+        android::gTIJpegDecMutex.unlock();
+        SkDebugf("Leaving Critical Section \n");
         return true;
     }
 
@@ -761,8 +768,15 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     }
 
     Run();
+
+    android::gTIJpegDecMutex.unlock();
+    SkDebugf("Leaving Critical Section \n");
+
     return true;
 EXIT:
+
+    android::gTIJpegDecMutex.unlock();
+    SkDebugf("Leaving Critical Section \n");
 
     return false;
 }
