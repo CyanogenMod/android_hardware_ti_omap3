@@ -12,6 +12,8 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_SHARED_LIBRARIES := \
 	libcorecg \
 	libsgl \
+        libutils \
+        libcutils \
 	$(BOARD_OPENCORE_LIBRARIES)
 
 LOCAL_C_INCLUDES += \
