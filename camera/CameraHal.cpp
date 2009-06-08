@@ -23,12 +23,28 @@
 * This file maps the Camera Hardware Interface to V4L2.
 *
 */
-
 #include "CameraHal.h"
 
 
 namespace android {
+/*****************************************************************************/
 
+/*
+ * This is the overlay_t object, it is returned to the user and represents
+ * an overlay. here we use a subclass, where we can store our own state.
+ * This handles will be passed across processes and possibly given to other
+ * HAL modules (for instance video decode modules).
+ */
+struct overlay_true_handle_t : public native_handle {
+    /* add the data fields we need here, for instance: */
+    int ctl_fd;
+    int shared_fd;
+    int width;
+    int height;
+    int format;
+    int num_buffers;
+    int shared_size;
+};
 
 #define LOG_TAG "CameraHal"
 
@@ -42,9 +58,11 @@ CameraHal::CameraHal()
             mPictureCallbackCookie(0),
 	    mOverlay(NULL),
 	    mPreviewRunning(0),
+            mRecordingFrameCount(0),
             mRecordingFrameSize(0),
             mRecordingCallback(0),
-            mRecordingCallbackCookie(0),                    
+            mRecordingCallbackCookie(0),
+            mVideoBufferCount(0),
             mVideoHeap(0),
             mAutoFocusCallback(0),
             mAutoFocusCallbackCookie(0),
@@ -67,7 +85,8 @@ CameraHal::CameraHal()
     isStart_FW3A_CAF = false;
     isStart_FW3A_AEWB = false;
 
-    for(int i = 0; i < videoBufferCount; i++)
+    int i = 0;
+    for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++)
     {
         mVideoBuffer[i] = 0;
         mVideoBufferUsing[i] = 0;
@@ -671,6 +690,8 @@ void CameraHal::nextPreview()
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     int w, h, ret;
     overlay_buffer_t overlaybuffer; 
+    int index;
+    recording_callback cb = NULL;
 
     mParameters.getPreviewSize(&w, &h);
 
@@ -680,6 +701,8 @@ void CameraHal::nextPreview()
         LOGE("VIDIOC_DQBUF Failed!!!");
     }
 
+    index = cfilledbuffer.index;
+//    LOGE("Buffer index[%d]",index);
 
 #ifdef FW3A
 	//if(AF_STATUS_RUNNING == fobj->status_2a.af.status)
@@ -696,25 +719,17 @@ void CameraHal::nextPreview()
     {
         nOverlayBuffersQueued++;
     }
-	
-    // Send Video Frame
-    if(mRecordingCallback){
-        int i;
-        for(i = 0 ; i < videoBufferCount; i ++)
-        {
-            if(0 == mVideoBufferUsing[i])
-            {
-                LOGD("send buffer:%d pointer:0x%x", i,(unsigned int)(mVideoBuffer[i]->pointer()));
-                memcpy(mVideoBuffer[i]->pointer(),(void*)cfilledbuffer.m.userptr,mRecordingFrameSize);
-                mVideoBufferUsing[i] = 1;
-                mRecordingCallback(mVideoBuffer[i], mRecordingCallbackCookie);
-                break;
-            }
-            else
-            {
-                LOGD("no Buffer can be used \n");
-            }
-        }
+
+    if (nOverlayBuffersQueued)
+    {
+        mOverlay->dequeueBuffer(&overlaybuffer);
+        nOverlayBuffersQueued--;
+        cfilledbuffer.index = (int)overlaybuffer;
+    }
+    else
+    {
+        //cfilledbuffer.index = whatever was in there before..
+        //That is, queue the same buffer that was dequeued
     }
     
     if (nOverlayBuffersQueued)
@@ -728,11 +743,26 @@ void CameraHal::nextPreview()
         //cfilledbuffer.index = whatever was in there before..
         //That is, queue the same buffer that was dequeued
     }
-    nCameraBuffersQueued++;
-    if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-        LOGE("nextPreview VIDIOC_QBUF Failed!!!");
-    }
 
+    nCameraBuffersQueued++;
+
+    mRecordingLock.lock();
+    cb = mRecordingCallback;
+
+    if(cb){
+//        LOGD("### recording:index:%d,pointer:0x%x,len:%d",cfilledbuffer.index,(void*)(cfilledbuffer.m.userptr),cfilledbuffer.length);
+        memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
+//        if(cfilledbuffer.index==0)
+        cb(mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
+    } else {
+//        LOGD("[O] without recording:index:%d,pointer:0x%x,len:%d",cfilledbuffer.index,(void*)(cfilledbuffer.m.userptr),cfilledbuffer.length);
+        /* queue the buffer back to camera */
+        while (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+            LOGE("VIDIOC_QBUF Failed.");
+        }
+    }
+    mRecordingLock.unlock();
+    return ;
 }
 	
 
@@ -1284,38 +1314,63 @@ bool CameraHal::previewEnabled()
 status_t CameraHal::startRecording(recording_callback cb, void* user)
 {
     LOG_FUNCTION_NAME
-
-    mRecordingCallback = cb;
-    mRecordingCallbackCookie = user;
+    int i = 0;
 
     // Just for the same size case
     mRecordingFrameSize = mPreviewFrameSize;
 
-    if(mRecordingCallback)
+    overlay_handle_t overlayhandle = mOverlay->getHandleRef();
+
+    overlay_true_handle_t true_handle;
+
+    memcpy(&true_handle,overlayhandle,sizeof(overlay_true_handle_t));
+
+    int overlayfd = true_handle.ctl_fd;
+
+    LOGD("#Overlay driver FD:%d ",overlayfd);
+
+    mVideoBufferCount =  mOverlay->getBufferCount();
+
+    for(i = 0; i < mVideoBufferCount; i++)
     {
-        int i = 0;
+        mVideoBufferPtr[i] = (unsigned long)mOverlay->getBufferAddress((void*)i);
+        LOGD("mVideoBufferPtr[%d] = 0x%x", i,mVideoBufferPtr[i]);
+    }
+
+    if(cb)
+    {
         LOGD("Clear the old memory ");
         mVideoHeap.clear();
-        for(i = 0; i < videoBufferCount; i++)
+        for(i = 0; i < mVideoBufferCount; i++)
         {
             mVideoBuffer[i].clear();
         }
-        LOGD("Init the video Memory %d", mRecordingFrameSize);
-        mVideoHeap = new MemoryHeapBase(mRecordingFrameSize * videoBufferCount);
-        for(i = 0; i < videoBufferCount; i++)
+        LOGD("Mmap the video Memory %d", mRecordingFrameSize);
+        mVideoHeap = new MemoryHeapBase(overlayfd,  mRecordingFrameSize * mVideoBufferCount);
+        LOGD("mVideoHeap ID:%d , Base:[%x],size:%d", mVideoHeap->getHeapID(),
+                                       mVideoHeap->getBase(),mVideoHeap->getSize());
+        for(i = 0; i < mVideoBufferCount; i++)
         {
             LOGD("Init Video Buffer:%d ",i);
             mVideoBuffer[i] = new MemoryBase(mVideoHeap, mRecordingFrameSize*i, mRecordingFrameSize);
+            LOGD("pointer:[%x],size:%d,offset:%d", mVideoBuffer[i]->pointer(),mVideoBuffer[i]->size(),mVideoBuffer[i]->offset());
         }
     }
+    mRecordingLock.lock();
+    mRecordingCallback = cb;
+    mRecordingCallbackCookie = user;
+    mRecordingLock.unlock();
     return NO_ERROR;
 }
+
 
 void CameraHal::stopRecording()
 {
     LOG_FUNCTION_NAME
+    mRecordingLock.lock();
     mRecordingCallback = NULL;
     mRecordingCallbackCookie = NULL;
+    mRecordingLock.unlock();
 }
 
 bool CameraHal::recordingEnabled()
@@ -1324,17 +1379,46 @@ bool CameraHal::recordingEnabled()
     return mRecordingCallback !=0;
 }
 
+static void debugShowFPS()
+{
+    static int mFrameCount = 0;
+    static int mLastFrameCount = 0;
+    static nsecs_t mLastFpsTime = 0;
+    static float mFps = 0;
+    mFrameCount++;
+    if (!(mFrameCount & 0x1F)) {
+        nsecs_t now = systemTime();
+        nsecs_t diff = now - mLastFpsTime;
+        mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        mLastFpsTime = now;
+        mLastFrameCount = mFrameCount;
+    }
+	LOGD("####### [%d] Frames, %f FPS", mFrameCount, mFps);
+    // XXX: mFPS has the value we want
+ }
+
 void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 {
     LOG_FUNCTION_NAME
     ssize_t offset;
     size_t  size;
     int index;
+    int time = 0;
+
     offset = mem->offset();
     size   = mem->size();
     index = offset / size;
-    LOGD("Index[%d] Buffer has been released,pointer = %p",index,mem->pointer());
-    mVideoBufferUsing[index] = 0;
+
+    mRecordingFrameCount++;
+//    LOGD("Buffer[%d] pointer=0x%x",index,mem->pointer());
+//    debugShowFPS();
+
+    /* queue the buffer back to camera */
+    while (ioctl(camera_device, VIDIOC_QBUF, &mfilledbuffer[index]) < 0) {
+        LOGE("Recording VIDIOC_QBUF Failed.");
+        if(++time >= 4)break;
+    }
+    return;
 }
 
 sp<IMemoryHeap>  CameraHal::getRawHeap() const
