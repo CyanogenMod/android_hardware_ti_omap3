@@ -6,27 +6,27 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := libaudio
 
-LOCAL_SHARED_LIBRARIES := \
-       libasound \
-       libcutils \
-       libutils \
-       libmedia \
-       libhardware_legacy
+LOCAL_WHOLE_STATIC_LIBRARIES := libasound
 
-LOCAL_STATIC_LIBRARIES += \
-	libaudiointerface
+LOCAL_STATIC_LIBRARIES := libaudiointerface
+
+LOCAL_SHARED_LIBRARIES := \
+	libcutils \
+	libutils \
+	libmedia \
+	libhardware_legacy \
+	libdl \
+	libc
 
 LOCAL_SRC_FILES += \
        AudioStreamInOmap.cpp \
        AudioStreamOutOmap.cpp \
        AudioHardwareOmap.cpp
 
-LOCAL_CFLAGS +=
+LOCAL_CFLAGS += -D_POSIX_SOURCE
 
-# FIXME
-# need to update this once alsa moves to the Android core
 LOCAL_C_INCLUDES += \
-       $(LOCAL_PATH)/../alsa-lib-1.0.13/include
+	external/alsa-lib/include
 
 include $(BUILD_SHARED_LIBRARY)
 
