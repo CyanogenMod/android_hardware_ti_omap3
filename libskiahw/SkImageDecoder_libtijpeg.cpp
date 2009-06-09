@@ -38,7 +38,7 @@
 #define PRINTF SkDebugf
 //#define PRINTF printf
 
-#define JPEG_DECODER_DUMP_INPUT_AND_OUTPUT 0
+#define JPEG_DECODER_DUMP_INPUT_AND_OUTPUT 0 // set directory persmissions for /temp as 777
 
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
 	int dOutputCount = 0;
@@ -200,7 +200,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
         for ( a=0;a<15 /* 7 originally */;a++ ) {
             marker = stream->readU8();
 
-            //SkDebugf("MARKER IS %x\n",marker);
+            //PRINTF("MARKER IS %x\n",marker);
 
             if ( marker != 0xff )   {
                 break;
@@ -245,7 +245,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
             //PRINTF("Premature end of file?");
         }
 
-        //SkDebugf("Jpeg section marker 0x%02x size %d\n",marker, itemlen);
+        //PRINTF("Jpeg section marker 0x%02x size %d\n",marker, itemlen);
         switch ( marker )   {
 
         case M_SOS:
@@ -319,10 +319,10 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
             }
             PRINTF("Image Width x Height = %u * %u\n", Get16m(Data+5), Get16m(Data+3)  );
             /*
-            SkDebugf("JPEG image is %uw * %uh,\n", Get16m(Data+3), Get16m(Data+5)  );
+            PRINTF("JPEG image is %uw * %uh,\n", Get16m(Data+3), Get16m(Data+5)  );
 
             if ( *(Data+9)==0x41 )  {
-                SkDebugf("THIS IS A YUV 411 ENCODED IMAGE \n");
+                PRINTF("THIS IS A YUV 411 ENCODED IMAGE \n");
                 JpgHdrInfo->format= 1;
             }
             */
@@ -387,7 +387,7 @@ void SkTIJPEGImageDecoder::EventHandler(OMX_HANDLETYPE hComponent,
                                             OMX_PTR pEventData)
 {
 
-    //SkDebugf("\nEventHandler:: eEvent = %x, nData1 = %x, nData2 = %x\n\n", eEvent, (unsigned int)nData1, (unsigned int)nData2);
+    //PRINTF("\nEventHandler:: eEvent = %x, nData1 = %x, nData2 = %x\n\n", eEvent, (unsigned int)nData1, (unsigned int)nData2);
 
     switch ( eEvent ) {
 
@@ -396,21 +396,21 @@ void SkTIJPEGImageDecoder::EventHandler(OMX_HANDLETYPE hComponent,
             /* We do not want to apply them in cases when these conditions are not met. */
             if ((nData1 == OMX_CommandStateSet) && (nData2 == OMX_StateIdle))
             {
-                //SkDebugf ("Component State Changed To OMX_StateIdle\n");
+                //PRINTF ("Component State Changed To OMX_StateIdle\n");
                 iLastState = iState;
                 iState = STATE_IDLE;
                 sem_post(semaphore) ;
             }
             else if ((nData1 == OMX_CommandStateSet) && (nData2 == OMX_StateExecuting))
             {
-                //SkDebugf ("Component State Changed To OMX_StateExecuting\n");
+                //PRINTF ("Component State Changed To OMX_StateExecuting\n");
                 iLastState = iState;
                 iState = STATE_EXECUTING;
                 sem_post(semaphore) ;
             }
             else if ((nData1 == OMX_CommandStateSet) && (nData2 == OMX_StateLoaded))
             {
-                //SkDebugf ("Component State Changed To OMX_StateLoaded\n");
+                //PRINTF ("Component State Changed To OMX_StateLoaded\n");
                 iLastState = iState;
                 iState = STATE_LOADED;
                 sem_post(semaphore) ;
@@ -464,7 +464,6 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     android::gTIJpegDecMutex.lock();
     /* Critical section */
     SkDebugf("Entering Critical Section \n");
-
 
     int nRetval;
     int nIndex1;
