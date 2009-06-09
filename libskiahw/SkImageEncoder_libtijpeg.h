@@ -25,25 +25,25 @@
 *  Use of this software is controlled by the terms and conditions found
 *  in the license agreement under which this software has been supplied.
 * ============================================================================ */
-/*
-TODO:
 
-Memcpy into bm upon receiving fillbufferdone
-
-Replace Allocate Buffer with UseBuffer(using bm) for output buffer.
-
-Better Error handling
-*/
+#include <string.h>
+#include <time.h>
 #include "SkBitmap.h"
 #include "SkStream.h"
 #include "SkImageEncoder.h"
 #include <stdio.h>
 #include <semaphore.h>
+#include <utils/threads.h>
 
 extern "C" {
     #include "OMX_Component.h"
     #include "OMX_IVCommon.h"
 }
+
+namespace android {
+    Mutex gTIJpegEncMutex;
+}; //namespace android
+
 
 class SkTIJPEGImageEncoder :public SkImageEncoder
 {
@@ -83,6 +83,7 @@ public:
     sem_t *semaphore;
     JPEGENC_State iState;
     JPEGENC_State iLastState;
+    int jpegSize;
 
     SkTIJPEGImageEncoder();
     ~SkTIJPEGImageEncoder();

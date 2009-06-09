@@ -33,7 +33,10 @@
 */
 
 #include "SkImageDecoder_libtijpeg.h"
-#include <string.h>
+
+#define USE_OMX_UseBuffer 1
+#define PRINTF SkDebugf
+//#define PRINTF printf
 
 #define JPEG_DECODER_DUMP_INPUT_AND_OUTPUT 0
 
@@ -73,7 +76,7 @@ OMX_ERRORTYPE OMX_EmptyBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BU
 
 OMX_ERRORTYPE OMX_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffHead)
 {
-    SkDebugf("\nOMX_FillBufferDone:: nFilledLen = %ld \n", pBuffHead->nFilledLen);
+    //PRINTF("\nOMX_FillBufferDone:: nFilledLen = %ld \n", pBuffHead->nFilledLen);
     ((SkTIJPEGImageDecoder *)ptr)->FillBufferDone(pBuffHead->pBuffer, pBuffHead->nFilledLen);
 
     return OMX_ErrorNone;
@@ -109,11 +112,11 @@ void SkTIJPEGImageDecoder::FixFrameSize(JPEG_HEADER_INFO* JpegHeaderInfo)
 
     /*round up if nWidth is not multiple of 32*/
     ( (nWidth%32 ) !=0 ) ?  nWidth=32 * (  (  nWidth/32 ) + 1 )  : nWidth;
-    SkDebugf("new nWidth %d \n", nWidth);
+    //PRINTF("new nWidth %d \n", nWidth);
 
     /*round up if nHeight is not multiple of 16*/
     ( (nHeight%16) !=0 ) ?  nHeight=16 * (  (  nHeight/16 ) + 1 )  : nHeight;
-    SkDebugf("new nHeight %d \n", nHeight);
+    //PRINTF("new nHeight %d \n", nHeight);
 
     JpegHeaderInfo->nWidth = nWidth;
     JpegHeaderInfo->nHeight = nHeight;
@@ -203,7 +206,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
                 break;
             }
             if ( a >= 14 /* 6 originally */)   {
-                SkDebugf("too many padding bytes\n");
+                PRINTF("too many padding bytes\n");
                 if ( Data != NULL ) {
                     free(Data);
                     Data=NULL;
@@ -213,7 +216,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
         }
         if ( marker == 0xff )   {
             /* 0xff is legal padding, but if we get that many, something's wrong.*/
-            SkDebugf("too many padding bytes!");
+            PRINTF("too many padding bytes!");
         }
 
         /* Read the length of the section.*/
@@ -223,12 +226,12 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
         itemlen = (lh << 8) | ll;
 
         if ( itemlen < 2 )  {
-            SkDebugf("invalid marker");
+            PRINTF("invalid marker");
         }
 
         Data = (OMX_U8 *)malloc(itemlen);
         if ( Data == NULL ) {
-            SkDebugf("Could not allocate memory");
+            PRINTF("Could not allocate memory");
             break;
         }
 
@@ -239,7 +242,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
         got = stream->read(Data+2, itemlen-2); /* Read the whole section.*/
 
         if ( got != itemlen-2 ) {
-            SkDebugf("Premature end of file?");
+            //PRINTF("Premature end of file?");
         }
 
         //SkDebugf("Jpeg section marker 0x%02x size %d\n",marker, itemlen);
@@ -254,7 +257,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
             return lSize;
 
         case M_EOI:
-            SkDebugf("No image in jpeg!\n");
+            PRINTF("No image in jpeg!\n");
             if ( Data != NULL ) {
                 free(Data);
                 Data=NULL;
@@ -274,7 +277,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
             break;
 
         case M_SOF2:
-            SkDebugf("nProgressive IMAGE!\n");
+            PRINTF("nProgressive IMAGE!\n");
             JpgHdrInfo->nProgressive=1;
 
         case M_SOF0:
@@ -295,26 +298,26 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
             JpgHdrInfo->nFormat = GetYUVformat(Data);
             switch (JpgHdrInfo->nFormat) {
             case OMX_COLOR_FormatYUV420Planar:
-                SkDebugf("Image chroma format is OMX_COLOR_FormatYUV420Planar\n");
+                PRINTF("Image chroma format is OMX_COLOR_FormatYUV420Planar\n");
                 break;
             case OMX_COLOR_FormatYUV411Planar:
-                SkDebugf("Image chroma format is OMX_COLOR_FormatYUV411Planar\n");
+                PRINTF("Image chroma format is OMX_COLOR_FormatYUV411Planar\n");
                 break;
             case OMX_COLOR_FormatCbYCrY:
-                SkDebugf("Image chroma format is OMX_COLOR_FormatYUV422Interleaved\n");
+                PRINTF("Image chroma format is OMX_COLOR_FormatYUV422Interleaved\n");
                 break;
             case OMX_COLOR_FormatYUV444Interleaved:
-                 SkDebugf("Image chroma format is OMX_COLOR_FormatYUV444Interleaved\n");
+                 PRINTF("Image chroma format is OMX_COLOR_FormatYUV444Interleaved\n");
                  break;
             case OMX_COLOR_FormatL8:
-                SkDebugf("Image chroma format is OMX_COLOR_FormatL8 \n");
+                PRINTF("Image chroma format is OMX_COLOR_FormatL8 \n");
                 break;
             default:
-                 SkDebugf("Cannot find Image chroma format \n");
+                 PRINTF("Cannot find Image chroma format \n");
                  JpgHdrInfo->nFormat = OMX_COLOR_FormatUnused;
                  break;
             }
-            SkDebugf("Image Width x Height = %u * %u\n", Get16m(Data+5), Get16m(Data+3)  );
+            PRINTF("Image Width x Height = %u * %u\n", Get16m(Data+5), Get16m(Data+3)  );
             /*
             SkDebugf("JPEG image is %uw * %uh,\n", Get16m(Data+3), Get16m(Data+5)  );
 
@@ -353,26 +356,24 @@ void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
     char path[50];
     snprintf(path, sizeof(path), "/temp/JDO_%d_%d_%dx%d.raw", dOutputCount, bitmap->config(), bitmap->width(), bitmap->height());
 
-    SkDebugf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+    PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
     
     SkFILEWStream tempFile(path);
     if (tempFile.write(pBuffer, nFilledLen) == false)
-        SkDebugf("Writing to %s failed\n", path);
+        PRINTF("Writing to %s failed\n", path);
     else
-        SkDebugf("Writing to %s succeeded\n", path);
+        PRINTF("Writing to %s succeeded\n", path);
 
     dOutputCount++;
-    SkDebugf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+    PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
 #endif
 
-    /* Set alpha to 0xFF. */
-    if (bitmap->config() == SkBitmap::kARGB_8888_Config)
-    {
-        for(int i = 3; i < nFilledLen; i+=4)
-            pBuffer[i] = 0xFF;
-    }	
-	
+#if USE_OMX_UseBuffer
+    // do nothing
+#else
     memcpy(bitmap->getPixels(), pBuffer, nFilledLen);
+#endif
+
     iLastState = iState;
     iState = STATE_FILL_BUFFER_DONE_CALLED;
 
@@ -417,7 +418,7 @@ void SkTIJPEGImageDecoder::EventHandler(OMX_HANDLETYPE hComponent,
             break;
 
         case OMX_EventError:
-            SkDebugf ("\n\n\nOMX Component  reported an Error!!!!\n\n\n");
+            PRINTF ("\n\n\nOMX Component  reported an Error!!!!\n\n\n");
             iLastState = iState;
             iState = STATE_ERROR;
             OMX_SendCommand(hComponent, OMX_CommandStateSet, OMX_StateInvalid, NULL);
@@ -434,23 +435,23 @@ void SkTIJPEGImageDecoder::EventHandler(OMX_HANDLETYPE hComponent,
 OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* stream, OMX_S32 bufferSize)
 {
     pBuf->nFilledLen = stream->read(pBuf->pBuffer, bufferSize);
-    SkDebugf ("Populated Input Buffer: nAllocLen = %d, nFilledLen =%ld\n", bufferSize, pBuf->nFilledLen);
+    //PRINTF ("Populated Input Buffer: nAllocLen = %d, nFilledLen =%ld\n", bufferSize, pBuf->nFilledLen);
 
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
 
     char path[50];
     snprintf(path, sizeof(path), "/temp/JDI_%d.jpg", dInputCount);
 
-    SkDebugf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+    PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
     
     SkFILEWStream tempFile(path);
     if (tempFile.write(pBuf->pBuffer, pBuf->nFilledLen) == false)
-        SkDebugf("Writing to %s failed\n", path);
+        PRINTF("Writing to %s failed\n", path);
     else
-        SkDebugf("Writing to %s succeeded\n", path);
+        PRINTF("Writing to %s succeeded\n", path);
 
     dInputCount++;
-    SkDebugf("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+    PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
 #endif
     
     return pBuf->nFilledLen;
@@ -485,17 +486,17 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     OMX_CALLBACKTYPE JPEGCallBack ={OMX_EventHandler, OMX_EmptyBufferDone, OMX_FillBufferDone};
 
-    SkDebugf("\nUsing TI Image Decoder.\n");
+    PRINTF("\nUsing TI Image Decoder.\n");
 
     bitmap = bm;
     inStream = stream;
     SkBitmap::Config config = prefConfig;
     scaleFactor = this->getSampleSize();
-	
-    SkDebugf("prefConfig = %d\n", prefConfig);
-    SkDebugf("mode = %d\n", mode);
-    SkDebugf("scaleFactor = %d\n", scaleFactor);
-    SkDebugf("File size = %d\n", stream->getLength());
+    
+    PRINTF("prefConfig = %d\n", prefConfig);
+    PRINTF("mode = %d\n", mode);
+    PRINTF("scaleFactor = %d ", scaleFactor);
+    //PRINTF("File size = %d\n", stream->getLength());
 	
     if (scaleFactor == 3)
     	scaleFactor = 2;
@@ -504,12 +505,12 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     else if (scaleFactor > 8)
     	scaleFactor = 8;
     	
-    SkDebugf ("Modified scaleFactor = %d\n", scaleFactor);
+    PRINTF ("Modified scaleFactor = %d\n", scaleFactor);
 
     inputFileSize = ParseJpegHeader(stream , &JpegHeaderInfo);
 
     if (inputFileSize == 0) {
-        SkDebugf("The file size is 0. Maybe the format of the file is not correct\n");
+        PRINTF("The file size is 0. Maybe the format of the file is not correct\n");
         goto EXIT;
     }
 
@@ -519,13 +520,14 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     bm->setConfig(config, JpegHeaderInfo.nWidth/scaleFactor, JpegHeaderInfo.nHeight/scaleFactor);
     bm->setIsOpaque(true);
-    SkDebugf("bm->width() = %d\n", bm->width());
-    SkDebugf("bm->height() = %d\n", bm->height());
-    SkDebugf("bm->config() = %d\n", bm->config());
-    SkDebugf("bm->getSize() = %d\n", bm->getSize());		
+    PRINTF("bm->width() = %d\n", bm->width());
+    PRINTF("bm->height() = %d\n", bm->height());
+    PRINTF("bm->config() = %d\n", bm->config());
+    PRINTF("bm->getSize() = %d\n", bm->getSize());		
+
     if (SkImageDecoder::kDecodeBounds_Mode == mode) {
         android::gTIJpegDecMutex.unlock();
-        SkDebugf("Leaving Critical Section \n");
+ 	 SkDebugf("Leaving Critical Section 1 \n");    
         return true;
     }
 
@@ -533,16 +535,16 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     eError = TIOMX_Init();
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf("%d :: Error returned by OMX_Init()\n",__LINE__);
+        PRINTF("%d :: Error returned by OMX_Init()\n",__LINE__);
         goto EXIT;
     }
 
     /* Load the JPEGDecoder Component */
 
-    SkDebugf("Calling OMX_GetHandle\n");
+    //PRINTF("Calling OMX_GetHandle\n");
     eError = TIOMX_GetHandle(&pOMXHandle, strTIJpegDec, (void *)this, &JPEGCallBack);
     if ( (eError != OMX_ErrorNone) ||  (pOMXHandle == NULL) ) {
-        SkDebugf ("Error in Get Handle function\n");
+        PRINTF ("Error in Get Handle function\n");
         goto EXIT;
     }
 
@@ -604,7 +606,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
         InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420Planar;
     }
 
-    SkDebugf("Calling OMX_SetParameter for Input Port\n");
+    //PRINTF("Calling OMX_SetParameter for Input Port\n");
     eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
@@ -650,28 +652,28 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     if (config == SkBitmap::kA8_Config) { /* 8-bits per pixel, with only alpha specified (0 is transparent, 0xFF is opaque) */
         OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatL8;
-        SkDebugf("Color format is OMX_COLOR_FormatL8\n");
+        //PRINTF("Color format is OMX_COLOR_FormatL8\n");
         bitsPerPixel = 1;
     }
     else if (config == SkBitmap::kRGB_565_Config) { /* 16-bits per pixel*/
         OutPortDef.format.image.eColorFormat = OMX_COLOR_Format16bitRGB565;
-        SkDebugf("Color format is OMX_COLOR_Format16bitRGB565\n");
+        //PRINTF("Color format is OMX_COLOR_Format16bitRGB565\n");
         bitsPerPixel = 2;
     }
     else if (config == SkBitmap::kARGB_8888_Config) { /* 32-bits per pixel */
         OutPortDef.format.image.eColorFormat = OMX_COLOR_Format32bitARGB8888;
-        SkDebugf("Color format is OMX_COLOR_Format32bitARGB8888\n");
+        //PRINTF("Color format is OMX_COLOR_Format32bitARGB8888\n");
         bitsPerPixel = 4;
     }
     else { /*Set DEFAULT color format*/
         OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
-        SkDebugf("Color format is OMX_COLOR_FormatCbYCrY\n");
+        //PRINTF("Color format is OMX_COLOR_FormatCbYCrY\n");
         bitsPerPixel = 2;
     }
 
-    OutPortDef.nBufferSize = JpegHeaderInfo.nWidth * JpegHeaderInfo.nHeight * bitsPerPixel / scaleFactor;
+    OutPortDef.nBufferSize = (JpegHeaderInfo.nWidth / scaleFactor ) * (JpegHeaderInfo.nHeight / scaleFactor) * bitsPerPixel ;
 
-    SkDebugf("Output buffer size is %ld\n", OutPortDef.nBufferSize);
+    //PRINTF("Output buffer size is %ld\n", OutPortDef.nBufferSize);
 
     eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
     if ( eError != OMX_ErrorNone ) {
@@ -704,31 +706,31 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     eError = OMX_GetExtensionIndex(pOMXHandle, strProgressive, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
     }
     eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &(JpegHeaderInfo.nProgressive));
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
     }
 
     eError = OMX_GetExtensionIndex(pOMXHandle, strColorFormat, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
     }
 
     eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &(OutPortDef.format.image.eColorFormat));
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
     }
 
     /* Set max width & height value*/
     eError = OMX_GetExtensionIndex(pOMXHandle, strMaxResolution, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
     }
 
@@ -737,85 +739,105 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     eError = OMX_SetParameter (pOMXHandle, nCustomIndex, &MaxResolution);
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
     }
 
+#if USE_OMX_UseBuffer
+
+    if (!bm->allocPixels(&allocator, NULL)) {
+        PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+        goto EXIT;
+    }
+#else
     if (!bm->allocPixels()) {
         SkDebugf("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
         goto EXIT;
     }
+#endif
 
-    SkDebugf("Allocated Buffer for input port: %d bytes \n", InPortDef.nBufferSize);
+    //PRINTF("Allocated Buffer for input port: %d bytes \n", InPortDef.nBufferSize);
     eError = OMX_AllocateBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize);
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
     }
+
+#if USE_OMX_UseBuffer
+
+    eError = OMX_UseBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize, (OMX_U8*)bm->getPixels());
+    if ( eError != OMX_ErrorNone ) {
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        goto EXIT;
+    }
+
+#else
 
     /*### For now I am going to use AllocateBuffer. Later on, we must change this to UseBuffer and pass bm as the bufer. */
     /*### OMX will allocate the buffer and in the FillBufferDone function, we will memcpy the buffer to bm.                      */
     eError = OMX_AllocateBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize);
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
     }
 
+#endif
+
+
     eError = OMX_SendCommand(pOMXHandle, OMX_CommandStateSet, OMX_StateIdle ,NULL);
     if ( eError != OMX_ErrorNone ) {
-        SkDebugf ("Error from SendCommand-Idle(Init) State function\n");
+        PRINTF ("Error from SendCommand-Idle(Init) State function\n");
         goto EXIT;
     }
 
     Run();
 
     android::gTIJpegDecMutex.unlock();
-    SkDebugf("Leaving Critical Section \n");
-
+    SkDebugf("Leaving Critical Section 2 \n");    
     return true;
+
 EXIT:
 
     android::gTIJpegDecMutex.unlock();
-    SkDebugf("Leaving Critical Section \n");
-
+    SkDebugf("Leaving Critical Section 3 \n");    
     return false;
 }
 
 void SkTIJPEGImageDecoder::PrintState()
 {
-    //SkDebugf("\niLastState = %x\n", iLastState);
+    //PRINTF("\niLastState = %x\n", iLastState);
     switch(iState)
     {
         case STATE_LOADED:
-            SkDebugf("Current State is STATE_LOADED.\n");
+            PRINTF("Current State is STATE_LOADED.\n");
             break;
 
         case STATE_IDLE:
-            SkDebugf("Current State is STATE_IDLE.\n");
+            PRINTF("Current State is STATE_IDLE.\n");
             break;
 
         case STATE_EXECUTING:
-            SkDebugf("Current State is STATE_EXECUTING.\n");
+            PRINTF("Current State is STATE_EXECUTING.\n");
             break;
 
         case STATE_EMPTY_BUFFER_DONE_CALLED:
-            SkDebugf("Current State is STATE_EMPTY_BUFFER_DONE_CALLED.\n");
+            PRINTF("Current State is STATE_EMPTY_BUFFER_DONE_CALLED.\n");
             break;
 
         case STATE_FILL_BUFFER_DONE_CALLED:
-            SkDebugf("Current State is STATE_FILL_BUFFER_DONE_CALLED.\n");
+            PRINTF("Current State is STATE_FILL_BUFFER_DONE_CALLED.\n");
             break;
 
         case STATE_ERROR:
-            SkDebugf("Current State is STATE_ERROR.\n");
+            PRINTF("Current State is STATE_ERROR.\n");
             break;
 
         case STATE_EXIT:
-            SkDebugf("Current State is STATE_EXIT.\n");
+            PRINTF("Current State is STATE_EXIT.\n");
             break;
 
         default:
-            SkDebugf("Current State is Invalid.\n");
+            PRINTF("Current State is Invalid.\n");
             break;
 
     }
@@ -837,7 +859,7 @@ while(1){
             {
                 eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateExecuting, NULL);
                 if ( eError != OMX_ErrorNone ) {
-                    SkDebugf("eError from SendCommand-Executing State function\n");
+                    PRINTF("eError from SendCommand-Executing State function\n");
                     iState = STATE_ERROR;
                     break;
                 }
@@ -846,21 +868,21 @@ while(1){
             {
                     eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateLoaded, NULL);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("Error from SendCommand-Idle State function\n");
+                        PRINTF("Error from SendCommand-Idle State function\n");
                         iState = STATE_ERROR;
                         break;
                     }
 
                     eError = OMX_SendCommand(pOMXHandle, OMX_CommandPortDisable, 0x0, NULL);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("Error from SendCommand-PortDisable function. Input port.\n");
+                        PRINTF("Error from SendCommand-PortDisable function. Input port.\n");
                         iState = STATE_ERROR;
                         break;
                     }
 
                     eError = OMX_SendCommand(pOMXHandle, OMX_CommandPortDisable, 0x1, NULL);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("Error from SendCommand-PortDisable function. Output port.\n");
+                        PRINTF("Error from SendCommand-PortDisable function. Output port.\n");
                         iState = STATE_ERROR;
                         break;
                     }
@@ -868,14 +890,14 @@ while(1){
                     /* Free buffers */
                     eError = OMX_FreeBuffer(pOMXHandle, InPortDef.nPortIndex, pInBuffHead);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("Error from OMX_FreeBuffer. Input port.\n");
+                        PRINTF("Error from OMX_FreeBuffer. Input port.\n");
                         iState = STATE_ERROR;
                         break;
                     }
 
                     eError = OMX_FreeBuffer(pOMXHandle, OutPortDef.nPortIndex, pOutBuffHead);
                     if ( eError != OMX_ErrorNone ) {
-                        SkDebugf("Error from OMX_FreeBuffer. Output port.\n");
+                        PRINTF("Error from OMX_FreeBuffer. Output port.\n");
                         iState = STATE_ERROR;
                         break;
                     }
@@ -900,7 +922,7 @@ while(1){
 
             eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
             if ( eError != OMX_ErrorNone ) {
-                SkDebugf("Error from SendCommand-Idle(nStop) State function\n");
+                PRINTF("Error from SendCommand-Idle(nStop) State function\n");
                 iState = STATE_ERROR;
             }
             break;
@@ -915,13 +937,13 @@ while(1){
             if (pOMXHandle) {
                 eError = TIOMX_FreeHandle(pOMXHandle);
                 if ( (eError != OMX_ErrorNone) )    {
-                    SkDebugf("Error in Free Handle function\n");
+                    PRINTF("Error in Free Handle function\n");
                 }
             }
 
             eError = TIOMX_Deinit();
             if ( eError != OMX_ErrorNone ) {
-                SkDebugf("Error returned by TIOMX_Deinit()\n");
+                PRINTF("Error returned by TIOMX_Deinit()\n");
             }
 
             iState = STATE_EXIT;

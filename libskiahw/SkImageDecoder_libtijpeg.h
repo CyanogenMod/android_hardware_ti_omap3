@@ -25,32 +25,15 @@
 *  Use of this software is controlled by the terms and conditions found
 *  in the license agreement under which this software has been supplied.
 * ============================================================================ */
-/*
-TODO:
 
-Memcpy into bm upon receiving fillbufferdone
-
-Replace Allocate Buffer with UseBuffer(using bm) for output buffer.
-
-Replace print stmts
-
-Better Error handling
-*/
-#if 0
-#include "SkUtils.h"
-#include "SkDither.h"
-
-#include "SkColorPriv.h"
-#include "SkTemplates.h"
-#include "SkScaledBitmapSampler.h"
-#endif
 #include "SkBitmap.h"
 #include "SkStream.h"
+#include "SkAllocator.h"
 #include "SkImageDecoder.h"
 #include <stdio.h>
+#include <string.h>
 #include <semaphore.h>
-#include <utils/threads.h> 
-
+#include <utils/threads.h>
 
 extern "C" {
 	#include "OMX_Component.h"
@@ -146,6 +129,7 @@ private:
         JpegDecoderParams jpegDecParams;
         SkStream* inStream;
         SkBitmap* bitmap;
+        TIHeapAllocator allocator;
 
 	OMX_S16 GetYUVformat(OMX_U8 * Data);
 	OMX_S16 Get16m(const void * Short);
