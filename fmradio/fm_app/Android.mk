@@ -2,7 +2,7 @@ BUILD_FMAPP:=1
 
 FM_STACK_PATH:= $(call my-dir)/../fm_stack/
 LOCAL_PATH := $(call my-dir)
-ALSA_PATH := $(call my-dir)/../../alsa-lib-1.0.13/
+ALSA_PATH := external/alsa-lib/
 
 include $(CLEAR_VARS)
 
@@ -44,7 +44,7 @@ LOCAL_SRC_FILES:= \
 fm_app.c fm_trace.c						
 
 LOCAL_SHARED_LIBRARIES := \
-	libbluetooth libasound libfm_stack  
+	libbluetooth libaudio libfm_stack
 
 LOCAL_STATIC_LIBRARIES := 
 
