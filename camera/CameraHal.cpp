@@ -126,7 +126,7 @@ void CameraHal::initDefaultParameters()
     LOG_FUNCTION_NAME
 	
     p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
-    p.setPreviewFrameRate(15);
+    p.setPreviewFrameRate(30);
     p.setPreviewFormat("yuv422i");
 
     p.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
@@ -1314,10 +1314,13 @@ bool CameraHal::previewEnabled()
 status_t CameraHal::startRecording(recording_callback cb, void* user)
 {
     LOG_FUNCTION_NAME
+    int w,h;
     int i = 0;
 
+    mParameters.getPreviewSize(&w, &h);
+
     // Just for the same size case
-    mRecordingFrameSize = mPreviewFrameSize;
+    mRecordingFrameSize = w * h * 2;
 
     overlay_handle_t overlayhandle = mOverlay->getHandleRef();
 
@@ -1345,14 +1348,14 @@ status_t CameraHal::startRecording(recording_callback cb, void* user)
         {
             mVideoBuffer[i].clear();
         }
-        LOGD("Mmap the video Memory %d", mRecordingFrameSize);
-        mVideoHeap = new MemoryHeapBase(overlayfd,  mRecordingFrameSize * mVideoBufferCount);
+        LOGD("Mmap the video Memory %d", mPreviewFrameSize);
+        mVideoHeap = new MemoryHeapBase(overlayfd,  mPreviewFrameSize * mVideoBufferCount);
         LOGD("mVideoHeap ID:%d , Base:[%x],size:%d", mVideoHeap->getHeapID(),
                                        mVideoHeap->getBase(),mVideoHeap->getSize());
         for(i = 0; i < mVideoBufferCount; i++)
         {
             LOGD("Init Video Buffer:%d ",i);
-            mVideoBuffer[i] = new MemoryBase(mVideoHeap, mRecordingFrameSize*i, mRecordingFrameSize);
+            mVideoBuffer[i] = new MemoryBase(mVideoHeap, mPreviewFrameSize*i, mRecordingFrameSize);
             LOGD("pointer:[%x],size:%d,offset:%d", mVideoBuffer[i]->pointer(),mVideoBuffer[i]->size(),mVideoBuffer[i]->offset());
         }
     }
@@ -1411,7 +1414,7 @@ void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 
     mRecordingFrameCount++;
 //    LOGD("Buffer[%d] pointer=0x%x",index,mem->pointer());
-//    debugShowFPS();
+    debugShowFPS();
 
     /* queue the buffer back to camera */
     while (ioctl(camera_device, VIDIOC_QBUF, &mfilledbuffer[index]) < 0) {
