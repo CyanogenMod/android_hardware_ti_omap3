@@ -25,7 +25,9 @@ LOCAL_CFLAGS += -fpic -fstrict-aliasing
 
 LOCAL_SRC_FILES+= \
    SkImageDecoder_libtijpeg.cpp \
-   SkImageEncoder_libtijpeg.cpp 
+   SkImageEncoder_libtijpeg.cpp \
+   SkAllocator.cpp \
+   SkMemory.cpp \
    
 LOCAL_MODULE:= libskiahw
 

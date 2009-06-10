@@ -1,5 +1,6 @@
 #include "SkImageEncoder_libtijpeg.h"
 
+#define MULTIPLE 16 //image width must be a multiple of this number
 
 
 int main(int argc, char **argv)
@@ -12,9 +13,9 @@ int main(int argc, char **argv)
     int w = 176;
     int h= 144;
     int quality = 100;
-    int inbufferlen;
     int outbufferlen;
     SkTIJPEGImageEncoder JpegEnc;
+    int nWidthNew, nHeightNew, nMultFactor, nBytesPerPixel, inBuffSize, nBytesToPad;
 
     if (argc != 7){
         printf("\n\nUsage: SkImageEncoderTest <input filename> <output filename> <input format 0 - yuv, 4-16bit, 6-32bit> <width> <height> <quality>\n\n");
@@ -26,7 +27,7 @@ int main(int argc, char **argv)
         printf("\nInput Format = %d", inputformat);		
         printf("\nw = %d", w);
         printf("\nh = %d", h);
-        printf("\nquality = %d", quality);
+        printf("\nquality = %d\n", quality);
     }
     else{
         strcpy(inFilename, argv[1]);
@@ -46,26 +47,100 @@ int main(int argc, char **argv)
 
     printf("\nOpened File %s\n", inFilename);
 
+    nBytesPerPixel = 2;
     if (inputformat == 0)
-        inbufferlen = w * h * 2;
+        nBytesPerPixel = 2;
     else if (inputformat == 4)
-        inbufferlen = w * h * 2;
+        nBytesPerPixel = 2;
     else if (inputformat == 6)
-        inbufferlen = w * h * 4;
-	
-    void *inBuffer = malloc(inbufferlen + 256);
-    inBuffer = (void *)((int)inBuffer + 128);
-    fread((void *)inBuffer,  1, inbufferlen, fIn);
+        nBytesPerPixel = 4;
+
+    void *tempBuffer = malloc(w*h*nBytesPerPixel);
+    fread(tempBuffer,  1, (w*h*nBytesPerPixel), fIn);
     if ( fIn != NULL ) fclose(fIn);
+    
+    nMultFactor = (w + 16 - 1)/16;
+    nWidthNew = (int)(nMultFactor) * 16;
+
+    nMultFactor = (h + 16 - 1)/16;
+    nHeightNew = (int)(nMultFactor) * 16;
+
+    inBuffSize = nWidthNew * nHeightNew * nBytesPerPixel;
+    if (inBuffSize < 1600)
+        inBuffSize = 1600;
+	
+    void* inBuffer = malloc(inBuffSize + 256);
+    void *inputBuffer = (void*)((int)inBuffer + 128);
+
+    int pad_width = w%MULTIPLE;
+    int pad_height = h%2;
+    int pixels_to_pad = 0;
+    if (pad_width)
+        pixels_to_pad = MULTIPLE - pad_width;
+    int bytes_to_pad = pixels_to_pad * nBytesPerPixel;
+    printf("\npixels_to_pad  = %d\n", pixels_to_pad );
+    int src = (int)inputBuffer;
+    int dst = (int)tempBuffer;
+    int i, j;
+    int row = w * nBytesPerPixel;
+    
+    if (pad_height && pad_width) 
+    {
+        printf("\ndealing with pad_width");
+        for(i = 0; i < h; i++)
+        {
+            memcpy((void *)src, (void *)dst, row);
+            dst = dst + row;
+            src = src + row;
+            for (j = 0; j < bytes_to_pad; j++){
+                *((char *)src) = 0;
+                src++;
+            }
+        }
+        
+        printf("\ndealing with odd height");
+        memset((void *)src, 0, row+bytes_to_pad); 
+
+        w+=pixels_to_pad;
+        h++;
+    }
+    else if (pad_height) 
+    {
+        memcpy((void *)src, (void*)dst, (w*h*nBytesPerPixel));
+        printf("\nadding one line and making it zero");
+        memset((void *)(src + (w*h*nBytesPerPixel)), 0, row); 
+        h++;
+    }
+    else if (pad_width)
+    {
+        printf("\ndealing with odd width");
+    
+        for(i = 0; i < h; i++)
+        {
+            memcpy((void *)src, (void *)dst, row);
+            dst = dst + row;
+            src = src + row;
+            for (j = 0; j < bytes_to_pad; j++){
+                *((char *)src) = 0;
+                src++;
+            }
+        }
+        w+=pixels_to_pad;
+    }
+    else 
+    {
+        printf("\nno padding");
+        memcpy((void *)src, (void*)dst, (w*h*1.5));
+    }
 
     outbufferlen =  (w * h) + 12288;
-    void *outBuffer = malloc(outbufferlen + 256);
-    outBuffer = (void *)((int)outBuffer + 128);
+    void *oBuffer = malloc(outbufferlen + 256);
+    void *outBuffer = (void *)((int)oBuffer + 128);
 
 
     printf("\n\n before calling encodeImage \n\n");
     
-    if (JpegEnc.encodeImage(outBuffer, outbufferlen, inBuffer, inbufferlen, w, h, quality, (SkBitmap::Config)inputformat )){
+    if (JpegEnc.encodeImage(outBuffer, outbufferlen, inputBuffer, inBuffSize, w, h, quality, (SkBitmap::Config)inputformat )){
 
     printf("\n\n after calling encodeImage - success \n\n");
 
@@ -76,7 +151,7 @@ int main(int argc, char **argv)
             return 0;
         }
 
-        fwrite(outBuffer,  1, outbufferlen, f);
+        fwrite(outBuffer,  1, JpegEnc.jpegSize, f);
         if ( f != NULL ) fclose(f);
 
         printf("Test Successful\n");
@@ -84,7 +159,8 @@ int main(int argc, char **argv)
     else printf("Test UnSuccessful\n");
     
     free(inBuffer);
-    free(outBuffer);
+    free(oBuffer);
+    free(tempBuffer);
 
     return 0;
 }
