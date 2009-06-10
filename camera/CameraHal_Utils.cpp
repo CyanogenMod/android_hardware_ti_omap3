@@ -793,14 +793,21 @@ int CameraHal::CapturePicture(){
 
         int jpegSize = (w * h) + 12288;
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
-        mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegSize);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
         jpegEncoder->encodeImage(outBuffer, jpegSize, (void*)(cfilledbuffer.m.userptr), cfilledbuffer.length, w, h, quality);
 
+		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
+
         if(mJpegPictureCallback) {
             mJpegPictureCallback(mJPEGPictureMemBase, mPictureCallbackCookie); 
         }
+
+		if (mMMSApp)
+        {
+       		SaveFile(NULL, (char*)"jpeg", outBuffer, jpegEncoder->jpegSize); 
+
+    	}
 
         mJPEGPictureMemBase.clear();		
         mJPEGPictureHeap.clear();
