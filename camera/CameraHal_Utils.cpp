@@ -665,6 +665,8 @@ int CameraHal::CapturePicture(){
     void * outBuffer;
     sp<MemoryHeapBase>  mJPEGPictureHeap;
     sp<MemoryBase>          mJPEGPictureMemBase;
+	int vppMessage = 0;
+	unsigned short ipp_ee_q, ipp_ew_ts, ipp_es_ts, ipp_luma_nf, ipp_chroma_nf; 
 
   LOG_FUNCTION_NAME
 
@@ -786,16 +788,47 @@ int CameraHal::CapturePicture(){
   	}
 #endif
 
+	yuv_buffer = (uint8_t*)buffer.m.userptr;
+	yuv_len = w*h*2;
+    LOGD("PictureThread: generated a picture, yuv_buffer=%p yuv_len=%d",yuv_buffer,yuv_len);
+
+
+#ifdef HARDWARE_OMX
+	LOGD("SENDING MESSAGE TO VPP THREAD \n");
+	vpp_buffer = yuv_buffer;
+	vppMessage = VPP_THREAD_PROCESS;
+	write(vppPipe[1], &vppMessage,sizeof(int));	
+#endif
+
+
+#ifdef IMAGE_PROCESSING_PIPELINE    
+    PPM("BEFORE IPP");
+
+    ipp_ee_q =100;
+    ipp_ew_ts=50;
+    ipp_es_ts =50; 
+    ipp_luma_nf =1;
+    ipp_chroma_nf = 1;   
+
+    LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
+    err = ProcessBufferIPP(yuv_buffer, yuv_len,
+                    ipp_ee_q,
+                    ipp_ew_ts,
+                    ipp_es_ts, 
+                    ipp_luma_nf,
+                    ipp_chroma_nf);
+    LOGD("ProcessBufferIPP() returned");   
+#endif
+
 
     if (mJpegPictureCallback) {
-
 #ifdef HARDWARE_OMX  
 
         int jpegSize = (w * h) + 12288;
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
-        jpegEncoder->encodeImage(outBuffer, jpegSize, (void*)(cfilledbuffer.m.userptr), cfilledbuffer.length, w, h, quality);
+        jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, w, h, quality);
 
 		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
@@ -820,6 +853,16 @@ int CameraHal::CapturePicture(){
 
     mPictureBuffer.clear();
     mPictureHeap.clear();
+
+#ifdef HARDWARE_OMX
+	LOGD("CameraHal thread before waiting increment in semaphore\n");
+	sem_wait(&mIppVppSem);
+	LOGD("CameraHal thread after waiting increment in semaphore\n");
+#endif
+
+    LOGD("END OF ICapturePerform");
+    LOG_FUNCTION_NAME_EXIT
+ 
     return NO_ERROR;
 
 }

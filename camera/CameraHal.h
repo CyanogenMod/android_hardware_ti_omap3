@@ -62,7 +62,6 @@
 #define BUFF_MAP_PADDING_TEST 256*2
 #define PADDING_OFFSET_TEST 256
 #define MAXIPPDynamicParams 10
-
 #endif
 
 
@@ -77,9 +76,13 @@
 #define VIDEO_FRAME_COUNT_MAX    4
 #define OPEN_CLOSE_WORKAROUND	 1
 
+#define JPEG 1
+
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE
+#define NEW_IPP 1
+#define YUV422P 1
 typedef struct OMX_IPP
 {
     IPP_Handle hIPP;
@@ -107,6 +110,8 @@ typedef struct OMX_IPP
     IPP_ImageBufferDesc iOutputBufferDesc;
     IPP_ProcessArgs iInputArgs;
     IPP_ProcessArgs iOutputArgs;
+	int outputBufferSize;
+	unsigned char* pIppOutputBuffer;
 } OMX_IPP;
 #endif
     
@@ -126,6 +131,9 @@ typedef struct OMX_IPP
 #define RUN_CMD	0x2
 #define TAKE_PICTURE	0x3
 #define NOOP	0x4
+
+#define VPP_THREAD_PROCESS 0x5
+#define VPP_THREAD_EXIT 0x6
 
 #ifdef FW3A
 typedef struct {
@@ -225,6 +233,18 @@ private:
         }
     };
 
+    class VPPThread : public Thread {
+        CameraHal* mHardware;
+    public:
+        VPPThread(CameraHal* hw)
+            : Thread(false), mHardware(hw) { }
+
+        virtual bool threadLoop() {
+            mHardware->vppThread();
+            return false;
+        }
+    };
+
     class ProcThread : public Thread {
         CameraHal *mHardware;
 
@@ -254,7 +274,8 @@ private:
     CameraHal();
     virtual ~CameraHal();
     void previewThread();
-    int validateSize(int w, int h);
+	void vppThread();
+    int validateSize(int w, int h);	
     void drawRect(uint8_t *input, uint8_t color, int x1, int y1, int x2, int y2, int width, int height);
     void procThread();
     void facetrackingThread();
@@ -318,6 +339,7 @@ private:
     void *mPictureCallbackCookie;
     sp<Overlay>  mOverlay;
     sp<PreviewThread>  mPreviewThread;
+	sp<VPPThread>  mVPPThread;
     bool mPreviewRunning;
     Mutex               mRecordingLock;
     int mRecordingFrameSize;
@@ -339,6 +361,8 @@ private:
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
     struct timeval ppm;
+	int vppPipe[2];
+    sem_t mIppVppSem;
     
 #ifdef HARDWARE_OMX
     JpegEncoder*    jpegEncoder;
@@ -404,7 +428,7 @@ private:
     MessageQueue    processingThreadAckQ;
 
     mutable Mutex takephoto_lock;
-    uint8_t *yuv_buffer, *jpeg_buffer;
+    uint8_t *yuv_buffer, *jpeg_buffer, *vpp_buffer;
     int yuv_len, jpeg_len;
 
     FILE *foutYUV;

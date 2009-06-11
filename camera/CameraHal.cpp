@@ -102,13 +102,23 @@ CameraHal::CameraHal()
     FW3A_Create();
 #endif
 
-//#ifdef ICAP  Do not uncomment this line. Ask Anu why.
     ICaptureCreate();
-//#endif Do not uncomment this line. Ask Anu why.
 
     mPreviewThread = new PreviewThread(this);
-
     mPreviewThread->run("CameraPreviewThread", PRIORITY_URGENT_DISPLAY);
+
+	if( sem_init(&mIppVppSem,0,0)!=0 ){
+		LOGE("Error creating semaphore\n");
+	}
+
+	if(pipe(vppPipe) != 0 ){
+		LOGD("NO_ERROR= %d\n",NO_ERROR);
+		LOGE("Failed creating pipe");
+	}
+	
+	mVPPThread = new VPPThread(this);
+    mVPPThread->run("CameraVPPThread", PRIORITY_URGENT_DISPLAY);
+	LOGD("STARTING VPP THREAD \n");
     
 #ifdef FW3A
     if (fobj!=NULL) 
@@ -148,6 +158,8 @@ CameraHal::~CameraHal()
     
     LOGD(">>> Release");
     LOG_FUNCTION_NAME
+	int vppMessage =0;
+	sp<VPPThread> vppThread;
 
     if(mPreviewThread != NULL) {
         Message msg;
@@ -172,6 +184,27 @@ CameraHal::~CameraHal()
         Mutex::Autolock lock(mLock);
         mPreviewThread.clear();
     }
+
+	sem_destroy(&mIppVppSem);
+
+	vppMessage = VPP_THREAD_EXIT;
+	write(vppPipe[1], &vppMessage,sizeof(int));
+
+	{ // scope for the lock
+        Mutex::Autolock lock(mLock);
+        vppThread = mVPPThread;
+    }
+
+    // don't hold the lock while waiting for the thread to quit
+    if (vppThread != 0) {
+        vppThread->requestExitAndWait();
+    }
+
+    { // scope for the lock
+        Mutex::Autolock lock(mLock);
+        mVPPThread.clear();
+    }
+
 
 #ifdef ICAP
     ICaptureDestroy();
@@ -660,11 +693,12 @@ int CameraHal::CameraStop()
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
 
     while(nCameraBuffersQueued){
-	LOGD("DQUEUING UNDQUEUED BUFFERS = %d",nCameraBuffersQueued);
+	LOGD("DQUEUING UNDQUEUED BUFFERS enter = %d",nCameraBuffersQueued);
         nCameraBuffersQueued--;
         if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
         LOGE("VIDIOC_DQBUF Failed!!!");
         }
+	LOGD("DQUEUING UNDQUEUED BUFFERS exit = %d",nCameraBuffersQueued);
     }
 
     creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -779,8 +813,7 @@ int  CameraHal::ICapturePerform()
     void* snapshot_buffer;
     ancillary_mms *mk_note;
     unsigned long base, offset;
-    int snapshot_buffer_index;
-    overlay_buffer_t overlaybuffer;
+    int snapshot_buffer_index;    
     enum v4l2_buf_type prv_buf_type;
     int image_width, image_height;
     int preview_width, preview_height;
@@ -789,6 +822,7 @@ int  CameraHal::ICapturePerform()
     sp<MemoryHeapBase>  mJPEGPictureHeap;
     struct manual_parameters  manual_config;
     unsigned short ipp_ee_q, ipp_ew_ts, ipp_es_ts, ipp_luma_nf, ipp_chroma_nf; 
+	int vppMessage = 0;
 
     LOG_FUNCTION_NAME
 
@@ -957,31 +991,14 @@ int  CameraHal::ICapturePerform()
 #endif	
 
 #ifdef HARDWARE_OMX
-
-    //snapshot buffer is the last overlay buffer
-
-    snapshot_buffer_index = mOverlay->getBufferCount() - 1; //JJ-remove -1
-    snapshot_buffer = mOverlay->getBufferAddress( (void*)snapshot_buffer_index );
-
-    status = scale_process(yuv_buffer, image_width, image_height,
-                         snapshot_buffer, preview_width, preview_height);
-    if( status ) LOGE("scale_process() failed");
-    else LOGD("scale_process() OK");
-
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: SCALED DOWN RAW IMAGE TO PREVIEW SIZE. & %d & %d", ppm.tv_sec, ppm.tv_usec);
-
-    mOverlay->queueBuffer((void*)snapshot_buffer_index);  //JJ-try removing dequeue buffer
-    mOverlay->dequeueBuffer(&overlaybuffer);
-
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: DISPLAYED RAW IMAGE ON SCREEN. & %d & %d", ppm.tv_sec, ppm.tv_usec);
-
+	LOGD("SENDING MESSAGE TO VPP THREAD \n");
+	vpp_buffer =  yuv_buffer;
+	vppMessage = VPP_THREAD_PROCESS;
+	write(vppPipe[1], &vppMessage,sizeof(int));	
 #endif
 
-#ifdef IMAGE_PROCESSING_PIPELINE
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: BEFORE IPP. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+#ifdef IMAGE_PROCESSING_PIPELINE    
+    LOGD("BEFORE IPP");
 
     LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
     err = ProcessBufferIPP(yuv_buffer, yuv_len,
@@ -990,20 +1007,14 @@ int  CameraHal::ICapturePerform()
                     ipp_es_ts, 
                     ipp_luma_nf,
                     ipp_chroma_nf);
-    LOGD("ProcessBufferIPP() returned");
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: AFTER IPP. & %d & %d", ppm.tv_sec, ppm.tv_usec);
-    
+    LOGD("ProcessBufferIPP() returned");   
 #endif
 
 #ifdef HARDWARE_OMX
 
-    err = 0;
-    // jpegSize = image_width*image_height*2;
-    //jpegSize = (int)((unsigned int)(yuv_len + (4096-1)) & (unsigned int)(~(4096-1)));
+    err = 0;    
     jpegSize = image_width*image_height + 13000;
-    mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
-    // mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegSize);
+    mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);   
     outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
     gettimeofday(&tv1, NULL);	    
@@ -1049,6 +1060,10 @@ int  CameraHal::ICapturePerform()
     mPictureBuffer.clear();
     mPictureHeap.clear();
 
+	LOGD("CameraHal thread before waiting increment in semaphore\n");
+	sem_wait(&mIppVppSem);
+	LOGD("CameraHal thread after waiting increment in semaphore\n");
+
     gettimeofday(&ppm, NULL);
     LOGD("PPM: END OF ICapturePerform. & %d & %d", ppm.tv_sec, ppm.tv_usec);
     LOG_FUNCTION_NAME_EXIT
@@ -1073,6 +1088,78 @@ fail_deinit_3afw:
     return -1;
 #endif
     return 0;
+}
+
+void CameraHal::vppThread(){
+
+	LOG_FUNCTION_NAME
+
+	int snapshot_buffer_index;
+	void* snapshot_buffer;
+	int status;
+    int image_width, image_height;
+    int preview_width, preview_height;
+	overlay_buffer_t overlaybuffer;
+	fd_set descriptorSet;	
+	int max_fd;
+	int error;
+	unsigned long int pipeMessage;
+	max_fd =vppPipe[0] +1;
+
+	FD_ZERO(&descriptorSet);
+	FD_SET(vppPipe[0], &descriptorSet);
+	
+	while(1){
+
+		error= select(max_fd,  &descriptorSet, NULL, NULL, NULL);
+
+		LOGD("VPP THREAD SELECT RECEIVED A MESSAGE\n");
+		if (error<1){
+			LOGE("Error in select");
+		}
+
+		if(FD_ISSET(vppPipe[0], &descriptorSet)){
+
+			read(vppPipe[0], &pipeMessage, sizeof(int));
+
+			if(pipeMessage == VPP_THREAD_PROCESS){
+
+				LOGD("VPP_THREAD_PROCESS_RECEIVED\n");
+		
+				mParameters.getPictureSize(&image_width, &image_height);
+				mParameters.getPreviewSize(&preview_width, &preview_height);
+		
+				//snapshot buffer is the last overlay buffer
+				snapshot_buffer_index = mOverlay->getBufferCount() - 1; //JJ-remove -1
+				snapshot_buffer = mOverlay->getBufferAddress( (void*)snapshot_buffer_index );
+
+				status = scale_process(vpp_buffer, image_width, image_height,
+						             snapshot_buffer, preview_width, preview_height);
+				if( status ){
+					LOGE("scale_process() failed");
+				}
+				else {
+					LOGD("scale_process() OK");
+				}
+
+				LOGD("SCALED DOWN RAW IMAGE TO PREVIEW SIZE");
+
+				mOverlay->queueBuffer((void*)snapshot_buffer_index);  //JJ-try removing dequeue buffer
+				mOverlay->dequeueBuffer(&overlaybuffer);
+
+				LOGD("DISPLAYED SNAPSHOT ON THE SCREEN");
+								
+				sem_post(&mIppVppSem);
+			}
+
+			else if( pipeMessage == VPP_THREAD_EXIT ){
+				LOGD("VPP_THREAD_EXIT_RECEIVED\n");
+				break;
+			}
+		}
+	}
+
+	LOG_FUNCTION_NAME_EXIT
 }
 
 int CameraHal::ICaptureCreate(void)
