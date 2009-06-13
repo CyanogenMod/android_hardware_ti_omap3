@@ -8,9 +8,10 @@
 
 #include <LCML_DspCodec.h>
 #include "scale.h"
+#include <utils/Log.h>
 
-#define USN_DLL_NAME "/lib/dsp/usn.dll64P"
-#define VPP_NODE_DLL "/lib/dsp/vpp_sn.dll64P"
+#define USN_DLL_NAME "usn.dll64P"
+#define VPP_NODE_DLL "vpp_sn.dll64P"
 #define NUM_OF_VPP_BUFFERS (1)
 
 #define ALIGNMENT 4096
@@ -139,7 +140,7 @@ LCML_DSP_INTERFACE* GetLCMLHandle()
     eError = (*fpGetHandle)(&pHandle);
     if(eError != OMX_ErrorNone) {
         eError = OMX_ErrorUndefined;
-        printf("eError != OMX_ErrorNone...\n");
+        LOGV("eError != OMX_ErrorNone...\n");
         pHandle = NULL;
         goto EXIT;
     }
@@ -240,7 +241,7 @@ OMX_ERRORTYPE Fill_LCMLInitParams(OMX_U16 arr[], LCML_DSP *plcml_Init)
     Overlay = 0;
 
     memset(valueStr, 0, sizeof(valueStr));
-//     printf(":%lu:%lu:%u:%u:%u:%d\n",
+//     LOGV(":%lu:%lu:%u:%u:%u:%d\n",
 //     Input_FrameWidth,
 //     Output_FrameWidth,
 //     OutputRGB_Format,
@@ -332,7 +333,7 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
        
 
 
-	printf("11111111111111111111111111111111111111111111111\n");
+	LOGV("11111111111111111111111111111111111111111111111\n");
     eError = LCML_QueueBuffer(pLCML->pCodecinterfacehandle,
                               EMMCodecInputBuffer,
                               inBuffer,
@@ -342,11 +343,11 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
                               sizeof(GPPToVPPInputFrameStatus),
                               NULL);
     if (eError != OMX_ErrorNone) {
-        printf("Camera Component: Error 0x%X While sending the input buffer to Codec\n",eError);
+        LOGV("Camera Component: Error 0x%X While sending the input buffer to Codec\n",eError);
         goto OMX_CAMERA_BAIL_CMD;
     }
 
-	printf("222222222222222222222222222222222222222222222222\n");
+	LOGV("222222222222222222222222222222222222222222222222\n");
     eError = LCML_QueueBuffer(pLCML->pCodecinterfacehandle,
                               EMMCodecStream3,
                               outBuffer,
@@ -356,17 +357,17 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
                               sizeof(GPPToVPPOutputFrameStatus),  
                               NULL);
     if (eError != OMX_ErrorNone) {
-        printf("Camera Component: Error 0x%X While sending the output buffer to Codec\n",eError);
+        LOGV("Camera Component: Error 0x%X While sending the output buffer to Codec\n",eError);
         goto OMX_CAMERA_BAIL_CMD;
     }
 
-	printf("3333333333333333333333333333333333333333333333333\n");
+	LOGV("3333333333333333333333333333333333333333333333333\n");
 //    sem_wait( &semResized );
 
     char ch;
     read(pipeResized[READ_END], &ch, 1);
 
-	printf("444444444444444444444444444444444444444444444444444444\n");
+	LOGV("444444444444444444444444444444444444444444444444444444\n");
     return 0;
 
     
@@ -377,19 +378,19 @@ OMX_CAMERA_BAIL_CMD:
 
 OMX_ERRORTYPE ZoomCallback (TUsnCodecEvent event,void * args [10])
 {
-//    printf("Callback event=%d\n",event);
+//    LOGV("Callback event=%d\n",event);
 
     if( event == EMMCodecBufferProcessed )
     {
         if( (int)args[0] == EMMCodecInputBuffer )
         {
-            printf("\n\nImage processed.\n\n\n");
+            LOGV("\n\nImage processed.\n\n\n");
 
 
 //            sem_post( &semResized );
             
             write(pipeResized[WRITE_END], "Q", 1);
-            printf("\n\nImage processed semaphore posted.\n\n\n");            
+            LOGV("\n\nImage processed semaphore posted.\n\n\n");            
         }
     }
     return OMX_ErrorNone;
@@ -408,7 +409,7 @@ int scale_init()
 
     if( pLCML == NULL )
     {
-        printf("Cannot get LCML handle.\n");
+        LOGV("Cannot get LCML handle.\n");
         return -1;
     }
 
@@ -421,14 +422,14 @@ int scale_init()
     err = LCML_InitMMCodec( pLCML->pCodecinterfacehandle, p, &pLCML, (void*)p, &cb );
     if( err != OMX_ErrorNone )
     {
-        printf("LCML_InitMMCodec error = 0x%08x", err);
+        LOGV("LCML_InitMMCodec error = 0x%08x", err);
         return -1;
     }
 
     err = LCML_ControlCodec( pLCML->pCodecinterfacehandle, EMMCodecControlStart, "damedesuStr" );
     if( err != OMX_ErrorNone )
     {
-        printf("LCML_ControlCodec(EMMCodecControlStart) error = 0x%08x\n", err);
+        LOGV("LCML_ControlCodec(EMMCodecControlStart) error = 0x%08x\n", err);
         return -1;
     }
 
@@ -445,14 +446,14 @@ int scale_deinit()
     err = LCML_ControlCodec( pLCML->pCodecinterfacehandle, MMCodecControlStop, NULL );
     if( err != OMX_ErrorNone )
     {
-        printf("LCML_ControlCodec(MMCodecControlStop) error=0x%08x\n", err);
+        LOGV("LCML_ControlCodec(MMCodecControlStop) error=0x%08x\n", err);
         return -1;
     }
 
     err = LCML_ControlCodec( pLCML->pCodecinterfacehandle, EMMCodecControlDestroy, NULL );
     if( err != OMX_ErrorNone )
     {
-        printf("LCML_ControlCodec(MMCodecControlStop) error=0x%08x\n", err);
+        LOGV("LCML_ControlCodec(MMCodecControlStop) error=0x%08x\n", err);
         return -1;
     }
 
