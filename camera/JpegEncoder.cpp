@@ -40,6 +40,7 @@
 
 #define JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT 0
 #define OPTIMIZE 0
+#define YUV422I 1
 
 #if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
 	int eOutputCount = 0;
@@ -254,7 +255,11 @@ bool JpegEncoder::StartFromLoadedState()
     InPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
     InPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingUnused;
     InPortDef.nBufferSize = mInBuffSize;
-    InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;	
+    #if YUV422I
+		InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
+	#else
+		InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;	
+	#endif	
 
     if (InPortDef.eDir == nIndex1 ) {
         InPortDef.nPortIndex = nIndex1;

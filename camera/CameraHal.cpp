@@ -80,6 +80,9 @@ CameraHal::CameraHal()
             myuv(3),            
             mMMSApp(0)		    					
 {
+
+	gettimeofday(&ppm_start, NULL);
+
     isStart_FW3A = false;
     isStart_FW3A_AF = false;
     isStart_FW3A_CAF = false;
@@ -155,11 +158,11 @@ void CameraHal::initDefaultParameters()
 CameraHal::~CameraHal()
 {
     int err = 0;
-    
-    LOGD(">>> Release");
-    LOG_FUNCTION_NAME
 	int vppMessage =0;
 	sp<VPPThread> vppThread;
+	  
+    LOG_FUNCTION_NAME
+	
 
     if(mPreviewThread != NULL) {
         Message msg;
@@ -288,7 +291,7 @@ void CameraHal::previewThread()
                 FW3A_Start();
 #endif
                 CameraStart();
-
+				PPM("PREVIEW STARTED");
                 } 
                 else
                 {
@@ -398,10 +401,8 @@ void CameraHal::previewThread()
                 int flg_CAF;
 
                 LOGD("ENTER OPTION PREVIEW_CAPTURE");
-                LOGD("Receive Command: PREVIEW_CAPTURE");
-
-                gettimeofday(&ppm, NULL);
-                LOGD("PPM: RECEIVED COMMAND TO TAKE A PICTURE. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+                
+				PPM("RECEIVED COMMAND TO TAKE A PICTURE");
                 
                 mShutterCallback    = (shutter_callback)msg.arg1;
                 mRawPictureCallback = (raw_callback)msg.arg2;
@@ -421,8 +422,8 @@ void CameraHal::previewThread()
 #ifdef FW3A
                 FW3A_GetSettings();
 #endif
-                gettimeofday(&ppm, NULL);
-                LOGD("PPM: STOPPED PREVIEW. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+                
+                PPM("STOPPED PREVIEW");
 #ifdef ICAP
                 err = ICapturePerform();
 #else
@@ -433,8 +434,8 @@ void CameraHal::previewThread()
                 } 
 
                 if(mMMSApp){ //restart Preview
-                    gettimeofday(&ppm, NULL);
-                    LOGD("PPM: TRYING TO RESTART PREVIEW. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+                    
+                    PPM("TRYING TO RESTART PREVIEW");
                     CameraConfigure();
 #ifdef FW3A 
                     FW3A_Start();
@@ -442,19 +443,17 @@ void CameraHal::previewThread()
 #endif
                     CameraStart();
                     mPreviewRunning =true;
-                    gettimeofday(&ppm, NULL);
-                    LOGD("PPM: PREVIEW STARTED. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+                    
+                    PPM("PREVIEW STARTED AFTER CAPTURING");
 #ifdef FW3A 
                     if (flg_AF){
                         FW3A_Start_AF();
-                        gettimeofday(&ppm, NULL);
-                        LOGD("PPM: STARTED AUTO FOCUS. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+                        PPM("STARTED AUTO FOCUS");
                     }
 
                     if (flg_CAF){
                         FW3A_Start_CAF();
-                        gettimeofday(&ppm, NULL);
-                        LOGD("PPM: STARTED CONTINOUS AUTO FOCUS. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+                        PPM("STARTED CONTINOUS AUTO FOCUS");
                     }
 #endif   		
                 }
@@ -832,15 +831,14 @@ int  CameraHal::ICapturePerform()
       return -1;
     }
 #endif
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: START OF ICapturePerform. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    
+    PPM("START OF ICapturePerform");
     
     if( mShutterCallback ) {
         mShutterCallback(mPictureCallbackCookie );
     }   
 
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: CALLED SHUTTER CALLBACK. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    PPM("CALLED SHUTTER CALLBACK");
     
     mParameters.getPictureSize(&image_width, &image_height);
     mParameters.getPreviewSize(&preview_width, &preview_height);
@@ -872,8 +870,7 @@ int  CameraHal::ICapturePerform()
     manual_config.digital_gain      = fobj->status_2a.awb.dgain;
     manual_config.scene = fobj->settings_2a.general.scene;
     manual_config.effect = fobj->settings_2a.general.effects;
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: SETUP SOME 3A STUFF. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    PPM("SETUP SOME 3A STUFF");
 #else
     manual_config.shutter_usec          = 60000;
     manual_config.analog_gain           = 20;
@@ -888,9 +885,8 @@ int  CameraHal::ICapturePerform()
     camera_device = open(VIDEO_DEVICE, O_RDWR);
     if (camera_device < 0) {
         LOGE ("!!!!!!!!!FATAL Error: Could not open the camera device: %s!!!!!!!!!",  strerror(errno) );
-    }
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: CLOSED AND REOPENED CAMERA. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    }   
+    PPM("CLOSED AND REOPENED CAMERA");
 #endif
 
 #ifdef ICAP
@@ -919,8 +915,7 @@ int  CameraHal::ICapturePerform()
     LOGD("ICapture config OK");
 
     yuv_len=iobj->cfg.sizeof_img_buf;
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: MORE SETUP - HI PERFORMANCE. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    PPM("MORE SETUP - HI PERFORMANCE");
 #else
     ipp_ee_q =100;
     ipp_ew_ts=50;
@@ -974,11 +969,9 @@ int  CameraHal::ICapturePerform()
     image_height =(int)iobj->proc.out_img_h;
 
 #endif
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: IMAGE CAPTURED. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    PPM("IMAGE CAPTURED");
     mRawPictureCallback(mPictureBuffer,mPictureCallbackCookie);
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: RAW CALLBACK CALLED. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    PPM("RAW CALLBACK CALLED");
     
 #ifdef OPEN_CLOSE_WORKAROUND
     close(camera_device);
@@ -986,8 +979,7 @@ int  CameraHal::ICapturePerform()
     if (camera_device < 0) {
         LOGE ("!!!!!!!!!FATAL Error: Could not open the camera device: %s!!!!!!!!!", strerror(errno) );
     }
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: CLOSED AND REOPENED CAMERA. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    PPM("CLOSED AND REOPENED CAMERA");
 #endif	
 
 #ifdef HARDWARE_OMX
@@ -998,7 +990,7 @@ int  CameraHal::ICapturePerform()
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE    
-    LOGD("BEFORE IPP");
+    PPM("BEFORE IPP");
 
     LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
     err = ProcessBufferIPP(yuv_buffer, yuv_len,
@@ -1007,17 +999,27 @@ int  CameraHal::ICapturePerform()
                     ipp_es_ts, 
                     ipp_luma_nf,
                     ipp_chroma_nf);
-    LOGD("ProcessBufferIPP() returned");   
+
+   	if(!(pIPP.ippconfig.isINPLACE)){
+		yuv_buffer = pIPP.pIppOutputBuffer;
+	}
+    PPM("AFTER IPP"); 
+
+	#if !YUV422I 
+		yuv_len=  ((image_width * image_height *3)/2);
+	#endif
+		
+    
 #endif
 
 #ifdef HARDWARE_OMX
-
+#if JPEG
     err = 0;    
     jpegSize = image_width*image_height + 13000;
     mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);   
     outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
-    gettimeofday(&tv1, NULL);	    
+    PPM("BEFORE ENCODE IMAGE");		    
     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
                                  image_width, image_height, quality)))
     {        
@@ -1025,47 +1027,45 @@ int  CameraHal::ICapturePerform()
         LOGE("JPEG Encoding failed");
     }
 
-    gettimeofday(&tv2, NULL);	    
-    tv.tv_sec = tv2.tv_sec - tv1.tv_sec;
-    if (tv1.tv_usec == 0) tv.tv_usec = tv2.tv_usec;
-    else tv.tv_usec = (1000000 - tv1.tv_usec) + tv2.tv_usec;
-    LOGD("\nTime to Encode:  & %ld & %ld \n", tv.tv_sec, tv.tv_usec);
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: ENCODED IMAGE. & %d & %d", ppm.tv_sec, ppm.tv_usec);
-
+    PPM("AFTER ENCODE IMAGE");
     mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
+#endif
 
     if(mJpegPictureCallback) {
-        mJpegPictureCallback(mJPEGPictureMemBase, mPictureCallbackCookie); 
-    }
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: CALLED JPEG CALLBACK. & %d & %d", ppm.tv_sec, ppm.tv_usec);
 
+#if JPEG
+		mJpegPictureCallback(mJPEGPictureMemBase, mPictureCallbackCookie); 
+#else
+		mJpegPictureCallback(NULL, mPictureCallbackCookie); 
+#endif
+
+    }
+
+#if JPEG 
+	PPM("CALLED JPEG CALLBACK");
     LOGD("jpegEncoder->jpegSize=%d jpegSize=%d",jpegEncoder->jpegSize,jpegSize);
 
     if ((err==0) && (mMMSApp))
     {
         SaveFile(NULL, (char*)"jpeg", outBuffer, jpegEncoder->jpegSize); 
         SaveFile(NULL, (char*)"mknote", mk_note, sizeof(*mk_note));
-    }
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: SAVED ENCODED FILE TO DISK. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    }    
+    PPM("SAVED ENCODED FILE TO DISK");
 
     mJPEGPictureMemBase.clear();		
     mJPEGPictureHeap.clear();
-
+#endif
 #endif
 
-    free(mk_note);
+	free(mk_note);
     mPictureBuffer.clear();
     mPictureHeap.clear();
 
 	LOGD("CameraHal thread before waiting increment in semaphore\n");
 	sem_wait(&mIppVppSem);
 	LOGD("CameraHal thread after waiting increment in semaphore\n");
-
-    gettimeofday(&ppm, NULL);
-    LOGD("PPM: END OF ICapturePerform. & %d & %d", ppm.tv_sec, ppm.tv_usec);
+    
+    PPM("END OF ICapturePerform");
     LOG_FUNCTION_NAME_EXIT
     return 0;
 
@@ -1142,12 +1142,12 @@ void CameraHal::vppThread(){
 					LOGD("scale_process() OK");
 				}
 
-				LOGD("SCALED DOWN RAW IMAGE TO PREVIEW SIZE");
+				PPM("SCALED DOWN RAW IMAGE TO PREVIEW SIZE");
 
 				mOverlay->queueBuffer((void*)snapshot_buffer_index);  //JJ-try removing dequeue buffer
 				mOverlay->dequeueBuffer(&overlaybuffer);
 
-				LOGD("DISPLAYED SNAPSHOT ON THE SCREEN");
+				PPM("DISPLAYED SNAPSHOT ON THE SCREEN");
 								
 				sem_post(&mIppVppSem);
 			}
@@ -1241,14 +1241,14 @@ int CameraHal::ICaptureCreate(void)
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
-    res = InitIPP(image_width-32,image_height-8);
+    res = InitIPP(image_width,image_height);
     if( res ) {
         LOGE("InitIPP() failed");
         goto fail_ipp_init;
     }
     LOGD("InitIPP() OK");
 
-    res = PopulateArgsIPP(image_width-32,image_height-8);
+    res = PopulateArgsIPP(image_width,image_height);
     if( res ) {
         LOGE("PopulateArgsIPP() failed");
         goto fail_ipp_populate;

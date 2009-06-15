@@ -78,11 +78,21 @@
 
 #define JPEG 1
 
+#define PPM(str){ \
+	gettimeofday(&ppm, NULL); \
+	ppm.tv_sec = ppm.tv_sec - ppm_start.tv_sec; \
+	ppm.tv_sec = ppm.tv_sec * 1000000; \
+	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_start.tv_usec; \
+	LOGD("PPM: %s :%d.%d ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); \
+}
+
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-#define NEW_IPP 1
-#define YUV422P 1
+	//if YUV422I is 0, we use YUV420P converter in IPP but currently there are issues to encode 420P images.
+	#define YUV422I 1
+	#define INPLACE_ON	1
+	#define INPLACE_OFF	0
 typedef struct OMX_IPP
 {
     IPP_Handle hIPP;
@@ -361,6 +371,7 @@ private:
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
     struct timeval ppm;
+	struct timeval ppm_start;
 	int vppPipe[2];
     sem_t mIppVppSem;
     

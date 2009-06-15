@@ -351,41 +351,79 @@ int CameraHal::InitIPP(int w, int h)
     pIPP.hIPP = IPP_Create();
     LOGD("IPP Handle: %p",pIPP.hIPP);
 
-    pIPP.ippconfig = IPP_CONF_YUV422_INPLACE;
+	if( !pIPP.hIPP ){
+		LOGE("ERROR IPP_Create");
+		return -1;
+	}
+
+
+#if YUV422I
+	pIPP.ippconfig.numberOfAlgos=5;
+#else
+	pIPP.ippconfig.numberOfAlgos=4;
+#endif
+    pIPP.ippconfig.orderOfAlgos[0]=IPP_START_ID;
+    pIPP.ippconfig.orderOfAlgos[1]=IPP_YUVC_422iTO422p_ID;
+    pIPP.ippconfig.orderOfAlgos[2]=IPP_CRCBS_ID;
+    pIPP.ippconfig.orderOfAlgos[3]=IPP_EENF_ID;
+#if YUV422I
+	pIPP.ippconfig.orderOfAlgos[4]=IPP_YUVC_422pTO422i_ID;
+#endif    
+    pIPP.ippconfig.isINPLACE=INPLACE_OFF;   
+
+
+#if YUV422I
+	pIPP.outputBufferSize= w*h*2;	
+#else
+	pIPP.outputBufferSize= (w*h*3)/2;	
+#endif
+
+    LOGD("IPP_SetProcessingConfiguration");
+    eError = IPP_SetProcessingConfiguration(pIPP.hIPP, pIPP.ippconfig);
+	if(eError != 0){
+		LOGE("ERROR IPP_SetProcessingConfiguration");
+	}	
     
     pIPP.CRCBptr.size = sizeof(IPP_CRCBSAlgoCreateParams);
     pIPP.CRCBptr.maxWidth = w;
     pIPP.CRCBptr.maxHeight = h;
     pIPP.CRCBptr.errorCode = 0;
-    
+  
     pIPP.YUVCcreate.size = sizeof(IPP_YUVCAlgoCreateParams);
     pIPP.YUVCcreate.maxWidth = w;
     pIPP.YUVCcreate.maxHeight = h;
     pIPP.YUVCcreate.errorCode = 0;
-    
-    LOGD("IPP_SetProcessingConfiguration");
-    IPP_SetProcessingConfiguration(pIPP.hIPP, pIPP.ippconfig);
-
+   
     LOGD("IPP_SetAlgoConfig");
-    IPP_SetAlgoConfig(pIPP.hIPP,
-                      IPP_CRCBS_CREATEPRMS_CFGID,
-                      &(pIPP.CRCBptr));
+    eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_CRCBS_CREATEPRMS_CFGID, &(pIPP.CRCBptr));
+	if(eError != 0){
+		LOGE("ERROR IPP_SetAlgoConfig");
+	}	
     
     LOGD("IPP_SetAlgoConfig");
-    IPP_SetAlgoConfig(pIPP.hIPP,
-                      IPP_YUVC_422TO420_CREATEPRMS_CFGID,
-                      &(pIPP.YUVCcreate));
-    
+    eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_YUVC_422TO420_CREATEPRMS_CFGID, &(pIPP.YUVCcreate));
+	if(eError != 0){
+		LOGE("ERROR IPP_SetAlgoConfig");
+	}	
+#if YUV422I   
     LOGD("IPP_SetAlgoConfig");
-    IPP_SetAlgoConfig(pIPP.hIPP,
-                      IPP_YUVC_420TO422_CREATEPRMS_CFGID,
-                      &(pIPP.YUVCcreate));
+    IPP_SetAlgoConfig(pIPP.hIPP, IPP_YUVC_420TO422_CREATEPRMS_CFGID, &(pIPP.YUVCcreate));
+	if(eError != 0){
+		LOGE("ERROR IPP_SetAlgoConfig");
+	}	
+#endif
     
     LOGD("IPP_InitializeImagePipe");
-    IPP_InitializeImagePipe(pIPP.hIPP);
+    eError = IPP_InitializeImagePipe(pIPP.hIPP);
+	if(eError != 0){
+		LOGE("ERROR IPP_SetAlgoConfig");
+	}	
     
     LOGD("IPP_StartProcessing");
-    IPP_StartProcessing(pIPP.hIPP);
+    eError = IPP_StartProcessing(pIPP.hIPP);
+	if(eError != 0){
+		LOGE("ERROR IPP_SetAlgoConfig");
+	}	
     
     pIPP.iStarInArgs = (IPP_StarAlgoInArgs*)((char*)malloc(sizeof(IPP_StarAlgoInArgs) + BUFF_MAP_PADDING_TEST) + PADDING_OFFSET_TEST);
     pIPP.iStarOutArgs = (IPP_StarAlgoOutArgs*)((char*)(malloc(sizeof(IPP_StarAlgoOutArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
@@ -398,10 +436,15 @@ int CameraHal::InitIPP(int w, int h)
     pIPP.iYuvcInArgs2 = (IPP_YUVCAlgoInArgs*)((char*)(malloc(sizeof(IPP_YUVCAlgoInArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
     pIPP.iYuvcOutArgs2 = (IPP_YUVCAlgoOutArgs*)((char*)(malloc(sizeof(IPP_YUVCAlgoOutArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
     pIPP.dynEENF = (IPP_EENFAlgoDynamicParams*)((char*)(malloc(sizeof(IPP_EENFAlgoDynamicParams) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
+
+
+	if( !(pIPP.ippconfig.isINPLACE) ){
+		pIPP.pIppOutputBuffer= (unsigned char*)malloc(pIPP.outputBufferSize + BUFF_MAP_PADDING_TEST) + PADDING_OFFSET_TEST ; // TODO make it dependent on the output format
+	}
+
     
     return eError;
 }
-
 /*-------------------------------------------------------------------*/
 /**
   * DeInitIPP() 
@@ -419,10 +462,16 @@ int CameraHal::DeInitIPP()
     int eError = 0;
 
     LOGD("IPP_StopProcessing");
-    IPP_StopProcessing(pIPP.hIPP);
-
+	eError = IPP_StopProcessing(pIPP.hIPP);
+    if( eError != 0){
+		LOGE("ERROR IPP_StopProcessing");
+	}
+	
+	eError = IPP_DeinitializePipe(pIPP.hIPP);
     LOGD("IPP_DeinitializePipe");
-    IPP_DeinitializePipe(pIPP.hIPP);
+    if( eError != 0){
+		LOGE("ERROR IPP_DeinitializePipe");
+	}
 
     LOGD("IPP_Delete");
     IPP_Delete(&(pIPP.hIPP));
@@ -438,7 +487,11 @@ int CameraHal::DeInitIPP()
     free(((char*)pIPP.iYuvcInArgs2 - PADDING_OFFSET_TEST));
     free(((char*)pIPP.iYuvcOutArgs2 - PADDING_OFFSET_TEST));
     free(((char*)pIPP.dynEENF - PADDING_OFFSET_TEST));
-    
+
+	if(!(pIPP.ippconfig.isINPLACE)){
+		free(pIPP.pIppOutputBuffer - PADDING_OFFSET_TEST);
+	}
+
     LOGD("Terminating IPP");
     
     return eError;
@@ -463,9 +516,18 @@ int CameraHal::PopulateArgsIPP(int w, int h)
     
     pIPP.iCrcbsInArgs->inputHeight = h;
     pIPP.iCrcbsInArgs->inputWidth = w;
+#if YUV422I 
     pIPP.iCrcbsInArgs->inputChromaFormat = IPP_YUV_422P;
+#else
+	pIPP.iCrcbsInArgs->inputChromaFormat = IPP_YUV_420P;
+#endif
 
+
+#if YUV422I 
     pIPP.iEenfInArgs->inputChromaFormat = IPP_YUV_422P;
+#else
+	pIPP.iEenfInArgs->inputChromaFormat = IPP_YUV_420P;
+#endif
     pIPP.iEenfInArgs->inFullWidth = w;
     pIPP.iEenfInArgs->inFullHeight = h;
     pIPP.iEenfInArgs->inOffsetV = 0;
@@ -477,13 +539,19 @@ int CameraHal::PopulateArgsIPP(int w, int h)
     
     pIPP.iYuvcInArgs1->inputHeight = h;
     pIPP.iYuvcInArgs1->inputWidth = w;
+#if YUV422I 
     pIPP.iYuvcInArgs1->outputChromaFormat = IPP_YUV_422P;
+#else
+	pIPP.iYuvcInArgs1->outputChromaFormat = IPP_YUV_420P;
+#endif    
     pIPP.iYuvcInArgs1->inputChromaFormat = IPP_YUV_422ILE;
-    
+
+#if YUV422I     
     pIPP.iYuvcInArgs2->inputHeight = h;
     pIPP.iYuvcInArgs2->inputWidth = w;
     pIPP.iYuvcInArgs2->outputChromaFormat = IPP_YUV_422ILE;
     pIPP.iYuvcInArgs2->inputChromaFormat = IPP_YUV_422P;
+#endif
     
     pIPP.starStatus.size = sizeof(IPP_StarAlgoStatus);
     pIPP.CRCBSStatus.size = sizeof(IPP_CRCBSAlgoStatus);
@@ -532,10 +600,9 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen,
 
     LOGD("IPP_SetAlgoConfig");
     eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_EENF_DYNPRMS_CFGID, (void*)pIPP.dynEENF);
-    if (eError)
-        LOGE("IPP_SetAlgoConfig failed");
-    else
-        LOGD("IPP_SetAlgoConfig OK");
+    if( eError != 0){
+		LOGE("ERROR IPP_SetAlgoConfig");
+	}
 
     pIPP.iInputBufferDesc.numBuffers = 1;
     pIPP.iInputBufferDesc.bufPtr[0] = pBuffer;
@@ -544,34 +611,54 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen,
     pIPP.iInputBufferDesc.port[0] = 0;
     pIPP.iInputBufferDesc.reuseAllowed[0] = 0;
 
-    pIPP.iOutputBufferDesc.numBuffers = 1;
-    pIPP.iOutputBufferDesc.bufPtr[0] = pBuffer;
-    pIPP.iOutputBufferDesc.bufSize[0] = nAllocLen;
-    pIPP.iOutputBufferDesc.usedSize[0] = nAllocLen;
-    pIPP.iOutputBufferDesc.port[0] = 1;
-    pIPP.iOutputBufferDesc.reuseAllowed[0] = 0;
-    
-    pIPP.iInputArgs.numArgs = 5;
+	if(!(pIPP.ippconfig.isINPLACE)){
+		pIPP.iOutputBufferDesc.numBuffers = 1;
+		pIPP.iOutputBufferDesc.bufPtr[0] = pIPP.pIppOutputBuffer;						/*TODO, depend on pix format*/
+		pIPP.iOutputBufferDesc.bufSize[0] = pIPP.outputBufferSize; 
+		pIPP.iOutputBufferDesc.usedSize[0] = pIPP.outputBufferSize;
+		pIPP.iOutputBufferDesc.port[0] = 1;
+		pIPP.iOutputBufferDesc.reuseAllowed[0] = 0;
+	}
+
+
+#if YUV422I 
+	pIPP.iInputArgs.numArgs = 5;/*JJ- be aware of the algos order*/
+#else
+	pIPP.iInputArgs.numArgs = 4;
+#endif    
     pIPP.iInputArgs.argsArray[0] = pIPP.iStarInArgs;
-    pIPP.iInputArgs.argsArray[1] = pIPP.iCrcbsInArgs;
-    pIPP.iInputArgs.argsArray[2] = pIPP.iEenfInArgs;
-    pIPP.iInputArgs.argsArray[3] = pIPP.iYuvcInArgs1;
-    pIPP.iInputArgs.argsArray[4] = pIPP.iYuvcInArgs2;
-    
-    pIPP.iOutputArgs.numArgs = 5;
+    pIPP.iInputArgs.argsArray[1] = pIPP.iYuvcInArgs1;
+    pIPP.iInputArgs.argsArray[2] = pIPP.iCrcbsInArgs;
+    pIPP.iInputArgs.argsArray[3] = pIPP.iEenfInArgs;
+#if YUV422I 
+   pIPP.iInputArgs.argsArray[4] = pIPP.iYuvcInArgs2;
+#endif    
+
+#if YUV422I 
+	pIPP.iOutputArgs.numArgs = 5;/*JJ- be aware of the algos order*/
+#else
+	pIPP.iOutputArgs.numArgs = 4;
+#endif   
     pIPP.iOutputArgs.argsArray[0] = pIPP.iStarOutArgs;
-    pIPP.iOutputArgs.argsArray[1] = pIPP.iCrcbsOutArgs;
-    pIPP.iOutputArgs.argsArray[2] = pIPP.iEenfOutArgs;
-    pIPP.iOutputArgs.argsArray[3] = pIPP.iYuvcOutArgs1;
-    pIPP.iOutputArgs.argsArray[4] = pIPP.iYuvcOutArgs2;
-    
+    pIPP.iOutputArgs.argsArray[1] = pIPP.iYuvcOutArgs1;
+    pIPP.iOutputArgs.argsArray[2] = pIPP.iCrcbsOutArgs;
+    pIPP.iOutputArgs.argsArray[3] = pIPP.iEenfOutArgs;
+#if YUV422I
+   	pIPP.iOutputArgs.argsArray[4] = pIPP.iYuvcOutArgs2;
+#endif
+   
     LOGD("IPP_ProcessImage");
-    IPP_ProcessImage(pIPP.hIPP,
-                     &(pIPP.iInputBufferDesc),
-                     &(pIPP.iInputArgs),
-                     NULL,
-                     &(pIPP.iOutputArgs));
-    LOGD("IPP_ProcessImage Done");
+	if((pIPP.ippconfig.isINPLACE)){
+		eError = IPP_ProcessImage(pIPP.hIPP, &(pIPP.iInputBufferDesc), &(pIPP.iInputArgs), NULL, &(pIPP.iOutputArgs));
+	}
+	else{
+		eError = IPP_ProcessImage(pIPP.hIPP, &(pIPP.iInputBufferDesc), &(pIPP.iInputArgs), &(pIPP.iOutputBufferDesc),&(pIPP.iOutputArgs));
+	}    
+    if( eError != 0){
+		LOGE("ERROR IPP_ProcessImage");
+	}
+
+	LOGD("IPP_ProcessImage Done");
     
     return eError;
 }
@@ -766,7 +853,7 @@ int CameraHal::CapturePicture(){
         LOGE("VIDIOC_DQBUF Failed");
     }
 
-    LOGD("pictureThread: generated a picture");
+    PPM("AFTER CAPTURE YUV IMAGE");
 
     /* turn off streaming */
     creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -803,7 +890,6 @@ int CameraHal::CapturePicture(){
 
 #ifdef IMAGE_PROCESSING_PIPELINE    
     PPM("BEFORE IPP");
-
     ipp_ee_q =100;
     ipp_ew_ts=50;
     ipp_es_ts =50; 
@@ -817,7 +903,17 @@ int CameraHal::CapturePicture(){
                     ipp_es_ts, 
                     ipp_luma_nf,
                     ipp_chroma_nf);
-    LOGD("ProcessBufferIPP() returned");   
+	
+	if(!(pIPP.ippconfig.isINPLACE)){
+		yuv_buffer = pIPP.pIppOutputBuffer;
+	}
+
+    PPM("AFTER IPP");  
+
+	#if !YUV422I 
+		yuv_len=  ((image_width * image_height *3)/2);
+	#endif  
+
 #endif
 
 
@@ -828,7 +924,9 @@ int CameraHal::CapturePicture(){
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
+		PPM("BEFORE JPEGEnc");
         jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, w, h, quality);
+		PPM("AFTER JPEGEnc");
 
 		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
@@ -841,7 +939,7 @@ int CameraHal::CapturePicture(){
        		SaveFile(NULL, (char*)"jpeg", outBuffer, jpegEncoder->jpegSize); 
 
     	}
-
+		PPM("AFTER SAVING PICTURE");
         mJPEGPictureMemBase.clear();		
         mJPEGPictureHeap.clear();
 
@@ -860,7 +958,7 @@ int CameraHal::CapturePicture(){
 	LOGD("CameraHal thread after waiting increment in semaphore\n");
 #endif
 
-    LOGD("END OF ICapturePerform");
+    PPM("END OF ICapturePerform");
     LOG_FUNCTION_NAME_EXIT
  
     return NO_ERROR;
