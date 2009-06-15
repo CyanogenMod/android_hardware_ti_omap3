@@ -83,6 +83,7 @@
     
 /* global constants. */ 
 #define MAXTRACESIZE 256   /* size of trace buffer. */
+#define ROOT_ACCESS	1406
     
 /* function prototype. */ 
 VOID DisplayUsage();
@@ -142,7 +143,7 @@ INT main(INT argc, CHAR * argv[])
 	if (fError) {
 		DisplayUsage();
 	} else {
-		status = (DBAPI)DspManager_Open(0, NULL);
+		status = (DBAPI)DspManager_Open(ROOT_ACCESS, NULL);
 		if (DSP_FAILED(status)) {
 			PrintVerbose("DSPManager_Open failed \n");
 			return -1;
