@@ -272,7 +272,7 @@ AudioStreamIn* AudioHardwareOmap::openInputStream(int format,
 
 	/* Create new output stream */
 	AudioStreamInOmap* in = new AudioStreamInOmap(this);
-       if (in->set(format, channelCount, sampleRate, 1024 * 2) == NO_ERROR) {
+       if (in->set(format, channelCount, sampleRate, 2048 * 2) == NO_ERROR) {
 		mInput = in;
 	} else {
 		LOGW("Error setting input hardware parameters");
