@@ -952,12 +952,14 @@ int  CameraHal::ICapturePerform()
     } else {
         LOGD("ICapture process OK");
     }
-
+		
     ipp_ee_q =iobj->proc.eenf.ee_q,
     ipp_ew_ts=iobj->proc.eenf.ew_ts,
     ipp_es_ts=iobj->proc.eenf.es_ts, 
     ipp_luma_nf=iobj->proc.eenf.luma_nf,
     ipp_chroma_nf=iobj->proc.eenf.chroma_nf;
+
+	iobj->proc.out_img_h &= 0xFFFFFFF8;
 
     LOGD("iobj->proc.out_img_w = %d iobj->proc.out_img_h=%u", (int)iobj->proc.out_img_w, (int)iobj->proc.out_img_h);
     LOGD("iobj->cfg.image_width = %d iobj->cfg.image_height=%d", (int)iobj->cfg.image_width, (int)iobj->cfg.image_height);

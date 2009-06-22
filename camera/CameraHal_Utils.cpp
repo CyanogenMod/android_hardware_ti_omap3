@@ -369,7 +369,7 @@ int CameraHal::InitIPP(int w, int h)
 #if YUV422I
 	pIPP.ippconfig.orderOfAlgos[4]=IPP_YUVC_422pTO422i_ID;
 #endif    
-    pIPP.ippconfig.isINPLACE=INPLACE_OFF;   
+    pIPP.ippconfig.isINPLACE=INPLACE_ON;   
 
 
 #if YUV422I

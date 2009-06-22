@@ -42,12 +42,12 @@
 #include "MessageQueue.h"
 
 #ifdef FW3A
-#include "osal/osal_sysdep.h"
 #include "osal/osal_stdtypes.h"
-#include "icapture/icapture_interface.h"
-#include "mk_note/maker_note_mms.h"
-#include "fw/fw_message.h"
-#include "camera_alg.h"
+#include "osal/osal_sysdep.h"
+#include "fw/icapture/linux/camera_2A/icapture_interface.h"
+#include "../modules/fw/include/mk_note/maker_note_mms_priv.h"
+#include "fw/vfinder/linux/camera_2A/camera_alg.h"
+#include "fw/vfinder/fw_message.h"
 #endif
 
 #ifdef HARDWARE_OMX
