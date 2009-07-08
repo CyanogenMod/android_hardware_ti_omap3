@@ -29,17 +29,6 @@ LOCAL_C_INCLUDES:=\
 
 LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE 
 
-#Files in Directories which aren't compiled in as of yet!!
-
-#MCP_Common/ccm/im/test/testccmim.c			
-#MCP_Common/frame/mcp_gensm.c			
-#MCP_Common/frame/mcp_load_manager.c	
-#MCP_Common/frame/mcpf_report.c				MCP_Common/ccm/vac/ccm_vaci_debug.c		
-#MCP_Common/ccm/vac/ccm_vaci_allocation_engine.c     MCP_Common/ccm/vac/ccm_vaci_mapping_engine.c
-#MCP_Common/ccm/cal/ccm_vaci_cal_chip_1273.c  MCP_Common/ccm/cal/ccm_vaci_cal_chip_6450_1_0.c
-#MCP_Common/ccm/cal/ccm_vaci_cal_chip_6350.c  
-#MCP_Common/ccm/vac/ccm_vaci_configuration_engine.c
-
 LOCAL_SRC_FILES:= \
 fm_app.c fm_trace.c						
 
