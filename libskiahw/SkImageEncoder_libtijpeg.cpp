@@ -118,7 +118,7 @@ void SkTIJPEGImageEncoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 size)
 
     pEncodedOutputBuffer = pBuffer;
     nEncodedOutputFilledLen = size;
-    sem_post(semaphore) ;
+    //sem_post(semaphore) ;
 }
 
 
