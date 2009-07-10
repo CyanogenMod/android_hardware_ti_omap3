@@ -358,6 +358,17 @@ status_t AudioHardwareOmap::doRouting()
 				return ret;
 			}
 		}
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "HandsfreeL")) {
+			if (routes & AudioSystem::ROUTE_SPEAKER)
+				ret = setSwitchItem(elem, true);
+			else
+				ret = setSwitchItem(elem, false);
+			if (ret != NO_ERROR) {
+				LOGE("Speaker left switch setting error");
+				snd_mixer_close(handle);
+				return ret;
+			}
+		}
 		if (!strcmp(snd_mixer_selem_id_get_name(sid), "HandsfreeR Mux")) {
 			if (routes & AudioSystem::ROUTE_SPEAKER)
 				ret = setEnumeratedItem(elem, "AudioR2");
@@ -365,6 +376,17 @@ status_t AudioHardwareOmap::doRouting()
 				ret = setEnumeratedItem(elem, "AudioL1");
 			if (ret != NO_ERROR) {
 				LOGE("Speaker right routing error");
+				snd_mixer_close(handle);
+				return ret;
+			}
+		}
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "HandsfreeR")) {
+			if (routes & AudioSystem::ROUTE_SPEAKER)
+				ret = setSwitchItem(elem, true);
+			else
+				ret = setSwitchItem(elem, false);
+			if (ret != NO_ERROR) {
+				LOGE("Speaker right switch setting error");
 				snd_mixer_close(handle);
 				return ret;
 			}
