@@ -1,25 +1,33 @@
-/* ------------------------------------------------------------------
- * Copyright (C) 2008 PacketVideo
+/*
+ * Copyright (C) Texas Instruments - http://www.ti.com/
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- * -------------------------------------------------------------------
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/*
+ * Author: Srini Gosangi <srini.gosangi@windriver.com>
+ * Author: Michael Barabanov <michael.barabanov@windriver.com>
  */
 
 #ifndef ANDROID_SURFACE_OUTPUT_OMAP34XXH_INCLUDED
 #define ANDROID_SURFACE_OUTPUT_OMAP34XXH_INCLUDED
 
 #include "android_surface_output.h"
+#include "buffer_alloc_omap34xx.h"
 
 // support for shared contiguous physical memory
 #include <ui/Overlay.h>
@@ -32,36 +40,23 @@ public:
 
     // frame buffer interface
     virtual bool initCheck();
-    virtual PVMFStatus WriteFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info);
-    //OSCL_IMPORT_REF virtual PVMFStatus WriteFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info);
-	//virtual void postLastFrame();
-    virtual void CloseFrameBuf();
-
+    virtual void setParametersSync(PvmiMIOSession aSession, PvmiKvp* aParameters, int num_elements, PvmiKvp * & aRet_kvp);
+    virtual PVMFStatus getParametersSync(PvmiMIOSession aSession, PvmiKeyType aIdentifier,
+            PvmiKvp*& aParameters, int& num_parameter_elements, PvmiCapabilityContext aContext);
+    virtual PVMFStatus writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info);
+    virtual void closeFrameBuf();
+    virtual void postLastFrame();
     OSCL_IMPORT_REF ~AndroidSurfaceOutputOmap34xx();
 private:
-
     bool						mUseOverlay;
     sp<Overlay> 				mOverlay; 
-	int 						mBuffer_count;
-	int 						mRecycle_buffer_count;
-    void*						mOverlay_buffer_address[4];//max buffers supported in overlay is 4
+    int 						bufEnc;
     
-    #if 0
-    class DispatchBufferThread : public Thread {
-        AndroidSurfaceOutputOmap34xx* mOmapMIO;
-    public:
-        DispatchBufferThread(AndroidSurfaceOutputOmap34xx* miohandle)
-            : Thread(false), mOmapMIO(miohandle) { }
-        virtual void onFirstRef() {
-            run("Dispatch buffer thread", PRIORITY_URGENT_DISPLAY);
-        }
-        virtual bool threadLoop() {
-            mOmapMIO->DispatchBufferThread();
-            // loop until we need to quit
-            return true;
-        }
-    };
-    #endif
+    int32 iNumberOfBuffers;
+    int32 iBufferSize;
+public:
+	BufferAllocOmap34xx			mbufferAlloc;
+
 };
 
 #endif // ANDROID_SURFACE_OUTPUT_OMAP34XX_H_INCLUDED

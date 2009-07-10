@@ -1,38 +1,26 @@
 /*
- * OMAP3430 support
+ * Copyright (C) Texas Instruments - http://www.ti.com/
  *
- * Author: Michael Barabanov <michael.barabanov@windriver.com>
- * Author: Srini Gosangi <srini.gosangi@windriver.com>
-
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied.
- * See the License for the specific language governing permissions
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-/* ------------------------------------------------------------------
- * Copyright (C) 2008 PacketVideo
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- * -------------------------------------------------------------------
+/*
+ * Author: Srini Gosangi <srini.gosangi@windriver.com>
+ * Author: Michael Barabanov <michael.barabanov@windriver.com>
  */
 
 #define LOG_NDEBUG 0
@@ -53,17 +41,18 @@ BufferAllocOmap34xx::~BufferAllocOmap34xx()
 
 }
 
-void BufferAllocOmap34xx::addRef()
+OSCL_EXPORT_REF void BufferAllocOmap34xx::addRef()
 {
     ++refCount;
 }
 
-void BufferAllocOmap34xx::removeRef()
+OSCL_EXPORT_REF void BufferAllocOmap34xx::removeRef()
 {
     --refCount;
     if (refCount <= 0)
     {
-        this->~BufferAllocOmap34xx();
+    	LOGD("BufferAllocOmap34xx::removeRef()");
+       // this->~BufferAllocOmap34xx();
 #if 0
         OSCL_DELETE(this);
 #endif
@@ -71,7 +60,7 @@ void BufferAllocOmap34xx::removeRef()
 }
 
 
-OsclAny* BufferAllocOmap34xx::allocate()
+OSCL_EXPORT_REF OsclAny* BufferAllocOmap34xx::allocate()
 {
     if (numAllocated < maxBuffers)
     {
@@ -82,7 +71,7 @@ OsclAny* BufferAllocOmap34xx::allocate()
     return NULL;
 }
 
-void BufferAllocOmap34xx::deallocate(OsclAny* ptr)
+OSCL_EXPORT_REF void BufferAllocOmap34xx::deallocate(OsclAny* ptr)
 {
     if (ptr)
     {
@@ -90,18 +79,18 @@ void BufferAllocOmap34xx::deallocate(OsclAny* ptr)
     }
 }
 
-uint32 BufferAllocOmap34xx::getBufferSize()
+OSCL_EXPORT_REF uint32 BufferAllocOmap34xx::getBufferSize()
 {
     return bufferSize;
 }
 
-uint32 BufferAllocOmap34xx::getNumBuffers()
+OSCL_EXPORT_REF uint32 BufferAllocOmap34xx::getNumBuffers()
 {
     return maxBuffers;
 }
 
 
-bool BufferAllocOmap34xx::queryInterface(const PVUuid& uuid, PVInterface*& aInterface)
+OSCL_EXPORT_REF bool BufferAllocOmap34xx::queryInterface(const PVUuid& uuid, PVInterface*& aInterface)
 {
     aInterface = NULL; // initialize aInterface to NULL in case uuid is not supported
 
@@ -113,7 +102,6 @@ bool BufferAllocOmap34xx::queryInterface(const PVUuid& uuid, PVInterface*& aInte
         aInterface = OSCL_STATIC_CAST(PVInterface*, myInterface);
         return true;
     }
-
     return false;
 }
 

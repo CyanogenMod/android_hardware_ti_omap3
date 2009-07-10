@@ -6,7 +6,8 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES := $(PV_INCLUDES)
 
 LOCAL_SRC_FILES := \
-	android_surface_output_omap34xx.cpp
+	android_surface_output_omap34xx.cpp \
+	buffer_alloc_omap34xx.cpp \
 
 LOCAL_CFLAGS := $(PV_CFLAGS)
 
@@ -26,8 +27,6 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_PRELINK_MODULE := false
 
 LOCAL_MODULE := libopencorehw
-
-LOCAL_LDLIBS += 
 
 include $(BUILD_SHARED_LIBRARY)
 
