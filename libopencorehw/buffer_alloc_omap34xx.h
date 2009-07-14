@@ -1,39 +1,28 @@
 /*
- * OMAP3430 support
+ * Copyright (C) Texas Instruments - http://www.ti.com/
  *
- * Author: Michael Barabanov <michael.barabanov@windriver.com>
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/*
  * Author: Srini Gosangi <srini.gosangi@windriver.com>
-
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied.
- * See the License for the specific language governing permissions
+ * Author: Michael Barabanov <michael.barabanov@windriver.com>
  */
 
-/* ------------------------------------------------------------------
- * Copyright (C) 2008 PacketVideo
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- * -------------------------------------------------------------------
- */
 
 #ifndef BUFFER_ALLOC_OMAP34XXH_INCLUDED
 #define BUFFER_ALLOC_OMAP34XXH_INCLUDED
@@ -54,19 +43,19 @@ class BufferAllocOmap34xx: public PVInterface, public PVMFFixedSizeBufferAlloc
 
         virtual ~BufferAllocOmap34xx();
 
-        virtual void addRef();
+        OSCL_IMPORT_REF void addRef();
 
-        virtual void removeRef();
+        OSCL_IMPORT_REF void removeRef();
 
-        virtual bool queryInterface(const PVUuid& uuid, PVInterface*& aInterface) ;
+        OSCL_IMPORT_REF bool queryInterface(const PVUuid& uuid, PVInterface*& aInterface) ;
 
-        virtual OsclAny* allocate();
+        OSCL_IMPORT_REF OsclAny* allocate();
 
-        virtual void deallocate(OsclAny* ptr) ;
+        OSCL_IMPORT_REF void deallocate(OsclAny* ptr) ;
 
-        virtual uint32 getBufferSize() ;
+        OSCL_IMPORT_REF uint32 getBufferSize() ;
 
-        virtual uint32 getNumBuffers() ;
+        OSCL_IMPORT_REF uint32 getNumBuffers() ;
 
     public:
         int32 refCount;
