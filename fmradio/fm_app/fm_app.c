@@ -3502,7 +3502,15 @@ fm_status parse_options(int argc, char **argv, char **script, int *startup_len)
 
 int set_fm_chip_enable(int enable)
 {
-	const char enable_path[]="/sys/wl127x/fm_enable";
+	/*
+	 * const char enable_path[]="/sys/wl127x/fm_enable";
+	 * change for donut branch [2.6.29 kernel only
+	 */
+	const char enable_path[]="/sys/class/rfkill/rfkill1/state";
+	/*
+	 * TODO: Make the detection of rfkill device smarter
+	 * like system/bluetooth/bluedroid does for bluetooth
+	 */
 	char buffer='0';
 	int ret;
 	/* set /sys/wl127x/fm_enable=0 to enable FM chip */
@@ -3604,8 +3612,11 @@ fastout:
 #ifdef ANDROID
 const char *control_elements_of_interest[] = {
 	"Analog Capture Volume",
-	"Analog Left Capture Route",
-	"Analog Right Capture Route",
+	/* change for donut branch -
+	 * kernel 2.6.29 has changed the mixer names
+	 */
+	"Analog Left Capture Route AUXL",
+	"Analog Right Capture Route AUXR",
 	"Left2 Analog Loopback Switch",
 	"Right2 Analog Loopback Switch"
 };
