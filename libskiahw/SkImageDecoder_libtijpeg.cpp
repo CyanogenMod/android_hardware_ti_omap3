@@ -85,6 +85,7 @@ OMX_ERRORTYPE OMX_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BU
 
 SkTIJPEGImageDecoder::~SkTIJPEGImageDecoder()
 {
+	sem_destroy(semaphore);
     free(semaphore) ;
     semaphore=NULL;
 }
@@ -602,7 +603,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
         InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
     }
     else {
-        InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420Planar;
+//        InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420Planar;
+		  InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
     }
 
     //PRINTF("Calling OMX_SetParameter for Input Port\n");

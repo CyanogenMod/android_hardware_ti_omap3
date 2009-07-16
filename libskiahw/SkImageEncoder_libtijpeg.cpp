@@ -87,6 +87,7 @@ SkTIJPEGImageEncoder::SkTIJPEGImageEncoder()
 
 SkTIJPEGImageEncoder::~SkTIJPEGImageEncoder()
 {
+	sem_destroy(semaphore);
     free(semaphore) ;
     semaphore=NULL;
 
