@@ -417,16 +417,16 @@ status_t AudioHardwareOmap::doRouting()
 		}
 
 		/* Microphone */
-		if (!strcmp(snd_mixer_selem_id_get_name(sid), "Analog Left")) {
-			ret = setEnumeratedItem(elem, "Main mic");
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "Analog Left Capture Route Main mic")) {
+			ret = setSwitchItem(elem, true);
 			if (ret != NO_ERROR) {
 				LOGE("Main microphone routing error");
 				snd_mixer_close(handle);
 				return ret;
 			}
 		}
-		if (!strcmp(snd_mixer_selem_id_get_name(sid), "Analog Right")) {
-			ret = setEnumeratedItem(elem, "Sub mic");
+		if (!strcmp(snd_mixer_selem_id_get_name(sid), "Analog Right Capture Route Sub mic")) {
+			ret = setSwitchItem(elem, true);
 			if (ret != NO_ERROR) {
 				LOGE("Sub microphone routing error");
 				snd_mixer_close(handle);
