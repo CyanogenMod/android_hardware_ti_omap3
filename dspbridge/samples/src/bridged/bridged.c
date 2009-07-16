@@ -38,6 +38,7 @@ do {									\
 
 #define EVENTS		4
 #define BASEIMAGE_FILE	"/system/lib/dsp/baseimage.dof"
+#define ROOT_ACCESS	1406
 
 char *evt_name[5] = {"MMU_FAULT", "SYS_ERROR", "PWR_ERROR",
 		 "STATE_CHANGE", "UNKNOWN"};
@@ -87,7 +88,7 @@ unsigned long daemon_attach(DSP_HPROCESSOR *proc)
 	unsigned int numprocs = 0;
 	struct DSP_PROCESSORINFO dspinfo;
 
-	status = DspManager_Open(0, NULL);
+	status = DspManager_Open(ROOT_ACCESS, NULL);
 	try_err_out("DspManager_Open", status);
 
 	/* Attach to DSP */

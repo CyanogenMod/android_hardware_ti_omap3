@@ -81,7 +81,12 @@ static bool bridge_sem_initialized = false;
 /*  ----------------------------------- Definitions */
 /* #define BRIDGE_DRIVER_NAME  "/dev/dspbridge"*/
 #define BRIDGE_DRIVER_NAME  "/dev/DspBridge"
-
+#define SYSFS_DRV_STATE		"/sys/devices/platform/C6410/drv_state"
+#define ROOT_ACCESS		1406
+#define RUNNING			0x2
+#define DSP_HIB			0x9
+#define RETENTION		0x8
+#define MPU_HIB			0x7
 /*
  *  ======== DspManager_Open ========
  *  Purpose:
@@ -90,7 +95,24 @@ static bool bridge_sem_initialized = false;
 DBAPI DspManager_Open(UINT argc, PVOID argp)
 {
 	int status = 0;
+	unsigned int drv_state;
+	FILE *file;
+	char line[4];
 
+	if (argc == ROOT_ACCESS)
+		goto open;
+
+	file = fopen(SYSFS_DRV_STATE, "r");
+	if (!file)
+		return DSP_EFAIL;
+	fgets(line, 3, file);
+	sscanf(line, "%d", &drv_state);
+	fclose(file);
+	if (drv_state != RUNNING && (drv_state > DSP_HIB || drv_state < MPU_HIB )) {
+		printf("Driver is not ready, access denied!\n");
+		return DSP_EFAIL;
+	}
+open:
 	if (!bridge_sem_initialized) {
 		if (sem_init(&semOpenClose, 0, 1) == -1) {
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
