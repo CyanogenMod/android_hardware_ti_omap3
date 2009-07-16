@@ -36,11 +36,9 @@
 #include <utils/Log.h>
 
 #define PRINTF LOGD
-//#define PRINTF printf
 
 #define JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT 0
 #define OPTIMIZE 0
-#define YUV422I 1
 
 #if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
 	int eOutputCount = 0;
@@ -75,7 +73,6 @@ OMX_ERRORTYPE OMX_JPEGE_EventHandler(OMX_HANDLETYPE hComponent,
     return OMX_ErrorNone;
 }
 
-
 JpegEncoder::JpegEncoder()
 {
     pInBuffHead = NULL;
@@ -100,7 +97,8 @@ JpegEncoder::~JpegEncoder()
         Run();
     }
 #endif    
-    free(semaphore) ;
+	sem_destroy(semaphore);
+	free(semaphore) ;	
     semaphore=NULL;
 }
 
@@ -127,7 +125,7 @@ void JpegEncoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 size)
     iLastState = iState;
     iState = STATE_FILL_BUFFER_DONE_CALLED;
     jpegSize = size;
-    sem_post(semaphore) ;
+   // sem_post(semaphore) ;
 }
 
 
@@ -247,6 +245,7 @@ bool JpegEncoder::StartFromLoadedState()
     InPortDef.bEnabled = OMX_TRUE;
     InPortDef.bPopulated = OMX_FALSE;
     InPortDef.eDomain = OMX_PortDomainImage;
+//	InPortDef.format.image.cMIMEType = "JPEGENC"
     InPortDef.format.image.pNativeRender = NULL;
     InPortDef.format.image.nFrameWidth = mWidth;
     InPortDef.format.image.nFrameHeight = mHeight;
@@ -255,11 +254,12 @@ bool JpegEncoder::StartFromLoadedState()
     InPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
     InPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingUnused;
     InPortDef.nBufferSize = mInBuffSize;
-    #if YUV422I
-		InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
-	#else
+	if(mIsPixelFmt420p){
 		InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;	
-	#endif	
+	}
+	else{
+		InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
+	}
 
     if (InPortDef.eDir == nIndex1 ) {
         InPortDef.nPortIndex = nIndex1;
@@ -279,7 +279,7 @@ bool JpegEncoder::StartFromLoadedState()
     /***********************************************************************/
     /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (OUTPUT) */
     /***********************************************************************/
-
+	PortType.nStartPortNumber++;
     OutPortDef.nPortIndex = PortType.nStartPortNumber;
     eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
     if ( eError != OMX_ErrorNone ) {
@@ -305,7 +305,13 @@ bool JpegEncoder::StartFromLoadedState()
     OutPortDef.format.image.nSliceHeight = -1;
     OutPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
     OutPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
-    OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
+	if(mIsPixelFmt420p){
+		OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;	
+	}
+	else{
+		OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
+	}
+
     OutPortDef.nBufferSize = mOutBuffSize;
     
     if (OutPortDef.eDir == nIndex1 ) {
@@ -372,7 +378,7 @@ EXIT:
 
 }
 
-bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality)
+bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality,int isPixelFmt420p)
 {
 
     bool ret = true;
@@ -382,7 +388,8 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
     PRINTF("\nheight = %d", height);
     PRINTF("\nquality = %d", quality);			
     PRINTF("\ninBuffSize = %d", inBuffSize);				
-    PRINTF("\noutBuffSize = %d", outBuffSize);			
+    PRINTF("\noutBuffSize = %d", outBuffSize);	
+	PRINTF("\nisPixelFmt420p = %d", isPixelFmt420p);			
 
 #if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
 
@@ -429,6 +436,7 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
         mWidth = width;
         mHeight = height;
         mQuality = quality;
+		mIsPixelFmt420p = isPixelFmt420p;
         iLastState = STATE_LOADED;
         iState = STATE_LOADED;
     

@@ -77,7 +77,7 @@ int main(int argc, char **argv)
     {
         printf("\n\nCalling encodeImage. Round %d. \n\n", i);
 
-        if (JpegEnc->encodeImage(outBuffer, outbufferlen, inBuffer, inbufferlen, w, h, quality)){
+        if (JpegEnc->encodeImage(outBuffer, outbufferlen, inBuffer, inbufferlen, w, h, quality, 1/*422i*/)){
 
             printf("\n\n encodeImage Completed. Round %d.\n\n", i);
 

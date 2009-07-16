@@ -41,6 +41,21 @@
 #include <ui/CameraHardwareInterface.h>
 #include "MessageQueue.h"
 
+#define RESIZER 1
+#define JPEG 1
+#define VPP 0
+#define VPP_THREAD 0
+#define VPP_INIT_WORKAROND 0
+
+#if !VPP
+ 	#define VPP_THREAD 0
+#endif
+#undef IMAGE_PROCESSING_PIPELINE
+
+#undef FW3A
+#undef ICAP
+
+
 #ifdef FW3A
 #include "osal/osal_stdtypes.h"
 #include "osal/osal_sysdep.h"
@@ -50,8 +65,23 @@
 #include "fw/vfinder/fw_message.h"
 #endif
 
+#ifdef CAMERA_ALGO
+#include "CameraAlgo.h"
+#include "arc_facetracking/include/arcsoft_face_tracking.h"
+#include "include/amcomdef.h"
+
+#define FACE_COUNT  10
+#define FRAME_SKIP  0
+#define STABILITY   0
+#define RATIO       10
+#endif
+
 #ifdef HARDWARE_OMX
 #include "JpegEncoder.h"
+#endif
+
+#ifdef IMAGE_PROCESSING_PIPELINE_MMS
+#include "pip_omap_interface.h"
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -64,35 +94,43 @@
 #define MAXIPPDynamicParams 10
 #endif
 
+#define FOCUS_RECT          1
+/* colours in focus rectangle */
+#define FOCUS_RECT_RED      0x10
+#define FOCUS_RECT_GREEN    0x1F
+#define FOCUS_RECT_WHITE    0xFF
 
 #define VIDEO_DEVICE        "/dev/video5"
-#define MIN_WIDTH           208 // 960 //820
-#define MIN_HEIGHT          154 // 800 //616
+#define MIN_WIDTH           176 // 960 //820
+#define MIN_HEIGHT          144 // 800 //616
 #define PICTURE_WIDTH   3280 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
 #define PICTURE_HEIGHT  2464 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    4
-#define OPEN_CLOSE_WORKAROUND	 1
-
-#define JPEG 1
+//#define YUV422I 1
+//#define YUV420P 2
+//#define OPEN_CLOSE_WORKAROUND	 0
 
 #define PPM(str){ \
 	gettimeofday(&ppm, NULL); \
 	ppm.tv_sec = ppm.tv_sec - ppm_start.tv_sec; \
 	ppm.tv_sec = ppm.tv_sec * 1000000; \
 	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_start.tv_usec; \
-	LOGD("PPM: %s :%d.%d ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); \
+	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); \
 }
 
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-	//if YUV422I is 0, we use YUV420P converter in IPP but currently there are issues to encode 420P images.
-	#define YUV422I 1
+	//if IPP_YUV422P is 0, we use YUV420P converter in IPP 
+	#define IPP_YUV422P 0	
 	#define INPLACE_ON	1
 	#define INPLACE_OFF	0
+	#define IPP_Disabled_Mode 0
+	#define IPP_CromaSupression_Mode 1
+	#define IPP_EdgeEnhancement_Mode 2
 typedef struct OMX_IPP
 {
     IPP_Handle hIPP;
@@ -123,8 +161,8 @@ typedef struct OMX_IPP
 	int outputBufferSize;
 	unsigned char* pIppOutputBuffer;
 } OMX_IPP;
-#endif
-    
+
+#endif    
 
 //icapture
 #define DTP_FILE_NAME 	"/data/dyntunn.enc"
@@ -314,6 +352,15 @@ private:
 	int CapturePicture();
 #endif
 
+#ifdef IMAGE_PROCESSING_PIPELINE_MMS
+    void *pIPPMMS;
+    int DeInitIPPMMS();
+    int InitIPPMMSDefault(int w, int h);
+    int InitIPPMMS(pip_omap_ctrl_t *cfg);
+    int ProcessBufferIPPMMS(void *pBuffer);
+    int handle_alg_errors(ARM_ERROR error);
+#endif
+
 #ifdef IMAGE_PROCESSING_PIPELINE
     int DeInitIPP();
     int InitIPP(int w, int h);
@@ -323,7 +370,7 @@ private:
                          int StrongEdgeThreshold, int LumaNoiseFilterStrength,
                          int ChromaNoiseFilterStrength);
 
-    OMX_IPP pIPP;
+    OMX_IPP pIPP;	
 #endif   
 
     int CameraCreate();
@@ -374,6 +421,20 @@ private:
 	struct timeval ppm_start;
 	int vppPipe[2];
     sem_t mIppVppSem;
+	int mippMode;
+
+    struct timeval take_before, take_after;
+    struct timeval focus_before, focus_after;
+    struct timeval ppm_before, ppm_after;
+    struct timeval ipp_before, ipp_after;
+
+#ifdef CAMERA_ALGO
+    struct timeval algo_before, algo_after;
+    int lastOverlayIndex;
+
+    CameraAlgo *camAlgos;
+    status_t initAlgos();
+#endif
     
 #ifdef HARDWARE_OMX
     JpegEncoder*    jpegEncoder;
@@ -439,11 +500,17 @@ private:
     MessageQueue    processingThreadAckQ;
 
     mutable Mutex takephoto_lock;
-    uint8_t *yuv_buffer, *jpeg_buffer, *vpp_buffer;
-    int yuv_len, jpeg_len;
+    uint8_t *yuv_buffer, *jpeg_buffer, *vpp_buffer, *ancillary_buffer;
+    int yuv_len, jpeg_len, ancillary_len;
 
     FILE *foutYUV;
     FILE *foutJPEG;
+
+#ifdef FOCUS_RECT
+    /* Focus rectangle  flags */
+    int focus_rect_set;
+    int focus_rect_color;
+#endif
 	 
 };
 
