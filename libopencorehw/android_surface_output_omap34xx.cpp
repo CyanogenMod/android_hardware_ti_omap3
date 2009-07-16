@@ -45,6 +45,15 @@ static int mDebugFps = 0;
 
 using namespace android;
 
+ typedef struct WriteResponseData{
+     PvmiCapabilityContext aContext;
+     PVMFTimestamp aTimestamp;
+     PVMFCommandId cmdid;
+     bool bInDSSQueue;
+ }WriteResponseData;
+ 
+ static WriteResponseData sWriteRespData[4];
+ int iDequeueIndex;
 
 OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     AndroidSurfaceOutput()
@@ -84,7 +93,10 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
         	mOverlay = new Overlay(ref);
 			mOverlay->setAttributes(CACHEABLE_BUFFERS, 0);
     	}
-	mOverlay->resizeInput(displayWidth, displayHeight);
+
+        LOGI("Actual resolution: %dx%d", frameWidth, frameHeight);
+        LOGI("Video resolution: %dx%d", iVideoWidth, iVideoHeight);
+        mOverlay->resizeInput(frameWidth, frameHeight);
 
         mbufferAlloc.maxBuffers = mOverlay->getBufferCount();
         mbufferAlloc.bufferSize = iBufferSize;
@@ -129,10 +141,218 @@ static void debugShowFPS()
     }
     // XXX: mFPS has the value we want
 }
+ 
+ 
+PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32 aFormatIndex, uint8* aData, uint32 aDataLen,
+                                         const PvmiMediaXferHeader& data_header_info, OsclAny* aContext)
+{
+     bool bDequeueFail = false;
+     bool bQueueFail = false;
+     //LOGD("Calling Vendor(34xx) Specific writeAsync");
+     
+     // Do a leave if MIO is not configured except when it is an EOS
+     if (!iIsMIOConfigured
+             &&
+             !((PVMI_MEDIAXFER_FMT_TYPE_NOTIFICATION == aFormatType)
+               && (PVMI_MEDIAXFER_FMT_INDEX_END_OF_STREAM == aFormatIndex)))
+     {
+         LOGE("data is pumped in before MIO is configured");
+         OSCL_LEAVE(OsclErrInvalidState);
+         return -1;
+     }
+ 
+     uint32 aSeqNum=data_header_info.seq_num;
+     PVMFTimestamp aTimestamp=data_header_info.timestamp;
+     uint32 flags=data_header_info.flags;
+     PVMFCommandId cmdid=iCommandCounter++;
+ 
+     if (aSeqNum < 6)
+     {
+         LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() seqnum %d ts %d context %d",aSeqNum,aTimestamp, (int)aContext);
+ 
+         LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() Format Type %d Format Index %d length %d",aFormatType,aFormatIndex,aDataLen);
+     }
+ 
+     PVMFStatus status=PVMFFailure;
+ 
+     switch(aFormatType)
+     {
+     case PVMI_MEDIAXFER_FMT_TYPE_COMMAND :
+         LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() called with Command info.");
+         //ignore
+         status= PVMFSuccess;
+         break;
+ 
+     case PVMI_MEDIAXFER_FMT_TYPE_NOTIFICATION :
+         LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() called with Notification info.");
+         switch(aFormatIndex)
+         {
+         case PVMI_MEDIAXFER_FMT_INDEX_END_OF_STREAM:
+             iEosReceived = true;
+             break;
+         default:
+             break;
+         }
+         //ignore
+         status= PVMFSuccess;
+         break;
+ 
+     case PVMI_MEDIAXFER_FMT_TYPE_DATA :
+         switch(aFormatIndex)
+         {
+         case PVMI_MEDIAXFER_FMT_INDEX_FMT_SPECIFIC_INFO:
+             //format-specific info contains codec headers.
+             LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() called with format-specific info.");
+ 
+             if (iState<STATE_INITIALIZED)
+             {
+                 LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - Invalid state");
+                 status=PVMFErrInvalidState;
+             }
+             else
+             {
+                 status= PVMFSuccess;
+             }
+ 
+             break;
+ 
+         case PVMI_MEDIAXFER_FMT_INDEX_DATA:
+             //data contains the media bitstream.
+ 
+             //Verify the state
+             if (iState!=STATE_STARTED)
+             {
+                 LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - Invalid state");
+                 status=PVMFErrInvalidState;
+             }
+             else
+             {
+                 int i=0;
+                 //printf("V WriteAsync { seq=%d, ts=%d }\n", data_header_info.seq_num, data_header_info.timestamp);
+ 
+                 // Call playback to send data to IVA for Color Convert
+                 if(mUseOverlay)
+                 { 
+                     for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
+                         if (mbufferAlloc.buffer_address[i] == aData) {
+                             break;
+                         }
+                     }
+                     if (i == mbufferAlloc.maxBuffers) {
+                         LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: aData does not match any v4l buffer address\n");
+                         status = PVMFFailure;
+                         WriteResponse resp(status, cmdid, aContext, aTimestamp);
+                         iWriteResponseQueue.push_back(resp);
+                         RunIfNotReady();
+                         return cmdid;
+                     }
+                     LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", i);
+ 
+                     sWriteRespData[i].aContext = aContext;
+                     sWriteRespData[i].aTimestamp  = aTimestamp;
+                     sWriteRespData[i].cmdid = cmdid;
+                     sWriteRespData[i].bInDSSQueue = true;
+                 }
+                 /* writeFrameBuf() call will return:
+                  *  if success: PVMFSuccess
+                  *  Queue fail: PVMFErrArgument
+                  *  Dequque fail: PVMFErrInvalidState
+                  *  Queue and Dequeue fails: PVMFFailure
+                  */
+                 status = writeFrameBuf(aData, aDataLen, data_header_info);
+                 switch (status)
+                 {
+                     case PVMFSuccess:
+                         LOGV("writeFrameBuf Success");
+                     break;
+                     case PVMFErrArgument:
+                         sWriteRespData[i].bInDSSQueue = false;
+                         bQueueFail = true;
+                         LOGW("Queue FAIL from writeFrameBuf");
+                     break;
+                     case PVMFErrInvalidState:
+                         bDequeueFail = true;
+                         LOGI("Dequeue FAIL from writeFrameBuf");
+                     break;
+                     case PVMFFailure:
+                         sWriteRespData[i].bInDSSQueue = false;
+                         bDequeueFail = true;
+                         bQueueFail = true;
+                         LOGW("Queue & Dequeue FAIL");
+                     break;
+                     default: //Compiler requirement
+                         LOGE("No such case!!!!!!!!!");
+                     break;
+                 }
+                 LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Playback Progress - frame %lu",iFrameNumber++);
+             }
+             break;
+ 
+         default:
+             LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - unrecognized format index");
+             status= PVMFFailure;
+             break;
+         }
+         break;
+ 
+     default:
+         LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - unrecognized format type");
+         status= PVMFFailure;
+         break;
+     }
+ 
+     //Schedule asynchronous response
+     if(iEosReceived){
+         int i;
+         LOGI("iEosReceived");
+         for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
+             if (sWriteRespData[i].bInDSSQueue) {
+                 LOGI("Sending dequeue response, %d", i);
+                 WriteResponse resp(status,
+                                 sWriteRespData[i].cmdid,
+                                 sWriteRespData[i].aContext,
+                                 sWriteRespData[i].aTimestamp);
+                 iWriteResponseQueue.push_back(resp);
+                 RunIfNotReady();
+                 //Don't return cmdid here
+             }
+         }
+     }
+     else if(bQueueFail){
+         //Send default response
+     }
+     else if(bDequeueFail){
+         return cmdid;
+     }
+     else if(bDequeueFail == false){
+         LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: iDequeueIndex = %d", iDequeueIndex);
+         cmdid = sWriteRespData[iDequeueIndex].cmdid;
+         status = PVMFSuccess; //Clear posible error while queueing
+         WriteResponse resp(status,
+                             sWriteRespData[iDequeueIndex].cmdid,
+                             sWriteRespData[iDequeueIndex].aContext,
+                             sWriteRespData[iDequeueIndex].aTimestamp);
+         iWriteResponseQueue.push_back(resp);
+ 
+         sWriteRespData[iDequeueIndex].bInDSSQueue = false;
+         RunIfNotReady();
+         return cmdid;
+     }
+ 
+     WriteResponse resp(status, cmdid, aContext, aTimestamp);
+     iWriteResponseQueue.push_back(resp);
+     RunIfNotReady();
+ 
+     return cmdid;
+ }
+ 
+
 
 PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info)
 {
     //LOGD(" calling Vendor Speicifc(34xx) writeFrameBuf call");
+    static int nBuffToStartDQ = 2; /*DSS2: 2 buffers need to be queue before enable streaming*/
+    PVMFStatus eStatus = PVMFSuccess;
     if (mSurface == 0) return PVMFFailure;
 
     if (UNLIKELY(mDebugFps)) {
@@ -145,7 +365,6 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
 		if (mbufferAlloc.buffer_address[i] == aData) {
 			break;
 		}
-
 	}
 	if (i == mbufferAlloc.maxBuffers) {
 		LOGE("aData does not match any v4l buffer address\n");
@@ -153,11 +372,38 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
 	}
 	LOGV("queueBuffer %d\n", i);
         bufEnc = i;
-	mOverlay->queueBuffer((void*)bufEnc);
-        overlay_buffer_t overlay_buffer;
-        if (mOverlay->dequeueBuffer(&overlay_buffer) != NO_ERROR) {
-		LOGE("Video (34xx)MIO dequeue buffer failed");
-            	return false;
+        if(mOverlay->queueBuffer((void*)bufEnc) != NO_ERROR){
+            LOGE("Video (34xx)MIO queue buffer failed");
+            eStatus = PVMFErrArgument; //Only Queue fail
+            if(nBuffToStartDQ){ //If error try to dequeue if possible
+                eStatus = PVMFFailure; //Queue fail & dequeue not posible so fails
+                return eStatus;
+            }
+        }
+
+        //The driver will not be able to dequeue if only have
+        //one buffer queue. We'll wait for two buffers been queue before
+        //calling dequeue.
+        if(nBuffToStartDQ){
+            nBuffToStartDQ--;
+        }
+ 
+        if(nBuffToStartDQ == 0){
+            overlay_buffer_t overlay_buffer;
+            if (mOverlay->dequeueBuffer(&overlay_buffer) != NO_ERROR) {
+                    LOGE("Video (34xx)MIO dequeue buffer failed");
+                    if(eStatus != PVMFSuccess){
+                        eStatus = PVMFFailure; //Queue & Dequeue fail
+                    }
+                    else{
+                        eStatus = PVMFErrInvalidState; //Dequeue fail
+                    }
+                    return eStatus;
+            }
+            iDequeueIndex = (int)overlay_buffer;
+        }
+        else{ //Not ready to return dequeue buffer
+             return PVMFErrInvalidState;
         }
     }
     return PVMFSuccess;
@@ -284,7 +530,7 @@ void AndroidSurfaceOutputOmap34xx::postLastFrame()
 
 void AndroidSurfaceOutputOmap34xx::closeFrameBuf()
 {
-    LOGV("Vendor(34xx) Speicif CloseFrameBuf");
+    LOGD("Vendor(34xx) Speicif CloseFrameBuf");
     if (UNLIKELY(mDebugFps)) {
         debugShowFPS();
     }

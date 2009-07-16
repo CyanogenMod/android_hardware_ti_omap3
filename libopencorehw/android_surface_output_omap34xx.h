@@ -44,6 +44,8 @@ public:
     virtual PVMFStatus getParametersSync(PvmiMIOSession aSession, PvmiKeyType aIdentifier,
             PvmiKvp*& aParameters, int& num_parameter_elements, PvmiCapabilityContext aContext);
     virtual PVMFStatus writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info);
+    virtual PVMFCommandId writeAsync(uint8 aFormatType, int32 aFormatIndex, uint8* aData, uint32 aDataLen,
+            const PvmiMediaXferHeader& data_header_info, OsclAny* aContext);
     virtual void closeFrameBuf();
     virtual void postLastFrame();
     OSCL_IMPORT_REF ~AndroidSurfaceOutputOmap34xx();
