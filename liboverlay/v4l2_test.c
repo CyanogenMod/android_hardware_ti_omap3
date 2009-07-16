@@ -90,7 +90,7 @@ static void play(int32_t id, int32_t src_w, int32_t src_h,
     v4l2_overlay_set_position(ctl_fd, dst_x, dst_y, dst_w, dst_h);
 
     /* request some source buffers */
-    if (v4l2_overlay_req_buf(ctl_fd, &num_bufs))
+    if (v4l2_overlay_req_buf(ctl_fd, &num_bufs, 0))
         return;
     for (i = 0; i < num_bufs; i++) {
         if (v4l2_overlay_map_buf(ctl_fd, i, &buf_info[i].start,
