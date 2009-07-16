@@ -70,7 +70,6 @@ status_t AudioStreamOutOmap::openStream()
 	if (!strcmp(routing_status, "fm")) {
 		LOGI("FM routing On\n");
 		pcmName = strdup("hw:0,2");
-		properties.rate = 48000;
 	} else if (!strcmp(routing_status, "bt_pcm")) {
 		LOGI("BT PCM routing On\n");
 		pcmName = strdup("hw:0,1");
