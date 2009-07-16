@@ -49,13 +49,21 @@ LOCAL_C_INCLUDES += \
 	hardware/ti/omap3/mm_isp/ipp/inc \
 	hardware/ti/omap3/mm_isp/capl/inc \
 	hardware/ti/omap3/fw3A/include \
+	hardware/ti/omap3/arcsoft \
+	hardware/ti/omap3/arcsoft/include \
+	hardware/ti/omap3/arcsoft/arc_redeye/include \
+	hardware/ti/omap3/arcsoft/arc_facetracking/include \
+	hardware/ti/omap3/arcsoft/arc_antishaking/include \
+	hardware/ti/omap3/mms_ipp_new/ARM11/inc
 
 LOCAL_SHARED_LIBRARIES += \
     libdl \
     libcapl \
     libImagePipeline \
+#    libarcsoft \
+#    libpip_omap
 
-LOCAL_CFLAGS += -O0 -g3 -DIPP_LINUX -D___ANDROID___ -DFW3A -DICAP -DIMAGE_PROCESSING_PIPELINE
+LOCAL_CFLAGS += -O0 -g3 -DIPP_LINUX -D___ANDROID___ -DFW3A -DICAP -DIMAGE_PROCESSING_PIPELINE #_MMS -DCAMERA_ALGO
 
 endif
 
