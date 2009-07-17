@@ -933,6 +933,7 @@ void CameraHal::nextPreview()
     if(cb){
 
         memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
+        memcpy(mVideoBuffer[cfilledbuffer.index]->pointer(),(void *)cfilledbuffer.m.userptr,mPreviewFrameSize);
         cb(mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
     } else {
         /* queue the buffer back to camera */
@@ -1778,7 +1779,7 @@ status_t CameraHal::startRecording(recording_callback cb, void* user)
             mVideoBuffer[i].clear();
         }
         LOGD("Mmap the video Memory %d", mPreviewFrameSize);
-        mVideoHeap = new MemoryHeapBase(overlayfd,  mPreviewFrameSize * mVideoBufferCount);
+        mVideoHeap = new MemoryHeapBase(mPreviewFrameSize * mVideoBufferCount);
         LOGD("mVideoHeap ID:%d , Base:[%x],size:%d", mVideoHeap->getHeapID(),
                                        mVideoHeap->getBase(),mVideoHeap->getSize());
         for(i = 0; i < mVideoBufferCount; i++)
