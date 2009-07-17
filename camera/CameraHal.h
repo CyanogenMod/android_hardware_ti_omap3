@@ -111,7 +111,7 @@
 #define VIDEO_FRAME_COUNT_MAX    4
 //#define YUV422I 1
 //#define YUV420P 2
-//#define OPEN_CLOSE_WORKAROUND	 0
+#define OPEN_CLOSE_WORKAROUND	 1
 
 #define PPM(str){ \
 	gettimeofday(&ppm, NULL); \

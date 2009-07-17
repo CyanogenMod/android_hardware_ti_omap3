@@ -780,13 +780,15 @@ int CameraHal::CameraStart()
 
        // buffer.length= mPreviewFrameSize;
        // LOGD("buffer.length = %d", buffer.length);
+       LOGD("@@@@@@@@@@@@@@@@@@FAILED AROUND THIS");
         buffer.m.userptr = (unsigned long) mOverlay->getBufferAddress((void*)i);
         strcpy((char *)buffer.m.userptr, "hello");
         if (strcmp((char *)buffer.m.userptr, "hello")) {
             LOGI("problem with buffer\n");
             goto fail_loop;
         }
-
+        LOGD("CALL @@@@@@@@@@@@@@@@@@@@@@");
+        
         LOGD("User Buffer [%d].start = %p  length = %d\n", i,
              (void*)buffer.m.userptr, buffer.length);
         nCameraBuffersQueued++;
@@ -839,13 +841,24 @@ int CameraHal::CameraStop()
         goto fail_streamoff;
     }
 
+#ifdef OPEN_CLOSE_WORKAROUND
+    close(camera_device);
+    camera_device = open(VIDEO_DEVICE, O_RDWR);
+    if (camera_device < 0) {
+        LOGE ("!!!!!!!!!FATAL Error: Could not open the camera device: %s!!!!!!!!!",  strerror(errno) );
+    }   
+    PPM("CLOSED AND REOPENED CAMERA");
+#endif
+
+    LOGD("dequeuing remaining frames from DSS@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
     overlay_buffer_t overlaybuffer;
     while (nOverlayBuffersQueued > 1)
     {
         mOverlay->dequeueBuffer(&overlaybuffer);
         nOverlayBuffersQueued--;
     }
-  
+    LOGD("@@@@@@@@@@@@@ END dequeuing remaining frames from DSS@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");    
+
     LOG_FUNCTION_NAME_EXIT
     return 0;
 
@@ -1034,7 +1047,8 @@ int  CameraHal::ICapturePerform()
     mk_note->balance.awb_idx            = 4500;
 #endif
 
-#ifdef OPEN_CLOSE_WORKAROUND
+//#ifdef OPEN_CLOSE_WORKAROUND
+#if 0
     close(camera_device);
     camera_device = open(VIDEO_DEVICE, O_RDWR);
     if (camera_device < 0) {
