@@ -27,6 +27,7 @@
 #include <sys/types.h>
 
 #define LOG_TAG "AudioStreamOutOmap"
+#include <cutils/properties.h>
 #include <utils/threads.h>
 #include <utils/Log.h>
 #include <utils/String8.h>
@@ -39,6 +40,9 @@
 #include "AudioStreamOutOmap.h"
 
 using namespace android;
+
+static char routing_status[31];
+extern int property_get(const char *key, char *value, const char *default_value);
 
 /* Constructor */
 AudioStreamOutOmap::AudioStreamOutOmap(AudioHardwareOmap *parent)
@@ -62,7 +66,19 @@ status_t AudioStreamOutOmap::openStream()
        char *pcmName;
 	int ret = 0;
 
-       pcmName = strdup("default");
+	property_get("route.stream.to", routing_status, NULL);
+	if (!strcmp(routing_status, "fm")) {
+		LOGI("FM routing On\n");
+		pcmName = strdup("hw:0,2");
+		properties.rate = 48000;
+	} else if (!strcmp(routing_status, "bt_pcm")) {
+		LOGI("BT PCM routing On\n");
+		pcmName = strdup("hw:0,1");
+		properties.rate = 8000;
+	} else {
+		LOGI("TWL4030/I2S routing On\n");
+		pcmName = strdup("hw:0,0");
+	}
 
        ret = snd_pcm_hw_params_malloc(&hwParams);
        if (ret) {
@@ -117,6 +133,8 @@ status_t AudioStreamOutOmap::openStream()
 		LOGE("Error applying parameters to PCM device");
 		return BAD_VALUE;
 	}
+
+	LOGI("Initialized ALSA device %s for TI audio HAL", pcmName);
 
 	pcmHandle = handle;
        streaming = true;
