@@ -85,17 +85,26 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
     LOGD("Use Overlays");
 
     if (mUseOverlay) {
-    	if(mOverlay == NULL){
-        	LOGV("using Vendor Speicifc(34xx) codec");
-        	sp<OverlayRef> ref = mSurface->createOverlay(displayWidth, displayHeight,videoFormat);
-        	if(ref != NULL)LOGV("Vendor Speicifc(34xx)MIO: overlay created ");
-        	else LOGV("Vendor Speicifc(34xx)MIO: Creating overlay failed");
-        	mOverlay = new Overlay(ref);
-			mOverlay->setAttributes(CACHEABLE_BUFFERS, 0);
-    	}
-
+        if(mOverlay == NULL){
+            LOGV("using Vendor Speicifc(34xx) codec");
+            sp<OverlayRef> ref = mSurface->createOverlay(displayWidth, displayHeight,videoFormat);
+            if(ref != NULL)LOGV("Vendor Speicifc(34xx)MIO: overlay created ");
+            else LOGV("Vendor Speicifc(34xx)MIO: Creating overlay failed");
+            mOverlay = new Overlay(ref);
+            mOverlay->setAttributes(CACHEABLE_BUFFERS, 0);
+        }
+        else
+        {
+            LOGD("Before resizeInput()");
+            LOGD("sWriteRespData[0].inQ = %d", sWriteRespData[0].bInDSSQueue);
+            LOGD("sWriteRespData[1].inQ = %d", sWriteRespData[1].bInDSSQueue);
+            LOGD("sWriteRespData[2].inQ = %d", sWriteRespData[2].bInDSSQueue);
+            LOGD("sWriteRespData[3].inQ = %d", sWriteRespData[3].bInDSSQueue);            
+        
+            mOverlay->resizeInput(frameWidth, frameHeight);
+        }
         LOGI("Actual resolution: %dx%d", frameWidth, frameHeight);
-        mOverlay->resizeInput(frameWidth, frameHeight);
+        LOGI("Video resolution: %dx%d", iVideoWidth, iVideoHeight);
 
         mbufferAlloc.maxBuffers = mOverlay->getBufferCount();
         mbufferAlloc.bufferSize = iBufferSize;
