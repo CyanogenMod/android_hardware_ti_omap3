@@ -108,6 +108,13 @@ static FmRxCmdType	g_fmapp_audio;
 #define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
 
+/*
+ * Set/Un-Set the Rx routing path
+ * Uses the Mixer controls provided by twl4030 codec [T2]
+ */
+fm_status fmapp_set_audio_routing(fm_rx_context_s *, char, char *, int *);
+fm_status fmapp_unset_audio_routing(fm_rx_context_s *, char, char *, int *);
+
 void validate_uint_boundaries(FMC_UINT *variable, FMC_UINT minimum, FMC_UINT maximum)
 {
 	if (*variable < minimum)
@@ -1167,7 +1174,7 @@ fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 {
 	fm_status ret = FMC_STATUS_SUCCESS;
 	FMAPP_BEGIN();
-
+	fmapp_set_audio_routing(*fm_context,0,0,NULL);
 	FMAPP_MSG("Powering on FM RX... (this might take awhile)");
 
 	ret = FM_RX_Init();
@@ -1210,7 +1217,7 @@ fm_status deinit_rx_stack(fm_rx_context_s **fm_context)
 {
 	FmRxStatus ret = FMC_STATUS_SUCCESS;
 	FMAPP_BEGIN();
-
+	fmapp_unset_audio_routing(NULL,1,0,NULL);
 	g_fmapp_now_initializing = 0;
 
 	/* power off FM core */
@@ -1525,9 +1532,6 @@ fm_status fmapp_set_emphasis_filter(void *fm_context)
 	FMAPP_END();
 	return ret;
 }
-
-fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context,char interactive,char *cmd, int *index);
-fm_status fmapp_unset_audio_routing(fm_rx_context_s *fm_context,char interactive,char *cmd, int *index);
 
 #if 0
 fm_status fmapp_get_audio_routing(fm_rx_context_s *fm_context)
@@ -2737,7 +2741,6 @@ fm_status fmapp_init_stack(void  **fm_context)
 
 	if (set_fm_chip_enable(1) < 0)
 		ret = FMC_STATUS_FAILED;
-	fmapp_set_audio_routing(*fm_context,0,0,NULL);
 	FMAPP_END();
 	return ret;
 }
@@ -2748,7 +2751,6 @@ fm_status fmapp_deinit_stack(void  **fm_context)
 	FMAPP_BEGIN();
 
 	property_set("route.stream.to", "default");
-	fmapp_unset_audio_routing(NULL,1,0,NULL);
 	sleep(1);
 
 	if (g_fmapp_rxtx_mode == FMAPP_RX_MODE)
@@ -3500,17 +3502,42 @@ fm_status parse_options(int argc, char **argv, char **script, int *startup_len)
 	return ret;
 }
 
+static int get_rfkill_path(char **rfkill_state_path)
+{
+	char path[64];
+	char buf[16];
+	int fd;
+	int sz;
+	int id;
+	for (id = 0;; id++) {
+		snprintf(path, sizeof(path), "/sys/class/rfkill/rfkill%d/type",
+			  id);
+		fd = open(path, O_RDONLY);
+		if (fd < 0) {
+			fprintf(stderr, "open(%s) failed: %s (%d)\n", path,
+				 strerror(errno), errno);
+			return -1;
+		}
+		sz = read(fd, &buf, sizeof(buf));
+		close(fd);
+		if (sz >= 2 && memcmp(buf, "fm", 2) == 0) {
+			break;
+		}
+	}
+	asprintf(rfkill_state_path, "/sys/class/rfkill/rfkill%d/state", id);
+	return 0;
+}
+
 int set_fm_chip_enable(int enable)
 {
 	/*
 	 * const char enable_path[]="/sys/wl127x/fm_enable";
 	 * change for donut branch [2.6.29 kernel only
 	 */
-	const char enable_path[]="/sys/class/rfkill/rfkill1/state";
-	/*
-	 * TODO: Make the detection of rfkill device smarter
-	 * like system/bluetooth/bluedroid does for bluetooth
-	 */
+	char *enable_path = NULL;
+	/* set /sys/class/rfkill/rfkill1/state to enable FM chip */
+	get_rfkill_path(&enable_path);
+
 	char buffer='0';
 	int ret;
 	/* set /sys/wl127x/fm_enable=0 to enable FM chip */
@@ -3629,7 +3656,7 @@ const char card[]="default";
 
 fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context,
 	char interactive,char *cmd, int *index)
-{       
+{
 	int err, i=0;
         unsigned int count;
         static snd_ctl_t *handle = NULL;
@@ -3668,7 +3695,7 @@ fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context,
 		values_of_control[3]=0;
 		values_of_control[4]=0;
 	}
-	i=0;        
+	i=0;
 	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
         if (handle == NULL &&
            (err = snd_ctl_open(&handle, card, 0)) < 0) {
@@ -3789,7 +3816,7 @@ fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context,
 
 fm_status fmapp_unset_audio_routing(fm_rx_context_s *fm_context,
 	char interactive,char *cmd, int *index)
-{       
+{
 	int err, i=0;
         unsigned int count;
         static snd_ctl_t *handle = NULL;
@@ -3828,7 +3855,7 @@ fm_status fmapp_unset_audio_routing(fm_rx_context_s *fm_context,
 		values_of_control[3]=0;
 		values_of_control[4]=0;
 	}
-	i=0;        
+	i=0;
 	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
         if (handle == NULL &&
            (err = snd_ctl_open(&handle, card, 0)) < 0) {
