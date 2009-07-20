@@ -95,7 +95,6 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
     	}
 
         LOGI("Actual resolution: %dx%d", frameWidth, frameHeight);
-        LOGI("Video resolution: %dx%d", iVideoWidth, iVideoHeight);
         mOverlay->resizeInput(frameWidth, frameHeight);
 
         mbufferAlloc.maxBuffers = mOverlay->getBufferCount();

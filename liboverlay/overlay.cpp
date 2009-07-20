@@ -800,6 +800,7 @@ static int overlay_commitUpdates
     int rc;
     int x,y,w,h;
     int fd = obj->ctl_fd();
+    overlay_data_t eCropData;
 
     if ( shared == NULL )
     {
@@ -871,7 +872,12 @@ static int overlay_commitUpdates
     LOGI("ColorKey/%d\n", data->colorkeyEn );
     LOGI("shared->dispH = %d, shared->dispW = %d", shared->dispH, shared->dispW);
 
-    if ( (rc = disable_streaming(shared, fd)) != 0 )
+    if ( (rc = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH)) != 0)
+    {
+        LOGE("Get crop value Failed!/%d\n", rc);
+        ret = rc;
+    }
+    else if ( (rc = disable_streaming(shared, fd)) != 0 )
     {
         LOGE("Stream Off Failed!/%d\n", rc);
         ret = rc;
@@ -881,7 +887,11 @@ static int overlay_commitUpdates
         LOGE("Set Rotation Failed!/%d\n", rc);
         ret = rc;
     }
-    else if ( (rc = v4l2_overlay_set_crop(fd, 0, 0, w, h)) != 0 )
+    else if ( (rc = v4l2_overlay_set_crop(fd, 
+                    eCropData.cropX, 
+                    eCropData.cropY, 
+                    eCropData.cropW, 
+                    eCropData.cropH)) != 0 )
     {
         LOGE("Set Cropping Failed!/%d\n",rc);
         ret = rc;
