@@ -254,7 +254,7 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
                          RunIfNotReady();
                          return cmdid;
                      }
-                     LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", i);
+                     LOGD("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", i);
  
                      sWriteRespData[i].aContext = aContext;
                      sWriteRespData[i].aTimestamp  = aTimestamp;
@@ -267,6 +267,8 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
                   *  Dequque fail: PVMFErrInvalidState
                   *  Queue and Dequeue fails: PVMFFailure
                   */
+				bDequeueFail = false;
+				bQueueFail = false;
                  status = writeFrameBuf(aData, aDataLen, data_header_info);
                  switch (status)
                  {
@@ -334,6 +336,7 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
      }
      else if(bDequeueFail == false){
          LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: iDequeueIndex = %d", iDequeueIndex);
+         LOGD("WriteResponse resp  ****************** sWriteRespData[%d].cmdid = %d", iDequeueIndex, sWriteRespData[iDequeueIndex].cmdid);         
          cmdid = sWriteRespData[iDequeueIndex].cmdid;
          status = PVMFSuccess; //Clear posible error while queueing
          WriteResponse resp(status,

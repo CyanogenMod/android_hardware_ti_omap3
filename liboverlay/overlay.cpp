@@ -1243,7 +1243,7 @@ int overlay_dequeueBuffer
     {
         *((int *)buffer) = i;
         ctx->shared->qd_buf_count --;
-        LOGV("INDEX DEQUEUE = %d", i);
+        LOGD("INDEX DEQUEUE = %d", i);
         LOGV("qd_buf_count --");
     }
     LOGV("qd_buf_count = %d", ctx->shared->qd_buf_count);
@@ -1265,12 +1265,12 @@ int overlay_queueBuffer
 
     if ( !ctx->shared->controlReady ) return -1;
 
-    LOGV("INDEX queue: %d", (int)buffer);
+    LOGD("INDEX queue: %d", (int)buffer);
     
     int rc = v4l2_overlay_q_buf( ctx->ctl_fd, (int)buffer );   
     if ( rc == 0 && ctx->shared->qd_buf_count < ctx->num_buffers )
     {
-        LOGV("qd_buf_count++");
+        LOGD("qd_buf_count++");
         ctx->shared->qd_buf_count ++;
     }
 
