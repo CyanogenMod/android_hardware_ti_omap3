@@ -23,7 +23,7 @@ extern "C" {
 #include "v4l2_utils.h"
 }
 
-#include <semaphore.h>
+#include <pthread.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -37,7 +37,7 @@ extern "C" {
 
 /*****************************************************************************/
 
-#define LOG_FUNCTION_NAME    LOGV(" %s ###### Calling %s() ######",  __FILE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME LOGV(" %s %s",  __FILE__, __FUNCTION__)
 
 #define NUM_OVERLAY_BUFFERS_REQUESTED  (4)
 #define SHARED_DATA_MARKER             (0x68759746) // OVRLYSHM on phone keypad
@@ -68,7 +68,7 @@ typedef struct
   uint32_t controlReady; // Only updated by the control side
   uint32_t dataReady;    // Only updated by the data side
 
-  sem_t    lock;
+  pthread_mutex_t lock;
 
   uint32_t streamEn;
 
@@ -105,10 +105,10 @@ struct overlay_data_context_t {
     int qd_buf_count;
 };
 
-static int  create_shared_data( overlay_shared_t **shared );
-static void destroy_shared_data( int shared_fd, overlay_shared_t *shared );
-static int  open_shared_data( overlay_data_context_t *ctx );
-static void close_shared_data( overlay_data_context_t *ctx );
+static int  create_shared_data(overlay_shared_t **shared);
+static void destroy_shared_data(int shared_fd, overlay_shared_t *shared);
+static int  open_shared_data(overlay_data_context_t *ctx);
+static void close_shared_data(overlay_data_context_t *ctx);
 enum { LOCK_REQUIRED = 1, NO_LOCK_NEEDED = 0 };
 static int  enable_streaming( overlay_shared_t *shared, int ovly_fd, int lock_required );
 
@@ -188,9 +188,8 @@ class overlay_object : public overlay_t
     }
 
 public:
-    overlay_object(int ctl_fd, int shared_fd, int shared_size, int w, int h, int format, int num_buffers)
-    {
-        //LOG_FUNCTION_NAME
+    overlay_object(int ctl_fd, int shared_fd, int shared_size, int w, int h,
+                   int format, int num_buffers) {
         this->overlay_t::getHandleRef = getHandleRef;
         mHandle.version     = sizeof(native_handle);
         mHandle.numFds      = 2;
@@ -204,7 +203,7 @@ public:
         this->w = w;
         this->h = h;
         this->format = format;
-        
+
         memset( &mCtl, 0, sizeof( mCtl ) );
         memset( &mCtlStage, 0, sizeof( mCtlStage ) );
     }
@@ -221,85 +220,60 @@ public:
 // Local Functions
 // ****************************************************************************
 
-//=========================================================
-// create_shared_data
-//
-
-static int create_shared_data( overlay_shared_t **shared )
+static int create_shared_data(overlay_shared_t **shared)
 {
     int fd;
-    int size = getpagesize(); // assuming sizeof(overlay_shared_t) < a single page
-    int mode = PROT_READ | PROT_WRITE;
-    overlay_shared_t *p = NULL;
-   
-    if ( (fd = ashmem_create_region( "overlay_data", size )) < 0 )
-    {
+    // assuming sizeof(overlay_shared_t) < a single page
+    int size = getpagesize();
+    overlay_shared_t *p;
+
+    if ((fd = ashmem_create_region("overlay_data", size)) < 0) {
         LOGE("Failed to Create Overlay Shared Data!\n");
+        return fd;
     }
-    else if ( (p = (overlay_shared_t*) mmap( 0, size, mode, MAP_SHARED, fd, 0 )) == MAP_FAILED )
-    {
+
+    p = (overlay_shared_t*)mmap(NULL, size, PROT_READ | PROT_WRITE,
+                                MAP_SHARED, fd, 0);
+    if (p == MAP_FAILED) {
         LOGE("Failed to Map Overlay Shared Data!\n");
-        close( fd );
-        fd = -1;
+        close(fd);
+        return -1;
     }
-    else
-    {
-        memset( p, 0, size );
-        p->marker = SHARED_DATA_MARKER;
-        p->size   = size;
 
-        if ( sem_init( &p->lock, 0, 1) != 0 )
-        {
-            LOGE("Failed to Open Overlay Lock!\n");
-            munmap( p, size );
-            close( fd );
-            fd = -1;
-        }
-        else
-        {
-            *shared = p;
-        }
+    memset(p, 0, size);
+    p->marker = SHARED_DATA_MARKER;
+    p->size   = size;
+
+    if (pthread_mutex_init(&p->lock, NULL) != 0) {
+        LOGE("Failed to Open Overlay Lock!\n");
+        munmap(p, size);
+        close(fd);
+        return -1;
     }
-    
-    return ( fd );
+
+    *shared = p;
+    return fd;
 }
-
-//=========================================================
-// destroy_shared_data
-//
 
 static void destroy_shared_data( int shared_fd, overlay_shared_t *shared )
 {
-    if ( shared == NULL )
-    {
-        // Not open, just return
-    }
-    else
-    {
-        if ( sem_destroy( &shared->lock ) != 0 )
-        {
-            LOGE("Failed to Close Overlay Semaphore!\n");
-        }
-        
-        shared->marker = 0;
+    if (shared == NULL)
+        return;
 
-        int size = shared->size;
-        
-        if ( munmap( shared, size ) != 0 )
-        {
-            LOGE("Failed to Unmap Overlay Shared Data!\n");
-        }
-    
-        if ( close( shared_fd ) != 0 )
-        {
-            LOGE("Failed to Close Overlay Shared Data!\n");
-        }
+    if (pthread_mutex_destroy(&shared->lock)) {
+        LOGE("Failed to Close Overlay Semaphore!\n");
+    }
+
+    shared->marker = 0;
+
+    if (munmap(shared, shared->size)) {
+        LOGE("Failed to Unmap Overlay Shared Data!\n");
+    }
+
+    if (close(shared_fd)) {
+        LOGE("Failed to Close Overlay Shared Data!\n");
     }
 }
-
-//=========================================================
-// open_shared_data
-//
 
 static int open_shared_data( overlay_data_context_t *ctx )
 {
@@ -308,140 +282,100 @@ static int open_shared_data( overlay_data_context_t *ctx )
     int fd   = ctx->shared_fd;
     int size = ctx->shared_size;
 
-    if ( ctx->shared != NULL )
-    {
+    if (ctx->shared != NULL) {
         // Already open, return success
         LOGI("Overlay Shared Data Already Open\n");
-        rc = 0;
+        return 0;
     }
-    else if ( (ctx->shared = (overlay_shared_t*) mmap(0, size, mode, MAP_SHARED, fd, 0)) == MAP_FAILED )
-    {
+    ctx->shared = (overlay_shared_t*)mmap(0, size, mode, MAP_SHARED, fd, 0);
+
+    if (ctx->shared == MAP_FAILED) {
         LOGE("Failed to Map Overlay Shared Data!\n");
-    }
-    else if ( ctx->shared->marker != SHARED_DATA_MARKER )
-    {
+    } else if ( ctx->shared->marker != SHARED_DATA_MARKER ) {
         LOGE("Invalid Overlay Shared Marker!\n");
-        munmap( ctx->shared, size );
-    }
-    else if ( (int)ctx->shared->size != size )
-    {
+        munmap( ctx->shared, size);
+    } else if ( (int)ctx->shared->size != size ) {
         LOGE("Invalid Overlay Shared Size!\n");
-        munmap( ctx->shared, size );
-    }
-    else
-    {
+        munmap(ctx->shared, size);
+    } else {
         rc = 0;
     }
-    
-    return ( rc );
+
+    return rc;
 }
 
-//=========================================================
-// close_shared_data
-//
-
-static void close_shared_data( overlay_data_context_t *ctx )
+static void close_shared_data(overlay_data_context_t *ctx)
 {
-    if ( ctx->shared == NULL )
-    {
+    if (ctx->shared == NULL) {
         // Not open, just return
-    }
-    else
-    {
+    } else {
         int size = ctx->shared->size;
-        
-        if ( munmap( ctx->shared, size ) != 0 )
-        {
+
+        if (munmap(ctx->shared, size ) != 0) {
             LOGE("Failed to Unmap Overlay Shared Data!\n");
         }
-        
         ctx->shared = NULL;
     }
 }
 
-//=========================================================
-// enable_streaming
-//
-
-static int enable_streaming( overlay_shared_t *shared, int ovly_fd, int lock_required )
+static int enable_streaming_locked(overlay_shared_t *shared, int ovly_fd)
 {
-    int ret = -1;
-    int rc;
-    
-    if ( lock_required && sem_wait( &shared->lock ) != 0 )
-    {
-        LOGI("Lock Failure!\n");
-    }
-    else if ( !shared->controlReady || !shared->dataReady )
-    {
-        LOGI("Postponing Stream Enable/%d/%d\n", shared->controlReady, shared->dataReady );
-    }
-    else
-    {        
+    int rc = 0;
+
+    if (!shared->controlReady || !shared->dataReady) {
+        LOGI("Postponing Stream Enable/%d/%d\n", shared->controlReady,
+             shared->dataReady);
+    } else {
         shared->streamEn = 1;
-        rc = v4l2_overlay_stream_on( ovly_fd );
-        if ( rc )
-        {
+        rc = v4l2_overlay_stream_on(ovly_fd);
+        if (rc) {
             LOGE("Stream Enable Failed!/%d\n", rc);
             shared->streamEn = 0;
         }
-        else
-        {
-            ret = 0;
-        }
-    }
-    
-    if ( lock_required )
-    {
-        sem_post( &shared->lock );
     }
 
-    return ( ret );
+    return rc;
 }
+
+static int enable_streaming(overlay_shared_t *shared, int ovly_fd)
+{
+    int ret;
+
+    pthread_mutex_lock(&shared->lock);
+    ret = enable_streaming_locked(shared, ovly_fd);
+    pthread_mutex_unlock(&shared->lock);
+    return ret;
+}
+
 
 // ****************************************************************************
 // Control module
 // ****************************************************************************
 
-//=========================================================
-// overlay_get
-//
-
 static int overlay_get(struct overlay_control_device_t *dev, int name)
 {
-    //LOG_FUNCTION_NAME
-
     int result = -1;
 
-    switch (name)
-    {
-    case OVERLAY_MINIFICATION_LIMIT:   result = 0;  break; // 0 = no limit
-    case OVERLAY_MAGNIFICATION_LIMIT:  result = 0;  break; // 0 = no limit
-    case OVERLAY_SCALING_FRAC_BITS:    result = 0;  break; // 0 = infinite
-    case OVERLAY_ROTATION_STEP_DEG:    result = 90; break; // 90 rotation steps (for instance)
-    case OVERLAY_HORIZONTAL_ALIGNMENT: result = 1;  break; // 1-pixel alignment
-    case OVERLAY_VERTICAL_ALIGNMENT:   result = 1;  break; // 1-pixel alignment
-    case OVERLAY_WIDTH_ALIGNMENT:      result = 1;  break; // 1-pixel alignment
-    case OVERLAY_HEIGHT_ALIGNMENT:     break;
+    switch (name) {
+        case OVERLAY_MINIFICATION_LIMIT:   result = 0;  break; // 0 = no limit
+        case OVERLAY_MAGNIFICATION_LIMIT:  result = 0;  break; // 0 = no limit
+        case OVERLAY_SCALING_FRAC_BITS:    result = 0;  break; // 0 = infinite
+        case OVERLAY_ROTATION_STEP_DEG:    result = 90; break; // 90 rotation steps (for instance)
+        case OVERLAY_HORIZONTAL_ALIGNMENT: result = 1;  break; // 1-pixel alignment
+        case OVERLAY_VERTICAL_ALIGNMENT:   result = 1;  break; // 1-pixel alignment
+        case OVERLAY_WIDTH_ALIGNMENT:      result = 1;  break; // 1-pixel alignment
+        case OVERLAY_HEIGHT_ALIGNMENT:     break;
     }
-    
+
     return result;
 }
 
-//=========================================================
-// overlay_createOverlay
-//
-
-static overlay_t* overlay_createOverlay
-( struct overlay_control_device_t *dev
-, uint32_t w
-, uint32_t h
-, int32_t  format
-)
+static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
+                                        uint32_t w, uint32_t h, int32_t  format)
 {
-    LOG_FUNCTION_NAME   
-    
-    overlay_object            *overlay = NULL;
+    LOG_FUNCTION_NAME;
+
+    overlay_object            *overlay;
     overlay_control_context_t *ctx = (overlay_control_context_t *)dev;
     overlay_shared_t          *shared;
 
@@ -449,154 +383,128 @@ static overlay_t* overlay_createOverlay
     int num = NUM_OVERLAY_BUFFERS_REQUESTED;
     int fd;
     int shared_fd;
-    
 
     LOGI("Create overlay, w=%d h=%d format=%d\n", w, h, format);
 
-    if ( ctx->overlay_video1 ) 
-    {
+    if (ctx->overlay_video1) {
         LOGE("Overlays already in use\n");
-        // Return an error
+        return NULL;
     }
-    else if ( (shared_fd = create_shared_data( &shared )) == -1 )
-    {
-        // Just return an error
+
+    shared_fd = create_shared_data(&shared);
+    if (shared_fd < 0) {
+        return NULL;
     }
-    else if ( (fd = v4l2_overlay_open(V4L2_OVERLAY_PLANE_VIDEO1)) < 0 )
-    {
+
+    fd = v4l2_overlay_open(V4L2_OVERLAY_PLANE_VIDEO1);
+    if (fd < 0) {
         LOGE("Failed to open overlay device\n");
         destroy_shared_data( shared_fd, shared );
+        goto error;
     }
-    else if ( v4l2_overlay_init(fd, w, h, format) != 0 )
-    {
+
+    if (v4l2_overlay_init(fd, w, h, format)) {
         LOGE("Failed initializing overlays\n");
-        close( fd );
-        destroy_shared_data( shared_fd, shared );
+        goto error1;
     }
-    else if ( v4l2_overlay_set_crop(fd, 0, 0, w, h) != 0 )
-    {
+
+    if (v4l2_overlay_set_crop(fd, 0, 0, w, h)) {
         LOGE("Failed defaulting crop window\n");
-        close( fd );
-        destroy_shared_data( shared_fd, shared );
+        goto error1;
     }
-    else if ( v4l2_overlay_set_rotation(fd, 0, 0) != 0 )
-    {
+
+    if (v4l2_overlay_set_rotation(fd, 0, 0)) {
         LOGE("Failed defaulting rotation\n");
-        close( fd );
-        destroy_shared_data( shared_fd, shared );
+        goto error1;
     }
-    else if ( v4l2_overlay_set_colorkey(fd, 1, 0) )
-    {
+
+    if (v4l2_overlay_set_colorkey(fd, 1, 0)) {
         LOGE("Failed enabling color key\n");
-        close( fd );
-        destroy_shared_data( shared_fd, shared );
+        goto error1;
     }
-    else if ( v4l2_overlay_req_buf(fd, &num) != 0 )
-    {
+    if (v4l2_overlay_req_buf(fd, &num)) {
         LOGE("Failed requesting buffers\n");
-        close( fd );
-        destroy_shared_data( shared_fd, shared );
+        goto error1;
     }
-    else if ( (overlay = new overlay_object(fd, shared_fd, shared->size, w, h, format, num)) == NULL )
-    {
+
+   overlay = new overlay_object(fd, shared_fd, shared->size, w, h, format, num);
+   if (overlay == NULL) {
         LOGE("Failed to create overlay object\n");
-        close( fd );
-        destroy_shared_data( shared_fd, shared );
-    }
-    else
-    {
-        ctx->overlay_video1 = overlay;
-        
-        overlay->setShared( shared );
-        
-        shared->controlReady = 0;
-        shared->streamEn     = 0;
-        shared->dispW        = 480; // Need to determine this properly
-        shared->dispH        = 854; // Need to determine this properly
+        goto error1;
+   }
+   ctx->overlay_video1 = overlay;
 
-        LOGI("Opened video1/fd=%d/obj=%08lx/shm=%d/size=%d"
-            , fd, (unsigned long)overlay, shared_fd, shared->size);
-    }
+   overlay->setShared(shared);
 
-    return ( overlay );
+   shared->controlReady = 0;
+   shared->streamEn = 0;
+   shared->dispW = 480; // Need to determine this properly
+   shared->dispH = 854; // Need to determine this properly
+
+   LOGI("Opened video1/fd=%d/obj=%08lx/shm=%d/size=%d", fd,
+        (unsigned long)overlay, shared_fd, shared->size);
+
+    return overlay;
+
+error1:
+    close(fd);
+error:
+    destroy_shared_data(shared_fd, shared);
+    return NULL;
 }
 
-//=========================================================
-// overlay_destroyOverlay
-//
-
-static void overlay_destroyOverlay
-( struct overlay_control_device_t *dev
-, overlay_t* overlay
-)
+static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
+                                   overlay_t* overlay)
 {
-    LOG_FUNCTION_NAME   
-    
+    LOG_FUNCTION_NAME;
+
     overlay_control_context_t *ctx = (overlay_control_context_t *)dev;
     overlay_object *obj = static_cast<overlay_object *>(overlay);
-    
+
     int rc;
     int fd = obj->ctl_fd();
     overlay_shared_t *shared = obj->getShared();
-    
-    if ( shared == NULL )
-    {
+
+    if (shared == NULL) {
         LOGE("Overlay already destroyed\n");
+        return;
     }
-    else
-    {
-        if ( sem_wait( &shared->lock ) != 0 )
-        {
-            LOGI("Lock Failure!\n");
-        }
-    
-        if ( shared->streamEn )
-        {
-            if ( (rc = v4l2_overlay_stream_off(fd)) != 0 )
-            {
-                LOGE("Error disabling the stream/%d\n", rc);
-            }
-            
-            if ( (rc = v4l2_overlay_set_colorkey(fd, 0, 0)) != 0 )
-            {
-                LOGE("Error disabling color key/%d\n", rc);
-            }
+
+    pthread_mutex_lock(&shared->lock);
+
+    if (shared->streamEn) {
+        if (v4l2_overlay_stream_off(fd)) {
+            LOGE("Error disabling the stream\n");
         }
 
-        sem_post( &shared->lock );
-        
-        destroy_shared_data( obj->shared_fd(), shared );
-        obj->setShared( NULL );
-
-        LOGI("Destroying overlay/fd=%d/obj=%08lx", fd, (unsigned long)overlay);
-
-        if ( (rc = close(fd)) != 0 )
-        {
-            LOGE( "Error closing overly fd/%d/%d\n", rc, errno );
+        if (v4l2_overlay_set_colorkey(fd, 0, 0)) {
+            LOGE("Error disabling color key\n");
         }
+    }
 
-        if ( overlay )
-        {
-            if (ctx->overlay_video1 == overlay) ctx->overlay_video1 = NULL;
-            delete overlay;
-        }
+    pthread_mutex_unlock(&shared->lock);
+
+    destroy_shared_data(obj->shared_fd(), shared);
+    obj->setShared(NULL);
+
+    LOGI("Destroying overlay/fd=%d/obj=%08lx", fd, (unsigned long)overlay);
+
+    if (close(fd)) {
+        LOGE( "Error closing overly fd/%d\n", errno);
+    }
+
+    if (overlay) {
+        if (ctx->overlay_video1 == overlay)
+            ctx->overlay_video1 = NULL;
+        delete overlay;
     }
 }
 
-//=========================================================
-// overlay_setPosition
-//
-
-static int overlay_setPosition
-( struct overlay_control_device_t *dev
-, overlay_t* overlay
-, int x
-, int y
-, uint32_t w
-, uint32_t h
-)
+static int overlay_setPosition(struct overlay_control_device_t *dev,
+                               overlay_t* overlay, int x, int y, uint32_t w,
+                               uint32_t h)
 {
-    LOG_FUNCTION_NAME   
+    LOG_FUNCTION_NAME;
 
     overlay_object *obj = static_cast<overlay_object *>(overlay);
 
@@ -605,94 +513,65 @@ static int overlay_setPosition
 
     int rc = 0;
 
-    // FIXME:  This is a hack to deal with seemingly unintentional negative offset
-    // that pop up now and again.  I believe the negative offsets are due to a
-    // surface flinger bug that has not yet been found or fixed.
-    // 
-    // This logic here is to return an error if the rectangle is not fully within 
-    // the display, unless we have not received a valid position yet, in which 
-    // case we will do our best to adjust the rectangle to be within the display.
-    
+    // FIXME:  This is a hack to deal with seemingly unintentional negative
+    // offset that pop up now and again.  I believe the negative offsets are
+    // due to a surface flinger bug that has not yet been found or fixed.
+    //
+    // This logic here is to return an error if the rectangle is not fully
+    // within the display, unless we have not received a valid position yet,
+    // in which case we will do our best to adjust the rectangle to be within
+    // the display.
+
     // Require a minimum size
-    if ( w < 16 || h < 16 )
-    {
+    if (w < 16 || h < 16) {
         // Return an error
-        rc = -1; 
-    }
-    else if ( !shared->controlReady )
-    {
+        rc = -1;
+    } else if (!shared->controlReady) {
         if ( x < 0 ) x = 0;
         if ( y < 0 ) y = 0;
         if ( w > shared->dispW ) w = shared->dispW;
         if ( h > shared->dispH ) h = shared->dispH;
         if ( (x + w) > shared->dispW ) w = shared->dispW - x;
         if ( (y + h) > shared->dispH ) h = shared->dispH - y;
-    }
-    else if (  x < 0 
-            || y < 0
-            || (x + w) > shared->dispW
-            || (y + h) > shared->dispH
-            )
-    {
+    } else if (x < 0 || y < 0 || (x + w) > shared->dispW ||
+               (y + h) > shared->dispH) {
         // Return an error
         rc = -1;
     }
-    
-    if ( rc == 0 )
-    {
+
+    if (rc == 0) {
         stage->posX = x;
         stage->posY = y;
         stage->posW = w;
         stage->posH = h;
     }
-    
-    return ( rc );
+
+    return rc;
 }
 
-//=========================================================
-// overlay_getPosition
-//
-
-static int overlay_getPosition
-( struct overlay_control_device_t *dev
-, overlay_t* overlay
-, int* x
-, int* y
-, uint32_t* w
-, uint32_t* h
-)
+static int overlay_getPosition(struct overlay_control_device_t *dev,
+                               overlay_t* overlay, int* x, int* y, uint32_t* w,
+                               uint32_t* h)
 {
-    LOG_FUNCTION_NAME   
+    LOG_FUNCTION_NAME;
 
     int fd = static_cast<overlay_object *>(overlay)->ctl_fd();
-    int rc = 0;
 
-    if ( v4l2_overlay_get_position(fd, x, y, (int32_t*)w, (int32_t*)h) != 0 )
-    {
-        rc = -EINVAL;
+    if (v4l2_overlay_get_position(fd, x, y, (int32_t*)w, (int32_t*)h)) {
+        return -EINVAL;
     }
-    
-    return ( rc );
+    return 0;
 }
 
-//=========================================================
-// overlay_setParameter
-//
-
-static int overlay_setParameter
-( struct overlay_control_device_t *dev
-, overlay_t* overlay
-, int param
-, int value
-)
+static int overlay_setParameter(struct overlay_control_device_t *dev,
+                                overlay_t* overlay, int param, int value)
 {
-    LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME;
 
     overlay_ctrl_t *stage = static_cast<overlay_object *>(overlay)->staging();
     int rc = 0;
-    
-    switch (param) 
-    {
+
+    switch (param) {
     case OVERLAY_DITHER:
         stage->colorkeyEn = (value == OVERLAY_ENABLE) ? 1 : 0;
         break;
@@ -718,32 +597,18 @@ static int overlay_setParameter
         }
         break;
     }
-    
-    return ( rc );
+
+    return rc;
 }
 
-//=========================================================
-// overlay_stage
-//
-
-static int overlay_stage
-( struct overlay_control_device_t *dev
-, overlay_t* overlay
-)
-{
-    return ( 0 );
+static int overlay_stage(struct overlay_control_device_t *dev,
+                          overlay_t* overlay) {
+    return 0;
 }
 
-//=========================================================
-// overlay_commit
-//
-
-static int overlay_commit
-( struct overlay_control_device_t *dev
-, overlay_t* overlay
-)
-{
-    LOG_FUNCTION_NAME
+static int overlay_commit(struct overlay_control_device_t *dev,
+                          overlay_t* overlay) {
+    LOG_FUNCTION_NAME;
 
     overlay_object *obj = static_cast<overlay_object *>(overlay);
 
@@ -752,104 +617,91 @@ static int overlay_commit
     overlay_shared_t *shared = obj->getShared();
 
     int ret = 0;
-    int rc;
-    int x,y,w,h;
     int fd = obj->ctl_fd();
 
-    if ( shared == NULL )
-    {
+    if (shared == NULL) {
         LOGI("Shared Data Not Init'd!\n");
         return -1;
     }
-    
-    if ( sem_wait( &shared->lock ) != 0 )
-    {
-        LOGI("Lock Failure!\n");
-        return -1;
-    }
-    
-    if ( !shared->controlReady )
-    {
+
+    pthread_mutex_lock(&shared->lock);
+
+    if (!shared->controlReady) {
         shared->controlReady = 1;
     }
-        
-    if (  data->posX       == stage->posX 
-       && data->posY       == stage->posY
-       && data->posW       == stage->posW
-       && data->posH       == stage->posH
-       && data->rotation   == stage->rotation
-       && data->colorkeyEn == stage->colorkeyEn
-       )
-    {
+
+    if (data->posX == stage->posX && data->posY == stage->posY &&
+        data->posW == stage->posW && data->posH == stage->posH &&
+        data->rotation == stage->rotation &&
+        data->colorkeyEn == stage->colorkeyEn) {
         LOGI("Nothing to do!\n");
-        sem_post( &shared->lock );
-        return 0;
+        goto end;
     }
 
-    data->posX       = stage->posX;
-    data->posY       = stage->posY;
-    data->posW       = stage->posW;
-    data->posH       = stage->posH;
-    data->rotation   = stage->rotation;
-    data->colorkeyEn = stage->colorkeyEn;
+    LOGI("Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW,
+         data->posH);
+    LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", stage->posX, stage->posY,
+         stage->posW, data->posH);
+    LOGI("Rotation/%d\n", stage->rotation );
+    LOGI("ColorKey/%d\n", stage->colorkeyEn );
 
-    x = data->posX;
-    y = data->posY;
-    w = data->posW;
-    h = data->posH;
-
-    LOGI("Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
-    LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", x, y, w, h );
-    LOGI("Rotation/%d\n", data->rotation );
-    LOGI("ColorKey/%d\n", data->colorkeyEn );
-
-    if ( shared->streamEn && (rc = v4l2_overlay_stream_off(fd)) )
-    {
-        LOGE("Stream Off Failed!/%d\n", rc);
-        ret = rc;
-    }
-    else
-    {
-        if ( (rc = v4l2_overlay_set_colorkey(fd, data->colorkeyEn, 0)) != 0 )
-        {
-            LOGE("Set ColorKey Failed!/%d\n", rc);
-            ret = rc;
+    if (shared->streamEn) {
+        ret = v4l2_overlay_stream_off(fd);
+        if (ret) {
+            LOGE("Stream Off Failed!/%d\n", ret);
+            goto end;
         }
-
-        if ( (rc = v4l2_overlay_set_rotation(fd, data->rotation, 0)) != 0 )
-        {
-            LOGE("Set Rotation Failed!/%d\n", rc);
-            ret = rc;
-        }
-
-        if ( (rc = v4l2_overlay_set_position(fd, x, y, w, h)) != 0 )
-        {
-            LOGE("Set Position Failed!/%d\n", rc);
-            ret = rc;
-        }
-       
-        ret = enable_streaming( shared, fd, NO_LOCK_NEEDED );
     }
 
-    sem_post( &shared->lock );
+    if (stage->colorkeyEn != data->colorkeyEn) {
+        ret = v4l2_overlay_set_colorkey(fd, stage->colorkeyEn, 0);
+        if (ret) {
+            LOGE("Set ColorKey Failed!/%d\n", ret);
+            goto end;
+        }
+        data->colorkeyEn = stage->colorkeyEn;
+    }
 
-    return ( ret );
+    if (stage->rotation != data->rotation) {
+        ret = v4l2_overlay_set_rotation(fd, stage->rotation, 0);
+        if (ret) {
+            LOGE("Set Rotation Failed!/%d\n", ret);
+            goto end;
+        }
+        data->rotation = stage->rotation;
+    }
+
+    if (!(stage->posX == data->posX && stage->posY == data->posY &&
+        stage->posW == data->posW && stage->posH == data->posH)) {
+        ret = v4l2_overlay_set_position(fd, stage->posX, stage->posY,
+                                        stage->posW, stage->posH);
+        if (ret) {
+            LOGE("Set Position Failed!/%d\n", ret);
+            goto end;
+        }
+        data->posX = stage->posX;
+        data->posY = stage->posY;
+        data->posW = stage->posW;
+        data->posH = stage->posH;
+    }
+
+    ret = enable_streaming_locked(shared, fd);
+
+end:
+    pthread_mutex_unlock(&shared->lock);
+
+    return ret;
 }
-
-//=========================================================
-// overlay_control_close
-//
 
 static int overlay_control_close(struct hw_device_t *dev)
 {
-    LOG_FUNCTION_NAME
-    
+    LOG_FUNCTION_NAME;
+
     struct overlay_control_context_t* ctx = (struct overlay_control_context_t*)dev;
     overlay_object *overlay_v1;
     //overlay_object *overlay_v2;
 
-    if (ctx)
-    {
+    if (ctx) {
         overlay_v1 = static_cast<overlay_object *>(ctx->overlay_video1);
         //overlay_v2 = static_cast<overlay_object *>(ctx->overlay_video2);
 
@@ -859,28 +711,21 @@ static int overlay_control_close(struct hw_device_t *dev)
 
         free(ctx);
     }
-    
-    return ( 0 );
+    return 0;
 }
 
 // ****************************************************************************
 // Data module
 // ****************************************************************************
 
-//=========================================================
-// overlay_initialize
-//
-
-int overlay_initialize
-( struct overlay_data_device_t *dev
-, overlay_handle_t handle
-)
+int overlay_initialize(struct overlay_data_device_t *dev,
+                       overlay_handle_t handle)
 {
-    LOG_FUNCTION_NAME   
+    LOG_FUNCTION_NAME;
 
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
     struct stat stat;
-    
+
     int i;
     int rc = -1;
 
@@ -892,96 +737,60 @@ int overlay_initialize
     ctx->shared_size  = handle_shared_size(handle);
     ctx->shared       = NULL;
     ctx->qd_buf_count = 0;
-    
-    if ( fstat(ctx->ctl_fd, &stat) )
-    {
-        LOGE("Error = %s from %s\n", strerror(errno), "overlay initialize");
-    }
-    else if ( open_shared_data( ctx ) != 0 )
-    {
-        // Just return an error
-    }
-    else
-    {
-        ctx->shared->dataReady = 0;
 
-        ctx->buffers     = new void* [ctx->num_buffers];
-        ctx->buffers_len = new size_t[ctx->num_buffers];
-        if ( !ctx->buffers || !ctx->buffers_len )
-        {
+    if (fstat(ctx->ctl_fd, &stat)) {
+        LOGE("Error = %s from %s\n", strerror(errno), "overlay initialize");
+        return -1;
+    }
+
+    if (open_shared_data(ctx)) {
+        return -1;
+    }
+
+    ctx->shared->dataReady = 0;
+
+    ctx->buffers     = new void* [ctx->num_buffers];
+    ctx->buffers_len = new size_t[ctx->num_buffers];
+    if (!ctx->buffers || !ctx->buffers_len) {
             LOGE("Failed alloc'ing buffer arrays\n");
-            close_shared_data( ctx );
-        }
-        else
-        {
-            int ret;
-            for (i = 0; i < ctx->num_buffers; i++)
-            {
-                ret = v4l2_overlay_map_buf(ctx->ctl_fd, i, &ctx->buffers[i], &ctx->buffers_len[i]);
-                if ( ret != 0 )
-                {
-                    LOGE("Failed mapping buffers\n");
-                    close_shared_data( ctx );
-                    break;
-                }
-            }
-            
-            if ( ret == 0 )
-            {
-                rc = 0;
+            close_shared_data(ctx);
+    } else {
+        for (i = 0; i < ctx->num_buffers; i++) {
+            rc = v4l2_overlay_map_buf(ctx->ctl_fd, i, &ctx->buffers[i],
+                                       &ctx->buffers_len[i]);
+            if (rc) {
+                LOGE("Failed mapping buffers\n");
+                close_shared_data( ctx );
+                break;
             }
         }
     }
-    
+
     return ( rc );
 }
 
-//=========================================================
-// overlay_setCrop
-//
+static int overlay_setCrop(struct overlay_data_device_t *dev, uint32_t x,
+                           uint32_t y, uint32_t w, uint32_t h) {
+    LOG_FUNCTION_NAME;
 
-static int overlay_setCrop
-( struct overlay_data_device_t *dev
-, uint32_t x
-, uint32_t y
-, uint32_t w
-, uint32_t h
-) 
-{
-    //LOG_FUNCTION_NAME   
-
-    int ret = 0;
-    int rc;
+    int rc = 0;
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
-    if ( ctx->shared == NULL )
-    {
+    if (ctx->shared == NULL) {
         LOGI("Shared Data Not Init'd!\n");
         return -1;
     }
-    
-    if ( sem_wait( &ctx->shared->lock ) != 0 )
-    {
-        LOGI("Lock Failure!\n");
-        return -1;
-    }
-    
-    if ( !ctx->shared->dataReady )
-    {
-        ctx->shared->dataReady = 1;
-    }
-        
-    if (  ctx->data.cropX == x 
-       && ctx->data.cropY == y
-       && ctx->data.cropW == w
-       && ctx->data.cropH == h
-       )
-    {
+
+    pthread_mutex_lock(&ctx->shared->lock);
+
+    ctx->shared->dataReady = 1;
+
+    if (ctx->data.cropX == x && ctx->data.cropY == y && ctx->data.cropW == w
+        && ctx->data.cropH == h) {
         LOGI("Nothing to do!\n");
-        sem_post( &ctx->shared->lock );
-        return 0;
+        goto end;
     }
-        
+
     ctx->data.cropX = x;
     ctx->data.cropY = y;
     ctx->data.cropW = w;
@@ -989,200 +798,140 @@ static int overlay_setCrop
 
     LOGI("Crop Win/X%d/Y%d/W%d/H%d\n", x, y, w, h );
 
-    if ( ctx->shared->streamEn && (rc = v4l2_overlay_stream_off(ctx->ctl_fd)) )
-    {
-        LOGE("Stream Off Failed!/%d\n", rc);
-        ret = rc;
-    }
-    else
-    {
-        if ( (rc = v4l2_overlay_set_crop(ctx->ctl_fd, x, y, w, h)) != 0 )
-        {
-            LOGE("Set Crop Window Failed!/%d\n", rc);
-            ret = rc;
+    if (ctx->shared->streamEn) {
+        rc = v4l2_overlay_stream_off(ctx->ctl_fd);
+        if (rc) {
+            LOGE("Stream Off Failed!/%d\n", rc);
+            goto end;
         }
-        
-        ret = enable_streaming( ctx->shared, ctx->ctl_fd, NO_LOCK_NEEDED );
+    }
+    rc = v4l2_overlay_set_crop(ctx->ctl_fd, x, y, w, h);
+    if (rc) {
+        LOGE("Set Crop Window Failed!/%d\n", rc);
     }
 
-    sem_post( &ctx->shared->lock );
+    rc = enable_streaming_locked(ctx->shared, ctx->ctl_fd);
 
-    return ( ret );
+end:
+    pthread_mutex_unlock(&ctx->shared->lock);
+    return rc;
 }
 
-
-//=========================================================
-// overlay_getCrop
-//
-
-static int overlay_getCrop
-( struct overlay_data_device_t *dev
-, uint32_t* x
-, uint32_t* y
-, uint32_t* w
-, uint32_t* h
-) 
-{
-    //LOG_FUNCTION_NAME
+static int overlay_getCrop(struct overlay_data_device_t *dev , uint32_t* x,
+                           uint32_t* y, uint32_t* w, uint32_t* h) {
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
-    
-    return ( v4l2_overlay_get_crop(ctx->ctl_fd, x, y, w, h) );
+
+    return v4l2_overlay_get_crop(ctx->ctl_fd, x, y, w, h);
 }
 
-//=========================================================
-// overlay_dequeueBuffer
-//
-
-int overlay_dequeueBuffer
-( struct overlay_data_device_t *dev
-, overlay_buffer_t *buffer
-)
-{
-    //LOG_FUNCTION_NAME
-       
+int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
+                          overlay_buffer_t *buffer) {
     /* blocks until a buffer is available and return an opaque structure
      * representing this buffer.
      */
-     
+
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
     int rc;
     int i = -1;
 
-    if ( (rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0 )
-    {
-        LOGE("Failed to DQ/%d\n", rc);    
+    if ((rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0) {
+        LOGE("Failed to DQ/%d\n", rc);
     }
-    else if ( i < 0 || i > ctx->num_buffers )
-    {
+    else if (i < 0 || i > ctx->num_buffers) {
         rc = -EINVAL;
-    }
-    else
-    {
+    } else {
         *((int *)buffer) = i;
         ctx->qd_buf_count --;
     }
 
-    return ( rc );
+    return rc;
 }
 
-//=========================================================
-// overlay_queueBuffer
-//
+int overlay_queueBuffer(struct overlay_data_device_t *dev,
+                        overlay_buffer_t buffer) {
 
-int overlay_queueBuffer
-( struct overlay_data_device_t *dev
-, overlay_buffer_t buffer
-)
-{
-    //LOG_FUNCTION_NAME
-    
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
     // Catch the case where the data side had no need to set the crop window
-    if ( !ctx->shared->dataReady )
-    {
+    if (!ctx->shared->dataReady) {
         ctx->shared->dataReady = 1;
-        enable_streaming( ctx->shared, ctx->ctl_fd, LOCK_REQUIRED );
+        enable_streaming(ctx->shared, ctx->ctl_fd);
     }
-    
-    int rc = v4l2_overlay_q_buf( ctx->ctl_fd, (int)buffer );   
-    if ( rc == 0 && ctx->qd_buf_count < ctx->num_buffers )
-    {
+
+    int rc = v4l2_overlay_q_buf( ctx->ctl_fd, (int)buffer );
+    if (rc == 0 && ctx->qd_buf_count < ctx->num_buffers) {
         ctx->qd_buf_count ++;
     }
-    
-    return ( rc );
+
+    return rc;
 }
 
-//=========================================================
-// overlay_getBufferAddress
-//
+void *overlay_getBufferAddress(struct overlay_data_device_t *dev,
+                               overlay_buffer_t buffer) {
+    LOG_FUNCTION_NAME;
 
-void *overlay_getBufferAddress
-( struct overlay_data_device_t *dev
-, overlay_buffer_t buffer
-)
-{
-    LOG_FUNCTION_NAME
-       
     /* this may fail (NULL) if this feature is not supported. In that case,
      * presumably, there is some other HAL module that can fill the buffer,
      * using a DSP for instance
      */
-     
+
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
     void *p = NULL;
 
-    if ( (int)buffer >= 0 && (int)buffer < ctx->num_buffers )
-    {
+    if ((int)buffer >= 0 && (int)buffer < ctx->num_buffers) {
         p = ctx->buffers[(int)buffer];
-        LOGI("Buffer/%d/addr=%08lx/len=%d", (int)buffer, (unsigned long)p, ctx->buffers_len[(int)buffer]);
+        LOGI("Buffer/%d/addr=%08lx/len=%d", (int)buffer, (unsigned long)p,
+             ctx->buffers_len[(int)buffer]);
     }
-    
-    return ( p );
-}
 
-//=========================================================
-// overlay_getBufferCount
-//
+    return p;
+}
 
 int overlay_getBufferCount(struct overlay_data_device_t *dev)
 {
-    LOG_FUNCTION_NAME
-       
+    LOG_FUNCTION_NAME;
+
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
-    
-    return ( ctx->num_buffers );
+
+    return (ctx->num_buffers);
 }
 
-//=========================================================
-// overlay_data_close
-//
+static int overlay_data_close(struct hw_device_t *dev) {
 
-static int overlay_data_close( struct hw_device_t *dev )
-{
-    LOG_FUNCTION_NAME
-       
+    LOG_FUNCTION_NAME;
+
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
-    
     int rc;
-        
-    if (ctx)
-    {
+
+    if (ctx) {
         overlay_data_device_t *overlay_dev = &ctx->device;
         int buf;
         int i;
 
-        if ( sem_wait( &ctx->shared->lock ) != 0 )
-        {
-            LOGI("Lock Failure!\n");
-        }
+        pthread_mutex_lock(&ctx->shared->lock);
 
-        
-        for ( i = 0; i < ctx->num_buffers; i++ )
-        {
+        for (i = 0; i < ctx->num_buffers; i++) {
             LOGD("Unmap Buffer/%d/%08lx/%d", i, (unsigned long)ctx->buffers[i], ctx->buffers_len[i] );
             rc = v4l2_overlay_unmap_buf(ctx->buffers[i], ctx->buffers_len[i]);
-            if ( rc != 0 )
-            {
+            if (rc != 0) {
                 LOGE("Error unmapping the buffer/%d/%d", i, rc);
             }
         }
-        
+
         delete(ctx->buffers);
         delete(ctx->buffers_len);
 
-        sem_post( &ctx->shared->lock );
+        pthread_mutex_unlock(&ctx->shared->lock);
 
         ctx->shared->dataReady = 0;
         close_shared_data( ctx );
 
-        free( ctx );
+        free(ctx);
     }
-    
-    return ( 0 );
+
+    return 0;
 }
 
 /*****************************************************************************/
@@ -1190,8 +939,9 @@ static int overlay_data_close( struct hw_device_t *dev )
 static int overlay_device_open(const struct hw_module_t* module,
                                const char* name, struct hw_device_t** device)
 {
-    LOG_FUNCTION_NAME   
+    LOG_FUNCTION_NAME;
     int status = -EINVAL;
+
     if (!strcmp(name, OVERLAY_HARDWARE_CONTROL)) {
         struct overlay_control_context_t *dev;
         dev = (overlay_control_context_t*)malloc(sizeof(*dev));
@@ -1204,7 +954,7 @@ static int overlay_device_open(const struct hw_module_t* module,
         dev->device.common.version = 0;
         dev->device.common.module = const_cast<hw_module_t*>(module);
         dev->device.common.close = overlay_control_close;
-        
+
         dev->device.get = overlay_get;
         dev->device.createOverlay = overlay_createOverlay;
         dev->device.destroyOverlay = overlay_destroyOverlay;
@@ -1228,15 +978,15 @@ static int overlay_device_open(const struct hw_module_t* module,
         dev->device.common.version = 0;
         dev->device.common.module = const_cast<hw_module_t*>(module);
         dev->device.common.close = overlay_data_close;
-        
+
         dev->device.initialize = overlay_initialize;
         dev->device.setCrop = overlay_setCrop;
-        dev->device.getCrop = overlay_getCrop;		
+        dev->device.getCrop = overlay_getCrop;
         dev->device.dequeueBuffer = overlay_dequeueBuffer;
         dev->device.queueBuffer = overlay_queueBuffer;
         dev->device.getBufferAddress = overlay_getBufferAddress;
         dev->device.getBufferCount = overlay_getBufferCount;
-        
+
         *device = &dev->device.common;
         status = 0;
     }
