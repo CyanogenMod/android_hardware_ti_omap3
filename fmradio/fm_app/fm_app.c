@@ -99,6 +99,8 @@ static FmTxRdsTransmittedGroupsMask g_fmapp_tx_rds_transmitted_groups_mask;
 static FmcRdsMusicSpeechFlag g_fmapp_tx_music_speech_flag;
 static FmRxCmdType	g_fmapp_audio;
 
+fm_status set_fmapp_audio_routing(fm_rx_context_s *);
+fm_status unset_fmapp_audio_routing(fm_rx_context_s *);
 
 #define STATUS_DBG_STR(x)						\
 		g_fmapp_rxtx_mode == FMAPP_TX_MODE ?			\
@@ -107,13 +109,6 @@ static FmRxCmdType	g_fmapp_audio;
 #ifndef min
 #define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
-
-/*
- * Set/Un-Set the Rx routing path
- * Uses the Mixer controls provided by twl4030 codec [T2]
- */
-fm_status fmapp_set_audio_routing(fm_rx_context_s *, char, char *, int *);
-fm_status fmapp_unset_audio_routing(fm_rx_context_s *, char, char *, int *);
 
 void validate_uint_boundaries(FMC_UINT *variable, FMC_UINT minimum, FMC_UINT maximum)
 {
@@ -1174,7 +1169,7 @@ fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 {
 	fm_status ret = FMC_STATUS_SUCCESS;
 	FMAPP_BEGIN();
-	fmapp_set_audio_routing(*fm_context,0,0,NULL);
+	set_fmapp_audio_routing(fm_context);
 	FMAPP_MSG("Powering on FM RX... (this might take awhile)");
 
 	ret = FM_RX_Init();
@@ -1217,7 +1212,7 @@ fm_status deinit_rx_stack(fm_rx_context_s **fm_context)
 {
 	FmRxStatus ret = FMC_STATUS_SUCCESS;
 	FMAPP_BEGIN();
-	fmapp_unset_audio_routing(NULL,1,0,NULL);
+	unset_fmapp_audio_routing(fm_context);
 	g_fmapp_now_initializing = 0;
 
 	/* power off FM core */
@@ -2997,9 +2992,9 @@ fm_status fmapp_execute_rx_other_command(char *cmd, int *index, fm_rx_context_s 
 	case 'e':
 		ret = fmapp_set_emphasis_filter(*fm_context);
 		break;
-	case 'o':
-		ret = fmapp_set_audio_routing(*fm_context, interactive,cmd+1,index);
-		break;
+//	case 'o':
+//		ret = fmapp_set_audio_routing(*fm_context, interactive,cmd+1,index);
+//		break;
 	case 'z':
 		ret = fmapp_set_rds_system(*fm_context);
 		break;
@@ -3647,328 +3642,171 @@ const char *control_elements_of_interest[] = {
 	"Left2 Analog Loopback Switch",
 	"Right2 Analog Loopback Switch"
 };
+
+#define CHECK_ALSACTL_WR_STATUS(ctl,error_code,ctlname)   \
+             if(error_code < 0) \
+             {  \
+                 FMAPP_ERROR("contorl \'%s\' element write error[error code %d]", ctlname,error_code); \
+                 snd_ctl_close(ctl); \
+                 return FMC_STATUS_FAILED; \
+             }
 /* TODO:
  * replace the hard-coded _enumerated/_boolean/_integer by
  * something better, also remove the hard-coded values_of_control
  */
 int values_of_control[] = {5,3,2,1,1};
 const char card[]="default";
+static int g_t2_default_auxl, g_t2_default_auxr;
 
-fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context,
-	char interactive,char *cmd, int *index)
+int configure_T2_Left2_analog_switch(snd_ctl_t*, char);
+int configure_T2_Right2_analog_switch(snd_ctl_t*, char);
+int configure_T2_AUX_FM_volume_level(snd_ctl_t*, int);
+int configure_T2_AUXL(snd_ctl_t*, char);
+int configure_T2_AUXR(snd_ctl_t*, char);
+
+int configure_T2_Left2_analog_switch(snd_ctl_t *ctl,char on_off_status)
 {
-	int err, i=0;
-        unsigned int count;
-        static snd_ctl_t *handle = NULL;
+     snd_ctl_elem_value_t *value;
 
-	snd_ctl_elem_info_t *info=NULL;
-        snd_ctl_elem_id_t *id=NULL;
-        snd_ctl_elem_value_t *control[5]={NULL};
-        snd_ctl_elem_type_t type;
+     snd_ctl_elem_value_alloca(&value);
+     snd_ctl_elem_value_set_interface(value, SND_CTL_ELEM_IFACE_MIXER);
+     snd_ctl_elem_value_set_name(value,control_elements_of_interest[3]);
+     snd_ctl_elem_value_set_enumerated(value,0, on_off_status);
 
-        fm_status ret = FMC_STATUS_SUCCESS;
-        FMAPP_BEGIN();
+     return(snd_ctl_elem_write(ctl, value));
+}
 
-/*
- * if (interactive == FMAPP_INTERACTIVE)
-		sscanf(cmd, "%u", &value_of_control);
-*/
+int configure_T2_Right2_analog_switch(snd_ctl_t *ctl,char on_off_status)
+{
+     snd_ctl_elem_value_t *value;
 
-        snd_ctl_elem_info_alloca(&info);
-       	snd_ctl_elem_id_alloca(&id);
-        snd_ctl_elem_value_alloca(&control[0]);
-        snd_ctl_elem_value_alloca(&control[1]);
-        snd_ctl_elem_value_alloca(&control[2]);
-       	snd_ctl_elem_value_alloca(&control[3]);
-        snd_ctl_elem_value_alloca(&control[4]);
+     snd_ctl_elem_value_alloca(&value);
+     snd_ctl_elem_value_set_interface(value, SND_CTL_ELEM_IFACE_MIXER);
+     snd_ctl_elem_value_set_name(value,control_elements_of_interest[4]);
+     snd_ctl_elem_value_set_enumerated(value,0, on_off_status);
 
-	snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
-
-	if (interactive)
-	{
-		printf("In De-init 16mar\n");
-		/* Using interactive to reset mixer controls */
-//		goto de_init_mixer_controls;
-		values_of_control[0]=5;
-		values_of_control[1]=1;
-		values_of_control[2]=1;
-		values_of_control[3]=0;
-		values_of_control[4]=0;
-	}
-	i=0;
-	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-	            FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-	            return err;
-	}
-	FMAPP_TRACE(" Modifying %s to value %u\n",
-			snd_ctl_elem_id_get_name(id),
-			values_of_control[i]);
-	snd_ctl_elem_value_set_id(control[i], id);
-	snd_ctl_elem_value_set_integer(control[i], 0, values_of_control[i]);
-	/* Set volume 5 to both Analog L/R */
-	snd_ctl_elem_value_set_integer(control[i], 1, values_of_control[i]);
-
-	if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-		FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-		if (!handle) {
-			snd_ctl_close(handle);
-			handle = NULL;
-		}
-	}
-
-	i=1;
-        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-                    return err;
-        }
-
-	FMAPP_TRACE(" Modifying %s to value %u\n",
-                        snd_ctl_elem_id_get_name(id),
-                        values_of_control[i]);
-        snd_ctl_elem_value_set_id(control[i], id);
-        snd_ctl_elem_value_set_enumerated(control[i], 0, values_of_control[i]);
-
-        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-                if (!handle) {
-                        snd_ctl_close(handle);
-                        handle = NULL;
-                }
-	}
-
-	i=2;
-        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-                    return err;
-        }
-	FMAPP_TRACE(" Modifying %s to value %u\n",
-                        snd_ctl_elem_id_get_name(id),
-                        values_of_control[i]);
-        snd_ctl_elem_value_set_id(control[i], id);
-        snd_ctl_elem_value_set_enumerated(control[i], 0, values_of_control[i]);
-
-        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-                if (!handle) {
-                        snd_ctl_close(handle);
-                        handle = NULL;
-                }
-	}
-
-	i=3;
-        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-                    return err;
-        }
-        FMAPP_TRACE(" Modifying %s to value %u\n",
-                        snd_ctl_elem_id_get_name(id),
-                        values_of_control[i]);
-        snd_ctl_elem_value_set_id(control[i], id);
-        snd_ctl_elem_value_set_boolean(control[i], 0, values_of_control[i]);
-
-        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-                if (!handle) {
-                        snd_ctl_close(handle);
-                        handle = NULL;
-                }
-	}
-
-	i=4;
-	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-                    return err;
-        }
-     	FMAPP_TRACE(" Modifying %s to value %u\n",
-                        snd_ctl_elem_id_get_name(id),
-                        values_of_control[i]);
-        snd_ctl_elem_value_set_id(control[i], id);
-        snd_ctl_elem_value_set_boolean(control[i], 0, values_of_control[i]);
-
-        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-                if (!handle) {
-                        snd_ctl_close(handle);
-                        handle = NULL;
-                }
-	}
-
-
-//	sleep(1);
-#if 0
-        snd_ctl_elem_info_free(info);
-        snd_ctl_elem_id_free(id);
-        snd_ctl_elem_value_free(control);
-#endif
-	snd_ctl_close(handle);
+     return(snd_ctl_elem_write(ctl, value));
 }
 
 
-fm_status fmapp_unset_audio_routing(fm_rx_context_s *fm_context,
-	char interactive,char *cmd, int *index)
+int configure_T2_AUX_FM_volume_level(snd_ctl_t *ctl, int on_off_status)
 {
-	int err, i=0;
-        unsigned int count;
-        static snd_ctl_t *handle = NULL;
+     snd_ctl_elem_value_t *value;
 
-	snd_ctl_elem_info_t *info=NULL;
-        snd_ctl_elem_id_t *id=NULL;
-        snd_ctl_elem_value_t *control[5]={NULL};
-        snd_ctl_elem_type_t type;
+     snd_ctl_elem_value_alloca(&value);
+     snd_ctl_elem_value_set_interface(value, SND_CTL_ELEM_IFACE_MIXER);
+     snd_ctl_elem_value_set_name(value,control_elements_of_interest[0]);
+	snd_ctl_elem_value_set_integer(value, 0, on_off_status);
+	snd_ctl_elem_value_set_integer(value, 1, on_off_status);
 
-        fm_status ret = FMC_STATUS_SUCCESS;
-        FMAPP_BEGIN();
+     return(snd_ctl_elem_write(ctl, value));
+}
 
-/*
- * if (interactive == FMAPP_INTERACTIVE)
-		sscanf(cmd, "%u", &value_of_control);
-*/
+int configure_T2_AUXL(snd_ctl_t *ctl,char on_off_status)
+{
+     snd_ctl_elem_value_t *value;
 
-        snd_ctl_elem_info_alloca(&info);
-       	snd_ctl_elem_id_alloca(&id);
-        snd_ctl_elem_value_alloca(&control[0]);
-        snd_ctl_elem_value_alloca(&control[1]);
-        snd_ctl_elem_value_alloca(&control[2]);
-       	snd_ctl_elem_value_alloca(&control[3]);
-        snd_ctl_elem_value_alloca(&control[4]);
-
-	snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_MIXER);
-
-	if (interactive)
-	{
-		FMAPP_TRACE("In De-init 16mar\n");
-		/* Using interactive to reset mixer controls */
-//		goto de_init_mixer_controls;
-		values_of_control[0]=5;
-		values_of_control[1]=1;
-		values_of_control[2]=1;
-		values_of_control[3]=0;
-		values_of_control[4]=0;
-	}
-	i=0;
-	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-	            FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-	            return err;
-	}
-	FMAPP_TRACE(" Modifying %s to value %u\n",
-			snd_ctl_elem_id_get_name(id),
-			values_of_control[i]);
-	snd_ctl_elem_value_set_id(control[i], id);
-	snd_ctl_elem_value_set_integer(control[i], 0, values_of_control[i]);
-
-	if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-		FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-		if (!handle) {
-			snd_ctl_close(handle);
-			handle = NULL;
-		}
+     snd_ctl_elem_value_alloca(&value);
+     snd_ctl_elem_value_set_interface(value, SND_CTL_ELEM_IFACE_MIXER);
+     snd_ctl_elem_value_set_name(value,control_elements_of_interest[1]);
+	if (on_off_status) {
+		g_t2_default_auxl = snd_ctl_elem_value_get_enumerated(value,0);
+		snd_ctl_elem_value_set_enumerated(value,0, on_off_status);
+	} else {
+		snd_ctl_elem_value_set_enumerated(value,0, g_t2_default_auxl);
 	}
 
-	i=1;
-        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-                    return err;
+     return(snd_ctl_elem_write(ctl, value));
+}
+
+int configure_T2_AUXR(snd_ctl_t *ctl,char on_off_status)
+{
+     snd_ctl_elem_value_t *value;
+
+     snd_ctl_elem_value_alloca(&value);
+     snd_ctl_elem_value_set_interface(value, SND_CTL_ELEM_IFACE_MIXER);
+     snd_ctl_elem_value_set_name(value,control_elements_of_interest[2]);
+        if (on_off_status) {
+                g_t2_default_auxr = snd_ctl_elem_value_get_enumerated(value,0);
+                snd_ctl_elem_value_set_enumerated(value,0, on_off_status);
+        } else {
+                snd_ctl_elem_value_set_enumerated(value,0, g_t2_default_auxr);
         }
 
-	FMAPP_TRACE(" Modifying %s to value %u\n",
-                        snd_ctl_elem_id_get_name(id),
-                        values_of_control[i]);
-        snd_ctl_elem_value_set_id(control[i], id);
-        snd_ctl_elem_value_set_enumerated(control[i], 0, values_of_control[i]);
+     return(snd_ctl_elem_write(ctl, value));
+}
 
-        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-                if (!handle) {
-                        snd_ctl_close(handle);
-                        handle = NULL;
-                }
-	}
+fm_status set_fmapp_audio_routing(fm_rx_context_s *fm_context)
+{
+     int error_code;
+     snd_ctl_t *ctl;
 
-	i=2;
-        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-                    return err;
-        }
-	FMAPP_TRACE(" Modifying %s to value %u\n",
-                        snd_ctl_elem_id_get_name(id),
-                        values_of_control[i]);
-        snd_ctl_elem_value_set_id(control[i], id);
-        snd_ctl_elem_value_set_enumerated(control[i], 0, values_of_control[i]);
+	 (void)fm_context;
+     FMAPP_BEGIN();
+     error_code = snd_ctl_open(&ctl,card, 0);
+     if(error_code < 0)
+     {
+         FMAPP_ERROR("Control \'%s\' open error [error code %d]",card, error_code);
+         return FMC_STATUS_FAILED;
+     }
 
-        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-                if (!handle) {
-                        snd_ctl_close(handle);
-                        handle = NULL;
-                }
-	}
+     error_code = configure_T2_AUX_FM_volume_level(ctl, values_of_control[0]);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[0]);
 
-	i=3;
-        snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-                    return err;
-        }
-        FMAPP_TRACE(" Modifying %s to value %u\n",
-                        snd_ctl_elem_id_get_name(id),
-                        values_of_control[i]);
-        snd_ctl_elem_value_set_id(control[i], id);
-        snd_ctl_elem_value_set_boolean(control[i], 0, values_of_control[i]);
+     error_code = configure_T2_AUXL(ctl,values_of_control[1]);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[1]);
 
-        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-                if (!handle) {
-                        snd_ctl_close(handle);
-                        handle = NULL;
-                }
-	}
-
-	i=4;
-	snd_ctl_elem_id_set_name(id, control_elements_of_interest[i]);
-        if (handle == NULL &&
-           (err = snd_ctl_open(&handle, card, 0)) < 0) {
-                    FMAPP_ERROR("Control %s open error: %s\n", card, snd_strerror(err));
-                    return err;
-        }
-     	FMAPP_TRACE(" Modifying %s to value %u\n",
-                        snd_ctl_elem_id_get_name(id),
-                        values_of_control[i]);
-        snd_ctl_elem_value_set_id(control[i], id);
-        snd_ctl_elem_value_set_boolean(control[i], 0, values_of_control[i]);
-
-        if ((err = snd_ctl_elem_write(handle, control[i])) < 0) {
-                FMAPP_ERROR("Control %s element write error: %s\n", card, snd_strerror(err));
-                if (!handle) {
-                        snd_ctl_close(handle);
-                        handle = NULL;
-                }
-	}
+     error_code = configure_T2_AUXR(ctl,values_of_control[2]);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[2]);
 
 
-//	sleep(1);
-#if 0
-        snd_ctl_elem_info_free(info);
-        snd_ctl_elem_id_free(id);
-        snd_ctl_elem_value_free(control);
-#endif
-	snd_ctl_close(handle);
+     error_code = configure_T2_Left2_analog_switch(ctl,values_of_control[3]);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[3]);
+
+     error_code = configure_T2_Right2_analog_switch(ctl,values_of_control[4]);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[4]);
+
+     snd_ctl_close(ctl);
+
+     FMAPP_END();
+
+     return FMC_STATUS_SUCCESS;
+}
+
+fm_status unset_fmapp_audio_routing(fm_rx_context_s *fm_context)
+{
+     int error_code;
+     snd_ctl_t *ctl;
+
+	 (void)fm_context;
+     FMAPP_BEGIN();
+     error_code = snd_ctl_open(&ctl,card, 0);
+     if(error_code < 0)
+     {
+         FMAPP_ERROR("Control \'%s\' open error [error code %d]",card, error_code);
+         return FMC_STATUS_FAILED;
+     }
+
+     error_code = configure_T2_AUX_FM_volume_level(ctl, 0);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[0]);
+
+     error_code = configure_T2_AUXL(ctl,0);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[1]);
+
+     error_code = configure_T2_AUXR(ctl,0);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[2]);
+
+     error_code = configure_T2_Left2_analog_switch(ctl,0);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[3]);
+
+     error_code = configure_T2_Right2_analog_switch(ctl,0);
+     CHECK_ALSACTL_WR_STATUS(ctl,error_code,control_elements_of_interest[4]);
+
+     snd_ctl_close(ctl);
+
+     FMAPP_END();
+
+     return FMC_STATUS_SUCCESS;
 }
 
 
