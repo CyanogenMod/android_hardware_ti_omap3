@@ -168,7 +168,7 @@ FmcStatus FMC_CORE_SetCallback(FmcCoreEventCb eventCb)
 	else
 	{
         /*[ToDo Zvi] This was currently removed due to a problem in the unregister func and should be fixed*/
-        /*status = FMC_CORE_RegisterUnregisterIntCallback(FALSE);*/
+        status = FMC_CORE_RegisterUnregisterIntCallback(FMC_FALSE);
 	}
 	_fmcTransportData.clientCb = eventCb;
 
