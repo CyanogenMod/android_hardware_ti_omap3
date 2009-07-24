@@ -43,18 +43,18 @@
 
 #define RESIZER 1
 #define JPEG 1
-#define VPP 0
+#define VPP 1
 #define VPP_THREAD 0
 #define VPP_INIT_WORKAROND 0
 
+//#undef FW3A
+//#undef ICAP
+//#undef IMAGE_PROCESSING_PIPELINE
+
 #if !VPP
- 	#define VPP_THREAD 0
+	#define VPP_THREAD 0
+	#define RESIZER 0
 #endif
-#undef IMAGE_PROCESSING_PIPELINE
-
-#undef FW3A
-#undef ICAP
-
 
 #ifdef FW3A
 #include "osal/osal_stdtypes.h"
@@ -109,8 +109,7 @@
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    4
-//#define YUV422I 1
-//#define YUV420P 2
+
 #define OPEN_CLOSE_WORKAROUND	 1
 
 #define PPM(str){ \
@@ -124,7 +123,6 @@
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-	//if IPP_YUV422P is 0, we use YUV420P converter in IPP 
 	#define IPP_YUV422P 0	
 	#define INPLACE_ON	1
 	#define INPLACE_OFF	0
@@ -415,6 +413,7 @@ private:
     void *mAutoFocusCallbackCookie;
     int nOverlayBuffersQueued;
     int nCameraBuffersQueued;
+	int mLastOverlayBufferIndex;
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
     struct timeval ppm;

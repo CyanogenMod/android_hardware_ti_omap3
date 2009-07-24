@@ -822,6 +822,7 @@ int CameraHal::CameraStop()
     struct v4l2_buffer cfilledbuffer;
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
+
 #if 0
     while(nCameraBuffersQueued){
 		LOGD("DQUEUING UNDQUEUED BUFFERS enter = %d",nCameraBuffersQueued);
@@ -833,6 +834,7 @@ int CameraHal::CameraStop()
 		LOGD("DQUEUING UNDQUEUED BUFFERS exit = %d",nCameraBuffersQueued);
     }
 #endif
+
     creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
         LOGE("VIDIOC_STREAMOFF Failed");
@@ -845,7 +847,7 @@ int CameraHal::CameraStop()
         mOverlay->dequeueBuffer(&overlaybuffer);
         nOverlayBuffersQueued--;
     }
-  
+
     LOG_FUNCTION_NAME_EXIT
     return 0;
 
@@ -912,6 +914,7 @@ void CameraHal::nextPreview()
 #endif
  
     // Notify overlay of a new frame.
+	mLastOverlayBufferIndex=cfilledbuffer.index;
     ret = mOverlay->queueBuffer((void*)cfilledbuffer.index);
     if (ret)
     {
@@ -940,7 +943,7 @@ void CameraHal::nextPreview()
     if(cb){
 
         memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
-        memcpy(mVideoBuffer[cfilledbuffer.index]->pointer(),(void *)cfilledbuffer.m.userptr,mPreviewFrameSize);
+		memcpy(mVideoBuffer[cfilledbuffer.index]->pointer(),(void *)cfilledbuffer.m.userptr,mPreviewFrameSize);
         cb(mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
     } else {
         /* queue the buffer back to camera */
@@ -978,6 +981,7 @@ int  CameraHal::ICapturePerform()
     int delay;
 	unsigned int vppMessage[3];
 	overlay_buffer_t overlaybuffer;
+	static int pictureNumber = 0;
 
     LOG_FUNCTION_NAME
 
@@ -987,6 +991,8 @@ int  CameraHal::ICapturePerform()
     }
     
     PPM("START OF ICapturePerform");
+
+	LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",pictureNumber++);
     
     if( mShutterCallback ) {
         mShutterCallback(mPictureCallbackCookie );
@@ -1061,7 +1067,7 @@ int  CameraHal::ICapturePerform()
     } else {
         LOGD("Capture mode= HQ");
         iobj->cfg.capture_mode  =  CAPTURE_MODE_HI_QUALITY;
-    }
+    }   
 
 	PPM("Before ICapture Config");
 
@@ -1077,20 +1083,39 @@ int  CameraHal::ICapturePerform()
     yuv_len=iobj->cfg.sizeof_img_buf;
 
     /*compute yuv size, allocate memory and take picture*/
+#define ALIGMENT 1
+#if ALIGMENT
+mPictureHeap = new MemoryHeapBase(yuv_len);
+#else
     mPictureHeap = new MemoryHeapBase(yuv_len + 0x20 + 256);
+#endif
     base = (unsigned long)mPictureHeap->getBase();
     /*Align buffer to 32 byte boundary */
+#if ALIGMENT
+	base = (base + 0xfff) & 0xfffff000;
+#else
     while ((base & 0x1f) != 0)
     {
         base++;
     }
-
     /* Buffer pointer shifted to avoid DSP cache issues */
     base += 128;
+#endif
+
     offset = base - (unsigned long)mPictureHeap->getBase();
 	jpeg_offset = offset;
+#if !ALIGMENT
     mPictureBuffer = new MemoryBase(mPictureHeap, offset, yuv_len);
-    yuv_buffer = (uint8_t *) (mPictureHeap->getBase()) + offset;
+#endif
+
+
+#if ALIGMENT
+	yuv_buffer =(uint8_t*) base;
+    mPictureBuffer = new MemoryBase(mPictureHeap, offset, yuv_len);
+#else
+    yuv_buffer = (unsigned long) (mPictureHeap->getBase()) + offset;
+#endif
+   
 
     iobj->proc.img_buf[0].start =yuv_buffer; 
     iobj->proc.img_buf[0].length = yuv_len ; 
@@ -1104,6 +1129,9 @@ int  CameraHal::ICapturePerform()
     } else {
         PPM("ICapture process OK");
     }
+
+	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len); 
+	//SaveFile(NULL, (char*)"mknote", ancillary_buffer, sizeof(*mk_note));
 		
     ipp_ee_q   =   iobj->proc.eenf.ee_q,
     ipp_ew_ts  =   iobj->proc.eenf.ew_ts,
@@ -1116,7 +1144,7 @@ int  CameraHal::ICapturePerform()
     LOGD("iobj->proc.out_img_w = %d = 0x%x iobj->proc.out_img_h=%u = 0x%x", (int)iobj->proc.out_img_w,(int)iobj->proc.out_img_w, (int)iobj->proc.out_img_h,(int)iobj->proc.out_img_h);
     
 #ifdef HARDWARE_OMX
-#if JPEG    
+#if  JPEG    
 
     jpegSize = image_width*image_height*2;
 	//jpegSize = image_width*image_height + 13000;
@@ -1133,10 +1161,6 @@ int  CameraHal::ICapturePerform()
     base += 128;
     offset = base - (unsigned long)mJPEGPictureHeap->getBase();
     outBuffer = (uint8_t *) (mJPEGPictureHeap->getBase()) + offset;
-
-	jpeg_offset = offset;
-
-
 
 #if VPP    
 
@@ -1185,7 +1209,7 @@ int  CameraHal::ICapturePerform()
 #else
     image_width = (int)iobj->proc.out_img_w;
     image_height =(int)iobj->proc.out_img_h;
-#endif
+#endif //VPP
 
 #endif //JPEG
 #endif //HARDWARE_OMX
@@ -1234,7 +1258,7 @@ int  CameraHal::ICapturePerform()
 
 	write(vppPipe[1],&vppMessage,sizeof(vppMessage));	
 #else
-	snapshot_buffer_index = mOverlay->getBufferCount() - 1;
+	snapshot_buffer_index = (mLastOverlayBufferIndex++)%4;
 	snapshot_buffer = mOverlay->getBufferAddress( (void*)snapshot_buffer_index );
 
     PPM("BEFORE SCALED DOWN RAW IMAGE TO PREVIEW SIZE"); 
@@ -1246,6 +1270,7 @@ int  CameraHal::ICapturePerform()
 	PPM("SCALED DOWN RAW IMAGE TO PREVIEW");
 
 	mOverlay->queueBuffer((void*)snapshot_buffer_index);  
+
 	mOverlay->dequeueBuffer(&overlaybuffer);
 	
 	PPM("DISPLAYED RAW IMAGE ON SCREEN");
@@ -1367,7 +1392,7 @@ int  CameraHal::ICapturePerform()
     err = 0;    
     
 	PPM("BEFORE ENCODE IMAGE");	
-	LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality);	     
+	LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	     
     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
                                  image_width, image_height, quality,mippMode)))
     {        
@@ -1481,7 +1506,7 @@ void CameraHal::vppThread(){
 				mParameters.getPreviewSize(&preview_width, &preview_height);
 		
 				//snapshot buffer is the last overlay buffer
-				snapshot_buffer_index = mOverlay->getBufferCount() - 1; //JJ-remove -1
+				snapshot_buffer_index = mOverlay->getBufferCount() -1;
 				snapshot_buffer = mOverlay->getBufferAddress( (void*)snapshot_buffer_index );
 
 				status = scale_process(vpp_buffer, image_width, image_height,
@@ -1495,7 +1520,7 @@ void CameraHal::vppThread(){
 
 				PPM("SCALED DOWN RAW IMAGE TO PREVIEW SIZE");
 
-				mOverlay->queueBuffer((void*)snapshot_buffer_index);  //JJ-try removing dequeue buffer
+				mOverlay->queueBuffer((void*)snapshot_buffer_index); 
 				mOverlay->dequeueBuffer(&overlaybuffer);
 
 				PPM("DISPLAYED SNAPSHOT ON THE SCREEN");
@@ -1937,14 +1962,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         LOGE("Preview size not supported");
         return -1;
     }
-    LOGD("PreviewSize %d x %d", w, h);
+    LOGD("PreviewSize by App %d x %d", w, h);
 
     params.getPictureSize(&w, &h);
     if (!validateSize(w, h)) {
         LOGE("Picture size not supported");
         return -1;
     }
-    LOGD("Picture Size %d x %d", w, h);
+    LOGD("Picture Size by App %d x %d", w, h);
     
     framerate = params.getPreviewFrameRate();
     LOGD("FRAMERATE %d", framerate);
@@ -1960,8 +1985,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 /* This is a hack. Android APP is not setting the resolution correctly. So hardcoding it. */
     mParameters.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
-//	mParameters.setPreviewSize(MIN_WIDTH, MIN_HEIGHT); 
-   
+//	mParameters.setPreviewSize(PREVIEW_WIDTH, PREVIEW_HEIGHT); 
+
+	mParameters.getPictureSize(&w, &h);
+	LOGD("Picture Size by CamHal %d x %d", w, h);
+	mParameters.getPreviewSize(&w, &h);
+	LOGD("Preview Size by CamHal %d x %d", w, h);
 
     quality = params.getInt("jpeg-quality");
     if ( ( quality < 0 ) || (quality > 100) ){
@@ -1972,7 +2001,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #ifdef FW3A
 
-    if (( NULL != fobj) ){
+    if ( NULL != fobj ){
         iso = mParameters.getInt("iso");
         af = mParameters.getInt("af");
         mcapture_mode = mParameters.getInt("mode");

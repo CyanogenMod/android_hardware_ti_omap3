@@ -390,10 +390,10 @@ int CameraHal::InitIPP(int w, int h)
     pIPP.ippconfig.orderOfAlgos[0]=IPP_START_ID;
     pIPP.ippconfig.orderOfAlgos[1]=IPP_YUVC_422iTO422p_ID;
 	if(mippMode == IPP_CromaSupression_Mode ){
-	    pIPP.ippconfig.orderOfAlgos[2]=IPP_CRCBS_ID;
+		pIPP.ippconfig.orderOfAlgos[2]=IPP_CRCBS_ID;
 	}
 	else if(mippMode == IPP_EdgeEnhancement_Mode){
-	    pIPP.ippconfig.orderOfAlgos[2]=IPP_EENF_ID;
+		pIPP.ippconfig.orderOfAlgos[2]=IPP_EENF_ID;
 	}
 #if IPP_YUV422P
 	pIPP.ippconfig.orderOfAlgos[3]=IPP_YUVC_422pTO422i_ID;
@@ -1048,7 +1048,7 @@ int CameraHal::CapturePicture(){
 	void* snapshot_buffer;
 	int ipp_reconfigure=0;
 	int ippTempConfigMode;
-	
+		
   LOG_FUNCTION_NAME
 
     if (mShutterCallback)
@@ -1094,8 +1094,8 @@ int CameraHal::CapturePicture(){
         yuv_len = (yuv_len & 0xfffff000) + 0x1000;
     }
     LOGD("pictureFrameSize = 0x%x = %d", yuv_len, yuv_len);
-#define ANU 1
-#if ANU
+#define ALIGMENT 1
+#if ALIGMENT
     mPictureHeap = new MemoryHeapBase(yuv_len);
 #else
     // Make a new mmap'ed heap that can be shared across processes.
@@ -1104,7 +1104,7 @@ int CameraHal::CapturePicture(){
 
     base = (unsigned long)mPictureHeap->getBase();
 
-#if ANU
+#if ALIGMENT
 	base = (base + 0xfff) & 0xfffff000;
 #else
     /*Align buffer to 32 byte boundary */
@@ -1117,7 +1117,7 @@ int CameraHal::CapturePicture(){
 #endif
 
     offset = base - (unsigned long)mPictureHeap->getBase();
-#if !ANU
+#if !ALIGMENT
     mPictureBuffer = new MemoryBase(mPictureHeap, offset, yuv_len);
 
     LOGD("Picture Buffer: Base = %p Offset = 0x%x", (void *)base, (unsigned int)offset);
@@ -1132,7 +1132,7 @@ int CameraHal::CapturePicture(){
     }
 
     yuv_len = buffer.length;
-#if ANU
+#if ALIGMENT
 	buffer.m.userptr = base;
     mPictureBuffer = new MemoryBase(mPictureHeap, offset, buffer.length);
 #else
@@ -1155,7 +1155,7 @@ int CameraHal::CapturePicture(){
 
     /* De-queue the next avaliable buffer */
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-#if ANU
+#if ALIGMENT
     cfilledbuffer.memory = creqbuf.memory;
 #else
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
@@ -1203,7 +1203,7 @@ int CameraHal::CapturePicture(){
 	write(vppPipe[1],&vppMessage,sizeof(vppMessage));	
 #else
 	LOGD("VPP mOverlay->getBufferCount() \n");
-	snapshot_buffer_index = mOverlay->getBufferCount() - 1;
+	snapshot_buffer_index = (mLastOverlayBufferIndex++)%4;
 	LOGD("VPP mOverlay->getBufferAddress \n");
 	snapshot_buffer = mOverlay->getBufferAddress( (void*)snapshot_buffer_index );
 	LOGD("VPP scale_process() \n");
@@ -1223,8 +1223,8 @@ int CameraHal::CapturePicture(){
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE  	
-		if(mippMode ==-1){
-		mippMode=IPP_EdgeEnhancement_Mode;
+	if(mippMode ==-1){
+		mippMode=IPP_Disabled_Mode;
 	}		
 	
 	LOGD("IPPmode=%d",mippMode);
@@ -1240,7 +1240,16 @@ int CameraHal::CapturePicture(){
 		if(mippMode != IPP_CromaSupression_Mode && mippMode != IPP_EdgeEnhancement_Mode){
 			LOGE("ERROR ippMode unsupported");
 			return -1;
-		}		
+		}
+
+		if(mippMode == IPP_EdgeEnhancement_Mode){
+			ipp_ee_q = 199;
+			ipp_ew_ts = 20;
+			ipp_es_ts = 240;
+			ipp_luma_nf = 2;
+			ipp_chroma_nf = 2;
+		}
+		
 		
 		err = InitIPP(image_width,image_height);
 		if( err ) {
@@ -1276,8 +1285,7 @@ int CameraHal::CapturePicture(){
 			pIPP.hIPP = NULL;
 		}
 #endif
-	}
- 
+
 	PPM("IPP ProcessBuffer Done");
    	if(!(pIPP.ippconfig.isINPLACE)){
 		yuv_buffer = pIPP.pIppOutputBuffer;
@@ -1287,16 +1295,21 @@ int CameraHal::CapturePicture(){
 		yuv_len=  ((image_width * image_height *3)/2);
 	#endif
 
+	}
+ 
+
+
 #endif
 
     if (mJpegPictureCallback) {
 #ifdef HARDWARE_OMX  
-
+#if JPEG
         int jpegSize = (image_width * image_height) + 12288;
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
 		PPM("BEFORE JPEGEnc");
+		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	  
         jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
 		PPM("AFTER JPEGEnc");
 
@@ -1309,6 +1322,11 @@ int CameraHal::CapturePicture(){
 		PPM("AFTER SAVING PICTURE");
         mJPEGPictureMemBase.clear();		
         mJPEGPictureHeap.clear();
+#else
+if(mJpegPictureCallback) {
+            mJpegPictureCallback(NULL, mPictureCallbackCookie); 
+        }
+#endif
 
 #endif
 
