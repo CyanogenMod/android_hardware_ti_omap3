@@ -76,7 +76,11 @@
 /*
 *   Specific the absolute path of the folder where MCP scripts should be located
 */
+#ifdef ANDROID
+#define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER		                                ("/system/lib/firmware/")
+#else
 #define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER		                                ("/lib/firmware/")
+#endif
 
 /*
 *   The maximum length of a file system path, including file name component (in characters)
