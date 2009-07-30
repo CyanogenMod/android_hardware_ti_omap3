@@ -1,8 +1,8 @@
 /*
  * OMAP3430 support
  *
- * Author: Srini Gosangi <srini.gosangi@windriver.com>
  * Author: Michael Barabanov <michael.barabanov@windriver.com>
+ * Author: Srini Gosangi <srini.gosangi@windriver.com>
 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,41 +35,46 @@
  * -------------------------------------------------------------------
  */
 
-#ifndef ANDROID_SURFACE_OUTPUT_OMAP34XXH_INCLUDED
-#define ANDROID_SURFACE_OUTPUT_OMAP34XXH_INCLUDED
 
-#include "android_surface_output.h"
-#include "buffer_alloc_omap34xx.h"
+#ifndef BUFFER_ALLOC_OMAP34XXH_INCLUDED
+#define BUFFER_ALLOC_OMAP34XXH_INCLUDED
 
-// support for shared contiguous physical memory
-#include <ui/Overlay.h>
+#include "pv_interface.h"
 
+#ifndef PVMF_FIXEDSIZE_BUFFER_ALLOC_H_INCLUDED
+#include "pvmf_fixedsize_buffer_alloc.h"
+#endif
 
-class AndroidSurfaceOutputOmap34xx : public AndroidSurfaceOutput
+/* based on test code in pvmi/media_io/pvmiofileoutput/include/pvmi_media_io_fileoutput.h */
+
+class BufferAllocOmap34xx: public PVInterface, public PVMFFixedSizeBufferAlloc
 {
     public:
-        AndroidSurfaceOutputOmap34xx();
 
-        // frame buffer interface
-        virtual bool initCheck();
-        virtual void setParametersSync(PvmiMIOSession aSession, PvmiKvp* aParameters, int num_elements, PvmiKvp * & aRet_kvp);
-        virtual PVMFStatus getParametersSync(PvmiMIOSession aSession, PvmiKeyType aIdentifier,
-                PvmiKvp*& aParameters, int& num_parameter_elements, PvmiCapabilityContext aContext);
-        virtual PVMFStatus writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info);
+        BufferAllocOmap34xx();
 
-        virtual void closeFrameBuf();
-        virtual void postLastFrame();
+        virtual ~BufferAllocOmap34xx();
 
-        OSCL_IMPORT_REF ~AndroidSurfaceOutputOmap34xx();
-    private:
-        bool					mUseOverlay;
-        sp<Overlay> 				mOverlay; 
-        int 					bufEnc;
+        OSCL_IMPORT_REF void addRef();
 
-        int32 iNumberOfBuffers;
-        int32 iBufferSize;
+        OSCL_IMPORT_REF void removeRef();
+
+        OSCL_IMPORT_REF bool queryInterface(const PVUuid& uuid, PVInterface*& aInterface) ;
+
+        OSCL_IMPORT_REF OsclAny* allocate();
+
+        OSCL_IMPORT_REF void deallocate(OsclAny* ptr) ;
+
+        OSCL_IMPORT_REF uint32 getBufferSize() ;
+
+        OSCL_IMPORT_REF uint32 getNumBuffers() ;
+
     public:
-        BufferAllocOmap34xx			mbufferAlloc;
+        int32 refCount;
+        int32 bufferSize;
+        int32 maxBuffers;
+        int32 numAllocated;
+        void*	buffer_address[4]; //max buffers supported in overlay is 4
 };
 
-#endif // ANDROID_SURFACE_OUTPUT_OMAP34XX_H_INCLUDED
+#endif
