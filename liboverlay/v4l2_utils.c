@@ -26,7 +26,7 @@
 #include <sys/mman.h>
 #include "v4l2_utils.h"
 
-#define LOG_FUNCTION_NAME    LOGV(" %s ###### Calling %s() ######",  __FILE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME    LOGV("%s: %s",  __FILE__, __FUNCTION__);
 
 #ifndef LOGE
 #define LOGE(fmt,args...) \
@@ -281,6 +281,24 @@ int v4l2_overlay_init(int fd, uint32_t w, uint32_t h, uint32_t fmt)
     return ret;
 }
 
+int v4l2_overlay_get_input_size_and_format(int fd, uint32_t *w, uint32_t *h, uint32_t *fmt)
+{
+    LOG_FUNCTION_NAME
+
+    struct v4l2_format format;
+    int ret;
+
+    format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format, "get format");
+    *w = format.fmt.pix.width;
+    *h = format.fmt.pix.height;
+    //if (format.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY)
+    if (format.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
+        *fmt = OVERLAY_FORMAT_CbYCrY_422_I;
+    else return -EINVAL;
+    return ret;
+}
+
 int v4l2_overlay_set_position(int fd, int32_t x, int32_t y, int32_t w, int32_t h)
 {
     LOG_FUNCTION_NAME
@@ -401,7 +419,7 @@ int v4l2_overlay_set_colorkey(int fd,  int enable, int colorkey)
     return 0;
 }
 
-int v4l2_overlay_req_buf(int fd, int *num_bufs)
+int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers)
 {
     LOG_FUNCTION_NAME
 
@@ -409,18 +427,19 @@ int v4l2_overlay_req_buf(int fd, int *num_bufs)
     int ret, i;
     reqbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     reqbuf.memory = V4L2_MEMORY_MMAP;
-    reqbuf.count = (uint32_t) *num_bufs;
+    reqbuf.count = *num_bufs;
+    //reqbuf.reserved[0] = cacheable_buffers;
     ret = ioctl(fd, VIDIOC_REQBUFS, &reqbuf);
     if (ret < 0) {
         error(fd, "reqbuf ioctl");
         return ret;
     }
     LOGI("%d buffers allocated %d requested\n", reqbuf.count, 4);
-    if ( (int)reqbuf.count > *num_bufs) {
+    if (reqbuf.count > *num_bufs) {
         error(fd, "Not enough buffer structs passed to get_buffers");
         return -ENOMEM;
     }
-    *num_bufs = (int) reqbuf.count;
+    *num_bufs = reqbuf.count;
     LOGI("buffer cookie is %d\n", reqbuf.type);
     return 0;
 }
@@ -528,6 +547,10 @@ int v4l2_overlay_q_buf(int fd, int index)
     buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     buf.index = index;
     buf.memory = V4L2_MEMORY_MMAP;
+    buf.field = V4L2_FIELD_NONE;
+    buf.timestamp.tv_sec = 0;
+    buf.timestamp.tv_usec = 0;
+    buf.flags = 0;
 
     return v4l2_overlay_ioctl(fd, VIDIOC_QBUF, &buf, "qbuf");
 }

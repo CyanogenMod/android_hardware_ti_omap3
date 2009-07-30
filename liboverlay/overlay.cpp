@@ -42,6 +42,12 @@ extern "C" {
 #define NUM_OVERLAY_BUFFERS_REQUESTED  (4)
 #define SHARED_DATA_MARKER             (0x68759746) // OVRLYSHM on phone keypad
 
+/* These values should come from Surface Flinger */
+#define LCD_WIDTH 480
+#define LCD_HEIGHT 854
+
+#define CACHEABLE_BUFFERS 0x1
+
 typedef struct
 {
   uint32_t posX;
@@ -94,6 +100,7 @@ struct overlay_data_context_t {
     int shared_size;
     int width;
     int height;
+    int format;
     int num_buffers;
     size_t *buffers_len;
     void **buffers;
@@ -103,6 +110,7 @@ struct overlay_data_context_t {
 
     // Need to count Qd buffers to be sure we don't block DQ'ing when exiting
     int qd_buf_count;
+    int cacheable_buffers;
 };
 
 static int  create_shared_data(overlay_shared_t **shared);
@@ -145,9 +153,14 @@ struct handle_t : public native_handle {
     int shared_fd;
     int width;
     int height;
+    int format;
     int num_buffers;
     int shared_size;
 };
+
+static int handle_format(const overlay_handle_t overlay) {
+    return static_cast<const struct handle_t *>(overlay)->format;
+}
 
 static int handle_ctl_fd(const overlay_handle_t overlay) {
     return static_cast<const struct handle_t *>(overlay)->ctl_fd;
@@ -193,11 +206,12 @@ public:
         this->overlay_t::getHandleRef = getHandleRef;
         mHandle.version     = sizeof(native_handle);
         mHandle.numFds      = 2;
-        mHandle.numInts     = 4; // extra ints we have in our handle
+        mHandle.numInts     = 5; // extra ints we have in our handle
         mHandle.ctl_fd      = ctl_fd;
         mHandle.shared_fd   = shared_fd;
         mHandle.width       = w;
         mHandle.height      = h;
+        mHandle.format      = format;
         mHandle.num_buffers = num_buffers;
         mHandle.shared_size = shared_size;
         this->w = w;
@@ -380,7 +394,7 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     overlay_shared_t          *shared;
 
     int ret;
-    int num = NUM_OVERLAY_BUFFERS_REQUESTED;
+    uint32_t num = NUM_OVERLAY_BUFFERS_REQUESTED;
     int fd;
     int shared_fd;
 
@@ -422,7 +436,7 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
         LOGE("Failed enabling color key\n");
         goto error1;
     }
-    if (v4l2_overlay_req_buf(fd, &num)) {
+    if (v4l2_overlay_req_buf(fd, &num, 0)) {
         LOGE("Failed requesting buffers\n");
         goto error1;
     }
@@ -438,8 +452,8 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
 
    shared->controlReady = 0;
    shared->streamEn = 0;
-   shared->dispW = 480; // Need to determine this properly
-   shared->dispH = 854; // Need to determine this properly
+   shared->dispW = LCD_WIDTH; // Need to determine this properly
+   shared->dispH = LCD_HEIGHT; // Need to determine this properly
 
    LOGI("Opened video1/fd=%d/obj=%08lx/shm=%d/size=%d", fd,
         (unsigned long)overlay, shared_fd, shared->size);
@@ -732,11 +746,13 @@ int overlay_initialize(struct overlay_data_device_t *dev,
     ctx->num_buffers  = handle_num_buffers(handle);
     ctx->width        = handle_width(handle);
     ctx->height       = handle_height(handle);
+    ctx->format       = handle_format(handle);
     ctx->ctl_fd       = handle_ctl_fd(handle);
     ctx->shared_fd    = handle_shared_fd(handle);
     ctx->shared_size  = handle_shared_size(handle);
     ctx->shared       = NULL;
     ctx->qd_buf_count = 0;
+    ctx->cacheable_buffers = 0;
 
     if (fstat(ctx->ctl_fd, &stat)) {
         LOGE("Error = %s from %s\n", strerror(errno), "overlay initialize");
@@ -768,6 +784,95 @@ int overlay_initialize(struct overlay_data_device_t *dev,
 
     return ( rc );
 }
+
+static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w,
+                               uint32_t h)
+{
+    int rc;
+
+    struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
+
+    if ((ctx->width == (int)w) && (ctx->width == (int)h)) {
+        LOGV("same as current width and height. so do nothing");
+        return 0;
+    }
+
+    if (!ctx->shared) {
+        LOGI("Shared Data Not Init'd!\n");
+        return -1;
+    }
+
+    if (ctx->shared->dataReady) {
+        LOGV("Either setCrop() or queueBuffer() was called prior to this!"
+             "Therefore failing this call.\n");
+        return -1;
+    }
+
+    pthread_mutex_lock(&ctx->shared->lock);
+
+    if (ctx->shared->streamEn) {
+        rc = v4l2_overlay_stream_off(ctx->ctl_fd);
+        if (rc)
+            goto end;
+    }
+
+    for (int i = 0; i < ctx->num_buffers; i++) {
+        v4l2_overlay_unmap_buf(ctx->buffers[i], ctx->buffers_len[i]);      
+    }
+
+    rc = v4l2_overlay_init(ctx->ctl_fd, w, h, ctx->format);
+    if (rc) {
+        LOGE("Error initializing overlay");
+        goto end;
+    }
+    rc = v4l2_overlay_set_crop(ctx->ctl_fd, 0, 0, w, h);
+    if (rc) {
+        LOGE("Error setting crop window\n");
+        goto end;
+    }
+    rc = v4l2_overlay_req_buf(ctx->ctl_fd, (uint32_t *)(&ctx->num_buffers),
+                              ctx->cacheable_buffers);
+    if (rc) {
+        LOGE("Error creating buffers");
+        goto end;
+    }
+    for (int i = 0; i < ctx->num_buffers; i++)
+        v4l2_overlay_map_buf(ctx->ctl_fd, i, &ctx->buffers[i],
+                             &ctx->buffers_len[i]);
+
+    rc = enable_streaming_locked(ctx->shared, ctx->ctl_fd);
+
+end:
+    pthread_mutex_unlock(&ctx->shared->lock);
+
+    return rc;
+}
+
+
+static int overlay_data_setParameter(struct overlay_data_device_t *dev,
+                                     int param, int value)
+{
+    int ret = 0;
+    struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
+
+    if (ctx->shared == NULL)
+    {
+        LOGI("Shared Data Not Init'd!\n");
+        return -1;
+    }
+
+    if (ctx->shared->dataReady) {
+        LOGI("Too late. Cant set it now!\n");
+        return -1;
+    }
+
+    if (param == CACHEABLE_BUFFERS)
+        ctx->cacheable_buffers = value;
+
+    //ret = v4l2_overlay_set_attributes(ctx->ctl_fd, param, value);
+    return ( ret );
+}
+
 
 static int overlay_setCrop(struct overlay_data_device_t *dev, uint32_t x,
                            uint32_t y, uint32_t w, uint32_t h) {
@@ -913,7 +1018,7 @@ static int overlay_data_close(struct hw_device_t *dev) {
         pthread_mutex_lock(&ctx->shared->lock);
 
         for (i = 0; i < ctx->num_buffers; i++) {
-            LOGD("Unmap Buffer/%d/%08lx/%d", i, (unsigned long)ctx->buffers[i], ctx->buffers_len[i] );
+            LOGV("Unmap Buffer/%d/%08lx/%d", i, (unsigned long)ctx->buffers[i], ctx->buffers_len[i] );
             rc = v4l2_overlay_unmap_buf(ctx->buffers[i], ctx->buffers_len[i]);
             if (rc != 0) {
                 LOGE("Error unmapping the buffer/%d/%d", i, rc);
@@ -980,8 +1085,10 @@ static int overlay_device_open(const struct hw_module_t* module,
         dev->device.common.close = overlay_data_close;
 
         dev->device.initialize = overlay_initialize;
+        dev->device.resizeInput = overlay_resizeInput;
         dev->device.setCrop = overlay_setCrop;
         dev->device.getCrop = overlay_getCrop;
+        dev->device.setParameter = overlay_data_setParameter;
         dev->device.dequeueBuffer = overlay_dequeueBuffer;
         dev->device.queueBuffer = overlay_queueBuffer;
         dev->device.getBufferAddress = overlay_getBufferAddress;
