@@ -977,7 +977,9 @@ typedef struct AACDEC_COMPONENT_PRIVATE
     /** Flag to mark the first sent buffer**/
     OMX_U8 first_buff;
     /** First Time Stamp sent **/
-    OMX_S64 first_TS;
+    OMX_TICKS first_TS;
+    /** Temporal time stamp **/
+    OMX_TICKS temp_TS;
 
     PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
     OMX_BOOL bConfigData;
@@ -1234,6 +1236,26 @@ OMX_ERRORTYPE AACDEC_FreeCompResources(OMX_HANDLETYPE pComponent);
  */
 /* ================================================================================ * */
 void AACDEC_CleanupInitParams(OMX_HANDLETYPE pComponent);
+/* ================================================================================= * */
+/**
+ * AACDEC_CleanupInitParamsEx() function frees only the initialization time
+ * memories allocated. For example, it will not close pipes, it will not free the
+ * memory allocated to the buffers etc. But it does free the memory of buffers
+ * utilized by the LCML etc. It is basically subset of AACDEC_FreeCompResources()
+ * function. Called while port disable when port reconfiguration takes place.
+ *
+ * @param pComponent This is the component handle.
+ *
+ * @pre          None
+ *
+ * @post         None
+ *
+ *  @return      OMX_ErrorNone = Successful Inirialization of the component\n
+ *
+ *  @see         None
+ */
+/* ================================================================================ * */
+void AACDEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
 /* ===========================================================  */
 /**
  *  AACDEC_SetPending()  Called when the component queues a buffer

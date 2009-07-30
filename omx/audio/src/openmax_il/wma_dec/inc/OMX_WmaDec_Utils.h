@@ -19,24 +19,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 /* =============================================================================
-*             Texas Instruments OMAP(TM) Platform Software
-*  (c) Copyright Texas Instruments, Incorporated.  All Rights Reserved.
-*
-*  Use of this software is controlled by the terms and conditions found
-*  in the license agreement under which this software has been supplied.
-* ============================================================================ */
+ *             Texas Instruments OMAP(TM) Platform Software
+ *  (c) Copyright Texas Instruments, Incorporated.  All Rights Reserved.
+ *
+ *  Use of this software is controlled by the terms and conditions found
+ *  in the license agreement under which this software has been supplied.
+ * ============================================================================ */
 /**
-* @file OMX_WmaDecUtils.h
-*
-* This is an header file for an audio WMA Decoder that is fully
-* compliant with the Khronos OpenMAX 1.0 specification.
-* This the file that the application that uses OMX would include
-* in its code.
-*
-* @path $(CSLPATH)\
-*
-* @rev 1.0
-*/
+ * @file OMX_WmaDecUtils.h
+ *
+ * This is an header file for an audio WMA Decoder that is fully
+ * compliant with the Khronos OpenMAX 1.0 specification.
+ * This the file that the application that uses OMX would include
+ * in its code.
+ *
+ * @path $(CSLPATH)\
+ *
+ * @rev 1.0
+ */
 /* --------------------------------------------------------------------------- */
 
 #ifndef OMX_WMADEC_UTILS__H
@@ -47,24 +47,34 @@
 #include <OMX_Component.h>
 #include <TIDspOmx.h>
 #include <OMX_TI_Common.h>
+#include <OMX_TI_Debug.h>
 #include "LCML_DspCodec.h"
 #define _ERROR_PROPAGATION__ 
 
 #ifdef __PERF_INSTRUMENTATION__
-    #include "perf.h"
+#include "perf.h"
 #endif
 
 #include <OMX_Component.h> 
 
-#include <utils/Log.h>
-#define LOG_TAG "omx_WMA"
+#ifndef ANDROID
+    #define ANDROID
+#endif
+
+#ifdef ANDROID
+    #undef LOG_TAG
+    #define LOG_TAG "OMX_WMADEC"
+
+/* PV opencore capability custom parameter index */
+    #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
+#endif
 
 #ifdef UNDER_CE
 #ifndef _OMX_EVENT_
 #define _OMX_EVENT_
 typedef struct OMX_Event {
-        HANDLE event;
-    } OMX_Event;	
+    HANDLE event;
+} OMX_Event;	
 #endif
 
 int OMX_CreateEvent(OMX_Event *event);
@@ -84,6 +94,7 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
 
 /* PV opencore capability custom parameter index */
 #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
+
 #ifndef ANDROID
 #define ANDROID
 #endif
@@ -132,9 +143,9 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #ifdef UNDER_CE
-    #define NUM_WMADEC_OUTPUT_BUFFERS 4
+#define NUM_WMADEC_OUTPUT_BUFFERS 4
 #else
-    #define NUM_WMADEC_OUTPUT_BUFFERS 4
+#define NUM_WMADEC_OUTPUT_BUFFERS 4
 #endif
 /* ======================================================================= */
 /**
@@ -221,13 +232,13 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 //Macros for WMA
-#define GetUnalignedWord( pb, w ) \
-            (w) = ((OMX_U16) *(pb + 1) << 8) + *pb;
+#define GetUnalignedWord( pb, w )               \
+    (w) = ((OMX_U16) *(pb + 1) << 8) + *pb;
 
-#define GetUnalignedDword( pb, dw ) \
-            (dw) = ((OMX_U32) *(pb + 3) << 24) + \
-                   ((OMX_U32) *(pb + 2) << 16) + \
-                   ((OMX_U16) *(pb + 1) << 8) + *pb;
+#define GetUnalignedDword( pb, dw )             \
+    (dw) = ((OMX_U32) *(pb + 3) << 24) +        \
+        ((OMX_U32) *(pb + 2) << 16) +           \
+        ((OMX_U16) *(pb + 1) << 8) + *pb;
 
 #define GetUnalignedWordEx( pb, w )     GetUnalignedWord( pb, w ); (pb) += sizeof(OMX_U16);
 #define GetUnalignedDwordEx( pb, dw )   GetUnalignedDword( pb, dw ); (pb) += sizeof(OMX_U32);
@@ -326,11 +337,22 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
 /* ======================================================================= */
 #define WMADEC_DEFAULT_SAMPLEPERBLOCK 8704
 /* ======================================================================= */
+
+/**
+ * @def    WMA_CACHE_ALIGN   Number of bytes for cache alignment
+ */
+/* ======================================================================= */
+#define WMA_CACHE_ALIGN 128
+/**
+ * @def    WMA_CACHE_ALIGN   Number of bytes for cache alignment
+ */
+/* ======================================================================= */
+#define WMA_EXTRA_BYTES 256
 /**
  * @def    WMADEC_DEBUG   Turns debug messaging on and off
  */
 /* ======================================================================= */
-/*#define WMADEC_DEBUG*/
+#undef WMADEC_DEBUG
 /* ======================================================================= */
 /**
  * @def    WMADEC_MEMCHECK   Turns memory messaging on and off
@@ -349,7 +371,7 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #ifdef UNDER_CE
-            #define WMADEC_USN_DLL_NAME "\\windows\\usn.dll64P"
+#define WMADEC_USN_DLL_NAME "\\windows\\usn.dll64P"
 #else
 #define WMADEC_USN_DLL_NAME "usn.dll64P"
 #endif
@@ -359,7 +381,7 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #ifdef UNDER_CE
-            #define WMADEC_DLL_NAME "\\windows\\wmadec_sn.dll64P"
+#define WMADEC_DLL_NAME "\\windows\\wmadec_sn.dll64P"
 #else
 #define WMADEC_DLL_NAME "wmadec_sn.dll64P"
 #endif
@@ -369,9 +391,9 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #ifndef UNDER_CE
-        #define WMADEC_EPRINT LOGE
+#define WMADEC_EPRINT LOGE
 #else
-        #define WMADEC_EPRINT		  printf
+#define WMADEC_EPRINT		  printf
 #endif
 /* ======================================================================= */
 /**
@@ -380,29 +402,29 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
 /* ======================================================================= */
 #ifndef UNDER_CE
 #ifdef  WMADEC_DEBUG
-        #define WMADEC_DPRINT LOGW
+#define WMADEC_DPRINT LOGI
 #else
-        #define WMADEC_DPRINT(...)
+#define WMADEC_DPRINT(...)
 #endif
 
 #ifdef  WMADEC_MEMCHECK
-        #define WMADEC_MEMPRINT LOGW //(...)    fprintf(stderr,__VA_ARGS__)
+#define WMADEC_MEMPRINT(...)    fprintf(stderr,__VA_ARGS__)
 #else
-        #define WMADEC_MEMPRINT(...)
+#define WMADEC_MEMPRINT(...)
 #endif
 
 
 #ifdef  WMADEC_DEBUG_MCP
-        #define WMADEC_MCP_DPRINT LOGW //(...)    fprintf(stderr,__VA_ARGS__)
+#define WMADEC_MCP_DPRINT(...)    fprintf(stderr,__VA_ARGS__)
 #else
-        #define WMADEC_MCP_DPRINT(...)
+#define WMADEC_MCP_DPRINT(...)
 #endif
 
 #else /*UNDER_CE*/
 #ifdef  WMADEC_DEBUG
- #define WMADEC_DPRINT(STR, ARG...) printf()
+#define WMADEC_DPRINT(STR, ARG...) printf()
 #else
-    #define WMADEC_DPRINT 
+#define WMADEC_DPRINT 
 #endif
 /* ======================================================================= */
 /**
@@ -410,9 +432,9 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #ifdef WMADEC_MEMCHECK
-    #define WMADEC_MEMPRINT(STR, ARG...) printf()
+#define WMADEC_MEMPRINT(STR, ARG...) printf()
 #else
-    #define WMADEC_MEMPRINT 
+#define WMADEC_MEMPRINT 
 #endif
 
 #endif
@@ -427,30 +449,30 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  *  M A C R O FOR ALLOCATE MEMORY 
  */
 /* ======================================================================= */
-#define WMAD_OMX_MALLOC(_pStruct_, _sName_)   \
-    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));      \
-    if(_pStruct_ == NULL){      \
-        printf("***********************************\n"); \
-        printf("%d :: Malloc Failed\n",__LINE__); \
-        printf("***********************************\n"); \
-        eError = OMX_ErrorInsufficientResources; \
-        goto EXIT;      \
-    } \
-    memset(_pStruct_,0,sizeof(_sName_));\
-    WMADEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_pStruct_);
+#define WMAD_OMX_MALLOC(_pStruct_, _sName_)                             \
+    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));                   \
+    if(_pStruct_ == NULL){                                              \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");                \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__);                       \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");                \
+        eError = OMX_ErrorInsufficientResources;                        \
+        goto EXIT;                                                      \
+    }                                                                   \
+    memset(_pStruct_,0,sizeof(_sName_));                                \
+    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
 
 
-#define WMAD_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)   \
-    _ptr_ = (_name_ *)newmalloc(_size_);      \
-    if(_ptr_ == NULL){      \
-        printf("***********************************\n"); \
-        printf("%d :: Malloc Failed\n",__LINE__); \
-        printf("***********************************\n"); \
-        eError = OMX_ErrorInsufficientResources; \
-        goto EXIT;      \
-    } \
-    memset(_ptr_,0,_size_); \
-    WMADEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_ptr_);
+#define WMAD_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)              \
+    _ptr_ = (_name_ *)newmalloc(_size_);                        \
+    if(_ptr_ == NULL){                                          \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");        \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__);               \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");        \
+        eError = OMX_ErrorInsufficientResources;                \
+        goto EXIT;                                              \
+    }                                                           \
+    memset(_ptr_,0,_size_);                                     \
+    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_ptr_);
 
 
 /* ======================================================================= */
@@ -459,12 +481,12 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 
-#define OMX_WMADECMEMFREE_STRUCT(_pStruct_)\
-	WMADEC_MEMPRINT("%d :: [FREE] %p\n",__LINE__,_pStruct_);\
-    if(_pStruct_ != NULL){\
-    	newfree(_pStruct_);\
-	    _pStruct_ = NULL;\
-	}
+#define OMX_WMADECMEMFREE_STRUCT(_pStruct_)                     \
+    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: [FREE] %p\n",__LINE__,_pStruct_);    \
+    if(_pStruct_ != NULL){                                      \
+    	newfree(_pStruct_);                                     \
+        _pStruct_ = NULL;                                       \
+    }
 
 /* ======================================================================= */
 /**
@@ -491,11 +513,11 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
 
 /* ======================================================================= */
 /** COMP_PORT_TYPE  Port types
-*
-*  @param  INPUT_PORT                   Input port
-*
-*  @param  OUTPUT_PORT                  Output port
-*/
+ *
+ *  @param  INPUT_PORT                   Input port
+ *
+ *  @param  OUTPUT_PORT                  Output port
+ */
 /*  ==================================================================== */
 typedef enum COMP_PORT_TYPE {
     INPUT_PORT = 0,
@@ -503,27 +525,27 @@ typedef enum COMP_PORT_TYPE {
 }COMP_PORT_TYPE;
 /* ======================================================================= */
 /** StreamType  Stream types
-*
-*  @param  DMM                  DMM
-*
-*  @param  INSTRM               Input stream
-*
-*  @param  OUTSTRM              Output stream
-*/
+ *
+ *  @param  DMM                  DMM
+ *
+ *  @param  INSTRM               Input stream
+ *
+ *  @param  OUTSTRM              Output stream
+ */
 /*  ==================================================================== */
 enum StreamType
-{
-    DMM,
-    INSTRM,
-    OUTSTRM
-};
+    {
+        DMM,
+        INSTRM,
+        OUTSTRM
+    };
 
 typedef OMX_ERRORTYPE (*fpo)(OMX_HANDLETYPE);
 
 /* =================================================================================== */
 /**
-* Socket node input parameters.
-*/
+ * Socket node input parameters.
+ */
 /* ================================================================================== */
 typedef struct WMADEC_AudioCodecParams
 {
@@ -559,8 +581,8 @@ typedef struct {
 
 typedef struct 
 {   
-	OMX_U32      size;              
-	OMX_S32      iOutputFormat;     
+    OMX_U32      size;              
+    OMX_S32      iOutputFormat;     
 } WMADEC_UALGParams;
 
 typedef struct {
@@ -569,21 +591,21 @@ typedef struct {
 }WMADEC_UAlgOutBufParamStruct;
 /* =================================================================================== */
 /**
-* WMA Buffer Header Type
-*/
+ * WMA Buffer Header Type
+ */
 /* ================================================================================== */
 typedef struct LCML_WMADEC_BUFHEADERTYPE {
-      OMX_DIRTYPE eDir;
-      OMX_BUFFERHEADERTYPE* buffer;
-      WMADEC_UAlgInBufParamStruct *pIpParam;
+    OMX_DIRTYPE eDir;
+    OMX_BUFFERHEADERTYPE* buffer;
+    WMADEC_UAlgInBufParamStruct *pIpParam;
     /* Output Parameter Information structure */
-      WMADEC_UAlgOutBufParamStruct *pOpParam;
+    WMADEC_UAlgOutBufParamStruct *pOpParam;
 }LCML_WMADEC_BUFHEADERTYPE;
 
 /* =================================================================================== */
 /**
-* Structure for buffer list
-*/
+ * Structure for buffer list
+ */
 /* ================================================================================== */
 typedef struct _BUFFERLIST BUFFERLIST;
 struct _BUFFERLIST{
@@ -596,19 +618,19 @@ struct _BUFFERLIST{
 
 typedef struct PV_OMXComponentCapabilityFlagsType
 {
-        ////////////////// OMX COMPONENT CAPABILITY RELATED MEMBERS (for opencore compatability)
-        OMX_BOOL iIsOMXComponentMultiThreaded;
-        OMX_BOOL iOMXComponentSupportsExternalOutputBufferAlloc;
-        OMX_BOOL iOMXComponentSupportsExternalInputBufferAlloc;
-        OMX_BOOL iOMXComponentSupportsMovableInputBuffers;
-        OMX_BOOL iOMXComponentSupportsPartialFrames;
-        OMX_BOOL iOMXComponentNeedsNALStartCode;
-        OMX_BOOL iOMXComponentCanHandleIncompleteFrames;
+    ////////////////// OMX COMPONENT CAPABILITY RELATED MEMBERS (for opencore compatability)
+    OMX_BOOL iIsOMXComponentMultiThreaded;
+    OMX_BOOL iOMXComponentSupportsExternalOutputBufferAlloc;
+    OMX_BOOL iOMXComponentSupportsExternalInputBufferAlloc;
+    OMX_BOOL iOMXComponentSupportsMovableInputBuffers;
+    OMX_BOOL iOMXComponentSupportsPartialFrames;
+    OMX_BOOL iOMXComponentNeedsNALStartCode;
+    OMX_BOOL iOMXComponentCanHandleIncompleteFrames;
 } PV_OMXComponentCapabilityFlagsType;
 /* =================================================================================== */
 /**
-*  RCA_HEADER. Rca data that goes to SN with each raw data packet received from test app.
-*/
+ *  RCA_HEADER. Rca data that goes to SN with the first data packet received from test app.
+ */
 /* ================================================================================== */
 typedef struct RCA_HEADER
 {         
@@ -628,12 +650,13 @@ typedef struct RCA_HEADER
     OMX_U32					iSamplesPerBlock;
     OMX_U16					iEncodeOptV;
     OMX_U32					iNotUsed2;    
-    OMX_U16                 iPayload;
+    OMX_U8					iReplicatedDataSize;
+    OMX_U32                 iPayload;
 } RCA_HEADER;
 /* =================================================================================== */
 /**
-* Component private data
-*/
+ * Component private data
+ */
 /* ================================================================================== */
 typedef struct WMADEC_COMPONENT_PRIVATE
 {
@@ -823,8 +846,8 @@ typedef struct WMADEC_COMPONENT_PRIVATE
     /* Device string */
     OMX_STRING* sDeviceString;
 
-	/**Keep buffer tickcount*/
-	OMX_U32 arrBufIndexTick[MAX_NUM_OF_BUFS]; 
+    /**Keep buffer tickcount*/
+    OMX_U32 arrBufIndexTick[MAX_NUM_OF_BUFS]; 
     
     /** Keep buffer timestamps **/
     OMX_S64 arrBufIndex[MAX_NUM_OF_BUFS];
@@ -835,14 +858,14 @@ typedef struct WMADEC_COMPONENT_PRIVATE
     /** Index to arrBufIndex[], used for output buffer timestamps */
     OMX_U8 OpBufindex;
 
-	/** Flag to flush SN after EOS in order to process more buffers after EOS**/
-	OMX_U8 SendAfterEOS;		
+    /** Flag to flush SN after EOS in order to process more buffers after EOS**/
+    OMX_U8 SendAfterEOS;		
  
     OMX_BOOL bPreempted;
 	
-	/* Removing sleep() calls. Definition. */
+    /* Removing sleep() calls. Definition. */
 #ifndef UNDER_CE
-	pthread_mutex_t AlloBuf_mutex;    
+    pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
     
@@ -877,17 +900,17 @@ typedef struct WMADEC_COMPONENT_PRIVATE
     OMX_Event InIdle_event;
     OMX_U8 InIdle_goingtoloaded; 
 #endif                       
-	OMX_BOOL bIsInvalidState;
-	void* PtrCollector[6];        
+    OMX_BOOL bIsInvalidState;
+    void* PtrCollector[6];        
     /* Removing sleep() calls. Definition. */
     OMX_BOOL bLoadedCommandPending;
     OMX_PARAM_COMPONENTROLETYPE componentRole;
-	/** Count of number of buffers outstanding with bridge */
+    /** Count of number of buffers outstanding with bridge */
     OMX_U32 lcml_nIpBuf;
     /** Count of number of buffers outstanding with bridge */
     OMX_U32 lcml_nOpBuf;
     OMX_U32 app_nBuf;
-	OMX_U32 num_Reclaimed_Op_Buff;
+    OMX_U32 num_Reclaimed_Op_Buff;
     
     PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
     OMX_BOOL reconfigInputPort;     
@@ -898,401 +921,404 @@ typedef struct WMADEC_COMPONENT_PRIVATE
     
     OMX_AUDIO_PARAM_PCMMODETYPE *wma_op;
     	
-	OMX_U8 first_buffer;	
+    OMX_U8 first_buffer;	
 	
-	RCA_HEADER *rcaheader;
-        
+    RCA_HEADER *rcaheader;
+
+    struct OMX_TI_Debug dbg;        
+
 } WMADEC_COMPONENT_PRIVATE;
 /* ===========================================================  */
 /**
-*  OMX_ComponentInit()  Initializes component
-* 
-*
-*  @param hComp         OMX Handle
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*
-*/
+ *  OMX_ComponentInit()  Initializes component
+ * 
+ *
+ *  @param hComp         OMX Handle
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *
+ */
 /*================================================================== */
 
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 
 /* ===========================================================  */
 /**
-*  WMADEC_StartComponentThread()  Starts component thread
-* 
-*
-*  @param hComp         OMX Handle
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*
-*/
+ *  WMADEC_StartComponentThread()  Starts component thread
+ * 
+ *
+ *  @param hComp         OMX Handle
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_StartComponentThread(OMX_HANDLETYPE pHandle);
 
 /* ===========================================================  */
 /**
-*  WMADEC_StopComponentThread()  Stops component thread
-* 
-*
-*  @param hComp         OMX Handle
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*
-*/
+ *  WMADEC_StopComponentThread()  Stops component thread
+ * 
+ *
+ *  @param hComp         OMX Handle
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_StopComponentThread(OMX_HANDLETYPE pHandle);
 
 /* ===========================================================  */
 /**
-*  WMADEC_FreeCompResources()  Frees allocated memory
-* 
-*
-*  @param hComp         OMX Handle
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*
-*/
+ *  WMADEC_FreeCompResources()  Frees allocated memory
+ * 
+ *
+ *  @param hComp         OMX Handle
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_FreeCompResources(OMX_HANDLETYPE pComponent);
 
 /* ===========================================================  */
 /**
-*  WMADEC_GetCorresponding_LCMLHeader()  Returns LCML header
-* that corresponds to the given buffer
-*
-*  @param pComponentPrivate Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_GetCorresponding_LCMLHeader()  Returns LCML header
+ * that corresponds to the given buffer
+ *
+ *  @param pComponentPrivate Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADECGetCorresponding_LCMLHeader(WMADEC_COMPONENT_PRIVATE *pComponentPrivate,
-		                                          OMX_U8 *pBuffer,
-		                                          OMX_DIRTYPE eDir,
-		                                          LCML_WMADEC_BUFHEADERTYPE **ppLcmlHdr);
+                                                OMX_U8 *pBuffer,
+                                                OMX_DIRTYPE eDir,
+                                                LCML_WMADEC_BUFHEADERTYPE **ppLcmlHdr);
 
 /* ===========================================================  */
 /**
-*  WMADEC_LCML_Callback() Callback from LCML
-*
-*  @param event     Codec Event
-*
-*  @param args      Arguments from LCML
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_LCML_Callback() Callback from LCML
+ *
+ *  @param event     Codec Event
+ *
+ *  @param args      Arguments from LCML
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10]);
 
 /* ===========================================================  */
 /**
-*  WMADEC_Fill_LCMLInitParams() Fills the parameters needed
-* to initialize the LCML
-*
-*  @param pHandle OMX Handle
-*
-*  @param plcml_Init LCML initialization parameters
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*
-*/
+ *  WMADEC_Fill_LCMLInitParams() Fills the parameters needed
+ * to initialize the LCML
+ *
+ *  @param pHandle OMX Handle
+ *
+ *  @param plcml_Init LCML initialization parameters
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADECFill_LCMLInitParams(OMX_COMPONENTTYPE* pComponent,
-										LCML_DSP *plcml_Init, OMX_U16 arr[]);
+                                        LCML_DSP *plcml_Init, OMX_U16 arr[]);
 
 
 /* ===========================================================  */
 /**
-*  WMADEC_GetBufferDirection() Returns direction of pBufHeader
-*
-*  @param pBufHeader        Buffer header
-*
-*  @param eDir              Buffer direction
-*
-*  @param pComponentPrivate Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_GetBufferDirection() Returns direction of pBufHeader
+ *
+ *  @param pBufHeader        Buffer header
+ *
+ *  @param eDir              Buffer direction
+ *
+ *  @param pComponentPrivate Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADECGetBufferDirection(OMX_BUFFERHEADERTYPE *pBufHeader, OMX_DIRTYPE *eDir);
 
 
 /* ===========================================================  */
 /**
-*  WMADECHandleCommand()  Handles commands sent via SendCommand()
-*
-*  @param pComponentPrivate Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADECHandleCommand()  Handles commands sent via SendCommand()
+ *
+ *  @param pComponentPrivate Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_U32 WMADECHandleCommand (WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ===========================================================  */
 /**
-*  WMADECFreeLCMLHandle()  Frees the handle to the LCML
-*
-*  @param pComponentPrivate Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADECFreeLCMLHandle()  Frees the handle to the LCML
+ *
+ *  @param pComponentPrivate Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADECFreeLCMLHandle(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ===========================================================  */
 /**
-*  WMADECHandleDataBuf_FromApp()  Handles data buffers received
-* from the IL Client
-*
-*  @param pComponentPrivate Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADECHandleDataBuf_FromApp()  Handles data buffers received
+ * from the IL Client
+ *
+ *  @param pComponentPrivate Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADECHandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE *pBufHeader,
-										  WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
+                                          WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 
 /* ===========================================================  */
 /**
-*  WMADECHandleDataBuf_FromLCML()  Handles data buffers received
-* from LCML
-*
-*  @param pComponentPrivate Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADECHandleDataBuf_FromLCML()  Handles data buffers received
+ * from LCML
+ *
+ *  @param pComponentPrivate Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADECHandleDataBuf_FromLCML(WMADEC_COMPONENT_PRIVATE* pComponentPrivate, 
-											LCML_WMADEC_BUFHEADERTYPE* msgBuffer);
+                                           LCML_WMADEC_BUFHEADERTYPE* msgBuffer);
 
 
 /* ===========================================================  */
 /**
-*  WMADEC_FreeLCMLHandle()  Frees the handle to the LCML
-*
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_FreeLCMLHandle()  Frees the handle to the LCML
+ *
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_HANDLETYPE WMADECGetLCMLHandle(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ===========================================================  */
 /**
-*  WMADEC_CleanupInitParams()  Starts component thread
-*
-*  @param pComponent        OMX Handle
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_CleanupInitParams()  Starts component thread
+ *
+ *  @param pComponent        OMX Handle
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_CleanupInitParams(OMX_HANDLETYPE pComponent);
 
 /* ===========================================================  */
 /**
-*  WMADEC_SetPending()  Called when the component queues a buffer
-* to the LCML
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @param pBufHdr               Buffer header
-*
-*  @param eDir                  Direction of the buffer
-*
-*  @return None
-*/
+ *  WMADEC_SetPending()  Called when the component queues a buffer
+ * to the LCML
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @param pBufHdr               Buffer header
+ *
+ *  @param eDir                  Direction of the buffer
+ *
+ *  @return None
+ */
 /*================================================================== */
 void WMADEC_SetPending(WMADEC_COMPONENT_PRIVATE *pComponentPrivate, 
-						OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir);
+                       OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir);
 
 /* ===========================================================  */
 /**
-*  WMADEC_ClearPending()  Called when a buffer is returned
-* from the LCML
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @param pBufHdr               Buffer header
-*
-*  @param eDir                  Direction of the buffer
-*
-*  @return None
-*/
+ *  WMADEC_ClearPending()  Called when a buffer is returned
+ * from the LCML
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @param pBufHdr               Buffer header
+ *
+ *  @param eDir                  Direction of the buffer
+ *
+ *  @return None
+ */
 /*================================================================== */
 void WMADEC_ClearPending(WMADEC_COMPONENT_PRIVATE *pComponentPrivate, 
-							OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir) ;
+                         OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir) ;
 
 /* ===========================================================  */
 /**
-*  WMADEC_CommandToIdle()  Called when the component is commanded
-* to idle
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_CommandToIdle()  Called when the component is commanded
+ * to idle
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_CommandToIdle(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ===========================================================  */
 /**
-*  WMADEC_CommandToIdle()  Called when the component is commanded
-* to idle
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_CommandToIdle()  Called when the component is commanded
+ * to idle
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_CommandToLoaded(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ===========================================================  */
 /**
-*  WMADEC_CommandToExecuting()  Called when the component is commanded
-* to executing
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_CommandToExecuting()  Called when the component is commanded
+ * to executing
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_CommandToExecuting(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ===========================================================  */
 /**
-*  WMADEC_CommandToPause()  Called when the component is commanded
-* to paused
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_CommandToPause()  Called when the component is commanded
+ * to paused
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_CommandToPause(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ===========================================================  */
 /**
-*  WMADEC_CommandToWaitForResources()  Called when the component is commanded
-* to WaitForResources
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_CommandToWaitForResources()  Called when the component is commanded
+ * to WaitForResources
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_CommandToWaitForResources(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ===========================================================  */
 /**
-*  WMADEC_IsPending()  
-* 
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @return OMX_ErrorNone = Successful
-*          Other error code = fail
-*/
+ *  WMADEC_IsPending()  
+ * 
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @return OMX_ErrorNone = Successful
+ *          Other error code = fail
+ */
 /*================================================================== */
 OMX_U32 WMADEC_IsPending(WMADEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir);
 
 /* ===========================================================  */
 /**
-*  WMADEC_Fill_LCMLInitParamsEx()  Fills the parameters needed
-* to initialize the LCML without recreating the socket node
-*
-*  @param pComponent            OMX Handle
-*
-*  @return None
-*/
+ *  WMADEC_Fill_LCMLInitParamsEx()  Fills the parameters needed
+ * to initialize the LCML without recreating the socket node
+ *
+ *  @param pComponent            OMX Handle
+ *
+ *  @return None
+ */
 
 /*================================================================== */
 OMX_ERRORTYPE WMADECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
 
 /* ===========================================================  */
 /**
-*  WMADEC_IsValid() Returns whether a buffer is valid
-* 
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @param pBuffer               Data buffer
-*
-*  @param eDir                  Buffer direction
-*
-*  @return OMX_True = Valid
-*          OMX_False= Invalid
-*/
+ *  WMADEC_IsValid() Returns whether a buffer is valid
+ * 
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @param pBuffer               Data buffer
+ *
+ *  @param eDir                  Buffer direction
+ *
+ *  @return OMX_True = Valid
+ *          OMX_False= Invalid
+ */
 /*================================================================== */
 OMX_U32 WMADEC_IsValid(WMADEC_COMPONENT_PRIVATE *pComponentPrivate, 
-						OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
+                       OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
 /* ===========================================================  */
 /**
-*  WMADEC_TransitionToIdle() Transitions component to idle
-* 
-*
-*  @param pComponentPrivate     Component private data
-*
-*  @return OMX_ErrorNone = No error
-*          OMX Error code = Error
-*/
+ *  WMADEC_TransitionToIdle() Transitions component to idle
+ * 
+ *
+ *  @param pComponentPrivate     Component private data
+ *
+ *  @return OMX_ErrorNone = No error
+ *          OMX Error code = Error
+ */
 /*================================================================== */
 OMX_ERRORTYPE WMADEC_TransitionToIdle(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 /* ===========================================================  */
 /**
-*  ComponentThread()  Component thread
-*
-*  @param pThreadData		Thread data
-*
-* @cbData		CallBack for ResourceManagerProxy
-*  @return None
-*
-*/
+ *  ComponentThread()  Component thread
+ *
+ *  @param pThreadData		Thread data
+ *
+ * @cbData		CallBack for ResourceManagerProxy
+ *  @return None
+ *
+ */
 /*================================================================== */
 void* ComponentThread (void* pThreadData);
  
 
 /* ======================================================================= */
 /** OMX_WMADEC_INDEXAUDIOTYPE  Defines the custom configuration settings
-*                              for the component
-*pHeaderInfo
-*  @param  OMX_IndexCustomWMADECModeDasfConfig      Sets the DASF mode
-*
-*  
-*/
+ *                              for the component
+ *pHeaderInfo
+ *  @param  OMX_IndexCustomWMADECModeDasfConfig      Sets the DASF mode
+ *
+ *  
+ */
 /*  ==================================================================== */
 typedef enum OMX_WMADEC_INDEXAUDIOTYPE {
-	OMX_IndexCustomWMADECModeDasfConfig = 0xFF000001,
-	OMX_IndexCustomWMADECHeaderInfoConfig,
-	OMX_IndexCustomWmaDecLowLatencyConfig,
-	OMX_IndexCustomWmaDecStreamIDConfig,
-	OMX_IndexCustomWmaDecDataPath
+    OMX_IndexCustomWMADECModeDasfConfig = 0xFF000001,
+    OMX_IndexCustomWMADECHeaderInfoConfig,
+    OMX_IndexCustomWmaDecLowLatencyConfig,
+    OMX_IndexCustomWmaDecStreamIDConfig,
+    OMX_IndexCustomWmaDecDataPath,
+    OMX_IndexCustomDebug
 }OMX_WMADEC_INDEXAUDIOTYPE;
 
 

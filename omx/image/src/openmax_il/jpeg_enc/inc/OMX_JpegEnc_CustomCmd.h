@@ -71,8 +71,6 @@ typedef struct JPEGENC_CUSTOM_HUFFMAN_TABLE {
       OMX_U16 chm_ac_nsymbols;
 }JPEGENC_CUSTOM_HUFFMAN_TABLE;
 
-
-
 typedef struct JPEGENC_CUSTOM_HUFFMANTTABLETYPE {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
@@ -80,13 +78,19 @@ typedef struct JPEGENC_CUSTOM_HUFFMANTTABLETYPE {
     JPEGENC_CUSTOM_HUFFMAN_TABLE sHuffmanTable;
 }JPEGENC_CUSTOM_HUFFMANTTABLETYPE;
 
+typedef struct JPEG_APPTHUMB_MARKER { 
+	OMX_BOOL bMarkerEnabled;		/* Boolean flag to enable/disable this marker on its whole */
+	OMX_U8 *pMarkerBuffer;			/* This pointer must point to the marker buffer allocated by application */
+	OMX_U32 nMarkerSize;			/* This variable holds the size of the marker buffer */
+	OMX_U32 nThumbnailWidth;          /* This variable holds the thumbnail's width value (0 = No thumbnail) */
+	OMX_U32 nThumbnailHeight;	        /* This variable holds the thumbnail's height value (0 = No thumbnail) */
+} JPEG_APPTHUMB_MARKER;
 
-
-typedef struct _APP_INFO {
-  OMX_U8 *app;
-  OMX_U16 size;
-} APP_INFO;
-
+typedef struct JPEG_APP13_MARKER { 
+	OMX_BOOL bMarkerEnabled;		/* Boolean flag to enable/disable this marker on its whole */
+	OMX_U8 *pMarkerBuffer;			/* This pointer must point to the marker buffer allocated by application */
+	OMX_U32 nMarkerSize;			/* This variable holds the size of the marker buffer */
+} JPEG_APP13_MARKER;
 
 #endif /* OMX_JPEGENC_CUSTOMCMD_H */
 

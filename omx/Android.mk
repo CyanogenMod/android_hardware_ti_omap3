@@ -36,6 +36,7 @@ TI_OMX_COMP_SHARED_LIBRARIES := \
 	libbridge \
 	libOMX_Core \
 	libLCML \
+	libcutils \
 	liblog	
 
 ifeq ($(PERF_INSTRUMENTATION),1)
@@ -67,19 +68,37 @@ include $(TI_OMX_AUDIO)/aac_dec/src/Android.mk
 include $(TI_OMX_AUDIO)/aac_enc/src/Android.mk
 include $(TI_OMX_AUDIO)/aac_enc/tests/Android.mk
 include $(TI_OMX_AUDIO)/mp3_dec/src/Android.mk
+include $(TI_OMX_AUDIO)/wma_dec/src/Android.mk
+include $(TI_OMX_AUDIO)/wma_dec/tests/Android.mk
+
+#call to VoIP/speech
 include $(TI_OMX_AUDIO)/nbamr_dec/src/Android.mk
 include $(TI_OMX_AUDIO)/nbamr_enc/src/Android.mk
 include $(TI_OMX_AUDIO)/nbamr_enc/tests/Android.mk
 include $(TI_OMX_AUDIO)/wbamr_dec/src/Android.mk
 include $(TI_OMX_AUDIO)/wbamr_enc/src/Android.mk
 include $(TI_OMX_AUDIO)/wbamr_enc/tests/Android.mk
-include $(TI_OMX_AUDIO)/wma_dec/src/Android.mk
-include $(TI_OMX_AUDIO)/wma_dec/tests/Android.mk
-
+include $(TI_OMX_AUDIO)/g711_dec/src/Android.mk
+include $(TI_OMX_AUDIO)/g711_dec/tests/Android.mk
+include $(TI_OMX_AUDIO)/g711_enc/src/Android.mk
+include $(TI_OMX_AUDIO)/g711_enc/tests/Android.mk
+include $(TI_OMX_AUDIO)/g722_dec/src/Android.mk
+include $(TI_OMX_AUDIO)/g722_dec/tests/Android.mk
+include $(TI_OMX_AUDIO)/g722_enc/src/Android.mk
+include $(TI_OMX_AUDIO)/g722_enc/tests/Android.mk
+include $(TI_OMX_AUDIO)/g726_dec/src/Android.mk
+include $(TI_OMX_AUDIO)/g726_dec/tests/Android.mk
+include $(TI_OMX_AUDIO)/g726_enc/src/Android.mk
+include $(TI_OMX_AUDIO)/g726_enc/tests/Android.mk
+include $(TI_OMX_AUDIO)/g729_dec/src/Android.mk
+include $(TI_OMX_AUDIO)/g729_dec/tests/Android.mk
+include $(TI_OMX_AUDIO)/g729_enc/src/Android.mk
+include $(TI_OMX_AUDIO)/g729_enc/tests/Android.mk
 #call to video
 include $(TI_OMX_VIDEO)/video_decode/Android.mk
 include $(TI_OMX_VIDEO)/video_encode/Android.mk
-
+include $(TI_OMX_VIDEO)/video_encode/test/Android.mk
+include $(TI_OMX_VIDEO)/prepost_processor/Android.mk
 #call to image
 include $(TI_OMX_IMAGE)/jpeg_enc/Android.mk
 include $(TI_OMX_IMAGE)/jpeg_dec/Android.mk

@@ -252,8 +252,12 @@ typedef struct IH264VENC_DynamicParams {
     OMX_U32      hierCodingEnable          ; /*Enable/Disable Hierarchical P Frame (non-reference P frame) Coding. [Not useful for DM6446]*/
     OMX_U32      streamFormat              ; /* Signals the type of stream generated with Call-back*/
     OMX_U32      intraRefreshMethod        ; /* Mechanism to do intra Refresh, see IH264VENC_IntraRefreshMethods for valid values*/
-    void   (*pfNalUnitCallBack)(OMX_U32 *pNalu, OMX_U32 *pPacketSizeInBytes) ; /* Function pointer of the call-back function to be used by Encoder
-                                                                                     Following Parameter are related to Arbitrary Slice Ordering (ASO)*/
+    OMX_U32      perceptualQuant           ; /* Enable Perceptual Quantization a.k.a. Perceptual Rate Control*/
+    OMX_U32      sceneChangeDet            ; /* Enable Scene Change Detection*/
+
+    void   (*pfNalUnitCallBack)(OMX_U32 *pNalu, OMX_U32 *pPacketSizeInBytes, void *pContext) ; /* Function pointer of the call-back function to be used by Encoder*/
+    void *pContext                          ; /*pointer to context structure used during callback*/
+    /*Following Parameter are related to Arbitrary Slice Ordering (ASO)*/
     OMX_U32 numSliceASO                    ; /* Number of valid enteries in asoSliceOrder array valid range is [0,8], 
                                                where 0 and 1 doesn't have any effect*/
     OMX_U32 asoSliceOrder[MAXNUMSLCGPS]    ; /* Array containing the order of slices in which they should
@@ -303,7 +307,7 @@ typedef struct H264VE_GPP_SN_UALGOutputParams {
     OMX_U32   ulBitstreamSize;
 	OMX_S32   lFrameType;
 	OMX_U32   ulNALUnitsPerFrame;	/*Number of total NAL units per frame*/
-	OMX_U32   ulNALUnitsSizes[1618];
+	OMX_U32   ulNALUnitsSizes[240];
 	OMX_U32   ulFrameIndex;			/*Gives the number of the input frame wich NAL unit belongs*/
 	OMX_U32   ulNALUnitIndex;		/*Number of current NAL unit inside the frame*/
 } H264VE_GPP_SN_UALGOutputParams;

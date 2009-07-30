@@ -279,9 +279,9 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsExternalOutputBufferAlloc = OMX_FALSE;
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsExternalInputBufferAlloc = OMX_FALSE;
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsMovableInputBuffers = OMX_FALSE; /* experiment with this */
-    pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsPartialFrames = OMX_TRUE; /* experiment with this */
+    pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsPartialFrames = OMX_FALSE; /* experiment with this */
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentNeedsNALStartCode = OMX_FALSE; /* used only for H.264, leave this as false */
-    pComponentPrivate->iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_TRUE; /* experiment with this */
+    pComponentPrivate->iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_FALSE; /* experiment with this */
 #endif
 
     WBAMR_DEC_OMX_MALLOC(pComponentPrivate->pInputBufferList, WBAMR_DEC_BUFFERLIST);
@@ -364,6 +364,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->bNoIdleOnStop = OMX_FALSE;
     pComponentPrivate->pParams = NULL; /* Without this initialization repetition cases failed. */
     pComponentPrivate->LastOutbuf=NULL;
+    pComponentPrivate->using_rtsp = 0;
     strcpy((char*)pComponentPrivate->componentRole.cRole, AMRWB_DEC_ROLE);
 
 
@@ -408,6 +409,10 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pthread_cond_init (&pComponentPrivate->AlloBuf_threshold, NULL);
     pComponentPrivate->AlloBuf_waitingsignal = 0;
 
+    pthread_mutex_init(&pComponentPrivate->codecStop_mutex, NULL);
+    pthread_cond_init (&pComponentPrivate->codecStop_threshold, NULL);
+    pComponentPrivate->codecStop_waitingsignal = 0;
+
     pthread_mutex_init(&pComponentPrivate->InLoaded_mutex, NULL);
     pthread_cond_init (&pComponentPrivate->InLoaded_threshold, NULL);
     pComponentPrivate->InLoaded_readytoidle = 0;
@@ -443,10 +448,11 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pPortDef_ip->nPortIndex = 0x0;
     pPortDef_ip->nBufferCountActual = NUM_WBAMRDEC_INPUT_BUFFERS;
     pPortDef_ip->nBufferCountMin = NUM_WBAMRDEC_INPUT_BUFFERS;
+    pPortDef_ip->nBufferAlignment = EXTRA_BYTES;
     pPortDef_ip->eDir = OMX_DirInput;
     pPortDef_ip->bEnabled = OMX_TRUE;
     /* Use bigger IN buffer size for PV-Android */
-    pPortDef_ip->nBufferSize = 640; /*INPUT_WBAMRDEC_BUFFER_SIZE;*/
+    pPortDef_ip->nBufferSize = IP_WBAMRDEC_BUFFERSIZE;
     pPortDef_ip->bPopulated = 0;
     pPortDef_ip->format.audio.eEncoding = OMX_AUDIO_CodingAMR;
 
@@ -454,6 +460,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pPortDef_op->nPortIndex = 0x1;
     pPortDef_op->nBufferCountActual = NUM_WBAMRDEC_OUTPUT_BUFFERS;
     pPortDef_op->nBufferCountMin = NUM_WBAMRDEC_OUTPUT_BUFFERS;
+    pPortDef_op->nBufferAlignment = EXTRA_BYTES;
     pPortDef_op->eDir = OMX_DirOutput;
     pPortDef_op->bEnabled = OMX_TRUE;
     pPortDef_op->nBufferSize = OUTPUT_WBAMRDEC_BUFFER_SIZE;
@@ -1019,10 +1026,14 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
 
             if (OMX_AUDIO_AMRFrameFormatConformance == pCompAmrParam->eAMRFrameFormat)
                 pComponentPrivate->mimemode = 0;
-            else if (OMX_AUDIO_AMRFrameFormatFSF == pCompAmrParam->eAMRFrameFormat)
-                pComponentPrivate->mimemode = 1;
-            else
-                pComponentPrivate->mimemode = 2; /*IF2 Format*/
+        else if (OMX_AUDIO_AMRFrameFormatIF2 == pCompAmrParam->eAMRFrameFormat)
+            pComponentPrivate->mimemode = 2;
+        else if (OMX_AUDIO_AMRFrameFormatRTPPayload == pCompAmrParam->eAMRFrameFormat){
+            pComponentPrivate->mimemode = 1;
+            pComponentPrivate->using_rtsp = 1;
+        }
+        else
+            pComponentPrivate->mimemode = 1; /*MIME Format*/
 
             /* 0 means Input port */
             if(pCompAmrParam->nPortIndex == 0) {

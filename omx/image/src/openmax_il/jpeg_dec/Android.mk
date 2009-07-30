@@ -20,3 +20,23 @@ LOCAL_CFLAGS := $(TI_OMX_CFLAGS) -DOMAP_2430 #-DOMX_DEBUG
 LOCAL_MODULE:= libOMX.TI.JPEG.Decoder
 
 include $(BUILD_SHARED_LIBRARY)
+
+
+#########################################################
+
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES:= tests/JPEGTest.c
+
+LOCAL_C_INCLUDES := $(TI_OMX_COMP_C_INCLUDES) \
+	$(TI_OMX_IMAGE)/jpeg_dec/inc \
+
+LOCAL_SHARED_LIBRARIES := libOMX.TI.JPEG.Decoder
+
+LOCAL_CFLAGS := -Wall -fpic -pipe -O0 -DOMX_DEBUG=1
+
+LOCAL_MODULE:= JpegTestCommon
+
+include $(BUILD_EXECUTABLE)
+
+

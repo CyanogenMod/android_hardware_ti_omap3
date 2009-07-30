@@ -1552,6 +1552,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 OMX_PRINT2(pComponentPrivate->dbg, "reconfigOut = %d!, but should be true!\n",pComponentPrivate->reconfigOutputPort);
                 if(pComponentPrivate->reconfigOutputPort){
                     //make sure new VA's are used
+                    MP3DEC_CleanupInitParamsEx(pHandle,commandData);
                     MP3DECFill_LCMLInitParamsEx(pHandle, 1);
                     OMX_PRDSP2(pComponentPrivate->dbg, "completed MP3DEC_MapLCMLParamsEx! %d\n", __LINE__);
                     
@@ -1633,6 +1634,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     pthread_cond_signal(&pComponentPrivate->AlloBuf_threshold);
                     pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);    
                 }
+                MP3DEC_CleanupInitParamsEx(pHandle,commandData);
                 MP3DECFill_LCMLInitParamsEx(pHandle, -1);
 
                 // queue the pending buffers received while doing the config, output then input
@@ -1689,18 +1691,18 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
     else if (command == OMX_CommandFlush) {
         OMX_U32 aParam[3] = {0};
         if(commandData == 0x0 || commandData == -1) {
-            OMX_ERROR4(pComponentPrivate->dbg, "Flushing input port:: unhandled ETB's = %d\n", pComponentPrivate->nUnhandledEmptyThisBuffers);
+            OMX_ERROR2(pComponentPrivate->dbg, "Flushing input port:: unhandled ETB's = %d\n", pComponentPrivate->nUnhandledEmptyThisBuffers);
             if (pComponentPrivate->nUnhandledEmptyThisBuffers == 0)  {
                 pComponentPrivate->bFlushInputPortCommandPending = OMX_FALSE;
                 pComponentPrivate->first_buff = 0;
-                OMX_ERROR4(pComponentPrivate->dbg, "in flush IN:lcml_nCntApp && app_nBuf = %ld && %ld\n", pComponentPrivate->lcml_nCntApp, pComponentPrivate->app_nBuf);
+                OMX_ERROR2(pComponentPrivate->dbg, "in flush IN:lcml_nCntApp && app_nBuf = %ld && %ld\n", pComponentPrivate->lcml_nCntApp, pComponentPrivate->app_nBuf);
                 if (pComponentPrivate->num_Sent_Ip_Buff){ //no buffers have been sent yet, no need to flush SN
                     aParam[0] = USN_STRMCMD_FLUSH;        
                     aParam[1] = 0x0; 
                     aParam[2] = 0x0; 
 
-                    OMX_PRCOMM2(pComponentPrivate->dbg, "Flushing input port\n");
-                    OMX_ERROR4(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec FLUSH in %d\n", __LINE__);
+                    OMX_ERROR4(pComponentPrivate->dbg, "Flushing input port\n");
+                    OMX_ERROR2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec FLUSH in %d\n", __LINE__);
                     if (pComponentPrivate->codecFlush_waitingsignal == 0){
                         pthread_mutex_lock(&pComponentPrivate->codecFlush_mutex);
                     }
@@ -1746,7 +1748,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
             OMX_ERROR2(pComponentPrivate->dbg, "Flushing output port:: unhandled FTB's = %d\n", pComponentPrivate->nUnhandledFillThisBuffers);
             if (pComponentPrivate->nUnhandledFillThisBuffers == 0)  {
                 pComponentPrivate->bFlushOutputPortCommandPending = OMX_FALSE;
-                pComponentPrivate->first_buff = 0;
+                /*pComponentPrivate->first_buff = 0;*/
                 OMX_PRBUFFER2(pComponentPrivate->dbg, "in flush OUT:lcml_nCntApp && app_nBuf = %ld && %ld\n", pComponentPrivate->lcml_nCntApp, pComponentPrivate->app_nBuf);
                 OMX_PRBUFFER2(pComponentPrivate->dbg, "in flush OUT:lcml_nOpBuf = %ld \n", pComponentPrivate->lcml_nOpBuf);
                 if (pComponentPrivate->num_Op_Issued && !pComponentPrivate->reconfigOutputPort){ //if no buffers have been sent yet, no need to flush SN
@@ -1754,7 +1756,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     aParam[1] = 0x1; 
                     aParam[2] = 0x0; 
 
-                    OMX_PRCOMM2(pComponentPrivate->dbg, "Flushing output port\n");
+                    OMX_ERROR4(pComponentPrivate->dbg, "Flushing output port\n");
                     OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec FLUSH out %d\n", __LINE__);
                     if (pComponentPrivate->codecFlush_waitingsignal == 0){
                         pthread_mutex_lock(&pComponentPrivate->codecFlush_mutex);
@@ -2363,7 +2365,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
         break;
 
     case EMMCodecStrmCtrlAck:
-        OMX_ERROR4(pComponentPrivate->dbg, "[LCML CALLBACK EVENT]  EMMCodecStrmCtrlAck\n");
+        OMX_PRDSP2(pComponentPrivate->dbg, "[LCML CALLBACK EVENT]  EMMCodecStrmCtrlAck\n");
         break;
     }
 
@@ -2493,7 +2495,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                     }else{ 
                         time_stmp = pLcmlHdr->pBufHdr->nFilledLen / (pComponentPrivate->pcmParams->nChannels * 
                                                                      (pComponentPrivate->pcmParams->nBitPerSample / 8));
-                        time_stmp = (time_stmp / pComponentPrivate->pcmParams->nSamplingRate) * 1000;
+                        time_stmp = (time_stmp / pComponentPrivate->pcmParams->nSamplingRate) * 1000000;
                         /* Update time stamp information */
                         pComponentPrivate->temp_TS += time_stmp;
                         pLcmlHdr->pBufHdr->nTimeStamp = pComponentPrivate->temp_TS;
@@ -3207,6 +3209,74 @@ void MP3DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
 
 }
 
+/* ========================================================================== */
+/**
+* @MP3DEC_CleanupInitParamsEx() This function is called by the component during
+* portreconfiguration after port disable to free LCML buffers.
+*
+* @param pComponent  handle for this instance of the component
+*
+* @pre
+*
+* @post
+*
+* @return none
+*/
+/* ========================================================================== */
+
+void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport)
+{
+    OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pComponent;
+    MP3DEC_COMPONENT_PRIVATE *pComponentPrivate =
+        (MP3DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+    MP3D_LCML_BUFHEADERTYPE *pTemp_lcml;
+    char *pTemp = NULL;
+    OMX_U32 nIpBuf = 0;
+    OMX_U32 nOpBuf = 0;
+    OMX_U32 i=0;
+
+    if(indexport == 0 || indexport == -1){
+        nIpBuf = pComponentPrivate->nRuntimeInputBuffers;
+        pTemp_lcml = pComponentPrivate->pLcmlBufHeader[MP3D_INPUT_PORT];
+        for(i=0; i<nIpBuf; i++) {
+            OMX_PRBUFFER2(pComponentPrivate->dbg, "Freeing: pIpParam = %p\n",
+                          pTemp_lcml->pIpParam);
+            pTemp = (char*)pTemp_lcml->pIpParam;
+            if (pTemp != NULL) {
+                pTemp -= EXTRA_BYTES;
+            }
+            pTemp_lcml->pIpParam = (MP3DEC_UAlgInBufParamStruct*)pTemp;
+            MP3D_OMX_FREE(pTemp_lcml->pIpParam);
+            pTemp_lcml++;
+        }
+
+        OMX_PRBUFFER2(pComponentPrivate->dbg, "Freeing pLcmlBufHeader[MP3D_INPUT_PORT] = %p\n",
+                      pComponentPrivate->pLcmlBufHeader[MP3D_INPUT_PORT]);
+        MP3D_OMX_FREE(pComponentPrivate->pLcmlBufHeader[MP3D_INPUT_PORT]);
+
+    }else if(indexport == 1 || indexport == -1){
+        nOpBuf = pComponentPrivate->nRuntimeOutputBuffers;
+        pTemp_lcml = pComponentPrivate->pLcmlBufHeader[MP3D_OUTPUT_PORT];
+        for(i=0; i<nOpBuf; i++) {
+            OMX_PRBUFFER2(pComponentPrivate->dbg, "Freeing: pOpParam = %p\n",
+                          pTemp_lcml->pOpParam);
+            pTemp = (char*)pTemp_lcml->pOpParam;
+            if (pTemp != NULL) {
+                pTemp -= EXTRA_BYTES;
+            }
+            pTemp_lcml->pOpParam = (MP3DEC_UAlgOutBufParamStruct*)pTemp;
+            MP3D_OMX_FREE(pTemp_lcml->pOpParam);
+            pTemp_lcml++;
+        }
+
+        OMX_PRBUFFER2(pComponentPrivate->dbg, "Freeing: pLcmlBufHeader[MP3D_OUTPUT_PORT] = %p\n",
+                      pComponentPrivate->pLcmlBufHeader[MP3D_OUTPUT_PORT]);
+        MP3D_OMX_FREE(pComponentPrivate->pLcmlBufHeader[MP3D_OUTPUT_PORT]);
+
+    }else{
+        OMX_ERROR4(pComponentPrivate->dbg, "Bad indexport!\n");
+    }
+}
 
 /* ========================================================================== */
 /**

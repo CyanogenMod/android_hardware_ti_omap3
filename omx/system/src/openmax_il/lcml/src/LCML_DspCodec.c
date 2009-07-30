@@ -93,7 +93,8 @@ static OMX_ERRORTYPE DmmMap(DSP_HPROCESSOR ProcHandle,
                      OMX_U32 size,
                      OMX_U32 sizeUsed,
                      void* pArmPtr,
-                     DMM_BUFFER_OBJ* pDmmBuf);
+                     DMM_BUFFER_OBJ* pDmmBuf,
+                     OMX_U32 MapBufLen);
                      
 static OMX_ERRORTYPE DmmUnMap(DSP_HPROCESSOR ProcHandle,
                               void *pMapPtr,
@@ -246,13 +247,10 @@ static OMX_ERRORTYPE InitMMCodecEx(OMX_HANDLETYPE hInt,
 
         for (dllinfo=0; dllinfo < phandle->dspCodec->NodeInfo.nNumOfDLLs; dllinfo++)
         {
-	    char * sn_dll=NULL; 
-	    sn_dll = append_dsp_path((char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName); 
             LCML_DPRINT("%d :: Register Component Node\n",phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].eDllType);
             status = DSPManager_RegisterObject((struct DSP_UUID *)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].uuid,
                                                 phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].eDllType,
-					       sn_dll);
-	    free(sn_dll);
+                                                append_dsp_path((char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName));
             DSP_ERROR_EXIT (status, "Register Component Library", ERROR)
         }
 
@@ -531,13 +529,10 @@ static OMX_ERRORTYPE InitMMCodec(OMX_HANDLETYPE hInt,
 
     for(dllinfo=0; dllinfo < phandle->dspCodec->NodeInfo.nNumOfDLLs; dllinfo++)
     {
-        char * sn_dll=NULL; 
-	sn_dll = append_dsp_path((char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName); 
         LCML_DPRINT("%d :: Register Component Node\n",phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].eDllType);
         status = DSPManager_RegisterObject((struct DSP_UUID *)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].uuid,
                                            phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].eDllType,
-					   sn_dll);
-	free(sn_dll);
+                                           append_dsp_path((char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName));
         DSP_ERROR_EXIT (status, "Register Component Library", ERROR)
     }
 
@@ -725,6 +720,7 @@ static OMX_ERRORTYPE InitMMCodec(OMX_HANDLETYPE hInt,
     PERF_Boundary(phandle->pPERF,
                   PERF_BoundaryComplete | PERF_BoundarySetup);
 #endif
+
 ERROR:
 #ifndef CEXEC_DONE
     free(argv);
@@ -787,6 +783,7 @@ static OMX_ERRORTYPE QueueBuffer (OMX_HANDLETYPE hComponent,
     DMM_BUFFER_OBJ* pDmmBuf=NULL;
     int commandId;
     struct DSP_MSG msg;
+    OMX_U32 MapBufLen=0;
 
     LCML_DPRINT("%d :: QueueBuffer application\n",__LINE__);
 
@@ -832,6 +829,17 @@ static OMX_ERRORTYPE QueueBuffer (OMX_HANDLETYPE hComponent,
     phandle->iBufinputcount = phandle->iBufinputcount % QUEUE_SIZE;
     phandle->commStruct->Bufoutindex = phandle->iBufoutputcount;
     phandle->commStruct->BufInindex = phandle->iBufinputcount;
+    if (bufType == EMMCodecInputBufferMapBufLen)
+    {
+        bufType = EMMCodecInputBuffer;
+        MapBufLen = 1;
+    }
+    else if (bufType == EMMCodecOutputBufferMapBufLen)
+    {
+        bufType = EMMCodecOuputBuffer;
+        MapBufLen = 1;
+    }
+
 
     if ((bufType >= EMMCodecStream0) && (bufType <= (EMMCodecStream0 + 20)))
     {
@@ -879,10 +887,21 @@ static OMX_ERRORTYPE QueueBuffer (OMX_HANDLETYPE hComponent,
         LCML_DPRINT("mapping buffer \n");
 
         if (bufType == EMMCodecInputBuffer || !(streamId % 2)) {
-            eError = DmmMap(phandle->dspCodec->hProc, bufferLen, bufferSizeUsed,buffer, (pDmmBuf));
+            if (MapBufLen)
+            {
+                /*using this option only when not mapping the entire memory region
+                 * can cause a DSP MMU FAULT or DSP SYS ERROR */
+
+                eError = DmmMap(phandle->dspCodec->hProc, bufferLen, bufferSizeUsed,buffer, (pDmmBuf), MapBufLen);
+            }
+            else
+            {
+                phandle->commStruct->iBufferSize = bufferSizeUsed ? bufferSizeUsed : bufferLen;
+                eError = DmmMap(phandle->dspCodec->hProc, bufferSizeUsed ? bufferSizeUsed: bufferLen, bufferSizeUsed,buffer, (pDmmBuf), MapBufLen);
+            }
         }
         else if (bufType == EMMCodecOuputBuffer || streamId % 2) {
-            eError = DmmMap(phandle->dspCodec->hProc, bufferLen, bufferLen,buffer, (pDmmBuf));
+            eError = DmmMap(phandle->dspCodec->hProc, bufferLen, 0,buffer, (pDmmBuf), MapBufLen);
         }
         if (eError != OMX_ErrorNone)
         {
@@ -898,7 +917,7 @@ static OMX_ERRORTYPE QueueBuffer (OMX_HANDLETYPE hComponent,
     if (auxInfoLen != 0 && auxInfo != NULL )
     {
         LCML_DPRINT("mapping parameter \n");
-        eError = DmmMap(phandle->dspCodec->hProc, phandle->commStruct->iParamSize, phandle->commStruct->iParamSize, (void*)phandle->commStruct->iParamPtr, (pDmmBuf));
+        eError = DmmMap(phandle->dspCodec->hProc, phandle->commStruct->iParamSize, phandle->commStruct->iParamSize, (void*)phandle->commStruct->iParamPtr, (pDmmBuf), 0);
         if (eError != OMX_ErrorNone)
         {
             goto EXIT;
@@ -909,7 +928,7 @@ static OMX_ERRORTYPE QueueBuffer (OMX_HANDLETYPE hComponent,
         pDmmBuf->paramReserved = pDmmBuf->pReserved;
     }
 
-    eError = DmmMap(phandle->dspCodec->hProc, sizeof(TArmDspCommunicationStruct),sizeof(TArmDspCommunicationStruct), (void *)phandle->commStruct, (pDmmBuf));
+    eError = DmmMap(phandle->dspCodec->hProc, sizeof(TArmDspCommunicationStruct),sizeof(TArmDspCommunicationStruct), (void *)phandle->commStruct, (pDmmBuf), 0);
     if (eError != OMX_ErrorNone)
     {
         goto EXIT;
@@ -1077,7 +1096,7 @@ static OMX_ERRORTYPE ControlCodec(OMX_HANDLETYPE hComponent,
                 eError = OMX_ErrorInsufficientResources;
                 goto EXIT;
             }
-            eError = DmmMap(phandle->dspCodec->hProc,(int)args[2],(int)args[2], args[1],(phandle->pAlgcntlDmmBuf[i]));
+            eError = DmmMap(phandle->dspCodec->hProc,(int)args[2],(int)args[2], args[1],(phandle->pAlgcntlDmmBuf[i]), 0);
             if (eError != OMX_ErrorNone)
             {
                 goto EXIT;
@@ -1123,7 +1142,7 @@ static OMX_ERRORTYPE ControlCodec(OMX_HANDLETYPE hComponent,
                 }
                 
                 
-                eError = DmmMap(phandle->dspCodec->hProc, (int)args[2],(int)args[2], args[1],(phandle->pStrmcntlDmmBuf[i]));
+                eError = DmmMap(phandle->dspCodec->hProc, (int)args[2],(int)args[2], args[1],(phandle->pStrmcntlDmmBuf[i]), 0);
                 if (eError != OMX_ErrorNone)
                 {
                     goto EXIT;
@@ -1186,7 +1205,8 @@ OMX_ERRORTYPE DmmMap(DSP_HPROCESSOR ProcHandle,
                      OMX_U32 size,
                      OMX_U32 sizeUsed,
                      void* pArmPtr,
-                     DMM_BUFFER_OBJ* pDmmBuf)
+                     DMM_BUFFER_OBJ* pDmmBuf, 
+                     OMX_U32 MapBufLen)
 {
     OMX_ERRORTYPE eError = OMX_ErrorUndefined;
     DSP_STATUS status;
@@ -1238,13 +1258,8 @@ OMX_ERRORTYPE DmmMap(DSP_HPROCESSOR ProcHandle,
     }
     LCML_DPRINT("DMM Mapped: %p, size 0x%x (%d)\n",pDmmBuf->pMapped, size,size);
 
-    /* Issue an initial memory flush to ensure cache coherency */
-    status = DSPProcessor_FlushMemory(ProcHandle, pDmmBuf->pAllocated, sizeUsed, 0);
-    if(DSP_FAILED(status))
-    {
-        LCML_DPRINT("Unable to flush mapped buffer: error 0x%x",(int)status);
-        goto EXIT;
-    }
+    /* Previously we used to Flush or Invalidate the mapped buffer.  This was
+     * removed due to bridge is now handling the flush/invalidate operation */
     eError = OMX_ErrorNone;
 
 EXIT:
@@ -1322,18 +1337,12 @@ OMX_ERRORTYPE FreeResources (LCML_DSP_INTERFACE *hInterface)
         hInterface->dspCodec = NULL;
     }
     codec = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE*)hInterface->pCodecinterfacehandle)->pCodec);
-    pthread_mutex_lock(&codec->mutex);
-    
-    LCML_DPRINT("%d :: LCML:: FreeResources\n",__LINE__);
-    if(((LCML_CODEC_INTERFACE*)hInterface->pCodecinterfacehandle) != NULL)
-    {
-        free(((LCML_CODEC_INTERFACE*)hInterface->pCodecinterfacehandle));
-        hInterface->pCodecinterfacehandle = NULL;
-    }
-
-    LCML_DPRINT("%d :: LCML:: FreeResources\n",__LINE__);
     if(codec != NULL)
     {
+    pthread_mutex_lock(&codec->mutex);
+    
+
+    LCML_DPRINT("%d :: LCML:: FreeResources\n",__LINE__);
         if(codec->g_aNotificationObjects[0]!= NULL)
         {
             free(codec->g_aNotificationObjects[0]);
@@ -1352,6 +1361,8 @@ OMX_ERRORTYPE FreeResources (LCML_DSP_INTERFACE *hInterface)
  #endif          
             pthread_mutex_unlock(&codec->mutex);
             pthread_mutex_destroy (&codec->mutex);
+            free(((LCML_CODEC_INTERFACE*)hInterface->pCodecinterfacehandle));
+            hInterface->pCodecinterfacehandle = NULL;
             free(codec);
             codec = NULL;
         }

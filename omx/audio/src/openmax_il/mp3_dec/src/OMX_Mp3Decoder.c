@@ -264,8 +264,10 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsExternalOutputBufferAlloc = OMX_FALSE;
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsExternalInputBufferAlloc = OMX_FALSE; 
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsMovableInputBuffers = OMX_FALSE; 
-    pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsPartialFrames = OMX_TRUE; 
-    pComponentPrivate->iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_TRUE; 
+    /* Next capabilities are set to false in order to ease issues
+       regarding 1 sec of audio sound repeated while FFW/RW(OMAPS00200511) */
+    pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsPartialFrames = OMX_FALSE;
+    pComponentPrivate->iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_FALSE;
 
 
     MP3D_OMX_MALLOC(pCompPort, MP3D_AUDIODEC_PORT_TYPE);
@@ -415,6 +417,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pPortDef_ip->nBufferCountActual                 = MP3D_NUM_INPUT_BUFFERS;
     pPortDef_ip->nBufferCountMin                    = MP3D_NUM_INPUT_BUFFERS;
     pPortDef_ip->nBufferSize                        = MP3D_INPUT_BUFFER_SIZE;
+    pPortDef_ip->nBufferAlignment                   = EXTRA_BYTES;
     pPortDef_ip->bEnabled                           = OMX_TRUE;
     pPortDef_ip->bPopulated                         = OMX_FALSE;
     pPortDef_ip->eDomain                            = OMX_PortDomainAudio;
@@ -431,6 +434,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pPortDef_op->nBufferCountMin                    = MP3D_NUM_OUTPUT_BUFFERS;
     pPortDef_op->nBufferCountActual                 = MP3D_NUM_OUTPUT_BUFFERS;
     pPortDef_op->nBufferSize                        = MP3D_OUTPUT_BUFFER_SIZE;
+    pPortDef_op->nBufferAlignment                   = EXTRA_BYTES;
     pPortDef_op->bEnabled                           = OMX_TRUE;
     pPortDef_op->bPopulated                         = OMX_FALSE;
     pPortDef_op->eDomain                            = OMX_PortDomainAudio;
@@ -1771,10 +1775,10 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
     MP3D_OMX_FREE(pComponentPrivate->sDeviceString);
 
     OMX_PRBUFFER2(dbg, ":: Freeing: pComponentPrivate = %p\n",pComponentPrivate);
-    MP3D_OMX_FREE(pComponentPrivate);
     OMX_PRINT1(dbg, "::*********** ComponentDeinit is Done************** \n");
  EXIT:
     OMX_DBG_CLOSE(dbg);
+    MP3D_OMX_FREE(pComponentPrivate);
     return eError;
 }
 

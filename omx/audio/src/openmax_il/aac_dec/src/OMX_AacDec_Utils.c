@@ -1472,6 +1472,7 @@ OMX_U32 AACDEC_HandleCommand (AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
                 }
 
 		/* Needed for port reconfiguration */   
+                AACDEC_CleanupInitParamsEx(pHandle,commandData);
                 AACDECFill_LCMLInitParamsEx(pHandle,commandData);
 ////
 #if 1
@@ -1525,6 +1526,7 @@ OMX_U32 AACDEC_HandleCommand (AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
 #endif
                 }
 		    /* Needed for port reconfiguration */   
+               AACDEC_CleanupInitParamsEx(pHandle,commandData);
                AACDECFill_LCMLInitParamsEx(pHandle,commandData);
 //// release any buffers received during port disable for reconfig
                     for (i=0; i < pComponentPrivate->nNumOutputBufPending; i++) {
@@ -1585,6 +1587,7 @@ OMX_U32 AACDEC_HandleCommand (AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
                      }
                      pComponentPrivate->reconfigOutputPort = 0;
                      pComponentPrivate->bEnableCommandPending = 0;
+                     AACDEC_CleanupInitParamsEx(pHandle,commandData);
                      AACDECFill_LCMLInitParamsEx(pHandle,commandData);
 
 
@@ -1701,7 +1704,7 @@ OMX_U32 AACDEC_HandleCommand (AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
         if(commandData == 0x1 || commandData == -1){
             if (pComponentPrivate->nUnhandledFillThisBuffers == 0)  {
                 pComponentPrivate->bFlushOutputPortCommandPending = OMX_FALSE;
-                pComponentPrivate->first_buff = 0;
+                /*pComponentPrivate->first_buff = 0;*/
                 AACDEC_EPRINT("About to be Flushing output port\n");
                 if(pComponentPrivate->num_Op_Issued && !pComponentPrivate->reconfigOutputPort ){ //no buffers sent to DSP yet
                     aParam[0] = USN_STRMCMD_FLUSH;
@@ -2136,6 +2139,7 @@ OMX_ERRORTYPE AACDEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             if(!pComponentPrivate->framemode){
 	        if(pComponentPrivate->first_buff == 0){
 		    pComponentPrivate->first_TS = pBufHeader->nTimeStamp;
+                    OMXDBG_PRINT(stderr, PRINT, 2, 0, "in ts-%ld\n",pBufHeader->nTimeStamp);
 		    pComponentPrivate->first_buff = 1;
 	        }
             }
@@ -2337,7 +2341,7 @@ OMX_ERRORTYPE AACDEC_GetBufferDirection(OMX_BUFFERHEADERTYPE *pBufHeader,
         pBuf = pComponentPrivate->pInputBufferList->pBufHdr[i];
         if(pBufHeader == pBuf) {
             *eDir = OMX_DirInput;
-            OMX_ERROR4(pComponentPrivate->dbg, "%d :: Buffer %p is INPUT BUFFER\n",__LINE__, pBufHeader);
+            OMX_PRINT1(pComponentPrivate->dbg, "%d :: Buffer %p is INPUT BUFFER\n",__LINE__, pBufHeader);
             flag = 0;
             goto EXIT;
         }
@@ -2349,7 +2353,7 @@ OMX_ERRORTYPE AACDEC_GetBufferDirection(OMX_BUFFERHEADERTYPE *pBufHeader,
         pBuf = pComponentPrivate->pOutputBufferList->pBufHdr[i];
         if(pBufHeader == pBuf) {
             *eDir = OMX_DirOutput;
-            OMX_ERROR4(pComponentPrivate->dbg, "%d :: Buffer %p is OUTPUT BUFFER\n",__LINE__, pBufHeader);
+            OMX_PRINT1(pComponentPrivate->dbg, "%d :: Buffer %p is OUTPUT BUFFER\n",__LINE__, pBufHeader);
             flag = 0;
             goto EXIT;
         }
@@ -2397,7 +2401,6 @@ OMX_ERRORTYPE AACDEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
     LCML_DSP_INTERFACE *pLcmlHandle;
     AACDEC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
 	OMX_U16 i;
-	static OMX_U32 TS = 0;
 
 #ifdef RESOURCE_MANAGER_ENABLED
     OMX_ERRORTYPE rm_error = OMX_ErrorNone;
@@ -2563,19 +2566,20 @@ OMX_ERRORTYPE AACDEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
             if(pComponentPrivate->first_buff == 1){
                 pComponentPrivate->first_buff = 2;
                 pLcmlHdr->pBufHdr->nTimeStamp = pComponentPrivate->first_TS;
-                TS = pLcmlHdr->pBufHdr->nTimeStamp;
+                pComponentPrivate->temp_TS = pLcmlHdr->pBufHdr->nTimeStamp;
             }else{
                 if(pComponentPrivate->pcmParams->nChannels == 2) {/* OMX_AUDIO_ChannelModeStereo */
                     time_stmp = pLcmlHdr->pBufHdr->nFilledLen / (2 * (pComponentPrivate->pcmParams->nBitPerSample / 8));
                 }else {/* OMX_AUDIO_ChannelModeMono */
                     time_stmp = pLcmlHdr->pBufHdr->nFilledLen / (1 * (pComponentPrivate->pcmParams->nBitPerSample / 8));
                 }
-                time_stmp = (time_stmp / pComponentPrivate->pcmParams->nSamplingRate) * 1000;
+                time_stmp = (time_stmp / pComponentPrivate->pcmParams->nSamplingRate) * 1000000;
                 /* Update time stamp information */
-                TS += (OMX_U32)time_stmp;
-                pLcmlHdr->pBufHdr->nTimeStamp = TS;
+                pComponentPrivate->temp_TS += (OMX_U32)time_stmp;
+                pLcmlHdr->pBufHdr->nTimeStamp = pComponentPrivate->temp_TS;
 			}
             }
+                        OMXDBG_PRINT(stderr, PRINT, 2, 0, "out ts-%lld\n",pLcmlHdr->pBufHdr->nTimeStamp);
 
   			/*Copying tick count information to output buffer*/
               pLcmlHdr->pBufHdr->nTickCount = (OMX_U32)pComponentPrivate->arrBufIndexTick[pComponentPrivate->OpBufindex];
@@ -3028,7 +3032,7 @@ OMX_ERRORTYPE AACDEC_GetCorresponding_LCMLHeader(AACDEC_COMPONENT_PRIVATE* pComp
             OMX_PRBUFFER2(pComponentPrivate->dbg, "pLcmlBufHeader->pBufHdr->pBuffer = %p\n",pLcmlBufHeader->pBufHdr->pBuffer);
             if(pBuffer == pLcmlBufHeader->pBufHdr->pBuffer) {
                 *ppLcmlHdr = pLcmlBufHeader;
-                OMX_ERROR4(pComponentPrivate->dbg, "%d::Corresponding LCML Header Found\n",__LINE__);
+                OMX_PRINT1(pComponentPrivate->dbg, "%d::Corresponding LCML Header Found\n",__LINE__);
                 goto EXIT;
             }
             pLcmlBufHeader++;
@@ -3044,7 +3048,7 @@ OMX_ERRORTYPE AACDEC_GetCorresponding_LCMLHeader(AACDEC_COMPONENT_PRIVATE* pComp
             OMX_PRBUFFER2(pComponentPrivate->dbg, "pLcmlBufHeader->pBufHdr->pBuffer = %p\n",pLcmlBufHeader->pBufHdr->pBuffer);
             if(pBuffer == pLcmlBufHeader->pBufHdr->pBuffer) {
                 *ppLcmlHdr = pLcmlBufHeader;
-                OMX_ERROR4(pComponentPrivate->dbg, "%d::Corresponding LCML Header Found\n",__LINE__);
+                OMX_PRINT1(pComponentPrivate->dbg, "%d::Corresponding LCML Header Found\n",__LINE__);
                 goto EXIT;
             }
             pLcmlBufHeader++;
@@ -3228,6 +3232,74 @@ void AACDEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     }
     pComponentPrivate->AACDEC_UALGParam = (MPEG4AACDEC_UALGParams*)pTemp;
     AACDEC_OMX_FREE(pComponentPrivate->AACDEC_UALGParam);
+}
+/* ========================================================================== */
+/**
+* @AACDEC_CleanupInitParamsEx() This function is called by the component during
+* portreconfiguration after port disable to free LCML buffers.
+*
+* @param pComponent  handle for this instance of the component
+*
+* @pre
+*
+* @post
+*
+* @return none
+*/
+/* ========================================================================== */
+
+void AACDEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport)
+{
+    OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pComponent;
+    AACDEC_COMPONENT_PRIVATE *pComponentPrivate =
+        (AACDEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+    AACD_LCML_BUFHEADERTYPE *pTemp_lcml;
+    char *pTemp = NULL;
+    OMX_U32 nIpBuf = 0;
+    OMX_U32 nOpBuf = 0;
+    OMX_U32 i=0;
+
+    if(indexport == 0 || indexport == -1){
+        nIpBuf = pComponentPrivate->nRuntimeInputBuffers;
+        pTemp_lcml = pComponentPrivate->pLcmlBufHeader[INPUT_PORT_AACDEC];
+        for(i=0; i<nIpBuf; i++) {
+            OMX_PRBUFFER2(pComponentPrivate->dbg, "Freeing: pIpParam = %p\n",
+                          pTemp_lcml->pIpParam);
+            pTemp = (char*)pTemp_lcml->pIpParam;
+            if (pTemp != NULL) {
+                pTemp -= EXTRA_BYTES;
+            }
+            pTemp_lcml->pIpParam = (AACDEC_UAlgInBufParamStruct*)pTemp;
+            AACDEC_OMX_FREE(pTemp_lcml->pIpParam);
+            pTemp_lcml++;
+        }
+
+        OMX_PRBUFFER2(pComponentPrivate->dbg, "Freeing pLcmlBufHeader[INPUT_PORT_AACDEC] = %p\n",
+                      pComponentPrivate->pLcmlBufHeader[INPUT_PORT_AACDEC]);
+        AACDEC_OMX_FREE(pComponentPrivate->pLcmlBufHeader[INPUT_PORT_AACDEC]);
+
+    }else if(indexport == 1 || indexport == -1){
+        nOpBuf = pComponentPrivate->nRuntimeOutputBuffers;
+        pTemp_lcml = pComponentPrivate->pLcmlBufHeader[OUTPUT_PORT_AACDEC];
+        for(i=0; i<nOpBuf; i++) {
+            OMX_PRBUFFER2(pComponentPrivate->dbg, "Freeing: pOpParam = %p\n",
+                          pTemp_lcml->pOpParam);
+            pTemp = (char*)pTemp_lcml->pOpParam;
+            if (pTemp != NULL) {
+                pTemp -= EXTRA_BYTES;
+            }
+            pTemp_lcml->pOpParam = (AACDEC_UAlgOutBufParamStruct*)pTemp;
+            AACDEC_OMX_FREE(pTemp_lcml->pOpParam);
+            pTemp_lcml++;
+        }
+
+        OMX_PRBUFFER2(pComponentPrivate->dbg, "Freeing: pLcmlBufHeader[OUTPUT_PORT_AACDEC] = %p\n",
+                      pComponentPrivate->pLcmlBufHeader[OUTPUT_PORT_AACDEC]);
+        AACDEC_OMX_FREE(pComponentPrivate->pLcmlBufHeader[OUTPUT_PORT_AACDEC]);
+
+    }else{
+        OMX_ERROR4(pComponentPrivate->dbg, "Bad indexport!\n");
+    }
 }
 
 

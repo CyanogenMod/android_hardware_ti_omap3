@@ -94,7 +94,7 @@ void* ComponentThread (void* pThreadData)
                                                    PERF_ModuleAudioDecode);
 #endif
 
-    AACENC_DPRINT("%d :: Entering ComponentThread\n", __LINE__);
+    OMX_PRINT1(pComponentPrivate->dbg, "%d :: Entering ComponentThread\n", __LINE__);
     fdmax = pComponentPrivate->cmdPipe[0];
 
     if (pComponentPrivate->dataPipe[0] > fdmax) 
@@ -118,20 +118,20 @@ void* ComponentThread (void* pThreadData)
 #endif
 
         if (pComponentPrivate->bIsThreadstop == 1) {
-            AACENC_DPRINT(":: Comp Thrd Exiting here...\n");
+            OMX_ERROR4(pComponentPrivate->dbg, ":: Comp Thrd Exiting here...\n");
             goto EXIT;
         }
 
         if (status == 0) 
         {
 
-            AACENC_DPRINT("%d : bIsStopping = %ld\n",__LINE__, pComponentPrivate->bIsStopping);
-            AACENC_DPRINT("%d : lcml_nOpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nOpBuf);
-            AACENC_DPRINT("%d : lcml_nIpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nIpBuf);
+            OMX_ERROR4(pComponentPrivate->dbg, "%d : bIsStopping = %ld\n",__LINE__, pComponentPrivate->bIsStopping);
+            OMX_ERROR4(pComponentPrivate->dbg, "%d : lcml_nOpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nOpBuf);
+            OMX_ERROR4(pComponentPrivate->dbg, "%d : lcml_nIpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nIpBuf);
 
             if (pComponentPrivate->bIsThreadstop == 1)  
             {
-                AACENC_DPRINT("%d  :: OMX_AACENC_ComponentThread \n",__LINE__);
+                OMX_PRINT1(pComponentPrivate->dbg, "%d  :: OMX_AACENC_ComponentThread \n",__LINE__);
                 pComponentPrivate->bIsStopping = 0;
                 pComponentPrivate->bIsThreadstop = 0;
                 pComponentPrivate->lcml_nOpBuf = 0;
@@ -141,18 +141,18 @@ void* ComponentThread (void* pThreadData)
                 pComponentPrivate->num_Sent_Ip_Buff = 0;
                 pComponentPrivate->num_Reclaimed_Op_Buff = 0;
                 pComponentPrivate->bIsEOFSent = 0;
-                AACENC_DPRINT("%d :: OMX_AACENC_ComponentThread \n",__LINE__);
+                OMX_PRINT1(pComponentPrivate->dbg, "%d :: OMX_AACENC_ComponentThread \n",__LINE__);
                 if (pComponentPrivate->curState != OMX_StateIdle) 
                 {
-                    AACENC_DPRINT("%d ::OMX_AACENC_ComponentThread \n",__LINE__);
+                    OMX_PRINT1(pComponentPrivate->dbg, "%d ::OMX_AACENC_ComponentThread \n",__LINE__);
                     goto EXIT;
                 }
              }
-             AACENC_EPRINT("%d :: Component Time Out !!!!! \n",__LINE__);
+             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
         } 
         else if(status == -1) 
         {
-            AACENC_DPRINT("%d :: Error in Select\n", __LINE__);
+            OMX_ERROR2(pComponentPrivate->dbg, "%d :: Error in Select\n", __LINE__);
             pComponentPrivate->cbInfo.EventHandler (pHandle, pHandle->pApplicationPrivate, 
                                                     OMX_EventError,
                                                     OMX_ErrorHardware,
@@ -164,24 +164,24 @@ void* ComponentThread (void* pThreadData)
 
         else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds)) && (pComponentPrivate->curState != OMX_StatePause)) 
         {
-            AACENC_DPRINT("%d :: DATA pipe is set in Component Thread\n",__LINE__);
-            AACENC_DPRINT("%d :: pHandle: %p \n",__LINE__, pHandle);
-            AACENC_DPRINT("%d :: pHandle->pComponentPrivate:%p \n",__LINE__, pHandle->pComponentPrivate);
+            OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: DATA pipe is set in Component Thread\n",__LINE__);
+            OMX_PRDSP2(pComponentPrivate->dbg, "%d :: pHandle: %p \n",__LINE__, pHandle);
+            OMX_PRDSP1(pComponentPrivate->dbg, "%d :: pHandle->pComponentPrivate:%p \n",__LINE__, pHandle->pComponentPrivate);
 
-            AACENC_DPRINT("%d :: pComponentPrivate:%p \n",__LINE__, pComponentPrivate);
+            OMX_PRDSP1(pComponentPrivate->dbg, "%d :: pComponentPrivate:%p \n",__LINE__, pComponentPrivate);
             pBufHeader = NULL;
             ret = read(pComponentPrivate->dataPipe[0], &pBufHeader, sizeof(pBufHeader));
             if (ret == -1) 
             {
-                AACENC_DPRINT("%d :: Error while reading from the pipe\n",__LINE__);
+                OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error while reading from the pipe\n",__LINE__);
                 eError = OMX_ErrorHardware;
                 goto EXIT;
             }
-            AACENC_DPRINT("%d :: pBufHeader:%p \n",__LINE__, pBufHeader);
+            OMX_PRBUFFER2(pComponentPrivate->dbg, "%d :: pBufHeader:%p \n",__LINE__, pBufHeader);
             eError = AACENCHandleDataBuf_FromApp(pBufHeader,pComponentPrivate);
             if (eError != OMX_ErrorNone) 
             {
-                AACENC_DPRINT("%d :: Error From AACENCHandleDataBuf_FromApp\n",__LINE__);
+                OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error From AACENCHandleDataBuf_FromApp\n",__LINE__);
                 break;
             }
 
@@ -191,21 +191,21 @@ void* ComponentThread (void* pThreadData)
 
         else if(FD_ISSET (pComponentPrivate->cmdPipe[0], &rfds)) 
         {
-            AACENC_DPRINT("%d :: pHandle: %p \n",__LINE__,pHandle);
+            OMX_PRDSP2(pComponentPrivate->dbg, "%d :: pHandle: %p \n",__LINE__,pHandle);
             /* Do not accept any command when the component is stopping */
-            AACENC_DPRINT("%d :: CMD pipe is set in Component Thread\n",__LINE__);
+            OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: CMD pipe is set in Component Thread\n",__LINE__);
             nRet = AACENCHandleCommand (pComponentPrivate);
             if (nRet == EXIT_COMPONENT_THRD) 
             {
-                AACENC_DPRINT(" %d :: Exiting from Component thread\n",__LINE__);
+                OMX_ERROR2(pComponentPrivate->dbg, " %d :: Exiting from Component thread\n",__LINE__);
 
                 AACENC_CleanupInitParams(pHandle);
                 if(eError != OMX_ErrorNone) 
                 {
-                    AACENC_DPRINT("%d :: AACENC_CleanupInitParams returned error\n",__LINE__);
+                    OMX_ERROR4(pComponentPrivate->dbg, "%d :: AACENC_CleanupInitParams returned error\n",__LINE__);
                     goto EXIT;
                 }
-                AACENC_DPRINT("%d :: ARM Side Resources Have Been Freed\n",__LINE__);
+                OMX_PRBUFFER2(pComponentPrivate->dbg, "%d :: ARM Side Resources Have Been Freed\n",__LINE__);
 
                 pComponentPrivate->curState = OMX_StateLoaded;
 
@@ -243,7 +243,7 @@ EXIT:
 #ifdef __PERF_INSTRUMENTATION__
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
-    AACENC_DPRINT("%d :: Exiting ComponentThread\n", __LINE__);
+    OMX_PRINT1(pComponentPrivate->dbg, "%d :: Exiting ComponentThread\n", __LINE__);
     return (void*)OMX_ErrorNone;
 }
 

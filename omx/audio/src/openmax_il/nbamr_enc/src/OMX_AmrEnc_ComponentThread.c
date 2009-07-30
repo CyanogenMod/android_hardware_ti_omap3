@@ -101,10 +101,10 @@ void* NBAMRENC_CompThread(void* pThreadData)
     int ret = 0;
     fd_set rfds;
     OMX_U32 nRet;
-	OMX_BUFFERHEADERTYPE *pBufHeader = NULL;
+    OMX_BUFFERHEADERTYPE *pBufHeader = NULL;
     AMRENC_COMPONENT_PRIVATE* pComponentPrivate = (AMRENC_COMPONENT_PRIVATE*)pThreadData;
     OMX_COMPONENTTYPE *pHandle = pComponentPrivate->pHandle;
-	AMRENC_DPRINT("%d :: Entering NBAMRENC_CompThread\n", __LINE__);
+    OMX_PRINT1(pComponentPrivate->dbg, "%d :: Entering NBAMRENC_CompThread\n", __LINE__);
 
 #ifdef __PERF_INSTRUMENTATION__
     pComponentPrivate->pPERFcomp = PERF_Create(PERF_FOURCC('N', 'B', '_', 'E'),
@@ -135,15 +135,15 @@ void* NBAMRENC_CompThread(void* pThreadData)
 #endif
 
         if (pComponentPrivate->bIsThreadstop == 1) {
-            AMRENC_DPRINT(":: Comp Thrd Exiting here...\n");
+            OMX_ERROR4(pComponentPrivate->dbg, ":: Comp Thrd Exiting here...\n");
             goto EXIT;
         }
         
         if (0 == status) {
-            AMRENC_DPRINT("%d :: bIsThreadstop = %ld\n",__LINE__,pComponentPrivate->bIsThreadstop);
-            AMRENC_DPRINT("%d :: lcml_nOpBuf = %ld\n",__LINE__,pComponentPrivate->lcml_nOpBuf);
-            AMRENC_DPRINT("%d :: lcml_nIpBuf = %ld\n",__LINE__,pComponentPrivate->lcml_nIpBuf);
-            AMRENC_DPRINT("%d :: app_nBuf = %ld\n",__LINE__,pComponentPrivate->app_nBuf);
+            OMX_PRBUFFER1(pComponentPrivate->dbg, "%d :: bIsThreadstop = %ld\n",__LINE__,pComponentPrivate->bIsThreadstop);
+            OMX_PRBUFFER1(pComponentPrivate->dbg, "%d :: lcml_nOpBuf = %ld\n",__LINE__,pComponentPrivate->lcml_nOpBuf);
+            OMX_PRBUFFER1(pComponentPrivate->dbg, "%d :: lcml_nIpBuf = %ld\n",__LINE__,pComponentPrivate->lcml_nIpBuf);
+            OMX_PRBUFFER1(pComponentPrivate->dbg, "%d :: app_nBuf = %ld\n",__LINE__,pComponentPrivate->app_nBuf);
             if (pComponentPrivate->bIsThreadstop == 1)  {
                 pComponentPrivate->bIsStopping = 0;
                 pComponentPrivate->bIsThreadstop = 0;
@@ -152,78 +152,78 @@ void* NBAMRENC_CompThread(void* pThreadData)
                 pComponentPrivate->app_nBuf = 0;
                 pComponentPrivate->num_Op_Issued = 0;
                 if (pComponentPrivate->curState != OMX_StateIdle) {
-                    AMRENC_DPRINT("%d :: pComponentPrivate->curState is not OMX_StateIdle\n",__LINE__);
+                    OMX_ERROR4(pComponentPrivate->dbg, "%d :: pComponentPrivate->curState is not OMX_StateIdle\n",__LINE__);
                     goto EXIT;
                 }
              }
-             AMRENC_EPRINT("%d :: Component Time Out !!!!! \n",__LINE__);
+             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
         } else if(-1 == status) {
-            AMRENC_EPRINT("%d :: Error in Select\n", __LINE__);
+            OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error in Select\n", __LINE__);
             pComponentPrivate->cbInfo.EventHandler ( pHandle,
-                             						 pHandle->pApplicationPrivate,
-                             						 OMX_EventError,
-                             						 OMX_ErrorInsufficientResources,
-                             						 OMX_TI_ErrorSevere,
-                             						 "Error from Component Thread in select");
+                                                     pHandle->pApplicationPrivate,
+                                                     OMX_EventError,
+                                                     OMX_ErrorInsufficientResources,
+                                                     OMX_TI_ErrorSevere,
+                                                     "Error from Component Thread in select");
             exit(1);
 
         } else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds))
                    && (pComponentPrivate->curState != OMX_StatePause)) {
-            AMRENC_DPRINT("%d :: DATA pipe is set in Component Thread\n",__LINE__);
+            OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: DATA pipe is set in Component Thread\n",__LINE__);
             ret = read(pComponentPrivate->dataPipe[0], &pBufHeader, sizeof(pBufHeader));
             if (ret == -1) {
-                AMRENC_EPRINT("%d :: Error while reading from the pipe\n",__LINE__);
-				goto EXIT;
+                OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error while reading from the pipe\n",__LINE__);
+                goto EXIT;
             }
             eError = NBAMRENC_HandleDataBufFromApp(pBufHeader,pComponentPrivate);
             if (eError != OMX_ErrorNone) {
-                AMRENC_EPRINT("%d :: NBAMRENC_HandleDataBufFromApp returned error\n",__LINE__);
+                OMX_ERROR4(pComponentPrivate->dbg, "%d :: NBAMRENC_HandleDataBufFromApp returned error\n",__LINE__);
                 break;
             }
         }
 
-		else if(FD_ISSET (pComponentPrivate->cmdPipe[0], &rfds)) {
+        else if(FD_ISSET (pComponentPrivate->cmdPipe[0], &rfds)) {
             /* Do not accept any command when the component is stopping */
-            AMRENC_DPRINT("%d :: CMD pipe is set in Component Thread\n",__LINE__);
+            OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: CMD pipe is set in Component Thread\n",__LINE__);
             nRet = NBAMRENC_HandleCommand(pComponentPrivate);
             if (nRet == NBAMRENC_EXIT_COMPONENT_THRD) {
 
                 if(eError != OMX_ErrorNone) {
-                    AMRENC_DPRINT("%d :: NBAMRENC_CleanupInitParams returned error\n",__LINE__);
+                    OMX_ERROR4(pComponentPrivate->dbg, "%d :: NBAMRENC_CleanupInitParams returned error\n",__LINE__);
                     goto EXIT;
                 }
                 pComponentPrivate->curState = OMX_StateLoaded;
 #ifdef __PERF_INSTRUMENTATION__
-				PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryComplete | PERF_BoundaryCleanup);
+                PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryComplete | PERF_BoundaryCleanup);
 #endif
 
-				if(pComponentPrivate->bPreempted==0){
-	                pComponentPrivate->cbInfo.EventHandler( pHandle,
-															pHandle->pApplicationPrivate,
-															OMX_EventCmdComplete,
-															OMX_ErrorNone,
-															pComponentPrivate->curState,
-															NULL);
-				}
-	            else{
-					pComponentPrivate->cbInfo.EventHandler( pHandle,
-															pHandle->pApplicationPrivate,
-															OMX_EventError,
-															OMX_ErrorResourcesLost,
-															OMX_TI_ErrorMajor,
-															NULL);
-					pComponentPrivate->bPreempted = 0;
-            	}
+                if(pComponentPrivate->bPreempted==0){
+                    pComponentPrivate->cbInfo.EventHandler( pHandle,
+                                                            pHandle->pApplicationPrivate,
+                                                            OMX_EventCmdComplete,
+                                                            OMX_ErrorNone,
+                                                            pComponentPrivate->curState,
+                                                            NULL);
+                }
+                else{
+                    pComponentPrivate->cbInfo.EventHandler( pHandle,
+                                                            pHandle->pApplicationPrivate,
+                                                            OMX_EventError,
+                                                            OMX_ErrorResourcesLost,
+                                                            OMX_TI_ErrorMajor,
+                                                            NULL);
+                    pComponentPrivate->bPreempted = 0;
+                }
 
 
-					
+                    
             }
         }
-	
+    
     }
 EXIT:
-    AMRENC_DPRINT("%d :: Exiting NBAMRENC_CompThread\n", __LINE__);
-    AMRENC_DPRINT("%d :: Returning = 0x%x\n",__LINE__,eError);
+    OMX_PRINT1(pComponentPrivate->dbg, "%d :: Exiting NBAMRENC_CompThread\n", __LINE__);
+    OMX_PRINT1(pComponentPrivate->dbg, "%d :: Returning = 0x%x\n",__LINE__,eError);
 #ifdef __PERF_INSTRUMENTATION__
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif

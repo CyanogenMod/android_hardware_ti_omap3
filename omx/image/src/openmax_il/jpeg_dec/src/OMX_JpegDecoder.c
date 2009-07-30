@@ -195,7 +195,7 @@ static OMX_ERRORTYPE AllocateBuffer_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
     }
 
     if (nPortIndex == JPEGDEC_INPUT_PORT) {
-        OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, OMX_BUFFERHEADERTYPE)
+        OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, sizeof(OMX_BUFFERHEADERTYPE));
         OMX_CONF_INIT_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, OMX_BUFFERHEADERTYPE);
         OMX_PRBUFFER1(pComponentPrivate->dbg, "pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr = %p\n", pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr);
         pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->nOutputPortIndex = OMX_NOPORT;
@@ -211,7 +211,7 @@ static OMX_ERRORTYPE AllocateBuffer_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
     }
     else if (nPortIndex == JPEGDEC_OUTPUT_PORT) {
 
-        OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, OMX_BUFFERHEADERTYPE);
+        OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, sizeof(OMX_BUFFERHEADERTYPE));
         OMX_CONF_INIT_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, OMX_BUFFERHEADERTYPE);
         OMX_PRBUFFER1(pComponentPrivate->dbg, "pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBuffCount]->pBufferHdr = %p\n", pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr);
         pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->nOutputPortIndex = pPortDef->nPortIndex;
@@ -231,7 +231,7 @@ static OMX_ERRORTYPE AllocateBuffer_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
     }
 
     if (nPortIndex == JPEGDEC_INPUT_PORT) {
-        MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->pBuffer, OMX_U8, (nSizeBytes + 255));
+        OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->pBuffer, nSizeBytes + 256);
         pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->pBuffer = (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->pBuffer) + 128;
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -243,7 +243,7 @@ static OMX_ERRORTYPE AllocateBuffer_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
 
     }
     else if (nPortIndex == JPEGDEC_OUTPUT_PORT) {
-        MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->pBuffer, OMX_U8, (nSizeBytes + 255));
+        OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->pBuffer, nSizeBytes + 256);
         pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->pBuffer = pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr->pBuffer + 128;
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -350,7 +350,7 @@ static OMX_ERRORTYPE FreeBuffer_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
             pTemp = (OMX_U8*)(pBuffPrivate->pUALGParams);
             pTemp -= 128;
             (pBuffPrivate->pUALGParams) = (JPEGDEC_UAlgInBufParamStruct *)pTemp;
-            free(pBuffPrivate->pUALGParams);
+            OMX_FREE(pBuffPrivate->pUALGParams);
             pBuffPrivate->pUALGParams = NULL;
         }
     }
@@ -361,7 +361,7 @@ static OMX_ERRORTYPE FreeBuffer_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
             pTemp = (OMX_U8*)(pBuffPrivate->pUALGParams);
             pTemp -= 128;
             (pBuffPrivate->pUALGParams) = (JPEGDEC_UAlgOutBufParamStruct *)pTemp;
-            free(pBuffPrivate->pUALGParams);
+            OMX_FREE(pBuffPrivate->pUALGParams);
             pBuffPrivate->pUALGParams = NULL;
         }
     }
@@ -382,13 +382,13 @@ static OMX_ERRORTYPE FreeBuffer_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
 
             OMX_PRBUFFER1(pComponentPrivate->dbg, "INTERNAL BUFFER USED , trying to free it.\n");
             pBuffHead->pBuffer -= 128;
-            free(pBuffHead->pBuffer);
+            OMX_FREE(pBuffHead->pBuffer);
             pBuffHead->pBuffer = NULL;
         }
     }
 
     if (pBuffHead) {
-        free(pBuffHead);
+        OMX_FREE(pBuffHead);
         pBuffHead = NULL;
     }
 
@@ -490,11 +490,11 @@ static OMX_ERRORTYPE UseBuffer_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
 
 
     if (nPortIndex == JPEGDEC_INPUT_PORT) {
-        OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, OMX_BUFFERHEADERTYPE);
+        OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, sizeof(OMX_BUFFERHEADERTYPE));
         *ppBufferHdr = pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr;
     }
     else if (nPortIndex == JPEGDEC_OUTPUT_PORT) {
-        OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, OMX_BUFFERHEADERTYPE);
+        OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr, sizeof(OMX_BUFFERHEADERTYPE));
         *ppBufferHdr = pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nBufferCount]->pBufferHdr;
     }
     else {
@@ -586,7 +586,9 @@ OMX_ERRORTYPE OMX_ComponentInit(OMX_HANDLETYPE hComponent)
     OMX_CHECK_PARAM(hComponent);
     pHandle = (OMX_COMPONENTTYPE *)hComponent;
 
-    OMX_MALLOC_STRUCT(pHandle->pComponentPrivate, JPEGDEC_COMPONENT_PRIVATE);
+    LinkedList_Create(&AllocList);
+    
+    OMX_MALLOC(pHandle->pComponentPrivate, sizeof(JPEGDEC_COMPONENT_PRIVATE));
 
     pComponentPrivate = (JPEGDEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 
@@ -607,7 +609,7 @@ OMX_ERRORTYPE OMX_ComponentInit(OMX_HANDLETYPE hComponent)
     pComponentPrivate->ComponentVersion.s.nVersionMinor = 0x00;
     pComponentPrivate->ComponentVersion.s.nRevision = 0x00;
     pComponentPrivate->ComponentVersion.s.nStep = 0x00;
-    MALLOC(pComponentPrivate->cComponentName, char, COMP_MAX_NAMESIZE);        
+    OMX_MALLOC(pComponentPrivate->cComponentName, COMP_MAX_NAMESIZE + 1);        
     strncpy(pComponentPrivate->cComponentName, cJPEGdecName, COMP_MAX_NAMESIZE);
 
     pHandle->SetCallbacks = SetCallbacks_JPEGDec;
@@ -631,33 +633,33 @@ OMX_ERRORTYPE OMX_ComponentInit(OMX_HANDLETYPE hComponent)
 #endif
 
     /* Allocate memory for component data structures */
-    OMX_MALLOC_STRUCT(pComponentPrivate->pPortParamType, OMX_PORT_PARAM_TYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pPriorityMgmt, OMX_PRIORITYMGMTTYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT], JPEGDEC_PORT_TYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT], JPEGDEC_PORT_TYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pParamBufSupplier, OMX_PARAM_BUFFERSUPPLIERTYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pParamBufSupplier, OMX_PARAM_BUFFERSUPPLIERTYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef, OMX_PARAM_PORTDEFINITIONTYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortDef, OMX_PARAM_PORTDEFINITIONTYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortFormat, OMX_IMAGE_PARAM_PORTFORMATTYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortFormat, OMX_IMAGE_PARAM_PORTFORMATTYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pScalePrivate, OMX_CONFIG_SCALEFACTORTYPE); /* Scale Factor */
-    OMX_MALLOC_STRUCT(pComponentPrivate->pSectionDecode, OMX_CUSTOM_IMAGE_DECODE_SECTION);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pSubRegionDecode, OMX_CUSTOM_IMAGE_DECODE_SUBREGION);
+    OMX_MALLOC(pComponentPrivate->pPortParamType, sizeof(OMX_PORT_PARAM_TYPE));
+    OMX_MALLOC(pComponentPrivate->pPriorityMgmt, sizeof(OMX_PRIORITYMGMTTYPE));
+    OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT], sizeof(JPEGDEC_PORT_TYPE));
+    OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT], sizeof(JPEGDEC_PORT_TYPE));
+    OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pParamBufSupplier, sizeof(OMX_PARAM_BUFFERSUPPLIERTYPE));
+    OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pParamBufSupplier, sizeof(OMX_PARAM_BUFFERSUPPLIERTYPE));
+    OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortFormat, sizeof(OMX_IMAGE_PARAM_PORTFORMATTYPE));
+    OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortFormat, sizeof(OMX_IMAGE_PARAM_PORTFORMATTYPE));
+    OMX_MALLOC(pComponentPrivate->pScalePrivate, sizeof(OMX_CONFIG_SCALEFACTORTYPE)); /* Scale Factor */
+    OMX_MALLOC(pComponentPrivate->pSectionDecode, sizeof(OMX_CUSTOM_IMAGE_DECODE_SECTION));
+    OMX_MALLOC(pComponentPrivate->pSubRegionDecode, sizeof(OMX_CUSTOM_IMAGE_DECODE_SUBREGION));
 
 #ifdef KHRONOS_1_1
-    OMX_MALLOC_STRUCT(pComponentPrivate->pAudioPortType, OMX_PORT_PARAM_TYPE);
+    OMX_MALLOC(pComponentPrivate->pAudioPortType, sizeof(OMX_PORT_PARAM_TYPE));
     OMX_CONF_INIT_STRUCT(pComponentPrivate->pAudioPortType, OMX_PORT_PARAM_TYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pVideoPortType, OMX_PORT_PARAM_TYPE);
+    OMX_MALLOC(pComponentPrivate->pVideoPortType, sizeof(OMX_PORT_PARAM_TYPE));
     OMX_CONF_INIT_STRUCT(pComponentPrivate->pVideoPortType, OMX_PORT_PARAM_TYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pOtherPortType, OMX_PORT_PARAM_TYPE);
+    OMX_MALLOC(pComponentPrivate->pOtherPortType, sizeof(OMX_PORT_PARAM_TYPE));
     OMX_CONF_INIT_STRUCT(pComponentPrivate->pOtherPortType, OMX_PORT_PARAM_TYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pCompRole,OMX_PARAM_COMPONENTROLETYPE);
+    OMX_MALLOC(pComponentPrivate->pCompRole, sizeof(OMX_PARAM_COMPONENTROLETYPE));
     OMX_CONF_INIT_STRUCT(pComponentPrivate->pCompRole,OMX_PARAM_COMPONENTROLETYPE);
-    OMX_MALLOC_STRUCT(pComponentPrivate->pQuantTable, OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE);
+    OMX_MALLOC(pComponentPrivate->pQuantTable, sizeof(OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE));
     OMX_CONF_INIT_STRUCT(pComponentPrivate->pQuantTable,OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE);
     pComponentPrivate->pQuantTable->eQuantizationTable = OMX_IMAGE_QuantizationTableLuma;
-    OMX_MALLOC_STRUCT(pComponentPrivate->pHuffmanTable, OMX_IMAGE_PARAM_HUFFMANTTABLETYPE);
+    OMX_MALLOC(pComponentPrivate->pHuffmanTable, sizeof(OMX_IMAGE_PARAM_HUFFMANTTABLETYPE));
     OMX_CONF_INIT_STRUCT(pComponentPrivate->pHuffmanTable,OMX_IMAGE_PARAM_HUFFMANTTABLETYPE);
     pComponentPrivate->pHuffmanTable->eHuffmanTable = OMX_IMAGE_HuffmanTableAC;
 
@@ -670,12 +672,12 @@ OMX_ERRORTYPE OMX_ComponentInit(OMX_HANDLETYPE hComponent)
     
 #endif
     for (i = 0;i<NUM_OF_BUFFERS;i++) {
-        OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[i], JPEGDEC_BUFFER_PRIVATE);
+        OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[i], sizeof(JPEGDEC_BUFFER_PRIVATE));
         pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[i]->pBufferHdr = NULL;
     }
 
     for (i = 0;i<NUM_OF_BUFFERS;i++) {
-        OMX_MALLOC_STRUCT(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[i], JPEGDEC_BUFFER_PRIVATE);
+        OMX_MALLOC(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[i], sizeof(JPEGDEC_BUFFER_PRIVATE));
         pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[i]->pBufferHdr = NULL;
     }
 
@@ -829,39 +831,9 @@ OMX_ERRORTYPE OMX_ComponentInit(OMX_HANDLETYPE hComponent)
 
 EXIT:
     if(eError != OMX_ErrorNone){
-        FREE(pComponentPrivate->cComponentName);
-        FREE(pComponentPrivate->pPortParamType);
-        FREE(pComponentPrivate->pPriorityMgmt);
-        FREE(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pParamBufSupplier);
-        FREE(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pParamBufSupplier);
-        FREE(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef);
-        FREE(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortDef);
-        FREE(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortFormat);
-        FREE(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortFormat);
-        FREE(pComponentPrivate->pScalePrivate); /* Scale Factor */
-        for (i = 0;i<NUM_OF_BUFFERS;i++) {
-            FREE(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[i]);
-            FREE(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[i]);
-        }
-        FREE(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]);
-        FREE(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]);
-        FREE(pComponentPrivate->pScalePrivate);
-        FREE(pComponentPrivate->pSectionDecode);
-        FREE(pComponentPrivate->pSubRegionDecode);
-        
-#ifdef KHRONOS_1_1
-        FREE(pComponentPrivate->pAudioPortType);
-        FREE(pComponentPrivate->pVideoPortType);
-        FREE(pComponentPrivate->pOtherPortType);
-        FREE(pComponentPrivate->pCompRole);
-        FREE(pComponentPrivate->pQuantTable);
-        FREE(pComponentPrivate->pHuffmanTable);
-#endif
-#ifdef __PERF_INSTRUMENTATION__
-        PERF_Done(pComponentPrivate->pPERF);
-        FREE(pComponentPrivate->pPERF);
-#endif
-        FREE(pComponentPrivate);
+        /* LinkedList_DisplayAll (&AllocList); */
+        OMX_FREEALL();
+        LinkedList_Destroy(&AllocList);
     }
     return eError;
 }   /* End of OMX_ComponentInit */
@@ -1197,8 +1169,8 @@ static OMX_ERRORTYPE GetParameter_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent,
         break;
 
     case OMX_IndexParamPortDefinition:
-	OMX_PRINT1(pComponentPrivate->dbg, "get param %lu\n", ((OMX_PARAM_PORTDEFINITIONTYPE *)(ComponentParameterStructure))->nPortIndex);
-	OMX_PRINT1(pComponentPrivate->dbg, " port 0 enable: %d\n", pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef->bEnabled);
+		OMX_PRINT1(pComponentPrivate->dbg, "get param %lu\n", ((OMX_PARAM_PORTDEFINITIONTYPE *)(ComponentParameterStructure))->nPortIndex);
+		OMX_PRINT1(pComponentPrivate->dbg, " port 0 enable: %d\n", pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef->bEnabled);
         OMX_PRINT1(pComponentPrivate->dbg, " port 1 enable: %d\n", pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortDef->bEnabled);
        if (((OMX_PARAM_PORTDEFINITIONTYPE *)(ComponentParameterStructure))->nPortIndex == pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef->nPortIndex) {
             memcpy(ComponentParameterStructure, pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
@@ -2265,14 +2237,14 @@ static OMX_ERRORTYPE Allocate_DSPResources_JPEGDec(OMX_IN JPEGDEC_COMPONENT_PRIV
 
     nBufferCount = pComponentPrivate->pCompPort[nPortIndex]->nBuffCount;
     if (nPortIndex == JPEGDEC_INPUT_PORT) {
-        MALLOC(pUalgInpParams, JPEGDEC_UAlgInBufParamStruct, 256);
+        OMX_MALLOC(pUalgInpParams, sizeof(JPEGDEC_UAlgInBufParamStruct) + 256);
         pTemp = (OMX_U8*)pUalgInpParams;
         pTemp += 128;
         pUalgInpParams = pTemp;
         (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nBufferCount]->pUALGParams) = (JPEGDEC_UAlgInBufParamStruct *)(pUalgInpParams);
     }
     else if (nPortIndex == JPEGDEC_OUTPUT_PORT) {
-        MALLOC(pUalgOutParams, JPEGDEC_UAlgOutBufParamStruct, 256);
+        OMX_MALLOC(pUalgOutParams, sizeof(JPEGDEC_UAlgOutBufParamStruct) + 256);
         pTemp = (OMX_U8*)pUalgOutParams;
         pTemp += 128;
         pUalgOutParams = pTemp;

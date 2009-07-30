@@ -751,8 +751,8 @@ OMX_BOOL TIOMXConfigParserRedirect(
 
 {
     OMX_BOOL Status = OMX_FALSE;
-
+        
     Status = TIOMXConfigParser(aInputParameters, aOutputParameters);
-
+    
     return Status;
 }

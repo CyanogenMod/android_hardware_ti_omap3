@@ -21,17 +21,12 @@
 #ifndef OMX_VIDDEC_UTILS__H
 #define OMX_VIDDEC_UTILS__H
 
-#define VIDDEC_FLAGGED_EOS
-
-#ifndef VIDDEC_FLAGGED_EOS
-    #define VIDDEC_FLAGGED_EOS
-#endif
-
 #ifdef ANDROID
 /* Log for Android system*/
 #include <utils/Log.h>
 #define LOG_TAG "TI_Video_Decoder"
 #endif
+#include <cutils/properties.h>
 
 #ifdef UNDER_CE
     #include <windows.h>
@@ -201,6 +196,10 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #define VIDDEC_DEFAULT_OUTPUT_BUFFER_SIZE       614400
 #define VIDDEC_DEFAULT_WIDTH                    640
 #define VIDDEC_DEFAULT_HEIGHT                   480
+#define VIDDEC_DEFAULT_PROCESSMODE              0      /* 0=frmmode; 1=strmmode */
+#define VIDDEC_DEFAULT_H264BITSTRMFMT           0      /* 0=bytestrm; 1->4=NAL-bitstrm */
+#define MAX_CCD_CNT                             128
+#define MAX_NALUDATA_CNT                        128
 
 #define VIDDEC_INPUT_PORT_COMPRESSIONFORMAT      OMX_VIDEO_CodingMPEG4
 #define VIDDEC_OUTPUT_PORT_COMPRESSIONFORMAT      OMX_VIDEO_CodingUnused
@@ -378,27 +377,10 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 
 #define CSD_POSITION                                    51 /*Codec Specific Data position on the "stream propierties object"(ASF spec)*/
 
-/*Custom Parameters*/
-#ifdef VIDDEC_FLAGGED_EOS
- #define VIDDEC_NUMBER_OF_CUSTOM_PARAMS 7
-#else
- #define VIDDEC_NUMBER_OF_CUSTOM_PARAMS 6
-#endif
-
-#ifdef VIDDEC_SPARK_CODE
- #ifdef VIDDEC_FLAGGED_EOS
-    #undef VIDDEC_NUMBER_OF_CUSTOM_PARAMS
-    #define VIDDEC_NUMBER_OF_CUSTOM_PARAMS 8
- #else
-    #undef VIDDEC_NUMBER_OF_CUSTOM_PARAMS
-    #define VIDDEC_NUMBER_OF_CUSTOM_PARAMS 7
- #endif
-#endif
-
 #ifndef KHRONOS_1_2
  #define OMX_BUFFERFLAG_CODECCONFIG 0x00000080
 #endif
-/*#define VIDDEC_NUMBER_OF_CUSTOM_PARAMS 6*/
+
 typedef struct VIDDEC_CUSTOM_PARAM
 {
     unsigned char cCustomParamName[128];
@@ -416,22 +398,9 @@ typedef enum VIDDEC_CUSTOM_PARAM_INDEX
     VideoDecodeCustomParamWMVProfile,
     VideoDecodeCustomParamWMVFileType,
     VideoDecodeCustomParamParserEnabled,
-#ifdef VIDDEC_FLAGGED_EOS
- #ifdef VIDDEC_SPARK_CODE
     VideoDecodeCustomParamIsNALBigEndian,
-    VideoDecodeCustomParambUseFlaggedEos,
+#ifdef VIDDEC_SPARK_CODE
     VideoDecodeCustomParamIsSparkInput,
- #else
-    VideoDecodeCustomParamIsNALBigEndian,
-    VideoDecodeCustomParambUseFlaggedEos,
- #endif
-#else
- #ifdef VIDDEC_SPARK_CODE
-    VideoDecodeCustomParamIsNALBigEndian,
-    VideoDecodeCustomParamIsSparkInput,
- #else
-    VideoDecodeCustomParamIsNALBigEndian,
- #endif
 #endif
     VideoDecodeCustomConfigDebug
 
@@ -816,7 +785,6 @@ typedef struct VIDDEC_MPEG4_ParserParam {
     OMX_U32 nScalability;
     OMX_S32 nSourceFormat;
     OMX_BOOL nOutputFormat;
-
     OMX_U32 nCPM;
     OMX_U32 nPWI;
     OMX_U32 nPHI;
@@ -859,7 +827,7 @@ typedef struct PV_OMXComponentCapabilityFlagsType
     OMX_BOOL iOMXComponentCanHandleIncompleteFrames;
     OMX_BOOL iOMXComponentUsesFullAVCFrames;
 } PV_OMXComponentCapabilityFlagsType;
-#endif 
+#endif
 
 /**
  * Data structure used to ...
@@ -916,10 +884,7 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_U32 ProcessMode;
     OMX_U32 H264BitStreamFormat;
     OMX_BOOL MPEG4Codec_IsTI;
- #ifdef VIDDEC_FLAGGED_EOS
-    OMX_BOOL bUseFlaggedEos;
-    OMX_BUFFERHEADERTYPE pTempBuffHead;
- #endif
+    OMX_BUFFERHEADERTYPE pTempBuffHead;  /*Used for EOS logic*/
     OMX_U32 app_nBuf;
     OMX_U32 lcml_compID;
     void* pLcmlHandle;
@@ -960,18 +925,13 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_BOOL               bBuffMarkTaked;
     OMX_BOOL               bBuffalreadyMarked;
 
-    OMX_U32 nFlags;
-
     OMX_STATETYPE eIdleToLoad;
     OMX_STATETYPE eExecuteToIdle;
-    OMX_BOOL bPlayCompleted;
     OMX_BOOL iEndofInputSent;
-    OMX_BOOL iEndofInput;
     OMX_BOOL bPipeCleaned;
     OMX_BOOL bFirstBuffer;
 
     OMX_BOOL bParserEnabled;
-    OMX_BOOL bBuffFound;
     OMX_BOOL bFlushOut;
     void* pUalgParams;
     OMX_BOOL bLCMLHalted;
@@ -1019,16 +979,26 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_U32 nDisplayWidth;
     OMX_U8* pCodecData; /* codec-specific data coming from the demuxer */
     OMX_U32 nCodecDataSize;
-	OMX_BOOL bVC1Fix;
+    OMX_BOOL bVC1Fix;
 #ifdef ANDROID /* Specific flag for opencore mmframework */
     PV_OMXComponentCapabilityFlagsType* pPVCapabilityFlags;
 #endif
-    
+
     /* Used to handle config buffer fragmentation on AVC*/
     OMX_BOOL bConfigBufferCompleteAVC;
     OMX_PTR pInternalConfigBufferAVC;
     OMX_U32 nInternalConfigBufferFilledAVC;
     struct OMX_TI_Debug dbg;
+    /* track number of codec config data (CCD) units and sizes */
+    OMX_U32 aCCDsize[MAX_CCD_CNT];
+    OMX_U32 nCCDcnt;
+
+    /* indicate if codec config data (CCD)
+     * buffer (e.g. SPS/PPS) has been copied
+     * to the data buffer.  SPS,PPS,NAL1,...
+     * */
+    OMX_BOOL bCopiedCCDBuffer;
+
 } VIDDEC_COMPONENT_PRIVATE;
 
 /*****************macro definitions*********************/

@@ -55,7 +55,6 @@
 #include <oaf_osal.h>
 #include <omx_core.h>
 #else
-#include <wchar.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -102,6 +101,7 @@ void* OMX_JpegEnc_Thread (void* pThreadData)
     OMX_U32 nParam1;
     sigset_t set; 	
 
+
     OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pThreadData;
     JPEGENC_COMPONENT_PRIVATE *pComponentPrivate = (JPEGENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 
@@ -137,8 +137,8 @@ void* OMX_JpegEnc_Thread (void* pThreadData)
         tv.tv_sec = 1;
         tv.tv_usec = 0;
 		
-	sigemptyset(&set);
-	sigaddset(&set,SIGALRM);
+	 sigemptyset(&set)	;
+	 sigaddset(&set,SIGALRM);
         status = pselect (fdmax+1, &rfds, NULL, NULL, NULL,&set);
 
         if ( 0 == status ) {
@@ -179,8 +179,8 @@ void* OMX_JpegEnc_Thread (void* pThreadData)
             if ( FD_ISSET (pComponentPrivate->nCmdPipe[0], &rfds) ) {
                 /* Do not accept any command when the component is stopping */
 		OMX_PRCOMM2(pComponentPrivate->dbg, "CMD pipe is set in Component Thread\n");
-                eCmd = 0;
-                read (pComponentPrivate->nCmdPipe[0], &eCmd, sizeof(eCmd));
+                
+                read (pComponentPrivate->nCmdPipe[0], &eCmd, sizeof (eCmd));
                 read (pComponentPrivate->nCmdDataPipe[0], &nParam1, sizeof (nParam1));
 
 #ifdef __PERF_INSTRUMENTATION__

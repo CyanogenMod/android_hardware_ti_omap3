@@ -72,6 +72,26 @@
 
 #define COMP_MAX_NAMESIZE 127
 
+/*Linked List */
+
+typedef struct Node {
+    struct Node *pNextNode;
+    void *pValue;
+} Node;
+
+typedef struct LinkedList {
+    Node *pRoot;
+}   LinkedList;
+
+LinkedList AllocList;
+
+void LinkedList_Create(LinkedList *LinkedList);
+void LinkedList_AddElement(LinkedList *LinkedList, void *pValue);
+void LinkedList_FreeElement(LinkedList *LinkedList, void *pValue);
+void LinkedList_FreeAll(LinkedList *LinkedList);
+void LinkedList_DisplayAll(LinkedList *LinkedList);
+void LinkedList_Destroy(LinkedList *LinkedList);
+
 /*
  *     M A C R O S
  */
@@ -109,28 +129,26 @@ do {					       \
     }					       \
 } while(0)
 
-#define OMX_MALLOC_STRUCT(_pStruct_, _sName_)   \
-    _pStruct_ = (_sName_*)malloc(sizeof(_sName_));  \
+#define OMX_MALLOC(_pStruct_, _size_)   \
+    _pStruct_ = malloc(_size_);  \
     if(_pStruct_ == NULL){  \
         eError = OMX_ErrorInsufficientResources;    \
         goto EXIT;  \
-    }   \
-    memset(_pStruct_, 0, sizeof(_sName_));
+    } \
+    memset(_pStruct_, 0, _size_);\
+    LinkedList_AddElement(&AllocList, _pStruct_);
 
-#define MALLOC(_pStruct, _sName, _nExtraSize)   \
-    _pStruct = (_sName*)malloc(sizeof(_sName) + _nExtraSize);  \
-    if(_pStruct == NULL){  \
-        eError = OMX_ErrorInsufficientResources;    \
-        goto EXIT;  \
-    }   \
-    memset(_pStruct, 0, (sizeof(_sName) + _nExtraSize));
-
-#define FREE(_ptr)   \
+#define OMX_FREE(_ptr)   \
 {                     \
     if (_ptr != NULL) { \
-        free(_ptr);   \
+        LinkedList_FreeElement(&AllocList, _ptr);\
         _ptr = NULL; \
     }                \
+}
+
+#define OMX_FREEALL()   \
+{                     \
+        LinkedList_FreeAll(&AllocList);\
 }
 
 #define JPEGDEC_WAIT_PORT_POPULATION(_pComponentPrivate_)    \
@@ -274,6 +292,7 @@ do {					       \
 #define JPEGD_BUFFERBACK    0x02
 #define JPEGD_IDLEREADY     ( JPEGD_DSPSTOP | JPEGD_BUFFERBACK )
 
+#define DSP_MMU_FAULT_HANDLING
 
 #define OMX_CustomCommandStopThread (OMX_CommandMax - 1)
 

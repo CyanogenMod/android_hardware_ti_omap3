@@ -62,7 +62,7 @@
 #include "OMX_AmrDecoder.h"
 #include "OMX_AmrDec_ComponentThread.h"
 
-void* ComponentThread (void* pThreadData)
+void* NBAMRDEC_ComponentThread (void* pThreadData)
 {
     OMX_S16 status;
     struct timespec tv;

@@ -149,7 +149,7 @@ OSCL_EXPORT_REF OMX_BOOL TIOMXConfigParser(
             {
                 return OMX_FALSE;
             }
-
+            
             if (0 == oscl_strcmp(pInputs->cComponentRole, (OMX_STRING)"video_decoder.mpeg4"))
             {
                 Status = ti_video_config_parser((tiVideoConfigParserInputs *)&aInputs, (tiVideoConfigParserOutputs *)aOutputParameters);

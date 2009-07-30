@@ -67,13 +67,9 @@
     #include "perf.h"
 #endif
 
-/* Log for Android system*/
-#include <utils/Log.h>
-#undef LOG_TAG
-#define LOG_TAG "TIOMXWBAMRENC"
-
 #include <OMX_Component.h>
 #include "OMX_TI_Common.h"
+#include "OMX_TI_Debug.h"
 #ifdef DSP_RENDERING_ON
     #include <AudioManagerAPI.h>
 #endif
@@ -82,6 +78,17 @@
     #define sleep Sleep
 #endif
 
+#ifndef ANDROID
+    #define ANDROID
+#endif
+
+#ifdef ANDROID
+    #undef LOG_TAG
+    #define LOG_TAG "OMX_WBAMRENC"
+
+    /* PV opencore capability custom parameter index */
+    #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
+#endif
 
 /* ======================================================================= */
 /**
@@ -105,76 +112,6 @@
 /* ======================================================================= */
 #undef WBAMRENC_DEBUGMEM
 /*#define WBAMRENC_DEBUGMEM*/
-/* ======================================================================= */
-/**
- * @def    WBAMRENC_EPRINT   Error print macro
- */
-/* ======================================================================= */
-#ifndef  UNDER_CE
-        #define WBAMRENC_EPRINT LOGE //(...)    fprintf(stderr,__VA_ARGS__)
-#else
-        #define WBAMRENC_EPRINT     printf
-#endif
-
-
-#ifndef UNDER_CE
-/* ======================================================================= */
-/**
- * @def    WBAMRENC_DEBUG   Debug print macro
- */
-/* ======================================================================= */
-#ifdef  WBAMRENC_DEBUG
-        #define WBAMRENC_DPRINT LOGW //(...)    fprintf(stderr,__VA_ARGS__)
-#else
-        #define WBAMRENC_DPRINT(...)
-#endif
-
-/* ======================================================================= */
-/**
- * @def    WBAMRENC_MEMCHECK   Memory print macro
- */
-/* ======================================================================= */
-#ifdef  WBAMRENC_MEMCHECK
-        #define WBAMRENC_MEMPRINT LOGW //(...)    fprintf(stderr,__VA_ARGS__)
-#else
-        #define WBAMRENC_MEMPRINT(...)
-#endif
-
-#else   /*UNDER_CE*/
-/* ======================================================================= */
-/**
- * @def    WBAMRENC_DEBUG   Debug print macro
- */
-/* ======================================================================= */
-#ifdef  WBAMRENC_DEBUG
-        #define WBAMRENC_DPRINT(STR, ARG...) printf()
-#else
-
-#endif
-/* ======================================================================= */
-/**
- * @def    WBAMRENC_MEMCHECK   Memory print macro
- */
-/* ======================================================================= */
-#ifdef  WBAMRENC_MEMCHECK
-        #define WBAMRENC_MEMPRINT(STR, ARG...) printf()
-#else
-
-#endif
-
-#ifdef UNDER_CE
-
-#ifdef DEBUG
-        #define WBAMRENC_DPRINT     printf
-        #define WBAMRENC_MEMPRINT   printf
-#else
-        #define WBAMRENC_DPRINT
-        #define WBAMRENC_MEMPRINT
-#endif
-
-#endif  /*UNDER_CE*/
-
-#endif
 
 /* ======================================================================= */
 /**
@@ -191,57 +128,57 @@
     (_s_)->nVersion.s.nStep = 0x0
 
 #define OMX_WBMEMFREE_STRUCT(_pStruct_)\
-    WBAMRENC_MEMPRINT("%d :: FREEING MEMORY = %p\n",__LINE__,_pStruct_);\
+    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "FREEING MEMORY = %p\n",_pStruct_);\
     if(_pStruct_ != NULL){\
         newfree(_pStruct_);\
         _pStruct_ = NULL;\
     }
 
 #define OMX_WBCLOSE_PIPE(_pStruct_,err)\
-    WBAMRENC_DPRINT("%d :: CLOSING PIPE \n",__LINE__);\
+    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Closing pipes = %d\n",_pStruct_);\
     err = close (_pStruct_);\
     if(0 != err && OMX_ErrorNone == eError){\
         eError = OMX_ErrorHardware;\
-        printf("%d :: Error while closing pipe\n",__LINE__);\
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "Error while closing pipe\n");\
         goto EXIT;\
     }
 
 #define WBAMRENC_OMX_MALLOC(_pStruct_, _sName_)   \
     _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));      \
     if(_pStruct_ == NULL){      \
-        printf("***********************************\n"); \
-        printf("%d :: Malloc Failed\n",__LINE__); \
-        printf("***********************************\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "Malloc Failed\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
         eError = OMX_ErrorInsufficientResources; \
         goto EXIT;      \
     } \
     memset(_pStruct_,0,sizeof(_sName_));\
-    WBAMRENC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_pStruct_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Malloced = %p\n",_pStruct_);
 
 
 
 #define WBAMRENC_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)   \
     _ptr_ = (_name_ *)newmalloc(_size_);      \
     if(_ptr_ == NULL){      \
-        printf("***********************************\n"); \
-        printf("%d :: Malloc Failed\n",__LINE__); \
-        printf("***********************************\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "Malloc Failed\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
         eError = OMX_ErrorInsufficientResources; \
         goto EXIT;      \
     } \
     memset(_ptr_,0,_size_); \
-    WBAMRENC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_ptr_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Malloced = %p\n",_ptr_);
 
 #define WBAMRENC_OMX_ERROR_EXIT(_e_, _c_, _s_)\
     _e_ = _c_;\
-    printf("\n**************** OMX ERROR ************************\n");\
-    printf("%d : Error Name: %s : Error Num = %x",__LINE__, _s_, _e_);\
-    printf("\n**************** OMX ERROR ************************\n");\
+    OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n**************** OMX ERROR ************************\n");\
+    OMXDBG_PRINT(stderr, ERROR, 4, 0, "Error Name: %s : Error Num = %x", _s_, _e_);\
+    OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n**************** OMX ERROR ************************\n");\
     goto EXIT;
 
 #define WBAMRENC_OMX_FREE(ptr) \
     if(NULL != ptr) { \
-        WBAMRENC_MEMPRINT("%d :: Freeing Address = %p\n",__LINE__,ptr); \
+        OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Freeing Address = %p\n",ptr); \
         newfree(ptr); \
         ptr = NULL; \
     }
@@ -272,7 +209,7 @@
  * @def    WBAMRENC_MAX_NUM_OF_BUFS   Maximum number of buffers
  */
 /* ======================================================================= */
-#define WBAMRENC_MAX_NUM_OF_BUFS 10
+#define WBAMRENC_MAX_NUM_OF_BUFS 15
 /* ======================================================================= */
 /**
  * @def    WBAMRENC_NUM_OF_PORTS   Number of ports
@@ -442,6 +379,18 @@ enum WBAMRENC_MimeMode {
  */
 /* ======================================================================= */
 #define _ERROR_PROPAGATION__
+
+typedef struct PV_OMXComponentCapabilityFlagsType {
+    /* OMX COMPONENT CAPABILITY RELATED MEMBERS (for opencore compatability)*/
+    OMX_BOOL iIsOMXComponentMultiThreaded;
+    OMX_BOOL iOMXComponentSupportsExternalOutputBufferAlloc;
+    OMX_BOOL iOMXComponentSupportsExternalInputBufferAlloc;
+    OMX_BOOL iOMXComponentSupportsMovableInputBuffers;
+    OMX_BOOL iOMXComponentSupportsPartialFrames;
+    OMX_BOOL iOMXComponentNeedsNALStartCode;
+    OMX_BOOL iOMXComponentCanHandleIncompleteFrames;
+} PV_OMXComponentCapabilityFlagsType;
+
 /** WBAMRENC_COMP_PORT_TYPE  Port types
  *
  *  @param  WBAMRENC_INPUT_PORT             Input port
@@ -856,6 +805,11 @@ typedef struct WBAMRENC_COMPONENT_PRIVATE
     OMX_BOOL bLoadedCommandPending;
     
     OMX_PARAM_COMPONENTROLETYPE componentRole;
+
+    /* Pointer to OpenCore capabilities structure */
+    PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
+
+    struct OMX_TI_Debug dbg;
     
 } WBAMRENC_COMPONENT_PRIVATE;
 

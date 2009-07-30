@@ -1052,6 +1052,26 @@ OMX_ERRORTYPE MP3DEC_FreeCompResources(OMX_HANDLETYPE pComponent);
 */
 /* ================================================================================ * */
 void MP3DEC_CleanupInitParams(OMX_HANDLETYPE pComponent);
+/* ================================================================================= * */
+/**
+* MP3DEC_CleanupInitParamsEx() function frees only the initialization time
+* memories allocated. For example, it will not close pipes, it will not free the
+* memory allocated to the buffers etc. But it does free the memory of buffers
+* utilized by the LCML etc. It is basically subset of MP3DEC_FreeResources()
+* function. Called while port disable when port reconfiguration takes place.
+*
+* @param pComponent This is the component handle.
+*
+* @pre          None
+*
+* @post         None
+*
+*  @return      OMX_ErrorNone = Successful Inirialization of the component\n
+*
+*  @see         None
+*/
+/* ================================================================================ * */
+void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
 
 /* =================================================================================== */
 /**

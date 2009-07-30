@@ -38,7 +38,7 @@ typedef struct _tiVideoConfigParserOutputs
 } tiVideoConfigParserOutputs;
 
 OSCL_IMPORT_REF int16 ti_video_config_parser(
-	tiVideoConfigParserInputs *aInputs,
+	tiVideoConfigParserInputs *aInputs, 
 	tiVideoConfigParserOutputs *aOutputs);
 
 #endif //TI_VIDEO_CONFIG_PARSER_H_INCLUDED

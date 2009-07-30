@@ -154,38 +154,6 @@ void* OMX_VidDec_Thread (void* pThreadData)
     }
 
     while (1) {
-#if 1
- #ifdef VIDDEC_FLAGGED_EOS
-        if (!pComponentPrivate->bUseFlaggedEos) { /*OMX_TRUE*/
- #endif
-            if(pComponentPrivate->bPlayCompleted == OMX_TRUE && pComponentPrivate->bBuffFound == OMX_FALSE
-                && pComponentPrivate->bFlushOut == OMX_FALSE){
-                OMX_VidDec_Return(pComponentPrivate);
-                OMX_VidDec_Return(pComponentPrivate);
-                pComponentPrivate->bPipeCleaned = 0;
-                aParam[0] = USN_STRMCMD_FLUSH;
-                aParam[1] = VIDDEC_OUTPUT_PORT;
-                aParam[2] = 0;
-                VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->sMutex);
-                if(pComponentPrivate->eLCMLState != VidDec_LCML_State_Unload && 
-                    pComponentPrivate->eLCMLState != VidDec_LCML_State_Destroy && 
-                    pComponentPrivate->pLCML != NULL){
-                    pLcmlHandle = (LCML_DSP_INTERFACE*)pComponentPrivate->pLCML;
-                    eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,EMMCodecControlStrmCtrl, (void*)aParam);
-                    if (eError != OMX_ErrorNone) {
-                        eError = OMX_ErrorHardware;
-                        OMX_PRDSP4(pComponentPrivate->dbg, "Error on flush at out\n");
-                    }
-                    VIDDEC_PTHREAD_MUTEX_WAIT(pComponentPrivate->sMutex);
-                    VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->sMutex);
-               }
-               pComponentPrivate->bFlushOut = OMX_TRUE;
-            }
- #ifdef VIDDEC_FLAGGED_EOS
-        }
- #endif
-#endif
-
         FD_ZERO (&rfds);
         FD_SET(pComponentPrivate->cmdPipe[VIDDEC_PIPE_READ], &rfds);
         FD_SET(pComponentPrivate->filled_outBuf_Q[VIDDEC_PIPE_READ], &rfds);

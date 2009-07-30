@@ -397,7 +397,6 @@ OMX_ERRORTYPE Free_ComponentResourcesJpegDec(JPEGDEC_COMPONENT_PRIVATE *pCompone
     OMX_ERRORTYPE threadError   = OMX_ErrorNone;
     OMX_ERRORTYPE eErr          = OMX_ErrorNone;
     int pthreadError = 0, nRet = 0;
-    OMX_U8 nCount = 0;
     OMX_COMMANDTYPE eCmd = OMX_CustomCommandStopThread;
     struct OMX_TI_Debug dbg;
 
@@ -514,127 +513,7 @@ OMX_ERRORTYPE Free_ComponentResourcesJpegDec(JPEGDEC_COMPONENT_PRIVATE *pCompone
         eError = OMX_ErrorHardware;
 	OMX_PRCOMM4(pComponentPrivate->dbg, "Error while closing cmd pipe\n");
     }
-
-    /* Free Resources */
-#ifdef KHRONOS_1_1
-
-    if (pComponentPrivate->pAudioPortType)
-        {
-            free(pComponentPrivate->pAudioPortType);
-            pComponentPrivate->pAudioPortType = NULL;
-        }
-
-    if (pComponentPrivate->pVideoPortType)
-        {
-            free(pComponentPrivate->pVideoPortType);
-            pComponentPrivate->pVideoPortType = NULL;
-        }
-    if (pComponentPrivate->pOtherPortType)
-        {
-            free(pComponentPrivate->pOtherPortType);
-            pComponentPrivate->pOtherPortType = NULL;
-        }
-    if (pComponentPrivate->pCompRole)
-        {
-            free(pComponentPrivate->pCompRole);
-            pComponentPrivate->pCompRole = NULL;
-        }
-    if (pComponentPrivate->pQuantTable)
-        {
-            free(pComponentPrivate->pQuantTable);
-            pComponentPrivate->pQuantTable = NULL;
-        }
-    if (pComponentPrivate->pHuffmanTable)
-        {
-            free(pComponentPrivate->pHuffmanTable);
-            pComponentPrivate->pHuffmanTable = NULL;
-        }
-
-#endif 
-
-    if(pComponentPrivate->cComponentName){
-        free(pComponentPrivate->cComponentName);
-        pComponentPrivate->cComponentName = NULL;
-    }
     
-    for (nCount = 0; nCount < NUM_OF_BUFFERS; nCount++) {
-        if (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nCount]) {
-            free(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nCount]);
-            pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pBufferPrivate[nCount] = NULL;
-        }
-    }
-    for (nCount = 0; nCount < NUM_OF_BUFFERS; nCount++) {
-        if (pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nCount]) {
-            free(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nCount]);
-            pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pBufferPrivate[nCount] = NULL;
-        }
-    }
-
-    if (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pParamBufSupplier) {
-        free(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pParamBufSupplier);
-        pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pParamBufSupplier = NULL;
-    }
-
-    if (pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pParamBufSupplier) {
-        free(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pParamBufSupplier);
-        pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pParamBufSupplier = NULL;
-    }
-
-    if (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef)   {
-        free (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef);
-        pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef = NULL;
-    }
-
-    if (pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortDef) {
-        free (pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortDef);
-        pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortDef = NULL;
-    }
-
-    if (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortFormat)    {
-        free (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortFormat);
-        pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortFormat = NULL;
-    }
-
-    if (pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortFormat)   {
-        free (pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortFormat);
-        pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortFormat = NULL;
-    }
-
-    if (pComponentPrivate->pPriorityMgmt) {
-        free (pComponentPrivate->pPriorityMgmt);
-        pComponentPrivate->pPriorityMgmt = NULL;
-    }
-
-    if (pComponentPrivate->pPortParamType) {
-        free (pComponentPrivate->pPortParamType);
-        pComponentPrivate->pPortParamType = NULL;
-    }
-
-    if (pComponentPrivate->pScalePrivate) {
-        free(pComponentPrivate->pScalePrivate);
-        pComponentPrivate->pScalePrivate = NULL;
-    }
-
-    if(pComponentPrivate->pSectionDecode) {
-        free(pComponentPrivate->pSectionDecode);
-        pComponentPrivate->pSectionDecode = NULL;
-    }
-
-    if(pComponentPrivate->pSubRegionDecode) {
-        free(pComponentPrivate->pSubRegionDecode);
-        pComponentPrivate->pSubRegionDecode = NULL;
-    }
-
-    if (pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]) {
-        free(pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]);
-        pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT] = NULL;
-    }
-
-    if (pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT])    {
-        free(pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]);
-        pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT] = NULL;
-    }
-
      if (pthread_mutex_destroy(&(pComponentPrivate->mJpegDecMutex)) != 0){
          OMX_TRACE4(pComponentPrivate->dbg, "Error with pthread_mutex_destroy");
     }
@@ -650,10 +529,9 @@ OMX_ERRORTYPE Free_ComponentResourcesJpegDec(JPEGDEC_COMPONENT_PRIVATE *pCompone
     PERF_Done(pComponentPrivate->pPERF);
 #endif
 
-    if (pComponentPrivate) {
-        free(pComponentPrivate);
-        pComponentPrivate = NULL;
-    }
+    /*LinkedList_DisplayAll (&AllocList); */
+    OMX_FREEALL();
+    LinkedList_Destroy(&AllocList);
 
 EXIT:
     OMX_PRINT1(dbg, "Exiting Successfully After Freeing All Resources Errror %x, \n", eError);
@@ -1241,7 +1119,7 @@ OMX_U32 HandleCommandJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
     switch ((OMX_STATETYPE)(nParam1))
     {
     case OMX_StateIdle:
-	OMX_PRINT2(pComponentPrivate->dbg, "JPEG HandleCommand: Cmd Idle \n");
+		OMX_PRINT2(pComponentPrivate->dbg, "JPEG HandleCommand: Cmd Idle \n");
         OMX_PRSTATE2(pComponentPrivate->dbg, "CURRENT STATE IS %d\n",pComponentPrivate->nCurState);
         if (pComponentPrivate->nCurState == OMX_StateIdle) {
             eError = OMX_ErrorSameState;
@@ -1869,7 +1747,7 @@ OMX_ERRORTYPE HandleDataBuf_FromAppJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponent
     }
 
     ptJPGDecUALGInBufParam = (JPEGDEC_UAlgInBufParamStruct *)pBuffPrivate->pUALGParams;
-    ptJPGDecUALGInBufParam->ulAlphaRGB = 0;
+    ptJPGDecUALGInBufParam->ulAlphaRGB = 0xFF;
     ptJPGDecUALGInBufParam->lInBufCount = 0;
     ptJPGDecUALGInBufParam->ulInNumFrame = 1;
     ptJPGDecUALGInBufParam->ulInFrameAlign = 4;
@@ -1898,7 +1776,8 @@ OMX_ERRORTYPE HandleDataBuf_FromAppJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponent
         ptJPGDecUALGInBufParam->forceChromaFormat = 10;
         ptJPGDecUALGInBufParam->RGB_Format = 10;
     }
-    else if (pComponentPrivate->nOutputColorFormat == OMX_COLOR_Format32bitARGB8888) {
+    else if (pComponentPrivate->nOutputColorFormat == OMX_COLOR_Format32bitARGB8888 ||
+			pComponentPrivate->nOutputColorFormat == OMX_COLOR_Format32bitBGRA8888 ) {
         ptJPGDecUALGInBufParam->forceChromaFormat = 11;
         ptJPGDecUALGInBufParam->RGB_Format = 11;
     }
@@ -2238,8 +2117,28 @@ OMX_ERRORTYPE LCML_CallbackJpegDec (TUsnCodecEvent event,
                                                    OMX_ErrorHardware,
                                                    OMX_TI_ErrorCritical,
                                                    NULL);
+            pComponentPrivate->nCurState = OMX_StateInvalid;
+            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle, 
+                                                   pComponentPrivate->pHandle->pApplicationPrivate,
+                                                   OMX_EventError,
+                                                   OMX_ErrorInvalidState, 
+                                                   OMX_TI_ErrorCritical,
+                                                   "DSP Hardware Error");
         }
         goto EXIT;
+
+#ifdef DSP_MMU_FAULT_HANDLING
+        /* Cheking for MMU_fault */
+        if((argsCb[4] == (void *)NULL) && (argsCb[5] == (void*)NULL)) {
+            pComponentPrivate->nCurState = OMX_StateInvalid;
+            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle, 
+                                                   pComponentPrivate->pHandle->pApplicationPrivate,
+                                                   OMX_EventError,
+                                                   OMX_ErrorInvalidState, 
+                                                   OMX_TI_ErrorCritical,
+                                                   "DSP MMU FAULT");
+        }
+#endif
     }
 
     if (event == EMMCodecInternalError) {
@@ -2376,28 +2275,109 @@ void ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
   *
   **/
 /*-------------------------------------------------------------------*/
-
 OMX_BOOL IsTIOMXComponent(OMX_HANDLETYPE hComp)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    OMX_STRING cTunnelComponentName = NULL;
-    OMX_VERSIONTYPE sTunnelComponentVersion;
-    OMX_VERSIONTYPE sSpecVersion;
-    OMX_UUIDTYPE sComponentUUID;
-    OMX_STRING cSubstring = NULL;
+    OMX_STRING pTunnelcComponentName = NULL;
+    OMX_VERSIONTYPE* pTunnelComponentVersion = NULL;
+    OMX_VERSIONTYPE* pSpecVersion = NULL;
+    OMX_UUIDTYPE* pComponentUUID = NULL;
+    char *pSubstring = NULL;
     OMX_BOOL bResult = OMX_TRUE;
 
-    MALLOC(cTunnelComponentName, char, COMP_MAX_NAMESIZE);            
-    eError = OMX_GetComponentVersion (hComp, cTunnelComponentName, &sTunnelComponentVersion, &sSpecVersion, &sComponentUUID);
-    /* Check if tunneled component is a TI component */
+    OMX_MALLOC(pTunnelcComponentName, 128);
+    OMX_MALLOC(pTunnelComponentVersion, sizeof(OMX_VERSIONTYPE));
+    OMX_MALLOC(pSpecVersion, sizeof(OMX_VERSIONTYPE));    
+    OMX_MALLOC(pComponentUUID, sizeof(OMX_UUIDTYPE));    
 
-    cSubstring = strstr(cTunnelComponentName, "OMX.TI.");
-    if(cSubstring == NULL) {
+    eError = OMX_GetComponentVersion (hComp, pTunnelcComponentName, pTunnelComponentVersion, pSpecVersion, pComponentUUID);
+
+    /* Check if tunneled component is a TI component */
+    pSubstring = strstr(pTunnelcComponentName, "OMX.TI.");
+    if(pSubstring == NULL) {
         bResult = OMX_FALSE;
     }
 
 EXIT:
-    FREE(cTunnelComponentName);
+    OMX_FREE(pTunnelcComponentName);
+    OMX_FREE(pTunnelComponentVersion);
+    OMX_FREE(pSpecVersion);
+    OMX_FREE(pComponentUUID);
     return bResult;
 } /* End of IsTIOMXComponent */
+
+void LinkedList_Create(LinkedList *LinkedList) {
+    LinkedList->pRoot = NULL;
+}
+
+void LinkedList_AddElement(LinkedList *LinkedList, void *pValue) {
+    /* create new node and fill the value */
+    Node *pNewNode = (Node *)malloc(sizeof(Node));
+    pNewNode->pValue = (void *)pValue;
+    /*printf("LinkedList:::: Pointer=%p has been added.\n", pNewNode->pValue); */
+    /* add new node on the root to implement quick FIFO */
+    /* modify new node pointers */
+    if(LinkedList->pRoot == NULL) {
+        pNewNode->pNextNode = NULL;
+    }
+    else {
+         pNewNode->pNextNode = LinkedList->pRoot;
+    }
+    /*modify root */
+    LinkedList->pRoot = pNewNode;
+}
+
+void LinkedList_FreeElement(LinkedList *LinkedList, void *pValue) {
+    Node *pNode = LinkedList->pRoot;
+    Node *pPastNode = NULL;
+    while (pNode != NULL) {
+        if (pNode->pValue == pValue) {
+            Node *pTempNode = pNode->pNextNode;
+            if(pPastNode == NULL) {
+                LinkedList->pRoot = pTempNode;
+            }
+            else {
+                pPastNode->pNextNode = pTempNode;
+            }
+            /*printf("LinkedList:::: Pointer=%p has been freed\n", pNode->pValue); */
+            free(pNode->pValue);
+            free(pNode);
+            break;
+        }
+        pPastNode = pNode;
+        pNode = pNode->pNextNode;
+    }
+}
+
+void LinkedList_FreeAll(LinkedList *LinkedList) {
+    Node *pTempNode;
+    int nodes = 0;
+    while (LinkedList->pRoot != NULL) {
+        pTempNode = LinkedList->pRoot->pNextNode;
+        /*printf("LinkedList:::: Pointer=%p has been freed\n", LinkedList->pRoot->pValue); */
+        free(LinkedList->pRoot->pValue);
+        free(LinkedList->pRoot);
+        LinkedList->pRoot = pTempNode;
+        nodes++;
+    } 
+    /*printf("==================No. of deleted nodes: %d=======================================\n\n", nodes); */
+}
+
+void LinkedList_DisplayAll(LinkedList *LinkedList) {
+    Node *pNode = LinkedList->pRoot;
+    int nodes = 0;
+    printf("\n================== Displaying contents of linked list=%p=====================\n", LinkedList);
+    printf("root->\n");
+    while (pNode != NULL) {
+        printf("[Value=%p, NextNode=%p]->\n", pNode->pValue, pNode->pNextNode);
+        pNode = pNode->pNextNode;
+        nodes++;
+    } 
+     printf("==================No. of existing nodes: %d=======================================\n\n", nodes);
+}
+
+void LinkedList_Destroy(LinkedList *LinkedList) {
+    /* do nothing */
+}
+
 

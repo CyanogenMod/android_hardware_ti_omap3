@@ -60,6 +60,8 @@ typedef enum
     /*EMMCodecInputBuffer,
     EMMCodecOuputBuffer,
     EMMCodecScratchBuffer*/
+    EMMCodecInputBufferMapBufLen  = 1000,
+    EMMCodecOutputBufferMapBufLen  = 1001,
     EMMCodecInputBuffer  = 2000,
     EMMCodecStream0      = 2000,
     EMMCodecOuputBuffer  = 2001,

@@ -139,9 +139,9 @@
 /* ======================================================================= */
 /** WBAMR_DEC_COMP_PORT_TYPE  Port types
 *
-*  @param  WBAMR_DEC_INPUT_PORT					Input port
+*  @param  WBAMR_DEC_INPUT_PORT                 Input port
 *
-*  @param  WBAMR_DEC_OUTPUT_PORT				Output port
+*  @param  WBAMR_DEC_OUTPUT_PORT                Output port
 */
 /*  ==================================================================== */
 /*This enum must not be changed. */
@@ -167,6 +167,13 @@ typedef enum WBAMR_DEC_COMP_PORT_TYPE {
  */
 /* ======================================================================= */
 #define WBAMR_DEC_MAX_NUM_OF_BUFS 12
+/* ======================================================================= */
+/**
+ * @def    IP_BUFFERSIZE                      Input Port Buffer Size
+ */
+/* ======================================================================= */
+#define IP_WBAMRDEC_BUFFERSIZE 8192
+
 /* ======================================================================= */
 /**
  * @def    WBAMR_DEC_DEBUG   Turns debug messaging on and off
@@ -221,27 +228,27 @@ typedef enum WBAMR_DEC_COMP_PORT_TYPE {
 */
 /*  ==================================================================== */
 typedef enum OMX_INDEXAUDIOTYPE_WBAMRDEC {
-	OMX_IndexCustomModeEfrConfig_WBAMRDEC = 0xFF000001,
-	OMX_IndexCustomModeAmrConfig_WBAMRDEC,
-	OMX_IndexCustomModeAcdnConfig_WBAMRDEC,
-	OMX_IndexCustomModeDasfConfig_WBAMRDEC,
-	OMX_IndexCustomModeMimeConfig_WBAMRDEC,
-	OMX_IndexCustomWbAmrDecHeaderInfoConfig,
-	OMX_IndexCustomWbAmrDecStreamIDConfig,
+    OMX_IndexCustomModeEfrConfig_WBAMRDEC = 0xFF000001,
+    OMX_IndexCustomModeAmrConfig_WBAMRDEC,
+    OMX_IndexCustomModeAcdnConfig_WBAMRDEC,
+    OMX_IndexCustomModeDasfConfig_WBAMRDEC,
+    OMX_IndexCustomModeMimeConfig_WBAMRDEC,
+    OMX_IndexCustomWbAmrDecHeaderInfoConfig,
+    OMX_IndexCustomWbAmrDecStreamIDConfig,
     OMX_IndexCustomWbAmrDecDataPath,
-	OMX_IndexCustomWbAmrDecNextFrameLost,
-	OMX_IndexCustomDebug
+    OMX_IndexCustomWbAmrDecNextFrameLost,
+    OMX_IndexCustomDebug
 }OMX_INDEXAUDIOTYPE_WBAMRDEC;
 
 
 /* ======================================================================= */
 /** WBAMR_DEC_StreamType  Stream types
 *
-*  @param  WBAMR_DEC_DMM					DMM
+*  @param  WBAMR_DEC_DMM                    DMM
 *
-*  @param  WBAMR_DEC_INSTRM					Input stream
+*  @param  WBAMR_DEC_INSTRM                 Input stream
 *
-*  @param  WBAMR_DEC_OUTSTRM				Output stream
+*  @param  WBAMR_DEC_OUTSTRM                Output stream
 */
 /*  ==================================================================== */
 enum WBAMR_DEC_StreamType
@@ -253,30 +260,30 @@ enum WBAMR_DEC_StreamType
 
 enum WBAMR_DEC_DecodeType
 {
-	WBAMR,
-	WBAMR_EFR
+    WBAMR,
+    WBAMR_EFR
 };
 
 /* ======================================================================= */
 /** WBAMR_DEC_MimeMode  Stream types
 *
-*  @param  WBAMR_DEC_MIMEMODE					MIME
+*  @param  WBAMR_DEC_MIMEMODE                   MIME
 *
-*  @param  WBAMR_DEC_NONMIMEMODE				NON MIME
+*  @param  WBAMR_DEC_NONMIMEMODE                NON MIME
 *
 */
 /*  ====================================================================== */
 enum WBAMR_DEC_MimeMode {
-	WBAMR_DEC_NONMIMEMODE,
-	WBAMR_DEC_MIMEMODE
+    WBAMR_DEC_NONMIMEMODE,
+    WBAMR_DEC_MIMEMODE
 };
 
 /* ======================================================================= */
 /** WBAMR_DEC_BUFFER_Dir  Buffer Direction
 *
-*  @param  WBAMR_DEC_DIRECTION_INPUT					INPUT
+*  @param  WBAMR_DEC_DIRECTION_INPUT                    INPUT
 *
-*  @param  WBAMR_DEC_DIRECTION_OUTPUT					OUTPUT
+*  @param  WBAMR_DEC_DIRECTION_OUTPUT                   OUTPUT
 *
 */
 /*  ====================================================================== */
@@ -309,9 +316,9 @@ typedef struct WBAMR_DEC_BUFFERHEADERTYPE_INFO
 /* ======================================================================= */
 /** WBAMR_DEC_LCML_MimeMode  Stream types
 *
-*  @param  WBAMR_DEC_MODE_MIME					MIME
+*  @param  WBAMR_DEC_MODE_MIME                  MIME
 *
-*  @param  WBAMR_DEC_MODE_NONMIME				NON MIME
+*  @param  WBAMR_DEC_MODE_NONMIME               NON MIME
 *
 */
 /*  ==================================================================== */
@@ -327,9 +334,9 @@ typedef enum {
 /* ================================================================================== */
 typedef struct WBAMR_DEC_AudioCodecParams
 {
-	unsigned long  iSamplingRate;
-	unsigned long  iStrmId;
-	unsigned short iAudioFormat;
+    unsigned long  iSamplingRate;
+    unsigned long  iStrmId;
+    unsigned short iAudioFormat;
 
 }WBAMR_DEC_AudioCodecParams;
 
@@ -373,7 +380,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 *  OMX_ComponentInit()  Initializes component
 *
 *
-*  @param hComp			OMX Handle
+*  @param hComp         OMX Handle
 *
 *  @return OMX_ErrorNone = Successful
 *          Other error code = fail
@@ -398,18 +405,18 @@ typedef struct WBAMRDEC_BUFFERLIST WBAMR_DEC_BUFFERLIST;
 */
 /* ================================================================================== */
 struct WBAMRDEC_BUFFERLIST{
-    OMX_BUFFERHEADERTYPE *pBufHdr[WBAMR_DEC_MAX_NUM_OF_BUFS];	/* records buffer header send by client */
-	OMX_U32 bufferOwner[WBAMR_DEC_MAX_NUM_OF_BUFS];
-	OMX_U32 bBufferPending[WBAMR_DEC_MAX_NUM_OF_BUFS];
-	OMX_U16 numBuffers;
+    OMX_BUFFERHEADERTYPE *pBufHdr[WBAMR_DEC_MAX_NUM_OF_BUFS];   /* records buffer header send by client */
+    OMX_U32 bufferOwner[WBAMR_DEC_MAX_NUM_OF_BUFS];
+    OMX_U32 bBufferPending[WBAMR_DEC_MAX_NUM_OF_BUFS];
+    OMX_U16 numBuffers;
 };
 #ifdef UNDER_CE
-	#ifndef _OMX_EVENT_
-		#define _OMX_EVENT_
-		typedef struct OMX_Event {
-			HANDLE event;
-		} OMX_Event;
-	#endif
+    #ifndef _OMX_EVENT_
+        #define _OMX_EVENT_
+        typedef struct OMX_Event {
+            HANDLE event;
+        } OMX_Event;
+    #endif
 #endif
 
 typedef struct PV_OMXComponentCapabilityFlagsType
@@ -504,7 +511,7 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     OMX_U32 lcml_nOpBuf;
 
     OMX_U32 app_nBuf;
-    OMX_U32 wbamrIf2Bytes[16];						  /*Array With IF2 Lenght Information*/
+    OMX_U32 wbamrIf2Bytes[16];                        /*Array With IF2 Lenght Information*/
     OMX_U32 lcml_nCntIp;
     OMX_U32 lcml_nCntOpReceived;
     OMX_U32 num_Reclaimed_Op_Buff;
@@ -515,60 +522,64 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     OMX_U32 iAmrSamplingFrequeny;
     OMX_U32 iAmrChannels;
     OMX_U32 iAmrMode;
-	OMX_U32 dasfmode;
-	OMX_U32 mimemode;
-	OMX_U32 acdnmode;
-	OMX_U32 fdwrite;
-	OMX_U32 fdread;
-	OMX_U32 streamID;
+    OMX_U32 dasfmode;
+    OMX_U32 mimemode;
+    OMX_U32 acdnmode;
+    OMX_U32 fdwrite;
+    OMX_U32 fdread;
+    OMX_U32 streamID;
 
     OMX_U32 bPortDefsAllocated;
     OMX_U32 bCompThreadStarted;
     OMX_PTR pMarkData;
     OMX_MARKTYPE *pMarkBuf;
-   	OMX_HANDLETYPE hMarkTargetComponent;
-   	WBAMR_DEC_BUFFERLIST *pInputBufferList;
-   	WBAMR_DEC_BUFFERLIST *pOutputBufferList;
-	LCML_STRMATTR *strmAttr;
-	OMX_U32 nVersion;
-	OMX_U32 wbamrMimeBytes[16];
-	OMX_U32 nHoldLength;
-	OMX_U8* pHoldBuffer;
-	OMX_U32 bLcmlHandleOpened;
-	OMX_U32 nFillThisBufferCount;
-	OMX_U32 nFillBufferDoneCount;
-	OMX_U32 nEmptyThisBufferCount;
-	OMX_U32 nEmptyBufferDoneCount;
-	WBAMR_DEC_AudioCodecParams *pParams;
-	OMX_U32 bInitParamsInitialized;
- /* 	OMX_U32 bIdleCommandPending; */
-   	OMX_BUFFERHEADERTYPE *pInputBufHdrPending[WBAMR_DEC_MAX_NUM_OF_BUFS];
-   	OMX_U32 nNumInputBufPending;
-   	OMX_BUFFERHEADERTYPE *pOutputBufHdrPending[WBAMR_DEC_MAX_NUM_OF_BUFS];
-   	OMX_U32 nNumOutputBufPending;
-   	OMX_U32 bDisableCommandPending;
-	OMX_U32 bEnableCommandPending;
-   	OMX_U32 bDisableCommandParam;
-	OMX_U32 bEnableCommandParam;
+    OMX_HANDLETYPE hMarkTargetComponent;
+    WBAMR_DEC_BUFFERLIST *pInputBufferList;
+    WBAMR_DEC_BUFFERLIST *pOutputBufferList;
+    LCML_STRMATTR *strmAttr;
+    OMX_U32 nVersion;
+    OMX_U32 wbamrMimeBytes[16];
+    OMX_U32 nHoldLength;
+    OMX_U8* pHoldBuffer;
+    OMX_U32 bLcmlHandleOpened;
+    OMX_U32 nFillThisBufferCount;
+    OMX_U32 nFillBufferDoneCount;
+    OMX_U32 nEmptyThisBufferCount;
+    OMX_U32 nEmptyBufferDoneCount;
+    WBAMR_DEC_AudioCodecParams *pParams;
+    OMX_U32 bInitParamsInitialized;
+ /*     OMX_U32 bIdleCommandPending; */
+    OMX_BUFFERHEADERTYPE *pInputBufHdrPending[WBAMR_DEC_MAX_NUM_OF_BUFS];
+    OMX_U32 nNumInputBufPending;
+    OMX_BUFFERHEADERTYPE *pOutputBufHdrPending[WBAMR_DEC_MAX_NUM_OF_BUFS];
+    OMX_U32 nNumOutputBufPending;
+    OMX_U32 bDisableCommandPending;
+    OMX_U32 bEnableCommandPending;
+    OMX_U32 bDisableCommandParam;
+    OMX_U32 bEnableCommandParam;
 
-	/** Flag to set when socket node stop callback should not transition
-		component to OMX_StateIdle */
-	OMX_U32 bNoIdleOnStop;
+    /** Flag to set when socket node stop callback should not transition
+        component to OMX_StateIdle */
+    OMX_U32 bNoIdleOnStop;
 
-	/** Flag set when socket node is stopped */
-	OMX_U32 bDspStoppedWhileExecuting;
+    /** Flag set when socket node is stopped */
+    OMX_U32 bDspStoppedWhileExecuting;
 
-	/** Number of outstanding FillBufferDone() calls */
-	OMX_S32 nOutStandingFillDones;
-	
+    /** Number of outstanding FillBufferDone() calls */
+    OMX_S32 nOutStandingFillDones;
+    
     /** Stop Codec Command Sent Flag*/
-	OMX_U8 bStopSent;
-	
+    OMX_U8 bStopSent;
+    
 #ifndef UNDER_CE
-	pthread_mutex_t AlloBuf_mutex;    
+    pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
     
+    pthread_mutex_t codecStop_mutex;    
+    pthread_cond_t codecStop_threshold;
+    OMX_U8 codecStop_waitingsignal;
+
     pthread_mutex_t InLoaded_mutex;
     pthread_cond_t InLoaded_threshold;
     OMX_U8 InLoaded_readytoidle;
@@ -576,8 +587,8 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-	
-	OMX_S8 nUnhandledFillThisBuffers;
+    
+    OMX_S8 nUnhandledFillThisBuffers;
     OMX_S8 nUnhandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
@@ -598,22 +609,22 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     
     OMX_BUFFERHEADERTYPE *LastOutbuf;
 
-   	OMX_BOOL bIsInvalidState;
-  	OMX_STRING* sDeviceString;
-  	
+    OMX_BOOL bIsInvalidState;
+    OMX_STRING* sDeviceString;
+    
     void* ptrLibLCML;
     
     /** Circular array to keep buffer timestamps */
-	OMX_S64 arrBufIndex[WBAMR_DEC_MAX_NUM_OF_BUFS]; 
+    OMX_S64 arrBufIndex[WBAMR_DEC_MAX_NUM_OF_BUFS]; 
     /** Circular array to keep buffer nTickCounts */
-	OMX_S64 arrTickCount[WBAMR_DEC_MAX_NUM_OF_BUFS]; 
-	/** Index to arrBufIndex[], used for input buffer timestamps */
-	OMX_U8 IpBufindex;
-	/** Index to arrBufIndex[], used for output buffer timestamps */
-	OMX_U8 OpBufindex;	
-	
-	/** Flag to flush SN after EOS in order to process more buffers after EOS**/
-	OMX_U8 SendAfterEOS;	
+    OMX_S64 arrTickCount[WBAMR_DEC_MAX_NUM_OF_BUFS]; 
+    /** Index to arrBufIndex[], used for input buffer timestamps */
+    OMX_U8 IpBufindex;
+    /** Index to arrBufIndex[], used for output buffer timestamps */
+    OMX_U8 OpBufindex;  
+    
+    /** Flag to flush SN after EOS in order to process more buffers after EOS**/
+    OMX_U8 SendAfterEOS;    
 
     OMX_BOOL bLoadedCommandPending;
     
@@ -621,15 +632,18 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     
     /** Pointer to port priority management structure */
     OMX_PRIORITYMGMTTYPE* pPriorityMgmt;
-	
-/*	RMPROXY_CALLBACKTYPE rmproxyCallback; */
     
-	OMX_BOOL bPreempted;
+/*  RMPROXY_CALLBACKTYPE rmproxyCallback; */
+    
+    OMX_BOOL bPreempted;
     OMX_BOOL bFrameLost;
-	
+
+    /** Flag to mark RTSP**/
+    OMX_U8 using_rtsp;  
+    
     PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
 
-    struct OMX_TI_Debug dbg;	
+    struct OMX_TI_Debug dbg;    
 
 } WBAMR_DEC_COMPONENT_PRIVATE;
 

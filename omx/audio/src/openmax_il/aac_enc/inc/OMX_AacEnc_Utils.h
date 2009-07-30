@@ -23,6 +23,7 @@
 
 #include <OMX_Component.h>
 #include <OMX_TI_Common.h>
+#include <OMX_TI_Debug.h>
 #include "LCML_DspCodec.h"
 #include "OMX_AacEncoder.h"
 /* #include <ResourceManagerProxyAPI.h> */
@@ -39,17 +40,17 @@
 #define _ERROR_PROPAGATION__ 
 #define MPEG4AACENC_MAX_OUTPUT_FRAMES 24
 
-/* PV opencore capability custom parameter index */
-#define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
-
 #ifndef ANDROID
     #define ANDROID
 #endif
 
-/* Log for Android system*/
-#include <utils/Log.h>
-#undef LOG_TAG
-#define LOG_TAG "TIOMXAACENC"
+#ifdef ANDROID
+    #undef LOG_TAG
+    #define LOG_TAG "OMX_AACENC"
+
+/* PV opencore capability custom parameter index */
+    #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
+#endif
 
 #define EXTRA_BYTES 128 
 #define DSP_CACHE_ALIGNMENT 256 
@@ -70,7 +71,7 @@
 #define OMX_CONF_CHECK_CMD(_ptr1, _ptr2, _ptr3) \
 {                       \
     if(!_ptr1 || !_ptr2 || !_ptr3){     \
-        AACENC_EPRINT("%d :: Error bad parameter \n",__LINE__);\
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Error bad parameter \n",__LINE__);\
         eError = OMX_ErrorBadParameter;     \
     goto EXIT;          \
     }                       \
@@ -100,23 +101,23 @@
     
     
 #define OMX_MEMFREE_STRUCT(_pStruct_)\
-    AACENC_DPRINT("%d :: FREEING MEMORY = %p\n",__LINE__,_pStruct_);\
+    OMXDBG_PRINT(stderr, PRINT, 2, 0, "%d :: FREEING MEMORY = %p\n",__LINE__,_pStruct_);\
     if(_pStruct_ != NULL){\
         newfree(_pStruct_);\
         _pStruct_ = NULL;\
     }
 
 #define OMX_CLOSE_PIPE(_pStruct_,err)\
-    AACENC_DPRINT("%d :: CLOSING PIPE \n",__LINE__);\
+    OMXDBG_PRINT(stderr, PRINT, 2, 0, "%d :: CLOSING PIPE \n",__LINE__);\
     err = close (_pStruct_);\
     if(0 != err && OMX_ErrorNone == eError){\
         eError = OMX_ErrorHardware;\
-        AACENC_DPRINT("%d :: Error while closing pipe\n",__LINE__);\
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Error while closing pipe\n",__LINE__);\
         goto EXIT;\
     }
 
 #define OMX_DPRINT_ADDRESS(_s_, _ptr_)  \
-    printf("%s = %p\n", _s_, _ptr_);
+    OMXDBG_PRINT(stderr, PRINT, 2, 0, "%s = %p\n", _s_, _ptr_);
 
 
 #undef SWAT_ANALYSIS
@@ -128,14 +129,14 @@
 
 #ifndef UNDER_CE
 #ifdef  AACENC_ERROR
-     #define AACENC_EPRINT LOGE //(...) fprintf(stderr,__VA_ARGS__)
+     #define AACENC_EPRINT(...) fprintf(stderr,__VA_ARGS__)
 #else
      #define AACENC_EPRINT(...)
 #endif /* AAC_ERROR*/
 
 
 #ifdef  AACENC_DEBUG
-      #define AACENC_DPRINT LOGW //(...) fprintf(stderr,__VA_ARGS__)
+     #define AACENC_DPRINT(...) fprintf(stderr,__VA_ARGS__)
 #else
      #define AACENC_DPRINT(...)
 #endif
@@ -557,7 +558,15 @@ typedef struct AACENC_COMPONENT_PRIVATE
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
     
-    pthread_mutex_t InLoaded_mutex;
+    pthread_mutex_t codecStop_mutex;    
+    pthread_cond_t codecStop_threshold;
+    OMX_U8 codecStop_waitingsignal;
+
+    pthread_mutex_t codecFlush_mutex;    
+    pthread_cond_t codecFlush_threshold;
+    OMX_U8 codecFlush_waitingsignal;
+
+pthread_mutex_t InLoaded_mutex;
     pthread_cond_t InLoaded_threshold;
     OMX_U8 InLoaded_readytoidle;
     
@@ -610,6 +619,8 @@ typedef struct AACENC_COMPONENT_PRIVATE
     OMX_U32 tickcountBufIndex[MAX_NUM_OF_BUFS];
     
     PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
+
+    struct OMX_TI_Debug dbg;
 
 } AACENC_COMPONENT_PRIVATE;
 

@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) Texas Instruments - http://www.ti.com/
  *
@@ -64,7 +63,7 @@
 #include <OMX_Core.h>
 #include <OMX_Types.h>
 #include <OMX_Image.h>
-#include <OMX_TI_Common.h>
+#include<OMX_TI_Common.h>
 #include <OMX_TI_Debug.h>
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
@@ -104,9 +103,32 @@
 #define JPEGENC2MPImage 2000000
 #endif
 
+#define DSP_MMU_FAULT_HANDLING
+
+/*Linked List */
+
+typedef struct Node {
+    struct Node *pNextNode;
+    void *pValue;
+} Node;
+
+typedef struct LinkedList {
+    Node *pRoot;
+}   LinkedList;
+
+LinkedList AllocList;
+
+void LinkedList_Create(LinkedList *LinkedList);
+void LinkedList_AddElement(LinkedList *LinkedList, void *pValue);
+void LinkedList_FreeElement(LinkedList *LinkedList, void *pValue);
+void LinkedList_FreeAll(LinkedList *LinkedList);
+void LinkedList_DisplayAll(LinkedList *LinkedList);
+void LinkedList_Destroy(LinkedList *LinkedList);
+
 /*
  *     M A C R O S
  */
+
 #define OMX_CONF_INIT_STRUCT(_s_, _name_)   \
     memset((_s_), 0x0, sizeof(_name_)); \
     (_s_)->nSize = sizeof(_name_);      \
@@ -129,22 +151,27 @@
     goto OMX_CONF_CMD_BAIL;         \
 }
 
-#define OMX_MALLOC_STRUCT(_pStruct_, _sName_)   \
-    _pStruct_ = (_sName_*)malloc(sizeof(_sName_));  \
+#define OMX_MALLOC(_pStruct_, _size_)   \
+    _pStruct_ = malloc(_size_);  \
     if(_pStruct_ == NULL){  \
         eError = OMX_ErrorInsufficientResources;    \
         goto EXIT;  \
     } \
-    memset(_pStruct_, 0, sizeof(_sName_));
+    memset(_pStruct_, 0, _size_);\
+    LinkedList_AddElement(&AllocList, _pStruct_);
 
-#define OMX_MALLOC_STRUCT_EXTRA(_pStruct, _sName, _nExtraSize)   \
-    _pStruct = (_sName*)malloc(sizeof(_sName) + _nExtraSize);  \
-    if(_pStruct == NULL){  \
-        eError = OMX_ErrorInsufficientResources;    \
-        goto EXIT;  \
-    }   \
-    memset(_pStruct, 0, (sizeof(_sName) + _nExtraSize));
+#define OMX_FREE(_ptr)   \
+{                     \
+    if (_ptr != NULL) { \
+        LinkedList_FreeElement(&AllocList, _ptr);\
+        _ptr = NULL; \
+    }                \
+}
 
+#define OMX_FREEALL()   \
+{                     \
+        LinkedList_FreeAll(&AllocList);\
+}
 
 #define OMX_MEMCPY_CHECK(_p_)\
 {\
@@ -152,15 +179,8 @@
     eError = OMX_ErrorInsufficientResources;  \
     goto EXIT;   \
     } \
-}   
-
-#define FREE(_ptr)   \
-{                     \
-    if (_ptr != NULL) { \
-        free(_ptr);   \
-        _ptr = NULL; \
-    }                \
 }
+
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #define OMX_GET_RM_VALUE(_Res_, _RM_, _dbg_) \
@@ -207,27 +227,43 @@ typedef struct IIMGENC_DynamicParams {
     /* The array "chm_quant_tab" defines the quantization table for the chroma component.  */
     OMX_U16 chm_quant_tab[64];
   } IDMJPGE_TIGEM_CustomQuantTables;
-  
+
 
 typedef struct IDMJPGE_TIGEM_DynamicParams {
     IIMGENC_DynamicParams  params;
-    OMX_U32 captureHeight;       /* if set to 0 use image height 
+    OMX_U32 captureHeight;       /* if set to 0 use image height
                                      else should set to actual Image height */
-    OMX_U32 DRI_Interval ;  
+    OMX_U32 DRI_Interval ;
     JPEGENC_CUSTOM_HUFFMAN_TABLE *huffmanTable;
     IDMJPGE_TIGEM_CustomQuantTables *quantTable;
 } IDMJPGE_TIGEM_DynamicParams;
 
 
-#define OMX_JPEGENC_NUM_DLLS (3)
+#define __JPEG_OMX_PPLIB_ENABLED__
+
+#ifdef __JPEG_OMX_PPLIB_ENABLED__
+#define OMX_JPEGENC_NUM_DLLS (5)
+#else
+#define OMX_JPEGENC_NUM_DLLS (4)
+#endif
+
+
 #ifdef UNDER_CE
 #define JPEG_ENC_NODE_DLL "/windows/jpegenc_sn.dll64P"
 #define JPEG_COMMON_DLL "/windows/usn.dll64P"
 #define USN_DLL "/windows/usn.dll64P"
+#define CONVERSIONS_DLL "/windows/conversions.dll64P"
+	#ifdef __JPEG_OMX_PPLIB_ENABLED__
+		#define PPLIB_DLL "/windows/postprocessor_dualout.dll64P"
+	#endif
 #else
 #define JPEG_ENC_NODE_DLL "jpegenc_sn.dll64P"
 #define JPEG_COMMON_DLL "usn.dll64P"
 #define USN_DLL "usn.dll64P"
+#define CONVERSIONS_DLL "conversions.dll64P"
+	#ifdef __JPEG_OMX_PPLIB_ENABLED__
+		#define PPLIB_DLL "postprocessor_dualout.dll64P"
+	#endif
 #endif
 
 #define JPGENC_SNTEST_STRMCNT          2
@@ -262,26 +298,16 @@ typedef enum Content_Type
     APP13_THUMB_H,
     APP13_THUMB_W,
     APP0_THUMB_INDEX,
-    APP1_THUMB_INDEX,  
+    APP1_THUMB_INDEX,
     APP13_THUMB_INDEX,
     DYNPARAMS_HUFFMANTABLE,
-    DYNPARAMS_QUANTTABLE
+    DYNPARAMS_QUANTTABLE,
+    APP5_BUFFER,
+    APP5_NUMBUF,
+    APP5_THUMB_H,
+    APP5_THUMB_W,
+    APP5_THUMB_INDEX    
 } Content_Type;
-
-typedef struct _THUMBNAIL_INFO {
-  OMX_U16 APP0_THUMB_INDEX;
-  OMX_U16 APP0_THUMB_W;
-  OMX_U16 APP0_THUMB_H;
-  OMX_U16 APP1_THUMB_INDEX;
-  OMX_U16 APP1_THUMB_W;
-  OMX_U16 APP1_THUMB_H;
-  OMX_U16 APP13_THUMB_INDEX;
-  OMX_U16 APP13_THUMB_W;
-  OMX_U16 APP13_THUMB_H;
-  APP_INFO APP0_BUF;
-  APP_INFO APP1_BUF;
-  APP_INFO APP13_BUF;
-} THUMBNAIL_INFO;
 
 /*This enum must not be changed.  */
 typedef enum JPEG_PORT_TYPE_INDEX
@@ -290,7 +316,6 @@ typedef enum JPEG_PORT_TYPE_INDEX
     JPEGENC_OUT_PORT
 }JPEG_PORT_TYPE_INDEX;
 
-
 typedef enum JPEGENC_BUFFER_OWNER {
     JPEGENC_BUFFER_CLIENT = 0x0,
     JPEGENC_BUFFER_COMPONENT_IN,
@@ -298,31 +323,28 @@ typedef enum JPEGENC_BUFFER_OWNER {
     JPEGENC_BUFFER_DSP,
     JPEGENC_BUFFER_TUNNEL_COMPONENT
 } JPEGENC_BUFFER_OWNER;
-    
+
 typedef struct _JPEGENC_BUFFERFLAG_TRACK {
     OMX_U32 flag;
     OMX_U32 buffer_id;
-    OMX_HANDLETYPE hMarkTargetComponent; 
+    OMX_HANDLETYPE hMarkTargetComponent;
     OMX_PTR pMarkData;
 } JPEGENC_BUFFERFLAG_TRACK;
 
 typedef struct _JPEGENC_BUFFERMARK_TRACK {
     OMX_U32 buffer_id;
-    OMX_HANDLETYPE hMarkTargetComponent; 
+    OMX_HANDLETYPE hMarkTargetComponent;
     OMX_PTR pMarkData;
 } JPEGENC_BUFFERMARK_TRACK;
-    
 
 typedef struct JPEGENC_BUFFER_PRIVATE {
-    OMX_BUFFERHEADERTYPE* pBufferHdr;    
+    OMX_BUFFERHEADERTYPE* pBufferHdr;
     JPEGENC_BUFFER_OWNER eBufferOwner;
     OMX_BOOL bAllocByComponent;
     OMX_BOOL bReadFromPipe;
-} JPEGENC_BUFFER_PRIVATE;    
-
+} JPEGENC_BUFFER_PRIVATE;
 
 typedef struct JPEG_PORT_TYPE   {
-
     OMX_HANDLETYPE hTunnelComponent;
     OMX_U32 nTunnelPort;
     JPEGENC_BUFFER_PRIVATE* pBufferPrivate[NUM_OF_BUFFERSJPEG];
@@ -340,17 +362,14 @@ typedef struct JPEGE_INPUT_PARAMS {
     OMX_U32 size;
 } JPEGE_INPUT_PARAMS;
 
-typedef struct _JPEGENC_CUSTOM_PARAM_DEFINITION
-{
+typedef struct _JPEGENC_CUSTOM_PARAM_DEFINITION {
     OMX_U8 cCustomParamName[128];
     OMX_INDEXTYPE nCustomParamIndex;
 } JPEGENC_CUSTOM_PARAM_DEFINITION;
 
-
-
 typedef struct JPEGENC_COMPONENT_PRIVATE
 {
-    JPEG_PORT_TYPE* pCompPort[NUM_OF_PORTS];    
+    JPEG_PORT_TYPE* pCompPort[NUM_OF_PORTS];
     OMX_PORT_PARAM_TYPE* pPortParamType;
     OMX_PORT_PARAM_TYPE* pPortParamTypeAudio;
     OMX_PORT_PARAM_TYPE* pPortParamTypeVideo;
@@ -365,7 +384,7 @@ typedef struct JPEGENC_COMPONENT_PRIVATE
     OMX_STRING cComponentName;
     OMX_VERSIONTYPE ComponentVersion;
     OMX_VERSIONTYPE SpecVersion;
-    
+
     /** Current state of this component */
     OMX_STATETYPE   nCurState;
     OMX_STATETYPE   nToState;
@@ -378,17 +397,17 @@ typedef struct JPEGENC_COMPONENT_PRIVATE
     OMX_BOOL bInportDisableIncomplete;
     OMX_BOOL bOutportDisableIncomplete;
     OMX_BOOL bSetLumaQuantizationTable;
-    OMX_BOOL bSetChromaQuantizationTable;    
+    OMX_BOOL bSetChromaQuantizationTable;
     OMX_BOOL bSetHuffmanTable;
     OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE *pCustomLumaQuantTable;
-    OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE *pCustomChromaQuantTable;    
+    OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE *pCustomChromaQuantTable;
     JPEGENC_CUSTOM_HUFFMANTTABLETYPE *pHuffmanTable;
-    
-    
+
+
     /** The component thread handle */
     pthread_t ComponentThread;
     /** The pipes to maintain free buffers */
-    int free_outBuf_Q[2]; 
+    int free_outBuf_Q[2];
     /** The pipes to maintain input buffers sent from app*/
     int filled_inpBuf_Q[2];
     /** The pipes for sending buffers to the thread */
@@ -398,18 +417,24 @@ typedef struct JPEGENC_COMPONENT_PRIVATE
     short int nNum_dspBuf;
     int nCommentFlag;
     OMX_U8 *pString_Comment;
-    THUMBNAIL_INFO ThumbnailInfo;
+    JPEG_APPTHUMB_MARKER sAPP0;
+    JPEG_APPTHUMB_MARKER sAPP1;
+    JPEG_APPTHUMB_MARKER sAPP5;
+    JPEG_APP13_MARKER sAPP13;
     JPEGE_INPUT_PARAMS InParams;
+#ifdef __JPEG_OMX_PPLIB_ENABLED__
+    OMX_U32 *pOutParams;
+#endif
 #ifdef RESOURCE_MANAGER_ENABLED
     RMPROXY_CALLBACKTYPE rmproxyCallback;
 #endif
-    OMX_BOOL bPreempted;    
+    OMX_BOOL bPreempted;
     int nFlags;
     int nMarkPort;
-    OMX_PTR pMarkData;          
-    OMX_HANDLETYPE hMarkTargetComponent; 
+    OMX_PTR pMarkData;
+    OMX_HANDLETYPE hMarkTargetComponent;
     OMX_BOOL bDSPStopAck;
-   OMX_BOOL bFlushComplete; 
+   OMX_BOOL bFlushComplete;
     OMX_BOOL bAckFromSetStatus;
     void* pLcmlHandle;   /* Review Utils.c */
     int isLCMLActive;
@@ -428,7 +453,8 @@ typedef struct JPEGENC_COMPONENT_PRIVATE
     pthread_mutex_t jpege_mutex_app;
     pthread_cond_t  populate_cond;
     pthread_cond_t  unpopulate_cond;
-    
+
+
 #ifdef __PERF_INSTRUMENTATION__
     PERF_OBJHANDLE pPERF, pPERFcomp;
 #endif
@@ -448,12 +474,59 @@ OMX_ERRORTYPE HandleJpegEncFreeDataBuf( JPEGENC_COMPONENT_PRIVATE *pComponentPri
 OMX_ERRORTYPE HandleJpegEncFreeOutputBufferFromApp( JPEGENC_COMPONENT_PRIVATE *pComponentPrivate );
 OMX_ERRORTYPE AllocJpegEncResources( JPEGENC_COMPONENT_PRIVATE *pComponentPrivate );
 OMX_ERRORTYPE JPEGEnc_Free_ComponentResources(JPEGENC_COMPONENT_PRIVATE *pComponentPrivate);
-OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_HANDLETYPE pComponent); 
+OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_HANDLETYPE pComponent);
 OMX_ERRORTYPE GetJpegEncLCMLHandle(OMX_HANDLETYPE pComponent);
 OMX_ERRORTYPE SetJpegEncInParams(JPEGENC_COMPONENT_PRIVATE *pComponentPrivate);
 OMX_ERRORTYPE SendDynamicParam(JPEGENC_COMPONENT_PRIVATE *pComponentPrivate);
 OMX_BOOL IsTIOMXComponent(OMX_HANDLETYPE hComp);
 
+#ifdef __JPEG_OMX_PPLIB_ENABLED__
+#define JPEGENC_PPLIB_CREATEPARAM_SIZE 28
+#define JPEGENC_PPLIB_DYNPARM_SIZE 252
+OMX_ERRORTYPE SendDynamicPPLibParam(JPEGENC_COMPONENT_PRIVATE *pComponentPrivate,OMX_U32 *ptInputParam);
+
+
+
+typedef struct _PPLIB_UALGRunTimeParam_t
+{
+    OMX_U32 size;                            /**< Size of the structure in bytes. */
+    OMX_U32 ulInWidth;                       /**< Input picture buffer width.  This value should be the same as the original decoded output width of the WMV9/VC1 stream. */
+    OMX_U32 ulInHeight;                      /**< Input picture buffer height.  This value should be the same as the original decoded output height of the WMV9/VC1 stream. */
+    OMX_U32 ulFrameEnabled[2];               /**< It is possible to run the VGPOP twice with two separate sets of configuration parameters using PPLIB.  This parameter specifies whether each set of configuration parameters is to be used when running PPLIB for this particular frame. */
+    OMX_U32 ulEnableYUVOutput[2];            /**< Flag to enable YUV output */
+    OMX_U32 ulEnableRGBOutput[2];            /**< Flag to enable RGB output. */
+    OMX_U32 ulFrameInputStartYOffset[2];     /**< Offset from the start of the input buffer where the input Y data is located.  You can specify a different offset for each set of VGPOP parameters.  In most cases, this will be 0. */
+    OMX_U32 ulFrameInputStartCOffset[2];     /**< Offset from the start of the input buffer where the input CrCb data is located.  You can specify a different offset for each set of VGPOP parameters.  In most cases, this will be the same as (input width * input height) + Y offset. */
+    OMX_U32 ulFrameOutputStartYOffset[2];    /**< Offset from the start of the output buffer where the output Y data should be placed.  You can specify a different offset for each set of VGPOP parameters. */
+    OMX_U32 ulFrameOutputStartCOffset[2];    /**< Offset from the start of the output buffer where the output CrCb data should be placed.  You can specify a different offset for each set of VGPOP parameters.  In most cases, this will be the same as (output width * output height) + Y offset. */
+    OMX_U32 ulFrameOutputRGBOffset[2];       /**< Offset from the start of the output buffer where the output RGB data is located.  You can specify a different offset for each set of VGPOP parameters.  In most cases, this will be 0. */
+    OMX_U32 ulFrameOutputHeight[2];          /**< Output picture buffer height for each VGPOP parameter set.*/
+    OMX_U32 ulFrameOutputWidth[2];           /**< Output picture buffer width for each VGPOP parameter set. */
+    OMX_U32 ulFrameContrast[2];              /**< Contrast Method for each VGPOP parameter set */
+    OMX_U32 ulFrameInXStart[2];              /**< Horizontal cropping start position in the input buffer.  Set to 0 if no cropping is desired. */
+    OMX_U32 ulFrameInYStart[2];              /**< Vertical cropping start position in the input buffer.  Set to 0 if no cropping is desired.*/
+    OMX_U32 ulFrameInXSize[2];               /**< Horizontal cropping width.  Set to 0 if no cropping is desired */
+    OMX_U32 ulFrameInYSize[2];               /**< Vertical cropping height.  Set to 0 if no cropping is desired.*/
+    OMX_U32 ulFrameZoomFactor[2];            /**< Zooming ratio value, where ulZoomFactor = (Desired Zoom Ratio * 1024).  Set to 1024 if no zooming is desired.  Set above 1024 to enable zooming. */
+    OMX_U32 ulFrameZoomLimit[2];             /**< Zooming ratio limit, where ulZoomLimit=(Desired Zoom Limit * 1024).*/
+    OMX_U32 ulFrameZoomSpeed[2];             /**< Speed of ratio change.  Set to 0 to disable zoom variation.  The variation speed is proportional to the value while the direction (in/out) is given by the sign.*/
+    OMX_U32 ulFrameEnableLightChroma[2];     /**< Light chrominance process.  */
+    OMX_U32 ulFrameEnableAspectRatioLock[2]; /**< Locked H/V ratio */
+    OMX_U32 ulFrameEnableMirroring[2];       /**< To mirror the picture: */
+    OMX_U32 ulFrameRGBRotation[2];           /**< Rotation to apply to RGB Output. May be set to 0, 90, 180 or 270.*/
+    OMX_U32 ulFrameYUVRotation[2];           /**< Rotation to apply to YUV Output. May be set to 0, 90, 180, or 270*/
+    OMX_U32 ulFrameIORange[2];               /**< IO Video Range.   */
+    OMX_U32 ulFrameEnableDithering[2];       /**< Dithering Enable */
+    OMX_U32 ulFrameOutputPitch[2];           /**< Enable an output pitch */
+    OMX_U32 ulAlphaRGB[2];                   /**< This is the default alpha values for ARGB32 or RGBA32. */
+    OMX_U32 ulIsFrameGenerated[2];           /**< Flag to notify the user if a frame has been generated */
+    OMX_U32 ulYUVFrameSize[2];               /**< YUV output size in bytes */
+    OMX_U32 ulRGBFrameSize[2];               /**< RGB output size in bytes. */
+} PPLIB_UALGRunTimeParam_t;
+
+
+
+#endif
 
 typedef OMX_ERRORTYPE (*fpo)(OMX_HANDLETYPE);
 
@@ -470,6 +543,19 @@ static const struct DSP_UUID USN_UUID = {
     }
 };
 
+static const struct DSP_UUID CONVERSIONS_UUID = {
+	0x722DD0DA, 0xF532, 0x4238, 0xB8, 0x46, {
+		0xAB, 0xFF, 0x5D, 0xA4, 0xBA, 0x02
+	}
+};
+
+#ifdef __JPEG_OMX_PPLIB_ENABLED__
+static const struct DSP_UUID PPLIB_UUID = {
+	0xFC8CF948, 0xD3E9, 0x4B65, 0xBC, 0xA7, {
+	0x08, 0x2E, 0xA0, 0xAD, 0x86, 0xF0
+    }
+};
+#endif
 void* OMX_JpegEnc_Thread (void* pThreadData);
 
 typedef enum ThrCmdType
@@ -485,40 +571,29 @@ typedef enum ThrCmdType
     EmptyBuf
 } ThrCmdType;
 
-
-
-
 typedef enum OMX_JPEGE_INDEXTYPE  {
 
     OMX_IndexCustomCommentFlag = 0xFF000001,
     OMX_IndexCustomCommentString = 0xFF000002,
     OMX_IndexCustomInputFrameWidth,
     OMX_IndexCustomInputFrameHeight,
-    OMX_IndexCustomThumbnailAPP0_INDEX,
-    OMX_IndexCustomThumbnailAPP0_W,
-    OMX_IndexCustomThumbnailAPP0_H,
-    OMX_IndexCustomThumbnailAPP0_BUF,
-    OMX_IndexCustomThumbnailAPP1_INDEX,
-    OMX_IndexCustomThumbnailAPP1_W,
-    OMX_IndexCustomThumbnailAPP1_H,
-    OMX_IndexCustomThumbnailAPP1_BUF,
-    OMX_IndexCustomThumbnailAPP13_INDEX,
-    OMX_IndexCustomThumbnailAPP13_W,
-    OMX_IndexCustomThumbnailAPP13_H,
-    OMX_IndexCustomThumbnailAPP13_BUF,
+    OMX_IndexCustomAPP0,
+    OMX_IndexCustomAPP1,
+    OMX_IndexCustomAPP5,
+    OMX_IndexCustomAPP13,
     OMX_IndexCustomQFactor,
     OMX_IndexCustomDRI,
     OMX_IndexCustomHuffmanTable,
-    OMX_IndexCustomDebug,
+    OMX_IndexCustomDebug
 }OMX_INDEXIMAGETYPE;
 
 typedef struct IUALG_Buf {
-    OMX_PTR            pBufAddr;  
+    OMX_PTR            pBufAddr;
     unsigned long          ulBufSize;
     OMX_PTR            pParamAddr;
     unsigned long        ulParamSize;
     unsigned long          ulBufSizeUsed;
-    //IUALG_BufState tBufState;        
+    //IUALG_BufState tBufState;
     OMX_BOOL           bBufActive;
     OMX_U32          unBufID;
     unsigned long          ulReserved;

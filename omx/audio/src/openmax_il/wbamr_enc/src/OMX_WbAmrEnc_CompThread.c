@@ -102,7 +102,7 @@ void* WBAMRENC_CompThread(void* pThreadData)
     OMX_U32 commandData;
     OMX_COMMANDTYPE command;
     
-    WBAMRENC_DPRINT("%d :: Entering WBAMRENC_CompThread\n", __LINE__);
+    OMX_PRINT1(pComponentPrivate->dbg, "Entering\n");
 
 #ifdef __PERF_INSTRUMENTATION__
     pComponentPrivate->pPERFcomp = PERF_Create(PERF_FOURCC('W', 'B', 'E', '_'),
@@ -134,7 +134,7 @@ void* WBAMRENC_CompThread(void* pThreadData)
 #endif
 
         if (pComponentPrivate->bIsThreadstop == 1) {
-            WBAMRENC_DPRINT(":: Comp Thrd Exiting here...\n");
+            OMX_ERROR4(pComponentPrivate->dbg, "Comp Thrd Exiting!\n");
             goto EXIT;
         }
         if (0 == status) {
@@ -144,13 +144,13 @@ void* WBAMRENC_CompThread(void* pThreadData)
                 pComponentPrivate->lcml_nIpBuf = 0;
                 pComponentPrivate->app_nBuf = 0;
                 if (pComponentPrivate->curState != OMX_StateIdle) {
-                    WBAMRENC_DPRINT("%d :: pComponentPrivate->curState is not OMX_StateIdle\n",__LINE__);
+                    OMX_ERROR4(pComponentPrivate->dbg, "curState is not OMX_StateIdle\n");
                     goto EXIT;
                 }
             }
-            WBAMRENC_DPRINT("%d :: Component Time Out !!!!! \n",__LINE__);
+            OMX_PRINT2(pComponentPrivate->dbg, "Component Time Out !!!!! \n");
         } else if(-1 == status) {
-            WBAMRENC_EPRINT("%d :: Error in Select\n", __LINE__);
+            OMX_ERROR4(pComponentPrivate->dbg, "Error in Select\n");
             pComponentPrivate->cbInfo.EventHandler ( pHandle,
                                                      pHandle->pApplicationPrivate,
                                                      OMX_EventError,
@@ -160,31 +160,31 @@ void* WBAMRENC_CompThread(void* pThreadData)
             exit(1);
         } 
         else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds))) {
-            WBAMRENC_DPRINT("%d :: DATA pipe is set in Component Thread\n",__LINE__);
+            OMX_PRCOMM2(pComponentPrivate->dbg, "DATA pipe is set in Component Thread\n");
 
             ret = read(pComponentPrivate->dataPipe[0], &pBufHeader, sizeof(pBufHeader));
             if (ret == -1) {
-                WBAMRENC_EPRINT("%d :: Error while reading from the pipe\n",__LINE__);
+                OMX_ERROR4(pComponentPrivate->dbg, "Error while reading from the pipe\n");
                 goto EXIT;
             }
             eError = WBAMRENC_HandleDataBufFromApp(pBufHeader,pComponentPrivate);
             if (eError != OMX_ErrorNone) {
-                WBAMRENC_DPRINT("%d :: WBAMRENC_HandleDataBufFromApp returned error\n",__LINE__);
+                OMX_ERROR2(pComponentPrivate->dbg, "WBAMRENC_HandleDataBufFromApp returned error\n");
                 break;
             }
         }
         else if(FD_ISSET (pComponentPrivate->cmdPipe[0], &rfds)) {
             /* Do not accept any command when the component is stopping */
-            WBAMRENC_DPRINT("%d :: CMD pipe is set in Component Thread\n",__LINE__);
+            OMX_PRINT1(pComponentPrivate->dbg, "CMD pipe is set in Component Thread\n");
             ret = read(pComponentPrivate->cmdPipe[0], &command, sizeof (command));
             if (ret == -1) {
-                WBAMRENC_EPRINT("%d :: Error in Reading from the Data pipe\n", __LINE__);
+                OMX_ERROR4(pComponentPrivate->dbg, "Error in Reading from the Data pipe\n");
                 eError = OMX_ErrorHardware;
                 goto EXIT;
             }
             ret = read(pComponentPrivate->cmdDataPipe[0], &commandData, sizeof (commandData));
             if (ret == -1) {
-                WBAMRENC_EPRINT("%d :: Error in Reading from the Data pipe\n", __LINE__);
+                OMX_ERROR4(pComponentPrivate->dbg, "Error in Reading from the Data pipe\n");
                 eError = OMX_ErrorHardware;
                 goto EXIT;
             }
@@ -221,8 +221,8 @@ void* WBAMRENC_CompThread(void* pThreadData)
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
 
-    WBAMRENC_DPRINT("%d :: Exiting WBAMRENC_CompThread\n", __LINE__);
-    WBAMRENC_DPRINT("%d :: Returning = 0x%x\n",__LINE__,eError);
+    OMX_PRINT1(pComponentPrivate->dbg, "Exiting WBAMRENC_CompThread\n");
+    OMX_PRINT1(pComponentPrivate->dbg, "Returning = 0x%x\n",eError);
     return (void*)OMX_ErrorNone;
 }
 

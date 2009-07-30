@@ -47,6 +47,6 @@
 /* ======================================================================= */ 
 #define EXIT_COMPONENT_THRD  10
 
-void* ComponentThread (void* pThreadData);
+void* NBAMRDEC_ComponentThread (void* pThreadData);
 
 #endif

@@ -55,8 +55,8 @@
 
 #ifndef UNDER_CE
     #define LCML_ERROR_PRINT printf
-   #define LCML_DPRINT(...)    fprintf(stderr,__VA_ARGS__)
-   //#define LCML_DPRINT(...) 
+/*    #define LCML_DPRINT(...)    fprintf(stderr,__VA_ARGS__)*/
+   #define LCML_DPRINT(...) 
 #else
     #include <oaf_osal.h>
     #include <oaf_debug.h>
@@ -98,7 +98,6 @@ typedef enum {
     DSPMSG_MODE,
     DSPMSG_PLAYCOMPLETED
 } DSP_Messages;
-
 
 /**
  * USN structure
@@ -296,3 +295,5 @@ typedef struct LCML_DSP_INTERFACE
 }LCML_DSP_INTERFACE;
 
 #endif /* __MMDSPCODEC_H__ */
+
+

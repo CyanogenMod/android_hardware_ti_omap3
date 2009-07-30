@@ -1688,7 +1688,7 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetIdle(VIDENC_COMPONENT_PRIVATE* pCo
                                                  0x0, 
                                                  pCompPortOut->pBufferPrivate[nCount]->pBufferHdr->pMarkData);
                     }   
-                                                       
+                    OMX_PRINT2(pComponentPrivate->dbg, "sending FillBufferDone %p \n", pCompPortOut->pBufferPrivate[nCount]->pBufferHdr);
                     pComponentPrivate->sCbData.FillBufferDone(pComponentPrivate->pHandle,
                                                               pComponentPrivate->pHandle->pApplicationPrivate,
                                                               pCompPortOut->pBufferPrivate[nCount]->pBufferHdr);
@@ -2508,9 +2508,15 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledInBuf(VIDENC_COMPONENT_PRIVATE* pComponen
         }
         /*< Mechanism to do intra Refresh, see IH264VENC_IntraRefreshMethods for valid values*/
         ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.intraRefreshMethod = IH264_INTRAREFRESH_NONE;
+        /* Enable Perceptual Quantization a.k.a. Perceptual Rate Control*/
+        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.perceptualQuant = 0;
+        /* Enable Scene Change Detection*/
+        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.sceneChangeDet = 0;
         /*< Function pointer of the call-back function to be used by Encoder*/
         ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.pfNalUnitCallBack = NULL;
-        
+
+        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.pContext = NULL;
+
         /*< Following Parameter are related to Arbitrary Slice Ordering (ASO)*/
         /*< Number of valid enteries in asoSliceOrder array valid range is [0,8], 
         //!< where 0 and 1 doesn't have any effect*/
@@ -3063,11 +3069,11 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
     pLcmlDSP = (((LCML_DSP_INTERFACE*)pLcmlHandle)->dspCodec);
     
     pLcmlDSP->In_BufInfo.nBuffers           = pPortDefIn->nBufferCountActual;
-    pLcmlDSP->In_BufInfo.nSize              = pPortDefIn->nBufferSize;
+    pLcmlDSP->In_BufInfo.nSize              = pComponentPrivate->nInBufferSize;
     pLcmlDSP->In_BufInfo.DataTrMethod       = DMM_METHOD;
 
     pLcmlDSP->Out_BufInfo.nBuffers          = pPortDefOut->nBufferCountActual;
-    pLcmlDSP->Out_BufInfo.nSize             = pPortDefOut->nBufferSize;
+    pLcmlDSP->Out_BufInfo.nSize             = pComponentPrivate->nOutBufferSize;
     pLcmlDSP->Out_BufInfo.DataTrMethod      = DMM_METHOD;
 
     pLcmlDSP->NodeInfo.nNumOfDLLs           = OMX_H264ENC_NUM_DLLS;
@@ -3126,7 +3132,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
     pCreatePhaseArgs->ulWidth                 = pPortDefIn->format.video.nFrameWidth;
     pCreatePhaseArgs->ulHeight                = pPortDefIn->format.video.nFrameHeight; 
     pCreatePhaseArgs->ulTargetBitRate         = pPortDefOut->format.video.nBitrate;
-    pCreatePhaseArgs->ulBitstreamBuffSize     = pPortDefOut->nBufferSize;
+    pCreatePhaseArgs->ulBitstreamBuffSize     = pComponentPrivate->nOutBufferSize;
     pCreatePhaseArgs->ulFrameRate             = (unsigned int)xFrameRate;
     
     /* set run-time frame and bit rates to create-time values */
@@ -3337,11 +3343,11 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
     pLcmlDSP    = (((LCML_DSP_INTERFACE*)pLcmlHandle)->dspCodec);
 
     pLcmlDSP->In_BufInfo.nBuffers           = pPortDefIn->nBufferCountActual;
-    pLcmlDSP->In_BufInfo.nSize              = pPortDefIn->nBufferSize;
+    pLcmlDSP->In_BufInfo.nSize              = pComponentPrivate->nInBufferSize;
     pLcmlDSP->In_BufInfo.DataTrMethod       = DMM_METHOD;
 
     pLcmlDSP->Out_BufInfo.nBuffers          = pPortDefOut->nBufferCountActual;
-    pLcmlDSP->Out_BufInfo.nSize             = pPortDefOut->nBufferSize;
+    pLcmlDSP->Out_BufInfo.nSize             = pComponentPrivate->nOutBufferSize;
     pLcmlDSP->Out_BufInfo.DataTrMethod      = DMM_METHOD;
 
     pLcmlDSP->NodeInfo.nNumOfDLLs           = OMX_MP4ENC_NUM_DLLS; 
@@ -3992,8 +3998,55 @@ void OMX_VIDENC_ResourceManagerCallBack(RMPROXY_COMMANDDATATYPE cbData)
         OMX_PRSTATE2(pCompPrivate->dbg, "Send command to Executing from RM CallBack\n");            
         OMX_SendCommand(pHandle, Cmd, OMX_StateExecuting, NULL);        
     }
-
-
-
 }
 #endif
+
+void CalculateBufferSize(OMX_PARAM_PORTDEFINITIONTYPE* pCompPort, VIDENC_COMPONENT_PRIVATE* pCompPrivate)
+{
+
+    if(pCompPort->nPortIndex == VIDENC_INPUT_PORT) {
+        if (pCompPort->format.video.eColorFormat == OMX_COLOR_FormatYUV420Planar)
+        {
+            pCompPort->nBufferSize = pCompPort->format.video.nFrameWidth *
+                                    pCompPort->format.video.nFrameHeight * 1.5;
+        }
+        else
+        {
+            pCompPort->nBufferSize = pCompPort->format.video.nFrameWidth *
+                                    pCompPort->format.video.nFrameHeight * 2;
+        }
+    }
+    else {
+        if (pCompPort->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC)
+        {
+            pCompPort->nBufferSize = GetMaxAVCBufferSize(pCompPort->format.video.nFrameWidth, pCompPort->format.video.nFrameHeight);
+        }
+        else
+        {/*coding Mpeg4 or H263*/
+            pCompPort->nBufferSize = pCompPort->format.video.nFrameWidth *
+                                    pCompPort->format.video.nFrameHeight / 2;
+        }
+        pCompPort->nBufferSize += 256;
+        OMX_ERROR5(pCompPrivate->dbg, "*The output buffer size is %lu. WIDTH=%lu HEIGHT=%lu FORMAT %d\n", pCompPort->nBufferSize, pCompPort->format.video.nFrameWidth, pCompPort->format.video.nFrameHeight, pCompPort->format.video.eCompressionFormat);
+    }
+}
+
+OMX_U32 GetMaxAVCBufferSize(OMX_U32 width, OMX_U32 height)
+{
+    OMX_U32 MaxCPB;
+
+	if(width<=176 && height<= 144)
+        MaxCPB = 500;
+    else if(width<=352 && height<= 288)
+        MaxCPB = 2000;
+    else if(width<=352 && height<= 576)
+        MaxCPB = 10000;
+    else if(width<=720 && height<= 576)
+        MaxCPB = 14000;
+    else if(width<=1280 && height<= 720)
+        MaxCPB = 62500;
+    else
+        MaxCPB = 240000;
+    /*150(bytes) = 1200(bits)/8    SN release notes*/
+    return 150*MaxCPB;
+}

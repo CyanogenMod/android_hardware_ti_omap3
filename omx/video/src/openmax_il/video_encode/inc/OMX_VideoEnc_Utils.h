@@ -426,7 +426,8 @@ typedef struct OMX_CONF_CIRCULAR_BUFFER
     OMX_U8 nFillElements;
 } OMX_CONF_CIRCULAR_BUFFER;
 
-typedef enum VIDENC_CUSTOM_INDEX {
+typedef enum VIDENC_CUSTOM_INDEX
+{
     #ifdef KHRONOS_1_2
         VideoEncodeCustomParamIndexVBVSize = OMX_IndexVendorStartUnused,
     #else
@@ -524,6 +525,7 @@ typedef enum OMX_EXTRADATATYPE
         OMX_ExtraDataQuantization
     } OMX_EXTRADATATYPE;
 #endif
+
 typedef struct OMX_OTHER_EXTRADATATYPE_1_1_2
 {
 	OMX_U32 nSize;
@@ -591,6 +593,9 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     unsigned int nAIRRate;          /* same as OMX_VIDEO_PARAM_INTRAREFRESHTYPE */
     unsigned int nTargetBitRate;    /* should be OMX_VIDEO_CONFIG_BITRATETYPE */
 	OMX_U32 nMIRRate;
+    
+    OMX_U32 nInBufferSize;
+    OMX_U32 nOutBufferSize;
 #ifndef UNDER_CE
     pthread_mutex_t mVideoEncodeBufferMutex; 
 #endif
@@ -654,6 +659,7 @@ typedef struct VIDENC_COMPONENT_PRIVATE
 	#endif
 	OMX_BOOL bPreempted;
 	OMX_VIDEO_CODINGTYPE compressionFormats[3];
+    OMX_COLOR_FORMATTYPE colorFormats[3];
     struct OMX_TI_Debug dbg;
     PV_OMXComponentCapabilityFlagsType* pCapabilityFlags;
 } VIDENC_COMPONENT_PRIVATE;
@@ -717,5 +723,7 @@ OMX_ERRORTYPE OMX_VIDENC_HandleError(VIDENC_COMPONENT_PRIVATE* pComponentPrivate
 #ifdef RESOURCE_MANAGER_ENABLED
 void OMX_VIDENC_ResourceManagerCallBack(RMPROXY_COMMANDDATATYPE cbData);
 #endif
+
+OMX_U32 GetMaxAVCBufferSize(OMX_U32 width, OMX_U32 height);
 
 #endif

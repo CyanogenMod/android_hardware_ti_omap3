@@ -52,9 +52,9 @@
  *     M A C R O S
  */
 #define AACENC_TIMEOUT (1000) /* millisecs, default timeout used to come out of blocking calls*/
-#define NUM_AACENC_INPUT_BUFFERS 4
+#define NUM_AACENC_INPUT_BUFFERS 1
 #define NUM_AACENC_INPUT_BUFFERS_DASF 2
-#define NUM_AACENC_OUTPUT_BUFFERS 4
+#define NUM_AACENC_OUTPUT_BUFFERS 1
 #define INPUT_AACENC_BUFFER_SIZE 8192
 #define INPUT_AACENC_BUFFER_SIZE_DASF 8192
 #define OUTPUT_AACENC_BUFFER_SIZE 9200
@@ -81,7 +81,8 @@ typedef enum OMX_AACENC_INDEXAUDIOTYPE {
     OMX_IndexCustomAacEncHeaderInfoConfig = 0xFF000001,
     OMX_IndexCustomAacEncStreamIDConfig,
     OMX_IndexCustomAacEncFramesPerOutBuf,
-       OMX_IndexCustomAacEncDataPath    
+    OMX_IndexCustomAacEncDataPath,
+    OMX_IndexCustomDebug
 }OMX_AACENC_INDEXAUDIOTYPE;
 
 #endif /* OMX_AACENCODER_H */

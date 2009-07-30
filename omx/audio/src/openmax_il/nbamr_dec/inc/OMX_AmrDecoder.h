@@ -147,10 +147,10 @@
  *                                               frame.
  */
 /* ======================================================================= */
-#define  FRAME_SIZE_13	13
-#define  FRAME_SIZE_19	19
-#define  FRAME_SIZE_26	26
-#define  FRAME_SIZE_31	31
+#define  FRAME_SIZE_13  13
+#define  FRAME_SIZE_19  19
+#define  FRAME_SIZE_26  26
+#define  FRAME_SIZE_31  31
 #define  FRAME_SIZE_14  14
 #define  FRAME_SIZE_16  16
 #define  FRAME_SIZE_18  18
@@ -158,9 +158,9 @@
 #define  FRAME_SIZE_21  21
 #define  FRAME_SIZE_27  27
 #define  FRAME_SIZE_32  32
-#define  FRAME_SIZE_6	6
-#define  FRAME_SIZE_1	1
-#define  FRAME_SIZE_0	0
+#define  FRAME_SIZE_6   6
+#define  FRAME_SIZE_1   1
+#define  FRAME_SIZE_0   0
 
 /* ======================================================================= */
 /**
@@ -184,7 +184,7 @@
  * @def    NBAMRDEC_SAMPLING_FREQUENCY          Sampling Frequency
  */
 /* ======================================================================= */
-#define NBAMRDEC_SAMPLING_FREQUENCY 48000
+#define NBAMRDEC_SAMPLING_FREQUENCY 8000
 
 /* ======================================================================= */
 /**
@@ -199,6 +199,12 @@
  */
 /* ======================================================================= */
 #define MAX_NUM_OF_BUFS 12
+/* ======================================================================= */
+/**
+ * @def    IP_BUFFERSIZE                      Input Port Buffer Size
+ */
+/* ======================================================================= */
+#define IP_BUFFERSIZE 4096
 
 /* ======================================================================= */
 /**
@@ -218,14 +224,14 @@
 
 #ifndef UNDER_CE
 
-#define AMRDEC_EPRINT(...)	__android_log_print(ANDROID_LOG_VERBOSE, __FILE__,"%s %d:: ERROR	",__FUNCTION__, __LINE__);\
-	                                __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, __VA_ARGS__);\
-    	                            __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, "\n");
+#define AMRDEC_EPRINT(...)  __android_log_print(ANDROID_LOG_VERBOSE, __FILE__,"%s %d:: ERROR    ",__FUNCTION__, __LINE__);\
+                                    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, __VA_ARGS__);\
+                                    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, "\n");
 
 #ifdef  AMRDEC_DEBUG
-        #define AMRDEC_DPRINT(...)    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__,"%s %d::	",__FUNCTION__, __LINE__);\
-	                                __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, __VA_ARGS__);\
-    	                            __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, "\n");
+        #define AMRDEC_DPRINT(...)    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__,"%s %d::    ",__FUNCTION__, __LINE__);\
+                                    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, __VA_ARGS__);\
+                                    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, "\n");
 #else
         #define AMRDEC_DPRINT(...)
 #endif
@@ -238,35 +244,35 @@
 
 
 #ifdef  AMRDEC_DEBUG_MCP
-        #define AMRDEC_MCP_DPRINT(...)    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__,"%s %d:: MCP	",__FUNCTION__, __LINE__);\
-	                                __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, __VA_ARGS__);\
-    	                            __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, "\n");
+        #define AMRDEC_MCP_DPRINT(...)    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__,"%s %d:: MCP    ",__FUNCTION__, __LINE__);\
+                                    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, __VA_ARGS__);\
+                                    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, "\n");
 #else
         #define AMRDEC_MCP_DPRINT(...)
 #endif
 #else /*UNDER_CE*/
-#define AMRDEC_EPRINT	printf
+#define AMRDEC_EPRINT   printf
 #ifdef  AMRDEC_DEBUG
  #define AMRDEC_DPRINT(STR, ARG...) printf()
 #else
 #endif
 
 #ifdef AMRDEC_MEMCHECK
-	#define AMRDEC_MEMPRINT(STR, ARG...) printf()
+    #define AMRDEC_MEMPRINT(STR, ARG...) printf()
 #else
 #endif
 #ifdef UNDER_CE
 
 #ifdef DEBUG
-	#define AMRDEC_DPRINT   printf
-	#define AMRDEC_MEMPRINT   printf
+    #define AMRDEC_DPRINT   printf
+    #define AMRDEC_MEMPRINT   printf
 
 #else
-	#define AMRDEC_DPRINT
-	#define AMRDEC_MEMPRINT
+    #define AMRDEC_DPRINT
+    #define AMRDEC_MEMPRINT
 #endif
 
-#endif	//UNDER_CE
+#endif  //UNDER_CE
 
 #endif
 
@@ -296,9 +302,9 @@
 /* ======================================================================= */
 /** NBAMRDEC_COMP_PORT_TYPE  Port Type
 *
-*  @param  NBAMRDEC_INPUT_PORT				    Port Type Input
+*  @param  NBAMRDEC_INPUT_PORT                  Port Type Input
 *
-*  @param  NBAMRDEC_OUTPUT_PORT				    Port Type Output
+*  @param  NBAMRDEC_OUTPUT_PORT                 Port Type Output
 *
 */
 /*  ==================================================================== */
@@ -310,9 +316,9 @@ typedef enum NBAMRDEC_COMP_PORT_TYPE {
 /* ======================================================================= */
 /** NBAMRDEC_StreamType  StreamType
 *
-*  @param  NBAMRDEC_DMM				    Stream Type DMM
+*  @param  NBAMRDEC_DMM                 Stream Type DMM
 *
-*  @param  NBAMRDEC_INSTRM				Stream Type Input
+*  @param  NBAMRDEC_INSTRM              Stream Type Input
 *
 *  @param  NBAMRDEC_OUTSTRM             Stream Type Output
 */
@@ -327,28 +333,28 @@ enum NBAMRDEC_StreamType
 /* ======================================================================= */
 /** NBAMRDEC_DecodeType  Decode Type Mode
 *
-*  @param  NBAMR				    OMX_AUDIO_AMRDTX
+*  @param  NBAMR                    OMX_AUDIO_AMRDTX
 *
-*  @param  NBAMRDEC_EFR				OMX_AUDIO_AMRDTX as EFR
+*  @param  NBAMRDEC_EFR             OMX_AUDIO_AMRDTX as EFR
 */
 /*  ==================================================================== */
 enum NBAMRDEC_DecodeType
 {
-	NBAMR,
-	NBAMRDEC_EFR
+    NBAMR,
+    NBAMRDEC_EFR
 };
 
 /* ======================================================================= */
 /** NBAMRDEC_MimeMode  Mime Mode
 *
-*  @param  NBAMRDEC_FORMATCONFORMANCE		Mime Mode and IF2 Off
+*  @param  NBAMRDEC_FORMATCONFORMANCE       Mime Mode and IF2 Off
 *
-*  @param  NBAMRDEC_MIMEMODE				Mime Mode On
+*  @param  NBAMRDEC_MIMEMODE                Mime Mode On
 */
 /*  ==================================================================== */
 enum NBAMRDEC_MimeMode {
-	NBAMRDEC_FORMATCONFORMANCE,
-	NBAMRDEC_MIMEMODE,
+    NBAMRDEC_FORMATCONFORMANCE,
+    NBAMRDEC_MIMEMODE,
         NBAMRDEC_IF2,
         NBAMRDEC_PADMIMEMODE
 };
@@ -356,9 +362,9 @@ enum NBAMRDEC_MimeMode {
 /* ======================================================================= */
 /** NBAMRDEC_BUFFER_Dir  Direction of the Buffer
 *
-*  @param  NBAMRDEC_DIRECTION_INPUT				Direction Input
+*  @param  NBAMRDEC_DIRECTION_INPUT             Direction Input
 *
-*  @param  NBAMRDEC_DIRECTION_INPUT				Direction Output
+*  @param  NBAMRDEC_DIRECTION_INPUT             Direction Output
 */
 /*  ==================================================================== */
 typedef enum {
@@ -391,9 +397,9 @@ typedef struct BUFFERHEADERTYPE_INFO
 /* ======================================================================= */
 /** LCML_MimeMode  modes
 *
-*  @param  MODE_MIME					Mode MIME
+*  @param  MODE_MIME                    Mode MIME
 *
-*  @param  MODE_NONMIME					Mode NONMIME
+*  @param  MODE_NONMIME                 Mode NONMIME
 */
 /*  ==================================================================== */
 typedef enum {
@@ -408,9 +414,9 @@ typedef enum {
 /* ================================================================================== */
 typedef struct AMRDEC_AudioCodecParams
 {
-	unsigned long iSamplingRate;
-	unsigned long iStrmId;
-	unsigned short iAudioFormat;
+    unsigned long iSamplingRate;
+    unsigned long iStrmId;
+    unsigned short iAudioFormat;
 }AMRDEC_AudioCodecParams;
 
 /* =================================================================================== */
@@ -481,19 +487,19 @@ typedef struct _NBAMRDEC_BUFFERLIST NBAMRDEC_BUFFERLIST;
 */
 /* ================================================================================== */
 struct _NBAMRDEC_BUFFERLIST{
-    OMX_BUFFERHEADERTYPE *pBufHdr[MAX_NUM_OF_BUFS];	/* records buffer header send by client */
-	OMX_U32 bufferOwner[MAX_NUM_OF_BUFS];
-	OMX_U32 bBufferPending[MAX_NUM_OF_BUFS];
-	OMX_U16 numBuffers;
+    OMX_BUFFERHEADERTYPE *pBufHdr[MAX_NUM_OF_BUFS]; /* records buffer header send by client */
+    OMX_U32 bufferOwner[MAX_NUM_OF_BUFS];
+    OMX_U32 bBufferPending[MAX_NUM_OF_BUFS];
+    OMX_U16 numBuffers;
 };
 
 #ifdef UNDER_CE
-	#ifndef _OMX_EVENT_
-		#define _OMX_EVENT_
-		typedef struct OMX_Event {
-			HANDLE event;
-		} OMX_Event;
-	#endif
+    #ifndef _OMX_EVENT_
+        #define _OMX_EVENT_
+        typedef struct OMX_Event {
+            HANDLE event;
+        } OMX_Event;
+    #endif
 #endif
 
 typedef struct PV_OMXComponentCapabilityFlagsType
@@ -602,16 +608,16 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
     /** Num Reclaimed OutPut Buff    */
     OMX_U32 num_Reclaimed_Op_Buff;
 
-   	/** LCML Handle */
+    /** LCML Handle */
     OMX_HANDLETYPE pLcmlHandle;
 
     /** LCML Buffer Header */
     LCML_NBAMRDEC_BUFHEADERTYPE *pLcmlBufHeader[2];
 
-  	/** Flag for mime mode */
+    /** Flag for mime mode */
     OMX_S16 iAmrMimeFlag;
 
-   	/** Sampling Frequeny */
+    /** Sampling Frequeny */
     OMX_S16 iAmrSamplingFrequeny;
 
     /** Number of channels */
@@ -621,22 +627,22 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
     OMX_S16 iAmrMode;
 
     /** Flag for DASF mode */
-	OMX_S16 dasfmode;
+    OMX_S16 dasfmode;
 
-	/** Flag for mime mode */
-	OMX_S16 mimemode;
+    /** Flag for mime mode */
+    OMX_S16 mimemode;
 
-	/** Flag for ACDN mode */
-	OMX_S16 acdnmode;
+    /** Flag for ACDN mode */
+    OMX_S16 acdnmode;
 
     /** Writing pipe Used for DSP_RENDERING_ON */
-	int fdwrite;
+    int fdwrite;
 
     /** Reading pipe Used for DSP_RENDERING_ON */
-	int fdread;
+    int fdread;
 
-	/* ID stream ID*/
-	OMX_U32 streamID;
+    /* ID stream ID*/
+    OMX_U32 streamID;
 
     /* Flag for Port Defs Allocated*/
     OMX_U32 bPortDefsAllocated;
@@ -690,13 +696,13 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
    OMX_U32 nFillThisBufferCount;
 
    /** Keeps track of the number of nFillBufferDoneCount() calls */
-	OMX_U32 nFillBufferDoneCount;
+    OMX_U32 nFillBufferDoneCount;
 
    /** Keeps track of the number of nEmptyThisBufferCount() calls */
-	OMX_U32 nEmptyThisBufferCount;
+    OMX_U32 nEmptyThisBufferCount;
 
    /** Keeps track of the number of nEmptyBufferDoneCount() calls */
-	OMX_U32 nEmptyBufferDoneCount;
+    OMX_U32 nEmptyBufferDoneCount;
 
    /** Parameters for the Audio Codec */
    AMRDEC_AudioCodecParams *pParams;
@@ -729,25 +735,29 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
    
    OMX_U32 bEnableCommandParam;
 
-	/** Flag to set when socket node stop callback should not transition
-		component to OMX_StateIdle */
-	OMX_U32 bNoIdleOnStop;
+    /** Flag to set when socket node stop callback should not transition
+        component to OMX_StateIdle */
+    OMX_U32 bNoIdleOnStop;
 
-	/** Number of outstanding FillBufferDone() calls */
-	OMX_U32 nOutStandingFillDones;
+    /** Number of outstanding FillBufferDone() calls */
+    OMX_U32 nOutStandingFillDones;
 
     /** Stop Codec Command Sent Flag*/
-	OMX_U8 bStopSent;
+    OMX_U8 bStopSent;
 
-	OMX_U32 nRuntimeInputBuffers;
+    OMX_U32 nRuntimeInputBuffers;
 
-	OMX_U32 nRuntimeOutputBuffers;
+    OMX_U32 nRuntimeOutputBuffers;
 
-	/* Removing sleep() calls. Definition. */
+    /* Removing sleep() calls. Definition. */
 #ifndef UNDER_CE
-	pthread_mutex_t AlloBuf_mutex;
+    pthread_mutex_t AlloBuf_mutex;
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
+
+    pthread_mutex_t codecStop_mutex;    
+    pthread_cond_t codecStop_threshold;
+    OMX_U8 codecStop_waitingsignal;
 
     pthread_mutex_t InLoaded_mutex;
     pthread_cond_t InLoaded_threshold;
@@ -756,8 +766,8 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-	
-	OMX_S8 nUnhandledFillThisBuffers;
+    
+    OMX_S8 nUnhandledFillThisBuffers;
     OMX_S8 nUnhandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
@@ -778,22 +788,22 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
 
     OMX_BUFFERHEADERTYPE *LastOutbuf;
 
-   	OMX_BOOL bIsInvalidState;
-   	OMX_STRING* sDeviceString;
+    OMX_BOOL bIsInvalidState;
+    OMX_STRING* sDeviceString;
 
-   	void* ptrLibLCML;
-   	
+    void* ptrLibLCML;
+    
     /** Circular array to keep buffer timestamps */
-	OMX_S64 arrBufIndex[MAX_NUM_OF_BUFS]; 
+    OMX_S64 arrBufIndex[MAX_NUM_OF_BUFS]; 
     /** Circular array to keep buffer nTickCounts */
-	OMX_S64 arrTickCount[MAX_NUM_OF_BUFS]; 
-	/** Index to arrBufIndex[], used for input buffer timestamps */
-	OMX_U8 IpBufindex;
-	/** Index to arrBufIndex[], used for output buffer timestamps */
-	OMX_U8 OpBufindex;
+    OMX_S64 arrTickCount[MAX_NUM_OF_BUFS]; 
+    /** Index to arrBufIndex[], used for input buffer timestamps */
+    OMX_U8 IpBufindex;
+    /** Index to arrBufIndex[], used for output buffer timestamps */
+    OMX_U8 OpBufindex;
 
     /** Flag to flush SN after EOS in order to process more buffers after EOS**/
-    OMX_U8 SendAfterEOS;	
+    OMX_U8 SendAfterEOS;    
 
     OMX_BOOL bLoadedCommandPending;
     
@@ -802,10 +812,13 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
     /** Pointer to port priority management structure */
     OMX_PRIORITYMGMTTYPE* pPriorityMgmt;
 
-/*	RMPROXY_CALLBACKTYPE rmproxyCallback; */
+/*  RMPROXY_CALLBACKTYPE rmproxyCallback; */
 
     OMX_BOOL bPreempted;
     OMX_BOOL bFrameLost;
+
+    /** Flag to mark RTSP**/
+    OMX_U8 using_rtsp;  
 
     PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
 
