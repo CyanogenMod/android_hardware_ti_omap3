@@ -376,47 +376,101 @@ int v4l2_overlay_get_crop(int fd, uint32_t *x, uint32_t *y, uint32_t *w, uint32_
     return ret;
 }
 
-
 int v4l2_overlay_set_rotation(int fd, int degree, int step)
 {
     LOG_FUNCTION_NAME
 
-    struct v4l2_control ctrl;
     int ret;
+    struct v4l2_control ctrl;
 
-    ctrl.id = V4L2_CID_PRIV_ROTATION;
+    ctrl.id = V4L2_CID_ROTATE;
     ctrl.value = degree;
-    ret = ioctl (fd, VIDIOC_S_CTRL, &ctrl);
-    if (ret < 0) {
-        error (fd, "VIDIOC_S_CTRL rotation ioctl");
-        return ret;
-    }
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "set rotation");
 
-    return 0;
+    return ret;
 }
 
-int v4l2_overlay_set_colorkey(int fd,  int enable, int colorkey)
+int v4l2_overlay_set_colorkey(int fd, int enable, int colorkey)
 {
     LOG_FUNCTION_NAME
 
     int ret;
-    struct v4l2_control ctrl;
+    struct v4l2_framebuffer fbuf;
+    struct v4l2_format fmt;
 
-    ctrl.id = V4L2_CID_PRIV_COLORKEY_EN;
-    ctrl.value = enable;
-    ret = ioctl (fd, VIDIOC_S_CTRL, &ctrl);
-    if (ret < 0) {
-        error (fd, "VIDIOC_S_CTRL colorkey enable ioctl");
+    memset(&fbuf, 0, sizeof(fbuf));
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FBUF, &fbuf, "get transparency enables");
+
+    if (ret)
         return ret;
-    }
-    ctrl.id = V4L2_CID_PRIV_COLORKEY;
-    ctrl.value = colorkey;
-    ret = ioctl (fd, VIDIOC_S_CTRL, &ctrl);
-    if (ret < 0) {
-        error (fd, "VIDIOC_S_CTRL colorkey ioctl");
+
+    if (enable)
+        fbuf.flags |= V4L2_FBUF_FLAG_CHROMAKEY;
+    else
+        fbuf.flags &= ~V4L2_FBUF_FLAG_CHROMAKEY;
+
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FBUF, &fbuf, "enable colorkey");
+
+    if (ret)
         return ret;
+
+    if (enable)
+
+    {
+        memset(&fmt, 0, sizeof(fmt));
+        fmt.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
+        ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &fmt, "get colorkey");
+
+        if (ret)
+            return ret;
+
+        fmt.fmt.win.chromakey = colorkey & 0xFFFFFF;
+
+        ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &fmt, "set colorkey");
     }
-    return 0;
+
+    return ret;
+}
+
+int v4l2_overlay_set_global_alpha(int fd, int enable, int alpha)
+{
+    LOG_FUNCTION_NAME
+
+    int ret;
+    struct v4l2_framebuffer fbuf;
+    struct v4l2_format fmt;
+
+    memset(&fbuf, 0, sizeof(fbuf));
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FBUF, &fbuf, "get transparency enables");
+
+    if (ret)
+        return ret;
+
+    if (enable)
+        fbuf.flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
+    else
+        fbuf.flags &= ~V4L2_FBUF_FLAG_GLOBAL_ALPHA;
+
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FBUF, &fbuf, "enable global alpha");
+
+    if (ret)
+        return ret;
+
+    if (enable)
+    {
+        memset(&fmt, 0, sizeof(fmt));
+        fmt.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
+        ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &fmt, "get global alpha");
+
+        if (ret)
+            return ret;
+
+        fmt.fmt.win.global_alpha = alpha & 0xFF;
+
+        ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &fmt, "set global alpha");
+    }
+
+    return ret;
 }
 
 int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers)
@@ -518,16 +572,34 @@ int v4l2_overlay_stream_on(int fd)
 {
     LOG_FUNCTION_NAME
 
+    int ret;
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-    return v4l2_overlay_ioctl(fd, VIDIOC_STREAMON, &type, "stream on");
+
+    ret = v4l2_overlay_set_global_alpha( fd, 1, 51 );
+
+    if (ret)
+        return ret;
+
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_STREAMON, &type, "stream on");
+
+    return ret;
 }
 
 int v4l2_overlay_stream_off(int fd)
 {
     LOG_FUNCTION_NAME
 
+    int ret;
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-    return v4l2_overlay_ioctl(fd, VIDIOC_STREAMOFF, &type, "stream off");
+
+    ret = v4l2_overlay_set_global_alpha( fd, 0, 0 );
+
+    if (ret)
+        return ret;
+
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_STREAMOFF, &type, "stream off");
+
+    return ret;
 }
 
 int v4l2_overlay_q_buf(int fd, int index)
