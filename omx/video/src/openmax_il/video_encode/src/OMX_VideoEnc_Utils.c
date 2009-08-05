@@ -3485,7 +3485,10 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
 		pCreatePhaseArgs->ucReversibleVLC         = 0;/**/
 
 	pCreatePhaseArgs->ucUnrestrictedMV        = 0;/**/
-    pCreatePhaseArgs->ucFrameRate             = 15;/*(OMX_U8)pPortDefIn->format.video.xFramerate;*/
+        /*Q16 conversion*/
+        float xFrameRate=(float)pPortDefIn->format.video.xFramerate;
+        xFrameRate/=(1<<16);
+        pCreatePhaseArgs->ucFrameRate             = xFrameRate;
     
    /* set run-time frame and bit rates to create-time values */
     pComponentPrivate->nTargetFrameRate       = pCreatePhaseArgs->ucFrameRate;
