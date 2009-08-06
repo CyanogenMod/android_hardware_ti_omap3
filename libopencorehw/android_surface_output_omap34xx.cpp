@@ -176,9 +176,9 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
  
      if (aSeqNum < 6)
      {
-         LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() seqnum %d ts %d context %d",aSeqNum,aTimestamp, (int)aContext);
+         LOGV("AndroidSurfaceOutputOmap34xx::writeAsync() seqnum %d ts %d context %d",aSeqNum,aTimestamp, (int)aContext);
  
-         LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() Format Type %d Format Index %d length %d",aFormatType,aFormatIndex,aDataLen);
+         LOGV("AndroidSurfaceOutputOmap34xx::writeAsync() Format Type %d Format Index %d length %d",aFormatType,aFormatIndex,aDataLen);
      }
  
      PVMFStatus status=PVMFFailure;
@@ -254,7 +254,7 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
                          RunIfNotReady();
                          return cmdid;
                      }
-                     LOGD("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", i);
+                     LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", i);
  
                      sWriteRespData[i].aContext = aContext;
                      sWriteRespData[i].aTimestamp  = aTimestamp;
@@ -335,9 +335,6 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
          return cmdid;
      }
      else if(bDequeueFail == false){
-         LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: iDequeueIndex = %d", iDequeueIndex);
-         LOGD("WriteResponse resp  ****************** sWriteRespData[%d].cmdid = %d", iDequeueIndex, sWriteRespData[iDequeueIndex].cmdid);         
-         cmdid = sWriteRespData[iDequeueIndex].cmdid;
          status = PVMFSuccess; //Clear posible error while queueing
          WriteResponse resp(status,
                              sWriteRespData[iDequeueIndex].cmdid,

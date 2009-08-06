@@ -1,17 +1,21 @@
 /*
- * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) Texas Instruments - http://www.ti.com/
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <fcntl.h>
@@ -19,122 +23,205 @@
 #include <cutils/log.h>
 #include <hardware/overlay.h>
 #include <linux/videodev.h>
-#include "v4l2_utils.h"
 #include <stdlib.h>
+#include "v4l2_utils.h"
 
 
-static void play(int32_t id, int32_t src_w, int32_t src_h,
-                 int32_t dst_w, int32_t dst_h, int32_t dst_x, int32_t dst_y)
+#define LCD_WIDTH 800
+#define LCD_HEIGHT 480
+//#define READ_FROM_FILE
+
+static void play(uint32_t video_pipeline, uint32_t src_w, uint32_t src_h, uint32_t format,
+                        uint32_t global_alpha, char* img1, char *img2, uint32_t sleep_time, uint32_t num_frames)
 {
+
     struct v4l2_capability caps;
-    int num_bufs = 4, i, j, k, l, m, ret;
-    int32_t w, h, x, y;
+    int num_bufs = 4, i, k, ret, size, fd;
+
     struct {
         void *start;
         size_t length;
     } buf_info[num_bufs];
 
-    int ctl_fd = v4l2_overlay_open(id);
-    if (ctl_fd < 0) {
-        LOGE("Can not open video device %d\n", id);
+    FILE* f1 = NULL;
+    FILE* f2 = NULL;
+
+    switch(format)
+    {
+        case OVERLAY_FORMAT_RGBA_8888:
+        case OVERLAY_FORMAT_ARGB_8888:
+            size = 4;
+            break;
+        case OVERLAY_FORMAT_RGB_565:
+        case OVERLAY_FORMAT_YCbCr_422_I:
+        case OVERLAY_FORMAT_ARGB_4444:
+            size = 2;
+            break;
+        default:
+            printf("\nUnsupported format!\n");
+            return;
+    }
+    
+#ifdef READ_FROM_FILE    
+
+    f1 = fopen(img1, "r");
+    if ( f1 == NULL ) {
+        printf("\n\n\n\nError: failed to open the file %s for reading\n\n\n\n", img1);
         return;
     }
 
-    if (v4l2_overlay_get_caps(ctl_fd, &caps))
+    f2 = fopen(img2, "r");
+    if ( f2 == NULL ) {
+        printf("\n\n\n\nError: failed to open the file %s for reading\n\n\n\n", img2);
+        return;
+    }
+    
+#endif
+
+    if ((fd = v4l2_overlay_open(video_pipeline)) < 0) {
+        printf("Can not open video device\n");
+        return;
+    }
+    
+#if 0
+    if (v4l2_overlay_get_caps(fd, &caps))
         return;
 
     if (!(caps.capabilities & V4L2_CAP_STREAMING)) {
-        LOGE("No streaming capability in display driver!");
-        return;
+        printf("No streaming capability in display driver!");
+        goto EXIT;
     }
     if (!(caps.capabilities & V4L2_CAP_VIDEO_OVERLAY)) {
-        LOGE("No v4l2_overlay_ capability in display driver!");
-        //return;
+        printf("No v4l2_overlay_ capability in display driver!");
+        goto EXIT;
     }
     if (!(caps.capabilities & V4L2_CAP_VIDEO_OUTPUT)) {
-        LOGE("No output capability in display driver!");
-        //return;
+        printf("No output capability in display driver!");
+        goto EXIT;
     }
-
-    /* set color key? */
-    /* set rotation? */
-    /* tell the driver what the format of the src buffers is */
-#if 0
-    v4l2_overlay_set_pixfmt(&format, OVERLAY_FORMAT_RGB_565, src_w, src_h);
-    if (v4l2_overlay_src_set_format(ctl_fd, &format))
-        return;
-    if (v4l2_overlay_set_crop(ctl_fd, 0, 0, src_w, src_h))
-        return;
-
-    /* set the output window */
-    v4l2_overlay_set_window(&format, dst_x, dst_y, dst_w, dst_h);
-    v4l2_overlay_set_pixfmt(&format, OVERLAY_FORMAT_RGB_565, dst_w, dst_h)
-    if (v4l2_overlay_set_format(ctl_fd, &format))
-        return;
-
-    /* check the result and adjust the cropping rectangle if necessary */
-    if (v4l2_overlay_get_format(ctl_fd, &format))
-        return;
-    v4l2_overlay_get_window(&format, &x, &y, &w, &h);
-    if (w > dst_w)
-      w = w * dst_w / src_w;
-    if (h > dst_h)
-      h = h * dst_h / src_h;
-    if (v4l2_overlay_set_crop(ctl_fd, 0, 0, w, h))
-        return;
 #endif
 
-    v4l2_overlay_dump_state(ctl_fd);
-    v4l2_overlay_init(ctl_fd, src_w, src_h, OVERLAY_FORMAT_RGB_565);
-
-    v4l2_overlay_set_position(ctl_fd, dst_x, dst_y, dst_w, dst_h);
-
-    /* request some source buffers */
-    if (v4l2_overlay_req_buf(ctl_fd, &num_bufs, 0))
-        return;
+    if ( v4l2_overlay_init(fd, src_w, src_h, format) != 0 )
+    {
+        printf("Failed initializing overlays\n");
+        goto EXIT;
+    }
+    if ( v4l2_overlay_set_rotation(fd, 0, 0) != 0 )
+    {
+        printf("Failed defaulting rotation\n");
+        goto EXIT;
+    }
+    if ( v4l2_overlay_set_crop(fd, 0, 0, src_w, src_h) != 0 )
+    {
+        printf("Failed defaulting crop window\n");
+        goto EXIT;
+    }
+    if ( v4l2_overlay_set_position(fd, 0, 0, LCD_WIDTH, LCD_HEIGHT) != 0 )
+    {
+        printf("Set Position Failed!\n");
+        goto EXIT;
+    }
+    if ( v4l2_overlay_req_buf(fd, &num_bufs, 0) != 0 )
+    {
+        printf("Failed requesting buffers\n");
+        goto EXIT;
+    }
     for (i = 0; i < num_bufs; i++) {
-        if (v4l2_overlay_map_buf(ctl_fd, i, &buf_info[i].start,
-                                 &buf_info[i].length))
-            return;
+        if (v4l2_overlay_map_buf(fd, i, &buf_info[i].start, &buf_info[i].length))
+        {
+            printf("Failed mapping buffers\n");
+            goto EXIT;
+        }
     }
-    LOGI("starting fake video");
 
-    v4l2_overlay_stream_on(ctl_fd);
+    size = size * src_w * src_h;
+
+#ifdef READ_FROM_FILE    
+
+    // copy the file into the buffers:
+    ret = fread (buf_info[0].start, 1, size, f1);
+    if (ret != size) 
+    {
+        printf ("\nReading error file1.\n"); 
+        goto EXIT;
+    }
+    ret = fread (buf_info[2].start, 1, size, f1);
+    if (ret != size) 
+    {
+        printf ("\nReading error file1. size = %d, read = %d\n", size, ret); 
+        goto EXIT;
+    }
+    ret = fread (buf_info[1].start, 1, size, f2);
+    if (ret != size) 
+    {
+        printf ("\nReading error file2. size = %d, read = %d\n", size, ret); 
+        goto EXIT;
+    }
+    ret = fread (buf_info[3].start, 1, size, f2);
+    if (ret != size) 
+    {
+        printf ("\nReading error file2.\n"); 
+        goto EXIT;
+    }
+#else
+
+    memset (buf_info[0].start, 0x60, size/2);
+    memset ((buf_info[0].start + size/2), 0xAF, size/2);
+
+    memset (buf_info[1].start, 0xAF, size/2);
+    memset ((buf_info[1].start + size/2), 0x60, size/2);
+
+    memcpy(buf_info[2].start, buf_info[0].start, size);
+    memcpy(buf_info[3].start, buf_info[1].start, size);    
+    
+#endif    
+    printf("\nStarting fake video");
+
     for (i = 0; i < num_bufs; i++) {
-      v4l2_overlay_q_buf(ctl_fd, i);
+      v4l2_overlay_q_buf(fd, i);
     }
 
-    for (k = 0; k < 1000; k++) {
-        /* render frame */
-        i = -1;
-        v4l2_overlay_dq_buf(ctl_fd, &i);
-        v4l2_overlay_dq_buf(ctl_fd, &m);
-        LOGE("dq returned %d %d", i, m);
-        /*
-        for (j = 0; j < src_w * src_h; j++)
-          ((uint16_t *)(buf_info[i].start))[j] = (uint16_t)0xf100;
-        for (j = k % src_w; j < (k % src_w) + 10; j++)
-          for (l = 0; l < 10; l++)
-            ((uint16_t *)(buf_info[i].start))[j + (src_w * (src_h/2 + l))] =
-                (uint16_t)0x0000;
-                */
-        v4l2_overlay_q_buf(ctl_fd, i);
-        v4l2_overlay_q_buf(ctl_fd, i);
+    if (v4l2_overlay_stream_on(fd) != 0)
+    {
+        printf("Stream Enable Failed!");
+        goto EXIT;
     }
-    v4l2_overlay_stream_off(ctl_fd);
+
+    for (k = 0; k < num_frames; k++) {
+        v4l2_overlay_dq_buf(fd, &i);
+        printf("\ndequeue index = %d", i);
+        v4l2_overlay_q_buf(fd, i);
+        sleep(sleep_time);
+    }
+    
+    v4l2_overlay_stream_off(fd);
+
+    printf("\nExit Successfully!\n\n");
+EXIT:
+    close(fd);
+#ifdef READ_FROM_FILE        
+    fclose(f1);    
+    fclose(f2);    
+#endif    
+    return;
 }
 
 
 int main (int argc, char *argv[])
 {
 
-  if (argc >= 7) {
-    play(V4L2_OVERLAY_PLANE_VIDEO1, atoi(argv[1]), atoi(argv[2]),
-         atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
-    return 0;
-  }
+    if (argc != 10) {
+        printf("\n\nUsage: v4l2_test <1 - video1, 2 - video2> <src_width> <src_height> <format> <global_alpha> <img1> <img2> <sleep(secs)> <No. of Frames>\n\n");
+        printf("\n\nExample: ./system/bin/v4l2_test 1 176 144 20 0 /pepper.yuv /pepper.yuv 1 20");
+        printf("\nFormats");
+        printf("\n1 -\tOVERLAY_FORMAT_RGBA_8888");
+        printf("\n4 -\tOVERLAY_FORMAT_RGB_565");
+        printf("\n100 -\tOVERLAY_FORMAT_ARGB_8888");
+        printf("\n200 -\tOVERLAY_FORMAT_ARGB_4444");
+        printf("\n20 -\tOVERLAY_FORMAT_YCbCr_422_I");
+        return 0;    
+    }
 
-  printf("not enough args -- using defaults!\n");
-  play(V4L2_OVERLAY_PLANE_VIDEO1, 100, 200, 100, 200, 0, 0);
-  return 0;
+    play(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), argv[6], argv[7], atoi(argv[8]), atoi(argv[9]));
+    return 0;
 }
