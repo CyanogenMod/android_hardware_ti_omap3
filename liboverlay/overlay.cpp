@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+//#define LOG_NDEBUG 0
 #define LOG_TAG "TIOverlay"
 
 #include <hardware/hardware.h>
@@ -48,6 +49,8 @@ extern "C" {
 
 #define CACHEABLE_BUFFERS 0x1
 
+#define ALL_BUFFERS_FLUSHED -66 //shared with Camera/Video Playback HAL
+
 typedef struct
 {
   uint32_t posX;
@@ -77,6 +80,7 @@ typedef struct
   pthread_mutex_t lock;
 
   uint32_t streamEn;
+  uint32_t streamingReset;
 
   uint32_t dispW;
   uint32_t dispH;
@@ -361,6 +365,21 @@ static int enable_streaming(overlay_shared_t *shared, int ovly_fd)
     return ret;
 }
 
+static int disable_streaming_locked(overlay_shared_t *shared, int ovly_fd)
+{
+    int ret = 0;
+
+    if (shared->streamEn) {
+        shared->streamingReset = 1;
+        ret = v4l2_overlay_stream_off( ovly_fd );
+        if (ret)
+        {
+            LOGE("Stream Off Failed!/%d\n", ret);
+        }
+    }
+
+    return ret;
+}
 
 // ****************************************************************************
 // Control module
@@ -452,6 +471,7 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
 
    shared->controlReady = 0;
    shared->streamEn = 0;
+   shared->streamingReset = 0;
    shared->dispW = LCD_WIDTH; // Need to determine this properly
    shared->dispH = LCD_HEIGHT; // Need to determine this properly
 
@@ -659,13 +679,8 @@ static int overlay_commit(struct overlay_control_device_t *dev,
     LOGI("Rotation/%d\n", stage->rotation );
     LOGI("ColorKey/%d\n", stage->colorkeyEn );
 
-    if (shared->streamEn) {
-        ret = v4l2_overlay_stream_off(fd);
-        if (ret) {
-            LOGE("Stream Off Failed!/%d\n", ret);
-            goto end;
-        }
-    }
+    if (disable_streaming_locked(shared, fd))
+        goto end;
 
     if (stage->colorkeyEn != data->colorkeyEn) {
         ret = v4l2_overlay_set_colorkey(fd, stage->colorkeyEn, 0);
@@ -810,11 +825,8 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w,
 
     pthread_mutex_lock(&ctx->shared->lock);
 
-    if (ctx->shared->streamEn) {
-        rc = v4l2_overlay_stream_off(ctx->ctl_fd);
-        if (rc)
-            goto end;
-    }
+    if (disable_streaming_locked(ctx->shared, ctx->ctl_fd))
+        goto end;
 
     for (int i = 0; i < ctx->num_buffers; i++) {
         v4l2_overlay_unmap_buf(ctx->buffers[i], ctx->buffers_len[i]);      
@@ -903,13 +915,9 @@ static int overlay_setCrop(struct overlay_data_device_t *dev, uint32_t x,
 
     LOGI("Crop Win/X%d/Y%d/W%d/H%d\n", x, y, w, h );
 
-    if (ctx->shared->streamEn) {
-        rc = v4l2_overlay_stream_off(ctx->ctl_fd);
-        if (rc) {
-            LOGE("Stream Off Failed!/%d\n", rc);
-            goto end;
-        }
-    }
+    if (disable_streaming_locked(ctx->shared, ctx->ctl_fd))
+        goto end;
+
     rc = v4l2_overlay_set_crop(ctx->ctl_fd, x, y, w, h);
     if (rc) {
         LOGE("Set Crop Window Failed!/%d\n", rc);
@@ -940,6 +948,15 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
     int rc;
     int i = -1;
 
+    pthread_mutex_lock(&ctx->shared->lock);
+    if ( ctx->shared->streamingReset )
+    {
+        ctx->shared->streamingReset = 0;
+        pthread_mutex_unlock(&ctx->shared->lock);
+        return ALL_BUFFERS_FLUSHED;
+    }
+    pthread_mutex_unlock(&ctx->shared->lock);
+
     if ((rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0) {
         LOGE("Failed to DQ/%d\n", rc);
     }
@@ -957,6 +974,15 @@ int overlay_queueBuffer(struct overlay_data_device_t *dev,
                         overlay_buffer_t buffer) {
 
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
+
+    pthread_mutex_lock(&ctx->shared->lock);
+    if ( ctx->shared->streamingReset )
+    {
+        ctx->shared->streamingReset = 0;
+        pthread_mutex_unlock(&ctx->shared->lock);
+        return ALL_BUFFERS_FLUSHED;
+    }
+    pthread_mutex_unlock(&ctx->shared->lock);
 
     // Catch the case where the data side had no need to set the crop window
     if (!ctx->shared->dataReady) {
