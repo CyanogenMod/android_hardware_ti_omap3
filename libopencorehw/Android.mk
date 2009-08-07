@@ -2,7 +2,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 # Set up the OpenCore variables.
-#include external/opencore/Config.mk
+include external/opencore/Config.mk
 LOCAL_C_INCLUDES := $(PV_INCLUDES)
 
 LOCAL_SRC_FILES := \
