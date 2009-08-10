@@ -948,7 +948,7 @@ void CameraHal::nextPreview()
             if(0 == mVideoBufferUsing[i]){
                 memcpy(mVideoBuffer[i]->pointer(),(void *)cfilledbuffer.m.userptr, mRecordingFrameSize);
                 mVideoBufferUsing[i] = 1;
-                cb(mVideoBuffer[i], mRecordingCallbackCookie);
+                cb(0, mVideoBuffer[i], mRecordingCallbackCookie);
                 break;
             }else {
                 LOGD("No Buffer Can be used!");
@@ -975,7 +975,7 @@ void CameraHal::nextPreview()
         }        
 #else
         memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
-        cb(mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
+        cb(0, mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
 #endif
     } 
     else {
