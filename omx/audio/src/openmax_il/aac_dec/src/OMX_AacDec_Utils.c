@@ -325,6 +325,7 @@ OMX_ERRORTYPE AACDEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,
         pTemp_char += EXTRA_BYTES;
         pTemp_lcml->pOpParam = (AACDEC_UAlgOutBufParamStruct*)pTemp_char;
         pTemp_lcml->pOpParam->ulFrameCount = DONT_CARE;
+	pTemp_lcml->pOpParam->isLastBuffer = 0;
 
         pTemp->nFlags = NORMAL_BUFFER_AACDEC;
         ((AACDEC_COMPONENT_PRIVATE *)pTemp->pPlatformPrivate)->pHandle = pHandle;
@@ -2543,7 +2544,7 @@ OMX_ERRORTYPE AACDEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
 				pLcmlHdr->pBufHdr->hMarkTargetComponent = pComponentPrivate->hMarkTargetComponent;
 			}
 			pComponentPrivate->num_Reclaimed_Op_Buff++;
-            if (pComponentPrivate->bIsEOFSent){
+            if (pLcmlHdr->pOpParam->isLastBuffer){
 				OMX_PRBUFFER2(pComponentPrivate->dbg, "%d : UTIL: Adding EOS flag to the output buffer\n",__LINE__);
 				pLcmlHdr->pBufHdr->nFlags |= OMX_BUFFERFLAG_EOS;
 				OMX_PRBUFFER2(pComponentPrivate->dbg, "%d : UTIL:: pLcmlHdr->pBufHdr = %p\n",__LINE__,pLcmlHdr->pBufHdr);
@@ -3701,6 +3702,7 @@ OMX_ERRORTYPE AACDECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 inde
             pTemp_lcml->pOpParam = (AACDEC_UAlgOutBufParamStruct*)ptr;
 
             pTemp_lcml->pOpParam->ulFrameCount = DONT_CARE;
+	    pTemp_lcml->pOpParam->isLastBuffer = 0;
 
             pTemp->nFlags = NORMAL_BUFFER_AACDEC;
             ((AACDEC_COMPONENT_PRIVATE *)pTemp->pPlatformPrivate)->pHandle = pHandle;

@@ -648,6 +648,7 @@ typedef struct USN_AudioCodecParams{
 /* ==================================================================== */
 typedef struct {
     unsigned long ulFrameCount;
+  unsigned long isLastBuffer;
 }AACDEC_UAlgOutBufParamStruct;
 
 typedef struct AACDEC_UALGParams{
