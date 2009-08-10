@@ -1615,7 +1615,6 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
     OMX_WMADECMEMFREE_STRUCT(pComponentPrivate->pOutputBufferList);
     OMX_WMADECMEMFREE_STRUCT(pComponentPrivate->sDeviceString);
     OMX_WMADECMEMFREE_STRUCT(pComponentPrivate->rcaheader);
-    OMX_WMADECMEMFREE_STRUCT(pComponentPrivate->wma_op);
 #ifdef __PERF_INSTRUMENTATION__
     OMX_PRDSP1(dbg, "PERF %d :: OMX_WmaDecoder.c\n",__LINE__);
     PERF_Boundary(pComponentPrivate->pPERF,
