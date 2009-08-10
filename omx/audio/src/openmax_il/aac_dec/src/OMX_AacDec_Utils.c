@@ -859,8 +859,16 @@ OMX_U32 AACDEC_HandleCommand (AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
 #endif 
                     OMX_PRDSP2(pComponentPrivate->dbg, "%d :: In HandleCommand: Stopping the codec\n",__LINE__);
                     pComponentPrivate->bDspStoppedWhileExecuting = OMX_TRUE;
+		    if (pComponentPrivate->codecStop_waitingsignal == 0){
+                        pthread_mutex_lock(&pComponentPrivate->codecStop_mutex);
+                    }
                     eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                                MMCodecControlStop,(void *)pArgs);
+		    if (pComponentPrivate->codecStop_waitingsignal == 0){
+                        pthread_cond_wait(&pComponentPrivate->codecStop_threshold, &pComponentPrivate->codecStop_mutex);
+                        pComponentPrivate->codecStop_waitingsignal = 0;
+                        pthread_mutex_unlock(&pComponentPrivate->codecStop_mutex);
+                    }
                     if(eError != OMX_ErrorNone) {
                         OMX_ERROR4(pComponentPrivate->dbg, ": Error Occurred in Codec Stop..\n");
                         pComponentPrivate->curState = OMX_StateInvalid;
@@ -897,8 +905,16 @@ OMX_U32 AACDEC_HandleCommand (AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
 #endif
                     OMX_PRDSP2(pComponentPrivate->dbg, "%d :: Comp: Stop Command Received\n",__LINE__);
                     OMX_PRDSP2(pComponentPrivate->dbg, "%d: AACDECUTILS::About to call LCML_ControlCodec\n",__LINE__);
+		    if (pComponentPrivate->codecStop_waitingsignal == 0){
+                        pthread_mutex_lock(&pComponentPrivate->codecStop_mutex);
+                    }
                     eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                                MMCodecControlStop,(void *)pArgs);
+		    if (pComponentPrivate->codecStop_waitingsignal == 0){
+                        pthread_cond_wait(&pComponentPrivate->codecStop_threshold, &pComponentPrivate->codecStop_mutex);
+                        pComponentPrivate->codecStop_waitingsignal = 0; // reset the wait condition for next time
+                        pthread_mutex_unlock(&pComponentPrivate->codecStop_mutex);
+                    }
                     if(eError != OMX_ErrorNone) {
                         OMX_ERROR4(pComponentPrivate->dbg, ": Error Occurred in Codec Stop..\n");
                         pComponentPrivate->curState = OMX_StateInvalid;
@@ -1898,7 +1914,21 @@ OMX_ERRORTYPE AACDEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
         OMX_ERROR4(pComponentPrivate->dbg, "%d :: The pBufHeader is not found in the list\n",__LINE__);
         goto EXIT;
     }
-
+    if (pComponentPrivate->curState == OMX_StateIdle){
+	if (eDir == OMX_DirInput) {
+		pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
+			pComponentPrivate->pHandle->pApplicationPrivate,
+			pBufHeader);
+		OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s In idle state return input buffers\n", __LINE__, __FUNCTION__);
+		}
+	else if (eDir == OMX_DirOutput) {
+		pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
+			pComponentPrivate->pHandle->pApplicationPrivate,
+			pBufHeader);
+		OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s In idle state return output buffers\n", __LINE__, __FUNCTION__);
+		}
+	goto EXIT;
+    }
     if (eDir == OMX_DirInput) {
         pComponentPrivate->nUnhandledEmptyThisBuffers--;
         LCML_DSP_INTERFACE *pLcmlHandle = (LCML_DSP_INTERFACE *)pComponentPrivate->pLcmlHandle;
@@ -2615,46 +2645,28 @@ OMX_ERRORTYPE AACDEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
         /* If there are any buffers still marked as pending they must have
            been queued after the socket node was stopped */
 
-        for (i=0; i < pComponentPrivate->pInputBufferList->numBuffers; i++) {
-            if (pComponentPrivate->pInputBufferList->bBufferPending[i]) {
-#ifdef __PERF_INSTRUMENTATION__
-                PERF_SendingFrame(pComponentPrivate->pPERFcomp,
-                                  PREF(pComponentPrivate->pInputBufferList->pBufHdr[i], pBuffer),
-                                  0,
-                                  PERF_ModuleHLMM);
-#endif
-
-                
-                pComponentPrivate->cbInfo.EmptyBufferDone (
-                                                           pComponentPrivate->pHandle,
-                                                           pComponentPrivate->pHandle->pApplicationPrivate,
-                                                           pComponentPrivate->pInputBufferList->pBufHdr[i]
-                                                           );
-                pComponentPrivate->nEmptyBufferDoneCount++;
-                AACDEC_ClearPending(pComponentPrivate, pComponentPrivate->pInputBufferList->pBufHdr[i], OMX_DirInput, __LINE__);
-            }
+        for (i = 0; i < pComponentPrivate->nNumInputBufPending; i++) {
+		pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
+				pComponentPrivate->pHandle->pApplicationPrivate,
+				pComponentPrivate->pInputBufHdrPending[i]);
+				pComponentPrivate->pInputBufHdrPending[i] = NULL;
+	}
+	pComponentPrivate->nNumInputBufPending = 0;
+	for (i=0; i < pComponentPrivate->nNumOutputBufPending; i++) {
+		pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
+			pComponentPrivate->pHandle->pApplicationPrivate,
+			pComponentPrivate->pOutputBufHdrPending[i]);
+		pComponentPrivate->nOutStandingFillDones--;
+		pComponentPrivate->pOutputBufHdrPending[i] = NULL;
+	}
+	pComponentPrivate->nNumOutputBufPending=0;
+	pthread_mutex_lock(&pComponentPrivate->codecStop_mutex);
+        if(pComponentPrivate->codecStop_waitingsignal == 0){
+            pComponentPrivate->codecStop_waitingsignal = 1;
+            pthread_cond_signal(&pComponentPrivate->codecStop_threshold);
+             OMX_PRDSP2(pComponentPrivate->dbg,"stop ack. received. stop waiting for sending disable command completed\n");
         }
-
-      for (i=0; i < pComponentPrivate->pOutputBufferList->numBuffers; i++) {
-            if (pComponentPrivate->pOutputBufferList->bBufferPending[i]) {
-#ifdef __PERF_INSTRUMENTATION__
-                PERF_SendingFrame(pComponentPrivate->pPERFcomp,
-                                  PREF(pComponentPrivate->pOutputBufferList->pBufHdr[i],pBuffer),
-                                  PREF(pComponentPrivate->pOutputBufferList->pBufHdr[i],nFilledLen),
-                                  PERF_ModuleHLMM);
-#endif
-
-                
-                pComponentPrivate->cbInfo.FillBufferDone (
-                                                          pComponentPrivate->pHandle,
-                                                          pComponentPrivate->pHandle->pApplicationPrivate,
-                                                          pComponentPrivate->pOutputBufferList->pBufHdr[i]
-                                                          );
-                pComponentPrivate->nFillBufferDoneCount++;
-                AACDEC_ClearPending(pComponentPrivate, pComponentPrivate->pOutputBufferList->pBufHdr[i], OMX_DirOutput, __LINE__);
-            }
-        }
-
+	pthread_mutex_unlock(&pComponentPrivate->codecStop_mutex);
         if (!pComponentPrivate->bNoIdleOnStop) {
             OMX_PRDSP2(pComponentPrivate->dbg, "setting state to idle after EMMCodecProcessingStoped event\n\n");
             pComponentPrivate->curState = OMX_StateIdle;
