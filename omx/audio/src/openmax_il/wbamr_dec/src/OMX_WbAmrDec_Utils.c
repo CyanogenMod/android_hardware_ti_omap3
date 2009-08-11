@@ -1840,6 +1840,21 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
         goto EXIT;
     }
 
+    if (pComponentPrivate->curState == OMX_StateIdle){
+	if (eDir == OMX_DirInput) {
+		pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
+			pComponentPrivate->pHandle->pApplicationPrivate,
+			pBufHeader);
+		OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s In idle state return input buffers\n", __LINE__, __FUNCTION__);
+		}
+	else if (eDir == OMX_DirOutput) {
+		pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
+			pComponentPrivate->pHandle->pApplicationPrivate,
+			pBufHeader);
+		OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s In idle state return output buffers\n", __LINE__, __FUNCTION__);
+		}
+	goto EXIT;
+    }
     if (eDir == OMX_DirInput) {
         pComponentPrivate->nUnhandledEmptyThisBuffers--;
         pPortDefIn = pComponentPrivate->pPortDef[OMX_DirInput];
@@ -2703,22 +2718,21 @@ OMX_ERRORTYPE WBAMR_DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
         }
     }
     else if(event == EMMCodecProcessingStoped) {
-        for (i=0; i < pComponentPrivate->pInputBufferList->numBuffers; i++) {
-            if (pComponentPrivate->pInputBufferList->bBufferPending[i]) {
-#ifdef __PERF_INSTRUMENTATION__
-                PERF_SendingFrame(pComponentPrivate->pPERFcomp,
-                                  pComponentPrivate->pInputBufferList->pBufHdr[i]->pBuffer,
-                                  0,
-                                  PERF_ModuleHLMM);
-#endif
-                pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
-                                                           pComponentPrivate->pHandle->pApplicationPrivate,
-                                                           pComponentPrivate->pInputBufferList->pBufHdr[i]);
-                pComponentPrivate->nEmptyBufferDoneCount++;
-                /*                   pComponentPrivate->nOutStandingEmptyDones--; */
-                WBAMR_DEC_ClearPending(pComponentPrivate, pComponentPrivate->pInputBufferList->pBufHdr[i], OMX_DirInput,__LINE__);
-            }
-        }
+        for (i = 0; i < pComponentPrivate->nNumInputBufPending; i++) {
+		pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
+				pComponentPrivate->pHandle->pApplicationPrivate,
+				pComponentPrivate->pInputBufHdrPending[i]);
+				pComponentPrivate->pInputBufHdrPending[i] = NULL;
+	}
+	pComponentPrivate->nNumInputBufPending = 0;
+	for (i=0; i < pComponentPrivate->nNumOutputBufPending; i++) {
+		pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
+			pComponentPrivate->pHandle->pApplicationPrivate,
+			pComponentPrivate->pOutputBufHdrPending[i]);
+		pComponentPrivate->nOutStandingFillDones--;
+		pComponentPrivate->pOutputBufHdrPending[i] = NULL;
+	}
+	pComponentPrivate->nNumOutputBufPending=0;
         pthread_mutex_lock(&pComponentPrivate->codecStop_mutex);
         if(pComponentPrivate->codecStop_waitingsignal == 0){
             pComponentPrivate->codecStop_waitingsignal = 1;             
