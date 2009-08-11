@@ -96,7 +96,6 @@ CameraHal::CameraHal()
     for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++)
     {
         mVideoBuffer[i] = 0;
-        mVideoBufferUsing[i] = 0;
     }
 
     CameraCreate();
@@ -866,6 +865,7 @@ void CameraHal::nextPreview()
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     int w, h, ret;
     overlay_buffer_t overlaybuffer;
+    int overlaybufferindex = -1;
     int index;
     recording_callback cb = NULL;
 
@@ -915,7 +915,7 @@ void CameraHal::nextPreview()
 #endif
  
     // Notify overlay of a new frame.
-	mLastOverlayBufferIndex=cfilledbuffer.index;
+    mLastOverlayBufferIndex=cfilledbuffer.index;
     ret = mOverlay->queueBuffer((void*)cfilledbuffer.index);
     if (ret)
     {
@@ -929,8 +929,8 @@ void CameraHal::nextPreview()
     if (nOverlayBuffersQueued > 1)
     {
         mOverlay->dequeueBuffer(&overlaybuffer);
+        overlaybufferindex = (int)overlaybuffer;
         nOverlayBuffersQueued--;
-        cfilledbuffer.index = (int)overlaybuffer;
     }
     else
     {
@@ -943,30 +943,63 @@ void CameraHal::nextPreview()
 
     if(cb){
 
-        memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
 #if USE_MEMCOPY_FOR_VIDEO_FRAME
         for(int i = 0 ; i < VIDEO_FRAME_COUNT_MAX; i++ ){
             if(0 == mVideoBufferUsing[i]){
-                memcpy(mVideoBuffer[cfilledbuffer.index]->pointer(),(void *)cfilledbuffer.m.userptr,mPreviewFrameSize);
+                memcpy(mVideoBuffer[i]->pointer(),(void *)cfilledbuffer.m.userptr, mRecordingFrameSize);
                 mVideoBufferUsing[i] = 1;
-                cb(mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
+                cb(mVideoBuffer[i], mRecordingCallbackCookie);
+                break;
             }else {
                 LOGD("No Buffer Can be used!");
             }
         }
-        if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-            LOGE("VIDIOC_QBUF Failed.");
+
+        if (ret)
+        {
+            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+                LOGE("VIDIOC_QBUF Failed.");
+            }
+            nCameraBuffersQueued++;
         }
-        nCameraBuffersQueued++;
+        else
+        {
+            if (overlaybufferindex != -1)
+            {
+                cfilledbuffer.index = (int)overlaybuffer;        
+                if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+                    LOGE("VIDIOC_QBUF Failed.");
+                }
+                nCameraBuffersQueued++;
+            }
+        }        
 #else
+        memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
         cb(mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
 #endif
-    } else {
-        /* queue the buffer back to camera */
-        if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-            LOGE("VIDIOC_QBUF Failed.");
+    } 
+    else {
+
+        if (ret)
+        {
+            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+                LOGE("VIDIOC_QBUF Failed.");
+            }
+            nCameraBuffersQueued++;
         }
-		nCameraBuffersQueued++;
+        else
+        {
+            if (overlaybufferindex != -1)
+            {
+                cfilledbuffer.index = (int)overlaybuffer;        
+                if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+                    LOGE("VIDIOC_QBUF Failed.");
+                }
+                nCameraBuffersQueued++;
+            }
+        }        
+
+
     }
     mRecordingLock.unlock();
 
@@ -1795,6 +1828,11 @@ status_t CameraHal::startRecording(recording_callback cb, void* user)
     int w,h;
     int i = 0;
 
+    for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++)
+    {
+        mVideoBufferUsing[i] = 0;
+    }
+
     mParameters.getPreviewSize(&w, &h);
 
     // Just for the same size case
@@ -1883,7 +1921,7 @@ static void debugShowFPS()
 
 void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 {
-    LOG_FUNCTION_NAME
+    //LOG_FUNCTION_NAME
     ssize_t offset;
     size_t  size;
     int index;
