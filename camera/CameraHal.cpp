@@ -25,6 +25,7 @@
 */
 #include "CameraHal.h"
 
+#define USE_MEMCOPY_FOR_VIDEO_FRAME 1
 
 namespace android {
 /*****************************************************************************/
@@ -943,8 +944,23 @@ void CameraHal::nextPreview()
     if(cb){
 
         memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
-		memcpy(mVideoBuffer[cfilledbuffer.index]->pointer(),(void *)cfilledbuffer.m.userptr,mPreviewFrameSize);
+#if USE_MEMCOPY_FOR_VIDEO_FRAME
+        for(int i = 0 ; i < VIDEO_FRAME_COUNT_MAX; i++ ){
+            if(0 == mVideoBufferUsing[i]){
+                memcpy(mVideoBuffer[cfilledbuffer.index]->pointer(),(void *)cfilledbuffer.m.userptr,mPreviewFrameSize);
+                mVideoBufferUsing[i] = 1;
+                cb(mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
+            }else {
+                LOGD("No Buffer Can be used!");
+            }
+        }
+        if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+            LOGE("VIDIOC_QBUF Failed.");
+        }
+        nCameraBuffersQueued++;
+#else
         cb(mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
+#endif
     } else {
         /* queue the buffer back to camera */
         if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
@@ -1811,7 +1827,11 @@ status_t CameraHal::startRecording(recording_callback cb, void* user)
             mVideoBuffer[i].clear();
         }
         LOGD("Mmap the video Memory %d", mPreviewFrameSize);
+#if USE_MEMCOPY_FOR_VIDEO_FRAME
         mVideoHeap = new MemoryHeapBase(mPreviewFrameSize * mVideoBufferCount);
+#else
+        mVideoHeap = new MemoryHeapBase(overlayfd,mPreviewFrameSize * mVideoBufferCount);
+#endif
         LOGD("mVideoHeap ID:%d , Base:[%x],size:%d", mVideoHeap->getHeapID(),
                                        mVideoHeap->getBase(),mVideoHeap->getSize());
         for(i = 0; i < mVideoBufferCount; i++)
@@ -1876,12 +1896,15 @@ void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
     mRecordingFrameCount++;
 //    LOGD("Buffer[%d] pointer=0x%x",index,mem->pointer());
     debugShowFPS();
-
+#if USE_MEMCOPY_FOR_VIDEO_FRAME
+    mVideoBufferUsing[index] = 0;
+#else
     /* queue the buffer back to camera */
     while (ioctl(camera_device, VIDIOC_QBUF, &mfilledbuffer[index]) < 0) {
         LOGE("Recording VIDIOC_QBUF Failed.");
         if(++time >= 4)break;
     }
+#endif
     return;
 }
 
