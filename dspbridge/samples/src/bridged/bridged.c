@@ -169,9 +169,11 @@ unsigned long bridge_listener(void)
 
 		status = DSPManager_WaitForEvents(notifier, 4, &index,
 								DSP_FOREVER);
-		try_err_out("Catch notification signal", status);
 
 		daemon_detach(proc);
+
+		if (DSP_FAILED(status))
+			continue;
 
 		handle_event_action(index);
 	}
