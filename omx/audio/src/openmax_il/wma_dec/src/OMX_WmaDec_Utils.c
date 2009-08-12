@@ -1350,6 +1350,21 @@ OMX_ERRORTYPE WMADECHandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
         OMX_ERROR4(pComponentPrivate->dbg, "%d :: The PBufHeader is not found in the list\n", __LINE__);
         goto EXIT;
     }
+    if (pComponentPrivate->curState == OMX_StateIdle){
+	if (eDir == OMX_DirInput) {
+		pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
+			pComponentPrivate->pHandle->pApplicationPrivate,
+			pBufHeader);
+		OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s In idle state return input buffers\n", __LINE__, __FUNCTION__);
+		}
+	else if (eDir == OMX_DirOutput) {
+		pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
+			pComponentPrivate->pHandle->pApplicationPrivate,
+			pBufHeader);
+		OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s In idle state return output buffers\n", __LINE__, __FUNCTION__);
+		}
+	goto EXIT;
+    }
 
     if (eDir == OMX_DirInput)
     {
@@ -2185,38 +2200,21 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
     } 
     else if(event == EMMCodecProcessingStoped)
     {
-        for (i=0; i < pComponentPrivate_CC->pInputBufferList->numBuffers; i++) {
-            if (pComponentPrivate_CC->pInputBufferList->bBufferPending[i]) {
-#ifdef __PERF_INSTRUMENTATION__
-                PERF_SendingFrame(pComponentPrivate_CC->pPERFcomp,
-                                  PREF(pComponentPrivate_CC->pInputBufferList->pBufHdr[i], pBuffer),
-                                  0,
-                                  PERF_ModuleHLMM);
-#endif
-
-                pComponentPrivate_CC->cbInfo.EmptyBufferDone (pComponentPrivate_CC->pHandle,
-                                                           pComponentPrivate_CC->pHandle->pApplicationPrivate,
-                                                           pComponentPrivate_CC->pInputBufferList->pBufHdr[i]);
-                pComponentPrivate_CC->nEmptyBufferDoneCount++;
-                WMADEC_ClearPending(pComponentPrivate_CC,pComponentPrivate_CC->pInputBufferList->pBufHdr[i], OMX_DirInput);
-            }
-        }
-        for (i=0; i < pComponentPrivate_CC->pOutputBufferList->numBuffers; i++) {
-            if (WMADEC_IsPending(pComponentPrivate_CC,pComponentPrivate_CC->pOutputBufferList->pBufHdr[i],OMX_DirOutput)) {
-#ifdef __PERF_INSTRUMENTATION__
-                PERF_SendingFrame(pComponentPrivate_CC->pPERFcomp,
-                                  PREF(pComponentPrivate_CC->pOutputBufferList->pBufHdr[i], pBuffer),
-                                  0,
-                                      PERF_ModuleHLMM);
-#endif
-                pComponentPrivate_CC->pOutputBufferList->pBufHdr[i]->nFilledLen = 0;
-                pComponentPrivate_CC->cbInfo.FillBufferDone (pComponentPrivate_CC->pHandle,
-                                                             pComponentPrivate_CC->pHandle->pApplicationPrivate,
-                                                             pComponentPrivate_CC->pOutputBufferList->pBufHdr[i]);
-                WMADEC_ClearPending(pComponentPrivate_CC, pComponentPrivate_CC->pOutputBufferList->pBufHdr[i] , OMX_DirOutput);
-                pComponentPrivate_CC->nOutStandingFillDones++;
-            }
-        }
+	for (i = 0; i < pComponentPrivate_CC->nNumInputBufPending; i++) {
+		pComponentPrivate_CC->cbInfo.EmptyBufferDone (pComponentPrivate_CC->pHandle,
+				pComponentPrivate_CC->pHandle->pApplicationPrivate,
+				pComponentPrivate_CC->pInputBufHdrPending[i]);
+				pComponentPrivate_CC->pInputBufHdrPending[i] = NULL;
+	}
+	pComponentPrivate_CC->nNumInputBufPending = 0;
+	for (i=0; i < pComponentPrivate_CC->nNumOutputBufPending; i++) {
+		pComponentPrivate_CC->cbInfo.FillBufferDone (pComponentPrivate_CC->pHandle,
+			pComponentPrivate_CC->pHandle->pApplicationPrivate,
+			pComponentPrivate_CC->pOutputBufHdrPending[i]);
+		pComponentPrivate_CC->nOutStandingFillDones--;
+		pComponentPrivate_CC->pOutputBufHdrPending[i] = NULL;
+	}
+	pComponentPrivate_CC->nNumOutputBufPending=0;
         pthread_mutex_lock(&pComponentPrivate_CC->codecStop_mutex);
         if(pComponentPrivate_CC->codecStop_waitingsignal == 0){
             pComponentPrivate_CC->codecStop_waitingsignal = 1;             
@@ -2225,48 +2223,6 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
         }
         pthread_mutex_unlock(&pComponentPrivate_CC->codecStop_mutex);
 
-        OMX_U32 aParam[3] = {0};
-        aParam[0] = USN_STRMCMD_FLUSH; 
-        aParam[1] = 0x0; 
-        aParam[2] = 0x0; 
-#if 0
-        //TOOK THIS STUFF OUT... THE CODEC IS STOPPED, NO NEED TO FLUSH!!!
-        OMX_PRCOMM2(pComponentPrivate_CC->dbg, "Flushing input port\n");
-        if (pComponentPrivate_CC->codecFlush_waitingsignal == 0){
-            pthread_mutex_lock(&pComponentPrivate_CC->codecFlush_mutex);
-        }
-        eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                   EMMCodecControlStrmCtrl, (void*)aParam);
-        if (pComponentPrivate_CC->codecFlush_waitingsignal == 0){
-            pthread_cond_wait(&pComponentPrivate_CC->codecFlush_threshold, &pComponentPrivate_CC->codecFlush_mutex);
-            pComponentPrivate_CC->codecFlush_waitingsignal = 0;
-            pthread_mutex_unlock(&pComponentPrivate_CC->codecFlush_mutex);
-        }
-        if (eError != OMX_ErrorNone)
-        {
-            goto EXIT;
-        }
-
-        aParam[0] = USN_STRMCMD_FLUSH; 
-        aParam[1] = 0x1; 
-        aParam[2] = 0x0; 
-
-        OMX_PRCOMM2(pComponentPrivate_CC->dbg, "Flushing output port\n");
-        if (pComponentPrivate_CC->codecFlush_waitingsignal == 0){
-            pthread_mutex_lock(&pComponentPrivate_CC->codecFlush_mutex);
-        }
-        eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                   EMMCodecControlStrmCtrl, (void*)aParam);
-        if (pComponentPrivate_CC->codecFlush_waitingsignal == 0){
-            pthread_cond_wait(&pComponentPrivate_CC->codecFlush_threshold, &pComponentPrivate_CC->codecFlush_mutex);
-            pComponentPrivate_CC->codecFlush_waitingsignal = 0;
-            pthread_mutex_unlock(&pComponentPrivate_CC->codecFlush_mutex);
-        }
-        if (eError != OMX_ErrorNone)
-        {
-            goto EXIT;
-        }
-#endif
         if (!pComponentPrivate_CC->bNoIdleOnStop)
         {
             pComponentPrivate_CC->curState = OMX_StateIdle;
