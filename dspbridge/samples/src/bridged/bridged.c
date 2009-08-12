@@ -133,7 +133,7 @@ unsigned long bridge_listener(void)
 	unsigned long status = DSP_SOK;
 	struct DSP_NOTIFICATION *notifier[EVENTS];
 
-	for (i = 0; i <= EVENTS; i++) {
+	for (i = 0; i < EVENTS; i++) {
 		notifier[i] = malloc(sizeof(struct DSP_NOTIFICATION));
 		if (!notifier[i])
 			return DSP_EMEMORY;
@@ -179,7 +179,7 @@ unsigned long bridge_listener(void)
 out:
 	daemon_detach(proc);
 
-	for (i = 0; i <= EVENTS; i++)
+	for (i = 0; i < EVENTS; i++)
 		free(notifier[i]);
 
 	return status;
