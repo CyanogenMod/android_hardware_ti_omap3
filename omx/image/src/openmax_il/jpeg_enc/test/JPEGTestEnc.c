@@ -2053,7 +2053,7 @@ int LoadBaseImage() {
     unsigned int numProcs;
     char* argv[2];
    
-    argv[0] = "/lib/dsp/baseimage.dof";
+    argv[0] = "/system/lib/dsp/baseimage.dof";
     
     status = (DBAPI)DspManager_Open(0, NULL);
     if (DSP_FAILED(status)) {
