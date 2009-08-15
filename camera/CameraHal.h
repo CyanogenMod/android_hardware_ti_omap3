@@ -44,12 +44,12 @@
 #define RESIZER 1
 #define JPEG 1
 #define VPP 1
-#define VPP_THREAD 1
+#define VPP_THREAD 0
 #define VPP_INIT_WORKAROND 0
 
-#undef FW3A
-#undef ICAP
-#undef IMAGE_PROCESSING_PIPELINE
+//#undef FW3A
+//#undef ICAP
+//#undef IMAGE_PROCESSING_PIPELINE
 
 #if !VPP
 	#define VPP_THREAD 0
@@ -101,8 +101,8 @@
 #define FOCUS_RECT_WHITE    0xFF
 
 #define VIDEO_DEVICE        "/dev/video5"
-#define MIN_WIDTH           176 // 960 //820
-#define MIN_HEIGHT          144 // 800 //616
+#define MIN_WIDTH           128
+#define MIN_HEIGHT          96
 #define PICTURE_WIDTH   3280 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
 #define PICTURE_HEIGHT  2464 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
 #define PREVIEW_WIDTH 176
@@ -111,6 +111,7 @@
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    4
+#define MAX_CAMERA_BUFFERS    4
 
 #define OPEN_CLOSE_WORKAROUND	 0
 
@@ -416,7 +417,9 @@ private:
     void *mAutoFocusCallbackCookie;
     int nOverlayBuffersQueued;
     int nCameraBuffersQueued;
-	int mLastOverlayBufferIndex;
+    struct v4l2_buffer v4l2_cam_buffer[MAX_CAMERA_BUFFERS];
+    int buffers_queued_to_dss[MAX_CAMERA_BUFFERS];
+    int nBuffToStartDQ;
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
     struct timeval ppm;

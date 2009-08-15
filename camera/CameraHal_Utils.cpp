@@ -1093,22 +1093,22 @@ int CameraHal::CapturePicture(){
     sp<MemoryBase>          mJPEGPictureMemBase;
 	unsigned int vppMessage[3];
 	unsigned short ipp_ee_q, ipp_ew_ts, ipp_es_ts, ipp_luma_nf, ipp_chroma_nf; 
-	int err;
-	overlay_buffer_t overlaybuffer;
-	int snapshot_buffer_index; 
-	void* snapshot_buffer;
-	int ipp_reconfigure=0;
-	int ippTempConfigMode;
-	
-	LOG_FUNCTION_NAME
+    int err, i;
+    overlay_buffer_t overlaybuffer;
+    int snapshot_buffer_index; 
+    void* snapshot_buffer;
+    int ipp_reconfigure=0;
+    int ippTempConfigMode;
 
-	LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
+    LOG_FUNCTION_NAME
+
+    LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
 
     if (mShutterCallback)
         mShutterCallback(mPictureCallbackCookie);
 
     mParameters.getPictureSize(&image_width, &image_height);
-	mParameters.getPreviewSize(&preview_width, &preview_height);	
+    mParameters.getPreviewSize(&preview_width, &preview_height);	
 
     LOGD("Picture Size: Width = %d \tHeight = %d", image_width, image_height);
 
@@ -1182,9 +1182,9 @@ int CameraHal::CapturePicture(){
 
     yuv_len = buffer.length;
 
-	buffer.m.userptr = base;
+    buffer.m.userptr = base;
     mPictureBuffer = new MemoryBase(mPictureHeap, offset, yuv_len);
-	 LOGD("Picture Buffer: Base = %p Offset = 0x%x", (void *)base, (unsigned int)offset);
+    LOGD("Picture Buffer: Base = %p Offset = 0x%x", (void *)base, (unsigned int)offset);
 
     if (ioctl(camera_device, VIDIOC_QBUF, &buffer) < 0) {
         LOGE("CAMERA VIDIOC_QBUF Failed");
@@ -1202,8 +1202,6 @@ int CameraHal::CapturePicture(){
 
     /* De-queue the next avaliable buffer */
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-	LOGD("creqbuf.memory =%d, V4L2_MEMORY_USERPTR=%d",creqbuf.memory,V4L2_MEMORY_USERPTR);
 
 #if ALIGMENT
     cfilledbuffer.memory = creqbuf.memory;
@@ -1236,38 +1234,51 @@ int CameraHal::CapturePicture(){
   	}
 #endif
 
-	yuv_buffer = (uint8_t*)buffer.m.userptr;	
+    //When a snapshot is taken, Surface Flinger indirectly calls streamoff on overlay
+    //which implies that all the overlay buffers will be dequeued.
+    //So, update our status accordingly
+    nOverlayBuffersQueued = 0;
+    for(i = 0; i < mOverlay->getBufferCount(); i++)
+    {
+        buffers_queued_to_dss[i] = 0;
+    }
+    
+    yuv_buffer = (uint8_t*)buffer.m.userptr;	
     LOGD("PictureThread: generated a picture, yuv_buffer=%p yuv_len=%d",yuv_buffer,yuv_len);
 
-	//image_height &= 0xFFFFFFF8;
+    //image_height &= 0xFFFFFFF8;
 
 #ifdef HARDWARE_OMX
 #if VPP
 #if VPP_THREAD
-	LOGD("SENDING MESSAGE TO VPP THREAD \n");
-	vpp_buffer =  yuv_buffer;
-	vppMessage[0] = VPP_THREAD_PROCESS;
-	vppMessage[1] = image_width;
-	vppMessage[2] = image_height;			
+    LOGD("SENDING MESSAGE TO VPP THREAD \n");
+    vpp_buffer =  yuv_buffer;
+    vppMessage[0] = VPP_THREAD_PROCESS;
+    vppMessage[1] = image_width;
+    vppMessage[2] = image_height;			
 
-	write(vppPipe[1],&vppMessage,sizeof(vppMessage));	
+    write(vppPipe[1],&vppMessage,sizeof(vppMessage));	
 #else
-	LOGD("VPP mOverlay->getBufferCount() \n");
-	snapshot_buffer_index = (mLastOverlayBufferIndex++)%4;
-	LOGD("VPP mOverlay->getBufferAddress \n");
-	snapshot_buffer = mOverlay->getBufferAddress( (void*)snapshot_buffer_index );
-	LOGD("VPP scale_process() \n");
-	err = scale_process(yuv_buffer, image_width, image_height,
+    snapshot_buffer = mOverlay->getBufferAddress( (void*)0 );
+    LOGD("VPP scale_process() \n");
+    err = scale_process(yuv_buffer, image_width, image_height,
                          snapshot_buffer, preview_width, preview_height);
-	if( err ) LOGE("scale_process() failed");
-	else LOGD("scale_process() OK");
-	
-	PPM("SCALED DOWN RAW IMAGE TO PREVIEW SIZE");
+    if( err ) LOGE("scale_process() failed");
+    else LOGD("scale_process() OK");
 
-	mOverlay->queueBuffer((void*)snapshot_buffer_index);  //JJ-try removing dequeue buffer
-	mOverlay->dequeueBuffer(&overlaybuffer);
-	
-	PPM("DISPLAYED RAW IMAGE ON SCREEN");
+    PPM("SCALED DOWN RAW IMAGE TO PREVIEW SIZE");
+
+    // At this point, the Surface Flinger would have indirectly called Stream OFF on Overlay
+    // which implies that all the overlay buffers will be dequeued.
+    // Therefore, we must queue atleast 3 buffers for the overlay to enable streaming and 
+    // show the snapshot.
+    mOverlay->queueBuffer((void*)0);
+    mOverlay->queueBuffer((void*)1);
+    mOverlay->queueBuffer((void*)2);	
+    // We need not update the array buffers_queued_to_dss because Surface Flinger will
+    // once again call Stream OFF on Overlay
+
+    PPM("DISPLAYED RAW IMAGE ON SCREEN");
 #endif
 #endif
 #endif
