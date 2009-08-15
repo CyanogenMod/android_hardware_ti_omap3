@@ -44,12 +44,12 @@
 #define RESIZER 1
 #define JPEG 1
 #define VPP 1
-#define VPP_THREAD 0
+#define VPP_THREAD 1
 #define VPP_INIT_WORKAROND 0
 
-//#undef FW3A
-//#undef ICAP
-//#undef IMAGE_PROCESSING_PIPELINE
+#undef FW3A
+#undef ICAP
+#undef IMAGE_PROCESSING_PIPELINE
 
 #if !VPP
 	#define VPP_THREAD 0
@@ -105,12 +105,14 @@
 #define MIN_HEIGHT          144 // 800 //616
 #define PICTURE_WIDTH   3280 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
 #define PICTURE_HEIGHT  2464 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
+#define PREVIEW_WIDTH 176
+#define PREVIEW_HEIGHT 144
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    4
 
-#define OPEN_CLOSE_WORKAROUND	 1
+#define OPEN_CLOSE_WORKAROUND	 0
 
 #define PPM(str){ \
 	gettimeofday(&ppm, NULL); \
@@ -373,7 +375,8 @@ private:
 
     int CameraCreate();
     int CameraDestroy();
-    int CameraConfigure();
+    int CameraConfigure();	
+	int CameraSetFrameRate();
     int CameraStart();
     int CameraStop();
     int SaveFile(char *filename, char *ext, void *buffer, int jpeg_size);
@@ -413,8 +416,7 @@ private:
     void *mAutoFocusCallbackCookie;
     int nOverlayBuffersQueued;
     int nCameraBuffersQueued;
-    int mLastOverlayBufferIndex;
-    int buffers_queued_to_dss[VIDEO_FRAME_COUNT_MAX];
+	int mLastOverlayBufferIndex;
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
     struct timeval ppm;
@@ -422,7 +424,7 @@ private:
 	int vppPipe[2];
     sem_t mIppVppSem;
 	int mippMode;
-
+	int pictureNumber;
     struct timeval take_before, take_after;
     struct timeval focus_before, focus_after;
     struct timeval ppm_before, ppm_after;
@@ -476,6 +478,7 @@ private:
         PREVIEW_KILL,
         PREVIEW_CAF_START,
         PREVIEW_CAF_STOP,
+		PREVIEW_FPS,
         // ACKs        
         PREVIEW_ACK,
         PREVIEW_NACK,
@@ -501,6 +504,7 @@ private:
 
     mutable Mutex takephoto_lock;
     uint8_t *yuv_buffer, *jpeg_buffer, *vpp_buffer, *ancillary_buffer;
+    
     int yuv_len, jpeg_len, ancillary_len;
 
     FILE *foutYUV;
