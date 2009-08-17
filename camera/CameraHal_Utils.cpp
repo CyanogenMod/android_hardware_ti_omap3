@@ -28,6 +28,52 @@
 
 namespace android {
 
+
+int CameraHal::CameraSetFrameRate()
+{
+    int framerate;
+    int err;   
+    struct v4l2_streamparm parm;
+
+    LOG_FUNCTION_NAME   
+
+    framerate = mParameters.getPreviewFrameRate();
+ 
+    LOGD("CameraSetFrameRate: framerate=%d",framerate);
+
+	parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+#if 1    
+    err = ioctl(camera_device, VIDIOC_G_PARM, &parm);
+    if(err != 0) {
+		LOGD("ERROR VIDIOC_G_PARM ");
+		return -1;
+    }
+    
+    LOGD("Old frame rate is %d/%d  fps\n",
+		parm.parm.capture.timeperframe.denominator,
+		parm.parm.capture.timeperframe.numerator);
+#endif
+#if 1
+	parm.parm.capture.timeperframe.numerator = 1;
+	parm.parm.capture.timeperframe.denominator = framerate;
+	err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
+	if(err != 0) {
+		LOGE("ERROR VIDIOC_S_PARM ");
+		return -1;
+	}
+#endif
+    
+    LOGI("CameraSetFrameRate Preview fps:%d/%d",parm.parm.capture.timeperframe.denominator,parm.parm.capture.timeperframe.numerator);
+
+    LOG_FUNCTION_NAME_EXIT
+    return 0;
+
+s_fmt_fail:
+    return -1;
+}
+
+
+
 #ifdef FW3A
 int CameraHal::FW3A_Create()
 {
@@ -356,8 +402,6 @@ int CameraHal::FW3A_SetSettings()
 }
 #endif
 
-
-
 #ifdef IMAGE_PROCESSING_PIPELINE
 
 static IPP_EENFAlgoDynamicParams IPPEENFAlgoDynamicParamsArray [MAXIPPDynamicParams] = {
@@ -622,6 +666,13 @@ int CameraHal::PopulateArgsIPP(int w, int h)
     pIPP.iYuvcInArgs2->inputChromaFormat = IPP_YUV_422P;
 #endif
   
+	pIPP.iStarOutArgs->extendedError= 0;
+	pIPP.iYuvcOutArgs1->extendedError = 0;
+	if(mippMode == IPP_EdgeEnhancement_Mode)
+		pIPP.iEenfOutArgs->extendedError = 0;
+	if(mippMode == IPP_CromaSupression_Mode )	
+		pIPP.iCrcbsOutArgs->extendedError = 0;
+
 	//Filling ipp status structure
     pIPP.starStatus.size = sizeof(IPP_StarAlgoStatus);
 	if(mippMode == IPP_CromaSupression_Mode ){
@@ -1048,8 +1099,10 @@ int CameraHal::CapturePicture(){
 	void* snapshot_buffer;
 	int ipp_reconfigure=0;
 	int ippTempConfigMode;
-		
-  LOG_FUNCTION_NAME
+	
+	LOG_FUNCTION_NAME
+
+	LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
 
     if (mShutterCallback)
         mShutterCallback(mPictureCallbackCookie);
@@ -1059,7 +1112,7 @@ int CameraHal::CapturePicture(){
 
     LOGD("Picture Size: Width = %d \tHeight = %d", image_width, image_height);
 
-#ifdef OPEN_CLOSE_WORKAROUND
+#if OPEN_CLOSE_WORKAROUND
     close(camera_device);
     camera_device = open(VIDEO_DEVICE, O_RDWR);
     if (camera_device < 0) {
@@ -1117,11 +1170,7 @@ int CameraHal::CapturePicture(){
 #endif
 
     offset = base - (unsigned long)mPictureHeap->getBase();
-#if !ALIGMENT
-    mPictureBuffer = new MemoryBase(mPictureHeap, offset, yuv_len);
 
-    LOGD("Picture Buffer: Base = %p Offset = 0x%x", (void *)base, (unsigned int)offset);
-#endif
     buffer.type = creqbuf.type;
     buffer.memory = creqbuf.memory;
     buffer.index = 0;
@@ -1132,12 +1181,10 @@ int CameraHal::CapturePicture(){
     }
 
     yuv_len = buffer.length;
-#if ALIGMENT
+
 	buffer.m.userptr = base;
-    mPictureBuffer = new MemoryBase(mPictureHeap, offset, buffer.length);
-#else
-    buffer.m.userptr = (unsigned long) (mPictureHeap->getBase()) + offset;
-#endif
+    mPictureBuffer = new MemoryBase(mPictureHeap, offset, yuv_len);
+	 LOGD("Picture Buffer: Base = %p Offset = 0x%x", (void *)base, (unsigned int)offset);
 
     if (ioctl(camera_device, VIDIOC_QBUF, &buffer) < 0) {
         LOGE("CAMERA VIDIOC_QBUF Failed");
@@ -1155,6 +1202,9 @@ int CameraHal::CapturePicture(){
 
     /* De-queue the next avaliable buffer */
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	LOGD("creqbuf.memory =%d, V4L2_MEMORY_USERPTR=%d",creqbuf.memory,V4L2_MEMORY_USERPTR);
+
 #if ALIGMENT
     cfilledbuffer.memory = creqbuf.memory;
 #else
@@ -1177,7 +1227,7 @@ int CameraHal::CapturePicture(){
         mRawPictureCallback(mPictureBuffer, mPictureCallbackCookie);
     }
 
-#ifdef OPEN_CLOSE_WORKAROUND
+#if OPEN_CLOSE_WORKAROUND
     close(camera_device);
     camera_device = open(VIDEO_DEVICE, O_RDWR);
     if (camera_device < 0) {
