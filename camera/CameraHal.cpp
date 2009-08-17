@@ -96,6 +96,7 @@ CameraHal::CameraHal()
     for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++)
     {
         mVideoBuffer[i] = 0;
+        buffers_queued_to_dss[i] = 0;
     }
 
     CameraCreate();
@@ -655,6 +656,7 @@ int CameraHal::CameraDestroy()
     if (mOverlay != NULL) {
         mOverlay->destroy();
         mOverlay = NULL;
+        nOverlayBuffersQueued = 0;
     }
 
     LOGD("Camera Destroy - Success");
@@ -736,7 +738,6 @@ int CameraHal::CameraStart()
     LOG_FUNCTION_NAME
 
     nCameraBuffersQueued = 0;
-    nOverlayBuffersQueued = 0;
     
     mParameters.getPreviewSize(&w, &h);
     LOGD("**CaptureQBuffers: preview size=%dx%d", w, h);
@@ -789,11 +790,16 @@ int CameraHal::CameraStart()
 
         LOGD("User Buffer [%d].start = %p  length = %d\n", i,
              (void*)buffer.m.userptr, buffer.length);
-        nCameraBuffersQueued++;
-        if (ioctl(camera_device, VIDIOC_QBUF, &buffer) < 0) {
-            LOGE("CameraStart VIDIOC_QBUF Failed: %s", strerror(errno) );
-            goto fail_loop;
-        }
+
+        if (buffers_queued_to_dss[i] == 0)
+        {
+            nCameraBuffersQueued++;
+            if (ioctl(camera_device, VIDIOC_QBUF, &buffer) < 0) {
+                LOGE("CameraStart VIDIOC_QBUF Failed: %s", strerror(errno) );
+                goto fail_loop;
+            }
+         }
+         else LOGI("CameraStart::Could not queue buffer %d to Camera because it is being held by Overlay", i);
     }
 
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -846,6 +852,7 @@ int CameraHal::CameraStop()
     {
         mOverlay->dequeueBuffer(&overlaybuffer);
         nOverlayBuffersQueued--;
+        buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
     }
 
     LOG_FUNCTION_NAME_EXIT
@@ -863,7 +870,7 @@ void CameraHal::nextPreview()
     struct v4l2_buffer cfilledbuffer;
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-    int w, h, ret;
+    int w, h, ret, queue_to_dss_failed;
     overlay_buffer_t overlaybuffer;
     int overlaybufferindex = -1;
     int index;
@@ -916,14 +923,15 @@ void CameraHal::nextPreview()
  
     // Notify overlay of a new frame.
     mLastOverlayBufferIndex=cfilledbuffer.index;
-    ret = mOverlay->queueBuffer((void*)cfilledbuffer.index);
-    if (ret)
+    queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
+    if (queue_to_dss_failed)
     {
         LOGD("qbuf failed. May be bcos stream was not turned on yet. So try again");
     }
     else
     {
         nOverlayBuffersQueued++;
+        buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
     }
 
     if (nOverlayBuffersQueued > 1)
@@ -931,6 +939,7 @@ void CameraHal::nextPreview()
         mOverlay->dequeueBuffer(&overlaybuffer);
         overlaybufferindex = (int)overlaybuffer;
         nOverlayBuffersQueued--;
+        buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
     }
     else
     {
@@ -955,24 +964,23 @@ void CameraHal::nextPreview()
             }
         }
 
-        if (ret)
+        if (queue_to_dss_failed)
         {
             if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
                 LOGE("VIDIOC_QBUF Failed.");
             }
             nCameraBuffersQueued++;
         }
-        else
+
+        if (overlaybufferindex != -1)
         {
-            if (overlaybufferindex != -1)
-            {
-                cfilledbuffer.index = (int)overlaybuffer;        
-                if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                    LOGE("VIDIOC_QBUF Failed.");
-                }
-                nCameraBuffersQueued++;
+            cfilledbuffer.index = (int)overlaybuffer;        
+            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+                LOGE("VIDIOC_QBUF Failed.");
             }
-        }        
+            nCameraBuffersQueued++;
+        }
+
 #else
         memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
         cb(0, mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
@@ -980,26 +988,21 @@ void CameraHal::nextPreview()
     } 
     else {
 
-        if (ret)
+        if (queue_to_dss_failed)
         {
             if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
                 LOGE("VIDIOC_QBUF Failed.");
             }
             nCameraBuffersQueued++;
         }
-        else
+        if (overlaybufferindex != -1)
         {
-            if (overlaybufferindex != -1)
-            {
-                cfilledbuffer.index = (int)overlaybuffer;        
-                if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                    LOGE("VIDIOC_QBUF Failed.");
-                }
-                nCameraBuffersQueued++;
+            cfilledbuffer.index = (int)overlaybuffer;        
+            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+                LOGE("VIDIOC_QBUF Failed.");
             }
-        }        
-
-
+            nCameraBuffersQueued++;
+        }
     }
     mRecordingLock.unlock();
 
@@ -1766,6 +1769,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     {
         LOGD("Destroying current overlay");
         mOverlay->destroy();
+        nOverlayBuffersQueued = 0;
     }
 
     mOverlay = overlay;

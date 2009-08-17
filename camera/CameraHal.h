@@ -413,7 +413,8 @@ private:
     void *mAutoFocusCallbackCookie;
     int nOverlayBuffersQueued;
     int nCameraBuffersQueued;
-	int mLastOverlayBufferIndex;
+    int mLastOverlayBufferIndex;
+    int buffers_queued_to_dss[VIDEO_FRAME_COUNT_MAX];
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
     struct timeval ppm;
