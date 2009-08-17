@@ -517,9 +517,11 @@ static int is_dequeued(struct v4l2_buffer *buf)
             !(buf->flags & V4L2_BUF_FLAG_DONE));
 }
 
-static int query_buffer(int fd, int index, struct v4l2_buffer *buf)
+int v4l2_overlay_query_buffer(int fd, int index, struct v4l2_buffer *buf)
 {
     LOG_FUNCTION_NAME
+
+    memset(buf, 0, sizeof(struct v4l2_buffer));
 
     buf->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     buf->memory = V4L2_MEMORY_MMAP;
@@ -536,7 +538,7 @@ int v4l2_overlay_map_buf(int fd, int index, void **start, size_t *len)
     struct v4l2_buffer buf;
     int ret;
 
-    ret = query_buffer(fd, index, &buf);
+    ret = v4l2_overlay_query_buffer(fd, index, &buf);
     if (ret)
         return ret;
 
@@ -608,7 +610,7 @@ int v4l2_overlay_q_buf(int fd, int index)
     int ret;
 
     /*
-    ret = query_buffer(fd, buffer_cookie, index, &buf);
+    ret = v4l2_overlay_query_buffer(fd, buffer_cookie, index, &buf);
     if (ret)
         return ret;
     if (is_queued(buf)) {
@@ -633,7 +635,7 @@ int v4l2_overlay_dq_buf(int fd, int *index)
     int ret;
 
     /*
-    ret = query_buffer(fd, buffer_cookie, index, &buf);
+    ret = v4l2_overlay_query_buffer(fd, buffer_cookie, index, &buf);
     if (ret)
         return ret;
 

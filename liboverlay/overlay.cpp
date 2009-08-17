@@ -31,6 +31,7 @@ extern "C" {
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <linux/videodev.h>
 
 #include <cutils/log.h>
 #include <cutils/ashmem.h>
@@ -110,8 +111,8 @@ struct overlay_data_context_t {
     void **buffers;
 
     overlay_data_t    data;
-    overlay_shared_t *shared;
-
+    overlay_shared_t  *shared;
+    mapping_data_t    *mapping_data;
     // Need to count Qd buffers to be sure we don't block DQ'ing when exiting
     int qd_buf_count;
     int cacheable_buffers;
@@ -780,9 +781,10 @@ int overlay_initialize(struct overlay_data_device_t *dev,
 
     ctx->shared->dataReady = 0;
 
+    ctx->mapping_data = new mapping_data_t;
     ctx->buffers     = new void* [ctx->num_buffers];
     ctx->buffers_len = new size_t[ctx->num_buffers];
-    if (!ctx->buffers || !ctx->buffers_len) {
+    if (!ctx->buffers || !ctx->buffers_len || !ctx->mapping_data) {
             LOGE("Failed alloc'ing buffer arrays\n");
             close_shared_data(ctx);
     } else {
@@ -848,6 +850,7 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w,
         LOGE("Error creating buffers");
         goto end;
     }
+
     for (int i = 0; i < ctx->num_buffers; i++)
         v4l2_overlay_map_buf(ctx->ctl_fd, i, &ctx->buffers[i],
                              &ctx->buffers_len[i]);
@@ -999,25 +1002,38 @@ int overlay_queueBuffer(struct overlay_data_device_t *dev,
 }
 
 void *overlay_getBufferAddress(struct overlay_data_device_t *dev,
-                               overlay_buffer_t buffer) {
+                               overlay_buffer_t buffer)
+{
     LOG_FUNCTION_NAME;
 
     /* this may fail (NULL) if this feature is not supported. In that case,
      * presumably, there is some other HAL module that can fill the buffer,
      * using a DSP for instance
      */
-
+    int ret;
+    struct v4l2_buffer buf;
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
-    void *p = NULL;
+    ret = v4l2_overlay_query_buffer(ctx->ctl_fd, (int)buffer, &buf);
+
+    if (ret)
+        return NULL;
+
+    // Initialize ctx->mapping_data
+    memset(ctx->mapping_data, 0, sizeof(mapping_data_t));
+
+    ctx->mapping_data->fd = ctx->ctl_fd;
+    ctx->mapping_data->length = buf.length;
+    ctx->mapping_data->offset = buf.m.offset;
+    ctx->mapping_data->ptr = NULL;
 
     if ((int)buffer >= 0 && (int)buffer < ctx->num_buffers) {
-        p = ctx->buffers[(int)buffer];
-        LOGI("Buffer/%d/addr=%08lx/len=%d", (int)buffer, (unsigned long)p,
+        ctx->mapping_data->ptr = ctx->buffers[(int)buffer];
+        LOGI("Buffer/%d/addr=%08lx/len=%d", (int)buffer, (unsigned long)ctx->mapping_data->ptr,
              ctx->buffers_len[(int)buffer]);
     }
 
-    return p;
+    return (void *)ctx->mapping_data;
 }
 
 int overlay_getBufferCount(struct overlay_data_device_t *dev)
@@ -1051,6 +1067,7 @@ static int overlay_data_close(struct hw_device_t *dev) {
             }
         }
 
+        delete(ctx->mapping_data);
         delete(ctx->buffers);
         delete(ctx->buffers_len);
 

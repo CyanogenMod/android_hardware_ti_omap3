@@ -53,10 +53,13 @@ static int mDebugFps = 0;
 #include "pvmf_video.h"
 #include <media/PVPlayer.h>
 
+extern "C" {
+#include "v4l2_utils.h"
+}
+
 #define CACHEABLE_BUFFERS 0x1
 
 using namespace android;
-
 
 OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     AndroidSurfaceOutput()
@@ -86,6 +89,7 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
     int frameHeight = iVideoHeight;
     int frameSize;
     int videoFormat = OVERLAY_FORMAT_CbYCrY_422_I;
+    mapping_data_t *data;
     LOGV("Use Overlays");
 
     if (mUseOverlay) {
@@ -106,7 +110,8 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
         mbufferAlloc.bufferSize = iBufferSize;
         LOGV("number of buffers = %d\n", mbufferAlloc.maxBuffers);
         for (int i = 0; i < mbufferAlloc.maxBuffers; i++) {
-            mbufferAlloc.buffer_address[i] = mOverlay->getBufferAddress((void*)i);
+            data = (mapping_data_t *)mOverlay->getBufferAddress((void*)i);
+            mbufferAlloc.buffer_address[i] = data->ptr;
             strcpy((char *)mbufferAlloc.buffer_address[i], "hello");
             if (strcmp((char *)mbufferAlloc.buffer_address[i], "hello")) {
                 LOGI("problem with buffer\n");
