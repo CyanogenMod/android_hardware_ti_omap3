@@ -63,6 +63,7 @@ OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
 {
     mUseOverlay = true;
     mOverlay = NULL;
+    mIsFirstFrame = true;
 }
 
 OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
@@ -170,9 +171,21 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
         bufEnc = i;
         mOverlay->queueBuffer((void*)bufEnc);
         overlay_buffer_t overlay_buffer;
-        if (mOverlay->dequeueBuffer(&overlay_buffer) != NO_ERROR) {
-            LOGE("Video (34xx)MIO dequeue buffer failed");
-            return false;
+
+        /* This is to prevent dequeueBuffer to be called before the first
+         * queueBuffer call is done. If that happens, there will be a delay
+         * as the dequeueBuffer call will be blocked.
+         */
+        if (!mIsFirstFrame)
+        {
+            if (mOverlay->dequeueBuffer(&overlay_buffer) != NO_ERROR) {
+                LOGE("Video (34xx)MIO dequeue buffer failed");
+                return false;
+            }
+        }
+        else
+        {
+            mIsFirstFrame = false;
         }
     }
     return PVMFSuccess;
