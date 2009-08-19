@@ -1237,11 +1237,14 @@ int CameraHal::CapturePicture(){
     //When a snapshot is taken, Surface Flinger indirectly calls streamoff on overlay
     //which implies that all the overlay buffers will be dequeued.
     //So, update our status accordingly
-    nOverlayBuffersQueued = 0;
-    for(i = 0; i < mOverlay->getBufferCount(); i++)
-    {
-        buffers_queued_to_dss[i] = 0;
-    }
+	if(!mMMSApp){
+		LOGD("mMMSApp=========================%d",mMMSApp);
+		nOverlayBuffersQueued = 0;
+		for(int i = 0; i < mOverlay->getBufferCount(); i++)
+		{
+		    buffers_queued_to_dss[i] = 0;
+		}
+	}
     
     yuv_buffer = (uint8_t*)buffer.m.userptr;	
     LOGD("PictureThread: generated a picture, yuv_buffer=%p yuv_len=%d",yuv_buffer,yuv_len);

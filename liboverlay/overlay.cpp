@@ -1230,34 +1230,71 @@ int overlay_dequeueBuffer
 
     int rc;
     int i = -1;
-   
+
     if ( ctx->shared->qd_buf_count <= 1 ) { //dss2 require at least 2 buf queue to perform a dequeue to avoid hang
         LOGE("Not enough buffers to dequeue");
         rc = -EINVAL;
     }
+
     else if ( (rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0 )
     {
         LOGE("Failed to DQ/%d\n", rc);    
-    }
+    }	
+
     else if ( i < 0 || i > ctx->num_buffers )
     {
+		LOGD("dqbuffer i=%d",i);
         rc = -EINVAL;
     }
     else
     {
         *((int *)buffer) = i;
         ctx->shared->qd_buf_count --;
-        LOGV("INDEX DEQUEUE = %d", i);
+        LOGD("INDEX DEQUEUE = %d", i);
         LOGV("qd_buf_count --");
     }
-    LOGV("qd_buf_count = %d", ctx->shared->qd_buf_count);
+
+    LOGD("qd_buf_count = %d", ctx->shared->qd_buf_count);
     return ( rc );
 }
 
 //=========================================================
 // overlay_queueBuffer
 //
+#ifdef FW3A
+int overlay_queueBuffer
+( struct overlay_data_device_t *dev
+, overlay_buffer_t buffer
+)
+{
+    struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
+    if ( !ctx->shared->controlReady ) return -1;
+
+    LOGD("INDEX QUEUE = %d", (int)buffer);
+    
+    int rc = v4l2_overlay_q_buf( ctx->ctl_fd, (int)buffer );   
+    if ( rc == 0 && ctx->shared->qd_buf_count < ctx->num_buffers )
+    {
+		LOGD("rc == 0");
+		ctx->shared->qd_buf_count++;	
+		rc=ctx->shared->qd_buf_count;
+    }else{
+		LOGD("ERROR rc =! 0");
+		rc = -1;
+	}
+
+    // Catch the case where the data side had no need to set the crop window
+    LOGD("qd_buf_count = %d", ctx->shared->qd_buf_count);
+    if ( ctx->shared->qd_buf_count >= (NUM_OVERLAY_BUFFERS_REQUESTED-1) && (ctx->shared->streamEn == 0)) /*DSS2: 2 buffers need to be queue before enable streaming*/
+    {
+        ctx->shared->dataReady = 1;
+        enable_streaming( ctx->shared, ctx->ctl_fd, LOCK_REQUIRED);
+    }
+
+    return ( rc );
+}
+#else
 int overlay_queueBuffer
 ( struct overlay_data_device_t *dev
 , overlay_buffer_t buffer
@@ -1285,6 +1322,7 @@ int overlay_queueBuffer
 
     return ( rc );
 }
+#endif
 
 //=========================================================
 // overlay_getBufferAddress
