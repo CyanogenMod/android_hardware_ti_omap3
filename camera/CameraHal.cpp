@@ -1552,7 +1552,7 @@ int  CameraHal::ICapturePerform()
 	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len); 
 
 #ifdef IMAGE_PROCESSING_PIPELINE  	
-#if 0
+#if 1
 	if(mippMode ==-1){
 		mippMode=IPP_Disabled_Mode;
 	}		
