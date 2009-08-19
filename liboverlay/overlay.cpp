@@ -1243,18 +1243,18 @@ int overlay_dequeueBuffer
 
     else if ( i < 0 || i > ctx->num_buffers )
     {
-		LOGD("dqbuffer i=%d",i);
+		LOGE("dqbuffer i=%d",i);
         rc = -EINVAL;
     }
     else
     {
         *((int *)buffer) = i;
         ctx->shared->qd_buf_count --;
-        LOGD("INDEX DEQUEUE = %d", i);
+        LOGV("INDEX DEQUEUE = %d", i);
         LOGV("qd_buf_count --");
     }
 
-    LOGD("qd_buf_count = %d", ctx->shared->qd_buf_count);
+    LOGV("qd_buf_count = %d", ctx->shared->qd_buf_count);
     return ( rc );
 }
 
@@ -1271,21 +1271,19 @@ int overlay_queueBuffer
 
     if ( !ctx->shared->controlReady ) return -1;
 
-    LOGD("INDEX QUEUE = %d", (int)buffer);
+    LOGV("INDEX QUEUE = %d", (int)buffer);
     
     int rc = v4l2_overlay_q_buf( ctx->ctl_fd, (int)buffer );   
     if ( rc == 0 && ctx->shared->qd_buf_count < ctx->num_buffers )
-    {
-		LOGD("rc == 0");
+    {	
 		ctx->shared->qd_buf_count++;	
 		rc=ctx->shared->qd_buf_count;
-    }else{
-		LOGD("ERROR rc =! 0");
+    }else{	
 		rc = -1;
 	}
 
     // Catch the case where the data side had no need to set the crop window
-    LOGD("qd_buf_count = %d", ctx->shared->qd_buf_count);
+    LOGV("qd_buf_count = %d", ctx->shared->qd_buf_count);
     if ( ctx->shared->qd_buf_count >= (NUM_OVERLAY_BUFFERS_REQUESTED-1) && (ctx->shared->streamEn == 0)) /*DSS2: 2 buffers need to be queue before enable streaming*/
     {
         ctx->shared->dataReady = 1;
