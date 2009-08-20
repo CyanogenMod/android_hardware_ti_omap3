@@ -312,7 +312,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
     pComponentPrivate->bDeblockFilter       = OMX_TRUE;
     pComponentPrivate->nVBVSize             = 120;
     pComponentPrivate->bForceIFrame         = OMX_FALSE; 
-    pComponentPrivate->nIntraFrameInterval  = 15; 
+    pComponentPrivate->nIntraFrameInterval  = 30;
     pComponentPrivate->nQPI                 = 12; 
     pComponentPrivate->nAIRRate             = 0; 
     pComponentPrivate->bHideEvents          = OMX_FALSE;

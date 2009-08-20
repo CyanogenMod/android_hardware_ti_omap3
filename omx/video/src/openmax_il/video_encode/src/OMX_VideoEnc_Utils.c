@@ -3256,7 +3256,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
     {
         pComponentPrivate->maxMVperMB = 1;
         pComponentPrivate->intra4x4EnableIdc = INTRA4x4_NONE;
-        pComponentPrivate->nIntraFrameInterval = 0;
+        pComponentPrivate->nIntraFrameInterval = 30;
         pComponentPrivate->nAIRRate = 0;
         pCreatePhaseArgs->ulIntraFramePeriod = 0;
         pCreatePhaseArgs->ucRateControlAlgorithm = 3;
@@ -3493,7 +3493,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
    /* set run-time frame and bit rates to create-time values */
     pComponentPrivate->nTargetFrameRate       = pCreatePhaseArgs->ucFrameRate;
     pComponentPrivate->nTargetBitRate         = pCreatePhaseArgs->ulTargetBitRate; 
-    
+
      if (pVidParamBitrate->eControlRate == OMX_Video_ControlRateConstant) 
     {
         pCreatePhaseArgs->ucRateControlAlgorithm  = IVIDEO_LOW_DELAY;
