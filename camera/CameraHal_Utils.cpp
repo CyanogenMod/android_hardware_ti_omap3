@@ -1275,9 +1275,9 @@ int CameraHal::CapturePicture(){
     // which implies that all the overlay buffers will be dequeued.
     // Therefore, we must queue atleast 3 buffers for the overlay to enable streaming and 
     // show the snapshot.
-    mOverlay->queueBuffer((void*)0);
+    mOverlay->queueBuffer((void*)2);
     mOverlay->queueBuffer((void*)1);
-    mOverlay->queueBuffer((void*)2);	
+    mOverlay->queueBuffer((void*)0); //the three buffers are dequeued but the last one is the only one which will remain on the screen. JJ
     // We need not update the array buffers_queued_to_dss because Surface Flinger will
     // once again call Stream OFF on Overlay
 

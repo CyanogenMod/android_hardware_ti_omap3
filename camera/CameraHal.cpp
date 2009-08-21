@@ -730,7 +730,13 @@ int CameraHal::CameraStart()
     struct v4l2_format format;
     enum v4l2_buf_type type;
     struct v4l2_requestbuffers creqbuf;
+
     LOG_FUNCTION_NAME
+
+//	if (!mMMSApp){
+//		sleep(2);
+//		mfirstTime++;		
+//	}
 
     nCameraBuffersQueued = 0;  
 
@@ -840,6 +846,7 @@ int CameraHal::CameraStop()
         goto fail_streamoff;
     }
 
+#if 0
     overlay_buffer_t overlaybuffer;
     while (nOverlayBuffersQueued > 1)
     {
@@ -852,6 +859,7 @@ int CameraHal::CameraStop()
 	{
 	  LOGD("buffers_queued_to_dss[%d]=%d ",i,  buffers_queued_to_dss[i]);
 	}
+#endif
 
     LOG_FUNCTION_NAME_EXIT
     return 0;
@@ -869,23 +877,23 @@ void CameraHal::nextPreview()
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     int w, h, ret, queue_to_dss_failed;
-    overlay_buffer_t overlaybuffer;
-    int overlaybufferindex = -1;
+    overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
+    int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
     int index;
     recording_callback cb = NULL;
-		
-	if (!mfirstTime){
+	
+	//LOG_FUNCTION_NAME
+	
+	if (mMMSApp && !mfirstTime){
 		sleep(2);
 		mfirstTime++;		
 	}
 
-    mParameters.getPreviewSize(&w, &h);
-
-	LOG_FUNCTION_NAME
+    mParameters.getPreviewSize(&w, &h);	
 
     /* De-queue the next avaliable buffer */
 
-	//LOGD("nCameraBuffersQueued=%d",nCameraBuffersQueued);    
+	LOGV("nCameraBuffersQueued=%d",nCameraBuffersQueued);    
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
         LOGE("VIDIOC_DQBUF Failed!!!");
 		goto EXIT;
@@ -928,31 +936,36 @@ void CameraHal::nextPreview()
 	}
 #endif
 #endif
- 
+
+	lastOverlayIndex = cfilledbuffer.index; 
     // Notify overlay of a new frame.	
 	//LOGD("buffers_queued_to_dss[%d]=%d",cfilledbuffer.index,buffers_queued_to_dss[cfilledbuffer.index]);
-	//if(buffers_queued_to_dss[cfilledbuffer.index] == 0){
+	//if(buffers_queued_to_dss[cfilledbuffer.index] == 0){//it should not affect, enabled it at the end and see if it works
+
+	for(int index =0;index<4;index++){
+		//LOGD("buffers_queued_to_dss[%d]=%d",index,buffers_queued_to_dss[index]);
+	}			
+
+	LOGV("OVERLAY buffer queued=%d",lastOverlayIndex);
 		queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
 		if (queue_to_dss_failed < 0)
 		{
-			//LOGD("QUEUE nOverlayBuffersQueued=%d ",nOverlayBuffersQueued);
-		   // LOGD("mOverlay->queueBuffer() failed. May be bcos stream was not turned on yet. ERROR=%d",queue_to_dss_failed);
+			LOGE("mOverlay->queueBuffer() failed. May be the buffer was already queued. ERROR=%d nBuffQueued=%d",queue_to_dss_failed,nOverlayBuffersQueued);
 		}
 		else
-		{		
+		{
 		    nOverlayBuffersQueued++;
 		    buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
 			//LOGD("Overlay QBuf count=%d Camera QBuf count=%d",queue_to_dss_failed,nOverlayBuffersQueued);
 		
-			if(nOverlayBuffersQueued != queue_to_dss_failed){
-				//if streaming turns off, set to zero the following 3 buffers
+			if(nOverlayBuffersQueued != queue_to_dss_failed){//if streaming turns off, set to zero the following 3 buffers
 				nOverlayBuffersQueued=queue_to_dss_failed;
 				for(int index=1; index<4; index++){
-					//LOGD("Buffer[%d]=0",(cfilledbuffer.index +index)%4);
+					LOGD("Buffer[%d]=0",(cfilledbuffer.index +index)%4);
 					buffers_queued_to_dss[((cfilledbuffer.index +index)%4)]=0;
 				}
 				//overlaybufferindex= -1;
-				//LOGD("Syncronizing camera buffer count with overlay buffer count =%d",nOverlayBuffersQueued);
+				LOGD("Syncronizing camera buffer count with overlay buffer count =%d",nOverlayBuffersQueued);
 			}
 
 		}
@@ -962,7 +975,7 @@ void CameraHal::nextPreview()
     {
 		//LOGD("DQUE");
         if(mOverlay->dequeueBuffer(&overlaybuffer)){
-			LOGD("DQUE display buffer error**************************************************************************");
+			LOGE("DQUE display buffer error**************************************************************************");
 		}
 		else{
         	overlaybufferindex = (int)overlaybuffer;
@@ -994,7 +1007,7 @@ void CameraHal::nextPreview()
             }
         }
 
-        if (queue_to_dss_failed< 0)
+        if (queue_to_dss_failed< 0)// if the que
         {
 			LOGD("VIDIOC_QBUF, line=%d",__LINE__);
             if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
@@ -1036,7 +1049,9 @@ void CameraHal::nextPreview()
             }else{
 	            nCameraBuffersQueued++;
 			}
-        }else if ( nCameraBuffersQueued  < 4){ //make sure that the nCameraBuffersQueued never reaches 0.
+        }
+#if 0
+		else if ( nCameraBuffersQueued  < 4){ //make sure that the nCameraBuffersQueued never reaches 0.
 			LOGV("VIDIOC_QBUF, line=%d",__LINE__);
             if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
                 LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
@@ -1044,7 +1059,8 @@ void CameraHal::nextPreview()
 	            nCameraBuffersQueued++;
 			}
 		}
-		// WHY IS IT NECESSARY?
+#endif
+
         else if (overlaybufferindex != -1)
         {
 			LOGV("VIDIOC_QBUF, line=%d",__LINE__);		
@@ -1169,7 +1185,7 @@ void CameraHal::nextPreview()
             nCameraBuffersQueued++;
         }
 
-        if (overlaybufferindex != -1)
+        if (overlaybufferindex != -1)// until the overlay dequeues buffers succesfully start QCam buffs 
         {
             if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
                 LOGE("VIDIOC_QBUF Failed.");
@@ -1553,8 +1569,13 @@ int  CameraHal::ICapturePerform()
 
 #ifdef IMAGE_PROCESSING_PIPELINE  	
 #if 1
-	if(mippMode ==-1){
+	if(mippMode ==-1 && mMMSApp){
 		mippMode=IPP_Disabled_Mode;
+		mippMode=IPP_EdgeEnhancement_Mode;
+	}		
+
+	if(mippMode ==-1 && !mMMSApp){
+		mippMode=IPP_Disabled_Mode;	
 	}		
 #else 	
 	if(mippMode ==-1){
@@ -1777,9 +1798,15 @@ void CameraHal::vppThread(){
 				image_height = vppMessage[2];	
 
 				mParameters.getPreviewSize(&preview_width, &preview_height);
-		
-				snapshot_buffer = mOverlay->getBufferAddress( (void*)0 );
+				lastOverlayIndex=(++lastOverlayIndex)%4;
+				LOGD("lastOverlayIndex=%d",lastOverlayIndex);
 
+				if(mMMSApp){
+					snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayIndex) );
+				}else{
+					snapshot_buffer = mOverlay->getBufferAddress( (void*)(0) );
+				}
+	
 				PPM("BEFORE SCALED DOWN RAW IMAGE TO PREVIEW SIZE"); 
 				status = scale_process(yuv_buffer, image_width, image_height,
 						             snapshot_buffer, preview_width, preview_height);
@@ -1789,11 +1816,41 @@ void CameraHal::vppThread(){
 				PPM("SCALED DOWN RAW IMAGE TO PREVIEW");						
 
 				if(!mMMSApp){
-			    mOverlay->queueBuffer((void*)0);
-			    mOverlay->queueBuffer((void*)1);
-			    mOverlay->queueBuffer((void*)2);
+					mOverlay->queueBuffer((void*)(0)); //0
+					mOverlay->queueBuffer((void*)(1)); //1
+					mOverlay->queueBuffer((void*)(2)); //2
+
+					LOGD("AFTER QUEUE OVERLAY BUFFERS TO DISPLAY SNAPSHOT");
+#if 0
+					int tempIndex = lastOverlayIndex;
+					LOGD("Queue Overlay buffer=%d",tempIndex%4);
+					mOverlay->queueBuffer((void*)(tempIndex%4));
+					tempIndex++;
+					LOGD("Queue Overlay buffer=%d",tempIndex%4);
+						mOverlay->queueBuffer((void*)(tempIndex%4));
+					LOGD("Queue Overlay buffer=%d",lastOverlayIndex);
+					mOverlay->queueBuffer((void*)lastOverlayIndex);
+#endif
 				}
 				else{
+					int index;
+					for(index =0;index<4;index++){
+						LOGD("buffers_queued_to_dss[%d]=%d",index,buffers_queued_to_dss[index]);
+					}					
+					mOverlay->queueBuffer((void*)(lastOverlayIndex));
+					buffers_queued_to_dss[lastOverlayIndex]=1;
+					nOverlayBuffersQueued++;
+
+					mOverlay->dequeueBuffer(&overlaybuffer);
+					nOverlayBuffersQueued--;
+					LOGD("overlaybuffer=%d",overlaybuffer);
+					buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
+
+					for(index =0;index<4;index++){
+						LOGD("buffers_queued_to_dss[%d]=%d",index,buffers_queued_to_dss[index]);
+					}			
+
+#if 0
 					int index=0;
 					while(buffers_queued_to_dss[index%4] == 0){
 						LOGD("buffers_queued_to_dss[%d]=%d",index%4,buffers_queued_to_dss[index%4]);
@@ -1804,7 +1861,7 @@ void CameraHal::vppThread(){
 					while(nOverlayBuffersQueued < 3){
 						LOGD("qbuf=%d",index%4); 
 						if (mOverlay->queueBuffer((void*)(index%4)) < 0){
-							LOGD("qvideo buffer error");
+							LOGE("qvideo buffer error");
 						}
 						else{
 							buffers_queued_to_dss[index]=1;
@@ -1818,7 +1875,7 @@ void CameraHal::vppThread(){
 						nOverlayBuffersQueued--;
 						buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
 					}
-
+#endif
 					LOGD("nOverlayBuffersQueued=%d",nOverlayBuffersQueued);		
 				}
 
