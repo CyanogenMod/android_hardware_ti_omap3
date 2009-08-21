@@ -1764,6 +1764,7 @@ void CameraHal::vppThread(){
 	LOG_FUNCTION_NAME
 	
 	void* snapshot_buffer;
+	void* snapshot_buffer_temp;
 	int status;
     int image_width, image_height;
     int preview_width, preview_height;
@@ -1804,7 +1805,7 @@ void CameraHal::vppThread(){
 				if(mMMSApp){
 					snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayIndex) );
 				}else{
-					snapshot_buffer = mOverlay->getBufferAddress( (void*)(0) );
+					snapshot_buffer = mOverlay->getBufferAddress( (void*)(2) );
 				}
 	
 				PPM("BEFORE SCALED DOWN RAW IMAGE TO PREVIEW SIZE"); 
@@ -1818,9 +1819,12 @@ void CameraHal::vppThread(){
 				if(!mMMSApp){
 					mOverlay->queueBuffer((void*)(0)); //0
 					mOverlay->queueBuffer((void*)(1)); //1
+
+					//snapshot_buffer_temp = mOverlay->getBufferAddress( (void*)(2) ); //FIXME WORKAROUND
+					//memcpy(snapshot_buffer_temp,snapshot_buffer,preview_width*preview_height*2);
 					mOverlay->queueBuffer((void*)(2)); //2
 
-					LOGD("AFTER QUEUE OVERLAY BUFFERS TO DISPLAY SNAPSHOT");
+					LOGD("AFTER QUEUE OVERLAY BUFFERS TO DISPLAY SNAPSHOT!!");
 #if 0
 					int tempIndex = lastOverlayIndex;
 					LOGD("Queue Overlay buffer=%d",tempIndex%4);
