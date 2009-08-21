@@ -733,11 +733,6 @@ int CameraHal::CameraStart()
 
     LOG_FUNCTION_NAME
 
-//	if (!mMMSApp){
-//		sleep(2);
-//		mfirstTime++;		
-//	}
-
     nCameraBuffersQueued = 0;  
 
     mParameters.getPreviewSize(&w, &h);
@@ -885,7 +880,7 @@ void CameraHal::nextPreview()
 	//LOG_FUNCTION_NAME
 	
 	if (mMMSApp && !mfirstTime){
-		sleep(2);
+		sleep(3);
 		mfirstTime++;		
 	}
 
@@ -1607,19 +1602,20 @@ int  CameraHal::ICapturePerform()
 			LOGE("ERROR ippMode unsupported");
 			return -1;
 		}		
-		
+		PPM("Before init IPP");
+
 		err = InitIPP(image_width,image_height);
 		if( err ) {
 			LOGE("ERROR InitIPP() failed");	
 			return -1;	   
 		}
-		PPM("IPP Init Done");
+		PPM("After IPP Init");
 		err = PopulateArgsIPP(image_width,image_height);
 		if( err ) {
 			LOGE("ERROR PopulateArgsIPP() failed");		   
 			return -1;
 		} 
-		PPM("IPP PopulateArgs Done");
+		PPM("BEFORE IPP Process Buffer");
 		
 		LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
 		err = ProcessBufferIPP(yuv_buffer, yuv_len,
@@ -1632,6 +1628,7 @@ int  CameraHal::ICapturePerform()
 			LOGE("ERROR ProcessBufferIPP() failed");		   
 			return -1;
 		}
+		PPM("AFTER IPP Process Buffer");
 
 		if(pIPP.hIPP != NULL){
 			err = DeInitIPP();
@@ -1642,7 +1639,7 @@ int  CameraHal::ICapturePerform()
 			pIPP.hIPP = NULL;
 		}
 
-	PPM("IPP ProcessBuffer Done");
+	PPM("AFTER IPP Deinit");
    	if(!(pIPP.ippconfig.isINPLACE)){ 
 		yuv_buffer = pIPP.pIppOutputBuffer;
 	}
@@ -1686,7 +1683,7 @@ int  CameraHal::ICapturePerform()
 #if JPEG
     err = 0;    
     
-	PPM("BEFORE ENCODE IMAGE");	
+	PPM("BEFORE JPEG Encode Image");	
 	LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	     
     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
                                  image_width, image_height, quality,mippMode)))
@@ -1695,7 +1692,7 @@ int  CameraHal::ICapturePerform()
         LOGE("JPEG Encoding failed");
     }
 
-    PPM("AFTER ENCODE IMAGE");
+    PPM("AFTER JPEG Encode Image");
     mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, jpeg_offset, jpegEncoder->jpegSize);
 #endif
 
@@ -1708,12 +1705,10 @@ int  CameraHal::ICapturePerform()
 #endif
 
     }
+	PPM("AFTER SAVING JPEG FILE");
 
-#if JPEG 
-	PPM("CALLED JPEG CALLBACK");
-    LOGD("jpegEncoder->jpegSize=%d jpegSize=%d",jpegEncoder->jpegSize,jpegSize);
-
-    PPM("SAVED ENCODED FILE TO DISK");
+#if JPEG 	
+    LOGD("jpegEncoder->jpegSize=%d jpegSize=%d",jpegEncoder->jpegSize,jpegSize);   
 
     mJPEGPictureMemBase.clear();		
     mJPEGPictureHeap.clear();

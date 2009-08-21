@@ -1372,10 +1372,10 @@ int CameraHal::CapturePicture(){
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
-		PPM("BEFORE JPEGEnc");
+		PPM("BEFORE JPEG Encode Image");
 		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	  
         jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
-		PPM("AFTER JPEGEnc");
+		PPM("AFTER JPEG Encode Image");
 
 		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
@@ -1383,7 +1383,7 @@ int CameraHal::CapturePicture(){
             mJpegPictureCallback(mJPEGPictureMemBase, mPictureCallbackCookie); 
         }
 
-		PPM("AFTER SAVING PICTURE");
+		PPM("AFTER SAVING JPEG FILE");
         mJPEGPictureMemBase.clear();		
         mJPEGPictureHeap.clear();
 #else
