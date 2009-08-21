@@ -433,7 +433,7 @@ private:
     struct timeval focus_before, focus_after;
     struct timeval ppm_before, ppm_after;
     struct timeval ipp_before, ipp_after;
-
+	int lastOverlayIndex;
 #ifdef CAMERA_ALGO
     struct timeval algo_before, algo_after;
     int lastOverlayIndex;
