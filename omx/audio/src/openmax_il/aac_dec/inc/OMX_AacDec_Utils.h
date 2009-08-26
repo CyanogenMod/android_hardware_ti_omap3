@@ -424,7 +424,7 @@
  *
  */
 /* ======================================================================= */
-#define AACD_OUTPUT_BUFFER_SIZE 8192*10
+#define AACD_OUTPUT_BUFFER_SIZE 8192*2
 /* ======================================================================= */
 /**
  * @def    AACD_SAMPLING_FREQUENCY   Sampling frequency
