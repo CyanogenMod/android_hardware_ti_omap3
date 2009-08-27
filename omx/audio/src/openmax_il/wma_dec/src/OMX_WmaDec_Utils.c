@@ -1941,7 +1941,7 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
     LCML_WMADEC_BUFHEADERTYPE *pLcmlHdr;
     WMADEC_COMPONENT_PRIVATE *pComponentPrivate_CC = NULL;      
     OMX_COMPONENTTYPE *pHandle                                     = NULL;
-
+    OMX_U8 pending_buffers = OMX_FALSE;
 #ifdef WMADEC_DEBUG
     LCML_DSP_INTERFACE *phandle;
 #endif
@@ -2288,6 +2288,7 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
         {
             OMX_PRDSP2(pComponentPrivate_CC->dbg, "%d :: GOT MESSAGE IUALG_WARN_PLAYCOMPLETED\n",
                           __LINE__);
+
             for (i=0; i < pComponentPrivate_CC->pOutputBufferList->numBuffers; i++) {
                 if (WMADEC_IsPending(pComponentPrivate_CC,pComponentPrivate_CC->pOutputBufferList->pBufHdr[i],OMX_DirOutput)) {
                     pComponentPrivate_CC->lastout = pComponentPrivate_CC->pOutputBufferList->pBufHdr[i];
@@ -2309,14 +2310,24 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
                                                                  pComponentPrivate_CC->pHandle->pApplicationPrivate,
                                                                  pComponentPrivate_CC->pOutputBufferList->pBufHdr[i]);
                     pComponentPrivate_CC->nOutStandingFillDones++;
+                    pending_buffers = OMX_TRUE;
+                }else{
+                  if((i == pComponentPrivate_CC->pOutputBufferList->numBuffers-1) && !pending_buffers){
+                    /*is last iteration and no pending buffers were found*/
+                    pending_buffers = OMX_FALSE;
+                  }
                 }
-
             }
-            if(pComponentPrivate_CC->dasfmode == 0)
+            if(!pComponentPrivate_CC->dasfmode)
             {
-                pComponentPrivate_CC->LastOutputBufferHdrQueued->nFlags |= 
-                    OMX_BUFFERFLAG_EOS;
-
+              if(!pending_buffers){
+                /*turning on EOS on last buffer queued (extra check)*/
+                    pComponentPrivate_CC->LastOutputBufferHdrQueued->nFlags |=
+                      OMX_BUFFERFLAG_EOS;
+                    pComponentPrivate_CC->cbInfo.FillBufferDone (pComponentPrivate_CC->pHandle,
+                                                                     pComponentPrivate_CC->pHandle->pApplicationPrivate,
+                                                                     pComponentPrivate_CC->LastOutputBufferHdrQueued);
+                                                                     }
                 pComponentPrivate_CC->cbInfo.EventHandler(
                                                           pComponentPrivate_CC->pHandle,
                                                           pComponentPrivate_CC->pHandle->pApplicationPrivate,
@@ -2336,6 +2347,7 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
 #endif              
             }
         }
+        pComponentPrivate_CC->first_buffer = 1;
     }
     
     if(event == EMMCodecDspMessageRecieved) {
