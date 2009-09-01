@@ -2624,6 +2624,32 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
         OMX_ERROR2(pComponentPrivate->dbg, ":: --------- EMMCodecDspError Here\n");
         if(((int)args[4] == USN_ERR_WARNING) && ((int)args[5] == IUALG_WARN_PLAYCOMPLETED)) {
             OMX_ERROR4(pComponentPrivate->dbg, "IUALG_WARN_PLAYCOMPLETED!\n");
+#ifndef UNDER_CE
+            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+                                                   pComponentPrivate->pHandle->pApplicationPrivate,
+                                                   OMX_EventBufferFlag,
+                                                   MP3D_OUTPUT_PORT,
+                                                   OMX_BUFFERFLAG_EOS,
+                                                   NULL);
+            if(pComponentPrivate->dasfmode){
+                pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+                                                       pComponentPrivate->pHandle->pApplicationPrivate,
+                                                       OMX_EventBufferFlag,
+                                                       MP3D_INPUT_PORT,
+                                                       OMX_BUFFERFLAG_EOS,
+                                                       NULL);
+            }
+            pComponentPrivate->pLcmlBufHeader[0]->pIpParam->bLastBuffer = 0;
+
+#else
+            /* add callback to application to indicate SN/USN has completed playing of current set of data */
+            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+                                                   pComponentPrivate->pHandle->pApplicationPrivate,
+                                                   OMX_EventBufferFlag,
+                                                   MP3D_INPUT_PORT,
+                                                   OMX_BUFFERFLAG_EOS,
+                                                   NULL);
+#endif
 ///incase any pending output buffers, clear them
             for (i=0; i < pComponentPrivate->pOutputBufferList->numBuffers; i++) {
                 if (MP3DEC_IsPending(pComponentPrivate,pComponentPrivate->pOutputBufferList->pBufHdr[i],OMX_DirOutput)) {
@@ -2651,32 +2677,6 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                 }
             }
 //
-#ifndef UNDER_CE
-            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                                   pComponentPrivate->pHandle->pApplicationPrivate,
-                                                   OMX_EventBufferFlag,
-                                                   OMX_DirOutput,
-                                                   OMX_BUFFERFLAG_EOS,
-                                                   NULL);
-            if(pComponentPrivate->dasfmode){
-                pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                                       pComponentPrivate->pHandle->pApplicationPrivate,
-                                                       OMX_EventBufferFlag,
-                                                       (OMX_U32)NULL,
-                                                       OMX_BUFFERFLAG_EOS,
-                                                       NULL);
-            }
-            pComponentPrivate->pLcmlBufHeader[0]->pIpParam->bLastBuffer = 0;
-
-#else
-            /* add callback to application to indicate SN/USN has completed playing of current set of date */
-            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,                  
-                                                   pComponentPrivate->pHandle->pApplicationPrivate,
-                                                   OMX_EventBufferFlag,
-                                                   (OMX_U32)NULL,
-                                                   OMX_BUFFERFLAG_EOS,
-                                                   NULL);
-#endif
         }
 
         if((int)args[5] == IUALG_WARN_CONCEALED) {
