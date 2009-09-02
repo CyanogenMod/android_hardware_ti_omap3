@@ -161,6 +161,7 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
     }
 
     if (mUseOverlay) {
+        int ret;
         int i;
         for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
             if (mbufferAlloc.buffer_address[i] == aData) {
@@ -174,7 +175,16 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
         }
         LOGV("queueBuffer %d\n", i);
         bufEnc = i;
-        mOverlay->queueBuffer((void*)bufEnc);
+
+        /* This is to reset the buffer queue when stream_off is called as
+         * all the buffers are flushed when stream_off is called.
+         */
+        ret = mOverlay->queueBuffer((void*)bufEnc);
+        if (ret == ALL_BUFFERS_FLUSHED) {
+            mIsFirstFrame = true;
+            mOverlay->queueBuffer((void*)bufEnc);
+        }
+
         overlay_buffer_t overlay_buffer;
 
         /* This is to prevent dequeueBuffer to be called before the first
@@ -183,7 +193,10 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
          */
         if (!mIsFirstFrame)
         {
-            if (mOverlay->dequeueBuffer(&overlay_buffer) != NO_ERROR) {
+            ret = mOverlay->dequeueBuffer(&overlay_buffer);
+            if (ret != NO_ERROR) {
+                if (ret == ALL_BUFFERS_FLUSHED)
+                    mIsFirstFrame = true;
                 LOGE("Video (34xx)MIO dequeue buffer failed");
                 return false;
             }

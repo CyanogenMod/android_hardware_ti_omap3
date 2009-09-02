@@ -42,4 +42,6 @@ typedef struct
   void *ptr;
 } mapping_data_t;
 
+#define ALL_BUFFERS_FLUSHED -66
+
 #endif  // ANDROID_ZOOM_REPO_HARDWARE_TI_OMAP3_LIBOVERLAY_V4L2_UTILS_H_
