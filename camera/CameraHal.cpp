@@ -360,7 +360,10 @@ void CameraHal::previewThread()
 
                 if( !err ){
                     LOGD("Preview Started!");
-                    mPreviewRunning = true;
+                    if(mOverlay != NULL)
+                    {
+                        mPreviewRunning = true;
+                    }
                 }
 
                 previewThreadAckQ.put(&msg);
@@ -743,6 +746,7 @@ int CameraHal::CameraStart()
     }
     else{
 	LOGD("WARNING, mOverlay is NULL!!");
+            return 0;
     }
   
     mPreviewFrameSize = w * h * 2;
@@ -1084,6 +1088,11 @@ void CameraHal::nextPreview()
     int overlaybufferindex = -1;
     int index;
     recording_callback cb = NULL;
+
+    if(mOverlay == NULL){
+//        LOGD("mOverlay == NULL!!");
+        return;
+    }
 
     mParameters.getPreviewSize(&w, &h);
 
@@ -2080,6 +2089,11 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     {
         LOGE("Trying to set overlay, but overlay is null!");
     }
+
+// Restart the preview (Only for Overlay Case)
+    LOGD("Restart the preview ");
+    startPreview(NULL,NULL);
+
 	LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
