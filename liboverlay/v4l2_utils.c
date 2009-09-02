@@ -577,11 +577,6 @@ int v4l2_overlay_stream_on(int fd)
     int ret;
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 
-    ret = v4l2_overlay_set_global_alpha( fd, 1, 51 );
-
-    if (ret)
-        return ret;
-
     ret = v4l2_overlay_ioctl(fd, VIDIOC_STREAMON, &type, "stream on");
 
     return ret;
@@ -593,11 +588,6 @@ int v4l2_overlay_stream_off(int fd)
 
     int ret;
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-
-    ret = v4l2_overlay_set_global_alpha( fd, 0, 0 );
-
-    if (ret)
-        return ret;
 
     ret = v4l2_overlay_ioctl(fd, VIDIOC_STREAMOFF, &type, "stream off");
 
