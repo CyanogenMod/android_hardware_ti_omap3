@@ -28,52 +28,6 @@
 
 namespace android {
 
-
-int CameraHal::CameraSetFrameRate()
-{
-    int framerate;
-    int err;   
-    struct v4l2_streamparm parm;
-
-    LOG_FUNCTION_NAME   
-
-    framerate = mParameters.getPreviewFrameRate();
- 
-    LOGD("CameraSetFrameRate: framerate=%d",framerate);
-
-	parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-#if 1    
-    err = ioctl(camera_device, VIDIOC_G_PARM, &parm);
-    if(err != 0) {
-		LOGD("ERROR VIDIOC_G_PARM ");
-		return -1;
-    }
-    
-    LOGD("Old frame rate is %d/%d  fps\n",
-		parm.parm.capture.timeperframe.denominator,
-		parm.parm.capture.timeperframe.numerator);
-#endif
-#if 1
-	parm.parm.capture.timeperframe.numerator = 1;
-	parm.parm.capture.timeperframe.denominator = framerate;
-	err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
-	if(err != 0) {
-		LOGE("ERROR VIDIOC_S_PARM ");
-		return -1;
-	}
-#endif
-    
-    LOGI("CameraSetFrameRate Preview fps:%d/%d",parm.parm.capture.timeperframe.denominator,parm.parm.capture.timeperframe.numerator);
-
-    LOG_FUNCTION_NAME_EXIT
-    return 0;
-
-s_fmt_fail:
-    return -1;
-}
-
-
-
 #ifdef FW3A
 int CameraHal::FW3A_Create()
 {
@@ -167,6 +121,11 @@ int CameraHal::FW3A_Start()
     int ret;
 
     LOG_FUNCTION_NAME
+
+    if(mOverlay == NULL){
+        LOGD("WARNING, mOverlay is NULL!!");
+        return 0;
+    }
 
     if (isStart_FW3A!=0) {
         LOGE("3A FW is already started");

@@ -45,7 +45,6 @@
 #define JPEG 1
 #define VPP 1
 #define VPP_THREAD 1
-#define VPP_INIT_WORKAROND 0
 
 //#undef FW3A
 //#undef ICAP

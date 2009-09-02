@@ -331,19 +331,6 @@ void CameraHal::previewThread()
 					}                   
                     
                     PPM("PREVIEW STARTED AFTER CAPTURING");
-#ifdef FW3A
-				
-#if 0
-
-		                if (isStart_FW3A_CAF == 0){
-							if (FW3A_Start_CAF() < 0){
-								LOGE("ERRORFW3A_Start_CAF()");
-								err= -1;
-							}                                      
-		                }
-#endif
-				
-#endif
 
 #ifdef CAMERA_ALGO
 		            if( initAlgos() < 0 )
@@ -572,29 +559,6 @@ void CameraHal::previewThread()
             }
             break;
 
-			case PREVIEW_FPS:{
-				enum v4l2_buf_type type;
-			    struct v4l2_requestbuffers creqbuf;
-				LOGD("Receive Command: PREVIEW_FPS");
-	
-				if(mPreviewRunning){
-			    	creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-					if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
-					    LOGE("VIDIOC_STREAMOFF Failed");
-					}
-					LOGD("After VIDIOC_STREAMOFF");
-					CameraSetFrameRate();	
-					type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-					err = ioctl(camera_device, VIDIOC_STREAMON, &type);
-					if ( err < 0) {
-						LOGE("VIDIOC_STREAMON Failed");
-					}					
-					LOGD("After VIDIOC_STREAMON");
-				}
-	
-			}
-			break;
-
             case PREVIEW_KILL:
             {
                 LOGD("Receive Command: PREVIEW_KILL");
@@ -689,10 +653,13 @@ int CameraHal::CameraDestroy()
 
 int CameraHal::CameraConfigure()
 {
-    int w, h;
+    int w, h, framerate;
     int image_width, image_height;
     int err;
-    struct v4l2_format format;   
+    struct v4l2_format format;
+    enum v4l2_buf_type type;
+    struct v4l2_control vc;
+    struct v4l2_streamparm parm;
 
     LOG_FUNCTION_NAME
 
@@ -710,12 +677,32 @@ int CameraHal::CameraConfigure()
         goto s_fmt_fail;
     }
 
-	err = CameraSetFrameRate();
-	if (err){
-		LOGE("Error in setting Camera frame rate");
-	}
-
     LOGI("CameraConfigure PreviewFormat: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);	
+
+    framerate = mParameters.getPreviewFrameRate();
+    
+    LOGD("CameraConfigure: framerate to set = %d",framerate);
+  
+    parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    err = ioctl(camera_device, VIDIOC_G_PARM, &parm);
+    if(err != 0) {
+		LOGD("VIDIOC_G_PARM ");
+		return -1;
+    }
+    
+    LOGD("CameraConfigure: Old frame rate is %d/%d  fps",
+		parm.parm.capture.timeperframe.denominator,
+		parm.parm.capture.timeperframe.numerator);
+  
+	parm.parm.capture.timeperframe.numerator = 1;
+	parm.parm.capture.timeperframe.denominator = framerate;
+	err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
+	if(err != 0) {
+		LOGE("VIDIOC_S_PARM ");
+		return -1;
+	}
+    
+    LOGI("CameraConfigure: New frame rate is %d/%d fps",parm.parm.capture.timeperframe.denominator,parm.parm.capture.timeperframe.numerator);
 
     LOG_FUNCTION_NAME_EXIT
     return 0;
@@ -845,21 +832,6 @@ int CameraHal::CameraStop()
         goto fail_streamoff;
     }
 
-#if 0
-    overlay_buffer_t overlaybuffer;
-    while (nOverlayBuffersQueued > 1)
-    {
-        mOverlay->dequeueBuffer(&overlaybuffer);
-        nOverlayBuffersQueued--;
-        buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
-    }
-	
-	for(int i = 0; i < mOverlay->getBufferCount(); i++)
-	{
-	  LOGD("buffers_queued_to_dss[%d]=%d ",i,  buffers_queued_to_dss[i]);
-	}
-#endif
-
     LOG_FUNCTION_NAME_EXIT
     return 0;
 
@@ -868,8 +840,6 @@ fail_streamoff:
     return -1;
 }
 
-
-#ifdef FW3A
 void CameraHal::nextPreview()
 {
     struct v4l2_buffer cfilledbuffer;
@@ -882,17 +852,15 @@ void CameraHal::nextPreview()
     recording_callback cb = NULL;
 	
 	//LOG_FUNCTION_NAME
-	
-	if (mMMSApp && !mfirstTime){
-		sleep(3);
-		mfirstTime++;		
-	}
+
+    if(mOverlay == NULL){
+    	LOGD("mOverlay == NULL!!");
+        return;
+    }
 
     mParameters.getPreviewSize(&w, &h);	
 
-    /* De-queue the next avaliable buffer */
-
-	LOGV("nCameraBuffersQueued=%d",nCameraBuffersQueued);    
+    /* De-queue the next avaliable buffer */	
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
         LOGE("VIDIOC_DQBUF Failed!!!");
 		goto EXIT;
@@ -937,51 +905,30 @@ void CameraHal::nextPreview()
 #endif
 
 	lastOverlayIndex = cfilledbuffer.index; 
-    // Notify overlay of a new frame.	
-	//LOGD("buffers_queued_to_dss[%d]=%d",cfilledbuffer.index,buffers_queued_to_dss[cfilledbuffer.index]);
-	//if(buffers_queued_to_dss[cfilledbuffer.index] == 0){//it should not affect, enabled it at the end and see if it works
-
-	for(int index =0;index<4;index++){
-		//LOGD("buffers_queued_to_dss[%d]=%d",index,buffers_queued_to_dss[index]);
-	}			
-
-	LOGV("OVERLAY buffer queued=%d",lastOverlayIndex);
-		queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
-		if (queue_to_dss_failed < 0)
-		{
-			LOGE("mOverlay->queueBuffer() failed. May be the buffer was already queued. ERROR=%d nBuffQueued=%d",queue_to_dss_failed,nOverlayBuffersQueued);
-		}
-		else
-		{
-		    nOverlayBuffersQueued++;
-		    buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
-			//LOGD("Overlay QBuf count=%d Camera QBuf count=%d",queue_to_dss_failed,nOverlayBuffersQueued);
-		
-			if(nOverlayBuffersQueued != queue_to_dss_failed){//if streaming turns off, set to zero the following 3 buffers
-				nOverlayBuffersQueued=queue_to_dss_failed;
-				for(int index=1; index<4; index++){
-					LOGD("Buffer[%d]=0",(cfilledbuffer.index +index)%4);
-					buffers_queued_to_dss[((cfilledbuffer.index +index)%4)]=0;
-				}
-				//overlaybufferindex= -1;
-				LOGD("Syncronizing camera buffer count with overlay buffer count =%d",nOverlayBuffersQueued);
-			}
-
-		}
-	//}
+  
+    LOGV("OVERLAY buffer queued=%d",lastOverlayIndex);
+    queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
+    if (queue_to_dss_failed)
+	{
+		LOGE("nextPreview(): mOverlay->queueBuffer() failed");
+	}
+	else
+	{
+	    nOverlayBuffersQueued++;
+	    buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
+	}
 
     if (nOverlayBuffersQueued >= nBuffToStartDQ)
     {
-		//LOGD("DQUE");
+		
         if(mOverlay->dequeueBuffer(&overlaybuffer)){
-			LOGE("DQUE display buffer error**************************************************************************");
+			LOGE("nextPreview(): mOverlay->dequeueBuffer() failed");
 		}
 		else{
         	overlaybufferindex = (int)overlaybuffer;
        		nOverlayBuffersQueued--;
-        	buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
-		//	LOGD("DQUEUE OK nOverlayBuffersQueued=%d ",nOverlayBuffersQueued);
-		}
+            buffers_queued_to_dss[(int)overlaybuffer] = 0;		
+        }
     }
     else
     {
@@ -1006,26 +953,14 @@ void CameraHal::nextPreview()
             }
         }
 
-        if (queue_to_dss_failed< 0)// if the que
-        {
-			LOGD("VIDIOC_QBUF, line=%d",__LINE__);
+        if (queue_to_dss_failed) {		
             if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
                 LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
             }else{
 	            nCameraBuffersQueued++;
 			}
-        }else if ( nCameraBuffersQueued  < 4){ //make sure that the nCameraBuffersQueued never reaches 0.
-			LOGV("VIDIOC_QBUF, line=%d",__LINE__);
-            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
-            }else{
-	            nCameraBuffersQueued++;
-			}
-		}
-		// WHY IS IT NECESSARY?
-        else if (overlaybufferindex != -1)
-        {
-			LOGV("VIDIOC_QBUF, line=%d",__LINE__);		
+        }
+        else if (overlaybufferindex != -1) {				
             if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
                 LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
             }else{
@@ -1039,193 +974,28 @@ void CameraHal::nextPreview()
 #endif
     } 
     else {
-
-        if (queue_to_dss_failed< 0)
-        {
-			LOGV("VIDIOC_QBUF, line=%d",__LINE__);
+        if (queue_to_dss_failed) {			
             if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
                 LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
             }else{
 	            nCameraBuffersQueued++;
 			}
         }
-#if 0
-		else if ( nCameraBuffersQueued  < 4){ //make sure that the nCameraBuffersQueued never reaches 0.
-			LOGV("VIDIOC_QBUF, line=%d",__LINE__);
-            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
-            }else{
-	            nCameraBuffersQueued++;
-			}
-		}
-#endif
-
-        else if (overlaybufferindex != -1)
-        {
-			LOGV("VIDIOC_QBUF, line=%d",__LINE__);		
+        else if (overlaybufferindex != -1) {		
             if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
                 LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
             }else{
 	            nCameraBuffersQueued++;
 			}
         }
-
     }
+
     mRecordingLock.unlock();
 
 EXIT:
 
     return ;
 }
-#else
-void CameraHal::nextPreview()
-{
-    struct v4l2_buffer cfilledbuffer;
-    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-    int w, h, ret, queue_to_dss_failed;
-    overlay_buffer_t overlaybuffer;
-    int overlaybufferindex = -1;
-    int index;
-    recording_callback cb = NULL;
-
-    if(mOverlay == NULL){
-//        LOGD("mOverlay == NULL!!");
-        return;
-    }
-
-    mParameters.getPreviewSize(&w, &h);
-
-    /* De-queue the next avaliable buffer */
-    nCameraBuffersQueued--;
-    if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
-        LOGE("VIDIOC_DQBUF Failed!!!");
-		goto EXIT;
-    }
-
-#ifdef CAMERA_ALGO
-	int delay;
-    AMFPAF_FACERES *faces;
-    
-    gettimeofday(&algo_before, 0);
-    faces = camAlgos->detectFaces( (uint8_t *) cfilledbuffer.m.userptr);
-    gettimeofday(&algo_after, 0);
-    delay = (algo_after.tv_sec - algo_before.tv_sec)*1000;
-    delay += (algo_after.tv_usec - algo_before.tv_usec)/1000;
-    //LOGD("Facetracking Completed in %d [msec.]", delay);
-
-    if( faces->nFace != 0){
-        for( int i = 0; i < faces->nFace; i++){
-            drawRect( (uint8_t *) cfilledbuffer.m.userptr, FOCUS_RECT_GREEN,  faces->rcFace[i].left, faces->rcFace[i].top, faces->rcFace[i].right, faces->rcFace[i].bottom, w, h);
-        }
-    }
-    
-    lastOverlayIndex = cfilledbuffer.index;
-#endif
-
-#ifdef FW3A
-#ifdef FOCUS_RECT
-	/* Setting the color before driving the rectangle */
-	if (focus_rect_set) {
-		if(AF_STATUS_RUNNING == fobj->status_2a.af.status)
-			focus_rect_color = FOCUS_RECT_WHITE;
-		else if (AF_STATUS_SUCCESS == fobj->status_2a.af.status)
-			focus_rect_color = FOCUS_RECT_GREEN;
-		else if (AF_STATUS_FAIL == fobj->status_2a.af.status)
-			focus_rect_color = FOCUS_RECT_RED;
-
-		drawRect( (uint8_t *) cfilledbuffer.m.userptr, focus_rect_color,  220, 180, 440, 340, w, h);
-	}
-#endif
-#endif
- 
-    // Notify overlay of a new frame.	
-    queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
-    if (queue_to_dss_failed)
-    {
-        LOGD("mOverlay->queueBuffer() failed. May be bcos stream was not turned on yet. So try again");
-    }
-    else
-    {
-        nOverlayBuffersQueued++;
-        buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
-    }
-
-    if (nOverlayBuffersQueued >= nBuffToStartDQ)
-    {
-        mOverlay->dequeueBuffer(&overlaybuffer);
-        overlaybufferindex = (int)overlaybuffer;
-        nOverlayBuffersQueued--;
-        buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
-    }
-    else
-    {
-        //cfilledbuffer.index = whatever was in there before..
-        //That is, queue the same buffer that was dequeued
-    }
-
-    mRecordingLock.lock();
-    cb = mRecordingCallback;
-
-    if(cb){
-
-#if USE_MEMCOPY_FOR_VIDEO_FRAME
-        for(int i = 0 ; i < VIDEO_FRAME_COUNT_MAX; i++ ){
-            if(0 == mVideoBufferUsing[i]){
-                memcpy(mVideoBuffer[i]->pointer(),(void *)cfilledbuffer.m.userptr, mRecordingFrameSize);
-                mVideoBufferUsing[i] = 1;
-                cb(0, mVideoBuffer[i], mRecordingCallbackCookie);
-                break;
-            }else {
-                LOGD("No Buffer Can be used!");
-            }
-        }
-
-        if (queue_to_dss_failed)
-        {
-            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                LOGE("VIDIOC_QBUF Failed.");
-            }
-            nCameraBuffersQueued++;
-        }
-
-        if (overlaybufferindex != -1)// until the overlay dequeues buffers succesfully start QCam buffs 
-        {
-            if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
-                LOGE("VIDIOC_QBUF Failed.");
-            }
-            nCameraBuffersQueued++;
-        }
-
-#else
-        memcpy(&mfilledbuffer[cfilledbuffer.index],&cfilledbuffer,sizeof(v4l2_buffer));
-        cb(0, mVideoBuffer[cfilledbuffer.index], mRecordingCallbackCookie);
-#endif
-    } 
-    else {
-
-        if (queue_to_dss_failed)
-        {
-            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                LOGE("VIDIOC_QBUF Failed.");
-            }
-            nCameraBuffersQueued++;
-        }
-        if (overlaybufferindex != -1)
-        {
-            if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
-                LOGE("VIDIOC_QBUF Failed.");
-            }
-            nCameraBuffersQueued++;
-        }
-    }
-    mRecordingLock.unlock();
-
-EXIT:
-
-    return ;
-}
-#endif //FW3A
 	
 #ifdef ICAP
 int  CameraHal::ICapturePerform()
@@ -1424,15 +1194,7 @@ int  CameraHal::ICapturePerform()
     offset = base - (unsigned long)mJPEGPictureHeap->getBase();
     outBuffer = (uint8_t *) base;
 
-#if VPP    
-
-#if VPP_INIT_WORKAROND    
-    if( scale_init() ) {
-        LOGE("scale_init() failed");
-        scale_deinit();
-    }
-    LOGD("scale_init() OK");
-#endif
+#if VPP
 
 #if RESIZER
     
@@ -1510,20 +1272,6 @@ int  CameraHal::ICapturePerform()
     PPM("CLOSED AND REOPENED CAMERA");
 #endif	
 
-	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len); 
-
-    //When a snapshot is taken, Surface Flinger indirectly calls streamoff on overlay
-    //which implies that all the overlay buffers will be dequeued.
-    //So, update our status accordingly
-	if(!mMMSApp){
-		LOGD("mMMSApp=========================%d",mMMSApp);
-		nOverlayBuffersQueued = 0;
-		for(int i = 0; i < mOverlay->getBufferCount(); i++)
-		{
-		    buffers_queued_to_dss[i] = 0;
-		}
-	}
-
 #ifdef HARDWARE_OMX
 #if VPP
 #if VPP_THREAD
@@ -1561,10 +1309,6 @@ int  CameraHal::ICapturePerform()
 	PPM("DISPLAYED RAW IMAGE ON SCREEN");
 
 #endif //VPP_THREAD
-
-#if VPP_INIT_WORKAROND
-	scale_deinit();
-#endif
 
 #endif //VPP
 #endif //HARDWARE_OMX
@@ -1806,11 +1550,7 @@ void CameraHal::vppThread(){
 				lastOverlayIndex=(++lastOverlayIndex)%4;
 				LOGD("lastOverlayIndex=%d",lastOverlayIndex);
 
-				if(mMMSApp){
-					snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayIndex) );
-				}else{
-					snapshot_buffer = mOverlay->getBufferAddress( (void*)(2) );
-				}
+				snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayIndex) );
 	
 				PPM("BEFORE SCALED DOWN RAW IMAGE TO PREVIEW SIZE"); 
 				status = scale_process(yuv_buffer, image_width, image_height,
@@ -1820,78 +1560,25 @@ void CameraHal::vppThread(){
 				 
 				PPM("SCALED DOWN RAW IMAGE TO PREVIEW");						
 
-				if(!mMMSApp){
-					mOverlay->queueBuffer((void*)(0)); //0
-					mOverlay->queueBuffer((void*)(1)); //1
+				error = mOverlay->queueBuffer((void*)(lastOverlayIndex)); //0
+                if (error){
+    				LOGE("mOverlay->queueBuffer() failed!!!!");
+                }
+                else{
+                    buffers_queued_to_dss[lastOverlayIndex]=1;
+                    nOverlayBuffersQueued++;
+                }
 
-					//snapshot_buffer_temp = mOverlay->getBufferAddress( (void*)(2) ); //FIXME WORKAROUND
-					//memcpy(snapshot_buffer_temp,snapshot_buffer,preview_width*preview_height*2);
-					mOverlay->queueBuffer((void*)(2)); //2
+                error = mOverlay->dequeueBuffer(&overlaybuffer);
+                if(error){
+                    LOGE("mOverlay->dequeueBuffer() failed!!!!");
+                }
+                else{
+                    nOverlayBuffersQueued--;
+                    buffers_queued_to_dss[(int)overlaybuffer] = 0;
+	            }				
 
-					LOGD("AFTER QUEUE OVERLAY BUFFERS TO DISPLAY SNAPSHOT!!");
-#if 0
-					int tempIndex = lastOverlayIndex;
-					LOGD("Queue Overlay buffer=%d",tempIndex%4);
-					mOverlay->queueBuffer((void*)(tempIndex%4));
-					tempIndex++;
-					LOGD("Queue Overlay buffer=%d",tempIndex%4);
-						mOverlay->queueBuffer((void*)(tempIndex%4));
-					LOGD("Queue Overlay buffer=%d",lastOverlayIndex);
-					mOverlay->queueBuffer((void*)lastOverlayIndex);
-#endif
-				}
-				else{
-					int index;
-					for(index =0;index<4;index++){
-						LOGD("buffers_queued_to_dss[%d]=%d",index,buffers_queued_to_dss[index]);
-					}					
-					mOverlay->queueBuffer((void*)(lastOverlayIndex));
-					buffers_queued_to_dss[lastOverlayIndex]=1;
-					nOverlayBuffersQueued++;
-
-					mOverlay->dequeueBuffer(&overlaybuffer);
-					nOverlayBuffersQueued--;
-					LOGD("overlaybuffer=%d",overlaybuffer);
-					buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
-
-					for(index =0;index<4;index++){
-						LOGD("buffers_queued_to_dss[%d]=%d",index,buffers_queued_to_dss[index]);
-					}			
-
-#if 0
-					int index=0;
-					while(buffers_queued_to_dss[index%4] == 0){
-						LOGD("buffers_queued_to_dss[%d]=%d",index%4,buffers_queued_to_dss[index%4]);
-						index++;
-					}
-					LOGD("Last qbuf=%d, nOverlayBuffersQueued=%d",index, nOverlayBuffersQueued);
-					index=(++index)%4;					
-					while(nOverlayBuffersQueued < 3){
-						LOGD("qbuf=%d",index%4); 
-						if (mOverlay->queueBuffer((void*)(index%4)) < 0){
-							LOGE("qvideo buffer error");
-						}
-						else{
-							buffers_queued_to_dss[index]=1;
-							index=(index++)%4;
-							nOverlayBuffersQueued++;
-						}
-					}
-					while (nOverlayBuffersQueued > 1)
-					{
-						mOverlay->dequeueBuffer(&overlaybuffer);
-						nOverlayBuffersQueued--;
-						buffers_queued_to_dss[(int)overlaybuffer] = 0; //dequeued
-					}
-#endif
-					LOGD("nOverlayBuffersQueued=%d",nOverlayBuffersQueued);		
-				}
-
-				PPM("DISPLAYED SNAPSHOT ON THE SCREEN");
-
-				#if VPP_INIT_WORKAROND
-					scale_deinit();
-				#endif
+				LOGD("AFTER QUEUE OVERLAY BUFFERS TO DISPLAY SNAPSHOT!!");
 								
 				sem_post(&mIppVppSem);
 			}
@@ -1973,14 +1660,12 @@ int CameraHal::ICaptureCreate(void)
 
 #ifdef HARDWARE_OMX
 #if VPP
-#if !VPP_INIT_WORKAROND
     res = scale_init();
     if( res ) {
         LOGE("scale_init() failed");
         scale_deinit();
     }
     LOGD("scale_init() OK");
-#endif
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -2020,18 +1705,14 @@ exit:
     return -1;
 }
 
-
-
 int CameraHal::ICaptureDestroy(void)
 {
     int err;
 #ifdef HARDWARE_OMX
 #if VPP
-#if !VPP_INIT_WORKAROND
     err = scale_deinit();
     if( err ) LOGE("scale_deinit() failed");
     else LOGD("scale_deinit() OK");
-#endif
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE 
@@ -2048,8 +1729,6 @@ LOGD("IPP Evaluate IPP pIPP.hIPP=%p",pIPP.hIPP);
     delete jpegEncoder;
 #endif
 #endif
-
-
 
 #ifdef ICAP
     if (iobj->lib_private) {
@@ -2359,24 +2038,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     
     framerate = params.getPreviewFrameRate();
     LOGD("FRAMERATE %d", framerate);
-
-	if(framerate != mParameters.getPreviewFrameRate() ){
-		mParameters.setPreviewFrameRate(framerate);
-#if 0
-		error = CameraSetFrameRate();
-		//error= CameraConfigure();
-		if (error){
-			LOGE("Error in CameraSetFrameRate()"); 
-			return -1;
-		}
-#else
-        //msg.command = PREVIEW_FPS;
-        //previewThreadCommandQ.put(&msg);
-
-#endif
-	
-			
-	}
 
 	mMMSApp= params.getInt("MMS_APP");	
 	if (mMMSApp != 10){
