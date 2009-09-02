@@ -452,7 +452,7 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
         goto error1;
     }
 
-    if (v4l2_overlay_set_colorkey(fd, 1, 0)) {
+    if (v4l2_overlay_set_colorkey(fd, 1, 3)) {
         LOGE("Failed enabling color key\n");
         goto error1;
     }
@@ -684,7 +684,7 @@ static int overlay_commit(struct overlay_control_device_t *dev,
         goto end;
 
     if (stage->colorkeyEn != data->colorkeyEn) {
-        ret = v4l2_overlay_set_colorkey(fd, stage->colorkeyEn, 0);
+        ret = v4l2_overlay_set_colorkey(fd, stage->colorkeyEn, 3);
         if (ret) {
             LOGE("Set ColorKey Failed!/%d\n", ret);
             goto end;
