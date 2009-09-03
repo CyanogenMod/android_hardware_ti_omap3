@@ -67,6 +67,7 @@ OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     mUseOverlay = true;
     mOverlay = NULL;
     mIsFirstFrame = true;
+    mbufferAlloc.buffer_address = NULL;
 }
 
 OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
@@ -108,10 +109,15 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
 
         mbufferAlloc.maxBuffers = mOverlay->getBufferCount();
         mbufferAlloc.bufferSize = iBufferSize;
+        mbufferAlloc.buffer_address = new uint8*[mbufferAlloc.maxBuffers];
+        if (mbufferAlloc.buffer_address == NULL) {
+            LOGE("unable to allocate mem for overlay addresses");
+            return mInitialized;
+        }
         LOGV("number of buffers = %d\n", mbufferAlloc.maxBuffers);
         for (int i = 0; i < mbufferAlloc.maxBuffers; i++) {
             data = (mapping_data_t *)mOverlay->getBufferAddress((void*)i);
-            mbufferAlloc.buffer_address[i] = data->ptr;
+            mbufferAlloc.buffer_address[i] = (uint8*)data->ptr;
             strcpy((char *)mbufferAlloc.buffer_address[i], "hello");
             if (strcmp((char *)mbufferAlloc.buffer_address[i], "hello")) {
                 LOGI("problem with buffer\n");
@@ -336,9 +342,13 @@ void AndroidSurfaceOutputOmap34xx::closeFrameBuf()
         LOGV("unregisterBuffers");
         mSurface->unregisterBuffers();
     }
-    if(mOverlay != NULL){
+    if (mOverlay != NULL){
         mOverlay->destroy();
         mOverlay = NULL;
+    }
+    if (mbufferAlloc.buffer_address) {
+        delete [] mbufferAlloc.buffer_address;
+        mbufferAlloc.buffer_address = NULL;
     }
     if (!mInitialized) return;
     mInitialized = false;

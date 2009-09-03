@@ -74,7 +74,7 @@ class BufferAllocOmap34xx: public PVInterface, public PVMFFixedSizeBufferAlloc
         int32 bufferSize;
         int32 maxBuffers;
         int32 numAllocated;
-        void*	buffer_address[4]; //max buffers supported in overlay is 4
+        uint8** buffer_address;
 };
 
 #endif

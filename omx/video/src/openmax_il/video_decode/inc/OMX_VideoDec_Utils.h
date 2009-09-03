@@ -159,9 +159,9 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #endif
 
 #define __STD_COMPONENT__
-#define MAX_PRIVATE_IN_BUFFERS              4
-#define MAX_PRIVATE_OUT_BUFFERS             4
-#define MAX_PRIVATE_BUFFERS                 4
+#define MAX_PRIVATE_IN_BUFFERS              6
+#define MAX_PRIVATE_OUT_BUFFERS             6
+#define MAX_PRIVATE_BUFFERS                 6
 #define NUM_OF_PORTS                        2
 #define VIDDEC_MAX_NAMESIZE                 128
 #define VIDDEC_NOPORT                       0xfffffffe
