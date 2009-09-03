@@ -418,6 +418,11 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     int fd;
     int shared_fd;
 
+    if (format == OVERLAY_FORMAT_DEFAULT)
+    {
+	format = OVERLAY_FORMAT_YCbYCr_422_I;
+    }
+
     LOGI("Create overlay, w=%d h=%d format=%d\n", w, h, format);
 
     if (ctx->overlay_video1) {
