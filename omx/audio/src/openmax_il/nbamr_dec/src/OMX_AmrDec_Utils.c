@@ -1824,6 +1824,8 @@ OMX_ERRORTYPE NBAMRDECHandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
     OMX_U8 TOCentry, hh=0, *TOCframetype=0;
     OMX_U16 offset = 0;
 
+    DSP_STATUS status;
+
     if (OMX_AUDIO_AMRDTXasEFR == pComponentPrivate->iAmrMode){
         bufSize = INPUT_BUFF_SIZE_EFR;
     } 
@@ -2268,6 +2270,15 @@ taBuf_FromApp - reading NBAMRDEC_MIMEMODE\n",__LINE__);
                 
                 pComponentPrivate->SendAfterEOS = 1;
                 OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: OMX_AmrDec_Utils.c : pComponentPrivate->SendAfterEOS %d\n",__LINE__,pComponentPrivate->SendAfterEOS);
+                OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : flushing pFrameParam\n");
+                //Issue an initial memory flush to ensure cache coherency */
+                OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : flushing pFrameParam\n");
+                status = DSPProcessor_FlushMemory(phandle->dspCodec->hProc, pLcmlHdr->pFrameParam,  nFrames*sizeof(NBAMRDEC_FrameStruct), 0);
+                if(DSP_FAILED(status))
+                {
+                  OMXDBG_PRINT(stderr, ERROR, 4, 0, "Unable to flush mapped buffer: error 0x%x",(int)status);
+                  goto EXIT;
+                }
             }
             pLcmlHdr->pBufferParam->usNbFrames = nFrames;
             /*---------------------------------------------------------------*/

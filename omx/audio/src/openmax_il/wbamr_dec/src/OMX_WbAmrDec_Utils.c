@@ -1827,6 +1827,7 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
     WBAMR_DEC_AudioCodecParams *pParams;
     OMX_U8 *pParmsTemp;
     OMX_STRING p = "damedesuStr";
+    DSP_STATUS status;
 
     LCML_DSP_INTERFACE * phandle;
 
@@ -2236,6 +2237,14 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                 }
                 pComponentPrivate->SendAfterEOS = 1;
                 OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : pComponentPrivate->SendAfterEOS %d\n",pComponentPrivate->SendAfterEOS);
+                //Issue an initial memory flush to ensure cache coherency */
+                OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : flushing pFrameParam\n");
+                status = DSPProcessor_FlushMemory(phandle->dspCodec->hProc, pLcmlHdr->pFrameParam, nFrames*sizeof(WAMRDEC_FrameStruct), 0);
+                if(DSP_FAILED(status))
+                {
+                   OMXDBG_PRINT(stderr, ERROR, 4, 0, "Unable to flush mapped buffer: error 0x%x",(int)status);
+                   goto EXIT;
+                }
             }
 
             pLcmlHdr->pBufferParam->usNbFrames = nFrames;
