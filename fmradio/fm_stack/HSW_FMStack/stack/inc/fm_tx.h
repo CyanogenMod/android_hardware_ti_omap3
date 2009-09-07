@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      fm_tx.h
@@ -280,7 +281,7 @@ typedef FMC_UINT FmTxStatus;
  *
  *     Represents an FM TX event.
  */
-typedef struct _FmTxEvent 
+struct _FmTxEvent 
 {
     /* The context for which the event is intended */
     FmTxContext     *context;
@@ -370,7 +371,7 @@ typedef struct _FmTxEvent
             } v;
         } cmdDone;
     } p;    
-} ;
+};
 
 /********************************************************************************
  *

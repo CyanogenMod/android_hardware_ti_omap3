@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      ccm_vaci_mapping_engine.h
@@ -34,6 +35,7 @@
 #ifndef __CCM_VACI_MAPPING_ENGINE_H__
 #define __CCM_VACI_MAPPING_ENGINE_H__
 
+#include "ccm_vaci_chip_abstration.h"
 #include "ccm_vac.h"
 #include "mcp_hal_defs.h"
 #include "mcp_config_parser.h"

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #define _GNU_SOURCE /* needed for PTHREAD_MUTEX_RECURSIVE */
 
 #include <pthread.h>
@@ -86,9 +87,6 @@ typedef struct _FMC_OS_TIMER_PARAMS
 
 } FMC_OS_TIMER_PARAMS;
 
-/* prototypes */
-static FmcOsEvent FmcOs_ConvertToFmcEvent (FMC_U32 evtIdx);
-static FMC_U32 FmcOs_ConvertToEventIdx (FmcOsEvent evt);
 
 /* Global variables */
 FMC_OS_TASK_PARAMS          fmParams;
@@ -215,9 +213,9 @@ FmcStatus FMC_OS_Init(void)
 	FMC_U32     idx;
 	int rc;
 	FmcStatus ret = FMC_STATUS_SUCCESS;
-#ifdef ANDROID
+#if defined(ANDROID)
 	server_paths[FMC_OS_TASK_HANDLE_FM] = "/data/misc/hcid/ti_fm.socket";
-#else
+#elif defined(SDP3430)
 	server_paths[FMC_OS_TASK_HANDLE_FM] = "/tmp/ti_fm.socket";
 #endif
 	FM_BEGIN();
@@ -1005,46 +1003,14 @@ close:
 out:
 	FM_END();
 	pthread_exit((void *)ret);
+#if defined(ANDROID)
 	return 0;
+#endif
 }
 
 void FMC_OS_RegisterFMInterruptCallback(FmcOsEventCallback func)
 {
 	fmParams2.taskCallback = func;
-}
-
-/*---------------------------------------------------------------------------
- * Convert bthal event to event index. 
- */
-static FMC_U32 FmcOs_ConvertToEventIdx(FmcOsEvent evt)
-{
-    FMC_U32 eventIdx = 0;
-
-    while (evt > 0)
-    {
-        evt >>= 1;
-        eventIdx++;
-    }
-
-    eventIdx--;
-
-    return eventIdx;
-}
-
-/*---------------------------------------------------------------------------
- * Convert event index to bthal event. 
- */
-static FmcOsEvent FmcOs_ConvertToFmcEvent(FMC_U32 evtIdx)
-{
-    FmcOsEvent FmcEvent = 1;
-
-    while (evtIdx > 0)
-    {
-        FmcEvent <<= 1;
-        evtIdx--;
-    }
-
-    return FmcEvent;
 }
 
 #endif  /* FMC_CONFIG_FM_STACK == FMC_CONFIG_ENABLED */

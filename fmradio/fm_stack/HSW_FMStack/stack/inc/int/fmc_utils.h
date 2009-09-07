@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      fmc_utils.h
@@ -105,11 +106,11 @@ typedef FMC_UINT FmcUtilsSearchDir;
  *  The structure has 2 pointers, one to link to the next list element (NextNode) 
  *  and one to the previous list element (PrevNode)
 */
-typedef struct  _FMC_ListNode 
+struct  _FMC_ListNode 
 {
     struct _FMC_ListNode *NextNode;
     struct _FMC_ListNode *PrevNode;
-} ;
+};
     
 /****************************************************************************
  *

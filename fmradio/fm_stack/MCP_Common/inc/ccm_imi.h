@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
+
 #ifndef __CCM_IMI_H
 #define __CCM_IMI_H
 
 #include "ccm_im.h"
-#include "bt_hci_if.h"
+
+struct tagCcmImObj;
+struct tagBtHciIfObj;
 
 typedef void (*CcmChipOnNotificationCb)(void *userData,
                                         McpU16 projectType,
@@ -36,22 +39,22 @@ CcmImStatus CCM_IM_Destroy(CcmImObj **this);
 /*-------------------------------------------------------------------------------
  * CCM_IMI_GetBtHciIfObj()
  *
- * Brief:       
- *  Returns the contained instance of he BT_HCI_If
+ * Brief:  		
+ *	Returns the contained instance of he BT_HCI_If
  *
  * Description:
- *  Returns the contained instance of he BT_HCI_If
+ *	Returns the contained instance of he BT_HCI_If
  *
  * Type:
- *      Synchronous
+ *		Synchronous
  *
  * Parameters:
- *      this [in / out] - pointer to the instance data. Set to null on exit
+ *		this [in / out] - pointer to the instance data. Set to null on exit
  *
  * Returns:
- *      Pointer to the contained instance
+ *		Pointer to the contained instance
  */
-BtHciIfObj *CCM_IMI_GetBtHciIfObj(CcmImObj *this);
+struct tagBtHciIfObj *CCM_IMI_GetBtHciIfObj(CcmImObj *this);
 
 #endif  /* __CCM_IMI_H */
 

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_bts_script_processor.h
@@ -288,6 +289,12 @@ typedef struct tagMcpBtsSpScriptLocation {
     } locationData;
 } McpBtsSpScriptLocation;
 
+/*-------------------------------------------------------------------------------
+ * McpBtsSpProcessingState Forward declaration
+ */
+typedef enum _McpBtsSpProcessingState McpBtsSpProcessingState;
+
+
 typedef struct tagMcpBtsSpExecuteScriptCbData {
     /* Callback function that is used to send HCI commands*/
     McpBtsSpSendHciScriptCmdCb      sendHciCmdCb;
@@ -299,13 +306,13 @@ typedef struct tagMcpBtsSpExecuteScriptCbData {
     McpBtsSpExecuteCompleteCb       execCompleteCb;
 } McpBtsSpExecuteScriptCbData;
 
-typedef enum _McpBtsSpProcessingState {
+enum _McpBtsSpProcessingState {
     MCP_BTS_SP_PROCESSING_STATE_NONE,
     MCP_BTS_SP_PROCESSING_STATE_PROCESS_NEXT_ACTION,
     MCP_BTS_SP_PROCESSING_STATE_WAIT_FOR_COMMAND_COMPLETE,
     MCP_BTS_SP_PROCESSING_STATE_WAIT_FOR_LAST_COMMAND_COMPLETE,
     MCP_BTS_SP_PROCESSING_STATE_DONE
-} McpBtsSpProcessingState;
+};
 
 /*
  * McpBtsSpContext structure

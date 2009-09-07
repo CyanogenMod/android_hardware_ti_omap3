@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+
+#define obc 1
+
 #include "fm_rx_smi.h"
 #include "fmc_os.h"
 #include "fmc_config.h"
@@ -328,11 +331,9 @@ FMC_STATIC void HandleSeekWaitStartTuneCmdComplete(void);
 FMC_STATIC void HandleStopSeekStart(void);
 FMC_STATIC void HandleStopSeekWaitCmdCompleteOrInt(void);
 FMC_STATIC void HandleSeekStopSeekFinishedReadFreq(void);
-/*todo ram - This is a workaround due to a FW defect we must Set the current  frequency again at the end of the seek sequence 
-			THIS NEED TO BE REMOVED FOR PG 2.0 */
-FMC_STATIC void HandleSeekStopSeekFinishedSetFreq(void);
 FMC_STATIC void HandleSeekStopSeekFinishedEnableDefaultInts(void);
 FMC_STATIC void HandleSeekStopSeekFinish(void);
+
 FMC_STATIC void HandleStopSeekBeforeSeekStarted(void);
 /*******************************************************************************************************************
  *                  
@@ -614,9 +615,6 @@ FMC_STATIC FmRxOpCurHandler seekHandler[] = {HandleSeekStart,
                                     HandleSeekStartTuning,
                                     HandleSeekWaitStartTuneCmdComplete,
                                     HandleSeekStopSeekFinishedReadFreq,
-/*todo ram - This is a work around due to a FW defect we must Set the current  frequency again at the end of the seek sequence 
-			THIS NEED TO BE REMOVED FOR PG 2.0 */
-					 HandleSeekStopSeekFinishedSetFreq,	
                                     HandleSeekStopSeekFinishedEnableDefaultInts,
                                     HandleSeekStopSeekFinish};
 FMC_STATIC _FmRxSmCmdInfo _fmRxSmCmdInfo_seekHandler = {seekHandler, 
@@ -1872,8 +1870,6 @@ FMC_STATIC void HandleVolumeSetStart(void)
 }
 FMC_STATIC void HandleVolumeSetFinish(void)
 {
-	_fmRxSmData.volume = (FMC_UINT)((FmRxVolumeSetCmd *)_fmRxSmData.currCmdInfo.baseCmd)->gain;
-
     /* Send event to the applicatoin */
     _FM_RX_SM_HandleCompletionOfCurrCmd(NULL,NULL,NULL,FM_RX_EVENT_CMD_DONE);
 }
@@ -2332,27 +2328,6 @@ FMC_STATIC void HandleSeekStopSeekFinishedReadFreq(void)
 }
 
 
-/********************************************START - WORKAROUND*************************************************/
-
-/*todo ram - This is a workaround due to a FW defect we must Set the current  frequency again at the end of the seek sequence 
-			THIS NEED TO BE REMOVED FOR PG 2.0 */
-FMC_STATIC void HandleSeekStopSeekFinishedSetFreq(void)
-{   
-
-    FMC_U16 index;
-
-    /* Update to next handler */
-    prepareNextStage(_FM_RX_SM_STATE_WAITING_FOR_CC, 0);
-
-    /*Get the current Freq from the evnt */	
-    index = _fmRxSmData.context.transportEventData.read_param;
-    
-    /* Send Set_Frequency command  with the current frequency*/    
-    FMC_CORE_SendWriteCommand(FMC_FW_OPCODE_RX_FREQ_SET_GET, index);    
-}
-
-/********************************************END - WORKAROUND*************************************************/
-
 FMC_STATIC void HandleSeekStopSeekFinishedEnableDefaultInts(void)
 {   
     /* Update to next handler */
@@ -2578,6 +2553,7 @@ ECCM_VAC_Status StartAudioOperation(ECAL_Operation operation)
                         &ptConfig,
                         &_fmRxSmData.vacParams.ptUnavailResources);
 #endif
+
     return CCM_VAC_STATUS_SUCCESS;
 }
 FMC_STATIC void HandleEnableAudioRoutingStart(void)
@@ -2678,7 +2654,7 @@ FMC_STATIC void HandleDisableAudioRoutingStart(void)
 #endif
 }
 FMC_STATIC void HandleDisableAudioRoutingStopVacOperation(void)
-{   
+{
 #if obc
     if(_fmRxSmData.vacParams.audioTargetsMask&FM_RX_VAC_RX_OPERATION_MASK)
     {   /* if rx vac operation stated stop it*/
@@ -2742,7 +2718,7 @@ ECCM_VAC_Status SendChangeAudioTargets(ECAL_Operation operation)
                                         targetsMask,
                                         &ptConfig,
                                         &_fmRxSmData.vacParams.ptUnavailResources);
-    
+
 #endif
 	return CCM_VAC_STATUS_SUCCESS;
 }
@@ -3259,10 +3235,10 @@ FMC_STATIC void HandleAfJumpFinished(void)
 
     read_freq = FMC_UTILS_FwChannelIndexToFreq(_fmRxSmData.band,FMC_CHANNEL_SPACING_50_KHZ,_fmRxSmData.context.transportEventData.read_param);
     jumped_freq = _fmRxSmData.curStationParams.afList[_fmRxSmData.curAfJumpIndex]; 
-     
+
     /* If the frequency was changed the jump succeeded */
     if(read_freq != _fmRxSmData.freqBeforeJump) 
-    {   	
+    {   
         /* There was a jump - make sure it was to the frequency we set */
         FMC_ASSERT(jumped_freq == read_freq);
 

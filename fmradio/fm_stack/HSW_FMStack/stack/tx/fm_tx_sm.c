@@ -17,6 +17,7 @@
  */
 
 
+
 #include "fmc_defs.h"
 #include "fm_txi.h"
 #include "fm_tx_sm.h"
@@ -147,7 +148,7 @@ typedef struct
     
 } _FmTxSmFwCache;
 
-typedef struct _FmTxContext {
+struct _FmTxContext {
     FmTxSmContextState  state;
 
     /* Added 1 for terminating NULL string char */
@@ -198,7 +199,7 @@ typedef struct _FmTxContext {
 
     _FmTxSmVacParams vacParams;
 
-} ;
+};
 
 typedef void (*_FmTxSmCmdStageHandler)(FMC_UINT event, void *eventData);
 
@@ -542,7 +543,6 @@ FMC_STATIC void _FM_TX_SM_HandlerSetMuteMode_UpdateCache(void);
 FMC_STATIC void _FM_TX_SM_HandlerStartTransmission_CmdComplete(void);
 FMC_STATIC void _FM_TX_SM_HandlerStopTransmission_CmdComplete(void);
 FMC_STATIC void _FM_TX_SM_HandlerEnableRds_UpdateCache(void);
-FMC_STATIC void  _FM_TX_SM_HandlerPowerLvl_UpdateCache(void);
 FMC_STATIC void _FM_TX_SM_HandlerDisableRds_UpdateCache(void);
 FMC_STATIC void _FM_TX_SM_HandlerSetRdsRTransmittedMask_UpdateCache(void);
 
@@ -1393,7 +1393,11 @@ FMC_STATIC FMC_U8 smNumOfCmdInQueue = 0;
 *
 */
 #define FM_TX_SM_TIMOUT_TIME_FOR_LONG_CMD       (50000)
-#define FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD        (20000)
+#if defined(ANDROID)
+ #define FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD        (20000)
+#elif defined(SDP3430)
+ #define FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD        (5000)
+#endif
 
 /*
 *   end
@@ -1645,9 +1649,11 @@ void    _FM_TX_SM_InitDefualtConfigValues()
 
     _fmTxSmData.context.vacParams.eSampleFreq = CAL_SAMPLE_FREQ_48000;
 
-    /* _fmTxSmData.context.vacParams.audioSource = FM_TX_AUDIO_SOURCE_FM_ANALOG; */
-    /* Use the below line to have Audio coming from omap [mcbsp-4] */
+#if defined(ANDROID) || defined(SDP3430)
     _fmTxSmData.context.vacParams.audioSource = FM_TX_AUDIO_SOURCE_I2SH;
+#else
+    _fmTxSmData.context.vacParams.audioSource = FM_TX_AUDIO_SOURCE_FM_ANALOG;	
+#endif
 
     FMC_OS_StrCpy(_fmTxSmData.context.fwCache.psMsg, (const FMC_U8 *)FMC_CONFIG_TX_DEFAULT_RDS_PS_MSG);/*need to configure on startup */
     
@@ -1908,7 +1914,6 @@ void _FM_TX_SM_InitSetCmdGetCmdParmValueMap(void)
 */
 void _FM_TX_SM_InitSetCmdCompleteMap(void)
 {
-    _fmTxSmSetCmdCompleteMap[FM_TX_CMD_SET_POWER_LEVEL] = _FM_TX_SM_HandlerPowerLvl_UpdateCache;
     _fmTxSmSetCmdCompleteMap[FM_TX_CMD_TUNE] = _FM_TX_SM_HandlerTune_UpdateCache;
     _fmTxSmSetCmdCompleteMap[FM_TX_CMD_SET_MUTE_MODE] = _FM_TX_SM_HandlerSetMuteMode_UpdateCache;
     _fmTxSmSetCmdCompleteMap[FM_TX_CMD_START_TRANSMISSION] = _FM_TX_SM_HandlerStartTransmission_CmdComplete;
@@ -4751,10 +4756,6 @@ void _FM_TX_SM_HandlerSetMuteMode_UpdateCache(void)
 void _FM_TX_SM_HandlerEnableRds_UpdateCache(void)
 {
     _fmTxSmData.context.fwCache.rdsEnabled = FMC_TRUE;
-}
-void _FM_TX_SM_HandlerPowerLvl_UpdateCache(void)
-{
-	_fmTxSmData.context.fwCache.powerLevel =_FM_TX_SM_HandlerSetPowerLevel_GetCmdParmValue();
 }
 
 void _FM_TX_SM_HandlerDisableRds_UpdateCache(void)

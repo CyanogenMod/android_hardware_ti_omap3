@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_hal_config.h
@@ -76,10 +77,10 @@
 /*
 *   Specific the absolute path of the folder where MCP scripts should be located
 */
-#ifdef ANDROID
-#define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER		                                ("/system/lib/firmware/")
-#else
-#define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER		                                ("/lib/firmware/")
+#if defined(ANDROID)
+ #define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER		                                ("/system/lib/firmware/")
+#elif defined(SDP3430)
+ #define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER		                                ("/lib/firmware/")
 #endif
 
 /*
