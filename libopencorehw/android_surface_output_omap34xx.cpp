@@ -338,10 +338,6 @@ void AndroidSurfaceOutputOmap34xx::closeFrameBuf()
     if (UNLIKELY(mDebugFps)) {
         debugShowFPS();
     }
-    if (mSurface.get()) {
-        LOGV("unregisterBuffers");
-        mSurface->unregisterBuffers();
-    }
     if (mOverlay != NULL){
         mOverlay->destroy();
         mOverlay = NULL;
