@@ -75,6 +75,8 @@ typedef struct
   uint32_t marker;
   uint32_t size;
 
+  volatile int32_t refCnt;
+
   uint32_t controlReady; // Only updated by the control side
   uint32_t dataReady;    // Only updated by the data side
 
@@ -262,6 +264,7 @@ static int create_shared_data(overlay_shared_t **shared)
     memset(p, 0, size);
     p->marker = SHARED_DATA_MARKER;
     p->size   = size;
+    p->refCnt = 1;
 
     if (pthread_mutex_init(&p->lock, NULL) != 0) {
         LOGE("Failed to Open Overlay Lock!\n");
@@ -279,11 +282,15 @@ static void destroy_shared_data( int shared_fd, overlay_shared_t *shared )
     if (shared == NULL)
         return;
 
-    if (pthread_mutex_destroy(&shared->lock)) {
-        LOGE("Failed to Close Overlay Semaphore!\n");
-    }
+    // Last side deallocated releases the mutex, otherwise the remaining
+    // side will deadlock trying to use an already released mutex
+    if (android_atomic_dec(&shared->refCnt) == 1) {
+        if (pthread_mutex_destroy(&shared->lock)) {
+            LOGE("Failed to Close Overlay Semaphore!\n");
+        }
 
-    shared->marker = 0;
+        shared->marker = 0;
+    }
 
     if (munmap(shared, shared->size)) {
         LOGE("Failed to Unmap Overlay Shared Data!\n");
@@ -317,6 +324,7 @@ static int open_shared_data( overlay_data_context_t *ctx )
         LOGE("Invalid Overlay Shared Size!\n");
         munmap(ctx->shared, size);
     } else {
+        android_atomic_inc(&ctx->shared->refCnt);
         rc = 0;
     }
 
@@ -325,16 +333,8 @@ static int open_shared_data( overlay_data_context_t *ctx )
 
 static void close_shared_data(overlay_data_context_t *ctx)
 {
-    if (ctx->shared == NULL) {
-        // Not open, just return
-    } else {
-        int size = ctx->shared->size;
-
-        if (munmap(ctx->shared, size ) != 0) {
-            LOGE("Failed to Unmap Overlay Shared Data!\n");
-        }
-        ctx->shared = NULL;
-    }
+    destroy_shared_data(ctx->shared_fd, ctx->shared);
+    ctx->shared = NULL;
 }
 
 static int enable_streaming_locked(overlay_shared_t *shared, int ovly_fd)
