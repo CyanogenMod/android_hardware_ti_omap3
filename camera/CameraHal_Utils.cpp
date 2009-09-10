@@ -122,11 +122,6 @@ int CameraHal::FW3A_Start()
 
     LOG_FUNCTION_NAME
 
-    if(mOverlay == NULL){
-        LOGD("WARNING, mOverlay is NULL!!");
-        return 0;
-    }
-
     if (isStart_FW3A!=0) {
         LOGE("3A FW is already started");
         return -1;
@@ -997,7 +992,7 @@ void CameraHal::drawRect(uint8_t *input, uint8_t color, int x1, int y1, int x2, 
 	}
 }
 
-
+#if 0
 int CameraHal::ZoomPerform(int zoom)
 {
     struct v4l2_crop crop;
@@ -1032,6 +1027,70 @@ int CameraHal::ZoomPerform(int zoom)
     return 0;
 }
 
+#endif
+
+int CameraHal::ZoomPerform(int zoomFactor)
+{
+    struct v4l2_cropcap cropcap;
+    struct v4l2_crop crop;
+    int ret;
+    int prev_width, prev_height;
+    int zoom_left, zoom_top, zoom_width, zoom_height;
+
+    LOG_FUNCTION_NAME
+
+    zoomFactor =mzoom;
+    mParameters.getPreviewSize(&prev_width, &prev_height);
+
+    LOGD("Preview width=%d height=%d, zoomFactor: %d",prev_width,prev_height, zoomFactor);
+
+    if (zoomFactor < 1) {
+        LOGD("Warning, trying to set zoomFactor < 1");
+        zoomFactor = 1;
+    }
+    else if (zoomFactor > 4) {
+        LOGD("Warning, trying to set zoomFactor > 4");
+        zoomFactor = 4;
+    }
+
+    zoom_width = (prev_width * 10) / (zoomFactor* 10);
+	zoom_height = (prev_height * 10) / (zoomFactor* 10);
+    zoom_left = (prev_width - zoom_width) / 2;
+	zoom_top = (prev_height - zoom_height) / 2;
+#if 1
+    LOGD("Before VIDIOC_CROPCAP");
+	cropcap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	ret = ioctl(camera_device, VIDIOC_CROPCAP, &cropcap);
+	if (ret != 0) {
+		perror("VIDIOC_CROPCAP");
+		return -1;
+	}
+    LOGD("After VIDIOC_CROPCAP");
+#endif
+    
+    LOGD("Old Crop (%d, %d) (%d, %d)\n", crop.c.left, crop.c.top,crop.c.width, crop.c.height);
+
+    LOGD("Wanted Crop (%d, %d) (%d, %d)\n", zoom_left, zoom_top, zoom_width, zoom_height);
+
+    memset(&crop, 0, sizeof(crop));
+    crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    crop.c.left   = zoom_left;
+    crop.c.top    = zoom_top;
+    crop.c.width  = zoom_width;
+    crop.c.height = zoom_height;
+
+    LOGD("Before VIDIOC_S_CROP");
+    ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
+    if (ret < 0) {
+      LOGE("[%s]: ERROR VIDIOC_S_CROP failed\n", __func__);
+      return -1;
+    }
+    LOGD("After VIDIOC_S_CROP");
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return 0;
+}
 
 /************/
 #ifndef ICAP

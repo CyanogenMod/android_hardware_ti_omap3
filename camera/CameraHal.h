@@ -432,7 +432,7 @@ private:
     struct timeval focus_before, focus_after;
     struct timeval ppm_before, ppm_after;
     struct timeval ipp_before, ipp_after;
-	int lastOverlayIndex;
+	int lastOverlayBufferDQ;
 #ifdef CAMERA_ALGO
     struct timeval algo_before, algo_after;
     int lastOverlayIndex;
@@ -482,6 +482,7 @@ private:
         PREVIEW_CAF_START,
         PREVIEW_CAF_STOP,
 		PREVIEW_FPS,
+        ZOOM_UPDATE,
         // ACKs        
         PREVIEW_ACK,
         PREVIEW_NACK,

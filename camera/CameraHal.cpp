@@ -347,10 +347,7 @@ void CameraHal::previewThread()
 
                 if( !err ){
                     LOGD("Preview Started!");
-                    if(mOverlay != NULL)
-                    {
-                        mPreviewRunning = true;
-                    }
+                    mPreviewRunning = true;
                 }
 
                 previewThreadAckQ.put(&msg);
@@ -559,6 +556,15 @@ void CameraHal::previewThread()
             }
             break;
 
+            case ZOOM_UPDATE:
+            {
+                LOGD("Receive Command: ZOOM_UPDATE");                          
+                if(ZoomPerform(0) < 0)
+                    LOGE("Error setting the zoom");
+
+            }
+            break;
+
             case PREVIEW_KILL:
             {
                 LOGD("Receive Command: PREVIEW_KILL");
@@ -727,14 +733,6 @@ int CameraHal::CameraStart()
 
     mParameters.getPreviewSize(&w, &h);
     LOGD("**CaptureQBuffers: preview size=%dx%d", w, h);
-
-    if(mOverlay != NULL){
-	LOGD("OK,mOverlay not NULL");
-    }
-    else{
-	LOGD("WARNING, mOverlay is NULL!!");
-            return 0;
-    }
   
     mPreviewFrameSize = w * h * 2;
     if (mPreviewFrameSize & 0xfff)
@@ -853,11 +851,6 @@ void CameraHal::nextPreview()
 	
 	//LOG_FUNCTION_NAME
 
-    if(mOverlay == NULL){
-    	LOGD("mOverlay == NULL!!");
-        return;
-    }
-
     mParameters.getPreviewSize(&w, &h);	
 
     /* De-queue the next avaliable buffer */	
@@ -904,9 +897,6 @@ void CameraHal::nextPreview()
 #endif
 #endif
 
-	lastOverlayIndex = cfilledbuffer.index; 
-  
-    LOGV("OVERLAY buffer queued=%d",lastOverlayIndex);
     queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
     if (queue_to_dss_failed)
 	{
@@ -926,8 +916,9 @@ void CameraHal::nextPreview()
 		}
 		else{
         	overlaybufferindex = (int)overlaybuffer;
-       		nOverlayBuffersQueued--;
-            buffers_queued_to_dss[(int)overlaybuffer] = 0;		
+            nOverlayBuffersQueued--;
+            buffers_queued_to_dss[(int)overlaybuffer] = 0;
+            lastOverlayBufferDQ = (int)overlaybuffer;	
         }
     }
     else
@@ -1547,10 +1538,10 @@ void CameraHal::vppThread(){
 				image_height = vppMessage[2];	
 
 				mParameters.getPreviewSize(&preview_width, &preview_height);
-				lastOverlayIndex=(++lastOverlayIndex)%4;
-				LOGD("lastOverlayIndex=%d",lastOverlayIndex);
+				
+                LOGD("lastOverlayBufferDQ=%d",lastOverlayBufferDQ);
 
-				snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayIndex) );
+				snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayBufferDQ) );
 	
 				PPM("BEFORE SCALED DOWN RAW IMAGE TO PREVIEW SIZE"); 
 				status = scale_process(yuv_buffer, image_width, image_height,
@@ -1560,12 +1551,12 @@ void CameraHal::vppThread(){
 				 
 				PPM("SCALED DOWN RAW IMAGE TO PREVIEW");						
 
-				error = mOverlay->queueBuffer((void*)(lastOverlayIndex)); //0
+				error = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
                 if (error){
     				LOGE("mOverlay->queueBuffer() failed!!!!");
                 }
                 else{
-                    buffers_queued_to_dss[lastOverlayIndex]=1;
+                    buffers_queued_to_dss[lastOverlayBufferDQ]=1;
                     nOverlayBuffersQueued++;
                 }
 
@@ -1767,9 +1758,10 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     if (mOverlay == NULL)
     {
         LOGE("Trying to set overlay, but overlay is null!");
+        return NO_ERROR;
     }
 
-// Restart the preview (Only for Overlay Case)
+    // Restart the preview (Only for Overlay Case)
     LOGD("Restart the preview ");
     startPreview(NULL,NULL);
 
@@ -1782,6 +1774,12 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
 {
     LOG_FUNCTION_NAME
 
+    if (mOverlay == NULL)
+    {
+        LOGE("Trying to set overlay, but overlay is null!");
+        return NO_ERROR;
+    }
+
     Message msg;
     msg.command = PREVIEW_START;
     msg.arg1 = (void*)cb;
@@ -1792,7 +1790,6 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
     LOG_FUNCTION_NAME_EXIT
     return msg.command == PREVIEW_ACK ? NO_ERROR : INVALID_OPERATION;
 }
-
 void CameraHal::stopPreview()
 {
     LOG_FUNCTION_NAME
@@ -2108,8 +2105,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         FW3A_SetSettings();
 
         if( mzoom != zoom){
-            ZoomPerform(zoom);
+            Message msg;
             mzoom = zoom;
+
+            msg.command = ZOOM_UPDATE;                     
+            previewThreadCommandQ.put(&msg);         
+
         }
 
         LOGD("mcapture_mode = %d", mcapture_mode);
