@@ -38,19 +38,18 @@ extern "C" {
 #include <cutils/log.h>
 #include <cutils/ashmem.h>
 #include <cutils/atomic.h>
+#include "overlay_common.h"
 
 /*****************************************************************************/
 
 #define LOG_FUNCTION_NAME    LOGD(" %s ###### Calling %s() ######",  __FILE__,  __FUNCTION__);
 
-#define NUM_OVERLAY_BUFFERS_REQUESTED  (4)
 #define SHARED_DATA_MARKER             (0x68759746) // OVRLYSHM on phone keypad
 
 /* These values should come from Surface Flinger */
 #define LCD_WIDTH 800
 #define LCD_HEIGHT 480
 
-#define CACHEABLE_BUFFERS 0x1
 
 typedef struct
 {

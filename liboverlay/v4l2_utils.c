@@ -383,7 +383,7 @@ int v4l2_overlay_get_crop(int fd, uint32_t *x, uint32_t *y, uint32_t *w, uint32_
 int v4l2_overlay_set_rotation(int fd, int degree, int step)
 {
     LOG_FUNCTION_NAME
-    
+    return 0;
     int ret;
     struct v4l2_control control;
     memset(&control, 0, sizeof(control));
