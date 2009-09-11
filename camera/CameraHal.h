@@ -40,6 +40,7 @@
 #include <utils/threads.h>
 #include <ui/CameraHardwareInterface.h>
 #include "MessageQueue.h"
+#include "overlay_common.h"
 
 #define RESIZER 1
 #define JPEG 1
@@ -109,8 +110,8 @@
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
-#define VIDEO_FRAME_COUNT_MAX    4
-#define MAX_CAMERA_BUFFERS    4
+#define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
+#define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
 
 #define OPEN_CLOSE_WORKAROUND	 0
 

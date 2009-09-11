@@ -19,6 +19,7 @@ LOCAL_SHARED_LIBRARIES:= \
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/ui \
+	hardware/ti/omap3/liboverlay
 
 LOCAL_CFLAGS += -fno-short-enums 
 
