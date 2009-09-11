@@ -992,6 +992,46 @@ void CameraHal::drawRect(uint8_t *input, uint8_t color, int x1, int y1, int x2, 
 	}
 }
 
+int CameraHal::ZoomPerform(float zoom)
+{
+    struct v4l2_crop crop;
+    float fwidth, fheight;
+    int zoom_left,zoom_top,zoom_width, zoom_height,w,h;
+    int ret;
+
+    if (zoom < 1) 
+       zoom = 1;
+    if (zoom > 8)
+       zoom = 8;
+
+    mParameters.getPreviewSize(&w, &h);
+    fwidth = w/zoom;
+    fheight = h/zoom;
+    zoom_width = ((int) fwidth) & (~3);
+    zoom_height = ((int) fheight) & (~3);
+    zoom_left = w/2 - (zoom_width/2);
+    zoom_top = h/2 - (zoom_height/2);
+
+    LOGE("Perform ZOOM: zoom_width = %d, zoom_height = %d, zoom_left = %d, zoom_top = %d", zoom_width, zoom_height, zoom_left, zoom_top); 
+
+    memset(&crop, 0, sizeof(crop));
+    crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    crop.c.left   = zoom_left; 
+    crop.c.top    = zoom_top;
+    crop.c.width  = zoom_width;
+    crop.c.height = zoom_height;
+
+#if 1
+    ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
+    if (ret < 0) {
+      LOGE("[%s]: ERROR VIDIOC_S_CROP failed", strerror(errno));
+      return -1;
+    }
+#endif
+    return 0;
+}
+
+
 #if 0
 int CameraHal::ZoomPerform(int zoom)
 {
@@ -1028,7 +1068,7 @@ int CameraHal::ZoomPerform(int zoom)
 }
 
 #endif
-
+#if 0
 int CameraHal::ZoomPerform(int zoomFactor)
 {
     struct v4l2_cropcap cropcap;
@@ -1091,6 +1131,7 @@ int CameraHal::ZoomPerform(int zoomFactor)
 
     return 0;
 }
+#endif
 
 /************/
 #ifndef ICAP

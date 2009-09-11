@@ -559,7 +559,7 @@ void CameraHal::previewThread()
             case ZOOM_UPDATE:
             {
                 LOGD("Receive Command: ZOOM_UPDATE");                          
-                if(ZoomPerform(0) < 0)
+                if(ZoomPerform(mzoom) < 0)
                     LOGE("Error setting the zoom");
 
             }
@@ -1308,14 +1308,10 @@ int  CameraHal::ICapturePerform()
 
 #ifdef IMAGE_PROCESSING_PIPELINE  	
 #if 1
-	if(mippMode ==-1 && mMMSApp){
-		mippMode=IPP_Disabled_Mode;
+	if(mippMode ==-1 ){
 		mippMode=IPP_EdgeEnhancement_Mode;
-	}		
+	}
 
-	if(mippMode ==-1 && !mMMSApp){
-		mippMode=IPP_Disabled_Mode;	
-	}		
 #else 	
 	if(mippMode ==-1){
 		mippMode=IPP_CromaSupression_Mode;
@@ -1388,9 +1384,11 @@ int  CameraHal::ICapturePerform()
 		yuv_buffer = pIPP.pIppOutputBuffer;
 	}
 	 
-	#if !IPP_YUV422P 
+	#if !( IPP_YUV422P )
 		yuv_len=  ((image_width * image_height *3)/2);
-	#endif
+	#else
+        mippMode = 0;
+    #endif
 		
 	}
 	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len); 
@@ -2059,13 +2057,21 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         quality = 100;
     } 
 
+    zoom = mParameters.getInt("zoom");
+    
+    if( mzoom != zoom){
+        Message msg;
+        mzoom = zoom;
+        msg.command = ZOOM_UPDATE;                     
+        previewThreadCommandQ.put(&msg);         
+    }
+
 #ifdef FW3A
 
     if ( NULL != fobj ){
         iso = mParameters.getInt("iso");
         af = mParameters.getInt("af");
-        mcapture_mode = mParameters.getInt("mode");
-        zoom = mParameters.getInt("zoom");
+        mcapture_mode = mParameters.getInt("mode");        
         wb = mParameters.getInt("wb");
         exposure = mParameters.getInt("exposure");
         scene = mParameters.getInt("scene");
@@ -2103,15 +2109,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_MULTI_NORMAL;
 
         FW3A_SetSettings();
-
-        if( mzoom != zoom){
-            Message msg;
-            mzoom = zoom;
-
-            msg.command = ZOOM_UPDATE;                     
-            previewThreadCommandQ.put(&msg);         
-
-        }
 
         LOGD("mcapture_mode = %d", mcapture_mode);
         
