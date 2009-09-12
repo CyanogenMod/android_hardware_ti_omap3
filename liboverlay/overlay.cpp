@@ -1242,7 +1242,7 @@ int overlay_dequeueBuffer
 
     else if ( i < 0 || i > ctx->num_buffers )
     {
-		LOGE("dqbuffer i=%d",i);
+        LOGE("dqbuffer i=%d",i);
         rc = -EINVAL;
     }
     else
@@ -1280,7 +1280,7 @@ int overlay_queueBuffer
 
     // Catch the case where the data side had no need to set the crop window
     LOGV("qd_buf_count = %d", ctx->shared->qd_buf_count);
-    if ( ctx->shared->qd_buf_count >= (NUM_OVERLAY_BUFFERS_REQUESTED-1) && (ctx->shared->streamEn == 0)) /*DSS2: 2 buffers need to be queue before enable streaming*/
+    if ( ctx->shared->qd_buf_count >= NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE && (ctx->shared->streamEn == 0)) /*DSS2: 2 buffers need to be queue before enable streaming*/
     {
         ctx->shared->dataReady = 1;
         enable_streaming( ctx->shared, ctx->ctl_fd, LOCK_REQUIRED);

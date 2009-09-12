@@ -742,7 +742,6 @@ int CameraHal::CameraStart()
     LOGD("mPreviewFrameSize = 0x%x = %d", mPreviewFrameSize, mPreviewFrameSize);
 
     buffer_count = mOverlay->getBufferCount();
-    nBuffToStartDQ = buffer_count -1;    
     LOGD("number of buffers = %d\n", buffer_count);
 
     creqbuf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -908,7 +907,7 @@ void CameraHal::nextPreview()
 	    buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
 	}
 
-    if (nOverlayBuffersQueued >= nBuffToStartDQ)
+    if (nOverlayBuffersQueued >= NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
     {
 		
         if(mOverlay->dequeueBuffer(&overlaybuffer)){
