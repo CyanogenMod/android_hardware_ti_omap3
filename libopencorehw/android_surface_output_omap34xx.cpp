@@ -203,7 +203,6 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
             if (ret != NO_ERROR) {
                 if (ret == ALL_BUFFERS_FLUSHED)
                     mIsFirstFrame = true;
-                LOGE("Video (34xx)MIO dequeue buffer failed");
                 return false;
             }
         }
