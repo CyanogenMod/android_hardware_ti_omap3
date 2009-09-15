@@ -473,6 +473,27 @@ int v4l2_overlay_set_global_alpha(int fd, int enable, int alpha)
     return ret;
 }
 
+int v4l2_overlay_set_local_alpha(int fd, int enable)
+{
+    int ret;
+    struct v4l2_framebuffer fbuf;
+
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FBUF, &fbuf,
+                             "get transparency enables");
+
+    if (ret)
+        return ret;
+
+    if (enable)
+        fbuf.flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
+    else
+        fbuf.flags &= ~V4L2_FBUF_FLAG_LOCAL_ALPHA;
+
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FBUF, &fbuf, "enable global alpha");
+
+    return ret;
+}
+
 int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers)
 {
     LOG_FUNCTION_NAME
@@ -577,6 +598,10 @@ int v4l2_overlay_stream_on(int fd)
     int ret;
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 
+    ret = v4l2_overlay_set_local_alpha(fd, 1);
+    if (ret)
+        return ret;
+
     ret = v4l2_overlay_ioctl(fd, VIDIOC_STREAMON, &type, "stream on");
 
     return ret;
@@ -588,6 +613,10 @@ int v4l2_overlay_stream_off(int fd)
 
     int ret;
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+
+    ret = v4l2_overlay_set_local_alpha(fd, 0);
+    if (ret)
+        return ret;
 
     ret = v4l2_overlay_ioctl(fd, VIDIOC_STREAMOFF, &type, "stream off");
 

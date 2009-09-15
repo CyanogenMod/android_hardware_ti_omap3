@@ -58,7 +58,6 @@ typedef struct
   uint32_t posY;
   uint32_t posW;
   uint32_t posH;
-  uint32_t colorkeyEn;
   uint32_t rotation;
 } overlay_ctrl_t;
 
@@ -457,10 +456,6 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
         goto error1;
     }
 
-    if (v4l2_overlay_set_colorkey(fd, 1, 3)) {
-        LOGE("Failed enabling color key\n");
-        goto error1;
-    }
     if (v4l2_overlay_req_buf(fd, &num, 0)) {
         LOGE("Failed requesting buffers\n");
         goto error1;
@@ -515,10 +510,6 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
     if (shared->streamEn) {
         if (v4l2_overlay_stream_off(fd)) {
             LOGE("Error disabling the stream\n");
-        }
-
-        if (v4l2_overlay_set_colorkey(fd, 0, 0)) {
-            LOGE("Error disabling color key\n");
         }
     }
 
@@ -613,7 +604,6 @@ static int overlay_setParameter(struct overlay_control_device_t *dev,
 
     switch (param) {
     case OVERLAY_DITHER:
-        stage->colorkeyEn = (value == OVERLAY_ENABLE) ? 1 : 0;
         break;
 
     case OVERLAY_TRANSFORM:
@@ -672,8 +662,7 @@ static int overlay_commit(struct overlay_control_device_t *dev,
 
     if (data->posX == stage->posX && data->posY == stage->posY &&
         data->posW == stage->posW && data->posH == stage->posH &&
-        data->rotation == stage->rotation &&
-        data->colorkeyEn == stage->colorkeyEn) {
+        data->rotation == stage->rotation) {
         LOGI("Nothing to do!\n");
         goto end;
     }
@@ -683,19 +672,9 @@ static int overlay_commit(struct overlay_control_device_t *dev,
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", stage->posX, stage->posY,
          stage->posW, data->posH);
     LOGI("Rotation/%d\n", stage->rotation );
-    LOGI("ColorKey/%d\n", stage->colorkeyEn );
 
     if (disable_streaming_locked(shared, fd))
         goto end;
-
-    if (stage->colorkeyEn != data->colorkeyEn) {
-        ret = v4l2_overlay_set_colorkey(fd, stage->colorkeyEn, 3);
-        if (ret) {
-            LOGE("Set ColorKey Failed!/%d\n", ret);
-            goto end;
-        }
-        data->colorkeyEn = stage->colorkeyEn;
-    }
 
     if (stage->rotation != data->rotation) {
         ret = v4l2_overlay_set_rotation(fd, stage->rotation, 0);
