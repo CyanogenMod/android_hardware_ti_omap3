@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #include "mcp_hal_fs.h"
 #include "mcp_hal_pm.h"
 #include "mcp_hal_os.h"
@@ -25,7 +26,6 @@
 #include "ccm_imi.h"
 #include "ccm_vaci.h"
 #include "ccm_vaci_chip_abstration.h"
-#include "mcp_config_parser.h"
 
 struct tagCcmObj {
     McpUint         refCount;
@@ -34,8 +34,6 @@ struct tagCcmObj {
     CcmImObj        *imObj;
     TCCM_VAC_Object *vacObj;
     Cal_Config_ID   *calObj;
-
-McpConfigParser 			tConfigParser;			/* configuration file storage and parser */
 };
 
 typedef struct tagCcmStaticData {
@@ -105,8 +103,7 @@ CcmStatus CCM_Create(McpHalChipId chipId, CcmObj **this)
     CcmStatus       status;
     CcmImStatus     imStatus;
     ECCM_VAC_Status vacStatus;
-    McpConfigParserStatus eConfigParserStatus;
-	
+    
     MCP_FUNC_START("CCM_Create");
 
     MCP_VERIFY_FATAL((chipId < MCP_HAL_MAX_NUM_OF_CHIPS), CCM_STATUS_INTERNAL_ERROR, (("Invalid Chip Id"), chipId));
@@ -114,23 +111,15 @@ CcmStatus CCM_Create(McpHalChipId chipId, CcmObj **this)
     if (_CCM_StaticData._ccm_Objs[chipId].refCount == 0)
     {
         _CCM_StaticData._ccm_Objs[chipId].chipId = chipId;
-		/* read ini file */
-		eConfigParserStatus =	MCP_CONFIG_PARSER_Open ((McpUtf8*)CCM_VAC_CONFIG_FILE, (McpU8*)CCM_VAC_MEM_CONFIG, &(_CCM_StaticData._ccm_Objs[chipId].tConfigParser));
-		MCP_VERIFY_ERR ((MCP_CONFIG_PARSER_STATUS_SUCCESS == eConfigParserStatus),
-						CCM_VAC_STATUS_FAILURE_UNSPECIFIED,
-						("_CCM_VAC_ConfigurationEngine_Create: reading config file failed with status %d",
-						 eConfigParserStatus));
-		
+        
         imStatus = CCM_IM_Create(chipId, &_CCM_StaticData._ccm_Objs[chipId].imObj,
                                  _CCM_NotifyChipOn, &_CCM_StaticData._ccm_Objs[chipId]);
         MCP_VERIFY_FATAL((imStatus == CCM_IM_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR, ("CCM_IM_Create Failed"));
 
         CAL_Create (chipId, CCM_IMI_GetBtHciIfObj (_CCM_StaticData._ccm_Objs[chipId].imObj),
-                    &(_CCM_StaticData._ccm_Objs[chipId].calObj),&(_CCM_StaticData._ccm_Objs[chipId].tConfigParser));
+                    &(_CCM_StaticData._ccm_Objs[chipId].calObj));
         /* CAL creation cannot fail */
 
-   /*     vacStatus = CCM_VAC_Create (chipId, _CCM_StaticData._ccm_Objs[chipId].calObj,
-                                    &(_CCM_StaticData._ccm_Objs[chipId].vacObj),&(_CCM_StaticData._ccm_Objs[chipId].tConfigParser));*/
         vacStatus = CCM_VAC_Create (chipId, _CCM_StaticData._ccm_Objs[chipId].calObj, 
                                     &(_CCM_StaticData._ccm_Objs[chipId].vacObj));
         MCP_VERIFY_FATAL ((CCM_VAC_STATUS_SUCCESS == vacStatus), CCM_STATUS_INTERNAL_ERROR,
@@ -250,11 +239,10 @@ void _CCM_NotifyChipOn(void *handle,
     CcmObj *this = (CcmObj *)handle;
 
     /* configure the CAL */
-    //CCM_CAL_Configure(this->calObj, projectType, versionMajor, versionMinor);
+    CAL_VAC_Set_Chip_Version(this->calObj, projectType, versionMajor, versionMinor);
 
     /* configure the VAC */
     CCM_VAC_Configure(this->vacObj);
-
 }
 
 BtHciIfObj *CCM_GetBtHciIfObj(CcmObj *this)

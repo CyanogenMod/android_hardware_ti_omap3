@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #ifndef __MCP_CONFIG_H
 #define __MCP_CONFIG_H
 
@@ -52,10 +53,10 @@
  *          affects the amount of memory reserved for configuration
  */
 #define     MCP_CONFIG_PASRER_MAX_SECTION_LEN                   15
-#define     MCP_CONFIG_PASRER_MAX_KEY_NAME_LEN                  40
+#define     MCP_CONFIG_PASRER_MAX_KEY_NAME_LEN                  35
 #define     MCP_CONFIG_PASRER_MAX_KEY_VALUE_LEN                 35
-#define     MCP_CONFIG_PARSER_SECTION_NUMBER                    6
-#define     MCP_CONFIG_PARSER_KEY_NUMBER                        80
+#define     MCP_CONFIG_PARSER_SECTION_NUMBER                    3
+#define     MCP_CONFIG_PARSER_KEY_NUMBER                        40
 
 
 #endif

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_hal_types.h
@@ -39,81 +40,30 @@
  *		TARGET PLATFORM											
  *																
  */
+
 #include <stdint.h>
-
-/* Size of type (char) in the target platform, in bytes	*/
-#define MCP_CHAR_SIZE		(1)
-
-/* Size of type (short) in the target platform, in bytes */
-#define MCP_SHORT_SIZE 	(2)
-
-/* Size of type (long) in the target platform, in bytes	*/
-#define MCP_LONG_SIZE 		(4)
-
-/* Size of type (int) in the target platform, in bytes	*/
-#define MCP_INT_SIZE 		(4)
 
 /* -------------------------------------------------------------
  *					8 Bits Types
  */
-#if MCP_CHAR_SIZE == 1
-
-typedef unsigned char	 	McpU8;
-typedef signed char 		McpS8;
-
-#elif MCP_SHORT_SIZE == 1
-
-typedef unsigned short 	McpU8;
-typedef          short 		McpS8;
-
-#elif MCP_INT_SIZE == 1
 
 typedef uint8_t 	 	McpU8;
 typedef int8_t  		McpS8;
 
-#else
-
-#error Unable to define 8-bits basic types!
-
-#endif
-
 /* -------------------------------------------------------------
  *					16 Bits Types
  */
-#if MCP_SHORT_SIZE == 2
-
-typedef unsigned short 	McpU16;
-typedef          short 		McpS16;
-
-#elif MCP_INT_SIZE == 2
 
 typedef uint16_t  	McpU16;
 typedef int8_t 		McpS16;
 
-#else
-
-#error Unable to define 16-bits basic types!
-
-#endif
-
 /* -------------------------------------------------------------
  *					32 Bits Types
  */
-#if MCP_LONG_SIZE == 4
-
-typedef unsigned long 	McpU32;
-typedef          long 	McpS32;
-
-#elif MCP_INT_SIZE == 4
 
 typedef uint32_t 	McpU32;
 typedef int32_t 	McpS32;
 
-#else
-
-#error Unable to define 32-bits basic types!
-
-#endif
 
 /* -------------------------------------------------------------
  *			Native Integer Types (# of bits irrelevant)
@@ -151,15 +101,7 @@ typedef McpInt McpBool;
 #define	MCP_U16_MAX			UINT16_MAX
 #define	MCP_U32_MAX			UINT32_MAX
 
-#if MCP_INT_SIZE == 4
-
 #define MCP_UINT_MAX			(MCP_U32_MAX)
-
-#elif MCP_INT_SIZE == 2
-
-#define MCP_UINT_MAX			(MCP_U16_MAX)
-
-#endif
 
 
 #endif /* __MCP_HAL_TYPES_H */

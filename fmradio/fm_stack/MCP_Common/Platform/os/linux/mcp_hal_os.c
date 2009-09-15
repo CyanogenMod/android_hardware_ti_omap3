@@ -217,10 +217,10 @@ McpHalOsStatus MCP_HAL_OS_UnlockSemaphore(McpHalOsSemaphoreHandle semaphoreHandl
  */
 McpHalOsStatus MCP_HAL_OS_Sleep(McpHalOsTimeInMs time)
 {
-#ifdef ANDROID
+#if defined(ANDROID)
 	usleep(time * 1000);
 	return MCP_HAL_OS_STATUS_SUCCESS;
-#else
+#elif defined(SDP3430)
 	// time is in milliseconds
 	if (0 == usleep(time * 1000))
 	{

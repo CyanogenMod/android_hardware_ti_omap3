@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      fm_rx.h
@@ -405,7 +406,7 @@ typedef FMC_U8 FmRxAudioPath;
  *
  *     Represents FM event.
  */
-typedef struct _FmRxEvent {
+struct _FmRxEvent {
 	/* Defines the event that caused the callback */
 	FmRxEventType	eventType;
 
@@ -503,7 +504,7 @@ typedef struct _FmRxEvent {
 		} rawRdsGroupData;
     } p;    
 
-} ;
+};
 
 
 /********************************************************************************

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      ccm_vac.h
@@ -78,14 +79,12 @@ typedef void (*TCCM_VAC_Callback)(ECAL_Operation eOperation,
                                   ECCM_VAC_Event eEvent, 
                                   ECCM_VAC_Status eStatus);
 
-#include "ccm_vaci_configuration_engine.h" /* TODO ronen: understand if there's another way */
-
 /*-------------------------------------------------------------------------------
  * TCCM_VAC_Object type
  *
  *     Defines the VAC object type
  */
-typedef struct _TCCM_VAC_ConfigurationEngine TCCM_VAC_Object;
+typedef McpU32 TCCM_VAC_Object;
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_RegisterCallback()
@@ -297,4 +296,3 @@ void CCM_VAC_SetResourceProperties (TCCM_VAC_Object *ptVac,
 
 
 #endif /* __CCM_VAC_H__ */
-

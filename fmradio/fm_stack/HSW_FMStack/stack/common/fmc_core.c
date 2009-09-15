@@ -24,7 +24,6 @@
 #include <bluetooth/hci_lib.h>
 
 #include "fmc_types.h"
-
 #include "fmc_config.h"
 #include "fmc_defs.h"
 #include "fmc_core.h"
@@ -152,32 +151,33 @@ FmcStatus FMC_CORE_Deinit(void)
 
 FmcStatus FMC_CORE_SetCallback(FmcCoreEventCb eventCb)
 {
-	FmcStatus status;
+    FmcStatus status;
 
-	FMC_FUNC_START("FMC_CORE_SetCallback");
-	
-	/* Verify that only a single client at a time requests notifications */
-	if(eventCb != NULL)
-	{
-		status = FMC_CORE_RegisterUnregisterIntCallback(FMC_TRUE);
+    FMC_FUNC_START("FMC_CORE_SetCallback");
+    
+    /* Verify that only a single client at a time requests notifications */
+    if(eventCb != NULL)
+    {
+        status = FMC_CORE_RegisterUnregisterIntCallback(FMC_TRUE);
         /*[ToDo Zvi] It seems that we don't need this verify , do we???*/
         /*FMC_VERIFY_FATAL((_fmcTransportData.clientCb == NULL), FMC_STATUS_INTERNAL_ERROR,
             ("FMC_CORE_SetCallback: Callback already set"));*/
 
-	}
-	else
-	{
-        /*[ToDo Zvi] This was currently removed due to a problem in the unregister func and should be fixed*/
+    }
+    else
+    {
+#if defined(ANDROID) || defined(SDP3430)
         status = FMC_CORE_RegisterUnregisterIntCallback(FMC_FALSE);
-	}
-	_fmcTransportData.clientCb = eventCb;
+#endif
+    }
+    _fmcTransportData.clientCb = eventCb;
 
-	status = FMC_STATUS_SUCCESS;
-	
-	FMC_FUNC_END();
-	
-	return status;
-} 
+    status = FMC_STATUS_SUCCESS;
+    
+    FMC_FUNC_END();
+    
+    return status;
+}
 
 FmcStatus FMC_CORE_TransportOn(void)
 {
@@ -222,6 +222,7 @@ FmcStatus FMC_CORE_TransportOff(void)
 #if obc
     CcmImStatus     ccmImStatus;
 #endif
+
 
     FMC_FUNC_START("FMC_CORE_TransportOff");
 
@@ -349,6 +350,7 @@ CcmObj* _FMC_CORE_GetCcmObjStackHandle(void)
 {
 	return NULL;
 }
+
 
 /*************************************************************************************************
                 HCI-Specific implementation of transport API  - 
@@ -846,7 +848,6 @@ FmcStatus fm_open_cmd_socket(int hci_dev)
 		FM_ERROR_SYS("failed to open device hci%d", hci_dev);
 		ret = FMC_STATUS_FAILED;
 	}
-
 
 	FM_END();
 	return ret;

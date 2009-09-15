@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #include "mcp_hal_os.h"
 #include "mcp_ver_defs.h"
 #include "ccm_hal_pwr_up_dwn.h"
@@ -192,13 +193,13 @@ CcmImStatus CCM_IM_Destroy(CcmImObj **this)
 }
 
 
-BtHciIfObj *CCM_IMI_GetBtHciIfObj(CcmImObj *this)
+struct tagBtHciIfObj *CCM_IMI_GetBtHciIfObj(CcmImObj *this)
 {
-    _CcmIm_BtTranMngr_Obj   *tranMngrObj;
+	_CcmIm_BtTranMngr_Obj	*tranMngrObj;
 
-    tranMngrObj = this->tranMngrObj;
+	tranMngrObj = this->tranMngrObj;
 
-    return CCM_IM_BtTranMngr_GetBtHciIfObj(tranMngrObj);
+	return CCM_IM_BtTranMngr_GetBtHciIfObj(tranMngrObj);
 }
 
 CcmImStatus CCM_IM_RegisterStack(CcmImObj           *this, 

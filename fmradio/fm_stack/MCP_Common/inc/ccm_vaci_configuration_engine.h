@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      ccm_vaci_configuration_engine.h
@@ -76,7 +77,6 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_StaticInit (void);
  * Parameters:
  *      chipId      [in]     - the chip id for which the VAC object is created
  *      pCAL        [in]     - a pointer to the CAL object
- *	  pConfigParser [in]	- A pointer to config parser object, including the VAC configuration file
  *      this        [out]    - the configuration engine object
  *
  * Returns:
@@ -85,8 +85,7 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_StaticInit (void);
  */
 ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_Create(McpHalChipId chipId, 
                                                     Cal_Config_ID *pCAL,
-                                                    TCCM_VAC_ConfigurationEngine **this,
-								McpConfigParser 			*pConfigParser);
+                                                    TCCM_VAC_ConfigurationEngine **this);
 
 /*-------------------------------------------------------------------------------
  * _CCM_VAC_ConfigurationEngine_Configure()

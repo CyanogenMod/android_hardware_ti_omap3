@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      ccm_vaci_chip_abstraction_int.h
@@ -41,7 +42,7 @@
  *******************************************************************************/
 #include "ccm_vaci_chip_abstration.h"
 #include "mcp_hci_sequencer.h"
-#include "mcp_defs.h"
+
 /*******************************************************************************
  *
  * Macro definitions
@@ -58,20 +59,6 @@
 
 /*Optional Resource List macro */
 #define OPTIONALRESOURCELIST(_s, _i)     ((_s)->tOpToResMap[(_i)].tOptionalResources.tOptionalResourceLists)
-
-#define FM_PCMI_I2S_SELECT_OFFSET				(0)
-#define FM_PCMI_RIGHT_LEFT_SWAP_OFFSET				(1)
-#define FM_PCMI_BIT_OFFSET_VECTOR_OFFSET			(2)
-#define FM_PCMI_SLOT_OFSET_VECTOR_OFFSET			(5)
-#define FM_PCMI_PCM_INTERFACE_CHANNEL_DATA_SIZE_OFFSET	(9)
-
-#define FM_I2S_DATA_WIDTH_OFFSET			(0)
-#define FM_I2S_DATA_FORMAT_OFFSET			(4)
-#define FM_I2S_MASTER_SLAVE_OFFSET			(6)
-#define FM_I2S_SDO_TRI_STATE_MODE_OFFSET			(7)
-#define FM_I2S_SDO_PHASE_WS_PHASE_SELECT_OFFSET 		(8)
-#define FM_I2S_SDO_3ST_ALWZ_OFFSET		(10)
-#define FM_I2S_FRAME_SYNC_RATE_OFFSET		(12)
 
 /******************************************************************************/
 
@@ -105,34 +92,6 @@ typedef struct _Cal_Resource_Config
         Cal_Resource_Data   tResourceConfig[CAL_RESOURCE_MAX_NUM];
 
 } Cal_Resource_Config;
-
-typedef struct
-{
-	char		keyName[MCP_CONFIG_PASRER_MAX_KEY_NAME_LEN];
-	McpS32 value;
-}_Cal_Codec_Config;
-
-typedef enum
-{
-	FM_PCMI_RIGHT_LEFT_SWAP_LOC = 0,
-	FM_PCMI_BIT_OFFSET_VECTOR_LOC,
-	FM_PCMI_SLOT_OFSET_VECTOR_LOC ,
-	FM_PCMI_PCM_INTERFACE_CHANNEL_DATA_SIZE_LOC,
-	FM_PCM_PARAM_MAX_VALUE_LOC = FM_PCMI_PCM_INTERFACE_CHANNEL_DATA_SIZE_LOC,
-}_Cal_Fm_Pcm_Param_Loc;
-typedef enum
-{
-	FM_I2S_DATA_WIDTH_LOC = 0,
-	FM_I2S_DATA_FORMAT_LOC,
-	FM_I2S_MASTER_SLAVE_LOC,
-	FM_I2S_SDO_TRI_STATE_MODE_LOC,
-	FM_I2S_SDO_PHASE_WS_PHASE_SELECT_LOC,
-	FM_I2S_SDO_3ST_ALWZ_LOC,
-	FM_I2S_PARAM_MAX_VALUE_LOC = FM_I2S_SDO_3ST_ALWZ_LOC,
-}_Cal_Fm_I2s_Param_Loc;
-
-extern _Cal_Codec_Config fmI2sConfigParams[];
-extern _Cal_Codec_Config fmPcmConfigParams[];
 
 void CAL_Config_CB_Complete(const BtHciIfClientEvent *pEvent);
 void CAL_Config_Complete_Null_CB(const BtHciIfClientEvent *pEvent);

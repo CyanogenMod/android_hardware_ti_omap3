@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
+
 /** Include Filess **/
+#include "fm_trace.h"
 #include "mcpf_api.h"
 #include "mcp_hal_os.h"
 

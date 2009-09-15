@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #ifndef __FM_RX_SM_H
 #define __FM_RX_SM_H
 
@@ -59,7 +60,7 @@ typedef struct
     FMC_U8                  dataLen;
 } _FmRxSmTransportEventData;
 
-typedef struct _FmRxContext {
+struct _FmRxContext {
     /*FMC_BOOL isAllocated;*/
     FmRxSmContextState  state;
 
@@ -75,7 +76,7 @@ typedef struct _FmRxContext {
     /* Event that is sent to the user of the FM RX API ("application") */
     FmRxEvent           appEvent;
 
-} ;
+};
 
 
 
