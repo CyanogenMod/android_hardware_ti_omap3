@@ -2505,7 +2505,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                         pComponentPrivate->first_buff = 2;
                         pLcmlHdr->pBufHdr->nTimeStamp = pComponentPrivate->first_TS;
                         pComponentPrivate->temp_TS = pLcmlHdr->pBufHdr->nTimeStamp;
-                        OMX_ERROR4(pComponentPrivate->dbg, "first_ts = %lld\n",
+                        OMX_PRBUFFER1(pComponentPrivate->dbg, "first_ts = %lld\n",
                                    pComponentPrivate->temp_TS);
                     }else{ 
                         time_stmp = pLcmlHdr->pBufHdr->nFilledLen / (pComponentPrivate->pcmParams->nChannels * 
@@ -2514,7 +2514,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                         /* Update time stamp information */
                         pComponentPrivate->temp_TS += time_stmp;
                         pLcmlHdr->pBufHdr->nTimeStamp = pComponentPrivate->temp_TS;
-                        OMX_ERROR4(pComponentPrivate->dbg, "out ts = %lld\n",
+                        OMX_PRBUFFER1(pComponentPrivate->dbg, "out ts = %lld\n",
                                    pComponentPrivate->temp_TS);
                     }
                 }
@@ -2563,7 +2563,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
         if(pComponentPrivate->codecStop_waitingsignal == 0){
             pComponentPrivate->codecStop_waitingsignal = 1;             
             pthread_cond_signal(&pComponentPrivate->codecStop_threshold);
-            OMX_ERROR4(pComponentPrivate->dbg, "stop ack. received. stop waiting for sending disable command completed\n");
+            OMX_ERROR2(pComponentPrivate->dbg, "stop ack. received. stop waiting for sending disable command completed\n");
         }
         pthread_mutex_unlock(&pComponentPrivate->codecStop_mutex);
         if (!pComponentPrivate->bNoIdleOnStop) {
@@ -2666,7 +2666,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
 #endif                  
                     pComponentPrivate->pOutputBufferList->pBufHdr[i]->nFilledLen = 0;
                     if(pComponentPrivate->lastout == pComponentPrivate->pOutputBufferList->pBufHdr[i]){
-                        OMX_ERROR4(pComponentPrivate->dbg, "Mark EOS on OUT buffer!\n");
+                        OMX_ERROR2(pComponentPrivate->dbg, "Mark EOS on OUT buffer!\n");
                         pComponentPrivate->pOutputBufferList->pBufHdr[i]->nFlags |= OMX_BUFFERFLAG_EOS;
                     }
                     OMX_ERROR2(pComponentPrivate->dbg, "FillBufferDone!\n");
@@ -2787,7 +2787,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                     if(pComponentPrivate->codecFlush_waitingsignal == 0){
                         pComponentPrivate->codecFlush_waitingsignal = 1; 
                         pthread_cond_signal(&pComponentPrivate->codecFlush_threshold);
-                        OMX_ERROR4(pComponentPrivate->dbg, "flush ack. received. for input port\n");
+                        OMX_ERROR2(pComponentPrivate->dbg, "flush ack. received. for input port\n");
                     }     
                     pthread_mutex_unlock(&pComponentPrivate->codecFlush_mutex);
 
@@ -2829,7 +2829,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                     if(pComponentPrivate->codecFlush_waitingsignal == 0){
                         pComponentPrivate->codecFlush_waitingsignal = 1; 
                         pthread_cond_signal(&pComponentPrivate->codecFlush_threshold);
-                        OMX_ERROR4(pComponentPrivate->dbg, "flush ack. received. for output port\n");
+                        OMX_ERROR2(pComponentPrivate->dbg, "flush ack. received. for output port\n");
                     }     
                     pthread_mutex_unlock(&pComponentPrivate->codecFlush_mutex);
                     pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle, 
