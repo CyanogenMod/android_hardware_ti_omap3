@@ -1747,6 +1747,12 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     if ( mOverlay.get() != NULL )
     {
         LOGD("Destroying current overlay");
+        
+        int buffer_count = mOverlay->getBufferCount();
+        for(int i =0; i < buffer_count ; i++){
+            buffers_queued_to_dss[i] = 0;
+        }
+
         mOverlay->destroy();
         nOverlayBuffersQueued = 0;
     }
@@ -1754,7 +1760,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     mOverlay = overlay;
     if (mOverlay == NULL)
     {
-        LOGE("Trying to set overlay, but overlay is null!");
+        LOGE("Trying to set overlay, but overlay is null!, line:%d",__LINE__);
         return NO_ERROR;
     }
 
@@ -1773,7 +1779,7 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
 
     if (mOverlay == NULL)
     {
-        LOGE("Trying to set overlay, but overlay is null!");
+        LOGE("WARNING: Trying to set overlay, but overlay is null!, line:%d",__LINE__);
         return NO_ERROR;
     }
 
