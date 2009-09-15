@@ -627,6 +627,10 @@ int CameraHal::PopulateArgsIPP(int w, int h)
 	if(mippMode == IPP_CromaSupression_Mode )	
 		pIPP.iCrcbsOutArgs->extendedError = 0;
 
+#if IPP_YUV422P 
+    pIPP.iYuvcOutArgs2->extendedError = 0;
+#endif
+
 	//Filling ipp status structure
     pIPP.starStatus.size = sizeof(IPP_StarAlgoStatus);
 	if(mippMode == IPP_CromaSupression_Mode ){

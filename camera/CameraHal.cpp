@@ -405,7 +405,7 @@ void CameraHal::previewThread()
 				err = 0;
 
                 if( !mPreviewRunning ){
-                    LOGD("WARNING PREVIEW RUNNING!");
+                    LOGD("WARNING PREVIEW NOT RUNNING!");
                     msg.command = PREVIEW_NACK;
                 }
                 else
