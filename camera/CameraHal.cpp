@@ -1962,6 +1962,7 @@ status_t CameraHal::takePicture(shutter_callback shutter_cb,
     msg.arg3    = (void*)jpeg_cb;
     msg.arg4    = user;
     previewThreadCommandQ.put(&msg);
+    previewThreadAckQ.get(&msg);
 
     LOG_FUNCTION_NAME_EXIT
     return NO_ERROR;
