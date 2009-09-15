@@ -464,6 +464,14 @@
 #define STEREO_INTERLEAVED_STREAM_AACDEC     2
 #define STEREO_NONINTERLEAVED_STREAM_AACDEC  3
 
+/* ======================================================================= */
+/**
+ * pthread variable to indicate OMX returned all buffers to app
+ */
+/* ======================================================================= */
+pthread_mutex_t bufferReturned_mutex;
+pthread_cond_t bufferReturned_condition;
+
 /**
  *
  * AAC Decoder Profile:0 - MAIN, 1 - LC, 2 - SSR, 3 - LTP.
@@ -921,6 +929,7 @@ typedef struct AACDEC_COMPONENT_PRIVATE
 #ifndef UNDER_CE    
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
+
     OMX_U8 AlloBuf_waitingsignal;
     
     pthread_mutex_t InLoaded_mutex;
@@ -1351,5 +1360,19 @@ OMX_U32 AACDEC_ParseHeader(OMX_BUFFERHEADERTYPE* pBufHeader,
 /*            and returns the value in a TUint value.                        */
 /*  =========================================================================*/
 OMX_U32 AACDEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BOOL bIcreasePosition);
+
+/*=======================================================================*/
+/*! @fn SignalIfAllBuffersAreReturned
+
+ * @brief Sends pthread signal to indicate OMX has returned all buffers to app
+
+ * @param  none
+
+ * @Return void
+
+ */
+/*=======================================================================*/
+void SignalIfAllBuffersAreReturned(AACDEC_COMPONENT_PRIVATE *pComponentPrivate);
+
 
 #endif
