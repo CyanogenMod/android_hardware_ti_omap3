@@ -2657,6 +2657,10 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
             }
             else if (pComponentPrivate->eState == OMX_StateExecuting || pComponentPrivate->eState == OMX_StatePause) {
                 /*Set the bIsStopping bit*/
+                if (pComponentPrivate->bDynamicConfigurationInProgress == OMX_TRUE) {
+                    pComponentPrivate->bDynamicConfigurationInProgress = OMX_FALSE;
+                    OMX_PRSTATE1(pComponentPrivate->dbg, "We were doing DynamicConfiguration, canceling it. %d \n",pComponentPrivate->bDynamicConfigurationInProgress);
+                }
                 pComponentPrivate->bIsStopping = 1;
                 OMX_PRSTATE1(pComponentPrivate->dbg, "bIsStopping 0x%lx\n",pComponentPrivate->bIsStopping);
                 OMX_PRSTATE1(pComponentPrivate->dbg, "eExecuteToIdle 0x%x\n",pComponentPrivate->eExecuteToIdle);
