@@ -266,8 +266,9 @@ void AndroidSurfaceOutputOmap34xx::setParametersSync(PvmiMIOSession aSession,
 
             iBufferSize = (int32)yuvInfo->buffer_size;
             LOGV("AndroidSurfaceOutputOmap34xx::setParametersSync() Buffer Size, Value %d", iBufferSize);
-            /* we're not being passed the subformat info */
-            iVideoSubFormat = "X-YUV-420";
+
+            LOGV("Ln %d video_format %s", __LINE__, yuvInfo->video_format.getMIMEStrPtr() );
+            iVideoSubFormat = yuvInfo->video_format.getMIMEStrPtr();
             iVideoParameterFlags |= VIDEO_SUBFORMAT_VALID;
         }
         else
@@ -309,6 +310,12 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::getParametersSync(PvmiMIOSession aSessi
 
     if (strcmp(aIdentifier, PVMF_BUFFER_ALLOCATOR_KEY) == 0)
     {
+        if( iVideoSubFormat != PVMF_MIME_YUV422_INTERLEAVED_UYVY ) {
+            LOGV("Ln %d iVideoSubFormat %s. do NOT allocate decoder buffer from overlay", __LINE__, iVideoSubFormat.getMIMEStrPtr() );
+            OSCL_LEAVE(OsclErrNotSupported);
+            return PVMFErrNotSupported;
+        }
+
         int32 err;
         aParameters = (PvmiKvp*)oscl_malloc(sizeof(PvmiKvp));
         if (!aParameters)
