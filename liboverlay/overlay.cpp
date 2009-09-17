@@ -944,14 +944,19 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
     }
     pthread_mutex_unlock(&ctx->shared->lock);
 
-    if ((rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0) {
-        LOGE("Failed to DQ/%d\n", rc);
-    }
-    else if (i < 0 || i > ctx->num_buffers) {
-        rc = -EINVAL;
+    // If we are not streaming dequeue will fail, skip to prevent error printouts
+    if (ctx->shared->streamEn) {
+        if ((rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0) {
+            LOGE("Failed to DQ/%d\n", rc);
+        }
+        else if (i < 0 || i > ctx->num_buffers) {
+            rc = -EINVAL;
+        } else {
+            *((int *)buffer) = i;
+            ctx->qd_buf_count --;
+        }
     } else {
-        *((int *)buffer) = i;
-        ctx->qd_buf_count --;
+        rc = -1;
     }
 
     return rc;
