@@ -47,6 +47,11 @@
 #define SHORT_VIDEO_START_MARKER		0x20
 #define SHORT_VIDEO_START_MARKER_LENGTH  22
 
+/*Some H264 profiles*/
+#define H264_PROFILE_IDC_BASELINE 66
+#define H264_PROFILE_IDC_MAIN 77
+#define H264_PROFILE_IDC_EXTENDED 88
+
 typedef struct
 {
     uint8 *data;

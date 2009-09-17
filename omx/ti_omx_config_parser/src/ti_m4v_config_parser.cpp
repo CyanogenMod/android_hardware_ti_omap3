@@ -928,6 +928,9 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
 
     *profile_idc = temp;
 
+    if(*profile_idc != H264_PROFILE_IDC_BASELINE)
+        return MP4_INVALID_VOL_PARAM;
+
     ReadBits(psBits, 1, &temp);
     ReadBits(psBits, 1, &temp);
     ReadBits(psBits, 1, &temp);
