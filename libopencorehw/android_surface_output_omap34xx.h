@@ -62,15 +62,16 @@ class AndroidSurfaceOutputOmap34xx : public AndroidSurfaceOutput
 
         OSCL_IMPORT_REF ~AndroidSurfaceOutputOmap34xx();
     private:
-        bool					mUseOverlay;
-        sp<Overlay> 				mOverlay; 
-        int 					bufEnc;
+        bool                    mUseOverlay;
+        sp<Overlay>             mOverlay;
+        int                     bufEnc;
 
-        int32 iNumberOfBuffers;
-        int32 iBufferSize;
-        bool mIsFirstFrame;
+        int32                   iNumberOfBuffers;
+        int32                   iBufferSize;
+        bool                    mIsFirstFrame;
+        bool                    mConvert;
     public:
-        BufferAllocOmap34xx			mbufferAlloc;
+        BufferAllocOmap34xx     mbufferAlloc;
 };
 
 #endif // ANDROID_SURFACE_OUTPUT_OMAP34XX_H_INCLUDED

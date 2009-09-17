@@ -61,6 +61,8 @@ extern "C" {
 
 using namespace android;
 
+static void convertYuv420ToYuv422(int width, int height, void* src, void* dst);
+
 OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     AndroidSurfaceOutput()
 {
@@ -68,6 +70,7 @@ OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     mOverlay = NULL;
     mIsFirstFrame = true;
     mbufferAlloc.buffer_address = NULL;
+    mConvert = false;
 }
 
 OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
@@ -95,10 +98,13 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
 
     if (mUseOverlay) {
         if(mOverlay == NULL){
-            LOGV("using Vendor Speicifc(34xx) codec");
-            sp<OverlayRef> ref = mSurface->createOverlay(displayWidth, displayHeight,videoFormat);
-            if(ref != NULL)LOGV("Vendor Speicifc(34xx)MIO: overlay created ");
-            else LOGV("Vendor Speicifc(34xx)MIO: Creating overlay failed");
+            LOGV("using Vendor Specific(34xx) codec");
+            sp<OverlayRef> ref = mSurface->createOverlay(displayWidth, displayHeight, videoFormat);
+            if(ref != NULL) {
+                LOGV("Vendor Specific(34xx)MIO: overlay created ");
+            } else {
+                LOGV("Vendor Specific(34xx)MIO: Creating overlay failed");
+            }
             mOverlay = new Overlay(ref);
             mOverlay->setParameter(CACHEABLE_BUFFERS, 0);
         }
@@ -131,6 +137,12 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
     LOGV("sendEvent(MEDIA_SET_VIDEO_SIZE, %d, %d)", iVideoDisplayWidth, iVideoDisplayHeight);
     mPvPlayer->sendEvent(MEDIA_SET_VIDEO_SIZE, iVideoDisplayWidth, iVideoDisplayHeight);
 
+    // is conversion necessary?
+    if (iVideoSubFormat == PVMF_MIME_YUV420_PLANAR) {
+        LOGV("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter");
+        mConvert = true;
+    }
+
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.video.showfps", value, "0");
     mDebugFps = atoi(value);
@@ -159,7 +171,7 @@ static void debugShowFPS()
 
 PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info)
 {
-    LOGV(" calling Vendor Speicifc(34xx) writeFrameBuf call");
+    LOGV(" calling Vendor Specific(34xx) writeFrameBuf call");
     if (mSurface == 0) return PVMFFailure;
 
     if (UNLIKELY(mDebugFps)) {
@@ -168,19 +180,25 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
 
     if (mUseOverlay) {
         int ret;
-        int i;
-        for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
-            if (mbufferAlloc.buffer_address[i] == aData) {
-                break;
-            }
 
+        // Convert from YUV420 to YUV422 for software codec
+        if (mConvert) {
+            convertYuv420ToYuv422(iVideoWidth, iVideoHeight, aData, mbufferAlloc.buffer_address[bufEnc]);
+        } else {
+            int i;
+            for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
+                if (mbufferAlloc.buffer_address[i] == aData) {
+                    break;
+                }
+
+            }
+            if (i == mbufferAlloc.maxBuffers) {
+                LOGE("aData does not match any v4l buffer address\n");
+                return PVMFSuccess;
+            }
+            LOGV("queueBuffer %d\n", i);
+            bufEnc = i;
         }
-        if (i == mbufferAlloc.maxBuffers) {
-            LOGE("aData does not match any v4l buffer address\n");
-            return PVMFSuccess;
-        }
-        LOGV("queueBuffer %d\n", i);
-        bufEnc = i;
 
         /* This is to reset the buffer queue when stream_off is called as
          * all the buffers are flushed when stream_off is called.
@@ -209,6 +227,13 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
         else
         {
             mIsFirstFrame = false;
+        }
+
+        // advance the overlay index if using color conversion
+        if (mConvert) {
+            if (++bufEnc == mbufferAlloc.maxBuffers) {
+                bufEnc = 0;
+            }
         }
     }
     return PVMFSuccess;
@@ -355,6 +380,62 @@ void AndroidSurfaceOutputOmap34xx::closeFrameBuf()
     if (!mInitialized) return;
     mInitialized = false;
 }
+
+// return a byte offset from any pointer
+static inline void* byteOffset(void* p, size_t offset) { return (void*)((uint8_t*)p + offset); }
+
+static void convertYuv420ToYuv422(int width, int height, void* src, void* dst)
+{
+
+    // calculate total number of pixels, and offsets to U and V planes
+    int pixelCount = height * width;
+    int srcLineLength = width / 4;
+    int destLineLength = width / 2;
+    uint32_t* ySrc = (uint32_t*) src;
+    uint16_t* uSrc = (uint16_t*) byteOffset(src, pixelCount);
+    uint16_t* vSrc = (uint16_t*) byteOffset(uSrc, pixelCount >> 2);
+    uint32_t *p = (uint32_t*) dst;
+
+    // convert lines
+    for (int i = 0; i < height; i += 2) {
+
+        // upsample by repeating the UV values on adjacent lines
+        // to save memory accesses, we handle 2 adjacent lines at a time
+        // convert 4 pixels in 2 adjacent lines at a time
+        for (int j = 0; j < srcLineLength; j++) {
+
+            // fetch 4 Y values for each line
+            uint32_t y0 = ySrc[0];
+            uint32_t y1 = ySrc[srcLineLength];
+            ySrc++;
+
+            // fetch 2 U/V values
+            uint32_t u = *uSrc++;
+            uint32_t v = *vSrc++;
+
+            // assemble first U/V pair, leave holes for Y's
+            uint32_t uv = (u | (v << 16)) & 0x00ff00ff;
+
+            // OR y values and write to memory
+            p[0] = ((y0 & 0xff) << 8) | ((y0 & 0xff00) << 16) | uv;
+            p[destLineLength] = ((y1 & 0xff) << 8) | ((y1 & 0xff00) << 16) | uv;
+            p++;
+
+            // assemble second U/V pair, leave holes for Y's
+            uv = ((u >> 8) | (v << 8)) & 0x00ff00ff;
+
+            // OR y values and write to memory
+            p[0] = ((y0 >> 8) & 0xff00) | (y0 & 0xff000000) | uv;
+            p[destLineLength] = ((y1 >> 8) & 0xff00) | (y1 & 0xff000000) | uv;
+            p++;
+        }
+
+        // skip the next y line, we already converted it
+        ySrc += srcLineLength;
+        p += destLineLength;
+    }
+}
+
 
 // factory function for playerdriver linkage
 extern "C" AndroidSurfaceOutputOmap34xx* createVideoMio()
