@@ -243,7 +243,8 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
         got = stream->read(Data+2, itemlen-2); /* Read the whole section.*/
 
         if ( got != itemlen-2 ) {
-            //PRINTF("Premature end of file?");
+             //PRINTF("Premature end of file?");
+            return 0;           
         }
 
         //PRINTF("Jpeg section marker 0x%02x size %d\n",marker, itemlen);
