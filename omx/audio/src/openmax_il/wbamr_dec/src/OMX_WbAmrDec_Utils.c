@@ -36,17 +36,6 @@
 * @rev  0.1
 */
 /* ----------------------------------------------------------------------------
-*!
-*! Revision History
-*! ===================================
-*! 10-Sept-2005 mf:  Initial Version. Change required per OMAPSWxxxxxxxxx
-*! to provide _________________.
-*!
-*!
-*! 10-Sept-2005 mf:
-*! This is newest file
-* =========================================================================== */
-
 
 /* ------compilation control switches -------------------------*/
 /****************************************************************
@@ -196,7 +185,7 @@ OMX_ERRORTYPE WBAMR_DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,
 
     if(pComponentPrivate->dasfmode == 1) {
         OMX_PRINT1(pComponentPrivate->dbg, "pComponentPrivate->dasfmode = %ld\n",pComponentPrivate->dasfmode);
-        WBAMR_DEC_OMX_MALLOC(strmAttr, LCML_STRMATTR);
+        OMX_MALLOC_GENERIC(strmAttr, LCML_STRMATTR);
 
         pComponentPrivate->strmAttr = strmAttr;
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[ALLOC] %p\n",strmAttr);
@@ -299,7 +288,7 @@ OMX_ERRORTYPE WBAMR_DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,
 
     OMX_PRINT1(pComponentPrivate->dbg, "Comp: OMX_AmrDecUtils.c\n");
     size_lcml = nIpBuf * sizeof(LCML_WBAMR_DEC_BUFHEADERTYPE);
-    WBAMR_DEC_OMX_MALLOC_SIZE(pTemp_lcml, size_lcml,LCML_WBAMR_DEC_BUFHEADERTYPE);
+    OMX_MALLOC_SIZE(pTemp_lcml, size_lcml,LCML_WBAMR_DEC_BUFHEADERTYPE);
 
     pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_INPUT_PORT] = pTemp_lcml;
 
@@ -314,17 +303,14 @@ OMX_ERRORTYPE WBAMR_DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,
         pTemp_lcml->buffer = pTemp;
         pTemp_lcml->eDir = OMX_DirInput;
 
-        WBAMR_DEC_OMX_MALLOC_SIZE(pTemp_lcml->pBufferParam,
-                                  (sizeof(WBAMRDEC_ParamStruct)+DSP_CACHE_ALIGNMENT),
-                                  WBAMRDEC_ParamStruct);
-        pTemp_char = (char*)pTemp_lcml->pBufferParam;
-        pTemp_char += EXTRA_BYTES;
-        pTemp_lcml->pBufferParam = (WBAMRDEC_ParamStruct*)pTemp_char;
+        OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pBufferParam,
+                        sizeof(WBAMRDEC_ParamStruct),
+                        WBAMRDEC_ParamStruct);
         pTemp_lcml->pBufferParam->usNbFrames =0;
         pTemp_lcml->pBufferParam->pParamElem = NULL;
         pTemp_lcml->pFrameParam = NULL;
 
-        WBAMR_DEC_OMX_MALLOC(pTemp_lcml->pDmmBuf, DMM_BUFFER_OBJ);
+        OMX_MALLOC_GENERIC(pTemp_lcml->pDmmBuf, DMM_BUFFER_OBJ);
 
 
         /* This means, it is not a last buffer. This flag is to be modified by
@@ -337,7 +323,7 @@ OMX_ERRORTYPE WBAMR_DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,
     /* Allocate memory for all output buffer headers..
      * This memory pointer will be sent to LCML */
     size_lcml = nOpBuf * sizeof(LCML_WBAMR_DEC_BUFHEADERTYPE);
-    WBAMR_DEC_OMX_MALLOC_SIZE(pTemp_lcml, size_lcml,LCML_WBAMR_DEC_BUFHEADERTYPE);
+    OMX_MALLOC_SIZE(pTemp_lcml, size_lcml,LCML_WBAMR_DEC_BUFHEADERTYPE);
     pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_OUTPUT_PORT] = pTemp_lcml;
 
     for (i=0; i<nOpBuf; i++) {
@@ -356,17 +342,13 @@ OMX_ERRORTYPE WBAMR_DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,
         pTemp_lcml->eDir = OMX_DirOutput;
         pTemp_lcml->pFrameParam = NULL;
 
-        WBAMR_DEC_OMX_MALLOC_SIZE(pTemp_lcml->pBufferParam,
-                                  (sizeof(WBAMRDEC_ParamStruct)+DSP_CACHE_ALIGNMENT),
-                                  WBAMRDEC_ParamStruct);
-
-        pTemp_char = (char*)pTemp_lcml->pBufferParam;
-        pTemp_char += EXTRA_BYTES;
-        pTemp_lcml->pBufferParam = (WBAMRDEC_ParamStruct*)pTemp_char;
+        OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pBufferParam,
+                                 sizeof(WBAMRDEC_ParamStruct),
+                                 WBAMRDEC_ParamStruct);
 
         pTemp_lcml->pBufferParam->usNbFrames =0;
         pTemp_lcml->pBufferParam->pParamElem = NULL;
-        WBAMR_DEC_OMX_MALLOC(pTemp_lcml->pDmmBuf, DMM_BUFFER_OBJ);
+        OMX_MALLOC_GENERIC(pTemp_lcml->pDmmBuf, DMM_BUFFER_OBJ);
 
         OMX_PRDSP1(pComponentPrivate->dbg, "pTemp_lcml = %p\n",pTemp_lcml);
         OMX_PRBUFFER1(pComponentPrivate->dbg, "pTemp_lcml->buffer = %p\n",pTemp_lcml->buffer);
@@ -427,7 +409,7 @@ OMX_ERRORTYPE WBAMR_DEC_StartComponentThread(OMX_HANDLETYPE pComponent)
     pComponentPrivate->app_nBuf = 0;
     pComponentPrivate->num_Reclaimed_Op_Buff = 0;
 
-    /* create the pipe used to send buffers to the thread */
+    /* create the pipe used to send command data to the thread */
     eError = pipe (pComponentPrivate->cmdDataPipe);
     if (eError) {
         eError = OMX_ErrorInsufficientResources;
@@ -532,34 +514,29 @@ OMX_ERRORTYPE WBAMR_DEC_FreeCompResources(OMX_HANDLETYPE pComponent)
 
     }
     if (pComponentPrivate->pPriorityMgmt != NULL ) {
-        OMX_WBDECMEMFREE_STRUCT (pComponentPrivate->pPriorityMgmt);
-        pComponentPrivate->pPriorityMgmt = NULL;
+        OMX_MEMFREE_STRUCT (pComponentPrivate->pPriorityMgmt);
     }
 
     OMX_PRBUFFER1(pComponentPrivate->dbg, "[WBAMR_DEC_FreeCompResources] \n");
     if (pComponentPrivate->pPortDef[WBAMR_DEC_INPUT_PORT]) {
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->pPortDef[WBAMR_DEC_INPUT_PORT]);
-        OMX_WBDECMEMFREE_STRUCT(pComponentPrivate->pPortDef[WBAMR_DEC_INPUT_PORT]);
-        pComponentPrivate->pPortDef[WBAMR_DEC_INPUT_PORT] = NULL;
-    }
+        OMX_MEMFREE_STRUCT(pComponentPrivate->pPortDef[WBAMR_DEC_INPUT_PORT]);
+     }
 
     if (pComponentPrivate->pPortDef[WBAMR_DEC_OUTPUT_PORT]) {
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->pPortDef[WBAMR_DEC_OUTPUT_PORT]);
-        OMX_WBDECMEMFREE_STRUCT (pComponentPrivate->pPortDef[WBAMR_DEC_OUTPUT_PORT]);
-        pComponentPrivate->pPortDef[WBAMR_DEC_OUTPUT_PORT] = NULL;
-    }
+        OMX_MEMFREE_STRUCT (pComponentPrivate->pPortDef[WBAMR_DEC_OUTPUT_PORT]);
+     }
 
     if (pComponentPrivate->wbamrParams[WBAMR_DEC_INPUT_PORT]!=NULL) {
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->wbamrParams[WBAMR_DEC_INPUT_PORT]);
-        OMX_WBDECMEMFREE_STRUCT(pComponentPrivate->wbamrParams[WBAMR_DEC_INPUT_PORT]);
-        pComponentPrivate->wbamrParams[WBAMR_DEC_INPUT_PORT] = NULL;
-    }
+        OMX_MEMFREE_STRUCT(pComponentPrivate->wbamrParams[WBAMR_DEC_INPUT_PORT]);
+     }
 
     if (pComponentPrivate->wbamrParams[WBAMR_DEC_OUTPUT_PORT]!=NULL) {
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->wbamrParams[WBAMR_DEC_OUTPUT_PORT]);
-        OMX_WBDECMEMFREE_STRUCT (pComponentPrivate->wbamrParams[WBAMR_DEC_OUTPUT_PORT]);
-        pComponentPrivate->wbamrParams[WBAMR_DEC_OUTPUT_PORT] = NULL;
-    }
+        OMX_MEMFREE_STRUCT (pComponentPrivate->wbamrParams[WBAMR_DEC_OUTPUT_PORT]);
+     }
 
     pComponentPrivate->bPortDefsAllocated = 0;
 #ifndef UNDER_CE
@@ -603,27 +580,17 @@ OMX_ERRORTYPE WBAMR_DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
 
 
     if (pComponentPrivate->strmAttr!=NULL) {
-        OMX_WBDECMEMFREE_STRUCT(pComponentPrivate->strmAttr);
-        pComponentPrivate->strmAttr = NULL;
+        OMX_MEMFREE_STRUCT(pComponentPrivate->strmAttr);
     }
 
-    pParmsTemp = (OMX_U8*)pComponentPrivate->pParams;
-    if (pParmsTemp != NULL){
-        pParmsTemp -= EXTRA_BYTES ;
-        pComponentPrivate->pParams = (WBAMR_DEC_AudioCodecParams*)pParmsTemp;
-        OMX_WBDECMEMFREE_STRUCT(pComponentPrivate->pParams);
-        pComponentPrivate->pParams = NULL;
-    }
+    OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pParams,WBAMR_DEC_AudioCodecParams);
 
     nIpBuf = pComponentPrivate->nRuntimeInputBuffers;
     pTemp_lcml = pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_INPUT_PORT];
     for(i=0; i<nIpBuf; i++) {
-
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pTemp_lcml->pFrameParam);
         if(pTemp_lcml->pFrameParam!=NULL){
-            pTemp_lcml->pFrameParam = (WAMRDEC_FrameStruct *)(pTemp_lcml->pFrameParam - 16);
-            OMX_WBDECMEMFREE_STRUCT(pTemp_lcml->pFrameParam);
-            pTemp_lcml->pFrameParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pTemp_lcml->pFrameParam,WAMRDEC_FrameStruct);
             pLcmlHandle = (LCML_DSP_INTERFACE *)pComponentPrivate->pLcmlHandle;
             pLcmlHandleAux = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)pLcmlHandle->pCodecinterfacehandle)->pCodec);
             OMX_DmmUnMap(pLcmlHandleAux->dspCodec->hProc,
@@ -632,18 +599,12 @@ OMX_ERRORTYPE WBAMR_DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
         }
 
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pTemp_lcml->pBufferParam);
-        pTemp = (char*)pTemp_lcml->pBufferParam;
-        if (pTemp != NULL) {
-            pTemp -= EXTRA_BYTES;
-        }
-        pTemp_lcml->pBufferParam = (WBAMRDEC_ParamStruct*)pTemp;
-        OMX_WBDECMEMFREE_STRUCT(pTemp_lcml->pBufferParam);
+        OMX_MEMFREE_STRUCT_DSPALIGN(pTemp_lcml->pBufferParam,WBAMRDEC_ParamStruct);
 
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pTemp_lcml->pDmmBuf);
 
         if(pTemp_lcml->pDmmBuf!=NULL){
-            OMX_WBDECMEMFREE_STRUCT(pTemp_lcml->pDmmBuf);
-            pTemp_lcml->pDmmBuf = NULL;
+            OMX_MEMFREE_STRUCT(pTemp_lcml->pDmmBuf);
         }
         pTemp_lcml++;
     }
@@ -654,11 +615,7 @@ OMX_ERRORTYPE WBAMR_DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
 
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pTemp_lcml->pFrameParam);
         if(pTemp_lcml->pFrameParam!=NULL){
-            pBufParmsTemp = (OMX_U8*)pTemp_lcml->pFrameParam;
-            pBufParmsTemp -= EXTRA_BYTES ;
-            OMX_WBDECMEMFREE_STRUCT(pBufParmsTemp);
-            pBufParmsTemp = NULL;
-            pTemp_lcml->pFrameParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pTemp_lcml->pFrameParam,WAMRDEC_FrameStruct);
             pLcmlHandle = (LCML_DSP_INTERFACE *)pComponentPrivate->pLcmlHandle;
             pLcmlHandleAux = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)pLcmlHandle->pCodecinterfacehandle)->pCodec);
             OMX_DmmUnMap(pLcmlHandleAux->dspCodec->hProc,
@@ -667,29 +624,21 @@ OMX_ERRORTYPE WBAMR_DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
         }
 
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pTemp_lcml->pBufferParam);
-        pTemp = (char*)pTemp_lcml->pBufferParam;
-        if (pTemp != NULL) {
-            pTemp -= EXTRA_BYTES;
-        }
-        pTemp_lcml->pBufferParam = (WBAMRDEC_ParamStruct*)pTemp;
-        OMX_WBDECMEMFREE_STRUCT(pTemp_lcml->pBufferParam);
+        OMX_MEMFREE_STRUCT_DSPALIGN(pTemp_lcml->pBufferParam,WBAMRDEC_ParamStruct);
 
         OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pTemp_lcml->pDmmBuf);
         if(pTemp_lcml->pDmmBuf!=NULL){
-            OMX_WBDECMEMFREE_STRUCT(pTemp_lcml->pDmmBuf);
-            pTemp_lcml->pDmmBuf = NULL;
-        }
+            OMX_MEMFREE_STRUCT(pTemp_lcml->pDmmBuf);
+         }
         pTemp_lcml++;
     }
 
 
     OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_INPUT_PORT]);
-    OMX_WBDECMEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_INPUT_PORT]);
-    pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_INPUT_PORT] = NULL;
+    OMX_MEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_INPUT_PORT]);
 
     OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_OUTPUT_PORT]);
-    OMX_WBDECMEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_OUTPUT_PORT]);
-    pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_OUTPUT_PORT] = NULL;
+    OMX_MEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_OUTPUT_PORT]);
     return eError;
 }
 
@@ -1030,10 +979,9 @@ OMX_U32 WBAMR_DEC_HandleCommand (WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate)
                         goto EXIT;
                     }
 
-                    WBAMR_DEC_OMX_MALLOC_SIZE(pParmsTemp, (sizeof(WBAMR_DEC_AudioCodecParams) + DSP_CACHE_ALIGNMENT),OMX_U8);
-                    pParams = (WBAMR_DEC_AudioCodecParams*)(pParmsTemp + EXTRA_BYTES );
+                    OMX_MALLOC_SIZE_DSPALIGN(pComponentPrivate->pParams, sizeof(WBAMR_DEC_AudioCodecParams),WBAMR_DEC_AudioCodecParams);
+                    pParams = pComponentPrivate->pParams;
                     OMX_PRBUFFER2(pComponentPrivate->dbg, "[ALLOC] %p\n",pParams);
-                    pComponentPrivate->pParams = pParams;
 
                     pParams->iAudioFormat = 1;
                     pParams->iSamplingRate = 16000;
@@ -1093,8 +1041,7 @@ OMX_U32 WBAMR_DEC_HandleCommand (WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 pComponentPrivate->bStopSent=1;
 
                 if (pComponentPrivate->pHoldBuffer) {
-                    OMX_WBDECMEMFREE_STRUCT(pComponentPrivate->pHoldBuffer);
-                    pComponentPrivate->pHoldBuffer = NULL;
+                    OMX_MEMFREE_STRUCT(pComponentPrivate->pHoldBuffer);
                 }
                 pComponentPrivate->nHoldLength = 0;
             }
@@ -1828,6 +1775,7 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
     OMX_U8 *pParmsTemp;
     OMX_STRING p = "damedesuStr";
     DSP_STATUS status;
+    OMX_BOOL isFrameParamChanged=OMX_FALSE;
 
     LCML_DSP_INTERFACE * phandle;
 
@@ -1970,7 +1918,7 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                     pComponentPrivate->nHoldLength = pBufHeader->nFilledLen - frameLength*nFrames;
                     if ( pComponentPrivate->nHoldLength > 0 ) {/* something need to be hold in iHoldBuffer */
                         if (pComponentPrivate->pHoldBuffer == NULL) {
-                            WBAMR_DEC_OMX_MALLOC_SIZE(pComponentPrivate->pHoldBuffer, (INPUT_WBAMRDEC_BUFFER_SIZE * (pComponentPrivate->pInputBufferList->numBuffers + 3)),void);
+                            OMX_MALLOC_SIZE(pComponentPrivate->pHoldBuffer, (INPUT_WBAMRDEC_BUFFER_SIZE * (pComponentPrivate->pInputBufferList->numBuffers + 3)),void);
                         }
                         /* Copy the extra data into pHoldBuffer. Size will be nHoldLength. */
                         pExtraData = pBufHeader->pBuffer + INPUT_WBAMRDEC_BUFFER_SIZE*nFrames;
@@ -1985,7 +1933,7 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                         pComponentPrivate->nHoldLength = pBufHeader->nFilledLen;
                         /* save the data into iHoldBuffer.*/
                         if (pComponentPrivate->pHoldBuffer == NULL) {
-                            WBAMR_DEC_OMX_MALLOC_SIZE(pComponentPrivate->pHoldBuffer, (INPUT_WBAMRDEC_BUFFER_SIZE * (pComponentPrivate->pInputBufferList->numBuffers + 3)),void);
+                            OMX_MALLOC_SIZE(pComponentPrivate->pHoldBuffer, (INPUT_WBAMRDEC_BUFFER_SIZE * (pComponentPrivate->pInputBufferList->numBuffers + 3)),void);
                         }
                         /* Not enough data to be sent. Copy all received data into iHoldBuffer.*/
                         /* Size to be copied will be iHoldLen == mmData->BufferSize() */
@@ -2115,21 +2063,22 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             phandle = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)pLcmlHandle->pCodecinterfacehandle)->pCodec);
 
             if( (pLcmlHdr->pBufferParam->usNbFrames < nFrames) && (pLcmlHdr->pFrameParam!=NULL) ){
-                pLcmlHdr->pFrameParam = (WAMRDEC_FrameStruct *)(pLcmlHdr->pFrameParam - 16);
-                OMX_WBDECMEMFREE_STRUCT(pLcmlHdr->pFrameParam); /*This means that more memory need to be used*/
-                pLcmlHdr->pFrameParam = NULL;
+
+                OMX_MEMFREE_STRUCT_DSPALIGN(pLcmlHdr->pFrameParam,WAMRDEC_FrameStruct);
+
                 OMX_DmmUnMap(phandle->dspCodec->hProc, /*Unmap DSP memory used*/
                              (void*)pLcmlHdr->pBufferParam->pParamElem,
                              pLcmlHdr->pDmmBuf->pReserved);
                 pLcmlHdr->pBufferParam->pParamElem = NULL;
             }
-
             if(pLcmlHdr->pFrameParam==NULL ){
-                WBAMR_DEC_OMX_MALLOC_SIZE(pLcmlHdr->pFrameParam, (sizeof(WAMRDEC_FrameStruct)*(nFrames+32)),WAMRDEC_FrameStruct);
-                pLcmlHdr->pFrameParam = (WAMRDEC_FrameStruct *)(pLcmlHdr->pFrameParam + 16);
+                OMX_MALLOC_SIZE_DSPALIGN(pLcmlHdr->pFrameParam,(sizeof(WAMRDEC_FrameStruct)*nFrames),WAMRDEC_FrameStruct);
+
                 eError = OMX_DmmMap(phandle->dspCodec->hProc,
-                                    nFrames*sizeof(WAMRDEC_FrameStruct),(void*)pLcmlHdr->pFrameParam,
+                                    nFrames*sizeof(WAMRDEC_FrameStruct),
+                                    (void*)pLcmlHdr->pFrameParam,
                                     (pLcmlHdr->pDmmBuf));
+
                 if (eError != OMX_ErrorNone){
                     OMX_ERROR4(pComponentPrivate->dbg, "OMX_DmmMap ERRROR!!!!\n\n");
                     goto EXIT;
@@ -2154,6 +2103,7 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                     pComponentPrivate->bFrameLost = OMX_FALSE;
                 }
             }
+            isFrameParamChanged = OMX_TRUE;
 
             /** ring tone**/
             if(pComponentPrivate->SendAfterEOS == 1){
@@ -2176,10 +2126,9 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                                                                "AM: No Stream ID Available");
                         goto EXIT;
                     }
-                    WBAMR_DEC_OMX_MALLOC_SIZE(pParmsTemp, (sizeof(WBAMR_DEC_AudioCodecParams) + DSP_CACHE_ALIGNMENT),OMX_U8);
-                    pParams = (WBAMR_DEC_AudioCodecParams*)(pParmsTemp + EXTRA_BYTES );
+                    OMX_MALLOC_SIZE_DSPALIGN(pComponentPrivate->pParams,sizeof(WBAMR_DEC_AudioCodecParams),WBAMR_DEC_AudioCodecParams);
+                    pParams = pComponentPrivate->pParams;
                     OMX_PRBUFFER2(pComponentPrivate->dbg, "[ALLOC] %p\n",pParams);
-                    pComponentPrivate->pParams = pParams;
 
                     pParams->iAudioFormat = 1;
                     pParams->iSamplingRate = 16000;
@@ -2224,6 +2173,7 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
 
             if((pBufHeader->nFlags & OMX_BUFFERFLAG_EOS) == OMX_BUFFERFLAG_EOS) {
                 (pLcmlHdr->pFrameParam+(nFrames-1))->usLastFrame |= OMX_BUFFERFLAG_EOS;
+                isFrameParamChanged = OMX_TRUE;
                 pBufHeader->nFlags = 0;
                 if(!pComponentPrivate->dasfmode){
                     if(!pBufHeader->nFilledLen){
@@ -2237,16 +2187,19 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                 }
                 pComponentPrivate->SendAfterEOS = 1;
                 OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : pComponentPrivate->SendAfterEOS %d\n",pComponentPrivate->SendAfterEOS);
-                //Issue an initial memory flush to ensure cache coherency */
-                OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : flushing pFrameParam\n");
-                status = DSPProcessor_FlushMemory(phandle->dspCodec->hProc, pLcmlHdr->pFrameParam, nFrames*sizeof(WAMRDEC_FrameStruct), 0);
-                if(DSP_FAILED(status))
-                {
-                   OMXDBG_PRINT(stderr, ERROR, 4, 0, "Unable to flush mapped buffer: error 0x%x",(int)status);
-                   goto EXIT;
-                }
             }
 
+            if (isFrameParamChanged == OMX_TRUE) {
+               isFrameParamChanged = OMX_FALSE;
+               //Issue an initial memory flush to ensure cache coherency */
+               OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : flushing pFrameParam\n");
+              status = DSPProcessor_FlushMemory(phandle->dspCodec->hProc, pLcmlHdr->pFrameParam, nFrames*sizeof(WAMRDEC_FrameStruct), 0);
+               if(DSP_FAILED(status))
+               {
+                 OMXDBG_PRINT(stderr, ERROR, 4, 0, "Unable to flush mapped buffer: error 0x%x",(int)status);
+                 goto EXIT;
+               }
+            }
             pLcmlHdr->pBufferParam->usNbFrames = nFrames;
             /*---------------------------------------------------------------*/
             /* Store time stamp information */
@@ -2347,10 +2300,7 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
         nFrames = (OMX_U8)(pBufHeader->nAllocLen/OUTPUT_WBAMRDEC_BUFFER_SIZE);
 
         if( (pLcmlHdr->pBufferParam->usNbFrames < nFrames) && (pLcmlHdr->pFrameParam!=NULL) ){
-            pBufParmsTemp = (OMX_U8*)pLcmlHdr->pFrameParam;
-            pBufParmsTemp -=EXTRA_BYTES ;
-            OMX_WBDECMEMFREE_STRUCT(pBufParmsTemp);
-            pLcmlHdr->pFrameParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pLcmlHdr->pFrameParam,WAMRDEC_FrameStruct);
             OMX_DmmUnMap(phandle->dspCodec->hProc, /*Unmap DSP memory used*/
                          (void*)pLcmlHdr->pBufferParam->pParamElem,
                          pLcmlHdr->pDmmBuf->pReserved);
@@ -2358,8 +2308,7 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
         }
 
         if(pLcmlHdr->pFrameParam==NULL ){
-            WBAMR_DEC_OMX_MALLOC_SIZE(pBufParmsTemp, ((sizeof(WAMRDEC_FrameStruct)*nFrames) + DSP_CACHE_ALIGNMENT),OMX_U8);
-            pLcmlHdr->pFrameParam =  (WAMRDEC_FrameStruct*)(pBufParmsTemp + EXTRA_BYTES );
+            OMX_MALLOC_SIZE_DSPALIGN(pLcmlHdr->pFrameParam,(sizeof(WAMRDEC_FrameStruct)*nFrames),WAMRDEC_FrameStruct);
 
             eError = OMX_DmmMap(phandle->dspCodec->hProc,
                                 nFrames*sizeof(WAMRDEC_FrameStruct),
@@ -2381,6 +2330,16 @@ OMX_ERRORTYPE WBAMR_DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             (pLcmlHdr->pFrameParam+i)->usLastFrame = 0;
             (pLcmlHdr->pFrameParam+i)->usFrameLost = 0;
         }
+
+        //Issue an initial memory flush to ensure cache coherency */
+        OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : flushing pFrameParam output\n");
+        status = DSPProcessor_FlushMemory(phandle->dspCodec->hProc, pLcmlHdr->pFrameParam, nFrames*sizeof(WAMRDEC_FrameStruct), 0);
+        if(DSP_FAILED(status))
+        {
+           OMXDBG_PRINT(stderr, ERROR, 4, 0, "Unable to flush mapped buffer: error 0x%x",(int)status);
+           goto EXIT;
+        }
+
         if (pComponentPrivate->curState == OMX_StateExecuting) {
             if (!WBAMR_DEC_IsPending(pComponentPrivate,pBufHeader,OMX_DirOutput)) {
                 WBAMR_DEC_SetPending(pComponentPrivate,pBufHeader,OMX_DirOutput,__LINE__);
@@ -2515,6 +2474,8 @@ OMX_ERRORTYPE WBAMR_DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
 #ifndef UNDER_CE
     char *pArgs = "damedesuStr";
 #endif
+    DSP_STATUS status;
+    LCML_DSP_INTERFACE *dspphandle = (LCML_DSP_INTERFACE *)args[6];
 
     WBAMR_DEC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
     pComponentPrivate = (WBAMR_DEC_COMPONENT_PRIVATE*)((LCML_DSP_INTERFACE*)args[6])->pComponentPrivate;
@@ -2650,6 +2611,14 @@ OMX_ERRORTYPE WBAMR_DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                     (pLcmlHdr->pFrameParam+i)->usLastFrame = 0;
                     pLcmlHdr->buffer->nFlags |= OMX_BUFFERFLAG_EOS;
                     OMX_PRCOMM2(pComponentPrivate->dbg, "On Component receiving OMX_BUFFERFLAG_EOS on output\n");
+                    //Issue an initial memory flush to ensure cache coherency */
+                    OMX_PRINT1(pComponentPrivate->dbg, "OMX_WbAmrDec_Utils.c : flushing pFrameParam2\n");
+                    status = DSPProcessor_FlushMemory(dspphandle->dspCodec->hProc, pLcmlHdr->pFrameParam, pLcmlHdr->pBufferParam->usNbFrames*sizeof(WAMRDEC_FrameStruct), 0);
+                    if(DSP_FAILED(status))
+                    {
+                      OMXDBG_PRINT(stderr, ERROR, 4, 0, "Unable to flush mapped buffer: error 0x%x",(int)status);
+                      goto EXIT;
+                    }
                     break;
                 }
             }
@@ -3103,6 +3072,7 @@ OMX_HANDLETYPE WBAMR_DEC_GetLCMLHandle(WBAMR_DEC_COMPONENT_PRIVATE *pComponentPr
     fpGetHandle = dlsym (handle, "GetHandle");
     if ((error = dlerror()) != NULL) {
         fputs(error, stderr);
+	 dlclose(handle);
         goto EXIT;
     }
     eError = (*fpGetHandle)(&pHandle);
@@ -3110,6 +3080,7 @@ OMX_HANDLETYPE WBAMR_DEC_GetLCMLHandle(WBAMR_DEC_COMPONENT_PRIVATE *pComponentPr
         eError = OMX_ErrorUndefined;
         OMX_ERROR4(pComponentPrivate->dbg, "eError != OMX_ErrorNone...\n");
         pHandle = NULL;
+	 dlclose(handle);
         goto EXIT;
     }
 
@@ -3407,7 +3378,7 @@ OMX_ERRORTYPE  WBAMR_DEC_Fill_LCMLInitParamsEx (OMX_HANDLETYPE  pComponent )
 
 
     size_lcml = nIpBuf * sizeof(LCML_WBAMR_DEC_BUFHEADERTYPE);
-    WBAMR_DEC_OMX_MALLOC_SIZE(pTemp_lcml, size_lcml,LCML_WBAMR_DEC_BUFHEADERTYPE);
+    OMX_MALLOC_SIZE(pTemp_lcml, size_lcml,LCML_WBAMR_DEC_BUFHEADERTYPE);
 
     OMX_PRBUFFER2(pComponentPrivate->dbg, "[ALLOC] %p\n",pTemp_lcml);
     pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_INPUT_PORT] = pTemp_lcml;
@@ -3423,15 +3394,11 @@ OMX_ERRORTYPE  WBAMR_DEC_Fill_LCMLInitParamsEx (OMX_HANDLETYPE  pComponent )
         pTemp_lcml->buffer = pTemp;
         pTemp_lcml->eDir = OMX_DirInput;
 
-        WBAMR_DEC_OMX_MALLOC_SIZE(pTemp_lcml->pBufferParam,
-                                  (sizeof(WBAMRDEC_ParamStruct)+DSP_CACHE_ALIGNMENT),
-                                  WBAMRDEC_ParamStruct);
+        OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pBufferParam,
+                                 sizeof(WBAMRDEC_ParamStruct),
+                                 WBAMRDEC_ParamStruct);
 
-        ptr = (char*)pTemp_lcml->pBufferParam;
-        ptr += EXTRA_BYTES;
-        pTemp_lcml->pBufferParam = (WBAMRDEC_ParamStruct*)ptr;
-
-        WBAMR_DEC_OMX_MALLOC(pTemp_lcml->pDmmBuf, DMM_BUFFER_OBJ);
+        OMX_MALLOC_GENERIC(pTemp_lcml->pDmmBuf, DMM_BUFFER_OBJ);
 
         pTemp_lcml->pFrameParam = NULL;
         pTemp_lcml->pBufferParam->usNbFrames =0;
@@ -3447,7 +3414,7 @@ OMX_ERRORTYPE  WBAMR_DEC_Fill_LCMLInitParamsEx (OMX_HANDLETYPE  pComponent )
     /* Allocate memory for all output buffer headers..
      * This memory pointer will be sent to LCML */
     size_lcml = nOpBuf * sizeof(LCML_WBAMR_DEC_BUFHEADERTYPE);
-    WBAMR_DEC_OMX_MALLOC_SIZE(pTemp_lcml, size_lcml,LCML_WBAMR_DEC_BUFHEADERTYPE);
+    OMX_MALLOC_SIZE(pTemp_lcml, size_lcml,LCML_WBAMR_DEC_BUFHEADERTYPE);
 
     OMX_PRBUFFER2(pComponentPrivate->dbg, "[ALLOC] %p\n",pTemp_lcml);
     pComponentPrivate->pLcmlBufHeader[WBAMR_DEC_OUTPUT_PORT] = pTemp_lcml;
@@ -3463,17 +3430,13 @@ OMX_ERRORTYPE  WBAMR_DEC_Fill_LCMLInitParamsEx (OMX_HANDLETYPE  pComponent )
         pTemp->nTickCount = WBAMR_DEC_NOT_USED;
         pTemp_lcml->pFrameParam = NULL;
 
-        WBAMR_DEC_OMX_MALLOC_SIZE(pTemp_lcml->pBufferParam,
-                                  (sizeof(WBAMRDEC_ParamStruct)+DSP_CACHE_ALIGNMENT),
-                                  WBAMRDEC_ParamStruct);
-
-        ptr = (char*)pTemp_lcml->pBufferParam;
-        ptr += EXTRA_BYTES;
-        pTemp_lcml->pBufferParam = (WBAMRDEC_ParamStruct*)ptr;
+        OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pBufferParam,
+                                 sizeof(WBAMRDEC_ParamStruct),
+                                 WBAMRDEC_ParamStruct);
 
         pTemp_lcml->pBufferParam->usNbFrames =0;
         pTemp_lcml->pBufferParam->pParamElem = NULL;
-        WBAMR_DEC_OMX_MALLOC(pTemp_lcml->pDmmBuf ,DMM_BUFFER_OBJ);
+        OMX_MALLOC_GENERIC(pTemp_lcml->pDmmBuf ,DMM_BUFFER_OBJ);
 
         pTemp_lcml->buffer = pTemp;
         pTemp_lcml->eDir = OMX_DirOutput;

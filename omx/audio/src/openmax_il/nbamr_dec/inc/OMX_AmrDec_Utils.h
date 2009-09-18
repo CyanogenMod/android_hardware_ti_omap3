@@ -125,63 +125,6 @@
 #else
 	#define NBAMRDEC_DLL_NAME "nbamrdec_sn.dll64P"
 #endif
-/* ======================================================================= */
-/**
- * @def    EXTRA_BYTES   For Cache alignment
-	       DSP_CACHE_ALIGNMENT  For Cache alignment
- *
- */
-/* ======================================================================= */
-#define EXTRA_BYTES 128 
-#define DSP_CACHE_ALIGNMENT 256 
-
-/* ======================================================================= */
-/**
- * @def    NBAMR_DEC_OMX_MALLOC   Macro to allocate Memory
- */
-/* ======================================================================= */
-#define NBAMR_DEC_OMX_MALLOC(_pStruct_, _sName_)                         \
-    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));               \
-    if(_pStruct_ == NULL){                                          \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");            \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__);                   \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");            \
-        eError = OMX_ErrorInsufficientResources;                    \
-        goto EXIT;                                                  \
-    }                                                               \
-    memset(_pStruct_,0,sizeof(_sName_));                            \
-   OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
-
-   /* ======================================================================= */
-/**
- * @def    NBAMR_DEC_OMX_MALLOC_SIZE   Macro to allocate Memory
- */
-/* ======================================================================= */
-#define NBAMR_DEC_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)            \
-    _ptr_ = (_name_*)newmalloc(_size_);                         \
-    if(_ptr_ == NULL){                                          \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");        \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__);               \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_ptr_,0,_size_);                                     \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_ptr_);
-
-
-/* ======================================================================= */
-/**
- *  M A C R O FOR MEMORY FREE 
- */
-/* ======================================================================= */
-
-#define OMX_NBDECMEMFREE_STRUCT(_pStruct_)\
-	OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: [FREE] %p\n",__LINE__,_pStruct_);\
-    if(_pStruct_ != NULL){\
-    	newfree(_pStruct_);\
-	    _pStruct_ = NULL;\
-	}
 
 OMX_ERRORTYPE NBAMRDECGetCorresponding_LCMLHeader(AMRDEC_COMPONENT_PRIVATE *pComponentPrivate,
                                           OMX_U8 *pBuffer,
