@@ -1777,6 +1777,11 @@ status_t CameraHal::startPreview(preview_callback cb, void* user)
         return NO_ERROR;
     }
 
+    if (mPreviewRunning){
+        LOGE("WARNING: Trying to startPreview but already started!, line:%d",__LINE__);
+        return NO_ERROR;
+    }
+
     Message msg;
     msg.command = PREVIEW_START;
     msg.arg1 = (void*)cb;
