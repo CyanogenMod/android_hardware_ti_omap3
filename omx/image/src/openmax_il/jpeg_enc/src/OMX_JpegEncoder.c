@@ -528,7 +528,9 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
     pComponentPrivate->InParams.pInParams = NULL;
     pComponentPrivate->InParams.size = 0;   
     pComponentPrivate->bPreempted = OMX_FALSE;
-
+#ifdef __JPEG_OMX_PPLIB_ENABLED__
+    pComponentPrivate->pOutParams = NULL;
+#endif
     OMX_MALLOC(pComponentPrivate->pDynParams, sizeof(IDMJPGE_TIGEM_DynamicParams)+256);
     if (!pComponentPrivate->pDynParams) {
         eError = OMX_ErrorInsufficientResources;
