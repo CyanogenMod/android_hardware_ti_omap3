@@ -7139,6 +7139,10 @@ OMX_ERRORTYPE VIDDEC_InitDSP_Mpeg4Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivat
     OMX_U32 nFrameWidth = pComponentPrivate->pOutPortDef->format.video.nFrameWidth;
     OMX_U32 nFrameHeight = pComponentPrivate->pOutPortDef->format.video.nFrameHeight;
 
+    /* nFrameWidth and nFrameHeight needs to be multiples of 16. */
+    nFrameWidth = (nFrameWidth + 0x0f) & ~0x0f;
+    nFrameHeight = (nFrameHeight + 0x0f) & ~0x0f;
+
     if (nFrameWidth * nFrameHeight > 880 * 720)
     {
         lcml_dsp->NodeInfo.AllUUIDs[0].uuid = (struct DSP_UUID *)&MP4D720PSOCKET_TI_UUID;
@@ -7206,8 +7210,8 @@ OMX_ERRORTYPE VIDDEC_InitDSP_Mpeg4Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivat
     pCreatePhaseArgs->unOutputStreamID          = 1;
     pCreatePhaseArgs->unOutputBufferType        = 0;
     pCreatePhaseArgs->unOutputNumBufsPerStream  = (OMX_U16)(pComponentPrivate->pOutPortDef->nBufferCountActual);
-    pCreatePhaseArgs->ulMaxWidth                = (OMX_U16)(pComponentPrivate->pInPortDef->format.video.nFrameWidth);
-    pCreatePhaseArgs->ulMaxHeight               = (OMX_U16)(pComponentPrivate->pInPortDef->format.video.nFrameHeight);
+    pCreatePhaseArgs->ulMaxWidth                = (OMX_U16)(nFrameWidth);
+    pCreatePhaseArgs->ulMaxHeight               = (OMX_U16)(nFrameHeight);
 
     if (pComponentPrivate->pOutPortDef->format.video.eColorFormat == VIDDEC_COLORFORMAT422) {
         pCreatePhaseArgs->ulYUVFormat           = MP4VIDDEC_YUVFORMAT_INTERLEAVED422;
