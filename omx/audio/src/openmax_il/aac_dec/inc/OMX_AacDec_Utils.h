@@ -285,7 +285,7 @@
         goto EXIT;                                                  \
     }                                                               \
     memset(_pStruct_,0,sizeof(_sName_));                            \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
 
 /* ======================================================================= */
 /**
@@ -302,7 +302,7 @@
         goto EXIT;                                              \
     }                                                           \
     memset(_ptr_,0,_size_);                                     \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_ptr_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_ptr_);
 
 /* ======================================================================= */
 /**
@@ -336,7 +336,7 @@
 /* ======================================================================= */
 #define AACDEC_OMX_FREE(ptr)                                            \
     if(NULL != ptr) {                                                   \
-        OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Freeing Address = %p\n",__LINE__,ptr);   \
+        OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Freeing Address = %p\n",__LINE__,ptr);   \
         newfree(ptr);                                                   \
         ptr = NULL;                                                     \
     }

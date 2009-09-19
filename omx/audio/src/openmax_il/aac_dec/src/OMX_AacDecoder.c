@@ -199,7 +199,6 @@ static OMX_ERRORTYPE ComponentRoleEnum(OMX_IN OMX_HANDLETYPE hComponent,
 /*-------------------------------------------------------------------*/
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
 {
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%s: IN", __FUNCTION__);
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE*) hComp;
     OMX_PARAM_PORTDEFINITIONTYPE *pPortDef_ip = NULL, *pPortDef_op = NULL;
@@ -698,7 +697,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
                                    OMX_INDEXTYPE nParamIndex,
                                    OMX_PTR ComponentParameterStructure)
 {
-    OMXDBG_PRINT(stderr, PRINT, 1, 0,"%d :: Entering OMX_GetParameter\n", __LINE__);
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     AACDEC_COMPONENT_PRIVATE  *pComponentPrivate;
     OMX_PARAM_PORTDEFINITIONTYPE *pParameterStructure;
@@ -706,6 +704,7 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
     
     AACDEC_OMX_CONF_CHECK_CMD(hComp,1,1)
         pComponentPrivate = (AACDEC_COMPONENT_PRIVATE *)(((OMX_COMPONENTTYPE*)hComp)->pComponentPrivate);
+    OMX_PRINT1 (pComponentPrivate->dbg, "%d :: Entering OMX_GetParameter\n", __LINE__);
     AACDEC_OMX_CONF_CHECK_CMD(pComponentPrivate, ComponentParameterStructure, 1)
     if (ComponentParameterStructure == NULL) {
         eError = OMX_ErrorBadParameter;
@@ -1701,7 +1700,7 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
     PERF_Done(pComponentPrivate->pPERF);
 #endif
     
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, ":: Freeing: pComponentPrivate = %p\n",pComponentPrivate);
+    OMX_PRBUFFER2(dbg, ":: Freeing: pComponentPrivate = %p\n",pComponentPrivate);
     OMX_PRINT1(dbg, "::*********** ComponentDeinit is Done************** \n");
     OMX_DBG_CLOSE(dbg);
     AACDEC_OMX_FREE(pComponentPrivate);
