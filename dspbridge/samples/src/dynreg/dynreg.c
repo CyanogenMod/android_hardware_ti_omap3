@@ -183,17 +183,17 @@ INT main(INT argc, CHAR *argv[])
 					case NLDR_CREATE:
 						PrintVerbose("Registering Create phase\n");
 						status = DSPManager_RegisterObject(&pLibUUIDs[0],
-												DSP_DCDCREATELIBTYPE,szLibPath);
+												DSP_DCDCREATELIBTYPE_PERSISTENT,szLibPath);
 						break;
 					case NLDR_EXECUTE:
 						PrintVerbose("Registering Execute phase\n");
 						status = DSPManager_RegisterObject(&pLibUUIDs[0],
-											DSP_DCDEXECUTELIBTYPE, szLibPath);
+											DSP_DCDEXECUTELIBTYPE_PERSISTENT, szLibPath);
 						break;
 					case NLDR_DELETE:
 						PrintVerbose("Registering Delete phase\n");
 						status = DSPManager_RegisterObject(&pLibUUIDs[0],
-												DSP_DCDDELETELIBTYPE,szLibPath);
+												DSP_DCDDELETELIBTYPE_PERSISTENT,szLibPath);
 						break;
 					default:
 						fPhaseLib = false;
@@ -232,7 +232,7 @@ INT main(INT argc, CHAR *argv[])
 					/* hari -- for debug */
 #if 0
 					printf("Dyn-Reg:Reg: Type: %s \n",
-					       getNodeType(DSP_DCDNODETYPE));
+					       getNodeType(DSP_DCDNODETYPE_PERSISTENT));
 					UUID_UuidToString(&(pLibUUIDs[i]),
 							  szUuid, MAXUUIDLEN);
 					printf("Dyn-Reg:Reg: UUID: %s \n",
@@ -241,18 +241,18 @@ INT main(INT argc, CHAR *argv[])
 					       szLibPath);
 #endif
 					status = DSPManager_RegisterObject(&(pLibUUIDs [i]),
-													DSP_DCDNODETYPE, szLibPath);
+													DSP_DCDNODETYPE_PERSISTENT, szLibPath);
 					if (DSP_SUCCEEDED(status)) {
 						/* Register library associated with node */
 						status = DSPManager_RegisterObject(&pLibUUIDs[i],
-												DSP_DCDLIBRARYTYPE, szLibPath);
+												DSP_DCDLIBRARYTYPE_PERSISTENT, szLibPath);
 						if (DSP_FAILED(status)) {
 							PrintVerbose("Failed to register node library\n");
 						} else {
 #if 0
 							/* hari -- for debug */
 							printf("Dyn-Reg:Reg: Type: %s\n", 
-											getNodeType(DSP_DCDLIBRARYTYPE));
+											getNodeType(DSP_DCDLIBRARYTYPE_PERSISTENT));
 							UUID_UuidToString(&(pLibUUIDs [i]), szUuid,
 																	MAXUUIDLEN);
 							printf("Dyn-Reg:Reg: UUID: %s \n", szUuid);
@@ -280,7 +280,7 @@ INT main(INT argc, CHAR *argv[])
 					break;
 				}
 				status = DSPManager_RegisterObject(&(pLibUUIDs[0]),
-												DSP_DCDLIBRARYTYPE, szLibPath);
+												DSP_DCDLIBRARYTYPE_PERSISTENT, szLibPath);
 				if (DSP_FAILED(status)) {
 					PrintVerbose("Failed to register library\n");
 				} else {
@@ -303,17 +303,17 @@ INT main(INT argc, CHAR *argv[])
 					case NLDR_CREATE:
 						PrintVerbose("Unegistering Create phase\n");
 						status = DSPManager_UnregisterObject (&pLibUUIDs[0],
-														DSP_DCDCREATELIBTYPE);
+														DSP_DCDCREATELIBTYPE_PERSISTENT);
 						break;
 					case NLDR_EXECUTE:
 						PrintVerbose("Unregistering Execute phase\n");
 						status = DSPManager_UnregisterObject(&pLibUUIDs[0],
-														DSP_DCDEXECUTELIBTYPE);
+														DSP_DCDEXECUTELIBTYPE_PERSISTENT);
 						break;
 					case NLDR_DELETE:
 						PrintVerbose("Unregistering Delete phase\n");
 						status = DSPManager_UnregisterObject(&pLibUUIDs[0],
-														DSP_DCDDELETELIBTYPE);
+														DSP_DCDDELETELIBTYPE_PERSISTENT);
 						break;
 					default:
 						fPhaseLib = false;
@@ -349,27 +349,27 @@ INT main(INT argc, CHAR *argv[])
 				}
 				for (i = 0;i < uNumNodes && DSP_SUCCEEDED(status);i++) {
 					status = DSPManager_UnregisterObject(&(pLibUUIDs[i]),
-															DSP_DCDLIBRARYTYPE);
+															DSP_DCDLIBRARYTYPE_PERSISTENT);
 					if (DSP_SUCCEEDED(status)) {
 						/* Unregister node */
 						PrintVerbose ("Unregistering Library: %s\n", szLibPath);
 #if 0
 						/* hari -- for debug */
 						printf ("Dyn-Reg: Unreg: Type: %s\n", 
-											getNodeType(DSP_DCDLIBRARYTYPE));
+											getNodeType(DSP_DCDLIBRARYTYPE_PERSISTENT));
 						UUID_UuidToString(&(pLibUUIDs [i]), szUuid, MAXUUIDLEN);
 						printf ("Dyn-Reg: Unreg: UUID: %s \n", szUuid);
 						printf ("Dyn-Reg: Unreg: Path: %s \n \n", szLibPath);
 #endif
 						status = DSPManager_UnregisterObject (&(pLibUUIDs[i]),
-															DSP_DCDNODETYPE);
+															DSP_DCDNODETYPE_PERSISTENT);
 						if (DSP_FAILED(status)) {
 							PrintVerbose("Failed to unregister node\n");
 						} else {
 #if 0
 							/* hari -- for debug */
 							printf ("Dyn-Reg: Unreg: Type: %s\n",
-												getNodeType(DSP_DCDNODETYPE));
+												getNodeType(DSP_DCDNODETYPE_PERSISTENT));
 							UUID_UuidToString(&(pLibUUIDs[i]),szUuid,
 																	MAXUUIDLEN);
 							printf("Dyn-Reg: Unreg: UUID: %s \n", szUuid);
@@ -398,7 +398,7 @@ INT main(INT argc, CHAR *argv[])
 					break;
 				}
 				status = DSPManager_UnregisterObject(&(pLibUUIDs[0]),
-															DSP_DCDLIBRARYTYPE);
+															DSP_DCDLIBRARYTYPE_PERSISTENT);
 				if (DSP_FAILED(status)) {
 					PrintVerbose("Failed to unregister library: 0x%x\n",status);
 				} else {
