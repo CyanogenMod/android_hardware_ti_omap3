@@ -497,29 +497,35 @@ void CameraHal::previewThread()
                 mJpegPictureCallback= (jpeg_callback)msg.arg3;
                 mPictureCallbackCookie = msg.arg4;
 
-                msg.command = mPreviewRunning ? PREVIEW_ACK : PREVIEW_NACK;
+                //In burst mode the preview is not reconfigured between each picture 
+                //so it can not be based on it to decide wheter the state is incorrect or not
+                msg.command = PREVIEW_ACK;
                 previewThreadAckQ.put(&msg);
+        
+                if( mPreviewRunning ) {
 
 #ifdef FW3A     
-				if( (flg_AF = FW3A_Stop_AF()) < 0){
-					LOGE("ERROR FW3A_Stop_AF()");
-					err = -1;
-				}            
-				if( (flg_CAF = FW3A_Stop_CAF()) < 0){
-					LOGE("ERROR FW3A_Stop_CAF()");
-					err = -1;
-				}
-				if( FW3A_Stop() < 0){
-					LOGE("ERROR FW3A_Stop()");
-					err = -1;
-				}          
+				    if( (flg_AF = FW3A_Stop_AF()) < 0){
+					    LOGE("ERROR FW3A_Stop_AF()");
+					    err = -1;
+				    }            
+				    if( (flg_CAF = FW3A_Stop_CAF()) < 0){
+					    LOGE("ERROR FW3A_Stop_CAF()");
+					    err = -1;
+				    }
+				    if( FW3A_Stop() < 0){
+					    LOGE("ERROR FW3A_Stop()");
+					    err = -1;
+				    }          
 #endif
-				if( CameraStop() < 0){
-					LOGE("ERROR CameraStop()");
-					err = -1;
-				}          
+				    if( CameraStop() < 0){
+					    LOGE("ERROR CameraStop()");
+					    err = -1;
+				    }          
 
-                mPreviewRunning =false;
+                    mPreviewRunning =false;
+
+                }
 #ifdef FW3A
 				if( FW3A_GetSettings() < 0){
 					LOGE("ERROR FW3A_GetSettings()");
@@ -1564,6 +1570,7 @@ void CameraHal::vppThread(){
                 else{
                     nOverlayBuffersQueued--;
                     buffers_queued_to_dss[(int)overlaybuffer] = 0;
+                    lastOverlayBufferDQ = (int)overlaybuffer;	
 	            }				
 
 				LOGD("AFTER QUEUE OVERLAY BUFFERS TO DISPLAY SNAPSHOT!!");
