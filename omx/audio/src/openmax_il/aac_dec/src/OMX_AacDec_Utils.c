@@ -1724,7 +1724,7 @@ OMX_U32 AACDEC_HandleCommand (AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
         if(commandData == 0x1 || commandData == -1){
             if (pComponentPrivate->nUnhandledFillThisBuffers == 0)  {
                 pComponentPrivate->bFlushOutputPortCommandPending = OMX_FALSE;
-                /*pComponentPrivate->first_buff = 0;*/
+                pComponentPrivate->first_buff = 0;
                 if(pComponentPrivate->num_Op_Issued && !pComponentPrivate->reconfigOutputPort ){ //no buffers sent to DSP yet
                     aParam[0] = USN_STRMCMD_FLUSH;
                     aParam[1] = 0x1;
