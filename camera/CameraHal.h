@@ -123,6 +123,9 @@
 	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); \
 }
 
+#define YUV422 0 
+#define YUV420 1
+
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE

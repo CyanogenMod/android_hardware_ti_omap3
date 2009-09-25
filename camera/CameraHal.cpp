@@ -1015,7 +1015,7 @@ int  CameraHal::ICapturePerform()
     int delay;
 	unsigned int vppMessage[3];
 	overlay_buffer_t overlaybuffer;
-	
+	int jpegFormat = YUV422;
 
     LOG_FUNCTION_NAME
 
@@ -1391,8 +1391,9 @@ int  CameraHal::ICapturePerform()
 	 
 	#if !( IPP_YUV422P )
 		yuv_len=  ((image_width * image_height *3)/2);
+        jpegFormat = YUV420;
 	#else
-        mippMode = 0;
+        jpegFormat = YUV422;        
     #endif
 		
 	}
@@ -1433,7 +1434,7 @@ int  CameraHal::ICapturePerform()
 	PPM("BEFORE JPEG Encode Image");	
 	LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	     
     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
-                                 image_width, image_height, quality,mippMode)))
+                                 image_width, image_height, quality,jpegFormat)))
     {        
         err = -1;
         LOGE("JPEG Encoding failed");

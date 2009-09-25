@@ -1162,6 +1162,7 @@ int CameraHal::CapturePicture(){
     void* snapshot_buffer;
     int ipp_reconfigure=0;
     int ippTempConfigMode;
+    int jpegFormat = YUV422;
 
     LOG_FUNCTION_NAME
 
@@ -1296,19 +1297,7 @@ int CameraHal::CapturePicture(){
          		  strerror(errno) );
   	}
 #endif
-
-    //When a snapshot is taken, Surface Flinger indirectly calls streamoff on overlay
-    //which implies that all the overlay buffers will be dequeued.
-    //So, update our status accordingly
-	if(!mMMSApp){
-		LOGD("mMMSApp=========================%d",mMMSApp);
-		nOverlayBuffersQueued = 0;
-		for(int i = 0; i < mOverlay->getBufferCount(); i++)
-		{
-		    buffers_queued_to_dss[i] = 0;
-		}
-	}
-    
+  
     yuv_buffer = (uint8_t*)buffer.m.userptr;	
     LOGD("PictureThread: generated a picture, yuv_buffer=%p yuv_len=%d",yuv_buffer,yuv_len);
 
@@ -1350,10 +1339,24 @@ int CameraHal::CapturePicture(){
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE  	
+#if 1
+	if(mippMode ==-1 ){
+		mippMode=IPP_EdgeEnhancement_Mode;
+	}
+
+#else 	
 	if(mippMode ==-1){
-		mippMode=IPP_Disabled_Mode;
+		mippMode=IPP_CromaSupression_Mode;
 	}		
-	
+	if(mippMode == IPP_CromaSupression_Mode){
+		mippMode=IPP_EdgeEnhancement_Mode;
+	}
+	else if(mippMode == IPP_EdgeEnhancement_Mode){
+		mippMode=IPP_CromaSupression_Mode;
+	}	
+
+#endif
+
 	LOGD("IPPmode=%d",mippMode);
 	if(mippMode == IPP_CromaSupression_Mode){
 		LOGD("IPP_CromaSupression_Mode");
@@ -1361,35 +1364,38 @@ int CameraHal::CapturePicture(){
 	else if(mippMode == IPP_EdgeEnhancement_Mode){
 		LOGD("IPP_EdgeEnhancement_Mode");
 	}
+	else if(mippMode == IPP_Disabled_Mode){
+		LOGD("IPP_Disabled_Mode");
+	}
 
 	if(mippMode){
 
 		if(mippMode != IPP_CromaSupression_Mode && mippMode != IPP_EdgeEnhancement_Mode){
 			LOGE("ERROR ippMode unsupported");
 			return -1;
-		}
+		}		
+		PPM("Before init IPP");
 
-		if(mippMode == IPP_EdgeEnhancement_Mode){
-			ipp_ee_q = 199;
-			ipp_ew_ts = 20;
-			ipp_es_ts = 240;
-			ipp_luma_nf = 2;
-			ipp_chroma_nf = 2;
-		}
-		
-		
+        if(mippMode == IPP_EdgeEnhancement_Mode){
+            ipp_ee_q = 199;
+            ipp_ew_ts = 20;
+            ipp_es_ts = 240;
+            ipp_luma_nf = 2;
+            ipp_chroma_nf = 2;
+        }
+
 		err = InitIPP(image_width,image_height);
 		if( err ) {
 			LOGE("ERROR InitIPP() failed");	
 			return -1;	   
 		}
-		PPM("IPP Init Done");
+		PPM("After IPP Init");
 		err = PopulateArgsIPP(image_width,image_height);
 		if( err ) {
 			LOGE("ERROR PopulateArgsIPP() failed");		   
 			return -1;
 		} 
-		PPM("IPP PopulateArgs Done");
+		PPM("BEFORE IPP Process Buffer");
 		
 		LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
 		err = ProcessBufferIPP(yuv_buffer, yuv_len,
@@ -1402,7 +1408,8 @@ int CameraHal::CapturePicture(){
 			LOGE("ERROR ProcessBufferIPP() failed");		   
 			return -1;
 		}
-#if 1	
+		PPM("AFTER IPP Process Buffer");
+
 		if(pIPP.hIPP != NULL){
 			err = DeInitIPP();
 			if( err ){
@@ -1411,21 +1418,22 @@ int CameraHal::CapturePicture(){
 			} 
 			pIPP.hIPP = NULL;
 		}
-#endif
 
-	PPM("IPP ProcessBuffer Done");
-   	if(!(pIPP.ippconfig.isINPLACE)){
+	PPM("AFTER IPP Deinit");
+   	if(!(pIPP.ippconfig.isINPLACE)){ 
 		yuv_buffer = pIPP.pIppOutputBuffer;
 	}
 	 
-	#if !IPP_YUV422P 
+	#if !( IPP_YUV422P )
 		yuv_len=  ((image_width * image_height *3)/2);
-	#endif
-
+        jpegFormat = YUV420;
+	#else
+        jpegFormat = YUV422;
+    #endif
+		
 	}
- 
-
-
+	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len); 
+    
 #endif
 
     if (mJpegPictureCallback) {
@@ -1437,7 +1445,7 @@ int CameraHal::CapturePicture(){
 
 		PPM("BEFORE JPEG Encode Image");
 		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	  
-        jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
+        jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,jpegFormat);
 		PPM("AFTER JPEG Encode Image");
 
 		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
