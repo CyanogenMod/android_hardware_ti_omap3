@@ -2185,7 +2185,7 @@ OMX_ERRORTYPE AACENCGetBufferDirection(OMX_BUFFERHEADERTYPE *pBufHeader, OMX_DIR
         if(pBufHeader == pBuf) 
         {
             *eDir = OMX_DirInput;
-            OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: Buffer %p is INPUT BUFFER\n",__LINE__, pBufHeader);
+            OMX_PRINT1(pComponentPrivate->dbg, "%d :: UTIL: Buffer %p is INPUT BUFFER\n",__LINE__, pBufHeader);
             flag = 0;
             goto EXIT;
         }
@@ -2200,7 +2200,7 @@ OMX_ERRORTYPE AACENCGetBufferDirection(OMX_BUFFERHEADERTYPE *pBufHeader, OMX_DIR
         if(pBufHeader == pBuf) 
         {
             *eDir = OMX_DirOutput;
-            OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: Buffer %p is OUTPUT BUFFER\n",__LINE__, pBufHeader);
+            OMX_PRINT1(pComponentPrivate->dbg, "%d :: UTIL: Buffer %p is OUTPUT BUFFER\n",__LINE__, pBufHeader);
             flag = 0;
             goto EXIT;
         }
