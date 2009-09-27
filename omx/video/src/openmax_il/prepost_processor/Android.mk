@@ -1,3 +1,4 @@
+ifeq ($(BUILD_VPP),1)
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -33,9 +34,10 @@ LOCAL_CFLAGS := $(TI_OMX_CFLAGS) -DANDROID -DOMAP_2430 -g
 LOCAL_MODULE:= libOMX.TI.VPP
 
 include $(BUILD_SHARED_LIBRARY)
+endif
 
 #########################################################
-
+ifeq ($(BUILD_VPP_TEST),1)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=
@@ -50,5 +52,5 @@ LOCAL_CFLAGS := $(TI_OMX_CFLAGS)
 LOCAL_MODULE:= VPPTest_common
 
 include $(BUILD_EXECUTABLE)
-
+endif
 
