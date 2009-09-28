@@ -21,7 +21,7 @@ LOCAL_MODULE:= libOMX.TI.JPEG.Encoder
 include $(BUILD_SHARED_LIBRARY)
 
 #########################################################
-
+ifeq ($(BUILD_JPEG_ENC_TEST),1)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= test/JPEGTestEnc.c
@@ -36,5 +36,5 @@ LOCAL_CFLAGS := -Wall -fpic -pipe -O0 -DOMX_DEBUG=1
 LOCAL_MODULE:= JPEGTestEnc_common
 
 include $(BUILD_EXECUTABLE)
-
+endif
 

@@ -1,3 +1,4 @@
+ifeq ($(BUILD_G722_ENC_TEST),1)
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -20,3 +21,4 @@ LOCAL_CFLAGS := $(TI_OMX_CFLAGS) -DOMX_DEBUG
 LOCAL_MODULE:= G722EncTest
 
 include $(BUILD_EXECUTABLE)
+endif

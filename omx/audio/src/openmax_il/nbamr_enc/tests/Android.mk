@@ -1,3 +1,4 @@
+ifeq ($(BUILD_NBAMR_ENC_TEST),1)
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -19,3 +20,4 @@ LOCAL_CFLAGS := $(TI_OMX_CFLAGS) -DOMX_DEBUG
 LOCAL_MODULE:= NBAMREncoder_Test
 
 include $(BUILD_EXECUTABLE)
+endif
