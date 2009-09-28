@@ -535,39 +535,59 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
 
     if (cComponentName == NULL || pNumRoles == NULL)
     {
+        if (cComponentName == NULL)
+        {
+            LOGE("cComponentName is NULL\n");
+        }
+        if (pNumRoles == NULL)
+        {
+            LOGE("pNumRoles is NULL\n");
+        }
         eError = OMX_ErrorBadParameter;
-        goto EXIT;       
+        goto EXIT;
     }
-
-
-    while(!bFound && i < tableCount)
+    while (i < tableCount)
     {
         if (strcmp(cComponentName, componentTable[i].name) == 0)
         {
             bFound = OMX_TRUE;
+            break;
         }
-        else
-        {
-            i++;
-        }
-    }   
-    if (roles == NULL)
-    { 
-        *pNumRoles = componentTable[i].nRoles;
+        i++;
+    }
+    if (!bFound)
+    {
+        eError = OMX_ErrorComponentNotFound;
+        LOGE("component %s not found\n", cComponentName);
         goto EXIT;
+    }
+    if (roles == NULL)
+    {
+        *pNumRoles = componentTable[i].nRoles;
     }
     else
     {
-        if (bFound && (*pNumRoles == componentTable[i].nRoles))
-       {
-           for (j = 0; j<componentTable[i].nRoles; j++) 
-           {
-               strcpy((OMX_STRING)roles[j], componentTable[i].pRoleArray[j]);
-           }
-       }
-   }
-   EXIT:
-   return eError;
+        /* must be second of two calls,
+           pNumRoles is input in this context.
+           If pNumRoles is < actual number of roles
+           than we return an error */
+        if (*pNumRoles >= componentTable[i].nRoles)
+        {
+            for (j = 0; j<componentTable[i].nRoles; j++)
+            {
+                strcpy((OMX_STRING)roles[j], componentTable[i].pRoleArray[j]);
+            }
+            *pNumRoles = componentTable[i].nRoles;
+        }
+        else
+        {
+            eError = OMX_ErrorBadParameter;
+            LOGE("pNumRoles (%d) is less than actual number (%d) of roles \
+                   for this component %s\n", *pNumRoles, componentTable[i].nRoles, cComponentName);
+        }
+    }
+    EXIT:
+    return eError;
 }
 
 /*************************************************************************
@@ -585,7 +605,7 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
 * Note
 *
 **************************************************************************/
-OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole ( 
+OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
     OMX_IN      OMX_STRING role,
     OMX_INOUT   OMX_U32 *pNumComps,
     OMX_INOUT   OMX_U8  **compNames)
@@ -594,38 +614,93 @@ OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
     OMX_U32 i = 0;
     OMX_U32 j = 0;
     OMX_U32 k = 0;
+    OMX_U32 compOfRoleCount = 0;
 
     if (role == NULL || pNumComps == NULL)
     {
+       if (role == NULL)
+       {
+           LOGE("role is NULL");
+       }
+       if (pNumComps == NULL)
+       {
+           LOGE("pNumComps is NULL\n");
+       }
        eError = OMX_ErrorBadParameter;
        goto EXIT;
     }
 
    /* This implies that the componentTable is not filled */
-    if (componentTable[i].pRoleArray[j] == NULL)
+    if (!tableCount)
     {
-        eError = OMX_ErrorBadParameter;
+        eError = OMX_ErrorUndefined;
+        LOGE("Component table is empty. Please reload OMX Core\n");
         goto EXIT;
     }
 
-
+    /* no matter, we always want to know number of matching components
+       so this will always run */
     for (i = 0; i < tableCount; i++)
     {
-        for (j = 0; j<componentTable[i].nRoles; j++) 
-        { 
+        for (j = 0; j < componentTable[i].nRoles; j++)
+        {
             if (strcmp(componentTable[i].pRoleArray[j], role) == 0)
             {
                 /* the first call to this function should only count the number
-                    of roles so that for the second call compNames can be allocated
-                    with the proper size for that number of roles */
-                if (compNames != NULL)
-                {
-                    compNames[k] = (OMX_U8*)componentTable[i].name;
-                }
-                k++;
+                   of roles
+                */
+                compOfRoleCount++;
             }
         }
-        *pNumComps = k;
+    }
+    if (compOfRoleCount == 0)
+    {
+        eError = OMX_ErrorComponentNotFound;
+        LOGE("Component supporting role %s was not found\n", role);
+    }
+    if (compNames == NULL)
+    {
+        /* must be the first of two calls */
+        *pNumComps = compOfRoleCount;
+    }
+    else
+    {
+        /* must be the second of two calls */
+        if (*pNumComps < compOfRoleCount)
+        {
+            /* pNumComps is input in this context,
+               it can not be less, this would indicate
+               the array is not large enough
+            */
+            eError = OMX_ErrorBadParameter;
+            LOGE("pNumComps (%d) is less than the actual number (%d) of components \
+                  supporting role %s\n", *pNumComps, compOfRoleCount, role);
+        }
+        else
+        {
+            k = 0;
+            for (i = 0; i < tableCount; i++)
+            {
+                for (j = 0; j < componentTable[i].nRoles; j++)
+                {
+                    if (strcmp(componentTable[i].pRoleArray[j], role) == 0)
+                    {
+                        /*  the second call compNames can be allocated
+                            with the proper size for that number of roles.
+                        */
+                        compNames[k] = (OMX_U8*)componentTable[i].name;
+                        k++;
+                        if (k == compOfRoleCount)
+                        {
+                            /* there are no more components of this role
+                               so we can exit here */
+                            *pNumComps = k;
+                            goto EXIT;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     EXIT:
@@ -640,11 +715,6 @@ OMX_ERRORTYPE TIOMX_BuildComponentTable()
     int j = 0;
     int numFiles = 0;
     int i;
-
-    /* set up dummy call backs */
-    sCallbacks.EventHandler    = ComponentTable_EventHandler;
-    sCallbacks.EmptyBufferDone = ComponentTable_EmptyBufferDone;
-    sCallbacks.FillBufferDone  = ComponentTable_FillBufferDone;
 
     for (i = 0, numFiles = 0; i < MAXCOMP; i ++) {
         if (tComponentName[i][0] == NULL) {
@@ -675,37 +745,10 @@ OMX_ERRORTYPE TIOMX_BuildComponentTable()
     }
     tableCount = numFiles;
     if (eError != OMX_ErrorNone){
-        printf("Error:  Could not build Component Table\n");
+        LOGE("Could not build Component Table\n");
     }
 
     return eError;
-}
-
-OMX_ERRORTYPE ComponentTable_EventHandler(
-        OMX_IN OMX_HANDLETYPE hComponent,
-        OMX_IN OMX_PTR pAppData,
-        OMX_IN OMX_EVENTTYPE eEvent,
-        OMX_IN OMX_U32 nData1,
-        OMX_IN OMX_U32 nData2,
-        OMX_IN OMX_PTR pEventData)
-{
-    return OMX_ErrorNotImplemented;
-}
-
-OMX_ERRORTYPE ComponentTable_EmptyBufferDone(
-        OMX_OUT OMX_HANDLETYPE hComponent,
-        OMX_OUT OMX_PTR pAppData,
-        OMX_OUT OMX_BUFFERHEADERTYPE* pBuffer)
-{
-    return OMX_ErrorNotImplemented;
-}
-
-OMX_ERRORTYPE ComponentTable_FillBufferDone(
-        OMX_OUT OMX_HANDLETYPE hComponent,
-        OMX_OUT OMX_PTR pAppData,
-        OMX_OUT OMX_BUFFERHEADERTYPE* pBuffer)
-{
-    return OMX_ErrorNotImplemented;
 }
 
 OMX_BOOL TIOMXConfigParserRedirect(
@@ -714,8 +757,6 @@ OMX_BOOL TIOMXConfigParserRedirect(
 
 {
     OMX_BOOL Status = OMX_FALSE;
-        
     Status = TIOMXConfigParser(aInputParameters, aOutputParameters);
-    
     return Status;
 }
