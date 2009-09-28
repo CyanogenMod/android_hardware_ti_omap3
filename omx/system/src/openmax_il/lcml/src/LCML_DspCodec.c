@@ -55,7 +55,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include "usn.h"
 #include <sys/time.h>
 
@@ -207,7 +206,11 @@ static OMX_ERRORTYPE InitMMCodecEx(OMX_HANDLETYPE hInt,
 
     LCML_DPRINT("%d :: InitMMCodecEx application\n", __LINE__);
 
-    assert(hInt != NULL);
+    if (hInt == NULL )
+    {
+        eError = OMX_ErrorInsufficientResources;
+        goto ERROR;
+    }
     if(Args ==NULL)
     {
         InitMMCodec(hInt, codecName, toCodecInitParams, fromCodecInfoStruct, pCallbacks);
@@ -538,7 +541,13 @@ static OMX_ERRORTYPE InitMMCodec(OMX_HANDLETYPE hInt,
 
     LCML_DPRINT("%d :: InitMMCodec application\n",__LINE__);
 
-    assert(hInt != NULL);
+    if (hInt == NULL )
+    {
+        eError = OMX_ErrorInsufficientResources;
+        goto ERROR;
+    }
+
+
 
     phandle = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)hInt)->pCodec);
 #ifdef __PERF_INSTRUMENTATION__
@@ -852,7 +861,11 @@ static OMX_ERRORTYPE QueueBuffer (OMX_HANDLETYPE hComponent,
 
     LCML_DPRINT("%d :: QueueBuffer application\n",__LINE__);
 
-    assert(hComponent !=NULL);
+    if (hComponent !=NULL)
+    {
+        eError = OMX_ErrorInsufficientResources;
+        goto EXIT;
+    }
 
     phandle = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)hComponent)->pCodec);
 
@@ -1043,7 +1056,12 @@ static OMX_ERRORTYPE ControlCodec(OMX_HANDLETYPE hComponent,
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
     LCML_DPRINT("%d :: ControlCodec application\n",__LINE__);
-    assert( hComponent !=NULL);
+    if (hComponent == NULL )
+    {
+        eError= OMX_ErrorInsufficientResources;
+        goto EXIT;
+    }
+
     phandle = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)hComponent)->pCodec);
 
 #ifdef __PERF_INSTRUMENTATION__
