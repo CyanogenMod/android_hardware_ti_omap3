@@ -154,8 +154,7 @@ OMX_PRDSP2(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__
                                                      OMX_ErrorInsufficientResources,
                                                      0,
                                                      "Error from Component Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-            break;
+            exit(1);
 
         } 
         else if (FD_ISSET (pComponentPrivate->dataPipe[0], &rfds)) {
@@ -226,5 +225,5 @@ EXIT:
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
     OMX_PRINT1(pComponentPrivate->dbg, "%d::Exiting ComponentThread\n",__LINE__);
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }

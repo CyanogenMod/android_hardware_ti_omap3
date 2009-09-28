@@ -149,8 +149,7 @@ void* OMX_JpegEnc_Thread (void* pThreadData)
             pComponentPrivate->cbInfo.EventHandler (pComponentPrivate->pHandle, pComponentPrivate->pHandle->pApplicationPrivate,
                                                     OMX_EventError, OMX_ErrorInsufficientResources, OMX_TI_ErrorSevere,
                                                     "Error from COmponent Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-            break;
+            exit(1);
 
         } else {
             if ( (FD_ISSET (pComponentPrivate->filled_inpBuf_Q[0], &rfds))

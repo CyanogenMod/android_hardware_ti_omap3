@@ -107,6 +107,7 @@ void * mymalloc(int line, char *s, int size)
     p = calloc(1,size);
     if(p==NULL){
         OMXDBG_PRINT(stderr, ERROR, 4, 0, "Memory not available\n");
+        exit(1);
     }
     else{
         while((lines[e]!=0)&& (e<500) ){
@@ -117,8 +118,8 @@ void * mymalloc(int line, char *s, int size)
         bytes[e]=size;
         strcpy(file[e],s);
         OMXDBG_PRINT(stderr, ERROR, 4, 0, "Allocating %d bytes on address %p, line %d file %s\n", size, p, line, s);
+        return p;
     }
-    return p;
 }
 
 int myfree(void *dp, int line, char *s){

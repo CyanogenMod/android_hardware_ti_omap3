@@ -154,8 +154,7 @@ void* AACDEC_ComponentThread (void* pThreadData)
                                                     OMX_ErrorHardware, 
                                                     OMX_TI_ErrorSevere,
                                                     "Error from COmponent Thread in select");
-            eError = OMX_ErrorHardware;
-            break;
+            goto EXIT;
             
         } 
         else if (FD_ISSET (pComponentPrivate->cmdPipe[0], &rfds)) {
@@ -212,5 +211,5 @@ void* AACDEC_ComponentThread (void* pThreadData)
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: Exiting ComponentThread \n",__LINE__);
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }

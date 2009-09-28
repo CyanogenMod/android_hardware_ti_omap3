@@ -190,8 +190,7 @@ void* OMX_VidDec_Thread (void* pThreadData)
                                                    OMX_ErrorInsufficientResources, 
                                                    OMX_TI_ErrorSevere,
                                                    "Error from Component Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-            break;
+            exit(1);
         }
         else {
             if (FD_ISSET(pComponentPrivate->cmdPipe[VIDDEC_PIPE_READ], &rfds)) {
@@ -358,7 +357,7 @@ void* OMX_VidDec_Thread (void* pThreadData)
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
 
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }
 
 void* OMX_VidDec_Return (void* pThreadData)
@@ -435,8 +434,7 @@ void* OMX_VidDec_Return (void* pThreadData)
                                                    OMX_ErrorInsufficientResources, 
                                                    OMX_TI_ErrorSevere,
                                                    "Error from Component Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-            break;
+            exit(1);
         } 
         else {
             if (FD_ISSET(pComponentPrivate->filled_outBuf_Q[VIDDEC_PIPE_READ], &rfds)) {
@@ -499,6 +497,6 @@ void* OMX_VidDec_Return (void* pThreadData)
     }
     
     pComponentPrivate->bPipeCleaned = OMX_TRUE;
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }
 

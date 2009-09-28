@@ -165,8 +165,7 @@ void* NBAMRENC_CompThread(void* pThreadData)
                                                      OMX_ErrorInsufficientResources,
                                                      OMX_TI_ErrorSevere,
                                                      "Error from Component Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-            break;
+            exit(1);
 
         } else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds))
                    && (pComponentPrivate->curState != OMX_StatePause)) {
@@ -228,5 +227,5 @@ EXIT:
 #ifdef __PERF_INSTRUMENTATION__
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }

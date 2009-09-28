@@ -161,8 +161,7 @@ void* WBAMR_DEC_ComponentThread (void* pThreadData)
                                                     OMX_ErrorInsufficientResources,
                                                     OMX_TI_ErrorSevere,
                                                     "Error from Component Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-            break;
+            exit(1);
 
         } else if (FD_ISSET (pComponentPrivate->dataPipe[0], &rfds)) {
             OMX_PRCOMM2(pComponentPrivate->dbg, "DATA pipe is set in Component Thread\n");
@@ -220,5 +219,5 @@ void* WBAMR_DEC_ComponentThread (void* pThreadData)
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
     OMX_PRINT1(pComponentPrivate->dbg, "Exiting\n");
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }
