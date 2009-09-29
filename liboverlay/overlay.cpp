@@ -406,6 +406,7 @@ static int overlay_get(struct overlay_control_device_t *dev, int name)
 static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
                                         uint32_t w, uint32_t h, int32_t  format)
 {
+    LOGD("overlay_createOverlay:IN w=%d h=%d format=%d\n", w, h, format);
     LOG_FUNCTION_NAME;
 
     overlay_object            *overlay;
@@ -419,18 +420,17 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
 
     if (format == OVERLAY_FORMAT_DEFAULT)
     {
-	format = OVERLAY_FORMAT_YCbYCr_422_I;
+        format = OVERLAY_FORMAT_YCbYCr_422_I;
     }
 
-    LOGI("Create overlay, w=%d h=%d format=%d\n", w, h, format);
-
     if (ctx->overlay_video1) {
-        LOGE("Overlays already in use\n");
+        LOGE("Error - overlays already in use\n");
         return NULL;
     }
 
     shared_fd = create_shared_data(&shared);
     if (shared_fd < 0) {
+        LOGE("Failed to create shared data");
         return NULL;
     }
 
@@ -476,9 +476,11 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
    shared->dispW = LCD_WIDTH; // Need to determine this properly
    shared->dispH = LCD_HEIGHT; // Need to determine this properly
 
-   LOGI("Opened video1/fd=%d/obj=%08lx/shm=%d/size=%d", fd,
+    LOGI("Opened video1/fd=%d/obj=%08lx/shm=%d/size=%d", fd,
         (unsigned long)overlay, shared_fd, shared->size);
 
+
+    LOGD("overlay_createOverlay: OUT");
     return overlay;
 
 error1:
@@ -491,6 +493,7 @@ error:
 static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
                                    overlay_t* overlay)
 {
+    LOGD("overlay_destroyOverlay:IN dev (%p) and overlay (%p)", dev, overlay);
     LOG_FUNCTION_NAME;
 
     overlay_control_context_t *ctx = (overlay_control_context_t *)dev;
@@ -501,7 +504,7 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
     overlay_shared_t *shared = obj->getShared();
 
     if (shared == NULL) {
-        LOGE("Overlay already destroyed\n");
+        LOGE("Overlay was already destroyed - nothing needs to be done\n");
         return;
     }
 
@@ -528,7 +531,9 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
         if (ctx->overlay_video1 == overlay)
             ctx->overlay_video1 = NULL;
         delete overlay;
+        overlay = NULL;
     }
+    LOGD("overlay_destroyOverlay:OUT");
 }
 
 static int overlay_setPosition(struct overlay_control_device_t *dev,
