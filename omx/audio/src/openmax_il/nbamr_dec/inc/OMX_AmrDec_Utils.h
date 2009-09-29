@@ -158,8 +158,8 @@ OMX_U32 NBAMRDEC_IsPending(AMRDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFF
 OMX_ERRORTYPE NBAMRDECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent);
 OMX_U32 NBAMRDEC_IsValid(AMRDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
 /* OMX_ERRORTYPE NBAMRDEC_TransitionToIdle(AMRDEC_COMPONENT_PRIVATE *pComponentPrivate); */
-OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf);
-OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr);
+OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf, struct OMX_TI_Debug dbg);
+OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr, struct OMX_TI_Debug dbg);
 /*void NBAMR_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData); */
 
 #ifdef UNDER_CE

@@ -459,7 +459,7 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
         goto EXIT;                                                      \
     }                                                                   \
     memset(_pStruct_,0,sizeof(_sName_));                                \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
 
 
 #define WMAD_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)              \
@@ -472,7 +472,7 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
         goto EXIT;                                              \
     }                                                           \
     memset(_ptr_,0,_size_);                                     \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_ptr_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_ptr_);
 
 
 /* ======================================================================= */
@@ -482,7 +482,7 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
 /* ======================================================================= */
 
 #define OMX_WMADECMEMFREE_STRUCT(_pStruct_)                     \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: [FREE] %p\n",__LINE__,_pStruct_);    \
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: [FREE] %p\n",__LINE__,_pStruct_);    \
     if(_pStruct_ != NULL){                                      \
     	newfree(_pStruct_);                                     \
         _pStruct_ = NULL;                                       \
@@ -1340,7 +1340,7 @@ OMX_U32 WMADEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BO
 /*@return OMX_ErrorNone = No error                                           */
 /*          OMX Error code = Error                                           */
 /*  =========================================================================*/
-OMX_ERRORTYPE WMADEC_Parser(OMX_U8* pBuffer, RCA_HEADER *pStreamData);
+OMX_ERRORTYPE WMADEC_Parser(OMX_U8* pBuffer, RCA_HEADER *pStreamData, struct OMX_TI_Debug dbg);
 
 
 

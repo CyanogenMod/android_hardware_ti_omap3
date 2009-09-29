@@ -213,7 +213,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     int i;
 
     OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d ::OMX_ComponentInit\n", __LINE__);
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d ::LINE\n", __LINE__);
 
     /*Set the all component function pointer to the handle */
     pHandle->SetCallbacks = SetCallbacks;
@@ -236,7 +235,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
   
 
  
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d ::LINE\n", __LINE__);
     /*Allocate the memory for Component private data area */
     WMAD_OMX_MALLOC(pHandle->pComponentPrivate, WMADEC_COMPONENT_PRIVATE);
     ((WMADEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate)->pHandle = pHandle;
@@ -257,8 +255,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     ((WMADEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate)->wmaParams[INPUT_PORT] = wma_ip;
     ((WMADEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate)->wmaParams[OUTPUT_PORT] = (OMX_AUDIO_PARAM_WMATYPE*)wma_op;
 
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d Malloced wmaParams[INPUT_PORT] = %p\n",__LINE__,((WMADEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate)->wmaParams[INPUT_PORT]);
-    OMXDBG_PRINT(stderr, COMM, 2, 0, "%d Malloced wmaParams[OUTPUT_PORT] = %p\n",__LINE__,((WMADEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate)->wmaParams[OUTPUT_PORT]);
  
     pComponentPrivate = pHandle->pComponentPrivate;
     WMAD_OMX_MALLOC(pComponentPrivate->pInputBufferList, BUFFERLIST);
@@ -1675,7 +1671,6 @@ static OMX_ERRORTYPE AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
                                      OMX_IN OMX_U32 nSizeBytes)
 
 {
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "====================================OMX_ERRORTYPE AllocateBuffer ()=======================\n");
     OMX_PARAM_PORTDEFINITIONTYPE *pPortDef;
     WMADEC_COMPONENT_PRIVATE *pComponentPrivate;
     OMX_ERRORTYPE eError = OMX_ErrorNone;

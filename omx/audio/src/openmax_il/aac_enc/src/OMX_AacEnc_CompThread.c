@@ -125,9 +125,9 @@ void* ComponentThread (void* pThreadData)
         if (status == 0) 
         {
 
-            OMX_ERROR4(pComponentPrivate->dbg, "%d : bIsStopping = %ld\n",__LINE__, pComponentPrivate->bIsStopping);
-            OMX_ERROR4(pComponentPrivate->dbg, "%d : lcml_nOpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nOpBuf);
-            OMX_ERROR4(pComponentPrivate->dbg, "%d : lcml_nIpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nIpBuf);
+            OMX_ERROR2(pComponentPrivate->dbg, "%d : bIsStopping = %ld\n",__LINE__, pComponentPrivate->bIsStopping);
+            OMX_ERROR2(pComponentPrivate->dbg, "%d : lcml_nOpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nOpBuf);
+            OMX_ERROR2(pComponentPrivate->dbg, "%d : lcml_nIpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nIpBuf);
 
             if (pComponentPrivate->bIsThreadstop == 1)  
             {
@@ -148,7 +148,7 @@ void* ComponentThread (void* pThreadData)
                     goto EXIT;
                 }
              }
-             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
+             OMX_ERROR2(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
         } 
         else if(status == -1) 
         {

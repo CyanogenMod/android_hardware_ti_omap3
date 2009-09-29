@@ -135,7 +135,7 @@ void* NBAMRENC_CompThread(void* pThreadData)
 #endif
 
         if (pComponentPrivate->bIsThreadstop == 1) {
-            OMX_ERROR4(pComponentPrivate->dbg, ":: Comp Thrd Exiting here...\n");
+            OMX_ERROR2(pComponentPrivate->dbg, ":: Comp Thrd Exiting here...\n");
             goto EXIT;
         }
         
@@ -156,7 +156,7 @@ void* NBAMRENC_CompThread(void* pThreadData)
                     goto EXIT;
                 }
              }
-             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
+             OMX_ERROR2(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
         } else if(-1 == status) {
             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error in Select\n", __LINE__);
             pComponentPrivate->cbInfo.EventHandler ( pHandle,

@@ -63,7 +63,7 @@ typedef enum OMX_TI_SEVERITYTYPE {
         goto EXIT;                                              \
     }                                                           \
     memset(_ptr_,0,_size_);                                     \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_ptr_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_ptr_);
 
 /* ======================================================================= */
 /**
@@ -80,7 +80,7 @@ typedef enum OMX_TI_SEVERITYTYPE {
  */
 /* ======================================================================= */
 #define OMX_MEMFREE_STRUCT(_pStruct_)\
-	OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: [FREE] %p\n",__LINE__,_pStruct_);\
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: [FREE] %p\n",__LINE__,_pStruct_);\
     if(_pStruct_ != NULL){\
        newfree(_pStruct_);\
 	_pStruct_ = NULL;\

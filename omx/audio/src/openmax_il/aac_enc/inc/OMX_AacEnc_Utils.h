@@ -101,14 +101,14 @@
     
     
 #define OMX_MEMFREE_STRUCT(_pStruct_)\
-    OMXDBG_PRINT(stderr, PRINT, 2, 0, "%d :: FREEING MEMORY = %p\n",__LINE__,_pStruct_);\
+    OMXDBG_PRINT(stderr, PRINT, 2, OMX_DBG_BASEMASK, "%d :: FREEING MEMORY = %p\n",__LINE__,_pStruct_);\
     if(_pStruct_ != NULL){\
         newfree(_pStruct_);\
         _pStruct_ = NULL;\
     }
 
 #define OMX_CLOSE_PIPE(_pStruct_,err)\
-    OMXDBG_PRINT(stderr, PRINT, 2, 0, "%d :: CLOSING PIPE \n",__LINE__);\
+    OMXDBG_PRINT(stderr, PRINT, 2, OMX_DBG_BASEMASK, "%d :: CLOSING PIPE \n",__LINE__);\
     err = close (_pStruct_);\
     if(0 != err && OMX_ErrorNone == eError){\
         eError = OMX_ErrorHardware;\

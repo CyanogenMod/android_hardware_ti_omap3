@@ -616,7 +616,7 @@ OMX_ERRORTYPE WBAMRENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
             pLcmlHandleAux = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)pLcmlHandle->pCodecinterfacehandle)->pCodec);
             OMX_DmmUnMap(pLcmlHandleAux->dspCodec->hProc,
                          (void*)pTemp_lcml->pBufferParam->pParamElem,
-                         pTemp_lcml->pDmmBuf->pReserved);
+                         pTemp_lcml->pDmmBuf->pReserved, pComponentPrivate->dbg);
 
             pBufParmsTemp = (OMX_U8*)pTemp_lcml->pFrameParam;
             pBufParmsTemp -= EXTRA_BYTES;
@@ -650,7 +650,7 @@ OMX_ERRORTYPE WBAMRENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
 #ifndef UNDER_CE
             OMX_DmmUnMap(pLcmlHandleAux->dspCodec->hProc,
                          (void*)pTemp_lcml->pBufferParam->pParamElem,
-                         pTemp_lcml->pDmmBuf->pReserved);
+                         pTemp_lcml->pDmmBuf->pReserved, pComponentPrivate->dbg);
 #endif
 
             pBufParmsTemp = (OMX_U8*)pTemp_lcml->pFrameParam;
@@ -1902,7 +1902,7 @@ OMX_ERRORTYPE WBAMRENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
 
                 OMX_DmmUnMap(phandle->dspCodec->hProc, /*Unmap DSP memory used*/
                              (void*)pLcmlHdr->pBufferParam->pParamElem,
-                             pLcmlHdr->pDmmBuf->pReserved);
+                             pLcmlHdr->pDmmBuf->pReserved, pComponentPrivate->dbg);
                 pLcmlHdr->pBufferParam->pParamElem = NULL;
             }
 
@@ -1915,7 +1915,7 @@ OMX_ERRORTYPE WBAMRENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                 eError = OMX_DmmMap(phandle->dspCodec->hProc,
                                     (nFrames*sizeof(WBAMRENC_FrameStruct)),
                                     (void*)pLcmlHdr->pFrameParam,
-                                    (pLcmlHdr->pDmmBuf));
+                                    (pLcmlHdr->pDmmBuf), pComponentPrivate->dbg);
                 if (eError != OMX_ErrorNone){
                     OMX_ERROR4(pComponentPrivate->dbg, "OMX_DmmMap ERRROR!!!!\n");
                     goto EXIT;
@@ -2029,7 +2029,7 @@ OMX_ERRORTYPE WBAMRENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
 #ifndef UNDER_CE
             OMX_DmmUnMap(phandle->dspCodec->hProc,
                          (void*)pLcmlHdr->pBufferParam->pParamElem,
-                         pLcmlHdr->pDmmBuf->pReserved);
+                         pLcmlHdr->pDmmBuf->pReserved, pComponentPrivate->dbg);
             pLcmlHdr->pBufferParam->pParamElem = NULL;
 #endif
         }
@@ -2045,7 +2045,7 @@ OMX_ERRORTYPE WBAMRENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             eError = OMX_DmmMap(phandle->dspCodec->hProc,
                                 (nFrames*sizeof(WBAMRENC_FrameStruct)),
                                 (void*)pLcmlHdr->pFrameParam,
-                                (pLcmlHdr->pDmmBuf));
+                                (pLcmlHdr->pDmmBuf),pComponentPrivate->dbg );
             if (eError != OMX_ErrorNone)
                 {
                     OMX_ERROR4(pComponentPrivate->dbg, "OMX_DmmMap ERRROR!!!!\n");
@@ -2142,7 +2142,7 @@ OMX_ERRORTYPE WBAMRENC_GetBufferDirection(OMX_BUFFERHEADERTYPE *pBufHeader,
         pBuf = pComponentPrivate->pOutputBufferList->pBufHdr[i];
         if(pBufHeader == pBuf) {
             *eDir = OMX_DirOutput;
-            OMX_ERROR4(pComponentPrivate->dbg, "pBufHeader = %p is OUTPUT BUFFER pBuf = %p\n",
+            OMX_ERROR2(pComponentPrivate->dbg, "pBufHeader = %p is OUTPUT BUFFER pBuf = %p\n",
                        pBufHeader,
                        pBuf);
             flag = 0;
@@ -2207,7 +2207,7 @@ OMX_ERRORTYPE WBAMRENC_GetCorrespondingLCMLHeader(WBAMRENC_COMPONENT_PRIVATE *pC
                           pLcmlBufHeader->buffer->pBuffer);
             if(pBuffer == pLcmlBufHeader->buffer->pBuffer) {
                 *ppLcmlHdr = pLcmlBufHeader;
-                OMX_ERROR4(pComponentPrivate->dbg,
+                OMX_ERROR2(pComponentPrivate->dbg,
                            "Corresponding Input LCML Header Found = %p\n",
                            pLcmlBufHeader);
                 eError = OMX_ErrorNone;
@@ -2224,7 +2224,7 @@ OMX_ERRORTYPE WBAMRENC_GetCorrespondingLCMLHeader(WBAMRENC_COMPONENT_PRIVATE *pC
                           pLcmlBufHeader->buffer->pBuffer);
             if(pBuffer == pLcmlBufHeader->buffer->pBuffer) {
                 *ppLcmlHdr = pLcmlBufHeader;
-                OMX_ERROR4(pComponentPrivate->dbg,
+                OMX_ERROR2(pComponentPrivate->dbg,
                            "Corresponding Output LCML Header Found = %p\n",
                            pLcmlBufHeader);
                 eError = OMX_ErrorNone;
@@ -3214,7 +3214,7 @@ OMX_ERRORTYPE WBAMRENC_FillLCMLInitParamsEx(OMX_HANDLETYPE pComponent)
 OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle,
                          int size,
                          void* pArmPtr,
-                         DMM_BUFFER_OBJ* pDmmBuf)
+                         DMM_BUFFER_OBJ* pDmmBuf, struct OMX_TI_Debug dbg)
 {
     OMX_ERRORTYPE eError = OMX_ErrorUndefined;
     DSP_STATUS status;
@@ -3222,14 +3222,14 @@ OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle,
 
     if(pDmmBuf == NULL)
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "pBuf is NULL\n");
+        OMX_ERROR4 (dbg, "pBuf is NULL\n");
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
 
     if(pArmPtr == NULL)
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "pBuf is NULL\n");
+        OMX_ERROR4 (dbg, "pBuf is NULL\n");
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
@@ -3243,17 +3243,15 @@ OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle,
 
     if(DSP_FAILED(status))
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0,
-                     "DSPProcessor_ReserveMemory() failed - error 0x%x",
-                     (int)status);
+        OMX_ERROR4 (dbg, "DSPProcessor_ReserveMemory() failed - error 0x%x", (int) status);
         eError = OMX_ErrorHardware;
         goto EXIT;
     }
     pDmmBuf->nSize = size;
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, " DMM MAP Reserved: %p, size 0x%x (%d)\n",
-                 pDmmBuf->pReserved,
-                 nSizeReserved,
-                 nSizeReserved);
+    OMX_PRBUFFER2 (dbg, "DMM MAP Reserved: %p, size 0x%x (%d)\n",
+            pDmmBuf->pReserved,
+            nSizeReserved,
+            nSizeReserved);
     /* Map */
     status = DSPProcessor_Map(ProcHandle,
                               pDmmBuf->pAllocated,/* Arm addres of data to Map on DSP*/
@@ -3263,23 +3261,20 @@ OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle,
                               0); /* final param is reserved.  set to zero. */
     if(DSP_FAILED(status))
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0,
-                     "DSPProcessor_Map() failed - error 0x%x",
+        OMX_ERROR4 (dbg, "DSPProcessor_Map() failed - error 0x%x",
                      (int)status);
         eError = OMX_ErrorHardware;
         goto EXIT;
     }
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0,
-                 "DMM Mapped: %p, size 0x%x (%d)\n",
+    OMX_PRBUFFER2 (dbg, "DMM Mapped: %p, size 0x%x (%d)\n",
                  pDmmBuf->pMapped, size,size);
 
     /* Issue an initial memory flush to ensure cache coherency */
     status = DSPProcessor_FlushMemory(ProcHandle, pDmmBuf->pAllocated, size, 0);
     if(DSP_FAILED(status))
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0,
-                     "Unable to flush mapped buffer: error 0x%x",
-                     (int)status);
+        OMX_ERROR4 (dbg, "Unable to flush mapped buffer: error 0x%x",
+                (int)status);
         goto EXIT;
     }
     eError = OMX_ErrorNone;
@@ -3298,7 +3293,7 @@ OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle,
  *  @retval OMX_ErrorNone  - Success
  *          OMX_ErrorHardware  -  Hardware Error
  ** ==========================================================================*/
-OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr)
+OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr, struct OMX_TI_Debug dbg)
 {
     DSP_STATUS status = DSP_SOK;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
@@ -3306,33 +3301,27 @@ OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResP
 
     if(pMapPtr == NULL)
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "pMapPtr is NULL\n");
+        OMX_ERROR4 (dbg, "pMapPtr is NULL\n");
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
     if(pResPtr == NULL)
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "pResPtr is NULL\n");
+        OMX_ERROR4 (dbg, "pResPtr is NULL\n");
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
     status = DSPProcessor_UnMap(ProcHandle,pMapPtr);
     if(DSP_FAILED(status))
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0,
-                     "DSPProcessor_UnMap() failed - error 0x%x",
-                     (int)status);
+        OMX_ERROR4 (dbg, "DSPProcessor_UnMap() failed - error 0x%x", (int)status);
     }
 
-    OMXDBG_PRINT(stderr, PRINT, 2, 0,
-                 "unreserving  structure =0x%p\n",
-                 pResPtr );
+    OMX_PRINT2 (dbg, "unreserving  structure =0x%p\n", pResPtr);
     status = DSPProcessor_UnReserveMemory(ProcHandle,pResPtr);
     if(DSP_FAILED(status))
     {
-        OMXDBG_PRINT(stderr, ERROR, 4, 0,
-                     "DSPProcessor_UnReserveMemory() failed - error 0x%x",
-                     (int)status);
+        OMX_ERROR4(dbg, "DSPProcessor_UnReserveMemory() failed - error 0x%x",(int)status);
     }
 
  EXIT:

@@ -128,57 +128,51 @@
     (_s_)->nVersion.s.nStep = 0x0
 
 #define OMX_WBMEMFREE_STRUCT(_pStruct_)\
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "FREEING MEMORY = %p\n",_pStruct_);\
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "FREEING MEMORY = %p\n",_pStruct_);\
     if(_pStruct_ != NULL){\
         newfree(_pStruct_);\
         _pStruct_ = NULL;\
     }
 
 #define OMX_WBCLOSE_PIPE(_pStruct_,err)\
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Closing pipes = %d\n",_pStruct_);\
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "Closing pipes = %d\n",_pStruct_);\
     err = close (_pStruct_);\
     if(0 != err && OMX_ErrorNone == eError){\
         eError = OMX_ErrorHardware;\
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "Error while closing pipe\n");\
+        OMXDBG_PRINT(stderr, ERROR, 4, OMX_DBG_BASEMASK, "Error while closing pipe\n");\
         goto EXIT;\
     }
 
 #define WBAMRENC_OMX_MALLOC(_pStruct_, _sName_)   \
     _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));      \
     if(_pStruct_ == NULL){      \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "Malloc Failed\n"); \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, OMX_DBG_BASEMASK, "Malloc Failed\n"); \
         eError = OMX_ErrorInsufficientResources; \
         goto EXIT;      \
     } \
     memset(_pStruct_,0,sizeof(_sName_));\
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Malloced = %p\n",_pStruct_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "Malloced = %p\n",_pStruct_);
 
 
 
 #define WBAMRENC_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)   \
     _ptr_ = (_name_ *)newmalloc(_size_);      \
     if(_ptr_ == NULL){      \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "Malloc Failed\n"); \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, OMX_DBG_BASEMASK, "Malloc Failed\n"); \
         eError = OMX_ErrorInsufficientResources; \
         goto EXIT;      \
     } \
     memset(_ptr_,0,_size_); \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Malloced = %p\n",_ptr_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "Malloced = %p\n",_ptr_);
 
 #define WBAMRENC_OMX_ERROR_EXIT(_e_, _c_, _s_)\
     _e_ = _c_;\
-    OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n**************** OMX ERROR ************************\n");\
-    OMXDBG_PRINT(stderr, ERROR, 4, 0, "Error Name: %s : Error Num = %x", _s_, _e_);\
-    OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n**************** OMX ERROR ************************\n");\
+    OMXDBG_PRINT(stderr, ERROR, 4, OMX_DBG_BASEMASK, "Error Name: %s : Error Num = %x", _s_, _e_);\
     goto EXIT;
 
 #define WBAMRENC_OMX_FREE(ptr) \
     if(NULL != ptr) { \
-        OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Freeing Address = %p\n",ptr); \
+        OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "Freeing Address = %p\n",ptr); \
         newfree(ptr); \
         ptr = NULL; \
     }
@@ -1069,8 +1063,8 @@ OMX_U32 WBAMRENC_IsValid(WBAMRENC_COMPONENT_PRIVATE *pComponentPrivate,
                          OMX_U8 *pBuffer,
                          OMX_DIRTYPE eDir);
 
-OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf);
-OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr);
+OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf, struct OMX_TI_Debug dbg);
+OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr, struct OMX_TI_Debug dbg);
 
 /* void WBAMRENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData); */
 

@@ -224,6 +224,8 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     OMX_AUDIO_PARAM_PORTFORMATTYPE *pPortFormat = NULL;
     int i = 0;
 
+    OMXDBG_PRINT(stderr, PRINT, 1, 0, "Entering OMX_ComponentInit\n");
+
     /*Set the all component function pointer to the handle */
     pHandle->SetCallbacks = SetCallbacks;
     pHandle->GetComponentVersion = GetComponentVersion;
@@ -1425,24 +1427,25 @@ static OMX_ERRORTYPE GetState (OMX_HANDLETYPE pComponent, OMX_STATETYPE* pState)
 {
     OMX_ERRORTYPE eError = OMX_ErrorUndefined;
     OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pComponent;
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d :: Entering GetState\n", __LINE__);
+    AMRENC_COMPONENT_PRIVATE *pComponentPrivate =
+                         (AMRENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+    OMX_PRINT1 (pComponentPrivate->dbg, "%d :: Entering GetState\n", __LINE__);
     if (!pState) {
         eError = OMX_ErrorBadParameter;
     OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: OMX_ErrorBadParameter from GetState\n",__LINE__);
         goto EXIT;
     }
 
-    if (pHandle && pHandle->pComponentPrivate) {
+    if (pHandle && pComponentPrivate) {
         *pState =  ((AMRENC_COMPONENT_PRIVATE*)
-                                     pHandle->pComponentPrivate)->curState;
+                                     pComponentPrivate)->curState;
     } else {
         *pState = OMX_StateLoaded;
     }
     eError = OMX_ErrorNone;
 
 EXIT:
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d :: Exiting GetState\n", __LINE__);
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d :: Returning = 0x%x\n",__LINE__,eError);
+    OMX_PRINT1 (pComponentPrivate->dbg, "%d :: Exiting GetState Returning 0x%x\n", __LINE__, eError);
     return eError;
 }
 
@@ -1739,8 +1742,7 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
     OMX_NBMEMFREE_STRUCT(pComponentPrivate);
 
 EXIT:
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d :: Exiting ComponentDeInit\n", __LINE__);
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d :: Returning = 0x%x\n",__LINE__,eError);
+    OMXDBG_PRINT(stderr, PRINT, 1, 0, "%d :: Exiting ComponentDeInit Returning 0x%x\n", __LINE__, eError);
     return eError;
 }
 

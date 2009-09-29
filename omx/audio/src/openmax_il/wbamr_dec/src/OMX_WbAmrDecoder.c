@@ -235,8 +235,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     /*Allocate the memory for Component private data area */
     OMX_MALLOC_GENERIC(pHandle->pComponentPrivate, WBAMR_DEC_COMPONENT_PRIVATE);
 
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "[ALLOC] %p\n",pHandle->pComponentPrivate);
-
     ((WBAMR_DEC_COMPONENT_PRIVATE *)
      pHandle->pComponentPrivate)->pHandle = pHandle;
 
@@ -254,8 +252,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     ((WBAMR_DEC_COMPONENT_PRIVATE *)
      pHandle->pComponentPrivate)->wbamrParams[WBAMR_DEC_OUTPUT_PORT] = (OMX_AUDIO_PARAM_AMRTYPE*)amr_op;
 
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "Malloced wbamrParams[WBAMR_DEC_INPUT_PORT] = %p\n",((WBAMR_DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate)->wbamrParams[WBAMR_DEC_INPUT_PORT]);
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "Malloced wbamrParams[WBAMR_DEC_OUTPUT_PORT] = %p\n",((WBAMR_DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate)->wbamrParams[WBAMR_DEC_OUTPUT_PORT]);
 
 
     pComponentPrivate = pHandle->pComponentPrivate;
@@ -774,9 +770,9 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
     WBAMR_DEC_COMPONENT_PRIVATE  *pComponentPrivate;
     OMX_PARAM_PORTDEFINITIONTYPE *pParameterStructure;
 
-    OMXDBG_PRINT(stderr, PRINT, 1, 0, "Entering with index:: %x\n",nParamIndex);
 
     pComponentPrivate = (WBAMR_DEC_COMPONENT_PRIVATE *)(((OMX_COMPONENTTYPE*)hComp)->pComponentPrivate);
+    OMX_PRINT1 (pComponentPrivate->dbg, "Entering with index:: %x\n",nParamIndex);
     pParameterStructure = (OMX_PARAM_PORTDEFINITIONTYPE*)ComponentParameterStructure;
 
     if (pParameterStructure == NULL) {

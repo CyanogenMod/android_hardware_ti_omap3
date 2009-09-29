@@ -223,7 +223,7 @@
     (_s_)->nVersion.s.nStep = 0x0
 
 #define OMX_NBMEMFREE_STRUCT(_pStruct_)\
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: [FREE] %p\n",__LINE__,_pStruct_);\
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: [FREE] %p\n",__LINE__,_pStruct_);\
     if(_pStruct_ != NULL){\
         newfree(_pStruct_);\
         _pStruct_ = NULL;\
@@ -231,7 +231,7 @@
 
 
 #define OMX_NBCLOSE_PIPE(_pStruct_,err)\
-        OMXDBG_PRINT(stderr, COMM, 2, 0, "%d :: CLOSING PIPE \n",__LINE__); \
+    OMXDBG_PRINT(stderr, COMM, 2, OMX_DBG_BASEMASK, "%d :: CLOSING PIPE \n",__LINE__); \
     err = close (_pStruct_);\
     if(0 != err && OMX_ErrorNone == eError){\
         eError = OMX_ErrorHardware;\
@@ -249,7 +249,7 @@
         goto EXIT;      \
     } \
     memset(_pStruct_,0,sizeof(_sName_));\
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
 
 
 
@@ -263,7 +263,7 @@
         goto EXIT;      \
     } \
     memset(_ptr_,0,_size_); \
-    OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Malloced = %p\n",__LINE__,_ptr_);
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_ptr_);
 
 #define NBAMRENC_OMX_ERROR_EXIT(_e_, _c_, _s_)\
     _e_ = _c_;\
@@ -274,7 +274,7 @@
 
 #define NBAMRENC_OMX_FREE(ptr) \
     if(NULL != ptr) { \
-        OMXDBG_PRINT(stderr, BUFFER, 2, 0, "%d :: Freeing Address = %p\n",__LINE__,ptr); \
+        OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Freeing Address = %p\n",__LINE__,ptr); \
         newfree(ptr); \
         ptr = NULL; \
     }
@@ -1254,8 +1254,8 @@ typedef enum OMX_NBAMRENC_INDEXAUDIOTYPE {
     OMX_IndexCustomDebug
 }OMX_NBAMRENC_INDEXAUDIOTYPE;
 
-OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf);
-OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr);
+OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf, struct OMX_TI_Debug dbg);
+OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr, struct OMX_TI_Debug dbg);
 
 /*===============================================================*/
 

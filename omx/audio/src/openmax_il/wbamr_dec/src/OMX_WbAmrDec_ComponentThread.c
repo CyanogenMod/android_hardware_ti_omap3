@@ -152,7 +152,7 @@ void* WBAMR_DEC_ComponentThread (void* pThreadData)
                     goto EXIT;
                 }
             }
-            OMX_ERROR4(pComponentPrivate->dbg,"Component Time Out !!!!!!!!!!!! \n");
+            OMX_ERROR2(pComponentPrivate->dbg,"Component Time Out !!!!!!!!!!!! \n");
         } else if (-1 == status) {
             OMX_ERROR4(pComponentPrivate->dbg, "Error in Select\n");
             pComponentPrivate->cbInfo.EventHandler (pHandle,
