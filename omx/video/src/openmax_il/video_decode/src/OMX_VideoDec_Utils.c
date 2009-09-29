@@ -1148,7 +1148,6 @@ OMX_ERRORTYPE VIDDEC_Load_Defaults (VIDDEC_COMPONENT_PRIVATE* pComponentPrivate,
             pComponentPrivate->bBuffMarkTaked                   = OMX_FALSE;
             pComponentPrivate->bBuffalreadyMarked               = OMX_FALSE;
             pComponentPrivate->bFirstHeader                     = OMX_FALSE;
-            pComponentPrivate->nCurrentMPEG4ProfileIndex        = 0;
             pComponentPrivate->nDisplayWidth                    = 0;
             pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel1]  = 0;
             pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel2]  = 0;

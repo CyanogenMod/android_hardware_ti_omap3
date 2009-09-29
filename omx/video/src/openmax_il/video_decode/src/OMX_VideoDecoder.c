@@ -116,6 +116,51 @@ VIDDEC_CUSTOM_PARAM sVideoDecCustomParams[] =                                {{V
                                                                              {VIDDEC_CUSTOMPARAM_ISNALBIGENDIAN, VideoDecodeCustomParamIsNALBigEndian}};
 #endif
 
+/* H.263 Supported Levels & profiles */
+VIDEO_PROFILE_LEVEL_TYPE SupportedH263ProfileLevels[] = {
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level10},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level20},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level30},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level40},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level45},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level50},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level60},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level70},
+  {-1, -1}};
+
+/* MPEG4 Supported Levels & profiles */
+VIDEO_PROFILE_LEVEL_TYPE SupportedMPEG4ProfileLevels[] ={
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level0},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level0b},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level1},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level2},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level3},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level4},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level4a},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level5},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level0},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level0b},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level1},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level2},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level3},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level4},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level5},
+  {-1,-1}};
+
+/* AVC Supported Levels & profiles */
+VIDEO_PROFILE_LEVEL_TYPE SupportedAVCProfileLevels[] ={
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel1},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel1b},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel11},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel12},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel13},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel2},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel21},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel22},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel3},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel31},
+  {-1,-1}};
+
 /*--------function prototypes ------------------------------------------------*/
 
 /*******************************************************************************
@@ -772,379 +817,72 @@ static OMX_ERRORTYPE VIDDEC_GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
         }
         case OMX_IndexParamVideoProfileLevelQuerySupported:
             {
-                OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
-                if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
-                    switch(pParamProfileLevel->nProfileIndex){
-                        case 0:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel1;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 1:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel1b;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 2:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel11;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 3:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel12;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 4:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel13;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 5:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel2;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 6:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel21;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 7:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel1;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 8:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel22;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 9:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel3;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 10:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_AVCProfileMax;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevelMax;
-                                pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        default:
-                                eError = OMX_ErrorNoMore;
-                                break;
-                    }
-                }
-                else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingWMV) {
-                    switch(pParamProfileLevel->nProfileIndex){
-                        case 0:
-                                pParamProfileLevel->eProfile = 0;
-                                pParamProfileLevel->eLevel = 0;
-                                eError = OMX_ErrorNone;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                break;
-                        default:
-                                eError = OMX_ErrorNoMore;
-                                break;
-                    }
-                }
-#ifdef VIDDEC_SPARK_CODE
-                else if (VIDDEC_SPARKCHECK) {
-                    switch(pParamProfileLevel->nProfileIndex) {
-                        case 0:
-                                pParamProfileLevel->eProfile = 0;
-                                pParamProfileLevel->eLevel = 0;
-                                eError = OMX_ErrorNone;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                break;
-                        default:
-                                eError = OMX_ErrorNoMore;
-                                break;
-                    }
-                }
-#endif
-                else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4) {
-                    switch(pParamProfileLevel->nProfileIndex){
-                        case 0:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG4Level0;
-                                pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 1:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG4Level0b;
-                                pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 2:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG4Level1;
-                                pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 3:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG4Level2;
-                                pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 4:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG4Level3;
-                                pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 5:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG4Level4;
-                                pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 6:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG4Level4a;
-                                pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 7:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG4ProfileMax;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG4LevelMax;
-                                pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        default:
-                                eError = OMX_ErrorNoMore;
-                                break;
-                    }
-                }
-                else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
-                    switch(pParamProfileLevel->nProfileIndex){
-                        case 0:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_H263ProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_H263Level10;
-                                pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 1:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_H263ProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_H263Level20;
-                                pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 2:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_H263ProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_H263Level30;
-                                pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 3:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_H263ProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_H263Level40;
-                                pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 4:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_H263ProfileBaseline;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_H263Level45;
-                                pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 5:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_H263ProfileMax;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_H263LevelMax;
-                                pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        default:
-                                eError = OMX_ErrorNoMore;
-                                break;
-                    }
-                }
-                else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG2) {
-                    switch(pParamProfileLevel->nProfileIndex){
-                        case 0:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG2LevelLL;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 1:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG2LevelML;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 2:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG2LevelH14;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 3:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileSimple;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG2LevelHL;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 4:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileMain;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG2LevelH14;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 5:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileMain;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_AVCLevel2;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 6:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileMain;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG2LevelML;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 7:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileMain;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG2LevelHL;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        case 8:
-                                pParamProfileLevel->eProfile = OMX_VIDEO_MPEG2ProfileMax;
-                                pParamProfileLevel->eLevel = OMX_VIDEO_MPEG2LevelMax;
-                                pComponentPrivate->pMpeg2->eProfile = pParamProfileLevel->eProfile;
-                                pComponentPrivate->pMpeg2->eLevel = pParamProfileLevel->eLevel; 
-                                pComponentPrivate->nCurrentMPEG4ProfileIndex = pParamProfileLevel->nProfileIndex;
-                                eError = OMX_ErrorNone;
-                                break;
-                        default:
-                                eError = OMX_ErrorNoMore;
-                                break;
-                    }
-                }
-                else {
-                    eError = OMX_ErrorNoMore;
-                }
-            }
+			        VIDEO_PROFILE_LEVEL_TYPE* pProfileLevel = NULL;
+                                OMX_U32 nNumberOfProfiles = 0;
+                                OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
+			        pParamProfileLevel->nPortIndex = pComponentPrivate->pInPortDef->nPortIndex;
+
+				/* Choose table based on compression format */
+				switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat)
+				{
+				case OMX_VIDEO_CodingH263:
+				    pProfileLevel = &SupportedH263ProfileLevels;
+                                    nNumberOfProfiles = sizeof(SupportedH263ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
+				    break;
+				case OMX_VIDEO_CodingMPEG4:
+				    pProfileLevel = &SupportedMPEG4ProfileLevels;
+                                    nNumberOfProfiles = sizeof(SupportedMPEG4ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
+				    break;
+				case OMX_VIDEO_CodingAVC:
+				    pProfileLevel = &SupportedAVCProfileLevels;
+                                    nNumberOfProfiles = sizeof(SupportedAVCProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
+				    break;
+                                default:
+                                    return OMX_ErrorBadParameter;
+				}
+
+                                if((pParamProfileLevel->nProfileIndex < 0) || (pParamProfileLevel->nProfileIndex >= (nNumberOfProfiles - 1)))
+                                    return OMX_ErrorBadParameter;
+
+				/* Point to table entry based on index */
+				pProfileLevel += pParamProfileLevel->nProfileIndex;
+
+				/* -1 indicates end of table */
+				if(pProfileLevel->nProfile != -1) {
+				    pParamProfileLevel->eProfile = pProfileLevel->nProfile;
+				    pParamProfileLevel->eLevel = pProfileLevel->nLevel;
+					eError = OMX_ErrorNone;
+				}
+				else {
+				    eError = OMX_ErrorNoMore;
+				}
+				break;
+	   }
         case OMX_IndexParamVideoProfileLevelCurrent:
-            {
-                OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
-                if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
-                    pParamProfileLevel->eProfile = pComponentPrivate->pH264->eProfile;
-                    pParamProfileLevel->eLevel = pComponentPrivate->pH264->eLevel;
-                    pParamProfileLevel->nProfileIndex = pComponentPrivate->nCurrentMPEG4ProfileIndex;
-                }
-                else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingWMV) {
-                    pParamProfileLevel->eProfile = 0;
-                    pParamProfileLevel->eLevel = 0;
-                    pParamProfileLevel->nProfileIndex = pComponentPrivate->nCurrentMPEG4ProfileIndex;
-                }
-                else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4) {
-                    pParamProfileLevel->eProfile = pComponentPrivate->pMpeg4->eProfile;
-                    pParamProfileLevel->eLevel = pComponentPrivate->pMpeg4->eLevel;
-                    pParamProfileLevel->nProfileIndex = pComponentPrivate->nCurrentMPEG4ProfileIndex;
-                }
-                else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
-                    pParamProfileLevel->eProfile = pComponentPrivate->pH263->eProfile;
-                    pParamProfileLevel->eLevel = pComponentPrivate->pH263->eLevel;
-                    pParamProfileLevel->nProfileIndex = pComponentPrivate->nCurrentMPEG4ProfileIndex;
-                }
-                else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG2) {
-                    pParamProfileLevel->eProfile = pComponentPrivate->pMpeg2->eProfile;
-                    pParamProfileLevel->eLevel = pComponentPrivate->pMpeg2->eLevel;
-                    pParamProfileLevel->nProfileIndex = pComponentPrivate->nCurrentMPEG4ProfileIndex;
-                }
-#ifdef VIDDEC_SPARK_CODE
-                else if (VIDDEC_SPARKCHECK) {
-                    pParamProfileLevel->eProfile = 0;
-                    pParamProfileLevel->eLevel = 0;
-                    pParamProfileLevel->nProfileIndex = pComponentPrivate->nCurrentMPEG4ProfileIndex;
-                }
-#endif
-                else {
-                    eError = OMX_ErrorBadParameter;
-                }
-            }
-            break;
+	   {
+			OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
+			if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
+				pParamProfileLevel->eProfile = pComponentPrivate->pH264->eProfile;
+				pParamProfileLevel->eLevel = pComponentPrivate->pH264->eLevel;
+			}
+			else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4) {
+				pParamProfileLevel->eProfile = pComponentPrivate->pMpeg4->eProfile;
+				pParamProfileLevel->eLevel = pComponentPrivate->pMpeg4->eLevel;
+			}
+			else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
+				pParamProfileLevel->eProfile = pComponentPrivate->pH263->eProfile;
+				pParamProfileLevel->eLevel = pComponentPrivate->pH263->eLevel;
+			}
+			else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG2) {
+				pParamProfileLevel->eProfile = pComponentPrivate->pMpeg2->eProfile;
+				pParamProfileLevel->eLevel = pComponentPrivate->pMpeg2->eLevel;
+			}
+			else {
+                                OMX_ERROR4(pComponentPrivate->dbg, "Error in Getparameter OMX_IndexParamVideoProfileLevelCurrent \n");
+				eError = OMX_ErrorBadParameter;
+			}
+		}
+		     break;
         case OMX_IndexParamStandardComponentRole:
             if (ComponentParameterStructure != NULL) {
                 pRole = (OMX_PARAM_COMPONENTROLETYPE *)ComponentParameterStructure;
@@ -1737,7 +1475,61 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
         case OMX_IndexConfigAudioChannelVolume:
         case OMX_IndexConfigFlashControl:
         case OMX_IndexParamVideoProfileLevelQuerySupported:
+		     break;
         case OMX_IndexParamVideoProfileLevelCurrent:
+                     {
+                         VIDEO_PROFILE_LEVEL_TYPE* pProfileLevel = NULL;
+                         OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)pCompParam;
+
+                         /* Choose table based on compression format */
+                         switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat)
+                         {
+                             case OMX_VIDEO_CodingH263:
+                                 pProfileLevel = &SupportedH263ProfileLevels;
+                                 break;
+                             case OMX_VIDEO_CodingMPEG4:
+                                 pProfileLevel = &SupportedMPEG4ProfileLevels;
+                                 break;
+                             case OMX_VIDEO_CodingAVC:
+                                 pProfileLevel = &SupportedAVCProfileLevels;
+                                 break;
+                             default:
+                                 return OMX_ErrorBadParameter;
+                         }
+
+                         /* Check validity of profile & level parameters */
+                         while((pProfileLevel->nProfile != (OMX_S32)pParamProfileLevel->eProfile) ||
+                                 (pProfileLevel->nLevel != (OMX_S32)pParamProfileLevel->eLevel)) {
+                             pProfileLevel++;
+                             if(pProfileLevel->nProfile == -1) break;
+                         }
+
+                         if(pProfileLevel->nProfile != -1) {
+                             /* Update profile & level values in the compression format specific structure */
+                             switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat) {
+                                 case OMX_VIDEO_CodingH263:
+                                     pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
+                                     pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
+                                     break;
+                                 case OMX_VIDEO_CodingMPEG4:
+                                     pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
+                                     pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
+                                     break;
+                                 case OMX_VIDEO_CodingAVC:
+                                     pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
+                                     pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
+                                 default:
+                                     return OMX_ErrorBadParameter;
+                             }
+
+                             eError = OMX_ErrorNone;
+                         }
+                         else {
+                             eError = OMX_ErrorBadParameter;
+                         }
+                         break;
+                     }
+
         case OMX_IndexConfigVideoBitrate:
         case OMX_IndexConfigVideoFramerate:
         case OMX_IndexConfigVideoIntraVOPRefresh:
