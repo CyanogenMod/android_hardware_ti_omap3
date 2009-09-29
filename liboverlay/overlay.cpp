@@ -370,11 +370,12 @@ static int disable_streaming_locked(overlay_shared_t *shared, int ovly_fd)
     int ret = 0;
 
     if (shared->streamEn) {
-        shared->streamingReset = 1;
         ret = v4l2_overlay_stream_off( ovly_fd );
-        if (ret)
-        {
+        if (ret) {
             LOGE("Stream Off Failed!/%d\n", ret);
+        } else {
+            shared->streamingReset = 1;
+            shared->streamEn = 0;
         }
     }
 
@@ -510,11 +511,7 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
 
     pthread_mutex_lock(&shared->lock);
 
-    if (shared->streamEn) {
-        if (v4l2_overlay_stream_off(fd)) {
-            LOGE("Error disabling the stream\n");
-        }
-    }
+    disable_streaming_locked(shared, fd);
 
     pthread_mutex_unlock(&shared->lock);
 
@@ -678,7 +675,7 @@ static int overlay_commit(struct overlay_control_device_t *dev,
          stage->posW, data->posH);
     LOGI("Rotation/%d\n", stage->rotation );
 
-    if (disable_streaming_locked(shared, fd))
+    if ((ret = disable_streaming_locked(shared, fd)))
         goto end;
 
     if (stage->rotation != data->rotation) {
@@ -794,7 +791,7 @@ int overlay_initialize(struct overlay_data_device_t *dev,
 static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w,
                                uint32_t h)
 {
-    int rc;
+    int rc = -1;
 
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
@@ -816,7 +813,7 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w,
 
     pthread_mutex_lock(&ctx->shared->lock);
 
-    if (disable_streaming_locked(ctx->shared, ctx->ctl_fd))
+    if ((rc = disable_streaming_locked(ctx->shared, ctx->ctl_fd)))
         goto end;
 
     for (int i = 0; i < ctx->num_buffers; i++) {
@@ -907,7 +904,7 @@ static int overlay_setCrop(struct overlay_data_device_t *dev, uint32_t x,
 
     LOGI("Crop Win/X%d/Y%d/W%d/H%d\n", x, y, w, h );
 
-    if (disable_streaming_locked(ctx->shared, ctx->ctl_fd))
+    if ((rc = disable_streaming_locked(ctx->shared, ctx->ctl_fd)))
         goto end;
 
     rc = v4l2_overlay_set_crop(ctx->ctl_fd, x, y, w, h);
