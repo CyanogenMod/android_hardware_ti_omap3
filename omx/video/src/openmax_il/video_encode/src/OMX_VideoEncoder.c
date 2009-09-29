@@ -83,6 +83,53 @@
 #ifdef UNDER_CE
     extern HINSTANCE g_hLcmlDllHandle;
 #endif
+
+/* H.263 Supported Levels & profiles */
+VIDEO_PROFILE_LEVEL_TYPE SupportedH263ProfileLevels[] = {
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level10},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level20},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level30},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level40},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level45},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level50},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level60},
+  {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level70},
+  {-1, -1}};
+
+/* MPEG4 Supported Levels & profiles */
+VIDEO_PROFILE_LEVEL_TYPE SupportedMPEG4ProfileLevels[] ={
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level0},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level0b},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level1},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level2},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level3},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level4},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level4a},
+  {OMX_VIDEO_MPEG4ProfileSimple, OMX_VIDEO_MPEG4Level5},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level0},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level0b},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level1},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level2},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level3},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level4},
+  {OMX_VIDEO_MPEG4ProfileAdvancedSimple, OMX_VIDEO_MPEG4Level5},
+  {-1,-1}};
+
+/* AVC Supported Levels & profiles */
+VIDEO_PROFILE_LEVEL_TYPE SupportedAVCProfileLevels[] ={
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel1},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel1b},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel11},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel12},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel13},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel2},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel21},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel22},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel3},
+  {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel31},
+  {-1,-1}};
+
+
 /******************************************************************************
 *  EXTERNAL REFERENCES NOTE : only use if not found in header file
 *******************************************************************************/
@@ -754,7 +801,7 @@ sDynamicFormat = getenv("FORMAT");
     pComponentPrivate->pMpeg4->bACPred              = OMX_TRUE;
     pComponentPrivate->pMpeg4->nMaxPacketSize       = -1;
     pComponentPrivate->pMpeg4->nTimeIncRes          = -1;
-    pComponentPrivate->pMpeg4->eProfile             = 0x01;
+    pComponentPrivate->pMpeg4->eProfile             = OMX_VIDEO_MPEG4ProfileSimple;
 #ifdef __KHRONOS_CONF_1_1__
     pComponentPrivate->pMpeg4->eLevel               = OMX_VIDEO_MPEG4Level1;
 #else
@@ -1580,86 +1627,73 @@ static OMX_ERRORTYPE GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
             }
             break;  
 
-#ifdef __KHRONOS_CONF_1_1__
 	case OMX_IndexParamVideoProfileLevelQuerySupported:
 		{
-			if (((OMX_VIDEO_PARAM_PROFILELEVELTYPE*)ComponentParameterStructure)->nPortIndex == 
-                pCompPortIn->pProfileType->nPortIndex)
-            {
-	                if (((OMX_VIDEO_PARAM_PROFILELEVELTYPE*)(ComponentParameterStructure))->nProfileIndex > 
-	                    pCompPortIn->pPortFormat->nIndex)
+				VIDEO_PROFILE_LEVEL_TYPE* pProfileLevel = NULL;
+                                OMX_U32 nNumberOfProfiles = 0;
+				OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
+				pParamProfileLevel->nPortIndex = pCompPortOut->pPortDef->nPortIndex;
+
+				/* Choose table based on compression format */
+				switch(pCompPortOut->pPortDef->format.video.eCompressionFormat)
        		         {
-                    			eError = OMX_ErrorNoMore;
+				case OMX_VIDEO_CodingH263:
+					pProfileLevel = &SupportedH263ProfileLevels;
+                                        nNumberOfProfiles = sizeof(SupportedH263ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
 					break;
-                		   }
-				pTmp = memcpy(ComponentParameterStructure, 
-								pCompPortIn->pProfileType, 	sizeof(OMX_VIDEO_PARAM_PROFILELEVELTYPE));
-                if (pTmp == NULL)
-                {
-                    OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
-                                           pComponentPrivate->dbg, OMX_TRACE4,
-                                           "Failed to copy parameter.\n");
-					}
-				}
-			else if  (((OMX_VIDEO_PARAM_PROFILELEVELTYPE*)ComponentParameterStructure)->nPortIndex == 
-                     pCompPortOut->pProfileType->nPortIndex)
-            {
-				if (((OMX_VIDEO_PARAM_PROFILELEVELTYPE*)(ComponentParameterStructure))->nProfileIndex > 
-	                    pCompPortOut->pPortFormat->nIndex)
-       		         {
-                    			eError = OMX_ErrorNoMore;
+				case OMX_VIDEO_CodingMPEG4:
+					pProfileLevel = &SupportedMPEG4ProfileLevels;
+                                        nNumberOfProfiles = sizeof(SupportedMPEG4ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
 					break;
+				case OMX_VIDEO_CodingAVC:
+					pProfileLevel = &SupportedAVCProfileLevels;
+                                        nNumberOfProfiles = sizeof(SupportedAVCProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
+					break;
+                                default:
+                                       eError = OMX_ErrorBadParameter;
+                                       return eError;
                 		   }
-				pTmp = memcpy(ComponentParameterStructure, 
-								pCompPortOut->pProfileType, sizeof(OMX_VIDEO_PARAM_PROFILELEVELTYPE));
-                if (pTmp == NULL)
-                {
-                    OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
-                                           pComponentPrivate->dbg, OMX_TRACE4,
-                                           "Failed to copy parameter.\n");
+
+                                if((pParamProfileLevel->nProfileIndex < 0) || (pParamProfileLevel->nProfileIndex >= nNumberOfProfiles)) {
+                                    return OMX_ErrorBadParameter;
+                                }
+
+				/* Point to table entry based on index */
+				pProfileLevel += pParamProfileLevel->nProfileIndex;
+
+				/* -1 indicates end of table */
+				if(pProfileLevel->nProfile != -1) {
+					pParamProfileLevel->eProfile = pProfileLevel->nProfile;
+					pParamProfileLevel->eLevel = pProfileLevel->nLevel;
+					eError = OMX_ErrorNone;
 					}
+				else {
+					eError = OMX_ErrorNoMore;
             }
-				
-            else
-            {
-				eError = OMX_ErrorBadPortIndex;
 				}
 			break;
-		}
+
 	case OMX_IndexParamVideoProfileLevelCurrent:
 			{
-			if (((OMX_VIDEO_PARAM_PROFILELEVELTYPE*)ComponentParameterStructure)->nPortIndex == 
-                pCompPortIn->pProfileType->nPortIndex)
-            {
-				pTmp = memcpy(ComponentParameterStructure, 
-								pCompPortIn->pProfileType, 	sizeof(OMX_VIDEO_PARAM_PROFILELEVELTYPE));
-                if (pTmp == NULL)
-                {
-                    OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
-                                           pComponentPrivate->dbg, OMX_TRACE4,
-                                           "Failed to copy parameter.\n");
+				OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
+				if (pCompPortOut->pPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
+					pParamProfileLevel->eProfile = pComponentPrivate->pH264->eProfile;
+					pParamProfileLevel->eLevel = pComponentPrivate->pH264->eLevel;
 					}
+				else if (pCompPortOut->pPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4) {
+					pParamProfileLevel->eProfile = pComponentPrivate->pMpeg4->eProfile;
+					pParamProfileLevel->eLevel = pComponentPrivate->pMpeg4->eLevel;
 				}
-			else if  (((OMX_VIDEO_PARAM_PROFILELEVELTYPE*)ComponentParameterStructure)->nPortIndex == 
-                     pCompPortOut->pProfileType->nPortIndex)
-            {
-				pTmp = memcpy(ComponentParameterStructure, 
-								pCompPortOut->pProfileType, sizeof(OMX_VIDEO_PARAM_PROFILELEVELTYPE));
-                if (pTmp == NULL)
-                {
-                    OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
-                                           pComponentPrivate->dbg, OMX_TRACE4,
-                                           "Failed to copy parameter.\n");
+				else if (pCompPortOut->pPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
+					pParamProfileLevel->eProfile = pComponentPrivate->pH263->eProfile;
+					pParamProfileLevel->eLevel = pComponentPrivate->pH263->eLevel;
 					}
+				else {
+					eError = OMX_ErrorBadParameter;
             }
-
-            else
-            {
-				eError = OMX_ErrorBadPortIndex;
 				}
 			break;
-		}
-#endif
+
 		case OMX_IndexParamVideoErrorCorrection:
 					{
 					if (((OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE*)(ComponentParameterStructure))->nPortIndex == 
@@ -1672,7 +1706,7 @@ static OMX_ERRORTYPE GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
                 {
                     OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
                                            pComponentPrivate->dbg, OMX_TRACE4,
-                                           "Failed to copy parameter.\n");
+                                           "Failed to copy OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE parameter.\n");
                 }
             }
 					else
@@ -2035,22 +2069,60 @@ static OMX_ERRORTYPE SetParameter (OMX_IN OMX_HANDLETYPE hComponent,
 
 	case OMX_IndexParamVideoProfileLevelCurrent:
 			{
-	            sProfileLevel= (OMX_VIDEO_PARAM_PROFILELEVELTYPE*)pCompParam;
-	            if (sProfileLevel -> nPortIndex == VIDENC_INPUT_PORT) 
-	            {
-	                pCompPortIn -> pProfileType = sProfileLevel;
-	            }
-	            else if (sProfileLevel -> nPortIndex == VIDENC_OUTPUT_PORT)
-	            {
-	                pCompPortOut -> pProfileType = sProfileLevel;
-	            }
-	            else
-	            {
-	                eError = OMX_ErrorBadPortIndex;
-	            }
-	            break;			
+			VIDEO_PROFILE_LEVEL_TYPE* pProfileLevel = NULL;
+			OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)pCompParam;
 
+			/* Choose table based on compression format */
+			switch(pCompPortOut->pPortDef->format.video.eCompressionFormat)
+	            {
+			case OMX_VIDEO_CodingH263:
+				pProfileLevel = &SupportedH263ProfileLevels;
+				break;
+			case OMX_VIDEO_CodingMPEG4:
+				pProfileLevel = &SupportedMPEG4ProfileLevels;
+				break;
+			case OMX_VIDEO_CodingAVC:
+				pProfileLevel = &SupportedAVCProfileLevels;
+				break;
+                        default:
+                               eError = OMX_ErrorBadParameter;
+                               return eError;
+	            }
+
+			/* Check validity of profile & level parameters */
+			while((pProfileLevel->nProfile != (OMX_S32)pParamProfileLevel->eProfile) ||
+				  (pProfileLevel->nLevel != (OMX_S32)pParamProfileLevel->eLevel)) {
+				pProfileLevel++;
+				if(pProfileLevel->nProfile == -1) break;
+	            }
+
+			if(pProfileLevel->nProfile != -1) {
+				/* Update profile & level values in the compression format specific structure */
+				switch(pCompPortOut->pPortDef->format.video.eCompressionFormat) {
+				case OMX_VIDEO_CodingH263:
+					pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
+					pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
+					break;
+				case OMX_VIDEO_CodingMPEG4:
+					pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
+					pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
+	            break;			
+				case OMX_VIDEO_CodingAVC:
+					pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
+					pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
+                                default:
+                                        eError = OMX_ErrorBadParameter;
+                                        return eError;
+				}
+
+				eError = OMX_ErrorNone;
+			}
+			else {
+				eError = OMX_ErrorBadParameter;
+			}
 		}
+		break;
+
 #endif
 		/*valid for H264 only*/
 		case VideoEncodeCustomParamIndexEncodingPreset:
@@ -2214,7 +2286,7 @@ static OMX_ERRORTYPE GetConfig (OMX_HANDLETYPE hComponent,
             {
                 OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
                                        pComponentPrivate->dbg, OMX_TRACE4,
-                                       "Failed to copy config.\n");
+                                       "Failed to copy structure OMX_VIDEO_CONFIG_AVCINTRAPERIOD.\n");
             }
         }
 	case OMX_IndexParamVideoIntraRefresh:
@@ -2226,7 +2298,7 @@ static OMX_ERRORTYPE GetConfig (OMX_HANDLETYPE hComponent,
             {
                 OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
                                        pComponentPrivate->dbg, OMX_TRACE4,
-                                       "Failed to copy config.\n");
+                                       "Failed to copy structure OMX_VIDEO_PARAM_INTRAREFRESHTYPE.\n");
             }
 		}
 	break;
@@ -2242,7 +2314,7 @@ static OMX_ERRORTYPE GetConfig (OMX_HANDLETYPE hComponent,
                 {
                     OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
                                            pComponentPrivate->dbg, OMX_TRACE4,
-                                           "Failed to copy config.\n");
+                                           "Failed to copy structure OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE.\n");
                 }
             }
             else

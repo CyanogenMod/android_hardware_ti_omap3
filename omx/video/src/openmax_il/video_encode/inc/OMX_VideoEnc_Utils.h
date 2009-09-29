@@ -536,6 +536,11 @@ typedef struct OMX_OTHER_EXTRADATATYPE_1_1_2
 	OMX_U8 data[1];
 } OMX_OTHER_EXTRADATATYPE_1_1_2;
 
+typedef struct VIDEO_PROFILE_LEVEL
+{
+    OMX_S32  nProfile;
+    OMX_S32  nLevel;
+} VIDEO_PROFILE_LEVEL_TYPE;
 
 
 /**
