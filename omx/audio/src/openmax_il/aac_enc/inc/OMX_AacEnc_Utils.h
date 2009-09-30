@@ -622,6 +622,11 @@ pthread_mutex_t InLoaded_mutex;
 
     struct OMX_TI_Debug dbg;
 
+    /* Reference count for pending state change requests */
+    OMX_U32 nPendingStateChangeRequests;
+    pthread_mutex_t mutexStateChangeRequest;
+    pthread_cond_t StateChangeCondition;
+
 } AACENC_COMPONENT_PRIVATE;
 
 OMX_ERRORTYPE AACENCGetCorresponding_LCMLHeader(AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pBuffer,
@@ -687,6 +692,10 @@ OMX_ERRORTYPE AACENC_StartComponentThread(OMX_HANDLETYPE pHandle);
 OMX_ERRORTYPE AACENC_StopComponentThread(OMX_HANDLETYPE pHandle);
 
 OMX_ERRORTYPE AACENC_FreeCompResources(OMX_HANDLETYPE pComponent);
+
+OMX_ERRORTYPE AddStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate);
+OMX_ERRORTYPE RemoveStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
+
 
 #endif
 
