@@ -989,6 +989,11 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
      * */
     OMX_BOOL bCopiedCCDBuffer;
 
+    /* Reference count for pending state change requests */
+    OMX_U32 nPendingStateChangeRequests;
+    pthread_mutex_t mutexStateChangeRequest;
+    pthread_cond_t StateChangeCondition;
+
 } VIDDEC_COMPONENT_PRIVATE;
 
 /*****************macro definitions*********************/
@@ -1267,6 +1272,9 @@ OMX_ERRORTYPE VIDDEC_ParseVideo_H264(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate
 OMX_ERRORTYPE VIDDEC_ParseVideo_MPEG2( OMX_S32* nWidth, OMX_S32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
 OMX_U32 VIDDEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BOOL bIcreasePosition);
 OMX_S32 VIDDEC_UVLC_dec(OMX_U32 *nPosition, OMX_U8* pBuffer);
+
+OMX_ERRORTYPE AddStateTransition(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
+OMX_ERRORTYPE RemoveStateTransition(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
 
 #endif
 #endif

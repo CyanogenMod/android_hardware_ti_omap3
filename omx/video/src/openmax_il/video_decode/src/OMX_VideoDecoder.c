@@ -614,17 +614,27 @@ static OMX_ERRORTYPE VIDDEC_SendCommand (OMX_HANDLETYPE hComponent,
 
     switch (Cmd) {
         case OMX_CommandStateSet:
+
+            /* Add a pending transition */
+            if(AddStateTransition(pComponentPrivate) != OMX_ErrorNone) {
+                return OMX_ErrorUndefined;
+            }
+
             pComponentPrivate->eIdleToLoad = nParam1;
             pComponentPrivate->eExecuteToIdle = nParam1;
             nRet = write(pComponentPrivate->cmdPipe[VIDDEC_PIPE_WRITE], &Cmd, sizeof(Cmd));
             if (nRet == -1) {
-                eError = OMX_ErrorUndefined;
-                goto EXIT;
+                if(RemoveStateTransition(pComponentPrivate, OMX_FALSE) != OMX_ErrorNone) {
+                   return OMX_ErrorUndefined;
+                }
+                return OMX_ErrorUndefined;
             }
             nRet = write(pComponentPrivate->cmdDataPipe[VIDDEC_PIPE_WRITE], &nParam1, sizeof(nParam1));
             if (nRet == -1) {
-                eError = OMX_ErrorUndefined;
-                goto EXIT;
+                if(RemoveStateTransition(pComponentPrivate, OMX_FALSE) != OMX_ErrorNone) {
+                   return OMX_ErrorUndefined;
+                }
+                return OMX_ErrorUndefined;
             }
             break;
         case OMX_CommandPortDisable:
@@ -2171,30 +2181,67 @@ EXIT:
   **/
 /*----------------------------------------------------------------------------*/
 
-static OMX_ERRORTYPE VIDDEC_GetState (OMX_HANDLETYPE pComponent, 
+static OMX_ERRORTYPE VIDDEC_GetState (OMX_HANDLETYPE hComponent,
                                       OMX_STATETYPE* pState)
 {
-    OMX_ERRORTYPE eError = OMX_ErrorUndefined;
+    OMX_ERRORTYPE eError                        = OMX_ErrorNone;
     OMX_COMPONENTTYPE* pHandle = NULL;
+    VIDDEC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
+    struct timespec abs_time = {0,0};
+    int nPendingStateChangeRequests = 0;
+    int ret = 0;
+    /* Set to sufficiently high value */
+    int mutex_timeout = 3;
 
-    OMX_CONF_CHECK_CMD(pComponent, OMX_TRUE, OMX_TRUE);
-
-    pHandle = (OMX_COMPONENTTYPE*)pComponent;
-
-    if (pState == NULL) {
-        eError = OMX_ErrorBadParameter;
-        goto EXIT;
+    if(hComponent == NULL || pState == NULL) {
+        return OMX_ErrorBadParameter;
     }
+
+    pHandle = (OMX_COMPONENTTYPE*)hComponent;
+    pComponentPrivate = (VIDDEC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate;
+
     /* Retrieve current state */
     if (pHandle && pHandle->pComponentPrivate) {
-        *pState = ((VIDDEC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->eState;
-        eError = OMX_ErrorNone;
+        /* Check for any pending state transition requests */
+        if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+            return OMX_ErrorUndefined;
+        }
+        nPendingStateChangeRequests = pComponentPrivate->nPendingStateChangeRequests;
+        if(!nPendingStateChangeRequests) {
+           if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+               return OMX_ErrorUndefined;
+           }
+
+           /* No pending state transitions */
+	   *pState = ((VIDDEC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->eState;
+            eError = OMX_ErrorNone;
+        }
+        else {
+           /* Wait for component to complete state transition */
+           clock_gettime(CLOCK_REALTIME, &abs_time);
+           abs_time.tv_sec += mutex_timeout;
+           abs_time.tv_nsec = 0;
+           ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time);
+           if (!ret) {
+              /* Component has completed state transitions*/
+              *pState = ((VIDDEC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->eState;
+              if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+                 return OMX_ErrorUndefined;
+              }
+              eError = OMX_ErrorNone;
+           }
+           else if(ret == ETIMEDOUT) {
+              /* Unlock mutex in case of timeout */
+              pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
+              return OMX_ErrorTimeout;
+           }
+        }
+     }
+     else {
+        eError = OMX_ErrorInvalidComponent;
+        *pState = OMX_StateInvalid;
     }
-    else {
-        *pState = OMX_StateLoaded;
-    }
-    pHandle = NULL;
-EXIT:
+
     return eError;
 }
 
@@ -2670,6 +2717,10 @@ static OMX_ERRORTYPE VIDDEC_ComponentDeInit(OMX_HANDLETYPE hComponent)
     VIDDEC_PTHREAD_SEMAPHORE_DESTROY(pComponentPrivate->sInSemaphore);
     VIDDEC_PTHREAD_SEMAPHORE_DESTROY(pComponentPrivate->sOutSemaphore);
 #endif
+
+    pthread_mutex_destroy(&pComponentPrivate->mutexStateChangeRequest);
+    pthread_cond_destroy(&pComponentPrivate->StateChangeCondition);
+
     if(pComponentPrivate->pUalgParams != NULL){
         OMX_U8* pTemp = NULL;
         pTemp = (OMX_U8*)(pComponentPrivate->pUalgParams);
