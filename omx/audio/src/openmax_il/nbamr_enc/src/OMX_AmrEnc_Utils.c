@@ -885,10 +885,10 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
 
                 if (pComponentPrivate->curState != OMX_StateWaitForResources){
 
-                    rm_error = RMProxy_NewSendCommand(pHandle, 
-                                                        RMProxy_RequestResource, 
-                                                        OMX_NBAMR_Encoder_COMPONENT, NBAMRENC_CPU_LOAD, 
-                                                        3456, &(pComponentPrivate->rmproxyCallback));   
+                    rm_error = RMProxy_NewSendCommand(pHandle,
+                                                        RMProxy_RequestResource,
+                                                        OMX_NBAMR_Encoder_COMPONENT, NBAMRENC_CPU_LOAD,
+                                                        3456, &(pComponentPrivate->rmproxyCallback));
 
                     if(rm_error == OMX_ErrorNone) {
                         /* resource is available */
@@ -896,11 +896,17 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
                         PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryComplete | PERF_BoundarySetup);
 #endif
                         pComponentPrivate->curState = OMX_StateIdle;
+
+                       /* Decrement reference count with signal enabled */
+                        if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
+                            return OMX_ErrorUndefined;
+                        }
+
                         pComponentPrivate->cbInfo.EventHandler(pHandle,
                                 pHandle->pApplicationPrivate,
-                                OMX_EventCmdComplete, 
+                                OMX_EventCmdComplete,
                                 OMX_CommandStateSet,
-                                pComponentPrivate->curState, 
+                                pComponentPrivate->curState,
                                 NULL);
 
                         rm_error = RMProxy_NewSendCommand(pHandle, RMProxy_StateSet, OMX_NBAMR_Encoder_COMPONENT, OMX_StateIdle, 3456, NULL);
@@ -919,11 +925,17 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
             }
             else {
                     pComponentPrivate->curState = OMX_StateIdle;
+
+                    /* Decrement reference count with signal enabled */
+                    if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
+                          return OMX_ErrorUndefined;
+                    }
+
                     pComponentPrivate->cbInfo.EventHandler(pHandle,
                                                             pHandle->pApplicationPrivate,
-                                                            OMX_EventCmdComplete, 
+                                                            OMX_EventCmdComplete,
                                                             OMX_CommandStateSet,
-                                                            pComponentPrivate->curState, 
+                                                            pComponentPrivate->curState,
                                                             NULL);
 
                 rm_error = RMProxy_NewSendCommand(pHandle,
@@ -934,8 +946,14 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
                                                        NULL);
 
             }
-#else           
+#else
                 pComponentPrivate->curState = OMX_StateIdle;
+
+                /* Decrement reference count with signal enabled */
+                if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
+                      return OMX_ErrorUndefined;
+                }
+
                 pComponentPrivate->cbInfo.EventHandler( pHandle,
                                                         pHandle->pApplicationPrivate,
                                                         OMX_EventCmdComplete,
@@ -944,7 +962,7 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
                                                         NULL);
 
 #endif
-                
+
             }
             else if (pComponentPrivate->curState == OMX_StateExecuting) {
                 OMX_PRSTATE1(pComponentPrivate->dbg, "%d :: Setting Component to OMX_StateIdle\n",__LINE__);
@@ -999,6 +1017,12 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
 
 #endif
                 OMX_PRSTATE2(pComponentPrivate->dbg, "%d :: The component is stopped\n",__LINE__);
+
+                /* Decrement reference count with signal enabled */
+                if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
+                      return OMX_ErrorUndefined;
+                }
+
                 pComponentPrivate->cbInfo.EventHandler ( pHandle,
                                                          pHandle->pApplicationPrivate,
                                                          OMX_EventCmdComplete,
@@ -1170,6 +1194,12 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
 #ifdef __PERF_INSTRUMENTATION__
             PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryStart | PERF_BoundarySteadyState);
 #endif
+
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
+                  return OMX_ErrorUndefined;
+            }
+
             pComponentPrivate->cbInfo.EventHandler( pHandle,
                                                     pHandle->pApplicationPrivate,
                                                     OMX_EventCmdComplete,
@@ -1201,6 +1231,11 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
                 PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryComplete | PERF_BoundaryCleanup);
 #endif
                 pComponentPrivate->curState = OMX_StateLoaded;
+
+                /* Decrement reference count with signal enabled */
+                if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
+                    return OMX_ErrorUndefined;
+                }
                 pComponentPrivate->cbInfo.EventHandler ( pHandle,
                                                          pHandle->pApplicationPrivate,
                                                          OMX_EventCmdComplete,
@@ -2589,6 +2624,11 @@ OMX_ERRORTYPE NBAMRENC_LCMLCallback (TUsnCodecEvent event,void * args[10])
 #endif
 
             if (pComponentPrivate_CC->bPreempted == 0) {
+                /* Decrement reference count with signal enabled */
+                if(RemoveStateTransition(pComponentPrivate_CC, OMX_TRUE) != OMX_ErrorNone) {
+                   return OMX_ErrorUndefined;
+                }
+
                 pComponentPrivate_CC->cbInfo.EventHandler(pComponentPrivate_CC->pHandle,
                                                         pComponentPrivate_CC->pHandle->pApplicationPrivate,
                                                         OMX_EventCmdComplete,
@@ -2742,6 +2782,11 @@ OMX_ERRORTYPE NBAMRENC_LCMLCallback (TUsnCodecEvent event,void * args[10])
             pComponentPrivate_CC->nUnhandledEmptyThisBuffers = 0;
             pComponentPrivate_CC->nUnhandledFillThisBuffers = 0;
             pComponentPrivate_CC->curState = OMX_StatePause;
+
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate_CC, OMX_TRUE) != OMX_ErrorNone) {
+                   return OMX_ErrorUndefined;
+            }
             pComponentPrivate_CC->cbInfo.EventHandler( pComponentPrivate_CC->pHandle,
                                                     pComponentPrivate_CC->pHandle->pApplicationPrivate,
                                                     OMX_EventCmdComplete,
@@ -3277,7 +3322,7 @@ EXIT:
     pCompPrivate = (AMRENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 
     if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesPreempted) {
-        if (pCompPrivate->curState == OMX_StateExecuting || 
+        if (pCompPrivate->curState == OMX_StateExecuting ||
             pCompPrivate->curState == OMX_StatePause) {
             write (pCompPrivate->cmdPipe[1], &Cmd, sizeof(Cmd));
             write (pCompPrivate->cmdDataPipe[1], &state ,sizeof(OMX_U32));
@@ -3290,8 +3335,47 @@ EXIT:
                             pHandle, pHandle->pApplicationPrivate,
                             OMX_EventResourcesAcquired, 0,0,
                             NULL);
-            
-        
+
+
     }
 
 } */
+
+OMX_ERRORTYPE AddStateTransition(AMRENC_COMPONENT_PRIVATE *pComponentPrivate) {
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+    /* Increment state change request reference count */
+    pComponentPrivate->nPendingStateChangeRequests++;
+
+    if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+    return eError;
+}
+
+OMX_ERRORTYPE RemoveStateTransition(AMRENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BOOL bEnableSignal) {
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+     /* Decrement state change request reference count*/
+    if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+    pComponentPrivate->nPendingStateChangeRequests--;
+
+    /* If there are no more pending requests, signal the thread waiting on this*/
+    if(!pComponentPrivate->nPendingStateChangeRequests && bEnableSignal) {
+       pthread_cond_signal(&(pComponentPrivate->StateChangeCondition));
+    }
+    if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    return eError;
+}
+
+
+
+
