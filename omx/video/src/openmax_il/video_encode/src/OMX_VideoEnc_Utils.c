@@ -1504,21 +1504,27 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetIdle(VIDENC_COMPONENT_PRIVATE* pCo
                 }
         if (eError != OMX_ErrorNone)
         {
-                    OMX_VIDENC_EVENT_HANDLER(pComponentPrivate, 
+               OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
                                              OMX_EventError, 
                                              OMX_ErrorHardware, 
                                              OMX_TI_ErrorSevere,
                                              NULL);
                 }
                   	
-           if (eError == OMX_ErrorNone)
-           {
-                pComponentPrivate->eState = OMX_StateIdle;
+           if (eError == OMX_ErrorNone) {
+
+               pComponentPrivate->eState = OMX_StateIdle;
 #ifdef __PERF_INSTRUMENTATION__
                 PERF_Boundary(pComponentPrivate->pPERFcomp,
                             PERF_BoundaryComplete | PERF_BoundarySetup);
 #endif
-                OMX_VIDENC_EVENT_HANDLER(pComponentPrivate, 
+
+               /* Decrement reference count with signal enabled */
+               if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                     return OMX_ErrorUndefined;
+               }
+
+               OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
                                          OMX_EventCmdComplete, 
                                          OMX_CommandStateSet, 
                                          OMX_StateIdle, 
@@ -1539,6 +1545,12 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetIdle(VIDENC_COMPONENT_PRIVATE* pCo
             PERF_Boundary(pComponentPrivate->pPERFcomp,
                           PERF_BoundaryComplete | PERF_BoundarySetup);
 #endif
+
+               /* Decrement reference count with signal enabled */
+               if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                     return OMX_ErrorUndefined;
+               }
+
             OMX_VIDENC_EVENT_HANDLER(pComponentPrivate, 
                                      OMX_EventCmdComplete, 
                                      OMX_CommandStateSet,
@@ -1741,17 +1753,24 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetIdle(VIDENC_COMPONENT_PRIVATE* pCo
                 
 #endif                
         OMX_PRBUFFER2(pComponentPrivate->dbg, "Flushing Pipes!\n");
-            eError = OMX_VIDENC_EmptyDataPipes (pComponentPrivate);
+        eError = OMX_VIDENC_EmptyDataPipes (pComponentPrivate);
         OMX_DBG_BAIL_IF_ERROR(eError, pComponentPrivate->dbg, OMX_PRBUFFER3,
                               "Flushing pipes failed (%x).\n", eError);
 
-            pComponentPrivate->eState = OMX_StateIdle;
-            OMX_VIDENC_EVENT_HANDLER(pComponentPrivate, 
+        pComponentPrivate->eState = OMX_StateIdle;
+
+         /* Decrement reference count with signal enabled */
+         if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+              return OMX_ErrorUndefined;
+         }
+
+         OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
                                      OMX_EventCmdComplete, 
                                      OMX_CommandStateSet, 
                                      OMX_StateIdle, 
                                      NULL);
-            break;
+          break;
+
         default:
             OMX_VIDENC_EVENT_HANDLER(pComponentPrivate, 
                                      OMX_EventError, 
@@ -1864,6 +1883,12 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetExecuting(VIDENC_COMPONENT_PRIVATE
             PERF_Boundary(pComponentPrivate->pPERFcomp,
                           PERF_BoundaryStart | PERF_BoundarySteadyState);
 #endif
+
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                 return OMX_ErrorUndefined;
+            }
+
             /*Send state change notificaiton to Application*/
             OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
                                      OMX_EventCmdComplete, 
@@ -1954,6 +1979,10 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetPause (VIDENC_COMPONENT_PRIVATE* p
 
             pComponentPrivate->eState = OMX_StatePause;
 
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                 return OMX_ErrorUndefined;
+            }
 
             OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
                                      OMX_EventCmdComplete, 
@@ -2008,7 +2037,7 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetLoaded (VIDENC_COMPONENT_PRIVATE* 
             break;        
 		case OMX_StateWaitForResources:
         OMX_PRSTATE2(pComponentPrivate->dbg, "Transitioning from WFR to Loaded\n");
-	#ifdef RESOURCE_MANAGER_ENABLED         
+#ifdef RESOURCE_MANAGER_ENABLED
 			if (pPortDefOut->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC)
 			{
 				/* TODO: Disable RM Send for now */
@@ -2054,8 +2083,13 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetLoaded (VIDENC_COMPONENT_PRIVATE* 
 										 NULL);
 				break;
 			}
-	#endif
-			pComponentPrivate->eState = OMX_StateLoaded;
+#endif
+		       pComponentPrivate->eState = OMX_StateLoaded;
+                       /* Decrement reference count with signal enabled */
+                       if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                             return OMX_ErrorUndefined;
+                        }
+
 					
 			#ifdef __PERF_INSTRUMENTATION__
 				PERF_Boundary(pComponentPrivate->pPERFcomp,
@@ -2165,6 +2199,12 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetLoaded (VIDENC_COMPONENT_PRIVATE* 
                 PERF_Boundary(pComponentPrivate->pPERFcomp,
                               PERF_BoundaryComplete | PERF_BoundaryCleanup);
 #endif
+
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                 return OMX_ErrorUndefined;
+            }
+
             OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
                                      OMX_EventCmdComplete, 
                                      OMX_CommandStateSet, 
@@ -4053,3 +4093,44 @@ OMX_U32 GetMaxAVCBufferSize(OMX_U32 width, OMX_U32 height)
     /*150(bytes) = 1200(bits)/8    SN release notes*/
     return 150*MaxCPB;
 }
+
+OMX_ERRORTYPE AddStateTransition(VIDENC_COMPONENT_PRIVATE* pComponentPrivate) {
+
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    /* Increment state change request reference count */
+    pComponentPrivate->nPendingStateChangeRequests++;
+
+    if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    return eError;
+}
+
+OMX_ERRORTYPE RemoveStateTransition(VIDENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal) {
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+     /* Decrement state change request reference count*/
+    if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    pComponentPrivate->nPendingStateChangeRequests--;
+
+    /* If there are no more pending requests, signal the thread waiting on this*/
+    if(!pComponentPrivate->nPendingStateChangeRequests && bEnableSignal) {
+       pthread_cond_signal(&(pComponentPrivate->StateChangeCondition));
+    }
+
+    if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    return eError;
+}
+

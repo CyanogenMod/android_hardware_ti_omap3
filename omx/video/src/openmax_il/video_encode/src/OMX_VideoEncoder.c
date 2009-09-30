@@ -998,6 +998,15 @@ sDynamicFormat = getenv("FORMAT");
     OMX_CreateEvent(&(pComponentPrivate->InLoaded_event));
     OMX_CreateEvent(&(pComponentPrivate->InIdle_event));
 #endif
+
+	if(pthread_mutex_init(&pComponentPrivate->mutexStateChangeRequest, NULL)) {
+	   return OMX_ErrorUndefined;
+	}
+
+	if(pthread_cond_init (&pComponentPrivate->StateChangeCondition, NULL)) {
+	   return OMX_ErrorUndefined;
+	}
+
 OMX_CONF_CMD_BAIL:
     OMX_PRINT2(dbg, "Component Init Exit\n");
     return eError;
@@ -1158,30 +1167,32 @@ static OMX_ERRORTYPE SendCommand (OMX_IN OMX_HANDLETYPE hComponent,
     switch (Cmd) 
     {
         case OMX_CommandStateSet:
+            /* Add a pending transition */
+            if(AddStateTransition(pComponentPrivate) != OMX_ErrorNone) {
+               return OMX_ErrorUndefined;
+	     }
 
 #ifdef __KHRONOS_CONF__        
-            if(nParam1 == OMX_StateLoaded && 
-               pComponentPrivate->eState == OMX_StateIdle)
-            {
+            if(nParam1 == OMX_StateLoaded && pComponentPrivate->eState == OMX_StateIdle) {
                 pComponentPrivate->bPassingIdleToLoaded = OMX_TRUE;
             }    
 #endif
         OMX_PRCOMM2(pComponentPrivate->dbg, "Write to cmd pipe!\n");
             nRet = write(pComponentPrivate->nCmdPipe[1], &Cmd, sizeof(Cmd));
-            if (nRet == -1)
-            {
-            OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
-                                   pComponentPrivate->dbg, OMX_PRCOMM4,
-                                   "Failed to write to cmd pipe.\n");
+            if (nRet == -1) {
+                 /* Decrement reference count without generating any signal */
+                 if(RemoveStateTransition(pComponentPrivate, 0) != OMX_ErrorNone) {
+                     return OMX_ErrorUndefined;
+                 }
             }
             nRet = write(pComponentPrivate->nCmdDataPipe[1], 
                          &nParam1, 
                          sizeof(nParam1));
-            if (nRet == -1)
-            {
-            OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUndefined,
-                                   pComponentPrivate->dbg, OMX_PRCOMM4,
-                                   "Failed to write to cmd pipe.\n");
+            if (nRet == -1) {
+                 /* Decrement reference count without generating any signal */
+                 if(RemoveStateTransition(pComponentPrivate, 0) != OMX_ErrorNone) {
+                     return OMX_ErrorUndefined;
+                 }
             }
             break;
         case OMX_CommandFlush:
@@ -2618,17 +2629,63 @@ static OMX_ERRORTYPE GetState (OMX_IN OMX_HANDLETYPE hComponent,
                                OMX_OUT OMX_STATETYPE* pState)
 {
     OMX_ERRORTYPE eError                        = OMX_ErrorNone;
+    OMX_COMPONENTTYPE* pHandle = NULL;
     VIDENC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
+    struct timespec abs_time = {0,0};
+    int nPendingStateChangeRequests = 0;
+    int ret = 0;
+    /* Set to sufficiently high value */
+    int mutex_timeout = 3;
 
-    OMX_CONF_CHECK_CMD(hComponent, ((OMX_COMPONENTTYPE *) hComponent)->pComponentPrivate, 1);
+    if(hComponent == NULL || pState == NULL) {
+        return OMX_ErrorBadParameter;
+    }
 
-    pComponentPrivate = (VIDENC_COMPONENT_PRIVATE*)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    OMX_DBG_CHECK_CMD(pComponentPrivate->dbg, pState, 1, 1);
+    pHandle = (OMX_COMPONENTTYPE*)hComponent;
+    pComponentPrivate = (VIDENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate;
     
+    /* Retrieve current state */
+    if (pHandle && pHandle->pComponentPrivate) {
+        /* Check for any pending state transition requests */
+        if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+            return OMX_ErrorUndefined;
+        }
+        nPendingStateChangeRequests = pComponentPrivate->nPendingStateChangeRequests;
+        if(!nPendingStateChangeRequests) {
+           if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+               return OMX_ErrorUndefined;
+           }
 
-    *pState = pComponentPrivate->eState;
+           /* No pending state transitions */
+	   *pState = ((VIDENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->eState;
+            eError = OMX_ErrorNone;
+        }
+        else {
+           /* Wait for component to complete state transition */
+           clock_gettime(CLOCK_REALTIME, &abs_time);
+           abs_time.tv_sec += mutex_timeout;
+           abs_time.tv_nsec = 0;
+	   ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time);
+           if (!ret) {
+              /* Component has completed state transitions*/
+              *pState = ((VIDENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->eState;
+              if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+                 return OMX_ErrorUndefined;
+              }
+              eError = OMX_ErrorNone;
+           }
+           else if(ret == ETIMEDOUT) {
+              /* Unlock mutex in case of timeout */
+              pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
+              return OMX_ErrorTimeout;
+           }
+        }
+     }
+     else {
+        eError = OMX_ErrorInvalidComponent;
+        *pState = OMX_StateInvalid;
+    }
 
-OMX_CONF_CMD_BAIL:
     return eError;
 }
 
@@ -3097,6 +3154,9 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_IN OMX_HANDLETYPE hComponent)
                   PERF_BoundaryComplete | PERF_BoundaryCleanup);
     PERF_Done(pComponentPrivate->pPERF);
 #endif
+
+	pthread_mutex_destroy(&pComponentPrivate->mutexStateChangeRequest);
+	pthread_cond_destroy(&pComponentPrivate->StateChangeCondition);
 
     if (pComponentPrivate != NULL)
     { 
