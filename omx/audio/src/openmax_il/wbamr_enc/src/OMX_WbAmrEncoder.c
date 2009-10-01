@@ -525,6 +525,16 @@ ComponentThread %d",eError);
 
 #endif
 
+  pComponentPrivate->nPendingStateChangeRequests = 0;
+
+  if(pthread_mutex_init(&pComponentPrivate->mutexStateChangeRequest, NULL)) {
+     return OMX_ErrorUndefined;
+  }
+	
+  if(pthread_cond_init (&pComponentPrivate->StateChangeCondition, NULL)) {
+     return OMX_ErrorUndefined;
+  }
+
  EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "Exit Returning = 0x%x",eError);
     return eError;
@@ -693,6 +703,12 @@ static OMX_ERRORTYPE SendCommand (OMX_HANDLETYPE phandle,
                 goto EXIT;
             }
         }
+
+         /* Add a pending transition */
+         if(AddStateTransition(pCompPrivate) != OMX_ErrorNone) {
+               return OMX_ErrorUndefined;
+         }
+        
         break;
     case OMX_CommandFlush:
         OMX_PRDSP2(pCompPrivate->dbg, "OMX_CommandFlush %ld",nParam);
@@ -742,11 +758,16 @@ static OMX_ERRORTYPE SendCommand (OMX_HANDLETYPE phandle,
     } else {
         nRet = write(pCompPrivate->cmdDataPipe[1], &nParam,sizeof(OMX_U32));
     }
+
     if (nRet == -1) {
-        OMX_ERROR4(pCompPrivate->dbg, "OMX_ErrorInsufficientResources");
-        eError = OMX_ErrorInsufficientResources;
-        goto EXIT;
-    }
+        OMX_ERROR4(pCompPrivate->dbg, "%d :: OMX_ErrorInsufficientResources from SendCommand",__LINE__);
+        if(Cmd == OMX_CommandStateSet) {
+           if(RemoveStateTransition(pCompPrivate, OMX_FALSE) != OMX_ErrorNone) {
+              return OMX_ErrorUndefined;
+           }
+        }
+        return OMX_ErrorInsufficientResources;
+     }
 
  EXIT:
     OMX_PRINT1(pCompPrivate->dbg, "Exiting Returning = 0x%x",eError);
@@ -1460,26 +1481,65 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
  **/
 /*-------------------------------------------------------------------*/
 
-static OMX_ERRORTYPE GetState (OMX_HANDLETYPE pComponent, OMX_STATETYPE* pState)
+static OMX_ERRORTYPE GetState (OMX_HANDLETYPE hComponent, OMX_STATETYPE* pState)
 {
-    OMX_ERRORTYPE eError = OMX_ErrorUndefined;
-    OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pComponent;
-    WBAMRENC_COMPONENT_PRIVATE *pComponentPrivate = pHandle->pComponentPrivate;
+   OMX_ERRORTYPE eError                        = OMX_ErrorNone;
+    OMX_COMPONENTTYPE* pHandle = NULL;
+    WBAMRENC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
+    struct timespec abs_time = {0,0};
+    int nPendingStateChangeRequests = 0;
+    int ret = 0;
+    /* Set to sufficiently high value */
+    int mutex_timeout = 3; 
 
-    OMX_PRINT1 (pComponentPrivate->dbg, "Entering");
-    if (!pState) {
-        eError = OMX_ErrorBadParameter;
-        OMX_ERROR4 (pComponentPrivate->dbg, "OMX_ErrorBadParameter");
-        goto EXIT;
+    if(hComponent == NULL || pState == NULL) {
+       return OMX_ErrorBadParameter;
     }
-
-    if (pHandle && pComponentPrivate) {
-        *pState =  ((WBAMRENC_COMPONENT_PRIVATE*)
-                    pComponentPrivate)->curState;
-    } else {
-        *pState = OMX_StateLoaded;
+ 
+    pHandle = (OMX_COMPONENTTYPE*)hComponent;
+    pComponentPrivate = (WBAMRENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate;
+    
+    /* Retrieve current state */
+    if (pHandle && pHandle->pComponentPrivate) {
+        /* Check for any pending state transition requests */ 
+        if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+            return OMX_ErrorUndefined;
+        }
+        nPendingStateChangeRequests = pComponentPrivate->nPendingStateChangeRequests;
+       if(!nPendingStateChangeRequests) {
+           if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+               return OMX_ErrorUndefined; 
+           }
+           
+           /* No pending state transitions */
+	   *pState = ((WBAMRENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->curState;
+            eError = OMX_ErrorNone;
+        }
+        else {
+       	   /* Wait for component to complete state transition */
+           clock_gettime(CLOCK_REALTIME, &abs_time);
+           abs_time.tv_sec += mutex_timeout; 
+          abs_time.tv_nsec = 0;
+	   ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time); 
+           if (!ret) {
+              /* Component has completed state transitions*/
+              *pState = ((WBAMRENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->curState;
+              if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+                 return OMX_ErrorUndefined; 
+              }
+              eError = OMX_ErrorNone;
+           }
+           else if(ret == ETIMEDOUT) {
+              /* Unlock mutex in case of timeout */
+              pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
+              return OMX_ErrorTimeout; 
+           }
+        }
+     }
+     else {
+        eError = OMX_ErrorInvalidComponent;
+        *pState = OMX_StateInvalid;
     }
-    eError = OMX_ErrorNone;
 
  EXIT:
     OMX_PRINT1 (pComponentPrivate->dbg, "Exiting GetState Returning = 0x%x",eError);
@@ -1749,6 +1809,9 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
         goto EXIT;
     }
 #endif
+
+    pthread_mutex_destroy(&pComponentPrivate->mutexStateChangeRequest);
+    pthread_cond_destroy(&pComponentPrivate->StateChangeCondition);
 
     pComponentPrivate->bIsThreadstop = 1;
     eError = WBAMRENC_StopComponentThread(pHandle);

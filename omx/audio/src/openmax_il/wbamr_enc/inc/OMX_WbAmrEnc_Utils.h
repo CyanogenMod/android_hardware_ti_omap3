@@ -804,6 +804,11 @@ typedef struct WBAMRENC_COMPONENT_PRIVATE
     PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
 
     struct OMX_TI_Debug dbg;
+
+    /* Reference count for pending state change requests */
+    OMX_U32 nPendingStateChangeRequests;
+    pthread_mutex_t mutexStateChangeRequest;
+    pthread_cond_t StateChangeCondition;
     
 } WBAMRENC_COMPONENT_PRIVATE;
 
@@ -1086,5 +1091,9 @@ typedef enum
     ALGCMD_DTX
 
 } eSPEECHENCODE_AlgCmd;
+
+OMX_ERRORTYPE AddStateTransition(WBAMRENC_COMPONENT_PRIVATE* pComponentPrivate);
+OMX_ERRORTYPE RemoveStateTransition(WBAMRENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
+
 
 #endif  /* OMX_WBAMRENC_UTILS__H */
