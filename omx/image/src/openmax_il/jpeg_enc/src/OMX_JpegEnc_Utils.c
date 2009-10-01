@@ -1515,6 +1515,11 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
             OMX_PRSTATE2(pComponentPrivate->dbg, "State has been Set to Idle\n");
             pComponentPrivate->nCurState = OMX_StateIdle;
 
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                   return OMX_ErrorUndefined;
+            }
+
             pComponentPrivate->nInPortIn   = pComponentPrivate->nInPortOut   = 0;
             pComponentPrivate->nOutPortIn = pComponentPrivate->nOutPortOut = 0;
 
@@ -1538,7 +1543,6 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
             PERF_Boundary(pComponentPrivate->pPERFcomp,
                           PERF_BoundaryComplete | PERF_BoundarySetup);
 #endif
-
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                               pComponentPrivate->pHandle->pApplicationPrivate,
                           OMX_EventCmdComplete,
@@ -1668,6 +1672,12 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
         OMX_PRBUFFER2(pComponentPrivate->dbg, "returned all output buffers\n");
 
          pComponentPrivate->nCurState = OMX_StateIdle;
+
+         /* Decrement reference count with signal enabled */
+         if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+              return OMX_ErrorUndefined;
+         }
+
          pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                pComponentPrivate->pHandle->pApplicationPrivate,
                OMX_EventCmdComplete,
@@ -1743,6 +1753,10 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
             PERF_Boundary(pComponentPrivate->pPERFcomp,
                           PERF_BoundarySteadyState| PERF_BoundaryComplete);
 #endif
+         /* Decrement reference count with signal enabled */
+         if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+               return OMX_ErrorUndefined;
+         }
 
         pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                pComponentPrivate->pHandle->pApplicationPrivate,
@@ -1782,9 +1796,13 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
             }
             /*
             pComponentPrivate->nCurState = OMX_StatePause;
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                   return OMX_ErrorUndefined;
+            }
+
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,pComponentPrivate->pHandle->pApplicationPrivate,
                                                    OMX_EventCmdComplete, OMX_CommandStateSet, pComponentPrivate->nCurState, NULL);
-                                                   */
         } else {
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,pComponentPrivate->pHandle->pApplicationPrivate,
                                                    OMX_EventError, OMX_ErrorIncorrectStateTransition, OMX_TI_ErrorMinor , NULL);
@@ -1928,6 +1946,11 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
                 
             }
             else {
+                /* Decrement reference count with signal enabled */
+                if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                  return OMX_ErrorUndefined;
+                }
+
                 pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
                                                        OMX_EventCmdComplete,
@@ -2969,6 +2992,10 @@ OMX_ERRORTYPE JpegEncLCML_Callback (TUsnCodecEvent event,void * argsCb [10])
         if (pComponentPrivate != NULL) {
             pComponentPrivate->bDSPStopAck = OMX_TRUE;
             pComponentPrivate->nCurState = OMX_StatePause;
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
+                  return OMX_ErrorUndefined;
+            }
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,pComponentPrivate->pHandle->pApplicationPrivate,
                                                    OMX_EventCmdComplete, OMX_CommandStateSet, pComponentPrivate->nCurState, NULL);
         }
@@ -3218,3 +3245,45 @@ void LinkedList_DisplayAll(LinkedList *LinkedList) {
 void LinkedList_Destroy(LinkedList *LinkedList) {
     pthread_mutex_destroy(&LinkedList->lock);
 }
+
+OMX_ERRORTYPE AddStateTransition(JPEGENC_COMPONENT_PRIVATE* pComponentPrivate) {
+
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    /* Increment state change request reference count */
+    pComponentPrivate->nPendingStateChangeRequests++;
+
+    if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    return eError;
+}
+
+OMX_ERRORTYPE RemoveStateTransition(JPEGENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal) {
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+     /* Decrement state change request reference count*/
+    if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    pComponentPrivate->nPendingStateChangeRequests--;
+
+    /* If there are no more pending requests, signal the thread waiting on this*/
+    if(!pComponentPrivate->nPendingStateChangeRequests && bEnableSignal) {
+       pthread_cond_signal(&(pComponentPrivate->StateChangeCondition));
+    }
+
+    if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+       return OMX_ErrorUndefined;
+    }
+
+    return eError;
+}
+
+

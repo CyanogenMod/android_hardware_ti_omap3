@@ -680,6 +680,16 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
     pthread_cond_init(&pComponentPrivate->populate_cond, NULL);
     pthread_cond_init(&pComponentPrivate->unpopulate_cond, NULL);
 
+    if(pthread_mutex_init(&pComponentPrivate->mutexStateChangeRequest, NULL)) {
+       return OMX_ErrorUndefined;
+    }
+
+    if(pthread_cond_init (&pComponentPrivate->StateChangeCondition, NULL)) {
+       return OMX_ErrorUndefined;
+    }
+    pComponentPrivate->nPendingStateChangeRequests = 0;
+
+
 #ifdef RESOURCE_MANAGER_ENABLED
     /* load the ResourceManagerProxy thread */
     eError = RMProxy_NewInitalizeEx(OMX_COMPONENTTYPE_IMAGE);
@@ -847,6 +857,12 @@ static OMX_ERRORTYPE JPEGENC_SendCommand (
 
     switch ( Cmd ) {
     case OMX_CommandStateSet:
+
+         /* Add a pending transition */
+         if(AddStateTransition(pCompPrivate) != OMX_ErrorNone) {
+             return OMX_ErrorUndefined;
+         }
+
         eCmd = SetState;
         pCompPrivate->nToState = nParam;
         break;
@@ -927,8 +943,10 @@ static OMX_ERRORTYPE JPEGENC_SendCommand (
 
     nRet = write(pCompPrivate->nCmdPipe[1], &eCmd, sizeof(eCmd));
     if (nRet == -1) {
-        OMX_PRCOMM4(pCompPrivate->dbg, "%d :: Error while writing to the pipe.\n", __LINE__);
-        eError = OMX_ErrorUndefined;
+       if(RemoveStateTransition(pCompPrivate, OMX_FALSE) != OMX_ErrorNone) {
+           return OMX_ErrorUndefined;
+       }
+       return  OMX_ErrorUndefined;
     }
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -941,12 +959,13 @@ static OMX_ERRORTYPE JPEGENC_SendCommand (
    
     nRet = write(pCompPrivate->nCmdDataPipe[1], &nParam, sizeof(nParam));
     if (nRet == -1) {
-        OMX_PRCOMM4(pCompPrivate->dbg, "%d :: Error while writing to the pipe.\n", __LINE__);
-        eError = OMX_ErrorUndefined;
+       if(RemoveStateTransition(pCompPrivate, OMX_FALSE) != OMX_ErrorNone) {
+           return OMX_ErrorUndefined;
+       }
+       return  OMX_ErrorUndefined;
     }
-    OMX_PRINT1(pCompPrivate->dbg, "Writing into Cmd Pipe\n");
     
-    EXIT:
+EXIT:
     
     return eError;
 }
@@ -1551,34 +1570,71 @@ EXIT:
   *         OMX_Error_BadParameter   The input parameter pointer is null
   **/
 /*-------------------------------------------------------------------*/
-static OMX_ERRORTYPE JPEGENC_GetState (OMX_HANDLETYPE pComponent, OMX_STATETYPE* pState)
+static OMX_ERRORTYPE JPEGENC_GetState (OMX_HANDLETYPE hComponent, OMX_STATETYPE* pState)
 {
-    OMX_ERRORTYPE eError        = OMX_ErrorNone;
-    OMX_ERRORTYPE error         = OMX_ErrorUndefined;
-    OMX_COMPONENTTYPE *pHandle  = NULL;
-    JPEGENC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
-    OMX_CHECK_PARAM(pComponent);
 
-    pHandle = (OMX_COMPONENTTYPE *)pComponent;
-    pComponentPrivate = (JPEGENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
-    OMX_PRINT1(pComponentPrivate->dbg, "Inside JPEGENC_GetState function\n");
-    if( !pState )
-    {
-        error = OMX_ErrorBadParameter;
-        goto EXIT;
+    OMX_ERRORTYPE eError                        = OMX_ErrorNone;
+    OMX_COMPONENTTYPE* pHandle = NULL;
+    JPEGENC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
+    struct timespec abs_time = {0,0};
+    int nPendingStateChangeRequests = 0;
+    int ret = 0;
+    /* Set to sufficiently high value */
+    int mutex_timeout = 3;
+
+    if(hComponent == NULL || pState == NULL) {
+        return OMX_ErrorBadParameter;
     }
 
-    if ( pHandle && pHandle->pComponentPrivate ) {
-        *pState =  ((JPEGENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->nCurState;
-    }       
-    else 
-    {
-        *pState = OMX_StateLoaded;
+    pHandle = (OMX_COMPONENTTYPE*)hComponent;
+    pComponentPrivate = (JPEGENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate;
+
+    /* Retrieve current state */
+    if (pHandle && pHandle->pComponentPrivate) {
+        /* Check for any pending state transition requests */
+        if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
+            return OMX_ErrorUndefined;
+        }
+        nPendingStateChangeRequests = pComponentPrivate->nPendingStateChangeRequests;
+        if(!nPendingStateChangeRequests) {
+           if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+               return OMX_ErrorUndefined;
+           }
+
+           /* No pending state transitions */
+	   *pState = ((JPEGENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->nCurState;
+            eError = OMX_ErrorNone;
+        }
+        else {
+           /* Wait for component to complete state transition */
+           clock_gettime(CLOCK_REALTIME, &abs_time);
+           abs_time.tv_sec += mutex_timeout;
+           abs_time.tv_nsec = 0;
+           ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time);
+           if (!ret) {
+              /* Component has completed state transitions*/
+              *pState = ((JPEGENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->nCurState;
+              if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
+                 return OMX_ErrorUndefined;
+              }
+              eError = OMX_ErrorNone;
+           }
+           else if(ret == ETIMEDOUT) {
+              /* Unlock mutex in case of timeout */
+              pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
+              return OMX_ErrorTimeout;
+           }
+        }
+     }
+     else {
+        eError = OMX_ErrorInvalidComponent;
+        *pState = OMX_StateInvalid;
     }
-    error = OMX_ErrorNone;
-    
+
+    return eError;
+
 EXIT:
-    return error;
+    return eError;
 }
 
 
@@ -1868,6 +1924,10 @@ static OMX_ERRORTYPE JPEGENC_ComponentDeInit(OMX_HANDLETYPE hComponent)
 	pHandle = (OMX_COMPONENTTYPE *)hComponent;
 	pComponentPrivate = (JPEGENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 	memcpy(&dbg, &(pComponentPrivate->dbg), sizeof(dbg));
+
+        pthread_mutex_destroy(&pComponentPrivate->mutexStateChangeRequest);
+        pthread_cond_destroy(&pComponentPrivate->StateChangeCondition);
+
 	JPEGEnc_Free_ComponentResources(pComponentPrivate);
 
 #ifdef RESOURCE_MANAGER_ENABLED
@@ -1882,6 +1942,8 @@ static OMX_ERRORTYPE JPEGENC_ComponentDeInit(OMX_HANDLETYPE hComponent)
 	}
 
 #endif
+
+
     
 EXIT:
 #if 0

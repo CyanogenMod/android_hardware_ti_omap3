@@ -463,6 +463,12 @@ typedef struct JPEGENC_COMPONENT_PRIVATE
 #endif
     struct OMX_TI_Debug dbg;
 
+    /* Reference count for pending state change requests */
+    OMX_U32 nPendingStateChangeRequests;
+    pthread_mutex_t mutexStateChangeRequest;
+    pthread_cond_t StateChangeCondition;
+
+
 } JPEGENC_COMPONENT_PRIVATE;
 
 
@@ -611,4 +617,8 @@ typedef enum {
     IUALG_CMD_USERGETCMDSTART  = 150,
     IUALG_CMD_FLUSH            = 0x100
 }IUALG_Cmd;
+
+OMX_ERRORTYPE AddStateTransition(JPEGENC_COMPONENT_PRIVATE* pComponentPrivate);
+OMX_ERRORTYPE RemoveStateTransition(JPEGENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
+
 #endif /*OMX_JPEGENC_UTILS__H*/
