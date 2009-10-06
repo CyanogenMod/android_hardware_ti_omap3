@@ -2504,15 +2504,15 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledInBuf(VIDENC_COMPONENT_PRIVATE* pComponen
         /*< Minimum QP to be used  Range[0,51]*/
         ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.qpMin = 0x00000000;
         /*< Controls enable/disable loop filter, See IH264VENC_LoopFilterParams for more details*/
-        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.lfDisableIdc = 0x00000000; 
+        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.lfDisableIdc = 0x00000000;
         /*< enable/disable Quarter Pel Interpolation*/
         ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.quartPelDisable = 0x00000000;
         /*< Adaptive Intra Refesh MB Period: Period at which intra macro blocks should be insterted in a frame*/
         ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.airMbPeriod = pComponentPrivate->nAIRRate;
-        /*< Maximum number of macro block in a slice <minimum value is 8>*/
-        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.maxMBsPerSlice = 3620;
-        /*< Maximum number of bytes in a slice */
-        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.maxBytesPerSlice = 327680;
+        /*< Maximum number of macro block in a slice - values less than 8 don't take effect. Setting to zero for better performance*/
+        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.maxMBsPerSlice = 0;
+        /*< Maximum number of bytes in a slice. Setting to zero for better performance*/
+        ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.maxBytesPerSlice = 0;
         /*< Row number from which slice needs to be intra coded*/
         ((H264VE_GPP_SN_UALGInputParams*)pUalgInpParams)->H264VENC_TI_DYNAMICPARAMS.sliceRefreshRowStartNumber = 0;
         /*< Number of rows to be coded as intra slice*/
@@ -3298,9 +3298,13 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
         pComponentPrivate->intra4x4EnableIdc = INTRA4x4_NONE;
         pComponentPrivate->nIntraFrameInterval = 30;
         pComponentPrivate->nAIRRate = 0;
+        /* Encoding preset = 4 enables DSP side optimizations for high resolutions */
+        pComponentPrivate->nEncodingPreset = 4;
         pCreatePhaseArgs->ulIntraFramePeriod = 0;
-        pCreatePhaseArgs->ucRateControlAlgorithm = 3;
-        pCreatePhaseArgs->ucDeblockingEnable  = 1;
+        /* Constant bit rate control enabled */
+        pCreatePhaseArgs->ucRateControlAlgorithm = 1;
+        /* Disable deblocking */
+        pCreatePhaseArgs->ucDeblockingEnable  = 0;
         pCreatePhaseArgs->ucLevel = 30;
     }
 
