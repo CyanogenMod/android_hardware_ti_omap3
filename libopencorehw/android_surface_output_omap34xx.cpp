@@ -113,7 +113,7 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
             mOverlay->resizeInput(displayWidth, displayHeight);
         }
 
-        mbufferAlloc.maxBuffers = mOverlay->getBufferCount();
+        mbufferAlloc.maxBuffers = 6;  // Hardcoded to work with OMX decoder component
         mbufferAlloc.bufferSize = iBufferSize;
         mbufferAlloc.buffer_address = new uint8*[mbufferAlloc.maxBuffers];
         if (mbufferAlloc.buffer_address == NULL) {
