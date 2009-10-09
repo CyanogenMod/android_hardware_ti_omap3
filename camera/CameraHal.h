@@ -129,7 +129,7 @@
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-	#define IPP_YUV422P 1	
+	#define IPP_YUV422P 0	
 	#define INPLACE_ON	1
 	#define INPLACE_OFF	0
 	#define IPP_Disabled_Mode 0

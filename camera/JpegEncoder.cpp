@@ -192,11 +192,13 @@ bool JpegEncoder::StartFromLoadedState()
     int nHeightNew, nWidthNew;
     char strTIJpegEnc[] = "OMX.TI.JPEG.Encoder";
     char strQFactor[] = "OMX.TI.JPEG.encoder.Config.QFactor";
+	char strColorFormat[] = "OMX.TI.JPEG.encoder.Config.ColorFormatConvertion_420pTo422i";
 
     OMX_S32 nCompId = 300;
     OMX_PORT_PARAM_TYPE PortType;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_IMAGE_PARAM_QFACTORTYPE QfactorType;
+	OMX_BOOL b420pTo422i;
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
     OMX_CALLBACKTYPE JPEGCallBack ={OMX_JPEGE_EventHandler, OMX_JPEGE_EmptyBufferDone, OMX_JPEGE_FillBufferDone};
 
@@ -346,6 +348,22 @@ bool JpegEncoder::StartFromLoadedState()
         PRINTF("\n%d::APP_Error at function call: %x\n", __LINE__, eError);
         goto EXIT;
     }
+
+	if(mIsPixelFmt420p){
+		b420pTo422i = OMX_TRUE;
+
+		eError = OMX_GetExtensionIndex(pOMXHandle, strColorFormat, (OMX_INDEXTYPE*)&nCustomIndex);
+		if ( eError != OMX_ErrorNone ) {
+		    PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+		    goto EXIT;
+		}
+
+		eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &b420pTo422i);
+		if ( eError != OMX_ErrorNone ) {
+		    PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+		    goto EXIT;
+		}
+	}
 
     eError = OMX_UseBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize, (OMX_U8*)mInputBuffer);
     if ( eError != OMX_ErrorNone ) {

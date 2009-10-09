@@ -1392,8 +1392,10 @@ int  CameraHal::ICapturePerform()
 	#if !( IPP_YUV422P )
 		yuv_len=  ((image_width * image_height *3)/2);
         jpegFormat = YUV420;
+		LOGD("YUV420 !!!!");
 	#else
         jpegFormat = YUV422;        
+		LOGD("YUV422 !!!!");
     #endif
 		
 	}
