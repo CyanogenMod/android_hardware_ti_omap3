@@ -37,13 +37,42 @@
 #define USE_OMX_UseBuffer 1
 #define PRINTF SkDebugf
 //#define PRINTF printf
-
+#define TIME_DECODE
 #define JPEG_DECODER_DUMP_INPUT_AND_OUTPUT 0 // set directory persmissions for /temp as 777
 
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
 	int dOutputCount = 0;
 	int dInputCount = 0;
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+
+#include "SkTime.h"
+
+class AutoTimeMillis {
+public:
+    AutoTimeMillis(const char label[]) : fLabel(label) {
+        if (!fLabel) {
+            fLabel = "";
+        }
+        fNow = SkTime::GetMSecs();
+    }
+    ~AutoTimeMillis() {
+		SkDebugf("---- Input file Resolution :%dx%d",width,height); 
+        SkDebugf("---- TI JPEG Decode Time (ms): %s %d\n", fLabel, SkTime::GetMSecs() - fNow);
+    }
+
+	void setResolution(int width, int height){
+		this->width=width;
+		this->height=height;
+	}
+
+private:
+    const char* fLabel;
+    SkMSec      fNow;
+	int width;
+	int height;
+};
 
 typedef struct OMX_CUSTOM_RESOLUTION 
 {
@@ -467,6 +496,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     /* Critical section */
     SkDebugf("Entering Critical Section \n");
 
+#ifdef TIME_DECODE
+    AutoTimeMillis atm("TI JPEG Decode");
+#endif
+
     int nRetval;
     int nIndex1;
     int nIndex2;
@@ -509,6 +542,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     PRINTF ("Modified scaleFactor = %d\n", scaleFactor);
 
     inputFileSize = ParseJpegHeader(stream , &JpegHeaderInfo);
+
+#ifdef TIME_DECODE
+	atm.setResolution(JpegHeaderInfo.nWidth , JpegHeaderInfo.nHeight);
+#endif
 
     if (inputFileSize == 0) {
         PRINTF("The file size is 0. Maybe the format of the file is not correct\n");
