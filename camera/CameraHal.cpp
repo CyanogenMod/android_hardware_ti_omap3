@@ -328,9 +328,15 @@ void CameraHal::previewThread()
                     if (CameraStart() < 0){
 						LOGE("ERROR CameraStart()");
 						err = -1;
-					}                   
-                    
-                    PPM("PREVIEW STARTED AFTER CAPTURING");
+					}   
+
+					if(!mfirstTime){
+						PPM("Standby to first shot");
+						mfirstTime++;
+					}
+					else{
+						PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
+					}
 
 #ifdef CAMERA_ALGO
 		            if( initAlgos() < 0 )
@@ -491,6 +497,7 @@ void CameraHal::previewThread()
                 LOGD("ENTER OPTION PREVIEW_CAPTURE");
                 err = 0;
 				PPM("RECEIVED COMMAND TO TAKE A PICTURE");
+				gettimeofday(&ppm_receiveCmdToTakePicture, NULL);
                 
                 mShutterCallback    = (shutter_callback)msg.arg1;
                 mRawPictureCallback = (raw_callback)msg.arg2;
@@ -1455,7 +1462,8 @@ int  CameraHal::ICapturePerform()
 #endif
 
     }
-	PPM("AFTER SAVING JPEG FILE");
+
+	PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
 
 #if JPEG 	
     LOGD("jpegEncoder->jpegSize=%d jpegSize=%d",jpegEncoder->jpegSize,jpegSize);   
@@ -1566,6 +1574,8 @@ void CameraHal::vppThread(){
                     nOverlayBuffersQueued++;
                 }
 
+				PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
+
                 error = mOverlay->dequeueBuffer(&overlaybuffer);
                 if(error){
                     LOGE("mOverlay->dequeueBuffer() failed!!!!");
@@ -1574,9 +1584,7 @@ void CameraHal::vppThread(){
                     nOverlayBuffersQueued--;
                     buffers_queued_to_dss[(int)overlaybuffer] = 0;
                     lastOverlayBufferDQ = (int)overlaybuffer;	
-	            }				
-
-				LOGD("AFTER QUEUE OVERLAY BUFFERS TO DISPLAY SNAPSHOT!!");
+	            }
 								
 				sem_post(&mIppVppSem);
 			}

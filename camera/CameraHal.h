@@ -115,14 +115,6 @@
 
 #define OPEN_CLOSE_WORKAROUND	 0
 
-#define PPM(str){ \
-	gettimeofday(&ppm, NULL); \
-	ppm.tv_sec = ppm.tv_sec - ppm_start.tv_sec; \
-	ppm.tv_sec = ppm.tv_sec * 1000000; \
-	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_start.tv_usec; \
-	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); \
-}
-
 #define YUV422 0 
 #define YUV420 1
 
@@ -351,6 +343,8 @@ private:
     int ICapturePerform();
     int ICaptureCreate(void);
     int ICaptureDestroy(void);
+	void PPM(char*);
+	void PPM(char*,struct timeval*);
 
 #ifndef ICAP
 	int CapturePicture();
@@ -427,6 +421,7 @@ private:
     static int camera_device;
     struct timeval ppm;
 	struct timeval ppm_start;
+	struct timeval ppm_receiveCmdToTakePicture;
 	int vppPipe[2];
     sem_t mIppVppSem;
 	int mippMode;

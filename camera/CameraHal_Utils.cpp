@@ -1488,6 +1488,22 @@ if(mJpegPictureCallback) {
 }
 #endif
 
+void CameraHal::PPM(char* str){
+	gettimeofday(&ppm, NULL); 
+	ppm.tv_sec = ppm.tv_sec - ppm_start.tv_sec; 
+	ppm.tv_sec = ppm.tv_sec * 1000000; 
+	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_start.tv_usec; 
+	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); 
+}
+
+void CameraHal::PPM(char* str, struct timeval* ppm_first){
+	gettimeofday(&ppm, NULL); 
+	ppm.tv_sec = ppm.tv_sec - ppm_first->tv_sec; 
+	ppm.tv_sec = ppm.tv_sec * 1000000; 
+	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_first->tv_usec; 
+	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); 
+}
+
 };
 
 
