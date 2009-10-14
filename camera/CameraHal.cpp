@@ -856,6 +856,11 @@ void CameraHal::nextPreview()
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     int w, h, ret, queue_to_dss_failed;
+#ifdef FW3A
+#ifdef FOCUS_RECT
+	int x1, y1, x2, y2, xc, yc, rect_scaling=4;
+#endif
+#endif
     overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
     int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
     int index;
@@ -903,8 +908,13 @@ void CameraHal::nextPreview()
 			focus_rect_color = FOCUS_RECT_GREEN;
 		else if (AF_STATUS_FAIL == fobj->status_2a.af.status)
 			focus_rect_color = FOCUS_RECT_RED;
-
-		drawRect( (uint8_t *) cfilledbuffer.m.userptr, focus_rect_color,  220, 180, 440, 340, w, h);
+		xc = w/2;
+		yc = h/2;
+		x1 = xc - (w/rect_scaling);
+		y1 = yc - (h/rect_scaling);
+		x2 = xc + (w/rect_scaling);
+		y2 = yc + (h/rect_scaling);
+		drawRect( (uint8_t *) cfilledbuffer.m.userptr, focus_rect_color,  x1, y1, x2, y2, w, h);
 	}
 #endif
 #endif
