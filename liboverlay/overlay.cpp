@@ -1023,6 +1023,15 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
 		
     int ret = 0;
     int rc;
+    uint32_t numb = NUM_OVERLAY_BUFFERS_REQUESTED;
+    overlay_data_t eCropData;
+    int degree = 0;
+    
+    // Position and output width and heigh
+    int32_t _x = 0;
+    int32_t _y = 0;
+    int32_t _w = 0;
+    int32_t _h = 0;
 
     struct overlay_data_context_t* ctx =
             (struct overlay_data_context_t*)dev;
@@ -1057,9 +1066,28 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
     }
     else
     {
-        LOGD("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");    
+        LOGI("Getting driver value before streamming off \n");
+        if ( (rc = v4l2_overlay_get_crop(ctx->ctl_fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH)) != 0)
+        {
+            LOGE("Get crop value Failed!/%d\n", rc);
+            ret = rc;
+        }
+        else if( (rc=v4l2_overlay_get_position(ctx->ctl_fd, &_x,  &_y, &_w, &_h)))
+        {
+            LOGD(" Could not set the position when creating overlay \n");
+            close(ctx->ctl_fd);
+            ret = rc;
+        }
+        else if( (rc=v4l2_overlay_get_rotation(ctx->ctl_fd, &degree, NULL)))
+        {
+	    LOGD("Get rotation value failed! \n");
+            close(ctx->ctl_fd);
+            ret = rc;
+        }
 
-        for (int i = 0; i < ctx->num_buffers; i++) 
+        LOGD("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+        
+        for (int i = 0; i < ctx->num_buffers; i++)
         {
             v4l2_overlay_unmap_buf(ctx->buffers[i], ctx->buffers_len[i]);	
         }
@@ -1067,6 +1095,30 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
         if ((rc = v4l2_overlay_init(ctx->ctl_fd, w, h, ctx->format)) != 0)
         {
             LOGE("Error initializing overlay");
+            ret = rc;
+        }
+        if ( (rc = v4l2_overlay_set_rotation(ctx->ctl_fd, degree, 0)) != 0 )
+        {
+            LOGE("Failed rotation\n");
+            close( ctx->ctl_fd);
+            ret = rc;
+    	}
+        else if ( (rc = v4l2_overlay_set_crop(ctx->ctl_fd, eCropData.cropX, eCropData.cropY, eCropData.cropW, eCropData.cropH)) != 0 )
+        {
+            LOGE("Failed crop window\n");
+            close( ctx->ctl_fd);
+            ret = rc;
+        }
+        else if ( (rc = v4l2_overlay_set_colorkey(ctx->ctl_fd,1, 0)) )
+        {
+            LOGE("Failed enabling color key\n");
+            close(ctx->ctl_fd);
+            ret = rc;
+        }
+        else if( (rc=v4l2_overlay_set_position(ctx->ctl_fd, _x,  _y, _w, _h)))
+        {
+            LOGD(" Could not set the position when creating overlay \n");
+            close(ctx->ctl_fd);
             ret = rc;
         }
         else if ((rc = v4l2_overlay_req_buf(ctx->ctl_fd, (uint32_t *)(&ctx->num_buffers), ctx->cacheable_buffers)) != 0)
@@ -1079,11 +1131,10 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
             for (int i = 0; i < ctx->num_buffers; i++)
                 v4l2_overlay_map_buf(ctx->ctl_fd, i, &ctx->buffers[i], &ctx->buffers_len[i]);
       
-            /*ret = enable_streaming( ctx->shared, ctx->ctl_fd, NO_LOCK_NEEDED );*/
+            /* The control pameters just got set */
+            ctx->shared->controlReady = 1;
         }
     }
-
-    ctx->shared->controlReady = 0;
 
     sem_post( &ctx->shared->lock );
 
