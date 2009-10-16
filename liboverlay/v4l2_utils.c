@@ -398,6 +398,26 @@ int v4l2_overlay_set_rotation(int fd, int degree, int step)
     return 0;
 }
 
+
+int v4l2_overlay_get_rotation(int fd, int* degree, int step)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_control control;
+    memset(&control, 0, sizeof(control));
+    control.id = V4L2_CID_ROTATE;
+
+    ret = ioctl (fd, VIDIOC_G_CTRL, &control);
+    if (ret < 0) {
+        error (fd, "VIDIOC_G_CTRL id: V4L2_CID_ROTATE ioctl");
+        return ret;
+    }
+
+    *degree = control.value;
+    return ret;
+}
+
+
 int v4l2_overlay_set_colorkey(int fd,  int enable, int colorkey)
 {
     LOG_FUNCTION_NAME
