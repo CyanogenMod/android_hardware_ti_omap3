@@ -51,7 +51,16 @@ using namespace android;
      PVMFCommandId cmdid;
      bool bInDSSQueue;
  }WriteResponseData;
- 
+
+/* Defined in liboverlay */
+typedef struct {
+    int fd;
+    size_t length;
+    uint32_t offset;
+    void *ptr;
+} mapping_data_t;
+
+
  static WriteResponseData sWriteRespData[4];
  int iDequeueIndex;
 
@@ -82,6 +91,8 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
     int frameHeight = iVideoHeight;
     int frameSize;
     int videoFormat = OVERLAY_FORMAT_YCbCr_422_I;
+    mapping_data_t *data;
+    
     LOGD("Use Overlays");
 
     if (mUseOverlay) {
@@ -110,7 +121,8 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
         mbufferAlloc.bufferSize = iBufferSize;
         LOGD("number of buffers = %d\n", mbufferAlloc.maxBuffers);
         for (int i = 0; i < mbufferAlloc.maxBuffers; i++) {
-            mbufferAlloc.buffer_address[i] = mOverlay->getBufferAddress((void*)i);
+            data = (mapping_data_t *)mOverlay->getBufferAddress((void*)i);
+            mbufferAlloc.buffer_address[i] = data->ptr;
             strcpy((char *)mbufferAlloc.buffer_address[i], "hello");
             if (strcmp((char *)mbufferAlloc.buffer_address[i], "hello")) {
                 LOGI("problem with buffer\n");
