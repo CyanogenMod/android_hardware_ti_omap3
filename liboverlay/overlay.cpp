@@ -438,7 +438,6 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     fd = v4l2_overlay_open(V4L2_OVERLAY_PLANE_VIDEO1);
     if (fd < 0) {
         LOGE("Failed to open overlay device\n");
-        destroy_shared_data( shared_fd, shared );
         goto error;
     }
 
