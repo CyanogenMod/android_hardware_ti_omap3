@@ -47,6 +47,7 @@
 #define VPP 1
 #define VPP_THREAD 1
 
+#define PPM_INSTRUMENTATION 1
 //#undef FW3A
 //#undef ICAP
 //#undef IMAGE_PROCESSING_PIPELINE
@@ -421,21 +422,24 @@ private:
     int buffers_queued_to_dss[MAX_CAMERA_BUFFERS];
     int mfirstTime;
     static wp<CameraHardwareInterface> singleton;
-    static int camera_device;
-    struct timeval ppm;
-	struct timeval ppm_start;
-	struct timeval ppm_receiveCmdToTakePicture;
+    static int camera_device;	
 	int vppPipe[2];
     sem_t mIppVppSem;
 	int mippMode;
 	int pictureNumber;
-    struct timeval take_before, take_after;
+#if PPM_INSTRUMENTATION
+    struct timeval ppm;
+	struct timeval ppm_start;
+	struct timeval ppm_receiveCmdToTakePicture;
     struct timeval focus_before, focus_after;
     struct timeval ppm_before, ppm_after;
     struct timeval ipp_before, ipp_after;
+#endif
 	int lastOverlayBufferDQ;
 #ifdef CAMERA_ALGO
+#if PPM_INSTRUMENTATION
     struct timeval algo_before, algo_after;
+#endif
     int lastOverlayIndex;
 
     CameraAlgo *camAlgos;

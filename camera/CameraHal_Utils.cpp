@@ -1427,8 +1427,10 @@ int CameraHal::CapturePicture(){
 	#if !( IPP_YUV422P )
 		yuv_len=  ((image_width * image_height *3)/2);
         jpegFormat = YUV420;
+		LOGD("YUV420 !!!!");
 	#else
         jpegFormat = YUV422;
+		LOGD("YUV42 !!!!");
     #endif
 		
 	}
@@ -1454,7 +1456,10 @@ int CameraHal::CapturePicture(){
             mJpegPictureCallback(mJPEGPictureMemBase, mPictureCallbackCookie); 
         }
 
-		PPM("AFTER SAVING JPEG FILE");
+#if PPM_INSTRUMENTATION
+		PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
+#endif	
+
         mJPEGPictureMemBase.clear();		
         mJPEGPictureHeap.clear();
 #else
@@ -1462,11 +1467,9 @@ if(mJpegPictureCallback) {
             mJpegPictureCallback(NULL, mPictureCallbackCookie); 
         }
 #endif
-
 #endif
-
         
-        PPM("Shot to Encode Latency");
+     
     }
 
     mPictureBuffer.clear();
@@ -1489,19 +1492,23 @@ if(mJpegPictureCallback) {
 #endif
 
 void CameraHal::PPM(char* str){
+#if PPM_INSTRUMENTATION
 	gettimeofday(&ppm, NULL); 
 	ppm.tv_sec = ppm.tv_sec - ppm_start.tv_sec; 
 	ppm.tv_sec = ppm.tv_sec * 1000000; 
 	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_start.tv_usec; 
 	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); 
+#endif
 }
 
 void CameraHal::PPM(char* str, struct timeval* ppm_first){
+#if PPM_INSTRUMENTATION
 	gettimeofday(&ppm, NULL); 
 	ppm.tv_sec = ppm.tv_sec - ppm_first->tv_sec; 
 	ppm.tv_sec = ppm.tv_sec * 1000000; 
 	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_first->tv_usec; 
 	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); 
+#endif
 }
 
 };

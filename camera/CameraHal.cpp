@@ -91,8 +91,9 @@ CameraHal::CameraHal()
 			pictureNumber(0),
 			mfirstTime(0)
 {
-
+#if PPM_INSTRUMENTATION
 	gettimeofday(&ppm_start, NULL);
+#endif
 
     isStart_FW3A = false;
     isStart_FW3A_AF = false;
@@ -280,11 +281,10 @@ void CameraHal::previewThread()
             if (isStart_FW3A_AF) {
                 err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
                 if ((err == 0) && (AF_STATUS_RUNNING != fobj->status_2a.af.status)) {
-                    int delay;
-                    gettimeofday(&focus_after, NULL);
-                    delay = (focus_after.tv_sec - focus_before.tv_sec)*1000;
-                    delay += (focus_after.tv_usec - focus_before.tv_usec)/1000;
-                    LOGD(" AF Completed in %d [msec.]", delay);
+			#if PPM_INSTRUMENTATION	
+				PPM("AF Completed in ",&focus_before);
+			#endif
+				
                     fobj->cam_iface_2a->ReadMakerNote(fobj->cam_iface_2a->pPrivateHandle, ancillary_buffer, (uint32 *) &ancillary_len);
                     if (FW3A_Stop_AF() < 0){
 						LOGE("ERROR FW3A_Stop_AF()");						
@@ -340,11 +340,13 @@ void CameraHal::previewThread()
 					}   
 
 					if(!mfirstTime){
-						PPM("Standby to first shot");
+						PPM("Standby to first shot");					
 						mfirstTime++;
 					}
-					else{
-						PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
+					else{			
+					#if PPM_INSTRUMENTATION		
+						PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);					
+					#endif
 					}
 
 #ifdef CAMERA_ALGO
@@ -435,8 +437,9 @@ void CameraHal::previewThread()
 							err = -1;
 						}
                     }
-
+				#if PPM_INSTRUMENTATION
 					gettimeofday(&focus_before, NULL);
+				#endif
 					if (isStart_FW3A_AF == 0){
 						if( FW3A_Start_AF() < 0){
 							LOGE("ERROR FW3A_Start_AF()");
@@ -506,7 +509,9 @@ void CameraHal::previewThread()
                 LOGD("ENTER OPTION PREVIEW_CAPTURE");
                 err = 0;
 				PPM("RECEIVED COMMAND TO TAKE A PICTURE");
+			#if PPM_INSTRUMENTATION
 				gettimeofday(&ppm_receiveCmdToTakePicture, NULL);
+			#endif
                 
                 mShutterCallback    = (shutter_callback)msg.arg1;
                 mRawPictureCallback = (raw_callback)msg.arg2;
@@ -892,16 +897,15 @@ void CameraHal::nextPreview()
 	    nCameraBuffersQueued--;
 	}
 
-#ifdef CAMERA_ALGO
-	int delay;
+#ifdef CAMERA_ALGO	
     AMFPAF_FACERES *faces;
-    
+#if PPM_INSTRUMENTATION    
     gettimeofday(&algo_before, 0);
+#endif
     faces = camAlgos->detectFaces( (uint8_t *) cfilledbuffer.m.userptr);
-    gettimeofday(&algo_after, 0);
-    delay = (algo_after.tv_sec - algo_before.tv_sec)*1000;
-    delay += (algo_after.tv_usec - algo_before.tv_usec)/1000;
-    //LOGD("Facetracking Completed in %d [msec.]", delay);
+  	PPM("Facetracking Completed in ", &algo_before);
+
+    
 
     if( faces->nFace != 0){
         for( int i = 0; i < faces->nFace; i++){
@@ -1037,7 +1041,6 @@ int  CameraHal::ICapturePerform()
     int jpegSize;
     void *outBuffer;  
     void* snapshot_buffer;
-    ancillary_mms *mk_note;
     unsigned long base, offset, jpeg_offset;
     int snapshot_buffer_index;
     int image_width, image_height;
@@ -1047,7 +1050,6 @@ int  CameraHal::ICapturePerform()
     sp<MemoryHeapBase>  mJPEGPictureHeap;
     struct manual_parameters  manual_config;
     unsigned short ipp_ee_q, ipp_ew_ts, ipp_es_ts, ipp_luma_nf, ipp_chroma_nf; 
-    int delay;
 	unsigned int vppMessage[3];
 	overlay_buffer_t overlaybuffer;
 	int jpegFormat = YUV422;
@@ -1104,9 +1106,6 @@ int  CameraHal::ICapturePerform()
     manual_config.shutter_usec          = 60000;
     manual_config.analog_gain           = 20;
     manual_config.color_temparature     = 4500;
-    mk_note->exposure.shutter_cap_msec  = 60;
-    mk_note->exposure.gain_cap          = 20;
-    mk_note->balance.awb_idx            = 4500;
 #endif
 
 #if OPEN_CLOSE_WORKAROUND
@@ -1193,8 +1192,7 @@ int  CameraHal::ICapturePerform()
         PPM("ICapture process OK");
     }
 
-	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len); 
-	//SaveFile(NULL, (char*)"mknote", ancillary_buffer, sizeof(*mk_note));
+	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len);
 		
     ipp_ee_q   =   iobj->proc.eenf.ee_q,
     ipp_ew_ts  =   iobj->proc.eenf.ew_ts,
@@ -1273,20 +1271,19 @@ int  CameraHal::ICapturePerform()
 #endif //HARDWARE_OMX
 
 #ifdef CAMERA_ALGO
-
+#if PPM_INSTRUMENTATION
     gettimeofday(&algo_before, 0);
+#endif	
     camAlgos->removeRedeye( (uint8_t *) yuv_buffer, image_width, image_height);
-    gettimeofday(&algo_after, 0);
-    delay = (algo_after.tv_sec - algo_before.tv_sec)*1000;
-    delay += (algo_after.tv_usec - algo_before.tv_usec)/1000;
-    LOGD("Red Eye Removal Completed in %d [msec.]", delay);
+    PPM("Red Eye Removal Completed in ", &algo_before);
 
+
+#if PPM_INSTRUMENTATION
     gettimeofday(&algo_before, 0);
+#endif
     camAlgos->deBlur( (uint8_t *) yuv_buffer, (uint8_t *) mOverlay->getBufferAddress( (void *) lastOverlayIndex), image_width, image_height, preview_width, preview_height);
-    gettimeofday(&algo_after, 0);
-    delay = (algo_after.tv_sec - algo_before.tv_sec)*1000;
-    delay += (algo_after.tv_usec - algo_before.tv_usec)/1000;
-    LOGD("Antishaking Completed in %d [msec.]", delay);
+
+    PPM("Antishaking Completed in ", &algo_before);
 
 #endif
 
@@ -1469,7 +1466,7 @@ int  CameraHal::ICapturePerform()
     err = 0;    
     
 	PPM("BEFORE JPEG Encode Image");	
-	LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	     
+	LOGD(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	     
     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
                                  image_width, image_height, quality,jpegFormat)))
     {        
@@ -1490,8 +1487,9 @@ int  CameraHal::ICapturePerform()
 #endif
 
     }
-
+#if PPM_INSTRUMENTATION
 	PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
+#endif
 
 #if JPEG 	
     LOGD("jpegEncoder->jpegSize=%d jpegSize=%d",jpegEncoder->jpegSize,jpegSize);   
@@ -1524,8 +1522,6 @@ fail_config:
 
 fail_create:
 fail_icapture:
-
-	free(mk_note);
 
 fail_mk_note:
 
@@ -1585,13 +1581,13 @@ void CameraHal::vppThread(){
 
 				snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayBufferDQ) );
 	
-				PPM("BEFORE SCALED DOWN RAW IMAGE TO PREVIEW SIZE"); 
+				PPM("Before vpp downscales:"); 
 				status = scale_process(yuv_buffer, image_width, image_height,
 						             snapshot_buffer, preview_width, preview_height);
 				if( status ) LOGE("scale_process() failed");
 				else LOGD("scale_process() OK");
 				 
-				PPM("SCALED DOWN RAW IMAGE TO PREVIEW");						
+				PPM("After vpp downscales:");						
 
 				error = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
                 if (error){
@@ -1601,8 +1597,9 @@ void CameraHal::vppThread(){
                     buffers_queued_to_dss[lastOverlayBufferDQ]=1;
                     nOverlayBuffersQueued++;
                 }
-
+			#if PPM_INSTRUMENTATION
 				PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
+			#endif
 
                 error = mOverlay->dequeueBuffer(&overlaybuffer);
                 if(error){
@@ -2046,7 +2043,6 @@ status_t CameraHal::takePicture(shutter_callback shutter_cb,
 {
     LOG_FUNCTION_NAME
 
-	gettimeofday(&take_before, NULL);
     Message msg;
     msg.command = PREVIEW_CAPTURE;
     msg.arg1    = (void*)shutter_cb;
