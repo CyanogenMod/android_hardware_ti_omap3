@@ -95,7 +95,7 @@
 #define MAXIPPDynamicParams 10
 #endif
 
-#define FOCUS_RECT          1
+#define FOCUS_RECT          0
 /* colours in focus rectangle */
 #define FOCUS_RECT_RED      0x10
 #define FOCUS_RECT_GREEN    0x1F
