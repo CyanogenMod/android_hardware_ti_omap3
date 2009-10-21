@@ -89,6 +89,8 @@ CameraHal::CameraHal()
 			myuv(3),
 			mMMSApp(0),
 			pictureNumber(0),
+			mZoomCurrent(1),
+			mZoomTarget(1),
 			mfirstTime(0)
 {
 #if PPM_INSTRUMENTATION
@@ -289,7 +291,7 @@ void CameraHal::previewThread()
                     if (FW3A_Stop_AF() < 0){
 						LOGE("ERROR FW3A_Stop_AF()");						
 					}
-                    mAutoFocusCallback( true, mAutoFocusCallbackCookie );
+                    //mAutoFocusCallback( true, mAutoFocusCallbackCookie );
                 }
             }
 #endif
@@ -583,15 +585,6 @@ void CameraHal::previewThread()
             }
             break;
 
-            case ZOOM_UPDATE:
-            {
-                LOGD("Receive Command: ZOOM_UPDATE");                          
-                if(ZoomPerform(mzoom) < 0)
-                    LOGE("Error setting the zoom");
-
-            }
-            break;
-
             case PREVIEW_KILL:
             {
                 LOGD("Receive Command: PREVIEW_KILL");
@@ -823,6 +816,15 @@ int CameraHal::CameraStart()
         LOGE("VIDIOC_STREAMON Failed");
         goto fail_loop;
     }
+
+    if ( mZoomTarget != mZoomCurrent ) {
+        
+        if( ZoomPerform(mZoomTarget) < 0 )
+            LOGE("Error while applying zoom");   
+        
+        mZoomCurrent = mZoomTarget;
+    }
+
     LOG_FUNCTION_NAME_EXIT
     return 0;
 
@@ -860,6 +862,9 @@ int CameraHal::CameraStop()
         LOGE("VIDIOC_STREAMOFF Failed");
         goto fail_streamoff;
     }
+
+	//Force the zoom to be updated next time preview is started.
+	mZoomCurrent = 1;
 
     LOG_FUNCTION_NAME_EXIT
     return 0;
@@ -917,7 +922,7 @@ void CameraHal::nextPreview()
 #endif
 
 #ifdef FW3A
-#ifdef FOCUS_RECT
+#if FOCUS_RECT
 	/* Setting the color before driving the rectangle */
 	if (focus_rect_set) {
 		if(AF_STATUS_RUNNING == fobj->status_2a.af.status)
@@ -1420,14 +1425,14 @@ int  CameraHal::ICapturePerform()
    	if(!(pIPP.ippconfig.isINPLACE)){ 
 		yuv_buffer = pIPP.pIppOutputBuffer;
 	}
-	 
-	#if !( IPP_YUV422P )
+	         
+	#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
+		jpegFormat = YUV422;        
+		LOGD("YUV422 !!!!");
+	#else
 		yuv_len=  ((image_width * image_height *3)/2);
         jpegFormat = YUV420;
 		LOGD("YUV420 !!!!");
-	#else
-        jpegFormat = YUV422;        
-		LOGD("YUV422 !!!!");
     #endif
 		
 	}
@@ -2145,13 +2150,9 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         quality = 100;
     } 
 
-    zoom = mParameters.getInt("zoom");
-    
-    if( mzoom != zoom){
-        Message msg;
-        mzoom = zoom;
-        msg.command = ZOOM_UPDATE;                     
-        previewThreadCommandQ.put(&msg);         
+    mZoomTarget = mParameters.getInt("zoom");
+    if( (mZoomTarget < 1) || (mZoomTarget > 7) ){
+        mZoomTarget = 1;
     }
 
 #ifdef FW3A
@@ -2175,18 +2176,38 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         myuv = mParameters.getInt("yuv");
 
         FW3A_GetSettings();
+        if(contrast != -1)
+            fobj->settings_2a.general.contrast = contrast;
 
-        fobj->settings_2a.general.contrast = contrast;
-        fobj->settings_2a.general.brightness = brightness;
-        fobj->settings_2a.general.saturation = saturation;
-        fobj->settings_2a.general.sharpness = sharpness;
-        fobj->settings_2a.general.scene = (FW3A_SCENE_MODE) scene;
-        fobj->settings_2a.general.effects = (FW3A_CONFIG_EFFECTS) effects;
-        fobj->settings_2a.awb.mode = (WHITE_BALANCE_MODE_VALUES) wb;
-        fobj->settings_2a.ae.iso = (EXPOSURE_ISO_VALUES) iso;
-        fobj->settings_2a.af.focus_mode = (FOCUS_MODE_VALUES) af;
-        fobj->settings_2a.ae.mode = (EXPOSURE_MODE_VALUES) exposure;
-        fobj->settings_2a.ae.compensation = compensation;
+        if(brightness != -1) 
+            fobj->settings_2a.general.brightness = brightness;
+
+        if(saturation!= -1)
+            fobj->settings_2a.general.saturation = saturation;
+        
+        if(sharpness != -1)
+            fobj->settings_2a.general.sharpness = sharpness;
+        
+        if(scene!= -1)
+            fobj->settings_2a.general.scene = (FW3A_SCENE_MODE) scene;
+        
+        if(effects!= -1)
+            fobj->settings_2a.general.effects = (FW3A_CONFIG_EFFECTS) effects;
+
+        if(wb!= -1)
+            fobj->settings_2a.awb.mode = (WHITE_BALANCE_MODE_VALUES) wb;
+
+        if(iso!= -1)
+            fobj->settings_2a.ae.iso = (EXPOSURE_ISO_VALUES) iso;
+
+        if(af!= -1)
+            fobj->settings_2a.af.focus_mode = (FOCUS_MODE_VALUES) af;
+
+        if(exposure!= -1)
+            fobj->settings_2a.ae.mode = (EXPOSURE_MODE_VALUES) exposure;
+
+        if(compensation!= -1)
+            fobj->settings_2a.ae.compensation = compensation;
 
         if(mflash != flash){
             mflash = flash;

@@ -380,7 +380,7 @@ int CameraHal::InitIPP(int w, int h)
 		return -1;
 	}
 
-#if IPP_YUV422P
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
 	pIPP.ippconfig.numberOfAlgos=4;
 #else
 	pIPP.ippconfig.numberOfAlgos=3;
@@ -393,13 +393,13 @@ int CameraHal::InitIPP(int w, int h)
 	else if(mippMode == IPP_EdgeEnhancement_Mode){
 		pIPP.ippconfig.orderOfAlgos[2]=IPP_EENF_ID;
 	}
-#if IPP_YUV422P
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
 	pIPP.ippconfig.orderOfAlgos[3]=IPP_YUVC_422pTO422i_ID;
 #endif    
     pIPP.ippconfig.isINPLACE=INPLACE_ON;   
 
 
-#if IPP_YUV422P
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
 	pIPP.outputBufferSize= w*h*2;	
 #else
 	pIPP.outputBufferSize= (w*h*3)/2;	
@@ -436,7 +436,7 @@ int CameraHal::InitIPP(int w, int h)
 	if(eError != 0){
 		LOGE("ERROR IPP_SetAlgoConfig");
 	}	
-#if IPP_YUV422P   
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I ) 
     LOGD("IPP_SetAlgoConfig");
     IPP_SetAlgoConfig(pIPP.hIPP, IPP_YUVC_420TO422_CREATEPRMS_CFGID, &(pIPP.YUVCcreate));
 	if(eError != 0){
@@ -613,11 +613,16 @@ int CameraHal::PopulateArgsIPP(int w, int h)
 #endif    
     pIPP.iYuvcInArgs1->inputChromaFormat = IPP_YUV_422ILE;
 
-#if IPP_YUV422P     
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
     pIPP.iYuvcInArgs2->inputHeight = h;
     pIPP.iYuvcInArgs2->inputWidth = w;
+	#if IPP_YUV422P
     pIPP.iYuvcInArgs2->outputChromaFormat = IPP_YUV_422ILE;
     pIPP.iYuvcInArgs2->inputChromaFormat = IPP_YUV_422P;
+	#else
+	pIPP.iYuvcInArgs2->outputChromaFormat = IPP_YUV_422ILE;
+    pIPP.iYuvcInArgs2->inputChromaFormat = IPP_YUV_420P;
+	#endif
 #endif
   
 	pIPP.iStarOutArgs->extendedError= 0;
@@ -627,7 +632,7 @@ int CameraHal::PopulateArgsIPP(int w, int h)
 	if(mippMode == IPP_CromaSupression_Mode )	
 		pIPP.iCrcbsOutArgs->extendedError = 0;
 
-#if IPP_YUV422P 
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I  )
     pIPP.iYuvcOutArgs2->extendedError = 0;
 #endif
 
@@ -712,7 +717,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen,
 	}
 
 
-#if IPP_YUV422P 
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
 	pIPP.iInputArgs.numArgs = 4;/*be aware of the algos order*/
 #else
 	pIPP.iInputArgs.numArgs = 3;
@@ -725,11 +730,11 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen,
 	if(mippMode == IPP_EdgeEnhancement_Mode){    
 		pIPP.iInputArgs.argsArray[2] = pIPP.iEenfInArgs; 
 	}
-#if IPP_YUV422P 
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I  )
    pIPP.iInputArgs.argsArray[3] = pIPP.iYuvcInArgs2;
 #endif    
 
-#if IPP_YUV422P 
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
 	pIPP.iOutputArgs.numArgs = 4;/*be aware of the algos order*/
 #else
 	pIPP.iOutputArgs.numArgs = 3;
@@ -742,7 +747,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen,
 	if(mippMode == IPP_EdgeEnhancement_Mode){   
     	pIPP.iOutputArgs.argsArray[2] = pIPP.iEenfOutArgs;
 	}
-#if IPP_YUV422P
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
    	pIPP.iOutputArgs.argsArray[3] = pIPP.iYuvcOutArgs2;
 #endif
    
@@ -996,17 +1001,17 @@ void CameraHal::drawRect(uint8_t *input, uint8_t color, int x1, int y1, int x2, 
 	}
 }
 
-int CameraHal::ZoomPerform(float zoom)
+int CameraHal::ZoomPerform(int zoom)
 {
     struct v4l2_crop crop;
-    float fwidth, fheight;
+    int fwidth, fheight;
     int zoom_left,zoom_top,zoom_width, zoom_height,w,h;
     int ret;
 
     if (zoom < 1) 
        zoom = 1;
-    if (zoom > 8)
-       zoom = 8;
+    if (zoom > 7)
+       zoom = 7;
 
     mParameters.getPreviewSize(&w, &h);
     fwidth = w/zoom;
@@ -1034,108 +1039,6 @@ int CameraHal::ZoomPerform(float zoom)
 #endif
     return 0;
 }
-
-
-#if 0
-int CameraHal::ZoomPerform(int zoom)
-{
-    struct v4l2_crop crop;
-    int scale[] = {111, 125, 142, 166, 200, 250, 333};
-    int ret;
-
-    if (zoom<1) zoom = 1;
-    if (zoom>7) zoom = 7;
-    
-    zoom_width  = sensor_width * 1000 / (1000+(zoom-1)*200);
-    zoom_width  = (zoom_width  + 31);
-    zoom_width  &= ~31;
-    zoom_height = (sensor_height * zoom_width) / sensor_width;
-
-    LOGD("Perform ZOOM: x%d  sw=%5d, sh=%5d, zw=%d, zh=%5d, sx=%d, sy=%5d", 
-        zoom, sensor_width, sensor_height, zoom_width, zoom_height,
-        sensor_width*100/zoom_width, sensor_height*100/zoom_height);
-
-    memset(&crop, 0, sizeof(crop));
-    crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    crop.c.left   = (sensor_width - zoom_width ) >> 1;
-    crop.c.top    = (sensor_height- zoom_height) >> 1;
-    crop.c.width  = zoom_width;
-    crop.c.height = zoom_height;
-
-    ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
-    if (ret < 0) {
-      LOGE("[%s]: ERROR VIDIOC_S_CROP failed\n", __func__);
-      return -1;
-    }
-
-    return 0;
-}
-
-#endif
-#if 0
-int CameraHal::ZoomPerform(int zoomFactor)
-{
-    struct v4l2_cropcap cropcap;
-    struct v4l2_crop crop;
-    int ret;
-    int prev_width, prev_height;
-    int zoom_left, zoom_top, zoom_width, zoom_height;
-
-    LOG_FUNCTION_NAME
-
-    zoomFactor =mzoom;
-    mParameters.getPreviewSize(&prev_width, &prev_height);
-
-    LOGD("Preview width=%d height=%d, zoomFactor: %d",prev_width,prev_height, zoomFactor);
-
-    if (zoomFactor < 1) {
-        LOGD("Warning, trying to set zoomFactor < 1");
-        zoomFactor = 1;
-    }
-    else if (zoomFactor > 4) {
-        LOGD("Warning, trying to set zoomFactor > 4");
-        zoomFactor = 4;
-    }
-
-    zoom_width = (prev_width * 10) / (zoomFactor* 10);
-	zoom_height = (prev_height * 10) / (zoomFactor* 10);
-    zoom_left = (prev_width - zoom_width) / 2;
-	zoom_top = (prev_height - zoom_height) / 2;
-#if 1
-    LOGD("Before VIDIOC_CROPCAP");
-	cropcap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	ret = ioctl(camera_device, VIDIOC_CROPCAP, &cropcap);
-	if (ret != 0) {
-		perror("VIDIOC_CROPCAP");
-		return -1;
-	}
-    LOGD("After VIDIOC_CROPCAP");
-#endif
-    
-    LOGD("Old Crop (%d, %d) (%d, %d)\n", crop.c.left, crop.c.top,crop.c.width, crop.c.height);
-
-    LOGD("Wanted Crop (%d, %d) (%d, %d)\n", zoom_left, zoom_top, zoom_width, zoom_height);
-
-    memset(&crop, 0, sizeof(crop));
-    crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    crop.c.left   = zoom_left;
-    crop.c.top    = zoom_top;
-    crop.c.width  = zoom_width;
-    crop.c.height = zoom_height;
-
-    LOGD("Before VIDIOC_S_CROP");
-    ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
-    if (ret < 0) {
-      LOGE("[%s]: ERROR VIDIOC_S_CROP failed\n", __func__);
-      return -1;
-    }
-    LOGD("After VIDIOC_S_CROP");
-
-    LOG_FUNCTION_NAME_EXIT
-
-    return 0;
-}
-#endif
 
 /************/
 #ifndef ICAP
@@ -1424,13 +1327,13 @@ int CameraHal::CapturePicture(){
 		yuv_buffer = pIPP.pIppOutputBuffer;
 	}
 	 
-	#if !( IPP_YUV422P )
+	#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
+		jpegFormat = YUV422;        
+		LOGD("YUV422 !!!!");
+	#else
 		yuv_len=  ((image_width * image_height *3)/2);
         jpegFormat = YUV420;
 		LOGD("YUV420 !!!!");
-	#else
-        jpegFormat = YUV422;
-		LOGD("YUV42 !!!!");
     #endif
 		
 	}
@@ -1456,9 +1359,9 @@ int CameraHal::CapturePicture(){
             mJpegPictureCallback(mJPEGPictureMemBase, mPictureCallbackCookie); 
         }
 
-#if PPM_INSTRUMENTATION
+
 		PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
-#endif	
+	
 
         mJPEGPictureMemBase.clear();		
         mJPEGPictureHeap.clear();
