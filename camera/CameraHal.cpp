@@ -972,13 +972,13 @@ void CameraHal::nextPreview()
     cb = mRecordingCallback;
 
     if(cb){
-
+        nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
 #if USE_MEMCOPY_FOR_VIDEO_FRAME
         for(int i = 0 ; i < VIDEO_FRAME_COUNT_MAX; i++ ){
             if(0 == mVideoBufferUsing[i]){
                 memcpy(mVideoBuffer[i]->pointer(),(void *)cfilledbuffer.m.userptr, mRecordingFrameSize);
                 mVideoBufferUsing[i] = 1;
-                cb(0, mVideoBuffer[i], mRecordingCallbackCookie);
+                cb(timeStamp, mVideoBuffer[i], mRecordingCallbackCookie);
                 break;
             }else {
                 LOGE("No Buffer Can be used!");
@@ -1004,7 +1004,7 @@ void CameraHal::nextPreview()
         if(overlaybufferindex != -1){
             LOGE("<Dqueue>... [index]=%d",cfilledbuffer.index);
             LOGE("<Recording>... [index]=%d",overlaybuffer);
-            cb(0, mVideoBuffer[(int)overlaybuffer], mRecordingCallbackCookie);
+            cb(timeStamp, mVideoBuffer[(int)overlaybuffer], mRecordingCallbackCookie);
         }
 #endif
     } 
