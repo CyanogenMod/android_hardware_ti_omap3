@@ -328,7 +328,7 @@ DBAPI DSPManager_RegisterObject(IN struct DSP_UUID *pUuid,
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION,
 		 (TEXT("MGR: DSPManager_RegisterObject\r\n")));
 
-	if ((pUuid == NULL) || (objType > DSP_DCDDELETELIBTYPE_PERSISTENT) ||
+	if ((pUuid == NULL) || (objType > DSP_DCDDELETELIBTYPE) ||
 	    (pszPathName == NULL)) {
 		status = DSP_EINVALIDARG;
 	}
@@ -371,7 +371,7 @@ DBAPI DSPManager_UnregisterObject(IN struct DSP_UUID *pUuid,
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION,
 		 (TEXT("MGR: DSPManager_RegisterObject\r\n")));
 
-	if ((pUuid == NULL) || (objType > DSP_DCDDELETELIBTYPE_PERSISTENT))
+	if ((pUuid == NULL) || (objType > DSP_DCDDELETELIBTYPE))
 		status = DSP_EINVALIDARG;
 
 
