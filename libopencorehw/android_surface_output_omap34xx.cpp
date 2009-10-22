@@ -99,11 +99,23 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
     if (mUseOverlay) {
         if(mOverlay == NULL){
             LOGV("using Vendor Specific(34xx) codec");
-            sp<OverlayRef> ref = mSurface->createOverlay(displayWidth, displayHeight, videoFormat);
-            if(ref != NULL) {
-                LOGV("Vendor Specific(34xx)MIO: overlay created ");
-            } else {
-                LOGV("Vendor Specific(34xx)MIO: Creating overlay failed");
+            sp<OverlayRef> ref = NULL;
+            // FIXME:
+            // Surfaceflinger may hold onto the previous overlay reference for some
+            // time after we try to destroy it. retry a few times. In the future, we
+            // should make the destroy call block, or possibly specify that we can
+            // wait in the createOverlay call if the previous overlay is in the
+            // process of being destroyed.
+            for (int retry = 0; retry < 50; ++retry) {
+                ref = mSurface->createOverlay(displayWidth, displayHeight, videoFormat);
+                if (ref != NULL) break;
+                LOGD("Overlay create failed - retrying");
+                usleep(100000);
+            }
+            if ( ref.get() == NULL )
+            {
+                LOGE("Overlay Creation Failed!");
+                return mInitialized;
             }
             mOverlay = new Overlay(ref);
             mOverlay->setParameter(CACHEABLE_BUFFERS, 0);
