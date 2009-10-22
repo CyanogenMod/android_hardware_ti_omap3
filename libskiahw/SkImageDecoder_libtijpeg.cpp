@@ -513,10 +513,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     OMX_CUSTOM_RESOLUTION MaxResolution;
     OMX_CONFIG_SCALEFACTORTYPE ScaleFactor;
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
-    char strTIJpegDec[] = "OMX.TI.JPEG.Decoder";
-    char strColorFormat[] = "OMX.TI.JPEG.decode.Config.OutputColorFormat";
-    char strProgressive[] = "OMX.TI.JPEG.decode.Config.ProgressiveFactor";
-    char strMaxResolution[] = "OMX.TI.JPEG.decode.Param.SetMaxResolution";
+    char strTIJpegDec[] = "OMX.TI.JPEG.decoder";
+    char strColorFormat[] = "OMX.TI.JPEG.decoder.Config.OutputColorFormat";
+    char strProgressive[] = "OMX.TI.JPEG.decoder.Config.ProgressiveFactor";
+    char strMaxResolution[] = "OMX.TI.JPEG.decoder.Param.SetMaxResolution";
 
     OMX_CALLBACKTYPE JPEGCallBack ={OMX_EventHandler, OMX_EmptyBufferDone, OMX_FillBufferDone};
 

@@ -190,7 +190,7 @@ bool JpegEncoder::StartFromLoadedState()
     int bitsPerPixel;
     int nMultFactor = 0;
     int nHeightNew, nWidthNew;
-    char strTIJpegEnc[] = "OMX.TI.JPEG.Encoder";
+    char strTIJpegEnc[] = "OMX.TI.JPEG.encoder";
     char strQFactor[] = "OMX.TI.JPEG.encoder.Config.QFactor";
 	char strColorFormat[] = "OMX.TI.JPEG.encoder.Config.ColorFormatConvertion_420pTo422i";
 

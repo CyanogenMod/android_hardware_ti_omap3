@@ -322,7 +322,7 @@ bool SkTIJPEGImageEncoder::encodeImage(void* outputBuffer, int outBuffSize, void
     int bitsPerPixel;
     int nMultFactor = 0;
     int nHeightNew, nWidthNew;
-    char strTIJpegEnc[] = "OMX.TI.JPEG.Encoder";
+    char strTIJpegEnc[] = "OMX.TI.JPEG.encoder";
     char strQFactor[] = "OMX.TI.JPEG.encoder.Config.QFactor";
 
     OMX_S32 nCompId = 300;
