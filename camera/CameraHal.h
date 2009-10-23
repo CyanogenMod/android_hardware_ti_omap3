@@ -404,14 +404,11 @@ private:
     // Video Frame Begin
     int                 mVideoBufferCount;
     sp<MemoryHeapBase>  mVideoHeap;
-    sp<MemoryHeapBase>  mVideoHeaps[VIDEO_FRAME_COUNT_MAX];
     sp<MemoryBase>      mVideoBuffer[VIDEO_FRAME_COUNT_MAX];
     v4l2_buffer         mfilledbuffer[VIDEO_FRAME_COUNT_MAX];
     unsigned long       mVideoBufferPtr[VIDEO_FRAME_COUNT_MAX];
     int                 mVideoBufferUsing[VIDEO_FRAME_COUNT_MAX];
     int                 mRecordingFrameCount;
-    void*               mPreviewBlocks[VIDEO_FRAME_COUNT_MAX];
-
     // ...
     autofocus_callback  mAutoFocusCallback;
     void *mAutoFocusCallbackCookie;

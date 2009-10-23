@@ -27,7 +27,6 @@
 int v4l2_overlay_open(int id);
 int v4l2_overlay_get_caps(int fd, struct v4l2_capability *caps);
 int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers);
-int v4l2_overlay_query_buffer(int fd, int index, struct v4l2_buffer *buf);
 int v4l2_overlay_map_buf(int fd, int index, void **start, size_t *len);
 int v4l2_overlay_unmap_buf(void *start, size_t len);
 int v4l2_overlay_stream_on(int fd);
@@ -54,11 +53,6 @@ enum {
   V4L2_OVERLAY_PLANE_VIDEO2,
 };
 
-typedef struct {
-    int fd;
-    size_t length;
-    uint32_t offset;
-    void *ptr;
-} mapping_data_t;
+
 
 #endif  // ANDROID_ZOOM_REPO_HARDWARE_TI_OMAP3_LIBOVERLAY_V4L2_UTILS_H_
