@@ -3332,7 +3332,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
         OMX_PRDSP4(pComponentPrivate->dbg, "LCML_InitMMCodec Failed!...\n");
         /*TODO: Validate eError from LCML_InitMMCodec for ResourceExhaustionTest */
         pComponentPrivate->bErrorLcmlHandle = OMX_TRUE;
-        OMX_CONF_SET_ERROR_BAIL(eError, OMX_ErrorInsufficientResources);
+        OMX_CONF_SET_ERROR_BAIL(eError, OMX_ErrorInvalidState);
     }
     pComponentPrivate->bCodecLoaded = OMX_TRUE;
     VIDENC_FREE(pCreatePhaseArgs, pMemoryListHead,
@@ -3680,7 +3680,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
         OMX_PRDSP4(pComponentPrivate->dbg, "LCML_InitMMCodec Failed!...\n");  
         /*TODO: Validate eError from LCML_InitMMCodec for ResourceExhaustionTest */
         pComponentPrivate->bErrorLcmlHandle = OMX_TRUE;
-        OMX_CONF_SET_ERROR_BAIL(eError, OMX_ErrorInsufficientResources);
+        OMX_CONF_SET_ERROR_BAIL(eError, OMX_ErrorInvalidState);
     }
     pComponentPrivate->bCodecLoaded = OMX_TRUE;
     VIDENC_FREE(pCreatePhaseArgs, pMemoryListHead,
