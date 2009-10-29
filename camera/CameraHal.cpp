@@ -640,7 +640,7 @@ status_t CameraHal::initAlgos()
 
 int CameraHal::CameraCreate()
 {
-    int err;
+    int err = 0;
 
     LOG_FUNCTION_NAME
 
@@ -785,9 +785,18 @@ int CameraHal::CameraStart()
       
 #if USE_NEW_OVERLAY
         mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress((void*)i);
+        if ( data == NULL ) {
+            LOGE(" getBufferAddress returned NULL");
+            goto fail_loop;
+        }
+
         v4l2_cam_buffer[i].m.userptr = (unsigned long) data->ptr;
 #else
         v4l2_cam_buffer[i].m.userptr = (unsigned long) mOverlay->getBufferAddress((void*)i);
+        if ( v4l2_cam_buffer[i].m.userptr == NULL ) {
+            LOGE(" getBufferAddress returned NULL");
+            goto fail_loop;
+        }
 #endif
         strcpy((char *)v4l2_cam_buffer[i].m.userptr, "hello");
         if (strcmp((char *)v4l2_cam_buffer[i].m.userptr, "hello")) {
@@ -1897,6 +1906,11 @@ status_t CameraHal::startRecording(recording_callback cb, void* user)
 
     overlay_true_handle_t true_handle;
 
+    if ( overlayhandle == NULL ) {
+        LOGD("overlayhandle is received as NULL. ");
+        return UNKNOWN_ERROR;
+    }
+
     memcpy(&true_handle,overlayhandle,sizeof(overlay_true_handle_t));
 
     int overlayfd = true_handle.ctl_fd;
@@ -2099,15 +2113,19 @@ status_t CameraHal::setParameters(const CameraParameters &params)
       
     LOGD("PreviewFormat %s", params.getPreviewFormat());
 
-    if (strcmp(params.getPreviewFormat(), "yuv422i") != 0) {
-        LOGE("Only yuv422i preview is supported");
-        return -1;
+    if ( params.getPreviewFormat() != NULL ) {
+        if (strcmp(params.getPreviewFormat(), "yuv422i") != 0) {
+            LOGE("Only yuv422i preview is supported");
+            return -1;
+        }
     }
     
     LOGD("PictureFormat %s", params.getPictureFormat());
-    if (strcmp(params.getPictureFormat(), "jpeg") != 0) {
-        LOGE("Only jpeg still pictures are supported");
-        return -1;
+    if ( params.getPictureFormat() != NULL ) {
+        if (strcmp(params.getPictureFormat(), "jpeg") != 0) {
+            LOGE("Only jpeg still pictures are supported");
+            return -1;
+        }
     }
 
     params.getPreviewSize(&w, &h);
