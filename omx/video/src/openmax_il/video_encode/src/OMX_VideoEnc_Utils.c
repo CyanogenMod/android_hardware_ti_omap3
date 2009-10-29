@@ -4084,21 +4084,34 @@ void CalculateBufferSize(OMX_PARAM_PORTDEFINITIONTYPE* pCompPort, VIDENC_COMPONE
 OMX_U32 GetMaxAVCBufferSize(OMX_U32 width, OMX_U32 height)
 {
     OMX_U32 MaxCPB;
+    OMX_U32 nMacroBlocks;
 
-	if(width<=176 && height<= 144)
+    /* Calculate output buffer size based on max possible CPB for the resolution
+       Output bitrate may not be set yet, so only resolution is taken into account */
+
+    nMacroBlocks = (width * height) / 256;
+
+    /* Following values are set based on Annex A of AVC Standard */
+    if(nMacroBlocks <= 99) {
         MaxCPB = 500;
-    else if(width<=352 && height<= 288)
+    }
+    else if(nMacroBlocks <= 396) {
         MaxCPB = 2000;
-    else if(width<=352 && height<= 576)
-        MaxCPB = 10000;
-    else if(width<=720 && height<= 576)
-        MaxCPB = 14000;
-    else if(width<=1280 && height<= 720)
-        MaxCPB = 62500;
+    }
+    else if(nMacroBlocks <= 792) {
+        MaxCPB = 4000;
+    }
+    else if(nMacroBlocks <= 1620) {
+        /* Note - Max bitrate in this case is assumed to max 4 Mbps to limit the buffer size
+           If bitrate in this particular case could be higher than 4 Mbps, increase MxCPB value */
+        MaxCPB = 4000;
+    }
     else
-        MaxCPB = 240000;
-    /*150(bytes) = 1200(bits)/8    SN release notes*/
-    return 150*MaxCPB;
+        MaxCPB = 14000;
+
+    /* MaxCPB are in units of 1200 bits i.e. 150 bytes */
+    /* Return  buffer size in bytes*/
+    return (150 * MaxCPB);
 }
 
 OMX_ERRORTYPE AddStateTransition(VIDENC_COMPONENT_PRIVATE* pComponentPrivate) {
