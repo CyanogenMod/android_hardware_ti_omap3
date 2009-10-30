@@ -382,6 +382,8 @@ typedef struct MP4VE_GPP_SN_UALGInputParams {
 	unsigned int   ulQPInter;           	/* default QP for P frame, range 1 to 31  */	
 	unsigned int   ulLastFrame;
 	unsigned int   ulcapturewidth;
+    unsigned int   ulQpMax;
+    unsigned int   ulQpMin;
 } MP4VE_GPP_SN_UALGInputParams;
 
 /* MPEG4/H263 Encoder DSP s/n run-time output parameters */
@@ -395,7 +397,7 @@ typedef struct MP4VE_GPP_SN_UALGOutputParams {
     unsigned char   ResyncData[4800];
 	#else
 	unsigned char   MVData[12960];
-    unsigned char   ResyncData[6480];
+    unsigned char   ResyncData[1620];
 	#endif
 } MP4VE_GPP_SN_UALGOutputParams;
 
