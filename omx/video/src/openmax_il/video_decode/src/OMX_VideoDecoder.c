@@ -2479,38 +2479,37 @@ static OMX_ERRORTYPE VIDDEC_ComponentDeInit(OMX_HANDLETYPE hComponent)
         OMX_ERROR4(pComponentPrivate->dbg, "Error returned from the Component\n");
     }
 
+    if (pComponentPrivate->pInternalConfigBufferAVC != NULL)
+      free(pComponentPrivate->pInternalConfigBufferAVC);
+
     for (iCount = 0; iCount < MAX_PRIVATE_BUFFERS; iCount++) {
-        if(pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[iCount]->bAllocByComponent == OMX_TRUE){
-            if(pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr != NULL) {
-                OMX_BUFFERHEADERTYPE* pBuffHead = NULL;
-                OMX_U8* pTemp = NULL;
-                pBuffHead = pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr;
-                if(pBuffHead->pBuffer != NULL){
-                    pTemp = (OMX_U8*)(pBuffHead->pBuffer);
-                    pTemp -= VIDDEC_PADDING_HALF;
-                    pBuffHead->pBuffer = (OMX_U8*)pTemp;
-                    free(pBuffHead->pBuffer);
-                    pBuffHead->pBuffer = NULL;
-                    pTemp = NULL;
+        if(pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr != NULL) {
+            OMX_BUFFERHEADERTYPE* pBuffHead = NULL;
+            pBuffHead = pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr;
+            if(pBuffHead != NULL){
+                if(pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[iCount]->bAllocByComponent == OMX_TRUE){
+                    OMX_MEMFREE_STRUCT_DSPALIGN(pBuffHead->pBuffer,OMX_U8);
                 }
+                free(pBuffHead);
+                pBuffHead = NULL;
+                pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr = NULL;
             }
         }
     }
 
+
     for (iCount = 0; iCount < MAX_PRIVATE_BUFFERS; iCount++) {
-        if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->bAllocByComponent == OMX_TRUE){
-            if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr != NULL) {
-                OMX_BUFFERHEADERTYPE* pBuffHead = NULL;
-                OMX_U8* pTemp = NULL;
-                pBuffHead = pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr;
-                if(pBuffHead->pBuffer != NULL){
-                    pTemp = (OMX_U8*)(pBuffHead->pBuffer);
-                    pTemp -= VIDDEC_PADDING_HALF;
-                    pBuffHead->pBuffer = (OMX_U8*)pTemp;
-                    free(pBuffHead->pBuffer);
-                    pBuffHead->pBuffer = NULL;
-                    pTemp = NULL;
+        if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr != NULL) {
+            OMX_BUFFERHEADERTYPE* pBuffHead = NULL;
+            OMX_U8* pTemp = NULL;
+            pBuffHead = pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr;
+            if(pBuffHead != NULL){
+                if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->bAllocByComponent == OMX_TRUE){
+                    OMX_MEMFREE_STRUCT_DSPALIGN(pBuffHead->pBuffer,OMX_U8);
                 }
+                free(pBuffHead);
+                pBuffHead = NULL;
+                pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr = NULL;
             }
         }
     }
@@ -2991,19 +2990,11 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     if (pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4 ||
         pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
         if (nPortIndex == pComponentPrivate->pInPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         }
         else if (nPortIndex == pComponentPrivate->pOutPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         }
         else {
@@ -3014,19 +3005,11 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
 #ifdef VIDDEC_SPARK_CODE
     else if (VIDDEC_SPARKCHECK) {
         if (nPortIndex == pComponentPrivate->pInPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         }
         else if (nPortIndex == pComponentPrivate->pOutPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         }
         else {
@@ -3037,19 +3020,11 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
 #endif
     else if (pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG2) {
         if (nPortIndex == pComponentPrivate->pInPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         } 
         else if (nPortIndex == pComponentPrivate->pOutPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         }
         else {
@@ -3059,19 +3034,11 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     }
     else if (pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
         if (nPortIndex == pComponentPrivate->pInPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         } 
         else if (nPortIndex == pComponentPrivate->pOutPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         }
         else {
@@ -3081,19 +3048,11 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     }
     else if (pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingWMV) {
         if (nPortIndex == pComponentPrivate->pInPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         }
         else if (nPortIndex == pComponentPrivate->pOutPortFormat->nPortIndex) {
-            pTemp = (OMX_U8*)(pBufferPrivate->pUalgParam);
-            pTemp -= VIDDEC_PADDING_HALF;
-            pBufferPrivate->pUalgParam = (OMX_PTR*)pTemp;
-            free(pBufferPrivate->pUalgParam);
-            pBufferPrivate->pUalgParam = NULL;
+            OMX_MEMFREE_STRUCT_DSPALIGN(pBufferPrivate->pUalgParam,OMX_PTR);
             pBufferPrivate->nUalgParamSize = 0;
         }
         else {
