@@ -2789,9 +2789,9 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledOutBuf(VIDENC_COMPONENT_PRIVATE* pCompone
 
             pBufHead->pMarkData = NULL;
             pBufHead->hMarkTargetComponent = NULL;
-            pBufHead->nTickCount = 0;
-            pBufHead->nTimeStamp = 0;
             pBufHead->nFlags = 0;
+            pBufHead->nTickCount = pComponentPrivate->sCircularBuffer.pHead->nTickCount;
+            pBufHead->nTimeStamp = pComponentPrivate->sCircularBuffer.pHead->nTimeStamp;
         }
             else
             {
