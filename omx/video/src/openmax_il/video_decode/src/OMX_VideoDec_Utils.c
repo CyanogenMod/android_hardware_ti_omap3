@@ -6959,7 +6959,7 @@ OMX_ERRORTYPE VIDDEC_InitDSP_WMVDec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate)
         eError = LCML_InitMMCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle, NULL, &pLcmlHandle, NULL, &cb);
         if (eError != OMX_ErrorNone) {
             OMX_PRDSP4(pComponentPrivate->dbg, "LCML_InitMMCodec Failed!...%x\n",eError);
-            eError = OMX_ErrorHardware;
+            eError = OMX_ErrorInvalidState;
             goto EXIT;
         }
     }
@@ -7149,7 +7149,7 @@ OMX_ERRORTYPE VIDDEC_InitDSP_H264Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate
         eError = LCML_InitMMCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle, NULL, &pLcmlHandle, NULL, &cb);
         if (eError != OMX_ErrorNone) {
             OMX_PRDSP4(pComponentPrivate->dbg, "LCML_InitMMCodec Failed!...%x\n",eError);
-            eError = OMX_ErrorHardware;
+            eError = OMX_ErrorInvalidState;
             goto EXIT;
         }
     }
@@ -7330,7 +7330,7 @@ OMX_ERRORTYPE VIDDEC_InitDSP_Mpeg4Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivat
         eError = LCML_InitMMCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle, NULL, &pLcmlHandle, NULL, &cb);
         if (eError != OMX_ErrorNone) {
             OMX_PRDSP4(pComponentPrivate->dbg, "LCML_InitMMCodec Failed!...%x\n",eError);
-            eError = OMX_ErrorHardware;
+            eError = OMX_ErrorInvalidState;
             goto EXIT;
         }
     }
@@ -7507,7 +7507,7 @@ OMX_ERRORTYPE VIDDEC_InitDSP_Mpeg2Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivat
         eError = LCML_InitMMCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle, NULL, &pLcmlHandle, NULL, &cb);
         if (eError != OMX_ErrorNone) {
             OMX_PRDSP4(pComponentPrivate->dbg, "LCML_InitMMCodec Failed!...%x\n",eError);
-            eError = OMX_ErrorHardware;
+            eError = OMX_ErrorInvalidState;
             goto EXIT;
         }
     }
@@ -7694,7 +7694,7 @@ OMX_ERRORTYPE VIDDEC_InitDSP_SparkDec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivat
         eError = LCML_InitMMCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle, NULL, &pLcmlHandle, NULL, &cb);
         if (eError != OMX_ErrorNone) {
             OMX_PRDSP4(pComponentPrivate->dbg, "LCML_InitMMCodec Failed!...%x\n",eError);
-            eError = OMX_ErrorHardware;
+            eError = OMX_ErrorInvalidState;
             goto EXIT;
         }
     }
@@ -8470,6 +8470,16 @@ OMX_ERRORTYPE VIDDEC_LoadCodec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate)
                                                OMX_EventError,
                                                OMX_ErrorUnsupportedSetting,
                                                OMX_TI_ErrorMinor,
+                                               "DSP Initialization");
+        goto EXIT;
+    }
+    if (eError != OMX_ErrorNone){
+        OMX_PRDSP4(pComponentPrivate->dbg, "LCML Error %x\n", pComponentPrivate->eState);
+        pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+                                               pComponentPrivate->pHandle->pApplicationPrivate,
+                                               OMX_EventError,
+                                               eError,
+                                               OMX_TI_ErrorSevere,
                                                "DSP Initialization");
         goto EXIT;
     }

@@ -152,7 +152,7 @@ OSCL_EXPORT_REF OMX_BOOL TIOMXConfigParser(
             
             if ((aInputs.iMimeType == PVMF_MIME_M4V) || (aInputs.iMimeType == PVMF_MIME_H264_VIDEO))
             {
-                Status = ti_video_config_parser((tiVideoConfigParserInputs *)&aInputs, (tiVideoConfigParserOutputs *)aOutputParameters);
+                Status = ti_video_config_parser((tiVideoConfigParserInputs *)&aInputs, (tiVideoConfigParserOutputs *)aOutputParameters, pInputs->cComponentName);
             }
             else
             {
