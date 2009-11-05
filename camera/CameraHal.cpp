@@ -1593,7 +1593,11 @@ void CameraHal::vppThread(){
 				
                 LOGD("lastOverlayBufferDQ=%d",lastOverlayBufferDQ);
 
-				snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayBufferDQ) );
+				mapping_data_t* data = (mapping_data_t*)mOverlay->getBufferAddress( (void*)(lastOverlayBufferDQ) );		
+                if ( data == NULL ) {
+                    LOGE(" getBufferAddress returned NULL");
+                }
+				snapshot_buffer = (void*)data->ptr;
 	
 				PPM("Before vpp downscales:"); 
 				status = scale_process(yuv_buffer, image_width, image_height,
