@@ -33,6 +33,7 @@ LOCAL_C_INCLUDES += \
 	hardware/ti/omap3/dspbridge/api/inc \
 	hardware/ti/omx/system/src/openmax_il/lcml/inc \
 	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
+	hardware/ti/omx/system/src/openmax_il/common/inc	
 	
 LOCAL_CFLAGS += -O0 -g3 -fpic -fstrict-aliasing -DIPP_LINUX -D___ANDROID___ -DHARDWARE_OMX
 
