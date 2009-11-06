@@ -2702,6 +2702,9 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledInBuf(VIDENC_COMPONENT_PRIVATE* pComponen
         ((MP4VE_GPP_SN_UALGInputParams*)pUalgInpParams)->ulQPInter           = 8;
 		((MP4VE_GPP_SN_UALGInputParams*)pUalgInpParams)->ulLastFrame         = 0;
 		((MP4VE_GPP_SN_UALGInputParams*)pUalgInpParams)->ulcapturewidth      = 0;
+        ((MP4VE_GPP_SN_UALGInputParams*)pUalgInpParams)->ulQpMax             = 31;
+        ((MP4VE_GPP_SN_UALGInputParams*)pUalgInpParams)->ulQpMin             = 2;
+
         ++pComponentPrivate->nFrameCnt;
         OMX_PRDSP1(pComponentPrivate->dbg,
                    "TargetFrameRate -> %d\n\
