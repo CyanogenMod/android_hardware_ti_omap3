@@ -876,6 +876,15 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
 
                 if(eError != OMX_ErrorNone) {
                     OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error returned from LCML_Init()\n",__LINE__);
+                    /* send an event to client */
+                    /* client should unload the component if the codec is not able to load */
+                    eError = OMX_ErrorInvalidState;
+                    pComponentPrivate->cbInfo.EventHandler (pHandle,
+                                                            pHandle->pApplicationPrivate,
+                                                            OMX_EventError,
+                                                            eError,
+                                                            OMX_TI_ErrorSevere,
+                                                            NULL);
                     goto EXIT;
                 }
 
