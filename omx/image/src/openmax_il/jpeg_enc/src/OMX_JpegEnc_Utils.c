@@ -591,6 +591,7 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
     lcml_dsp->Alignment = 0;
     lcml_dsp->Priority = 5;
 
+#ifdef __JPEG_OMX_PPLIB_ENABLED__
       if ((pPortDefIn->format.image.nFrameHeight * pPortDefIn->format.image.nFrameWidth) <= (352*288)) {
           lcml_dsp->ProfileID = 2 ;
       }
@@ -621,6 +622,10 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
       else {
           lcml_dsp->ProfileID = 10;
       }
+#else
+    lcml_dsp->ProfileID = 1;
+#endif
+
 
     /* CrPhArgs for JpegEnc */
     ptCreateString[0] = JPGENC_SNTEST_STRMCNT;
