@@ -21,6 +21,11 @@
 #include "oscl_base.h"
 #include "oscl_types.h"
 #include "pvmf_format_type.h"
+#include "oscl_stdstring.h"
+
+#define WVGA_MAX_WIDTH 864
+#define WVGA_MAX_HEIGHT WVGA_MAX_WIDTH
+#define TI_VID_DEC "OMX.TI.Video.Decoder"
 
 typedef struct
 {
@@ -39,7 +44,8 @@ typedef struct _tiVideoConfigParserOutputs
 
 OSCL_IMPORT_REF int16 ti_video_config_parser(
 	tiVideoConfigParserInputs *aInputs, 
-	tiVideoConfigParserOutputs *aOutputs);
+	tiVideoConfigParserOutputs *aOutputs,
+    char * pComponentName);
 
 #endif //TI_VIDEO_CONFIG_PARSER_H_INCLUDED
 
