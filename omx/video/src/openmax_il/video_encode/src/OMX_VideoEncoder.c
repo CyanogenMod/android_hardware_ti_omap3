@@ -618,6 +618,7 @@ sDynamicFormat = getenv("FORMAT");
     /* Set the default value of the run-time Target Frame Rate to the create-time Frame Rate */
     pComponentPrivate->nTargetFrameRate = pPortDef->format.video.xFramerate;  
 
+    /* Calculate default input buffer size */
     CalculateBufferSize(pPortDef, pComponentPrivate);
     pComponentPrivate->nInBufferSize = 0;
 
@@ -683,6 +684,7 @@ sDynamicFormat = getenv("FORMAT");
     /* Set the default value of the run-time Target Bit Rate to the create-time Bit Rate */
     pComponentPrivate->nTargetBitRate = pPortDef->format.video.nBitrate;    
 
+    /* Calculate default output buffer size */
     CalculateBufferSize(pPortDef, pComponentPrivate);
     pComponentPrivate->nOutBufferSize = 0;
 
@@ -1866,6 +1868,7 @@ static OMX_ERRORTYPE SetParameter (OMX_IN OMX_HANDLETYPE hComponent,
                                            pComponentPrivate->dbg, OMX_TRACE4,
                                            "Failed to copy parameter.\n");
                 }
+                /* Calculate input buffer size based on these port settings */
                 CalculateBufferSize(pCompPortIn->pPortDef, pComponentPrivate);
             }
             else if (pComponentParam->nPortIndex == pCompPortOut->pPortDef->nPortIndex)
@@ -1879,6 +1882,7 @@ static OMX_ERRORTYPE SetParameter (OMX_IN OMX_HANDLETYPE hComponent,
                                            pComponentPrivate->dbg, OMX_TRACE4,
                                            "Failed to copy parameter.\n");
                 }
+                /* Calculate output buffer size based on these port settings */
                 CalculateBufferSize(pCompPortOut->pPortDef, pComponentPrivate);
             }
             else
