@@ -21,6 +21,9 @@
 #ifndef OMX_VIDDEC_UTILS__H
 #define OMX_VIDDEC_UTILS__H
 
+#define newmalloc(x) malloc(x)
+#define newfree(z) free(z)
+
 #ifdef ANDROID
 /* Log for Android system*/
 #include <utils/Log.h>
