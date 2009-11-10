@@ -467,7 +467,7 @@ int v4l2_overlay_set_colorkey(int fd,  int enable, int colorkey)
     return 0;
 }
 
-int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers)
+int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers, int maintain_coherency)
 {
     LOG_FUNCTION_NAME
 
@@ -476,7 +476,7 @@ int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers)
     reqbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     reqbuf.memory = V4L2_MEMORY_MMAP;
     reqbuf.count = *num_bufs;
-    reqbuf.reserved[0] = cacheable_buffers; /*0= NON cacheable_buffers;*/
+    reqbuf.reserved[0] = cacheable_buffers | maintain_coherency; /*0= NON cacheable_buffers;*/
     ret = ioctl(fd, VIDIOC_REQBUFS, &reqbuf);
     if (ret < 0) {
         error(fd, "reqbuf ioctl");

@@ -116,6 +116,7 @@ struct overlay_data_context_t {
     overlay_shared_t *shared;
     mapping_data_t    *mapping_data;    
     int cacheable_buffers;
+    int maintain_coherency;
 };
 
 static int  create_shared_data( overlay_shared_t **shared );
@@ -542,7 +543,7 @@ static overlay_t* overlay_createOverlay
         close( fd );
         destroy_shared_data( shared_fd, shared );
     }
-    else if ( v4l2_overlay_req_buf(fd, &num, 0) != 0 )
+    else if ( v4l2_overlay_req_buf(fd, &num, 0, 1) != 0 )
     {
         LOGE("Failed requesting buffers\n");
         close( fd );
@@ -969,6 +970,7 @@ int overlay_initialize
     ctx->shared_size  = handle_shared_size(handle);
     ctx->shared       = NULL;
     ctx->cacheable_buffers = 0;
+    ctx->maintain_coherency = 1;    
     
     if ( fstat(ctx->ctl_fd, &stat) )
     {
@@ -1123,7 +1125,7 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
             close(ctx->ctl_fd);
             ret = rc;
         }
-        else if ((rc = v4l2_overlay_req_buf(ctx->ctl_fd, (uint32_t *)(&ctx->num_buffers), ctx->cacheable_buffers)) != 0)
+        else if ((rc = v4l2_overlay_req_buf(ctx->ctl_fd, (uint32_t *)(&ctx->num_buffers), ctx->cacheable_buffers, ctx->maintain_coherency)) != 0)
         {
             LOGE("Error creating buffers");
             ret = rc;
@@ -1178,6 +1180,10 @@ static int overlay_setAttributes
     case CACHEABLE_BUFFERS:
         ctx->cacheable_buffers = value;
         break;
+    case MAINTAIN_COHERENCY:
+        ctx->maintain_coherency = value;
+        break;
+        
     }
 	
     //ret = v4l2_overlay_set_attributes(ctx->ctl_fd, param, value);

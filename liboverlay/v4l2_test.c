@@ -121,7 +121,7 @@ static void play(uint32_t video_pipeline, uint32_t src_w, uint32_t src_h, uint32
         printf("Set Position Failed!\n");
         goto EXIT;
     }
-    if ( v4l2_overlay_req_buf(fd, &num_bufs, 0) != 0 )
+    if ( v4l2_overlay_req_buf(fd, &num_bufs, 0, 1) != 0 )
     {
         printf("Failed requesting buffers\n");
         goto EXIT;

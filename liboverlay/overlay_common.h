@@ -26,7 +26,7 @@
 
 /* Used in setAttributes */
 #define CACHEABLE_BUFFERS 0x1
-
+#define MAINTAIN_COHERENCY 0x2
 
 
 #endif  // OVERLAY_COMMON_H_

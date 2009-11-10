@@ -28,6 +28,8 @@
 #define USE_MEMCOPY_FOR_VIDEO_FRAME 0
 #define USE_NEW_OVERLAY 1
 
+#define RES_720P    1280
+
 namespace android {
 /*****************************************************************************/
 
@@ -1801,6 +1803,8 @@ LOGD("IPP Evaluate IPP pIPP.hIPP=%p",pIPP.hIPP);
 
 status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
 {
+    int w,h;
+
     Mutex::Autolock lock(mLock);
 
     LOGD("CameraHal setOverlay/1/%08lx/%08lx", (long unsigned int)overlay.get(), (long unsigned int)mOverlay.get());
@@ -1825,6 +1829,15 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
         return NO_ERROR;
     }
 
+    mParameters.getPreviewSize(&w, &h);
+
+    if ((w == RES_720P) || (h == RES_720P))
+    {
+        mOverlay->setAttributes(CACHEABLE_BUFFERS, 1);
+        mOverlay->setAttributes(MAINTAIN_COHERENCY, 0);    
+        mOverlay->resizeInput(w, h);
+    }
+    
     // Restart the preview (Only for Overlay Case)
     LOGD("Restart the preview ");
     startPreview(NULL,NULL);
