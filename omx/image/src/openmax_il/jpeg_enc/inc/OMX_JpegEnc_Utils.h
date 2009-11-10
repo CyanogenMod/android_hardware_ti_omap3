@@ -241,8 +241,8 @@ typedef struct IDMJPGE_TIGEM_DynamicParams {
     IDMJPGE_TIGEM_CustomQuantTables *quantTable;
 } IDMJPGE_TIGEM_DynamicParams;
 
-
-#define __JPEG_OMX_PPLIB_ENABLED__
+/* PPLIB not needed if the the input to jpeg encoder is yuv. Uncomment the next line if PPLIB is needed */
+/* #define __JPEG_OMX_PPLIB_ENABLED__ */
 
 #ifdef __JPEG_OMX_PPLIB_ENABLED__
 #define OMX_JPEGENC_NUM_DLLS (5)
