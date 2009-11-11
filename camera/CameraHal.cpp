@@ -1935,6 +1935,7 @@ status_t CameraHal::startRecording(recording_callback cb, void* user)
         mVideoHeap.clear();
         for(i = 0; i < mVideoBufferCount; i++)
         {
+            mVideoHeaps[i].clear();
             mVideoBuffer[i].clear();
         }
         LOGD("Mmap the video Memory %d", mPreviewFrameSize);
