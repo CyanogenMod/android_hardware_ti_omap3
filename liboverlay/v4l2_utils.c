@@ -476,7 +476,8 @@ int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers, int 
     reqbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     reqbuf.memory = V4L2_MEMORY_MMAP;
     reqbuf.count = *num_bufs;
-    reqbuf.reserved[0] = cacheable_buffers | maintain_coherency; /*0= NON cacheable_buffers;*/
+    reqbuf.reserved[0] = cacheable_buffers | (maintain_coherency << 1); /* Bit 0 = cacheable_buffers, Bit 1 = maintain_coherency */
+    LOGD("reqbuf.reserved[0] = %x", reqbuf.reserved[0]);
     ret = ioctl(fd, VIDIOC_REQBUFS, &reqbuf);
     if (ret < 0) {
         error(fd, "reqbuf ioctl");
