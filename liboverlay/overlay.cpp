@@ -120,7 +120,7 @@ struct overlay_data_context_t {
 };
 
 static int  create_shared_data(overlay_shared_t **shared);
-static void destroy_shared_data(int shared_fd, overlay_shared_t *shared);
+static void destroy_shared_data(int shared_fd, overlay_shared_t *shared, bool closefd);
 static int  open_shared_data(overlay_data_context_t *ctx);
 static void close_shared_data(overlay_data_context_t *ctx);
 enum { LOCK_REQUIRED = 1, NO_LOCK_NEEDED = 0 };
@@ -276,7 +276,7 @@ static int create_shared_data(overlay_shared_t **shared)
     return fd;
 }
 
-static void destroy_shared_data( int shared_fd, overlay_shared_t *shared )
+static void destroy_shared_data( int shared_fd, overlay_shared_t *shared, bool closefd )
 {
     if (shared == NULL)
         return;
@@ -295,7 +295,7 @@ static void destroy_shared_data( int shared_fd, overlay_shared_t *shared )
         LOGE("Failed to Unmap Overlay Shared Data!\n");
     }
 
-    if (close(shared_fd)) {
+    if (closefd && close(shared_fd)) {
         LOGE("Failed to Close Overlay Shared Data!\n");
     }
 }
@@ -332,7 +332,7 @@ static int open_shared_data( overlay_data_context_t *ctx )
 
 static void close_shared_data(overlay_data_context_t *ctx)
 {
-    destroy_shared_data(ctx->shared_fd, ctx->shared);
+    destroy_shared_data(ctx->shared_fd, ctx->shared, false);
     ctx->shared = NULL;
 }
 
@@ -486,7 +486,7 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
 error1:
     close(fd);
 error:
-    destroy_shared_data(shared_fd, shared);
+    destroy_shared_data(shared_fd, shared, true);
     return NULL;
 }
 
@@ -514,7 +514,7 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
 
     pthread_mutex_unlock(&shared->lock);
 
-    destroy_shared_data(obj->shared_fd(), shared);
+    destroy_shared_data(obj->shared_fd(), shared, true);
     obj->setShared(NULL);
 
     LOGI("Destroying overlay/fd=%d/obj=%08lx", fd, (unsigned long)overlay);
