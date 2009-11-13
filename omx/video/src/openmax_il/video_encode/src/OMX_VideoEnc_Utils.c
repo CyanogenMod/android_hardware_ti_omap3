@@ -4077,7 +4077,7 @@ void CalculateBufferSize(OMX_PARAM_PORTDEFINITIONTYPE* pCompPort, VIDENC_COMPONE
                                     pCompPort->format.video.nFrameHeight / 2;
         }
         pCompPort->nBufferSize += 256;
-        OMX_ERROR5(pCompPrivate->dbg, "*The output buffer size is %lu. WIDTH=%lu HEIGHT=%lu FORMAT %d\n", pCompPort->nBufferSize, pCompPort->format.video.nFrameWidth, pCompPort->format.video.nFrameHeight, pCompPort->format.video.eCompressionFormat);
+        OMX_ERROR5(pCompPrivate->dbg, "*The output buffer size is %lu and number of buffer is %lu. WIDTH=%lu HEIGHT=%lu FORMAT %d\n", pCompPort->nBufferSize, pCompPort->nBufferCountActual, pCompPort->format.video.nFrameWidth, pCompPort->format.video.nFrameHeight, pCompPort->format.video.eCompressionFormat);
     }
 }
 
