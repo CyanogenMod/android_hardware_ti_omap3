@@ -1821,6 +1821,7 @@ OMX_ERRORTYPE VIDDEC_DisablePort (VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, O
                 pComponentPrivate->sInSemaphore.bSignaled) {
                 VIDDEC_PTHREAD_SEMAPHORE_WAIT(pComponentPrivate->sInSemaphore);
             }
+
             OMX_PRBUFFER2(pComponentPrivate->dbg, "Populated VIDDEC_INPUT_PORT IN 0x%x\n",pComponentPrivate->pInPortDef->bPopulated);
             pComponentPrivate->bInPortSettingsChanged = OMX_FALSE;
             pComponentPrivate->cbInfo.EventHandler (pComponentPrivate->pHandle,
@@ -5354,6 +5355,12 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                         memcpy (pComponentPrivate->pCodecData, pBuffHead->pBuffer + pBuffHead->nOffset, pBuffHead->nFilledLen);
 #endif
                         pComponentPrivate->nCodecDataSize = pBuffHead->nFilledLen;
+                        if(pComponentPrivate->nCodecDataSize > VIDDEC_WMV_BUFFER_OFFSET){
+                            OMX_ERROR4(pComponentPrivate->dbg, "Insufficient space in buffer pbuffer %p - nCodecDataSize %u\n",
+                                (void *)pBuffHead->pBuffer,pComponentPrivate->nCodecDataSize);
+                            eError = OMX_ErrorStreamCorrupt;
+                            goto EXIT;
+                        }
 #ifdef VIDDEC_ACTIVATEPARSER
                         eError = VIDDEC_ParseHeader( pComponentPrivate, pBuffHead);
 #endif
@@ -5375,40 +5382,9 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                         return OMX_ErrorNone;
                    }
                    else {
-                        OMX_S32 nDifference = 0;
-                        OMX_U8* pTempBuffer = NULL;
+			/* VC-1: First data buffer received, add configuration data to it*/
                         pComponentPrivate->bFirstHeader = OMX_TRUE;
-#ifdef VIDDEC_WMVPOINTERFIXED
-                        pTempBuffer = pBuffHead->pBuffer;
-#else
-                        pTempBuffer = pBuffHead->pBuffer + pBuffHead->nOffset;
-#endif
-                        (*(--pTempBuffer)) = 0x0d;
-                        (*(--pTempBuffer)) = 0x01;
-                        (*(--pTempBuffer)) = 0x00;
-                        (*(--pTempBuffer)) = 0x00;
-                        pTempBuffer -= pComponentPrivate->nCodecDataSize;
-#ifdef VIDDEC_WMVPOINTERFIXED                        
-                        nDifference = pBuffHead->pBuffer - pTempBuffer;
-#else
-                        nDifference = pTempBuffer - pBuffHead->pBuffer;
-#endif
-                        if (nDifference < 0) {
-                            OMX_ERROR4(pComponentPrivate->dbg, "Insufficient space in buffer pbuffer %p - nOffset %p\n",
-                                (void *)pBuffHead->pBuffer,(void *)pBuffHead->nOffset);
-                            eError = OMX_ErrorStreamCorrupt;
-                            goto EXIT;
-                        }
-                        memcpy (pTempBuffer, pComponentPrivate->pCodecData, pComponentPrivate->nCodecDataSize);
-                        pBuffHead->nFilledLen += pComponentPrivate->nCodecDataSize + 4;
-#ifdef VIDDEC_WMVPOINTERFIXED
-                        pBuffHead->pBuffer = pTempBuffer;
-                        pBuffHead->nOffset = 0;
-#else
-                        pBuffHead->nOffset = pTempBuffer - pBuffHead->pBuffer;
-#endif
-                        OMX_PRBUFFER1(pComponentPrivate->dbg, "pTempBuffer %p - pBuffHead->pBuffer %p - pBuffHead->nOffset %lx\n",
-                            pTempBuffer,pBuffHead->pBuffer,pBuffHead->nOffset);
+                        OMX_WMV_INSERT_CODEC_DATA(pBuffHead, pComponentPrivate);
                         eError = OMX_ErrorNone;
                     }
                 }
@@ -8970,7 +8946,7 @@ OMX_ERRORTYPE VIDDEC_Set_Debocking(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate)
         /* Disable if resolution higher than D1 NTSC (720x480) */
         if(pComponentPrivate->pOutPortDef->format.video.nFrameWidth > 480 || 
                 pComponentPrivate->pOutPortDef->format.video.nFrameHeight > 480){
-           bDisDeblocking = OMX_TRUE; 
+           bDisDeblocking = OMX_TRUE;
            LOGD("D1 or higher resolution: Disable Deblocking!!");
         }
     }
