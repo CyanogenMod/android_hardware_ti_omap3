@@ -22,6 +22,11 @@ ifeq ($(PERF_INSTRUMENTATION),1)
 TI_OMX_CFLAGS += -D__PERF_INSTRUMENTATION__
 endif
 
+ifeq ($(BUILD_WITH_TI_AUDIO),1)
+TI_OMX_CFLAGS += -DBUILD_WITH_TI_AUDIO
+BUILD_WMA_DECODER := 1
+endif
+
 TI_OMX_TOP := $(LOCAL_PATH)
 TI_OMX_SYSTEM := $(TI_OMX_TOP)/system/src/openmax_il
 TI_OMX_VIDEO := $(TI_OMX_TOP)/video/src/openmax_il

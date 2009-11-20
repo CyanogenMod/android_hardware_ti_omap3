@@ -920,7 +920,6 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 
     OMX_STATETYPE eIdleToLoad;
     OMX_STATETYPE eExecuteToIdle;
-    OMX_BOOL iEndofInputSent;
     OMX_BOOL bPipeCleaned;
     OMX_BOOL bFirstBuffer;
 

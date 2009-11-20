@@ -927,8 +927,6 @@ typedef struct WMADEC_COMPONENT_PRIVATE
 
     struct OMX_TI_Debug dbg;        
 
-    OMX_BUFFERHEADERTYPE *lastout;
-
 } WMADEC_COMPONENT_PRIVATE;
 /* ===========================================================  */
 /**

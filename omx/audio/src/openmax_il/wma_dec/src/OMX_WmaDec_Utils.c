@@ -2291,11 +2291,6 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
 
             for (i=0; i < pComponentPrivate_CC->pOutputBufferList->numBuffers; i++) {
                 if (WMADEC_IsPending(pComponentPrivate_CC,pComponentPrivate_CC->pOutputBufferList->pBufHdr[i],OMX_DirOutput)) {
-                    pComponentPrivate_CC->lastout = pComponentPrivate_CC->pOutputBufferList->pBufHdr[i];
-                }
-            }
-            for (i=0; i < pComponentPrivate_CC->pOutputBufferList->numBuffers; i++) {
-                if (WMADEC_IsPending(pComponentPrivate_CC,pComponentPrivate_CC->pOutputBufferList->pBufHdr[i],OMX_DirOutput)) {
 #ifdef __PERF_INSTRUMENTATION__
                     PERF_SendingFrame(pComponentPrivate_CC->pPERFcomp,
                                       PREF(pComponentPrivate_CC->pOutputBufferList->pBufHdr[i], pBuffer),
@@ -2303,9 +2298,9 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
                                       PERF_ModuleHLMM);
 #endif
                     pComponentPrivate_CC->pOutputBufferList->pBufHdr[i]->nFilledLen = 0;
-                    if(pComponentPrivate_CC->lastout == pComponentPrivate_CC->pOutputBufferList->pBufHdr[i]){
-                        pComponentPrivate_CC->pOutputBufferList->pBufHdr[i]->nFlags |= OMX_BUFFERFLAG_EOS;
-                    }
+
+                    pComponentPrivate_CC->pOutputBufferList->pBufHdr[i]->nFlags |= OMX_BUFFERFLAG_EOS;
+
                     pComponentPrivate_CC->cbInfo.FillBufferDone (pComponentPrivate_CC->pHandle,
                                                                  pComponentPrivate_CC->pHandle->pApplicationPrivate,
                                                                  pComponentPrivate_CC->pOutputBufferList->pBufHdr[i]);
@@ -2347,7 +2342,6 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
 #endif              
             }
         }
-        pComponentPrivate_CC->first_buffer = 1;
     }
     
     if(event == EMMCodecDspMessageRecieved) {

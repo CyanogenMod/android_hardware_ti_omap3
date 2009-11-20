@@ -58,7 +58,7 @@ char *tComponentName[MAXCOMP][2] = {
     {"OMX.TI.Video.Decoder", "video_decoder.avc"},
     //{"OMX.TI.Video.Decoder", "video_decoder.mpeg2"},
     {"OMX.TI.Video.Decoder", "video_decoder.mpeg4"},
-    //{"OMX.TI.Video.Decoder", "video_decoder.wmv"},
+    {"OMX.TI.Video.Decoder", "video_decoder.wmv"},
     {"OMX.TI.Video.encoder", "video_encoder.mpeg4"},
     {"OMX.TI.Video.encoder", "video_encoder.h263"},
     {"OMX.TI.Video.encoder", "video_encoder.avc"},
@@ -90,7 +90,11 @@ char *tComponentName[MAXCOMP][2] = {
     //{"OMX.TI.AAC.decode", "audio_decoder.aac"},
 /*  {"OMX.TI.PCM.encode", NULL},
     {"OMX.TI.PCM.decode", NULL},
+*/
+#ifdef BUILD_WITH_TI_AUDIO
     {"OMX.TI.WMA.decode", "audio_decoder.wma"},
+#endif
+/*
     {"OMX.TI.RAG.decode", "audio_decoder.ra"},
     {"OMX.TI.IMAADPCM.decode", NULL},
     {"OMX.TI.IMAADPCM.encode", NULL},
