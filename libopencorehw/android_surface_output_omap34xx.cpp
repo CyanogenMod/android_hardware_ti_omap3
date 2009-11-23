@@ -90,7 +90,7 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
     int frameWidth = iVideoWidth;
     int frameHeight = iVideoHeight;
     int frameSize;
-    int videoFormat = OVERLAY_FORMAT_YCbCr_422_I;
+    int videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
     mapping_data_t *data;
     
     LOGD("Use Overlays");
@@ -102,7 +102,7 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
             if(ref != NULL)LOGV("Vendor Speicifc(34xx)MIO: overlay created ");
             else LOGV("Vendor Speicifc(34xx)MIO: Creating overlay failed");
             mOverlay = new Overlay(ref);
-            mOverlay->setAttributes(CACHEABLE_BUFFERS, 0);
+            mOverlay->setParameter(CACHEABLE_BUFFERS, 0);
         }
         else
         {

@@ -18,11 +18,11 @@ LOCAL_SHARED_LIBRARIES := \
     libhardware\
     libandroid_runtime \
     libmedia \
-    libsgl \
     libopencore_common \
     libicuuc \
     libopencore_player
 
+#    libsgl \
 # do not prelink
 LOCAL_PRELINK_MODULE := false
 

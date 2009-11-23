@@ -53,7 +53,7 @@ static void play(uint32_t video_pipeline, uint32_t src_w, uint32_t src_h, uint32
             size = 4;
             break;
         case OVERLAY_FORMAT_RGB_565:
-        case OVERLAY_FORMAT_YCbCr_422_I:
+        case OVERLAY_FORMAT_YCbYCr_422_I:
         case OVERLAY_FORMAT_ARGB_4444:
             size = 2;
             break;

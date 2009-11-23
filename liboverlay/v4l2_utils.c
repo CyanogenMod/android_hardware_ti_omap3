@@ -197,10 +197,10 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
             break;
         case OVERLAY_FORMAT_BGRA_8888:
             return -1;
-        case OVERLAY_FORMAT_YCbCr_422_I:
+        case OVERLAY_FORMAT_YCbYCr_422_I:
             pix->pixelformat = V4L2_PIX_FMT_UYVY;
             break;
-        case OVERLAY_FORMAT_YCbCr_420_I:
+        case OVERLAY_FORMAT_YCbYCr_420_I:
             return -1;
         case OVERLAY_FORMAT_ARGB_8888:
             return -1;
@@ -296,7 +296,7 @@ int v4l2_overlay_get_input_size_and_format(int fd, uint32_t *w, uint32_t *h, uin
     *h = format.fmt.pix.height;
     if (format.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY)
     //if (format.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
-        *fmt = OVERLAY_FORMAT_YCbCr_422_I;
+        *fmt = OVERLAY_FORMAT_YCbYCr_422_I;
     else return -EINVAL;
     return ret;
 }

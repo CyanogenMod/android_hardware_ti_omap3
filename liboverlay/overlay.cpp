@@ -1487,7 +1487,7 @@ static int overlay_device_open(const struct hw_module_t* module,
         dev->device.setPosition = overlay_setPosition;
         dev->device.getPosition = overlay_getPosition;
         dev->device.setParameter = overlay_setParameter;
-        dev->device.commitUpdates = overlay_commitUpdates;
+        dev->device.commit = overlay_commitUpdates;
 
         *device = &dev->device.common;
         status = 0;
@@ -1507,7 +1507,7 @@ static int overlay_device_open(const struct hw_module_t* module,
         dev->device.initialize = overlay_initialize;
         dev->device.resizeInput = overlay_resizeInput;				
         dev->device.setCrop = overlay_setCrop;
-        dev->device.setAttributes = overlay_setAttributes;
+        dev->device.setParameter = overlay_setAttributes;
         dev->device.dequeueBuffer = overlay_dequeueBuffer;
         dev->device.queueBuffer = overlay_queueBuffer;
         dev->device.getBufferAddress = overlay_getBufferAddress;
