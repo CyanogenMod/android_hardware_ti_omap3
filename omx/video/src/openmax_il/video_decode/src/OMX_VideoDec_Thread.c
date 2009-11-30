@@ -72,6 +72,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <cutils/atomic.h>
 
 #include "OMX_VideoDecoder.h"
 #include "OMX_VideoDec_Utils.h"
@@ -291,7 +292,7 @@ void* OMX_VidDec_Thread (void* pThreadData)
                                                                OMX_TI_ErrorSevere,
                                                                "Error from Component Thread while processing dsp Responses");
                     }
-                    pComponentPrivate->nOutputBCountDsp--;
+                    android_atomic_dec(&pComponentPrivate->nOutputBCountDsp);
                 }
                 if ((FD_ISSET(pComponentPrivate->filled_inpBuf_Q[VIDDEC_PIPE_READ], &rfds))){
                     OMX_PRSTATE2(pComponentPrivate->dbg, "eExecuteToIdle 0x%x\n",pComponentPrivate->eExecuteToIdle);
@@ -312,7 +313,7 @@ void* OMX_VidDec_Thread (void* pThreadData)
                                                                OMX_TI_ErrorSevere,
                                                                "Error from Component Thread while processing input buffer");
                     }
-                    pComponentPrivate->nInputBCountApp--;
+                    android_atomic_dec(&pComponentPrivate->nInputBCountApp);
                 }
                 }
                 if (FD_ISSET(pComponentPrivate->free_inpBuf_Q[VIDDEC_PIPE_READ], &rfds)) {
@@ -330,7 +331,7 @@ void* OMX_VidDec_Thread (void* pThreadData)
                                                                OMX_TI_ErrorSevere,
                                                                "Error from Component Thread while processing free input buffer");
                     }
-                    pComponentPrivate->nInputBCountDsp--;
+                    android_atomic_dec(&pComponentPrivate->nInputBCountDsp);
                 }
                 if (FD_ISSET(pComponentPrivate->free_outBuf_Q[VIDDEC_PIPE_READ], &rfds)) {
                      if(pComponentPrivate->bDynamicConfigurationInProgress){
@@ -348,7 +349,7 @@ void* OMX_VidDec_Thread (void* pThreadData)
                                                                OMX_TI_ErrorSevere,
                                                                "Error from Component Thread while processing free output buffer");
                     }
-                    pComponentPrivate->nOutputBCountApp--;
+                    android_atomic_dec(&pComponentPrivate->nOutputBCountApp);
                 }
             }
         }
@@ -450,7 +451,7 @@ void* OMX_VidDec_Return (void* pThreadData)
                                                            OMX_TI_ErrorSevere,
                                                            "Error from Component Thread while processing dsp Responses");
                 }
-                pComponentPrivate->nOutputBCountDsp--;
+                android_atomic_dec(&pComponentPrivate->nOutputBCountDsp);
             }
             if ((FD_ISSET(pComponentPrivate->filled_inpBuf_Q[VIDDEC_PIPE_READ], &rfds))){
                 OMX_PRSTATE2(pComponentPrivate->dbg, "eExecuteToIdle 0x%x\n",pComponentPrivate->eExecuteToIdle);
@@ -465,7 +466,7 @@ void* OMX_VidDec_Return (void* pThreadData)
                                                            OMX_TI_ErrorSevere,
                                                            "Error from Component Thread while processing input buffer");
                 }
-                pComponentPrivate->nInputBCountApp--;
+                android_atomic_dec(&pComponentPrivate->nInputBCountApp);
                 }
             }
             if (FD_ISSET(pComponentPrivate->free_inpBuf_Q[VIDDEC_PIPE_READ], &rfds)) {
@@ -479,7 +480,7 @@ void* OMX_VidDec_Return (void* pThreadData)
                                                            OMX_TI_ErrorSevere,
                                                            "Error from Component Thread while processing free input buffer");
                 }
-                pComponentPrivate->nInputBCountDsp--;
+                android_atomic_dec(&pComponentPrivate->nInputBCountDsp);
             }
             if (FD_ISSET(pComponentPrivate->free_outBuf_Q[VIDDEC_PIPE_READ], &rfds)) {
                 OMX_PRSTATE2(pComponentPrivate->dbg, "eExecuteToIdle 0x%x\n",pComponentPrivate->eExecuteToIdle);
@@ -493,7 +494,7 @@ void* OMX_VidDec_Return (void* pThreadData)
                                                            OMX_TI_ErrorSevere,
                                                            "Error from Component Thread while processing free output buffer");
                 }
-                pComponentPrivate->nOutputBCountApp--;
+                android_atomic_dec(&pComponentPrivate->nOutputBCountApp);
             }
         }
     }

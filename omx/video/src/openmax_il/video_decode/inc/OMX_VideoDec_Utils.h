@@ -941,10 +941,10 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 #endif
     VIDDEC_RMPROXY_STATES eRMProxyState;
 
-    OMX_U8 nInputBCountDsp;
-    OMX_U8 nOutputBCountDsp;
-    OMX_U8 nInputBCountApp;
-    OMX_U8 nOutputBCountApp;
+    volatile int32_t nInputBCountDsp;
+    volatile int32_t nOutputBCountDsp;
+    volatile int32_t nInputBCountApp;
+    volatile int32_t nOutputBCountApp;
 
     VIDDEC_CBUFFER_BUFFERFLAGS aBufferFlags[CBUFFER_SIZE];
     VIDDEC_LCML_STATES eLCMLState;

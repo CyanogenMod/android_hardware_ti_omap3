@@ -2309,7 +2309,7 @@ static OMX_ERRORTYPE VIDDEC_EmptyThisBuffer (OMX_HANDLETYPE pComponent,
     pBufferPrivate = (VIDDEC_BUFFER_PRIVATE* )pBuffHead->pInputPortPrivate;
     ret = pBufferPrivate->eBufferOwner;
     pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_COMPONENT;
-    pComponentPrivate->nInputBCountApp++;
+    android_atomic_inc(&pComponentPrivate->nInputBCountApp);
 
     OMX_PRBUFFER1(pComponentPrivate->dbg, "Writing pBuffer 0x%p OldeBufferOwner %ld nAllocLen %lu nFilledLen %lu eBufferOwner %d\n",
         pBuffHead, ret,pBuffHead->nAllocLen,pBuffHead->nFilledLen,pBufferPrivate->eBufferOwner);
@@ -2391,9 +2391,9 @@ static OMX_ERRORTYPE VIDDEC_FillThisBuffer (OMX_HANDLETYPE pComponent,
     pBufferPrivate = (VIDDEC_BUFFER_PRIVATE* )pBuffHead->pOutputPortPrivate;
     ret = pBufferPrivate->eBufferOwner;
     pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_COMPONENT;
-    pComponentPrivate->nOutputBCountApp++;
+    android_atomic_inc(&pComponentPrivate->nOutputBCountApp);
     pBuffHead->nFilledLen = 0;
-    /*pBuffHead->nFlags = 0;*/
+    pBuffHead->nFlags = 0;  // Clear flags
     OMX_PRBUFFER1(pComponentPrivate->dbg, "Writing pBuffer 0x%p OldeBufferOwner %d eBufferOwner %d nFilledLen %lu\n",
         pBuffHead, ret,pBufferPrivate->eBufferOwner,pBuffHead->nFilledLen);
     ret = write (pComponentPrivate->free_outBuf_Q[1], &(pBuffHead), sizeof (pBuffHead));
