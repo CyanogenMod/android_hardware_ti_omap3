@@ -1651,15 +1651,15 @@ static OMX_ERRORTYPE GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
 				switch(pCompPortOut->pPortDef->format.video.eCompressionFormat)
        		         {
 				case OMX_VIDEO_CodingH263:
-					pProfileLevel = &SupportedH263ProfileLevels;
+					pProfileLevel = SupportedH263ProfileLevels;
                                         nNumberOfProfiles = sizeof(SupportedH263ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
 					break;
 				case OMX_VIDEO_CodingMPEG4:
-					pProfileLevel = &SupportedMPEG4ProfileLevels;
+					pProfileLevel = SupportedMPEG4ProfileLevels;
                                         nNumberOfProfiles = sizeof(SupportedMPEG4ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
 					break;
 				case OMX_VIDEO_CodingAVC:
-					pProfileLevel = &SupportedAVCProfileLevels;
+					pProfileLevel = SupportedAVCProfileLevels;
                                         nNumberOfProfiles = sizeof(SupportedAVCProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
 					break;
                                 default:
@@ -2091,13 +2091,13 @@ static OMX_ERRORTYPE SetParameter (OMX_IN OMX_HANDLETYPE hComponent,
 			switch(pCompPortOut->pPortDef->format.video.eCompressionFormat)
 	            {
 			case OMX_VIDEO_CodingH263:
-				pProfileLevel = &SupportedH263ProfileLevels;
+				pProfileLevel = SupportedH263ProfileLevels;
 				break;
 			case OMX_VIDEO_CodingMPEG4:
-				pProfileLevel = &SupportedMPEG4ProfileLevels;
+				pProfileLevel = SupportedMPEG4ProfileLevels;
 				break;
 			case OMX_VIDEO_CodingAVC:
-				pProfileLevel = &SupportedAVCProfileLevels;
+				pProfileLevel = SupportedAVCProfileLevels;
 				break;
                         default:
                                eError = OMX_ErrorBadParameter;
