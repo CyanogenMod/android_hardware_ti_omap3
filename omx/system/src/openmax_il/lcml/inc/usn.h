@@ -85,7 +85,8 @@ typedef enum {
     IUALG_ERR_NOT_SUPPORTED   = 0x0F02,
     IUALG_ERR_ARGUMENT        = 0x0F03,
     IUALG_ERR_NOT_READY       = 0x0F04,
-    IUALG_ERR_GENERAL         = 0x0FFF
+    IUALG_ERR_GENERAL         = 0x0FFF,
+    IUALG_ERR_INSUFF_BUFFER   = 0x8401
 }IUALG_Event;
 
 typedef enum {

@@ -623,7 +623,7 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
           lcml_dsp->ProfileID = 10;
       }
 #else
-    lcml_dsp->ProfileID = 1;
+    lcml_dsp->ProfileID = 2;
 #endif
 
 
@@ -649,12 +649,12 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
     */
     ptCreateString[9] = 1;
 
-    ptCreateString[10] = 320; /* Maximum Horizontal Size of the Thumbnail for App0 marker */
-    ptCreateString[11] = 240; /* Maximum Vertical Size of the Thumbnail for App0 marker */
-    ptCreateString[12] = 320; /* Maximum Horizontal Size of the Thumbnail for App1 marker */
-    ptCreateString[13] = 240; /* Maximum Vertical Size of the Thumbnail for App1 marker */
-    ptCreateString[14] = 320; /* Maximum Horizontal Size of the Thumbnail for App13 marker */
-    ptCreateString[15] = 240; /* Maximum Vertical Size of the Thumbnail for App13 marker */
+    ptCreateString[10] = 512; /* Maximum Horizontal Size of the Thumbnail for App0 marker */
+    ptCreateString[11] = 384; /* Maximum Vertical Size of the Thumbnail for App0 marker */
+    ptCreateString[12] = 512; /* Maximum Horizontal Size of the Thumbnail for App1 marker */
+    ptCreateString[13] = 384; /* Maximum Vertical Size of the Thumbnail for App1 marker */
+    ptCreateString[14] = 512; /* Maximum Horizontal Size of the Thumbnail for App13 marker */
+    ptCreateString[15] = 384; /* Maximum Vertical Size of the Thumbnail for App13 marker */
     ptCreateString[16] = 0; /* Number of scans is always 0 */
     if (pPortDefIn->format.image.eColorFormat == OMX_COLOR_FormatYUV420PackedPlanar)
     {
@@ -666,8 +666,8 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
     	ptCreateString[17] = 1; //Convert flag
     }
 
-    ptCreateString[18] = 320; /* Maximum Horizontal Size of the Thumbnail for App5 marker */
-    ptCreateString[19] = 240; /* Maximum Vertical Size of the Thumbnail for App5 marker */
+    ptCreateString[18] = 512; /* Maximum Horizontal Size of the Thumbnail for App5 marker */
+    ptCreateString[19] = 384; /* Maximum Vertical Size of the Thumbnail for App5 marker */
 	
 #ifdef __JPEG_OMX_PPLIB_ENABLED__
 
@@ -2949,8 +2949,30 @@ OMX_ERRORTYPE JpegEncLCML_Callback (TUsnCodecEvent event,void * argsCb [10])
     if ( event == EMMCodecDspError ) {
     
        OMX_PRDSP4(pComponentPrivate->dbg, "in EMMCodecDspError EMMCodec Args -> %x, %x\n", (int)argsCb[4] , (int)argsCb[5]);
+
+       if ((int)argsCb[4] == USN_ERR_PROCESS && (int)argsCb[5] == IUALG_ERR_INSUFF_BUFFER) {
+           OMX_PRDSP4(pComponentPrivate->dbg, "DSP Error. The allocated output buffer length is insufficient.\n");
+           pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+                                     pComponentPrivate->pHandle->pApplicationPrivate,
+                                     OMX_EventError,
+                                     OMX_ErrorInsufficientResources,
+                                     OMX_TI_ErrorCritical,
+                                     "The allocated output buffer length is insufficient");
+           goto EXIT;
+       }
+
        if ((int)argsCb[4] != 0x1 || (int)argsCb[5] != 0x500) {
-	   OMX_PRDSP4(pComponentPrivate->dbg, "DSP Error %x %x\n", (int)(argsCb[4]), (int)(argsCb[5]));
+	   if ((int)argsCb[5] == JPEGENC_THUMBNAIL_ABSENT_WARNING) {
+           OMX_PRDSP4(pComponentPrivate->dbg, "Thumbnail is not generated as it \
+                   exceeds 64K spec size limit for the given thumbnail resolution and yuv data\n");
+           pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+                                     pComponentPrivate->pHandle->pApplicationPrivate,
+                                     OMX_EventError,
+                                     OMX_ErrorUndefined,
+                                     OMX_TI_ErrorMinor,
+                                     "Thumbnail not generated as it exceeds 64K size limit set by spec");
+	       goto EXIT;
+	   }
            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                      pComponentPrivate->pHandle->pApplicationPrivate,
                                      OMX_EventError, 

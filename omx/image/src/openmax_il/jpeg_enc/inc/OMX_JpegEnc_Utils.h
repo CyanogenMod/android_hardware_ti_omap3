@@ -88,7 +88,7 @@
 #define OMX_CustomCommandStopThread (OMX_CommandMax - 1)
 #define PADDING_128_BYTE 128
 #define PADDING_256_BYTE 256
-
+#define JPEGENC_THUMBNAIL_ABSENT_WARNING 4
 
 #ifdef UNDER_CE
     #include <oaf_debug.h>
