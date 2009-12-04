@@ -20,8 +20,10 @@
 #include "OMX_Core.h"
 #include "OMX_ComponentRegistry.h"
 
+#ifndef NO_OPENCORE
 /** determine capabilities of a component before acually using it */
 #include "ti_omx_config_parser.h"
+#endif
 
 /** size for the array of allocated components.  Sets the maximum 
  * number of components that can be allocated at once */
@@ -167,7 +169,6 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
     OMX_ERRORTYPE (*pComponentInit)(OMX_HANDLETYPE*);
     OMX_ERRORTYPE err = OMX_ErrorNone;
     OMX_COMPONENTTYPE *componentType;
-    const char* pErr = dlerror();
 
     if(pthread_mutex_lock(&mutex) != 0)
     {
@@ -246,7 +247,7 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
                 /* Get a function pointer to the "OMX_ComponentInit" function.  If
                  * there is an error, we can't go on, so set the error code and exit */
                 pComponentInit = dlsym(pModules[i], "OMX_ComponentInit");
-                if( (pErr != NULL) || (pComponentInit == NULL) ) {
+                if( pComponentInit == NULL ) {
                     LOGE("%d:: dlsym failed for module %p\n", __LINE__, pModules[i]);
                     err = OMX_ErrorInvalidComponent;
                     goto CLEAN_UP;
@@ -757,6 +758,8 @@ OMX_BOOL TIOMXConfigParserRedirect(
 
 {
     OMX_BOOL Status = OMX_FALSE;
+#ifndef NO_OPENCORE
     Status = TIOMXConfigParser(aInputParameters, aOutputParameters);
+#endif
     return Status;
 }

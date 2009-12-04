@@ -2326,7 +2326,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
 #else
    void* pMyLCML;
    VIDDEC_fpo fpGetHandle;
-   char* error;
 #endif
 
     OMX_PRINT1(pComponentPrivate->dbg, "+++ENTERING\n");
@@ -2424,9 +2423,9 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
                     goto EXIT;
                 }
                 fpGetHandle = dlsym(pMyLCML, "GetHandle");
-                if ((error = dlerror()) != NULL) {
+                if (!fpGetHandle) {
                     OMX_PRDSP4(pComponentPrivate->dbg, "OMX_ErrorBadParameter\n");
-                    fputs(error, stderr);
+                    fputs(dlerror(), stderr);
                     dlclose(pMyLCML);
                     pMyLCML = NULL;
                     eError = OMX_ErrorBadParameter;
@@ -8352,7 +8351,6 @@ OMX_ERRORTYPE VIDDEC_LoadCodec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate)
    LPFNDLLFUNC1 fpGetHandle1;
 #else
    VIDDEC_fpo fpGetHandle;
-   char* error;
 #endif
 
 #ifndef UNDER_CE
@@ -8364,9 +8362,9 @@ OMX_ERRORTYPE VIDDEC_LoadCodec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate)
         goto EXIT;
     }
     fpGetHandle = dlsym(pComponentPrivate->pModLCML, "GetHandle");
-    if ((error = dlerror()) != NULL) {
+    if (!fpGetHandle) {
         OMX_PRDSP4(pComponentPrivate->dbg, "OMX_ErrorBadParameter\n");
-        fputs(error, stderr);
+        fputs(dlerror(), stderr);
         dlclose(pComponentPrivate->pModLCML);
         pComponentPrivate->pModLCML = NULL;
         eError = OMX_ErrorBadParameter;
