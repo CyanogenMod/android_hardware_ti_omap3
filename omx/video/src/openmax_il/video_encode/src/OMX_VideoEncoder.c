@@ -2557,8 +2557,7 @@ static OMX_ERRORTYPE ExtensionIndex(OMX_IN OMX_HANDLETYPE hComponent,
                                        OMX_IN OMX_STRING cParameterName, 
                                        OMX_OUT OMX_INDEXTYPE* pIndexType)
 {
-    VIDENC_CUSTOM_DEFINITION sVideoEncodeCustomIndex[VIDENC_NUM_CUSTOM_INDEXES] = 
-    {
+    VIDENC_CUSTOM_DEFINITION sVideoEncodeCustomIndex[] = {
         {"OMX.TI.VideoEncode.Param.VBVSize", VideoEncodeCustomParamIndexVBVSize},
                                     {"OMX.TI.VideoEncode.Param.DeblockFilter", VideoEncodeCustomParamIndexDeblockFilter},
                                     {"OMX.TI.VideoEncode.Config.ForceIFrame", VideoEncodeCustomConfigIndexForceIFrame},
@@ -2589,9 +2588,8 @@ static OMX_ERRORTYPE ExtensionIndex(OMX_IN OMX_HANDLETYPE hComponent,
                                      {"OMX.TI.VideoEncode.Config.EncodingPreset", VideoEncodeCustomParamIndexEncodingPreset},
         {"OMX.TI.VideoEncode.Config.NALFormat", VideoEncodeCustomParamIndexNALFormat},
         {"OMX.TI.VideoEncode.Debug", VideoEncodeCustomConfigIndexDebug}
-                                   }; 
+    };
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    int nIndex = 0;
  
     if (!hComponent || !pIndexType) 
     {
@@ -2599,7 +2597,9 @@ static OMX_ERRORTYPE ExtensionIndex(OMX_IN OMX_HANDLETYPE hComponent,
         goto OMX_CONF_CMD_BAIL;
     }
 
-    for (nIndex = 0; nIndex < VIDENC_NUM_CUSTOM_INDEXES; nIndex++)
+    OMX_U32 nIndex = 0;
+    const OMX_U32 size = sizeof(sVideoEncodeCustomIndex)/sizeof(VIDENC_CUSTOM_DEFINITION);
+    for (nIndex = 0; nIndex < size; nIndex++)
     {
         if (!strcmp((const char*)cParameterName, (const char*)(&(sVideoEncodeCustomIndex[nIndex].cCustomName))))
         {
