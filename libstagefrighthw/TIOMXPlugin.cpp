@@ -31,7 +31,8 @@ TIOMXPlugin::TIOMXPlugin()
       mInit(NULL),
       mDeinit(NULL),
       mComponentNameEnum(NULL),
-      mGetHandle(NULL) {
+      mGetHandle(NULL),
+      mFreeHandle(NULL) {
     if (mLibHandle != NULL) {
         mInit = (InitFunc)dlsym(mLibHandle, "TIOMX_Init");
         mDeinit = (DeinitFunc)dlsym(mLibHandle, "TIOMX_DeInit");
@@ -40,6 +41,7 @@ TIOMXPlugin::TIOMXPlugin()
             (ComponentNameEnumFunc)dlsym(mLibHandle, "TIOMX_ComponentNameEnum");
 
         mGetHandle = (GetHandleFunc)dlsym(mLibHandle, "TIOMX_GetHandle");
+        mFreeHandle = (FreeHandleFunc)dlsym(mLibHandle, "TIOMX_FreeHandle");
 
         (*mInit)();
     }
@@ -67,6 +69,15 @@ OMX_ERRORTYPE TIOMXPlugin::makeComponentInstance(
             reinterpret_cast<OMX_HANDLETYPE *>(component),
             const_cast<char *>(name),
             appData, const_cast<OMX_CALLBACKTYPE *>(callbacks));
+}
+
+OMX_ERRORTYPE TIOMXPlugin::destroyComponentInstance(
+        OMX_COMPONENTTYPE *component) {
+    if (mLibHandle == NULL) {
+        return OMX_ErrorUndefined;
+    }
+
+    return (*mFreeHandle)(reinterpret_cast<OMX_HANDLETYPE *>(component));
 }
 
 OMX_ERRORTYPE TIOMXPlugin::enumerateComponents(

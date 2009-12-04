@@ -32,6 +32,9 @@ struct TIOMXPlugin : public OMXPluginBase {
             OMX_PTR appData,
             OMX_COMPONENTTYPE **component);
 
+    virtual OMX_ERRORTYPE destroyComponentInstance(
+            OMX_COMPONENTTYPE *component);
+
     virtual OMX_ERRORTYPE enumerateComponents(
             OMX_STRING name,
             size_t size,
@@ -48,10 +51,13 @@ private:
     typedef OMX_ERRORTYPE (*GetHandleFunc)(
             OMX_HANDLETYPE *, OMX_STRING, OMX_PTR, OMX_CALLBACKTYPE *);
 
+    typedef OMX_ERRORTYPE (*FreeHandleFunc)(OMX_HANDLETYPE *);
+
     InitFunc mInit;
     DeinitFunc mDeinit;
     ComponentNameEnumFunc mComponentNameEnum;
     GetHandleFunc mGetHandle;
+    FreeHandleFunc mFreeHandle;
 
     TIOMXPlugin(const TIOMXPlugin &);
     TIOMXPlugin &operator=(const TIOMXPlugin &);
