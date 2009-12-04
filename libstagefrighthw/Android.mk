@@ -3,7 +3,8 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
     stagefright_overlay_output.cpp \
-    TIHardwareRenderer.cpp
+    TIHardwareRenderer.cpp \
+    TIOMXPlugin.cpp
 
 LOCAL_CFLAGS := $(PV_CFLAGS_MINUS_VISIBILITY)
 
@@ -16,6 +17,7 @@ LOCAL_SHARED_LIBRARIES :=       \
         libutils                \
         libcutils               \
         libui                   \
+        libdl
 
 LOCAL_MODULE := libstagefrighthw
 
