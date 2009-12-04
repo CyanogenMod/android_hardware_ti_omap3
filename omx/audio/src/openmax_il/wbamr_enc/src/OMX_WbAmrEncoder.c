@@ -1072,7 +1072,15 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
     case OMX_IndexParamAudioAmr:
     {
         OMX_PRDSP2(pComponentPrivate->dbg, "OMX_IndexParamAudioAmr");
-        pCompAmrParam = (OMX_AUDIO_PARAM_AMRTYPE *)pCompParam;
+
+        // Code below attempts to write to passed-in parameter block,
+        // which not only is illegal (it's supposed to be read-only),
+        // also in this particular case it seems to live in read-only
+        // memory or something.
+        OMX_AUDIO_PARAM_AMRTYPE copy;
+        memcpy(&copy, pCompParam, sizeof(copy));
+        pCompAmrParam = &copy;
+
         if(pCompAmrParam->nPortIndex == 0) {         /* 0 means Input port */
             memcpy(((WBAMRENC_COMPONENT_PRIVATE*)
                     pHandle->pComponentPrivate)->pcmParams,
