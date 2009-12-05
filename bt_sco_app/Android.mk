@@ -9,6 +9,7 @@ include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES:= \
 	$(call include-path-for, bluez-libs) \
+	external/bluetooth/bluez/include
 
 LOCAL_CFLAGS:= \
 	-DVERSION=\"3.36\"
@@ -19,7 +20,7 @@ LOCAL_SRC_FILES:= \
 LOCAL_SHARED_LIBRARIES := \
 	libbluetooth  libcutils
 LOCAL_STATIC_LIBRARIES := \
-        libbluez-utils-common-static
+	libbluez-common-static
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE:=bt_sco_app

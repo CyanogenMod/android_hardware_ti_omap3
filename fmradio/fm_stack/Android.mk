@@ -19,7 +19,7 @@ LOCAL_C_INCLUDES:=\
 	$(LOCAL_PATH)/MCP_Common/inc 	\
 	$(LOCAL_PATH)/HSW_FMStack/stack/inc/int \
 	$(LOCAL_PATH)/HSW_FMStack/stack/inc 	\
-	external/bluez/libs/include \
+	external/bluetooth/bluez/include \
 	$(LOCAL_PATH)/FM_Trace 
 
 

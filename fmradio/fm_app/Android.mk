@@ -22,7 +22,7 @@ LOCAL_C_INCLUDES:=\
 	$(FM_STACK_PATH)/MCP_Common/inc 	\
 	$(FM_STACK_PATH)/HSW_FMStack/stack/inc/int \
 	$(FM_STACK_PATH)/HSW_FMStack/stack/inc 	\
-	external/bluez/libs/include 	\
+	external/bluetooth/bluez/include 	\
 	$(FM_STACK_PATH)/fm_app		\
 	$(ALSA_PATH)/include 
 

@@ -3559,6 +3559,7 @@ int set_fm_chip_enable(int enable)
 	}
 	close(ret);
 	/* end of change for Zoom2+pg-2.0 */
+	return ret;
 }
 
 int main(int argc, char **argv)
