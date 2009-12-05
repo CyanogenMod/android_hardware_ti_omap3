@@ -10,8 +10,7 @@ LOCAL_ARM_MODE := arm
 LOCAL_PRELINK_MODULE := false
 
 LOCAL_SHARED_LIBRARIES := \
-	libcorecg \
-	libsgl \
+	libskia \
         libutils \
         libcutils \
 	$(BOARD_OPENCORE_LIBRARIES)
