@@ -3969,20 +3969,20 @@ static OMX_ERRORTYPE ComponentRoleEnum(OMX_IN OMX_HANDLETYPE hComponent,
                                        OMX_IN OMX_U32 nIndex)
 {
     VIDENC_COMPONENT_PRIVATE *pComponentPrivate;
-	OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
 
     if (hComponent==NULL)
     {
-		goto OMX_CONF_CMD_BAIL;
-		eError= OMX_ErrorBadParameter;
-		}
-    
+        eError= OMX_ErrorBadParameter;
+        goto OMX_CONF_CMD_BAIL;
+    }
+
     pComponentPrivate = (VIDENC_COMPONENT_PRIVATE*)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
 
     if(nIndex == 0)
     {
-	  strncpy((char*)cRole, (char *)pComponentPrivate->componentRole.cRole, sizeof(OMX_U8) * OMX_MAX_STRINGNAME_SIZE - 1); 
-	}
+        strncpy((char*)cRole, (char *)pComponentPrivate->componentRole.cRole, sizeof(OMX_U8) * OMX_MAX_STRINGNAME_SIZE - 1);
+    }
     else
     {
       eError = OMX_ErrorNoMore;
