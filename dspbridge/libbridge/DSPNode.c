@@ -216,8 +216,10 @@ func_cont:
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT(
 			"NODE: DSPNode_Allocate:Failed to CMM handle\r\n")));
 	}
-	if (!DSP_SUCCEEDED(status))
+	if (!DSP_SUCCEEDED(status)) {
+		free(pGPPVirtAddr);
 		return status;
+	}
 
 	GetNodeType(*phNode, &nodeType);
 	if ((nodeType != NODE_DEVICE) && (pInfo.ulNumGPPSMSegs > 0)) {
