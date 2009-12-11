@@ -2328,7 +2328,7 @@ static OMX_ERRORTYPE ComponentRoleEnum(
 
 /*-------------------------------------------------------------------*/
 /**
-  * JPEGENC_GetExtensionIndex() 
+  * JPEGENC_GetExtensionIndex()
   *
   * Return the index corresponding to the string.
   *
@@ -2338,30 +2338,29 @@ static OMX_ERRORTYPE ComponentRoleEnum(
 /*-------------------------------------------------------------------*/
 OMX_ERRORTYPE JPEGENC_GetExtensionIndex(OMX_IN OMX_HANDLETYPE hComponent, OMX_IN OMX_STRING cParameterName, OMX_OUT OMX_INDEXTYPE* pIndexType)
 {
-    OMX_U16 nIndex;
     OMX_ERRORTYPE eError = OMX_ErrorUndefined;
     JPEGENC_CUSTOM_PARAM_DEFINITION sJpegEncCustomParams[] = {
-    {"OMX.TI.JPEG.encoder.Config.HuffmanTable", OMX_IndexCustomHuffmanTable},    
-    {"OMX.TI.JPEG.encoder.Config.CommentFlag", OMX_IndexCustomCommentFlag},
-    {"OMX.TI.JPEG.encoder.Config.CommentString", OMX_IndexCustomCommentString},
-    {"OMX.TI.JPEG.encoder.Config.InputFrameWidth", OMX_IndexCustomInputFrameWidth},
-    {"OMX.TI.JPEG.encoder.Config.InputFrameHeight", OMX_IndexCustomInputFrameHeight},
-    {"OMX.TI.JPEG.encoder.Config.APP0", OMX_IndexCustomAPP0},
-    {"OMX.TI.JPEG.encoder.Config.APP1", OMX_IndexCustomAPP1},
-    {"OMX.TI.JPEG.encoder.Config.APP5", OMX_IndexCustomAPP5},
-    {"OMX.TI.JPEG.encoder.Config.APP13", OMX_IndexCustomAPP13},
-    {"OMX.TI.JPEG.encoder.Config.QFactor", OMX_IndexCustomQFactor},
-    {"OMX.TI.JPEG.encoder.Config.DRI", OMX_IndexCustomDRI},
-    {"OMX.TI.JPEG.encoder.Config.Debug", OMX_IndexCustomDebug},
-    {"",0x0}
+        {"OMX.TI.JPEG.encoder.Config.HuffmanTable", OMX_IndexCustomHuffmanTable},
+        {"OMX.TI.JPEG.encoder.Config.CommentFlag", OMX_IndexCustomCommentFlag},
+        {"OMX.TI.JPEG.encoder.Config.CommentString", OMX_IndexCustomCommentString},
+        {"OMX.TI.JPEG.encoder.Config.InputFrameWidth", OMX_IndexCustomInputFrameWidth},
+        {"OMX.TI.JPEG.encoder.Config.InputFrameHeight", OMX_IndexCustomInputFrameHeight},
+        {"OMX.TI.JPEG.encoder.Config.APP0", OMX_IndexCustomAPP0},
+        {"OMX.TI.JPEG.encoder.Config.APP1", OMX_IndexCustomAPP1},
+        {"OMX.TI.JPEG.encoder.Config.APP5", OMX_IndexCustomAPP5},
+        {"OMX.TI.JPEG.encoder.Config.APP13", OMX_IndexCustomAPP13},
+        {"OMX.TI.JPEG.encoder.Config.QFactor", OMX_IndexCustomQFactor},
+        {"OMX.TI.JPEG.encoder.Config.DRI", OMX_IndexCustomDRI},
+        {"OMX.TI.JPEG.encoder.Config.Debug", OMX_IndexCustomDebug}
     };
 
-    /* Check parameter validity */    
+    /* Check parameter validity */
     OMX_CHECK_PARAM(hComponent);
     OMX_CHECK_PARAM(pIndexType);
-    *pIndexType = OMX_IndexMax;
 
-    for (nIndex = 0; strlen((const char*)sJpegEncCustomParams[nIndex].cCustomParamName); nIndex++){
+    OMX_U32 nIndex;
+    const OMX_U32 nExtensions = sizeof(sJpegEncCustomParams)/sizeof(JPEGENC_CUSTOM_PARAM_DEFINITION);
+    for (nIndex = 0; nIndex < nExtensions; ++nIndex) {
         if (!strcmp((const char*)cParameterName, (const char*)(&(sJpegEncCustomParams[nIndex].cCustomParamName)))){
             *pIndexType = sJpegEncCustomParams[nIndex].nCustomParamIndex;
             eError = OMX_ErrorNone;
@@ -2369,13 +2368,12 @@ OMX_ERRORTYPE JPEGENC_GetExtensionIndex(OMX_IN OMX_HANDLETYPE hComponent, OMX_IN
         }
     }
 
-    if(*pIndexType == OMX_IndexMax){
+    if (nIndex >= nExtensions){
          eError = OMX_ErrorUnsupportedIndex;
     }
 
 EXIT:
     return eError;
 }
-
 
 

@@ -2318,36 +2318,35 @@ static OMX_ERRORTYPE ComponentRoleEnum(OMX_IN OMX_HANDLETYPE hComponent,
 
 /*-------------------------------------------------------------------*/
 /**
-  * GetExtensionIndex_JpegDec() 
+  * GetExtensionIndex_JpegDec()
   *
-  * Free a video driver buffer.
+  * Get custom extension index.
   *
   * @retval OMX_ErrorNone                    Successful operation.
-  *         OMX_ErrorBadParameter            Invalid operation.    
+  *         OMX_ErrorBadParameter            Invalid operation.
   *         OMX_ErrorIncorrectStateOperation If called when port is disabled.
   **/
 /*-------------------------------------------------------------------*/
 OMX_ERRORTYPE GetExtensionIndex_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent, OMX_IN OMX_STRING cParameterName, OMX_OUT OMX_INDEXTYPE* pIndexType)
 {
-    OMX_U16 nIndex;
     OMX_ERRORTYPE eError = OMX_ErrorUndefined;
     JPEGDEC_CUSTOM_PARAM_DEFINITION sJpegDecCustomParams[] = {
-    {"OMX.TI.JPEG.decode.Config.ProgressiveFactor", OMX_IndexCustomProgressiveFactor},
-    {"OMX.TI.JPEG.decode.Config.InputFrameWidth", OMX_IndexCustomInputFrameWidth},
-    {"OMX.TI.JPEG.decode.Config.OutputColorFormat", OMX_IndexCustomOutputColorFormat},
-    {"OMX.TI.JPEG.decode.Param.SectionDecode", OMX_IndexCustomSectionDecode},
-    {"OMX.TI.JPEG.decode.Param.SubRegionDecode", OMX_IndexCustomSubRegionDecode},
-    {"OMX.TI.JPEG.decode.Param.SetMaxResolution", OMX_IndexCustomSetMaxResolution},
-    {"OMX.TI.JPEG.decode.Debug", OMX_IndexCustomDebug},
-    {"",0x0}
+        {"OMX.TI.JPEG.decode.Config.ProgressiveFactor", OMX_IndexCustomProgressiveFactor},
+        {"OMX.TI.JPEG.decode.Config.InputFrameWidth", OMX_IndexCustomInputFrameWidth},
+        {"OMX.TI.JPEG.decode.Config.OutputColorFormat", OMX_IndexCustomOutputColorFormat},
+        {"OMX.TI.JPEG.decode.Param.SectionDecode", OMX_IndexCustomSectionDecode},
+        {"OMX.TI.JPEG.decode.Param.SubRegionDecode", OMX_IndexCustomSubRegionDecode},
+        {"OMX.TI.JPEG.decode.Param.SetMaxResolution", OMX_IndexCustomSetMaxResolution},
+        {"OMX.TI.JPEG.decode.Debug", OMX_IndexCustomDebug}
     };
 
-    /* Check parameter validity */    
+    /* Check parameter validity */
     OMX_CHECK_PARAM(hComponent);
     OMX_CHECK_PARAM(pIndexType);
-    *pIndexType = OMX_IndexMax;
 
-    for (nIndex = 0; strlen((const char*)sJpegDecCustomParams[nIndex].cCustomParamName); nIndex++){
+    const OMX_U32 nExtensions = sizeof(sJpegDecCustomParams)/sizeof(JPEGDEC_CUSTOM_PARAM_DEFINITION);
+    OMX_U32 nIndex;
+    for (nIndex = 0; nIndex < nExtensions; ++nIndex) {
         if (!strcmp((const char*)cParameterName, (const char*)(&(sJpegDecCustomParams[nIndex].cCustomParamName)))){
             *pIndexType = sJpegDecCustomParams[nIndex].nCustomParamIndex;
             eError = OMX_ErrorNone;
@@ -2355,11 +2354,10 @@ OMX_ERRORTYPE GetExtensionIndex_JPEGDec(OMX_IN OMX_HANDLETYPE hComponent, OMX_IN
         }
     }
 
-    if(*pIndexType == OMX_IndexMax){
+    if (nIndx >= nExtensions) {
          eError = OMX_ErrorUnsupportedIndex;
     }
 
-    
 EXIT:
     return eError;
 }
