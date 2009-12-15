@@ -19,6 +19,7 @@
 #include <dlfcn.h>
 
 #include <media/stagefright/HardwareAPI.h>
+#include <media/stagefright/MediaDebug.h>
 
 namespace android {
 
@@ -32,7 +33,8 @@ TIOMXPlugin::TIOMXPlugin()
       mDeinit(NULL),
       mComponentNameEnum(NULL),
       mGetHandle(NULL),
-      mFreeHandle(NULL) {
+      mFreeHandle(NULL),
+      mGetRolesOfComponentHandle(NULL) {
     if (mLibHandle != NULL) {
         mInit = (InitFunc)dlsym(mLibHandle, "TIOMX_Init");
         mDeinit = (DeinitFunc)dlsym(mLibHandle, "TIOMX_DeInit");
@@ -42,6 +44,10 @@ TIOMXPlugin::TIOMXPlugin()
 
         mGetHandle = (GetHandleFunc)dlsym(mLibHandle, "TIOMX_GetHandle");
         mFreeHandle = (FreeHandleFunc)dlsym(mLibHandle, "TIOMX_FreeHandle");
+
+        mGetRolesOfComponentHandle =
+            (GetRolesOfComponentFunc)dlsym(
+                    mLibHandle, "TIOMX_GetRolesOfComponent");
 
         (*mInit)();
     }
@@ -89,6 +95,51 @@ OMX_ERRORTYPE TIOMXPlugin::enumerateComponents(
     }
 
     return (*mComponentNameEnum)(name, size, index);
+}
+
+OMX_ERRORTYPE TIOMXPlugin::getRolesOfComponent(
+        const char *name,
+        Vector<String8> *roles) {
+    roles->clear();
+
+    if (mLibHandle == NULL) {
+        return OMX_ErrorUndefined;
+    }
+
+    OMX_U32 numRoles;
+    OMX_ERRORTYPE err = (*mGetRolesOfComponentHandle)(
+            const_cast<OMX_STRING>(name), &numRoles, NULL);
+
+    if (err != OMX_ErrorNone) {
+        return err;
+    }
+
+    if (numRoles > 0) {
+        OMX_U8 **array = new OMX_U8 *[numRoles];
+        for (OMX_U32 i = 0; i < numRoles; ++i) {
+            array[i] = new OMX_U8[OMX_MAX_STRINGNAME_SIZE];
+        }
+
+        OMX_U32 numRoles2;
+        err = (*mGetRolesOfComponentHandle)(
+                const_cast<OMX_STRING>(name), &numRoles2, array);
+
+        CHECK_EQ(err, OMX_ErrorNone);
+        CHECK_EQ(numRoles, numRoles2);
+
+        for (OMX_U32 i = 0; i < numRoles; ++i) {
+            String8 s((const char *)array[i]);
+            roles->push(s);
+
+            delete[] array[i];
+            array[i] = NULL;
+        }
+
+        delete[] array;
+        array = NULL;
+    }
+
+    return OMX_ErrorNone;
 }
 
 }  // namespace android

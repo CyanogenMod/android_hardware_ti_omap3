@@ -40,6 +40,10 @@ struct TIOMXPlugin : public OMXPluginBase {
             size_t size,
             OMX_U32 index);
 
+    virtual OMX_ERRORTYPE getRolesOfComponent(
+            const char *name,
+            Vector<String8> *roles);
+
 private:
     void *mLibHandle;
 
@@ -53,11 +57,15 @@ private:
 
     typedef OMX_ERRORTYPE (*FreeHandleFunc)(OMX_HANDLETYPE *);
 
+    typedef OMX_ERRORTYPE (*GetRolesOfComponentFunc)(
+            OMX_STRING, OMX_U32 *, OMX_U8 **);
+
     InitFunc mInit;
     DeinitFunc mDeinit;
     ComponentNameEnumFunc mComponentNameEnum;
     GetHandleFunc mGetHandle;
     FreeHandleFunc mFreeHandle;
+    GetRolesOfComponentFunc mGetRolesOfComponentHandle;
 
     TIOMXPlugin(const TIOMXPlugin &);
     TIOMXPlugin &operator=(const TIOMXPlugin &);
