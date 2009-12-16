@@ -85,9 +85,13 @@ char *tComponentName[MAXCOMP][2] = {
     //{"OMX.TI.WBAMR.decode", "audio_decoder.amrwb"},
 
     /* Audio components */
-    //{"OMX.TI.MP3.decode", "audio_decoder.mp3"},
+#ifdef BUILD_WITH_TI_AUDIO
+    {"OMX.TI.MP3.decode", "audio_decoder.mp3"},
+#endif
     {"OMX.TI.AAC.encode", "audio_encoder.aac"},
-    //{"OMX.TI.AAC.decode", "audio_decoder.aac"},
+#ifdef BUILD_WITH_TI_AUDIO
+    {"OMX.TI.AAC.decode", "audio_decoder.aac"},
+#endif
 /*  {"OMX.TI.PCM.encode", NULL},
     {"OMX.TI.PCM.decode", NULL},
 */

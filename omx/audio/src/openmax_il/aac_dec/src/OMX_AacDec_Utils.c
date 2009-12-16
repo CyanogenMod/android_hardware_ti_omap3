@@ -2692,14 +2692,14 @@ OMX_ERRORTYPE AACDEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
             if((pComponentPrivate->nEmptyThisBufferCount != pComponentPrivate->nEmptyBufferDoneCount) || (pComponentPrivate->nFillThisBufferCount != pComponentPrivate->nFillBufferDoneCount)) {
                 if(pthread_mutex_lock(&bufferReturned_mutex) != 0)
                 {
-                    OMXDBG_PRINT(stderr, PRINT, 1, 0, "bufferReturned_mutex mutex lock error");
+                    OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: bufferReturned_mutex mutex lock error\n",__LINE__);
                 }
-                OMXDBG_PRINT(stderr, PRINT, 1, 0, "pthread_cond_waiting for OMX to return all input and outbut buffers");
+                OMX_PRINT2(pComponentPrivate->dbg, ":: pthread_cond_waiting for OMX to return all input and outbut buffers\n");
                 pthread_cond_wait(&bufferReturned_condition, &bufferReturned_mutex);
-                OMXDBG_PRINT(stderr, PRINT, 1, 0, "OMX has returned all input and output buffers");
+                OMX_PRINT2(pComponentPrivate->dbg, ":: OMX has returned all input and output buffers\n");
                 if(pthread_mutex_unlock(&bufferReturned_mutex) != 0)
                 {
-                    OMXDBG_PRINT(stderr, PRINT, 1, 0, "bufferReturned_mutex mutex unlock error");
+                    OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: bufferReturned_mutex mutex unlock error\n",__LINE__);
                 }
             }
             else
@@ -3922,13 +3922,13 @@ void SignalIfAllBuffersAreReturned(AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
     {
         if(pthread_mutex_lock(&bufferReturned_mutex) != 0)
         {
-            OMXDBG_PRINT(stderr, PRINT, 1, 0, "bufferReturned_mutex mutex lock error");
+            OMX_ERROR4(pComponentPrivate->dbg, "%d :: bufferReturned_mutex mutex lock error\n",__LINE__);
         }
         pthread_cond_broadcast(&bufferReturned_condition);
         OMX_PRINT1(pComponentPrivate->dbg, "Sending pthread signal that OMX has returned all buffers to app");
         if(pthread_mutex_unlock(&bufferReturned_mutex) != 0)
         {
-            OMX_PRINT1(pComponentPrivate->dbg, "bufferReturned_mutex mutex unlock error");
+            OMX_ERROR4(pComponentPrivate->dbg, "%d :: bufferReturned_mutex mutex unlock error\n",__LINE__);
         }
         return;
     }
