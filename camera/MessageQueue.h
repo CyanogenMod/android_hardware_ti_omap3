@@ -14,6 +14,7 @@ class MessageQueue
 {
 public:
     MessageQueue();
+    ~MessageQueue();
     int get(Message*);
     int put(Message*);
     bool isEmpty();    

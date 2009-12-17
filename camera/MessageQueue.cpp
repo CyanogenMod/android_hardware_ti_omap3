@@ -20,6 +20,12 @@ MessageQueue::MessageQueue()
     this->fd_write = fds[1];
 }
 
+MessageQueue::~MessageQueue()
+{
+    close(this->fd_read);
+    close(this->fd_write);
+}
+
 int MessageQueue::get(Message* msg)
 {
     char* p = (char*) msg;
