@@ -5,9 +5,9 @@
 int main(int argc, char **argv)
 {
     char inFilename[50]; 
-    char *inputfilename = "JPGE_CONF_003.yuv";
+    const char *inputfilename = "JPGE_CONF_003.yuv";
     char outFilename[50];
-    char *outputfilename= "/E";
+    const char *outputfilename= "/E";
     char path[50];	
     int w = 176;
     int h= 144;

@@ -122,7 +122,8 @@ LCML_DSP_INTERFACE* GetLCMLHandle()
     }
 
     fpGetHandle = dlsym (pDllHandle, "GetHandle");
-    if ((error = dlerror()) != NULL) {
+    error = (char *) dlerror();
+    if ( error != NULL) {
         if(fpGetHandle){
                 dlclose(pDllHandle);
                 pDllHandle = NULL;
@@ -149,9 +150,9 @@ EXIT:
     return pHandle;
 }
 
-OMX_ERRORTYPE Fill_LCMLInitParams(OMX_U16 arr[], LCML_DSP *plcml_Init)
+OMX_ERRORTYPE Fill_LCMLInitParams(OMX_U16 arr[], LCML_DSP *plcml_Init, int inWidth, int inHeight, int outWidth, int outHeight, int inFmt, int outFmt)
 {
-    
+
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 nIpBuf,nIpBufSize,nOpBuf,nOpBufSize;
     char  valueStr[52]; /*Changed length*/                      
@@ -168,10 +169,10 @@ OMX_ERRORTYPE Fill_LCMLInitParams(OMX_U16 arr[], LCML_DSP *plcml_Init)
     int index;
 
     nIpBuf = 1;
-    nIpBufSize = 3280*2464*2;
+    nIpBufSize = inWidth*inHeight*2;
 
     nOpBuf = 1;
-    nOpBufSize = 640*480*2;
+    nOpBufSize = outWidth*outHeight*2;
 
     plcml_Init->In_BufInfo.nBuffers      = nIpBuf;
     plcml_Init->In_BufInfo.nSize         = nIpBufSize;
@@ -227,15 +228,21 @@ OMX_ERRORTYPE Fill_LCMLInitParams(OMX_U16 arr[], LCML_DSP *plcml_Init)
     pcSNArgs = (char *) (arr + 16);
 
 
-    Input_FrameWidth    = 3280;
-    Output_FrameWidth   = 3280;
+    Input_FrameWidth    = inWidth;
+    Output_FrameWidth   = outWidth;
 
-    Input_FrameFormat   = VGPOP_E422_IN_UY;   //422 interlieved
+    if ( inFmt )
+        Input_FrameFormat = VGPOP_E420_IN;
+    else
+        Input_FrameFormat = VGPOP_E422_IN_UY;   //422 interlieved
 
     OutputRGB_Format    = VGPOP_ERGB_NONE;
 
-    Output_FrameFormat  = VGPOP_E422_OUT_UY; //422 interlieved
-    
+    if ( outFmt )
+        Output_FrameFormat  = VGPOP_E420_OUT;
+    else
+        Output_FrameFormat  = VGPOP_E422_OUT_UY;
+
     /*for overlay*/
     //Overlay = 0;
     Overlay = 0;
@@ -284,31 +291,32 @@ EXIT:
     return eError;
 }
 
-int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight)
+int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight, int rotation, int fmt, float zoom)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 w,h,zfactor;
+    double aspect_ratio;
 
     GPPToVPPInputFrameStatus    PrevIpFrameStatus;
     GPPToVPPOutputFrameStatus   PrevOpYUVFrameStatus;
 
     GPPToVPPInputFrameStatus*   pPrevIpFrameStatus = &PrevIpFrameStatus;
     GPPToVPPOutputFrameStatus*  pPrevOpYUVFrameStatus = &PrevOpYUVFrameStatus;
-     
+
     pPrevIpFrameStatus->ulInWidth             = inWidth;
     pPrevIpFrameStatus->ulInHeight            = inHeight;
-    pPrevIpFrameStatus->ulCInOffset           = 0; /*w * 220;*/  /* offset of the C frame in the   *
-                                                                    * buffer (equal to zero if there *
-                                                                    * is no C frame)                 */
+    pPrevIpFrameStatus->ulCInOffset           = 0; /* offset of the C frame in the   *
+                                                    * buffer (equal to zero if there *
+                                                    * is no C frame)                 */
     /* crop */
     pPrevIpFrameStatus->ulInXstart            = 0;
-    pPrevIpFrameStatus->ulInXsize             = 0; /*176 Default value for StdCompRoleTest */
-    pPrevIpFrameStatus->ulInYstart            = 0;          
-    pPrevIpFrameStatus->ulInYsize             = 0; /* 220 Default value for StdCompRoleTest*/
-    
+    pPrevIpFrameStatus->ulInXsize             = inWidth;
+    pPrevIpFrameStatus->ulInYstart            = 0;
+    pPrevIpFrameStatus->ulInYsize             = inHeight;
+
     /* zoom*/
-    pPrevIpFrameStatus->ulZoomFactor          = (outWidth * 1024) / inWidth;
-    pPrevIpFrameStatus->ulZoomLimit           = (outWidth * 1024) / inWidth;
+    pPrevIpFrameStatus->ulZoomFactor          = zoom*1024; //(outWidth * 1024) / inWidth;
+    pPrevIpFrameStatus->ulZoomLimit           = zoom*1024; //(outWidth * 1024) / inWidth;
     pPrevIpFrameStatus->ulZoomSpeed           = 0;
     
     pPrevIpFrameStatus->ulFrostedGlassOvly    = OMX_FALSE;        
@@ -316,7 +324,7 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
     pPrevIpFrameStatus->ulLockedRatio         = OMX_FALSE;          
     pPrevIpFrameStatus->ulMirror              = OMX_FALSE;      
     pPrevIpFrameStatus->ulRGBRotation         = 0;    
-    pPrevIpFrameStatus->ulYUVRotation         = 0;
+    pPrevIpFrameStatus->ulYUVRotation         = rotation;
     
     pPrevIpFrameStatus->ulContrastType        = 0;  
     pPrevIpFrameStatus->ulVideoGain           = 64;   /*Video Gain (contrast) in VGPOP ranges from 0 to 127, being 64 = Gain 1 (no contrast)*/
@@ -329,11 +337,12 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
     /*Init pComponentPrivate->pPrevOpYUVFrameStatus */
     pPrevOpYUVFrameStatus->ulOutWidth         = outWidth;
     pPrevOpYUVFrameStatus->ulOutHeight        = outHeight;
-    pPrevOpYUVFrameStatus->ulCOutOffset       = 0;/*  Offset of the C frame in the buffer */
-       
 
+    if( fmt )
+        pPrevOpYUVFrameStatus->ulCOutOffset   = outWidth*outHeight; /*  Offset of the C frame in the buffer */
+    else
+        pPrevOpYUVFrameStatus->ulCOutOffset   = 0;
 
-	LOGV("11111111111111111111111111111111111111111111111\n");
     eError = LCML_QueueBuffer(pLCML->pCodecinterfacehandle,
                               EMMCodecInputBuffer,
                               inBuffer,
@@ -396,7 +405,7 @@ OMX_ERRORTYPE ZoomCallback (TUsnCodecEvent event,void * args [10])
     return OMX_ErrorNone;
 }
 
-int scale_init()
+int scale_init(int inWidth, int inHeight, int outWidth, int outHeight, int inFmt, int outFmt)
 {
     LCML_CALLBACKTYPE   cb;
     OMX_ERRORTYPE       err;
@@ -417,8 +426,8 @@ int scale_init()
 
     pLcmlDsp = pLCML->dspCodec;
 
-    err = Fill_LCMLInitParams( array, pLcmlDsp);
-    
+    err = Fill_LCMLInitParams( array, pLcmlDsp, inWidth, inHeight, outWidth, outHeight, inFmt, outFmt);
+
     err = LCML_InitMMCodec( pLCML->pCodecinterfacehandle, p, &pLCML, (void*)p, &cb );
     if( err != OMX_ErrorNone )
     {

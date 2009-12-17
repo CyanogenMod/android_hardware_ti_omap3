@@ -23,7 +23,7 @@ MessageQueue::MessageQueue()
 int MessageQueue::get(Message* msg)
 {
     char* p = (char*) msg;
-    int read_bytes = 0;
+    size_t read_bytes = 0;
 
     while( read_bytes  < sizeof(msg) )
     {
@@ -37,7 +37,11 @@ int MessageQueue::get(Message* msg)
             read_bytes += err;
     }
 
+#ifdef DEBUG_LOG
+
     LOGD("MQ.get(%d,%p,%p,%p,%p)", msg->command, msg->arg1,msg->arg2,msg->arg3,msg->arg4);    
+
+#endif
 
     return 0;
 }
@@ -45,9 +49,13 @@ int MessageQueue::get(Message* msg)
 int MessageQueue::put(Message* msg)
 {
     char* p = (char*) msg;
-    int bytes = 0;
+    size_t bytes = 0;
+
+#ifdef DEBUG_LOG
 
     LOGD("MQ.put(%d,%p,%p,%p,%p)", msg->command, msg->arg1,msg->arg2,msg->arg3,msg->arg4);
+
+#endif
 
     while( bytes  < sizeof(msg) )
     {
@@ -61,7 +69,11 @@ int MessageQueue::put(Message* msg)
             bytes += err;
     }
 
+#ifdef DEBUG_LOG
+
     LOGD("MessageQueue::put EXIT");
+
+#endif
 
     return 0;    
 }

@@ -35,8 +35,8 @@
 #include <utils/Log.h>
 #include <utils/threads.h>
 #include <linux/videodev2.h>
-#include <utils/MemoryBase.h>
-#include <utils/MemoryHeapBase.h>
+#include "binder/MemoryBase.h"
+#include "binder/MemoryHeapBase.h"
 #include <utils/threads.h>
 #include <ui/CameraHardwareInterface.h>
 #include "MessageQueue.h"
@@ -45,17 +45,11 @@
 #define RESIZER 1
 #define JPEG 1
 #define VPP 1
-#define VPP_THREAD 1
 
 #define PPM_INSTRUMENTATION 1
 //#undef FW3A
 //#undef ICAP
 //#undef IMAGE_PROCESSING_PIPELINE
-
-#if !VPP
-	#define VPP_THREAD 0
-	#define RESIZER 0
-#endif
 
 #ifdef FW3A
 #include "osal/osal_stdtypes.h"
@@ -66,23 +60,8 @@
 #include "fw/vfinder/fw_message.h"
 #endif
 
-#ifdef CAMERA_ALGO
-#include "CameraAlgo.h"
-#include "arc_facetracking/include/arcsoft_face_tracking.h"
-#include "include/amcomdef.h"
-
-#define FACE_COUNT  10
-#define FRAME_SKIP  0
-#define STABILITY   0
-#define RATIO       10
-#endif
-
 #ifdef HARDWARE_OMX
 #include "JpegEncoder.h"
-#endif
-
-#ifdef IMAGE_PROCESSING_PIPELINE_MMS
-#include "pip_omap_interface.h"
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -90,21 +69,26 @@
 #include "ipp_algotypes.h"
 #include "capdefs.h"
 
+#define OPP_OPTIMIZATION 1
+
+#ifdef OPP_OPTIMIZATION
+
+extern "C" {
+    #include "ResourceManagerProxyAPI.h"
+    #include "Resource_Activity_Monitor.h"
+}
+
+#endif
+
 #define BUFF_MAP_PADDING_TEST 256*2
 #define PADDING_OFFSET_TEST 256
 #define MAXIPPDynamicParams 10
 #endif
 
-#define FOCUS_RECT          0
-/* colours in focus rectangle */
-#define FOCUS_RECT_RED      0x10
-#define FOCUS_RECT_GREEN    0x1F
-#define FOCUS_RECT_WHITE    0xFF
-
 #define VIDEO_DEVICE        "/dev/video5"
 #define MIN_WIDTH           128
 #define MIN_HEIGHT          96
-#define PICTURE_WIDTH   3280 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
+#define PICTURE_WIDTH   3296 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
 #define PICTURE_HEIGHT  2464 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
 #define PREVIEW_WIDTH 176
 #define PREVIEW_HEIGHT 144
@@ -114,16 +98,13 @@
 #define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
 
-#define OPEN_CLOSE_WORKAROUND	 0
 
-#define YUV422 0 
-#define YUV420 1
+#define PIX_YUV422I 0
+#define PIX_YUV420P 1
 
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-	#define IPP_YUV422P 0
-	#define IPP_YUV420P_OUTPUT_YUV422I 1
 	#define INPLACE_ON	1
 	#define INPLACE_OFF	0
 	#define IPP_Disabled_Mode 0
@@ -163,23 +144,29 @@ typedef struct OMX_IPP
 #endif    
 
 //icapture
-#define DTP_FILE_NAME 	"/data/dyntunn.enc"
-#define EEPROM_FILE_NAME "/data/eeprom.hex"
-#define LIBICAPTURE_NAME "libicapture.so"
+#define DTP_FILE_NAME 	    "/data/dyntunn.enc"
+#define EEPROM_FILE_NAME    "/data/eeprom.hex"
+#define LIBICAPTURE_NAME    "libicapture.so"
 
 // 3A FW
-#define LIB3AFW "libMMS3AFW.so"
+#define LIB3AFW             "libMMS3AFW.so"
 
-#define PHOTO_PATH "/sdcard/photo_%02d.%s"
+#define PHOTO_PATH          "/tmp/photo_%02d.%s"
 
-#define START_CMD 0x0
-#define STOP_CMD 0x1
-#define RUN_CMD	0x2
-#define TAKE_PICTURE	0x3
-#define NOOP	0x4
+#define PROC_THREAD_PROCESS     0x5
+#define PROC_THREAD_EXIT        0x6
+#define PROC_THREAD_NUM_ARGS    23
+#define SHUTTER_THREAD_CALL     0x1
+#define SHUTTER_THREAD_EXIT     0x2
+#define SHUTTER_THREAD_NUM_ARGS 3
+#define RAW_THREAD_CALL         0x1
+#define RAW_THREAD_EXIT         0x2
+#define RAW_THREAD_NUM_ARGS     4
+#define SNAPSHOT_THREAD_START   0x1
+#define SNAPSHOT_THREAD_EXIT    0x2
 
-#define VPP_THREAD_PROCESS 0x5
-#define VPP_THREAD_EXIT 0x6
+#define PAGE                    0x1000
+#define PARAM_BUFFER            512
 
 #ifdef FW3A
 typedef struct {
@@ -239,32 +226,48 @@ class CameraHal : public CameraHardwareInterface {
 public:
     virtual sp<IMemoryHeap> getRawHeap() const;
     virtual void stopRecording();
-    virtual status_t startRecording(recording_callback cb, void* user);
+
+	virtual status_t startRecording();  // Eclair HAL
     virtual bool recordingEnabled();
     virtual void releaseRecordingFrame(const sp<IMemory>& mem);
     virtual sp<IMemoryHeap> getPreviewHeap() const ;
-    virtual status_t startPreview(preview_callback cb, void* user);
+
+	virtual status_t startPreview();   //  Eclair HAL
     virtual bool useOverlay() { return true; }
     virtual status_t setOverlay(const sp<Overlay> &overlay);
     virtual void stopPreview();
     virtual bool previewEnabled();
-    virtual status_t autoFocus(autofocus_callback, void *user);
-    virtual status_t takePicture(shutter_callback,
-                                    raw_callback,
-                                    jpeg_callback,
-                                    void* user);
-    virtual status_t cancelPicture(bool cancel_shutter,
-                                      bool cancel_raw,
-                                      bool cancel_jpeg);
+
+	virtual status_t autoFocus();  // Eclair HAL
+
+
+	virtual status_t takePicture();		// Eclair HAL
+
+	virtual status_t cancelPicture();	// Eclair HAL
+	virtual status_t cancelAutoFocus();
+
     virtual status_t dump(int fd, const Vector<String16>& args) const;
     void dumpFrame(void *buffer, int size, char *path);
     virtual status_t setParameters(const CameraParameters& params);
     virtual CameraParameters getParameters() const;
     virtual void release();
     void initDefaultParameters();
+
+/*--------------------Eclair HAL---------------------------------------*/
+     virtual void        setCallbacks(notify_callback notify_cb,
+                                     data_callback data_cb,
+                                     data_callback_timestamp data_cb_timestamp,
+                                     void* user);
+
+    virtual void        enableMsgType(int32_t msgType);
+    virtual void        disableMsgType(int32_t msgType);
+    virtual bool        msgTypeEnabled(int32_t msgType);
+/*--------------------Eclair HAL---------------------------------------*/
     static sp<CameraHardwareInterface> createInstance();
 
-private:
+    virtual status_t sendCommand(int32_t cmd, int32_t arg1, int32_t arg2);
+
+//private:
 
     class PreviewThread : public Thread {
         CameraHal* mHardware;
@@ -279,52 +282,67 @@ private:
         }
     };
 
-    class VPPThread : public Thread {
+    class SnapshotThread : public Thread {
         CameraHal* mHardware;
     public:
-        VPPThread(CameraHal* hw)
+        SnapshotThread(CameraHal* hw)
             : Thread(false), mHardware(hw) { }
 
         virtual bool threadLoop() {
-            mHardware->vppThread();
+            mHardware->snapshotThread();
             return false;
         }
     };
 
-    class ProcThread : public Thread {
-        CameraHal *mHardware;
+    class PROCThread : public Thread {
+        CameraHal* mHardware;
+    public:
+        PROCThread(CameraHal* hw)
+            : Thread(false), mHardware(hw) { }
 
-        public:
-            ProcThread(CameraHal *hw) : Thread(false), mHardware(hw) {}
-            virtual bool threadLoop(){
-                mHardware->procThread();
-                return false;			
-            }
+        virtual bool threadLoop() {
+            mHardware->procThread();
+            return false;
+        }
     };
 
-    class FacetrackingThread : public Thread{
-        CameraHal *mHardware;
+    class ShutterThread : public Thread {
+        CameraHal* mHardware;
+    public:
+        ShutterThread(CameraHal* hw)
+            : Thread(false), mHardware(hw) { }
 
-        public:
-            FacetrackingThread(CameraHal *hw) : Thread(false), mHardware(hw) {}
-            virtual bool threadLoop(){
-                mHardware->facetrackingThread();
-                return false;
-            }
+        virtual bool threadLoop() {
+            mHardware->shutterThread();
+            return false;
+        }
+    };
+
+    class RawThread : public Thread {
+        CameraHal* mHardware;
+    public:
+        RawThread(CameraHal* hw)
+            : Thread(false), mHardware(hw) { }
+
+        virtual bool threadLoop() {
+            mHardware->rawThread();
+            return false;
+        }
     };
 
     static int onSaveH3A(void *priv, void *buf, int size);
     static int onSaveLSC(void *priv, void *buf, int size);
     static int onSaveRAW(void *priv, void *buf, int size);
+    static int onSnapshot(void *priv, void *buf, int width, int height);
 
     CameraHal();
     virtual ~CameraHal();
     void previewThread();
-	void vppThread();
-    int validateSize(int w, int h);	
-    void drawRect(uint8_t *input, uint8_t color, int x1, int y1, int x2, int y2, int width, int height);
+    int validateSize(int w, int h);
     void procThread();
-    void facetrackingThread();
+    void shutterThread();
+    void rawThread();
+    void snapshotThread();
     
 #ifdef FW3A
     int FW3A_Create();
@@ -345,28 +363,19 @@ private:
     int ICapturePerform();
     int ICaptureCreate(void);
     int ICaptureDestroy(void);
-	void PPM(char*);
-	void PPM(char*,struct timeval*);
+	void PPM(const char *);
+	void PPM(const char *,struct timeval*);
 
 #ifndef ICAP
 	int CapturePicture();
 #endif
 
-#ifdef IMAGE_PROCESSING_PIPELINE_MMS
-    void *pIPPMMS;
-    int DeInitIPPMMS();
-    int InitIPPMMSDefault(int w, int h);
-    int InitIPPMMS(pip_omap_ctrl_t *cfg);
-    int ProcessBufferIPPMMS(void *pBuffer);
-    int handle_alg_errors(ARM_ERROR error);
-#endif
-
 #ifdef IMAGE_PROCESSING_PIPELINE
     int DeInitIPP();
-    int InitIPP(int w, int h);
-    int PopulateArgsIPP(int w, int h);
-    int ProcessBufferIPP(void *pBuffer, long int nAllocLen,
-                         int EdgeEnhancementStrength, int WeakEdgeThreshold, 
+    int InitIPP(int w, int h, int fmt);
+    int PopulateArgsIPP(int w, int h, int fmt);
+    int ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt,
+                         int EdgeEnhancementStrength, int WeakEdgeThreshold,
                          int StrongEdgeThreshold, int LumaNoiseFilterStrength,
                          int ChromaNoiseFilterStrength);
 
@@ -379,30 +388,44 @@ private:
 	int CameraSetFrameRate();
     int CameraStart();
     int CameraStop();
+
+#ifdef ICAP_EXPIREMENTAL
+
+    int allocatePictureBuffer(size_t length);
+
+#else
+
+    int allocatePictureBuffer(int width, int height);
+
+#endif
+
     int SaveFile(char *filename, char *ext, void *buffer, int jpeg_size);
     
     int isStart_FW3A;
     int isStart_FW3A_AF;
     int isStart_FW3A_CAF;
     int isStart_FW3A_AEWB;
+    int isStart_VPP;
+    int isStart_JPEG;
     int FW3A_AF_TimeOut;
 	    
     mutable Mutex mLock;
     CameraParameters mParameters;
-    sp<MemoryHeapBase> mPictureHeap;
+    sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
+    int mPictureOffset, mJPEGOffset, mJPEGLength, mPictureLength;
+    void *mYuvBuffer, *mJPEGBuffer;
     int  mPreviewFrameSize;
-    shutter_callback mShutterCallback;
-    raw_callback mRawPictureCallback;
-    jpeg_callback mJpegPictureCallback;
-    void *mPictureCallbackCookie;
     sp<Overlay>  mOverlay;
     sp<PreviewThread>  mPreviewThread;
-	sp<VPPThread>  mVPPThread;
+	sp<PROCThread>  mPROCThread;
+	sp<ShutterThread> mShutterThread;
+	sp<RawThread> mRawThread;
+	sp<SnapshotThread> mSnapshotThread;
     bool mPreviewRunning;
-    Mutex               mRecordingLock;
+    bool mIPPInitAlgoState;
+    bool mIPPToEnable;
+    Mutex mRecordingLock;
     int mRecordingFrameSize;
-    recording_callback mRecordingCallback;
-    void  *mRecordingCallbackCookie;
     // Video Frame Begin
     int                 mVideoBufferCount;
     sp<MemoryHeapBase>  mVideoHeap;
@@ -415,19 +438,23 @@ private:
     void*               mPreviewBlocks[VIDEO_FRAME_COUNT_MAX];
 
     // ...
-    autofocus_callback  mAutoFocusCallback;
-    void *mAutoFocusCallbackCookie;
     int nOverlayBuffersQueued;
     int nCameraBuffersQueued;
     struct v4l2_buffer v4l2_cam_buffer[MAX_CAMERA_BUFFERS];
     int buffers_queued_to_dss[MAX_CAMERA_BUFFERS];
-    int mfirstTime;
+    int nBuffToStartDQ;
+	int mfirstTime;
     static wp<CameraHardwareInterface> singleton;
-    static int camera_device;	
-	int vppPipe[2];
-    sem_t mIppVppSem;
+    static int camera_device;
+    static const char supportedPictureSizes[];
+    static const char supportedPreviewSizes[];
+    static const char supportedFPS[];
+    static const char supprotedThumbnailSizes[];
+    static const char PARAMS_DELIMITER[];
+	int procPipe[2], shutterPipe[2], rawPipe[2], snapshotPipe[2], snapshotReadyPipe[2];
 	int mippMode;
 	int pictureNumber;
+	int rotation;
 #if PPM_INSTRUMENTATION
     struct timeval ppm;
 	struct timeval ppm_start;
@@ -437,16 +464,22 @@ private:
     struct timeval ipp_before, ipp_after;
 #endif
 	int lastOverlayBufferDQ;
-#ifdef CAMERA_ALGO
-#if PPM_INSTRUMENTATION
-    struct timeval algo_before, algo_after;
-#endif
-    int lastOverlayIndex;
 
-    CameraAlgo *camAlgos;
-    status_t initAlgos();
-#endif
-    
+/*--------------Eclair Camera HAL---------------------*/
+
+	notify_callback mNotifyCb;
+	data_callback   mDataCb;
+	data_callback_timestamp mDataCbTimestamp;
+	void                 *mCallbackCookie;
+
+	int32_t             mMsgEnabled;
+	bool                mRecordEnabled;
+	nsecs_t             mCurrentTime;
+	bool mFalsePreview;
+
+
+/*--------------Eclair Camera HAL---------------------*/
+
 #ifdef HARDWARE_OMX
     JpegEncoder*    jpegEncoder;
 #endif    
@@ -472,8 +505,6 @@ private:
     int mZoomTarget, mZoomCurrent;
     int mcaf;
     int j;
-    int myuv;
-    int mMMSApp;
 
     enum PreviewThreadCommands {
 
@@ -519,21 +550,14 @@ private:
 
     FILE *foutYUV;
     FILE *foutJPEG;
-
-#ifdef FOCUS_RECT
-    /* Focus rectangle  flags */
-    int focus_rect_set;
-    int focus_rect_color;
-#endif
-	 
 };
 
 }; // namespace android
 
 extern "C" {
-    int scale_init();
+    int scale_init(int inWidth, int inHeight, int outWidth, int outHeight, int inFmt, int outFmt);
     int scale_deinit();
-    int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight);
+    int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight, int rotation, int fmt, float zoom);
 }
 
 #endif
