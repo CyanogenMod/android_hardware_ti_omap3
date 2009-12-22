@@ -427,22 +427,15 @@ public:
     Mutex mRecordingLock;
     int mRecordingFrameSize;
     // Video Frame Begin
-    int                 mVideoBufferCount;
-    sp<MemoryHeapBase>  mVideoHeap;
-    sp<MemoryHeapBase>  mVideoHeaps[VIDEO_FRAME_COUNT_MAX];
-    sp<MemoryBase>      mVideoBuffer[VIDEO_FRAME_COUNT_MAX];
-    v4l2_buffer         mfilledbuffer[VIDEO_FRAME_COUNT_MAX];
-    unsigned long       mVideoBufferPtr[VIDEO_FRAME_COUNT_MAX];
-    int                 mVideoBufferUsing[VIDEO_FRAME_COUNT_MAX];
-    int                 mRecordingFrameCount;
-    void*               mPreviewBlocks[VIDEO_FRAME_COUNT_MAX];
+    int mVideoBufferCount;
+    sp<MemoryHeapBase> mVideoHeaps[VIDEO_FRAME_COUNT_MAX];
+    sp<MemoryBase> mVideoBuffer[VIDEO_FRAME_COUNT_MAX];
 
     // ...
     int nOverlayBuffersQueued;
     int nCameraBuffersQueued;
     struct v4l2_buffer v4l2_cam_buffer[MAX_CAMERA_BUFFERS];
     int buffers_queued_to_dss[MAX_CAMERA_BUFFERS];
-    int nBuffToStartDQ;
 	int mfirstTime;
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;

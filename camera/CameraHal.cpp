@@ -28,9 +28,6 @@
 
 #include "CameraHal.h"
 
-#define USE_MEMCOPY_FOR_VIDEO_FRAME 0
-#define USE_NEW_OVERLAY 1
-
 #define RES_720P    1280
 
 namespace android {
@@ -64,8 +61,8 @@ typedef struct {
 int CameraHal::camera_device = 0;
 wp<CameraHardwareInterface> CameraHal::singleton;
 const char CameraHal::supportedPictureSizes [] = "3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240";
-const char CameraHal::supportedPreviewSizes [] = "800x480,720x480,768x576,640x480,320x240,352x288,176x144,128x96";
-const char CameraHal::supportedFPS [] = "30,20,15,10";
+const char CameraHal::supportedPreviewSizes [] = "1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96";
+const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
 const char CameraHal::supprotedThumbnailSizes []= "80x60";
 const char CameraHal::PARAMS_DELIMITER []= ",";
 
@@ -75,8 +72,6 @@ CameraHal::CameraHal()
 			mPreviewRunning(0),
 			mRecordingFrameSize(0),
 			mVideoBufferCount(0),
-			mVideoHeap(0),
-			mRecordingFrameCount(0),
 			nOverlayBuffersQueued(0),
 			nCameraBuffersQueued(0),
 			mfirstTime(0),
@@ -988,7 +983,6 @@ int CameraHal::CameraStart()
     LOGD("mPreviewFrameSize = 0x%x = %d", mPreviewFrameSize, mPreviewFrameSize);
 
     buffer_count = mOverlay->getBufferCount();
-    nBuffToStartDQ = buffer_count -1;
     LOGD("number of buffers = %d\n", buffer_count);
 
     creqbuf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1010,7 +1004,6 @@ int CameraHal::CameraStart()
             goto fail_loop;
         }
       
-#if USE_NEW_OVERLAY
         mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress((void*)i);
         if ( data == NULL ) {
             LOGE(" getBufferAddress returned NULL");
@@ -1018,13 +1011,7 @@ int CameraHal::CameraStart()
         }
 
         v4l2_cam_buffer[i].m.userptr = (unsigned long) data->ptr;
-#else
-        v4l2_cam_buffer[i].m.userptr = (unsigned long) mOverlay->getBufferAddress((void*)i);
-        if ( v4l2_cam_buffer[i].m.userptr == NULL ) {
-            LOGE(" getBufferAddress returned NULL");
-            goto fail_loop;
-        }
-#endif
+
         strcpy((char *)v4l2_cam_buffer[i].m.userptr, "hello");
         if (strcmp((char *)v4l2_cam_buffer[i].m.userptr, "hello")) {
             LOGI("problem with buffer\n");
@@ -1129,37 +1116,37 @@ void CameraHal::nextPreview()
     overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
     int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
     int index;
+    
     mParameters.getPreviewSize(&w, &h);
 
     /* De-queue the next avaliable buffer */
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
         LOGE("VIDIOC_DQBUF Failed!!!");
-		goto EXIT;
+        goto EXIT;
     }else{
-	    nCameraBuffersQueued--;
-	}
+        nCameraBuffersQueued--;
+    }
 
     //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, 160*120*2);
 
     queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
     if (queue_to_dss_failed)
-	{
-		LOGE("nextPreview(): mOverlay->queueBuffer() failed:[%d]",cfilledbuffer.index);
-	}
-	else
-	{
-	    nOverlayBuffersQueued++;
-	    buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
-	}
+    {
+    	LOGE("nextPreview(): mOverlay->queueBuffer() failed:[%d]",cfilledbuffer.index);
+    }
+    else
+    {
+        nOverlayBuffersQueued++;
+        buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
+    }
 
     if (nOverlayBuffersQueued >= NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
     {
-		
         if(mOverlay->dequeueBuffer(&overlaybuffer)){
-			LOGE("nextPreview(): mOverlay->dequeueBuffer() failed");
-		}
-		else{
-        	overlaybufferindex = (int)overlaybuffer;
+            LOGE("nextPreview(): mOverlay->dequeueBuffer() failed");
+        }
+        else{
+            overlaybufferindex = (int)overlaybuffer;
             nOverlayBuffersQueued--;
             buffers_queued_to_dss[(int)overlaybuffer] = 0;
             lastOverlayBufferDQ = (int)overlaybuffer;	
@@ -1173,61 +1160,28 @@ void CameraHal::nextPreview()
 
     mRecordingLock.lock();
 
-    if(mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)
+    if(mRecordEnabled)
     {
-
-#if USE_MEMCOPY_FOR_VIDEO_FRAME
-        for(int i = 0 ; i < VIDEO_FRAME_COUNT_MAX; i++ ){
-            if(0 == mVideoBufferUsing[i]){
-                memcpy(mVideoBuffer[i]->pointer(),(void *)cfilledbuffer.m.userptr, mRecordingFrameSize);
-                mVideoBufferUsing[i] = 1;
-		 // Eclair Camera
-            mCurrentTime = systemTime();
-
-
-	        mDataCbTimestamp(mCurrentTime,CAMERA_MSG_VIDEO_FRAME,mVideoBuffer[i],mCallbackCookie);
-
-
-                break;
-            }else {
-                LOGD("No Buffer Can be used!");
-            }
-        }
-
-        if (queue_to_dss_failed) {		
-            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
-            }else{
-	            nCameraBuffersQueued++;
-			}
-        }
-        else if (overlaybufferindex != -1) {				
-            if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
-                LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
-            }else{
-	            nCameraBuffersQueued++;
-			}
-        }
-
-#else
         if(overlaybufferindex != -1)
+        {
+            mCurrentTime = systemTime(SYSTEM_TIME_MONOTONIC);
             mDataCbTimestamp(mCurrentTime, CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
-#endif
+        }
     } 
     else {
         if (queue_to_dss_failed) {			
             if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
                 LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
             }else{
-	            nCameraBuffersQueued++;
-			}
+                nCameraBuffersQueued++;
+            }
         }
         else if (overlaybufferindex != -1) {		
             if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
                 LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
             }else{
-	            nCameraBuffersQueued++;
-			}
+                nCameraBuffersQueued++;
+            }
         }
     }
 
@@ -2293,7 +2247,16 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
         LOGE("Trying to set overlay, but overlay is null!, line:%d",__LINE__);
         return NO_ERROR;
     }
-    else if (mFalsePreview)   // Eclair HAL
+
+    mParameters.getPreviewSize(&w, &h);
+    if ((w == RES_720P) || (h == RES_720P))
+    {
+        mOverlay->setParameter(CACHEABLE_BUFFERS, 1);
+        mOverlay->setParameter(MAINTAIN_COHERENCY, 0);
+        mOverlay->resizeInput(w, h);
+    }
+
+    if (mFalsePreview)   // Eclair HAL
     {
      // Restart the preview (Only for Overlay Case)
 	//LOGD("In else overlay");
@@ -2369,83 +2332,44 @@ status_t CameraHal::startRecording( )
     int w,h;
     int i = 0;
 
-    for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++)
-    {
-        mVideoBufferUsing[i] = 0;
-    }
-
     mParameters.getPreviewSize(&w, &h);
-
-    // Just for the same size case
     mRecordingFrameSize = w * h * 2;
-
     overlay_handle_t overlayhandle = mOverlay->getHandleRef();
-
     overlay_true_handle_t true_handle;
-
     if ( overlayhandle == NULL ) {
         LOGD("overlayhandle is received as NULL. ");
         return UNKNOWN_ERROR;
     }
 
     memcpy(&true_handle,overlayhandle,sizeof(overlay_true_handle_t));
-
     int overlayfd = true_handle.ctl_fd;
-
     LOGD("#Overlay driver FD:%d ",overlayfd);
 
     mVideoBufferCount =  mOverlay->getBufferCount();
 
+    if (mVideoBufferCount > VIDEO_FRAME_COUNT_MAX)
+    {
+        LOGD("Error: mVideoBufferCount > VIDEO_FRAME_COUNT_MAX");
+        return UNKNOWN_ERROR;
+    }
+
+    mRecordingLock.lock();
+
     for(i = 0; i < mVideoBufferCount; i++)
     {
-        mVideoBufferPtr[i] = (unsigned long)mOverlay->getBufferAddress((void*)i);
-        LOGD("mVideoBufferPtr[%d] = 0x%x", i,mVideoBufferPtr[i]);
+        mVideoHeaps[i].clear();
+        mVideoBuffer[i].clear();
     }
 
-    if(mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)
+    for(i = 0; i < mVideoBufferCount; i++)
     {
-        LOGD("Clear the old memory ");
-        mVideoHeap.clear();
-        for(i = 0; i < mVideoBufferCount; i++)
-        {
-            mVideoHeaps[i].clear();
-            mVideoBuffer[i].clear();
-        }
-        LOGD("Mmap the video Memory %d", mPreviewFrameSize);
-
-#if USE_NEW_OVERLAY
-        for(i = 0; i < mVideoBufferCount; i++)
-        {
-            mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress((void*)i);
-            mVideoHeaps[i]  = new MemoryHeapBase(data->fd,mPreviewFrameSize, 0, data->offset);
-            mVideoBuffer[i] = new MemoryBase(mVideoHeaps[i], 0, mRecordingFrameSize);
-            mPreviewBlocks[i] = data->ptr;
-            LOGD("mVideoHeaps[%d]: ID:%d,Base:[%p],size:%d", i, mVideoHeaps[i]->getHeapID(),
-                                       mVideoHeaps[i]->getBase() ,mVideoHeaps[i]->getSize());
-            LOGD("mVideoBuffer[%d]: Pointer[%p]", i, mVideoBuffer[i]->pointer());
-        }
-#else
-
-#if USE_MEMCOPY_FOR_VIDEO_FRAME
-        mVideoHeap = new MemoryHeapBase(mPreviewFrameSize * mVideoBufferCount);
-
-        LOGD("mVideoHeap ID:%d , Base:[%x],size:%d", mVideoHeap->getHeapID(),
-                                       mVideoHeap->getBase(),mVideoHeap->getSize());
-#else
-        mVideoHeap = new MemoryHeapBase(overlayfd,mPreviewFrameSize * mVideoBufferCount);
-#endif
-#endif
-        LOGD("mVideoHeap ID:%d , Base:[%x],size:%d", mVideoHeap->getHeapID(),
-                                       mVideoHeap->getBase(),mVideoHeap->getSize());
-        for(i = 0; i < mVideoBufferCount; i++)
-        {
-            LOGD("Init Video Buffer:%d ",i);
-            mVideoBuffer[i] = new MemoryBase(mVideoHeap, mPreviewFrameSize*i, mRecordingFrameSize);
-            LOGD("pointer:[%x],size:%d,offset:%d", mVideoBuffer[i]->pointer(),mVideoBuffer[i]->size(),mVideoBuffer[i]->offset());
-        }
-
+        mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress((void*)i);
+        mVideoHeaps[i] = new MemoryHeapBase(data->fd,mPreviewFrameSize, 0, data->offset);
+        mVideoBuffer[i] = new MemoryBase(mVideoHeaps[i], 0, mRecordingFrameSize);
+        LOGV("mVideoHeaps[%d]: ID:%d,Base:[%p],size:%d", i, mVideoHeaps[i]->getHeapID(), mVideoHeaps[i]->getBase() ,mVideoHeaps[i]->getSize());
+        LOGV("mVideoBuffer[%d]: Pointer[%p]", i, mVideoBuffer[i]->pointer());
     }
-    mRecordingLock.lock();
+    
     mRecordEnabled =true;
     mRecordingLock.unlock();
     return NO_ERROR;
@@ -2455,17 +2379,14 @@ void CameraHal::stopRecording()
 {
     LOG_FUNCTION_NAME
     mRecordingLock.lock();
-
-     mRecordEnabled = false; //Eclair HAL
-     mCurrentTime = 0;
+    mRecordEnabled = false;
     mRecordingLock.unlock();
 }
 
 bool CameraHal::recordingEnabled()
 {
     LOG_FUNCTION_NAME
-	return (mRecordEnabled);  // to be FIXED later on. Fixed
-
+    return (mRecordEnabled);
 }
 
 static void debugShowFPS()
@@ -2487,42 +2408,31 @@ static void debugShowFPS()
 
 void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 {
-    //LOG_FUNCTION_NAME
-    ssize_t offset;
-    size_t  size;
     int index;
-    int time = 0;
-#if USE_NEW_OVERLAY
 
     for(index = 0; index <mVideoBufferCount; index ++){
-//        LOGD("mVideoBuffer[%d]->pointer() %x",index,mVideoBuffer[index]->pointer());
         if(mem->pointer() == mVideoBuffer[index]->pointer()) {
             break;
         }
     }
 
-//    LOGD("index = %d  pointer=0x%x",index,mem->pointer());
-
-#else
-    offset = mem->offset();
-    size   = mem->size();
-    index = offset / size;
-#endif
-
-    mRecordingFrameCount++;
-
+    if (index == mVideoBufferCount)
+    {
+        LOGD("Encoder returned wrong buffer address");
+        return;
+    }
+    
     debugShowFPS();
-#if USE_MEMCOPY_FOR_VIDEO_FRAME
-    mVideoBufferUsing[index] = 0;
-#else
-    if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[index]) < 0) {
+    
+    if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[index]) < 0) 
+    {
         LOGE("VIDIOC_QBUF Failed, index [%d] line=%d",index,__LINE__);
-    } else {
-        //LOGE("releaseRecordingFrame index##[%d]",index);
-	    nCameraBuffersQueued++;
-	}
+    } 
+    else 
+    {
+        nCameraBuffersQueued++;
+    }
 
-#endif
     return;
 }
 
