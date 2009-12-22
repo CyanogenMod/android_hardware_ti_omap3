@@ -419,6 +419,12 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     uint32_t num = NUM_OVERLAY_BUFFERS_REQUESTED;
     int fd;
     int shared_fd;
+
+    if (format == OVERLAY_FORMAT_DEFAULT)
+    {
+        format = OVERLAY_FORMAT_CbYCrY_422_I;
+    }
+    
     if (ctx->overlay_video1) {
         LOGE("Error - overlays already in use\n");
         return NULL;
