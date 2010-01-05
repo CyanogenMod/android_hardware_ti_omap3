@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_pool.c
@@ -39,6 +40,9 @@
 #include "mcp_hal_string.h"
 #include "mcp_defs.h"
 #include "mcp_pool.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_FRAME);
 
 MCP_STATIC const McpU32 MCP_POOL_INVALID_ELEMENT_INDEX = MCP_POOL_MAX_NUM_OF_POOL_ELEMENTS + 1;
 MCP_STATIC const McpU8 MCP_POOL_FREE_ELEMENT_MAP_INDICATION = 0;

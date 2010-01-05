@@ -178,8 +178,9 @@ typedef FMC_UINT FmRxEventType;
 	Program Service name changed event
 
 	"p.psData" is valid.
-	"p.psData.len" contains the length of the name
+	"p.psData.frequency" contains The frequency that is currently tuned
 	"p.psData.name" points to the PS name string
+    "p.psData.repertoire" Contains RDS Repertoire used for text data encoding and decoding.    
 */
 #define FM_RX_EVENT_PS_CHANGED					((FmRxEventType)7)
 
@@ -270,8 +271,15 @@ typedef FMC_UINT FmRxCmdType;
 #define FM_RX_CMD_CHANGE_AUDIO_TARGET					((FmRxCmdType)32)	/* Change the audio target*/
 #define FM_RX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION	((FmRxCmdType)33)	/* Change the digital target configuration*/
 
+#define FM_RX_INIT_ASYNC                              	((FmRxCmdType)34)	/* */
 
-#define FM_RX_LAST_API_CMD						(FM_RX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION)
+#define FM_RX_CMD_INIT                              	((FmRxCmdType)35)	/* */
+#define FM_RX_CMD_DEINIT                              	((FmRxCmdType)36)	/* */
+#define FM_RX_CMD_SET_CHANNEL_SPACING                              	((FmRxCmdType)37)	/* */
+#define FM_RX_CMD_GET_CHANNEL_SPACING                              	((FmRxCmdType)38)	/* */
+
+
+#define FM_RX_LAST_API_CMD						(FM_RX_CMD_GET_CHANNEL_SPACING)
 #define FM_RX_CMD_NONE					0xFFFFFFFF
 /*-------------------------------------------------------------------------------
  * FmRxStatus type
@@ -407,6 +415,10 @@ typedef FMC_U8 FmRxAudioPath;
  *     Represents FM event.
  */
 struct _FmRxEvent {
+
+        /* The context for which the event is intended */
+        FmRxContext     *context;
+
 	/* Defines the event that caused the callback */
 	FmRxEventType	eventType;
 
@@ -500,11 +512,11 @@ struct _FmRxEvent {
 			/*the bit in the mask that indicates the group type by mask*/
 			FmcRdsGroupTypeMask        groupBitInMask;
 			/* data of all 4 blocks packed together (2 bytes per block) */
-			FMC_U8                       	groupData[8+1];     
+			FMC_U8                       	groupData[8];     
 		} rawRdsGroupData;
     } p;    
 
-};
+} ;
 
 
 /********************************************************************************
@@ -536,6 +548,44 @@ struct _FmRxEvent {
  *		FMC_STATUS_FAILED -  FM failed initialization.
  */
 FmRxStatus FM_RX_Init(void);
+
+ /*-------------------------------------------------------------------------------
+ * FM_RX_Init_Async()
+ *
+ * Brief:  
+ *		Initializes FM RX module.
+ *
+ * Description:
+ *    It is usually called at system startup.
+ *
+ *    This function must be called by the system before any other FM RX function.
+ *
+ * Type:
+ *		Synchronous\Asynchronous
+ *  
+ * Generated Events:
+ *		eventType=FM_RX_EVENT_CMD_DONE, with commandType == FM_RX_INIT_ASYNC
+ * 		The only feilds that are valid at the event:
+ *
+ * 		eventType
+ *		status
+ *		p.cmdDone.cmd 	
+ *
+ * Parameters:
+  *		fmInitCallback [in] - The FM RX Init event will be sent to this callback.
+ *
+ * Returns:
+ *		FMC_STATUS_SUCCESS   -   FM was initialized successfully.
+ *
+ *		FM_RX_STATUS_PENDING - Operation started successfully, an event will be sent to
+ *								the application upon completion.
+ *
+ *		FM_RX_STATUS_INVALID_PARM - The function was called with an invalid parameter
+ *
+ *		FMC_STATUS_FAILED -  FM failed initialization.
+ *
+ */
+FmRxStatus FM_RX_Init_Async( const FmRxCallBack fmInitCallback);
 
 /*-------------------------------------------------------------------------------
  * FM_Deinit()
@@ -1013,9 +1063,9 @@ FmRxStatus FM_RX_GetRfDependentMute(FmRxContext *fmContext);
  *
  * Description:
  *		Received Signal Strength Indication (RSSI) is a measurement of the power present in a 
- *		received radio signal. RSSI levels range from 0 (no signal) to 255 (maximum power). 
+ *		received radio signal. RSSI levels range from 1 (no signal) to 127 (maximum power). 
  *
- *		This function sets the RSSI threshold level. Valid threshold values are from (-16) - (15)
+ *		This function sets the RSSI threshold level. Valid threshold values are from (1X1.5051 dBuV) - (127X1.5051 dBuV)
  *
  * 		The threshold is used in the following processes:
  *		1. When seeking a station (FM_RX_Seek()). The received RSSI must be >= threshold for 
@@ -1024,7 +1074,7 @@ FmRxStatus FM_RX_GetRfDependentMute(FmRxContext *fmContext);
  *			falls below the RSSI threshold.
  *
  * Default Values: 
- *		7
+ *		7X1.5051 dBuV
  *
  * Generated Events:
  *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_SET_RSSI_THRESHOLD
@@ -1035,7 +1085,7 @@ FmRxStatus FM_RX_GetRfDependentMute(FmRxContext *fmContext);
  * Parameters:
  *		fmContext [in] - FM context.
  *
- *		threshold [in] - The threshold level should be Bigger then (-16).
+ *		threshold [in] - The threshold level should be Bigger then (0).
  *
  * Returns:
  *		FM_RX_STATUS_PENDING - Operation started successfully, an event will be sent to
@@ -1589,10 +1639,13 @@ FmRxStatus FM_RX_GetRdsSystem(FmRxContext *fmContext);
  *		To receive an event for any group, FM_RDS_GROUP_TYPE_MASK_ALL should be specified.
  *
  * Default Values: 
- *		None (FM_RDS_GROUP_TYPE_MASK_NONE)
+ *		ALL (FM_RDS_GROUP_TYPE_MASK_ALL)
+ *
+ * Generated Events:
+ *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_SET_RDS_GROUP_MASK
  *
  * Type:
- *		Synchronous
+ *		Asynchronous\Synchronous
  *
  * Parameters:
  *		fmContext [in] - FM context.
@@ -1600,7 +1653,8 @@ FmRxStatus FM_RX_GetRdsSystem(FmRxContext *fmContext);
  * 		groupMask [in] - Group mask
  *
  * Returns:
- *		FM_RX_STATUS_SUCCESS - Operation completed successfully.
+ *		FM_RX_STATUS_PENDING - Operation started successfully, an event will be sent to
+ *								the application upon completion.
  *
  *		FM_RX_STATUS_INVALID_PARM - The function was called  with an invalid parameter
  *
@@ -1617,8 +1671,11 @@ FmRxStatus FM_RX_SetRdsGroupMask(FmRxContext *fmContext, FmcRdsGroupTypeMask gro
  * Description:
  *		Returns the current RDS group mask
  *
+ * Generated Events:
+ *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_GET_RDS_GROUP_MASK
+ *
  * Type:
- *		Synchronous
+ *		Asynchronous\Synchronous
  *
  * Parameters:
  *		fmContext [in] - FM context.
@@ -1626,7 +1683,8 @@ FmRxStatus FM_RX_SetRdsGroupMask(FmRxContext *fmContext, FmcRdsGroupTypeMask gro
  * 		groupMask [out] - The current group mask
  *
  * Returns:
- *		FM_RX_STATUS_SUCCESS - Operation completed successfully.
+ *		FM_RX_STATUS_PENDING - Operation started successfully, an event will be sent to
+ *								the application upon completion.
  *
  *		FM_RX_STATUS_INVALID_PARM - The function was called  with an invalid parameter
  *
@@ -1664,8 +1722,9 @@ FmRxStatus FM_RX_GetRdsGroupMask(FmRxContext *fmContext);
  *		AF automatic switching can operate only when RDS reception is enabled (via FM_RX_EnableRds()) 
  *
  * Generated Events:
- *		1. Event type==FM_RX_EVENT_AF_SWITCH_COMPLETE, with command type == FM_RX_CMD_SET_RDS_AF_SWITCH_MODE
- *		2. Event type==FM_RX_EVENT_AF_SWITCH_TO_FREQ_FAILED, with command type == FM_RX_CMD_NONE
+ *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_SET_RDS_AF_SWITCH_MODE
+ *		2. Event type==FM_RX_EVENT_AF_SWITCH_COMPLETE, with command type == FM_RX_CMD_NONE
+ *		3. Event type==FM_RX_EVENT_AF_SWITCH_TO_FREQ_FAILED, with command type == FM_RX_CMD_NONE
  *
  * Type:
  *		Asynchronous/Synchronous
@@ -1719,6 +1778,76 @@ FmRxStatus FM_RX_SetRdsAfSwitchMode(FmRxContext *fmContext, FmRxRdsAfSwitchMode 
  */
 FmRxStatus FM_RX_GetRdsAfSwitchMode(FmRxContext *fmContext);
 
+
+/*-------------------------------------------------------------------------------
+ * FM_RX_SetSeekSpacing()
+ *
+ * Brief:  
+ *		Sets the Seek channel spacing interval.
+ *
+ * Description:
+ *		When performing seek operation there is in interval spacing between 
+ *		the stations that are searched.
+ *
+ * Default Value: 
+ *		FMC_CHANNEL_SPACING_100_KHZ.
+ *
+ * Generated Events:
+ *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_SET_CHANNEL_SPACING
+ *
+ * Type:
+ *		Asynchronous/Synchronous
+ *
+ * Parameters:
+ *		fmContext [in] - FM RX context.
+ *		channelSpacing [in] - Channel spacing.
+ *
+ * Returns:
+ * 
+ *		FM_RX_STATUS_PENDING - Operation started successfully, an event will be sent to
+ *								the application upon completion.
+ *
+ *		FM_RX_STATUS_INVALID_PARM - The function was called  with an invalid parameter
+ *
+ *		FM_RX_STATUS_CONTEXT_NOT_ENABLED - The context is not enabled
+ *
+ *		FM_RX_STATUS_TOO_MANY_PENDING_OPERATIONS - Too many operations are already waiting
+ *														execution in operations queue.
+ */
+FmRxStatus FM_RX_SetChannelSpacing(FmRxContext *fmContext,FmcChannelSpacing channelSpacing);
+
+/*-------------------------------------------------------------------------------
+ * FM_RX_GetSeekSpacing()
+ *
+ * Brief:  
+ *		Gets the Seek channel spacing interval.
+ *
+ * Description:
+ *		Gets the Seek channel spacing interval.
+ *
+ * Generated Events:
+ *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_GET_CHANNEL_SPACING
+ *
+ * Type:
+ *		Asynchronous/Synchronous
+ *
+ * Parameters:
+ *		fmContext [in] - FM RX context.
+ *
+ * Returns:
+ * 
+ *		FM_RX_STATUS_PENDING - Operation started successfully, an event will be sent to
+ *								the application upon completion.
+ *
+ *		FM_RX_STATUS_INVALID_PARM - The function was called  with an invalid parameter
+ *
+ *		FM_RX_STATUS_CONTEXT_NOT_ENABLED - The context is not enabled
+ *
+ *		FM_RX_STATUS_TOO_MANY_PENDING_OPERATIONS - Too many operations are already waiting
+ *														execution in operations queue.
+ */
+FmRxStatus FM_RX_GetChannelSpacing(FmRxContext *fmContext);
+
 /*-------------------------------------------------------------------------------
  * FM_RX_ChangeAudioTarget()
  *
@@ -1738,7 +1867,7 @@ FmRxStatus FM_RX_GetRdsAfSwitchMode(FmRxContext *fmContext);
  *		status code FM_RX_STATUS_AUDIO_OPERATION_UNAVAILIBLE_RESOURCES.
  *
  * Generated Events:
- *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION
+ *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_CHANGE_AUDIO_TARGET
  *
  * Type:
  *		Asynchronous/Synchronous
@@ -1776,7 +1905,7 @@ FmRxStatus FM_RX_ChangeAudioTarget (FmRxContext *fmContext, FmRxAudioTargetMask 
  *		The digital configuration will apply on every digital target set (if few will be possible in the future). 
  *
  * Generated Events:
- *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_CHANGE_AUDIO_TARGET
+ *		1. Event type==FM_RX_EVENT_CMD_DONE, with command type == FM_RX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION
  *
  * Type:
  *		Asynchronous/Synchronous

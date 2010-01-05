@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-#define obc 0
-
 #include <string.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
 #include "fmc_types.h"
+
 #include "fmc_config.h"
 #include "fmc_defs.h"
 #include "fmc_core.h"
-#if obc
+#include "fmc_log.h"
 #include "ccm_im.h"
-#endif
 #include "fmc_utils.h"
-#include "fm_trace.h"
+#include "fmc_os.h"
 
+
+FMC_LOG_SET_MODULE(FMC_LOG_MODULE_FMCORE);
 
 /* [ToDo] Make sure there is a single process at a time handled by the transport layer */
 
@@ -62,10 +62,9 @@ typedef struct {
     FmcCoreEvent        event;
 
     FMC_BOOL            fmInterruptRecieved;
-#if obc
+
     CcmObj                  *ccmObj;
     CCM_IM_StackHandle      ccmImStackHandle;
-#endif
 } _FmcCoreData;
 
 static _FmcCoreData _fmcTransportData;
@@ -80,6 +79,7 @@ FMC_STATIC void _FMC_CORE_CmdCompleteCb(    FmcStatus   status,
                                                         FMC_U8      *data,
                                                         FMC_UINT    dataLen);
 
+FMC_STATIC void _FMC_CORE_InterruptCb(FmcOsEvent evtMask);
 FMC_STATIC FmcStatus _FMC_CORE_HCI_RegisterUnregisterGeneralEvent(FMC_BOOL registerInt);
 
 FMC_STATIC void _FMC_CORE_interruptCb(  FmcStatus   status,
@@ -88,23 +88,18 @@ FMC_STATIC void _FMC_CORE_interruptCb(  FmcStatus   status,
 
 CCM_IM_StackHandle _FMC_CORE_GetCcmImStackHandle(void);
 
-static void _FMC_CORE_InterruptCb(FmcOsEvent evtMask);
-
-
 FmcStatus FMC_CORE_Init(void)
 {
     FmcStatus       status = FMC_STATUS_SUCCESS;
-#if obc
     CcmStatus       ccmStatus;
+    CcmImStatus       ccmImStatus;
     CcmImObj        *ccmImObj;
-#endif
 
     FMC_FUNC_START("FMC_CORE_Init");
 
     /* [ToDo] - Protect against mutliple initializations / handle them correctly if allowed*/
     _fmcTransportData.clientCb = NULL;
 
-#if obc
     ccmStatus = CCM_StaticInit();
     FMC_VERIFY_FATAL_NO_RETVAR((ccmStatus == CCM_IM_STATUS_SUCCESS),  ("CCM_StaticInit Failed (%d)", ccmStatus));
 
@@ -119,9 +114,9 @@ FmcStatus FMC_CORE_Init(void)
         Therefore, the transport layer registers an internal callback to receive CCM IM 
         notifications and process them.
     */  
-    ccmStatus = CCM_IM_RegisterStack(ccmImObj, CCM_IM_STACK_ID_FM, _FMC_CORE_CcmImCallback, &_fmcTransportData.ccmImStackHandle);
-    FMC_VERIFY_FATAL_NO_RETVAR((ccmStatus == CCM_IM_STATUS_SUCCESS),  ("CCM_IM_RegisterStack Failed (%d)", ccmStatus));
-#endif
+    ccmImStatus = CCM_IM_RegisterStack(ccmImObj, CCM_IM_STACK_ID_FM, _FMC_CORE_CcmImCallback, &_fmcTransportData.ccmImStackHandle);
+    FMC_VERIFY_FATAL_NO_RETVAR((ccmImStatus == CCM_IM_STATUS_SUCCESS),  ("CCM_IM_RegisterStack Failed (%d)", ccmImStatus));
+
     FMC_FUNC_END();
     
     return status;
@@ -130,67 +125,59 @@ FmcStatus FMC_CORE_Init(void)
 FmcStatus FMC_CORE_Deinit(void)
 {
     FmcStatus       status = FMC_STATUS_SUCCESS;
-#if obc
+    CcmImStatus       ccmImStatus;
     CcmStatus       ccmStatus;
-#endif
 
     FMC_FUNC_START("FMC_CORE_Deinit");
 
-#if obc
-    ccmStatus = CCM_IM_DeregisterStack(&_fmcTransportData.ccmImStackHandle);
-    FMC_VERIFY_FATAL_NO_RETVAR((ccmStatus == CCM_IM_STATUS_SUCCESS),  ("CCM_IM_DeregisterStack Failed (%d)", ccmStatus));
+    ccmImStatus = CCM_IM_DeregisterStack(&_fmcTransportData.ccmImStackHandle);
+    FMC_VERIFY_FATAL_NO_RETVAR((ccmImStatus == CCM_IM_STATUS_SUCCESS),  ("CCM_IM_DeregisterStack Failed (%d)", ccmImStatus));
 
     ccmStatus = CCM_Destroy(&_fmcTransportData.ccmObj);
     FMC_VERIFY_FATAL_NO_RETVAR((ccmStatus == CCM_IM_STATUS_SUCCESS),  ("CCM_Destroy Failed (%d)", ccmStatus));
-#endif
         
     FMC_FUNC_END();
     
     return status;
 }
-
 FmcStatus FMC_CORE_SetCallback(FmcCoreEventCb eventCb)
 {
-    FmcStatus status;
+	FmcStatus status;
 
-    FMC_FUNC_START("FMC_CORE_SetCallback");
-    
-    /* Verify that only a single client at a time requests notifications */
-    if(eventCb != NULL)
-    {
-        status = FMC_CORE_RegisterUnregisterIntCallback(FMC_TRUE);
-        /*[ToDo Zvi] It seems that we don't need this verify , do we???*/
-        /*FMC_VERIFY_FATAL((_fmcTransportData.clientCb == NULL), FMC_STATUS_INTERNAL_ERROR,
-            ("FMC_CORE_SetCallback: Callback already set"));*/
+	FMC_FUNC_START("FMC_CORE_SetCallback");
+	
+	/* Verify that only a single client at a time requests notifications */
+	if(eventCb != NULL)
+	{
+		status = FMC_CORE_RegisterUnregisterIntCallback(FMC_TRUE);
+	   
+		FMC_VERIFY_FATAL((_fmcTransportData.clientCb == NULL), FMC_STATUS_INTERNAL_ERROR,
+			("FMC_CORE_SetCallback: Callback already set"));
 
-    }
-    else
-    {
-#if defined(ANDROID) || defined(SDP3430)
-        status = FMC_CORE_RegisterUnregisterIntCallback(FMC_FALSE);
-#endif
-    }
-    _fmcTransportData.clientCb = eventCb;
+	}
+	else
+	{
+   
+		status = FMC_CORE_RegisterUnregisterIntCallback(FMC_FALSE);
+	}
+	_fmcTransportData.clientCb = eventCb;
 
-    status = FMC_STATUS_SUCCESS;
-    
-    FMC_FUNC_END();
-    
-    return status;
-}
+	status = FMC_STATUS_SUCCESS;
+	
+	FMC_FUNC_END();
+	
+	return status;
+} 
 
 FmcStatus FMC_CORE_TransportOn(void)
 {
     FmcStatus       status = FMC_STATUS_SUCCESS;
-#if obc
     CcmImStatus     ccmImStatus;
-#endif
 
     FMC_FUNC_START("FMC_CORE_TransportOn");
 
     FMC_LOG_INFO(("FMC_CORE_TransportOn: Calling TI_CHIP_MNGR_FMOn"));
-
-#if obc                
+                
     /* Notify chip manager that FM need to turn on */
     ccmImStatus = CCM_IM_StackOn(_fmcTransportData.ccmImStackHandle);
             
@@ -208,8 +195,6 @@ FmcStatus FMC_CORE_TransportOn(void)
     {
         FMC_FATAL(FMC_STATUS_INTERNAL_ERROR, ("FMC_CORE_TransportOn: CCM_IM_FmOn Failed (%d)", ccmImStatus));
     }
-#endif
-
     
     FMC_FUNC_END();
 
@@ -219,16 +204,12 @@ FmcStatus FMC_CORE_TransportOn(void)
 FmcStatus FMC_CORE_TransportOff(void)
 {
     FmcStatus       status = FMC_STATUS_SUCCESS;
-#if obc
     CcmImStatus     ccmImStatus;
-#endif
-
 
     FMC_FUNC_START("FMC_CORE_TransportOff");
 
     FMC_LOG_INFO(("FMC_CORE_TransportOff: Calling TI_CHIP_MNGR_FMOff"));
 
-#if obc
     ccmImStatus = CCM_IM_StackOff(_fmcTransportData.ccmImStackHandle);
 
     if (ccmImStatus == CCM_IM_STATUS_SUCCESS) 
@@ -245,7 +226,6 @@ FmcStatus FMC_CORE_TransportOff(void)
     {
         FMC_FATAL(FMC_STATUS_INTERNAL_ERROR, ("FMC_CORE_TransportOff: CCM_IM_FmOff Failed (%d)", ccmImStatus ));
     }
-#endif
     
     FMC_FUNC_END();
 
@@ -302,8 +282,6 @@ void _FMC_CORE_interruptCb( FmcStatus   status,
     (_fmcTransportData.clientCb)(&_fmcTransportData.event);
 
 }
-
-#if obc
 void _FMC_CORE_CcmImCallback(CcmImEvent *event)
 {
     FMC_FUNC_START("_FMC_CORE_CcmImCallback");
@@ -341,16 +319,14 @@ void _FMC_CORE_CcmImCallback(CcmImEvent *event)
 
     FMC_FUNC_END();
 }
-#endif
 CCM_IM_StackHandle _FMC_CORE_GetCcmImStackHandle(void)
 {
-	return NULL;
+	return _fmcTransportData.ccmImStackHandle;
 }
 CcmObj* _FMC_CORE_GetCcmObjStackHandle(void)
 {
-	return NULL;
+	return _fmcTransportData.ccmObj;
 }
-
 
 /*************************************************************************************************
                 HCI-Specific implementation of transport API  - 
@@ -554,7 +530,6 @@ FmcStatus FMC_CORE_SendReadCommand(FmcFwOpcode fmOpcode,FMC_U16 fmParameter)
     return status;
 }
 
-static int count = 0;
 
 FmcStatus FMC_CORE_SendHciScriptCommand(    FMC_U16     hciOpcode, 
                                                                 FMC_U8      *hciCmdParms, 
@@ -566,8 +541,6 @@ FmcStatus FMC_CORE_SendHciScriptCommand(    FMC_U16     hciOpcode,
     
     FMC_VERIFY_ERR((len <= FMC_CORE_MAX_PARMS_LEN), FMC_STATUS_INVALID_PARM, 
                     ("FMC_CORE_SendHciScriptCommand: data len (%d) exceeds max len (%d)", len, FMC_CORE_MAX_PARMS_LEN));
-
-    ++count;
 
     FMC_OS_MemCopy(_fmcTransportData.cmdParms, hciCmdParms, len);
     _fmcTransportData.parmsLen = len;
@@ -646,6 +619,7 @@ FmcStatus _FMC_CORE_SendAnyWriteCommand(FmcFwOpcode fmOpcode,
 #include "bt_hci_if.h"
 
 typedef struct {
+	//MeCommandToken						meToken;
 	BtHciIfClientCb sequencerCb;
 	void* pUserData;
 	_FmcTransportCommandCompleteCb		cmdCompleteCb;
@@ -662,12 +636,12 @@ FMC_STATIC void _FMC_CORE_HCI_ProcessHciEvent(struct hci_request	*hciEvent,
 /*
 	Callback for calles to FM transport done by the FM client handle.
 */
-static void _FMC_CORE_HCI_CmdCompleteCb(struct hci_request *hciEvent, _FmcCoreTransportClients clientHandle);
+FMC_STATIC void _FMC_CORE_HCI_CmdCompleteCb(struct hci_request *hciEvent, _FmcCoreTransportClients clientHandle);
 
 /*
 	Callback for calles to FM transport done by the VAC client handle.
 */
-static void _FM_IF_FmVacCmdCompleteCb( FmcStatus	status,
+FMC_STATIC void _FM_IF_FmVacCmdCompleteCb( FmcStatus	status,
 											FMC_U8		*data,
 											FMC_UINT	dataLen);
 
@@ -702,14 +676,12 @@ FmcStatus _FMC_CORE_HCI_RegisterUnregisterGeneralEvent(FMC_BOOL registerInt)
 static void _FMC_CORE_InterruptCb(FmcOsEvent evtMask)
 {
 	FMC_UNUSED_PARAMETER(evtMask);
-	FM_BEGIN();
+	
 	_FMC_CORE_interruptCb(FMC_STATUS_SUCCESS, FMC_CORE_EVENT_FM_INTERRUPT);
-	FM_END();
 }
 /*
     Send an any FM command over HCI (using ME layer of BT stack)
 */
-
 /* socket for sending hci commands */
 static int g_fm_cmd_socket = -1;
 
@@ -737,19 +709,9 @@ FmcStatus _FMC_CORE_HCI_SendFmCommand(
                 FMC_STATUS_FAILED));
         
     }
-
     _fmcTransportHciData[clientHandle].cmdCompleteCb = cmdCompleteCb;
-
 	hciOpcode = (FMC_U16)(hciOpcode | HCC_GROUP_SHIFT(HCC_GRP_VENDOR_SPECIFIC));
 
-
-//	_fmcTransportHciData[clientHandle].meToken.callback = _FMC_CORE_HCI_CmdCompleteCb;
-//	_fmcTransportHciData[clientHandle].meToken.p.general.in.hciCommand = (FMC_U16)(hciOpcode | HCC_GROUP_SHIFT(HCC_GRP_VENDOR_SPECIFIC));
-//	_fmcTransportHciData[clientHandle].meToken.p.general.in.parmLen = (FMC_U8)parmsLen;
-//	_fmcTransportHciData[clientHandle].meToken.p.general.in.parms = hciCmdParms;
-//	_fmcTransportHciData[clientHandle].meToken.p.general.in.event = HCE_COMMAND_COMPLETE;
-//	_fmcTransportHciData[clientHandle].meToken.pUserData = &_fmcTransportHciData[clientHandle]; 
- 
    	memset(&rq, 0, sizeof(rq));
 	rq.ogf    = cmd_opcode_ogf(hciOpcode);
 	rq.ocf    = cmd_opcode_ocf(hciOpcode);
@@ -760,7 +722,7 @@ FmcStatus _FMC_CORE_HCI_SendFmCommand(
 	rq.rlen   = sizeof(response);
 
 	if (hci_send_req(g_fm_cmd_socket, &rq, 30000) < 0) {
-		FM_ERROR_SYS("failed to send command");
+		FMC_LOG_ERROR(("failed to send command"));
 		status = FMC_STATUS_FAILED;
 		goto out;
 	}
@@ -786,7 +748,8 @@ void _FMC_CORE_HCI_CmdCompleteCb(struct hci_request *hciEvent, _FmcCoreTransport
     {
         len = 0;
     }
-    
+    FMC_VERIFY_FATAL_NORET ((tempCmdCompleteCb != NULL), ("HCIDataInEvt returned a Null cmdCompleteCb"));
+		
     /* Parse HCI event */
     _FMC_CORE_HCI_ProcessHciEvent(  hciEvent,
                                             &cmdCompleteStatus,
@@ -803,21 +766,21 @@ void _FMC_CORE_HCI_ProcessHciEvent(struct hci_request *hciEvent,
 {
  	uint8_t *result = (uint8_t *)hciEvent->rparam;
 	uint8_t result_len = hciEvent->rlen;
-	
-	FMC_FUNC_START("_FMC_CORE_HCI_ProcessHciEvent");
-		
-	/*
+    
+    FMC_FUNC_START("_FMC_CORE_HCI_ProcessHciEvent");
+    
+        /* 
 	 * if got a status byte, pass it forward, otherwise pass a failure
 	 * status
-	 */
+        */
 	if (result_len >= 1 && 0 == result[0])
-		*cmdCompleteStatus = FMC_STATUS_SUCCESS;
+                *cmdCompleteStatus = FMC_STATUS_SUCCESS;
 	else
 	{
 		*cmdCompleteStatus = FMC_STATUS_FM_COMMAND_FAILED;
 		FMC_ERR_NO_RETVAR(("_FMC_CORE_HCI_ProcessHciEvent: HCI Event BT Status: %d", result[0]));
 		goto out;
-	}
+    }
 
 	/* if got additional data, pass it forward */
 	if (result_len >= 2)
@@ -831,13 +794,12 @@ void _FMC_CORE_HCI_ProcessHciEvent(struct hci_request *hciEvent,
 	 */
 	*len = result_len - 1;
 out:
-	FMC_FUNC_END();
+    FMC_FUNC_END();
 }
 
 FmcStatus fm_open_cmd_socket(int hci_dev)
 {
 	FmcStatus ret = FMC_STATUS_SUCCESS;
-	FM_BEGIN();
 
 	/*
 	 * we do not close this socket; it will stay open as long as FM stack
@@ -845,11 +807,10 @@ FmcStatus fm_open_cmd_socket(int hci_dev)
 	 */
 	g_fm_cmd_socket = hci_open_dev(hci_dev);
 	if (g_fm_cmd_socket < 0) {
-		FM_ERROR_SYS("failed to open device hci%d", hci_dev);
+		FMC_LOG_ERROR(("failed to open device hci%d", hci_dev));
 		ret = FMC_STATUS_FAILED;
 	}
 
-	FM_END();
 	return ret;
 }
 
@@ -858,7 +819,7 @@ FmcStatus fm_close_cmd_socket(void)
 	FmcStatus ret = FMC_STATUS_SUCCESS;
 
 	if (-1 == hci_close_dev(g_fm_cmd_socket)) {
-		FM_ERROR_SYS("failed to close hci device");
+		FMC_LOG_ERROR(("failed to close hci device"));
 		ret = FMC_STATUS_FAILED;
 	}
 
@@ -920,7 +881,6 @@ void _FM_IF_FmVacCmdCompleteCb( FmcStatus   status,
                                         FMC_UINT    dataLen)
 {
     BtHciIfClientEvent      clientEvent;
-
 	#define HCE_COMMAND_COMPLETE               0x0E;
     
     FMC_FUNC_START("_FM_IF_FmVacCmdCompleteCb");

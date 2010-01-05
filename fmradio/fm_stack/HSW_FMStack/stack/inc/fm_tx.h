@@ -152,8 +152,8 @@ typedef FMC_UINT FmTxEventType;
  */
 typedef  FMC_UINT  FmTxMonoStereoMode;
 
-#define FM_TX_MONO_MODE                             ((FmTxMonoStereoMode)(1))
-#define FM_TX_STEREO_MODE                       ((FmTxMonoStereoMode)(0))
+#define FM_TX_MONO_MODE                             ((FmTxMonoStereoMode)(0))
+#define FM_TX_STEREO_MODE                       ((FmTxMonoStereoMode)(1))
 
 /*-------------------------------------------------------------------------------
  * FmTxCmdType type
@@ -215,9 +215,12 @@ typedef FMC_UINT FmTxCmdType;
 #define FM_TX_CMD_CHANGE_AUDIO_SOURCE           ((FmTxCmdType)56)   /* Write Raw RDS command */
 #define FM_TX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION            ((FmTxCmdType)57)   /* Read Raw RDS command */
 
+#define FM_TX_CMD_INIT            ((FmTxCmdType)58)   /* */
+#define FM_TX_CMD_DEINIT            ((FmTxCmdType)59)   /* */
 
 
-#define FM_TX_LAST_CMD_TYPE                     (FM_TX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION)
+
+#define FM_TX_LAST_CMD_TYPE                     (FM_TX_CMD_DEINIT)
 #define FM_TX_INVALID_CMD_TYPE                  (FM_TX_LAST_CMD_TYPE + 1)
 
 /*-------------------------------------------------------------------------------
@@ -371,7 +374,7 @@ struct _FmTxEvent
             } v;
         } cmdDone;
     } p;    
-};
+} ;
 
 /********************************************************************************
  *
@@ -959,7 +962,8 @@ FmTxStatus FM_TX_GetPowerLevel(FmTxContext *fmContext);
  * Parameters:
  *      fmContext [in] - FM TX context.
  *
- *      mode [in] - the mode to set
+ *      mode [in] - the mode to set.
+ *                  Can get the modes:FMC_MUTE or FMC_NOT_MUTE only.
  *
  * Returns:
  *      FM_TX_STATUS_PENDING - Operation started successfully, an event will be sent to
@@ -985,6 +989,7 @@ FmTxStatus FM_TX_SetMuteMode(FmTxContext *fmContext, FmcMuteMode mode);
  *
  * Generated Events:
  *      1. eventType==FM_TX_EVENT_CMD_DONE, with commandType == FM_TX_CMD_GET_MUTE_MODE
+           With value FMC_MUTE or FMC_NOT_MUTE.
  *
  * Type:
  *      Asynchronous/Synchronous
@@ -1162,7 +1167,7 @@ FmTxStatus FM_TX_GetRdsTransmissionMode(FmTxContext *fmContext);
  *      Sets the transmitted Alternate Frequency (AF) code. 
  *      
  *      In case the caller doesn't want to transmit any valid AF code,
- *      a special value (FMC_AF_NO_AF_AVAILABLE) should be specified in the call.
+ *      a special value (FMC_AF_CODE_NO_AF_AVAILABLE) should be specified in the call.
  *
  *      The values range from 1 to 204. In the following code list, each code represents an
  *      AF carrier frequency:
@@ -1186,7 +1191,7 @@ FmTxStatus FM_TX_GetRdsTransmissionMode(FmTxContext *fmContext);
  * Parameters:
  *      fmContext [in] - FM context.
  *
- *      afCode [in] - AF Code to transmit. 1 - 224, or FMC_AF_NO_AF_AVAILABLE
+ *      afCode [in] - AF Code to transmit. 1 - 204, or FMC_AF_CODE_NO_AF_AVAILABLE
  *
  * Returns:
  *      FM_TX_STATUS_PENDING - Operation started successfully, an event will be sent to
@@ -1195,8 +1200,6 @@ FmTxStatus FM_TX_GetRdsTransmissionMode(FmTxContext *fmContext);
  *      FM_TX_STATUS_INVALID_PARM - The function was called with an invalid parameter
  *
  *      FM_TX_STATUS_CONTEXT_NOT_ENABLED - The context is not enabled
- *
- *      FM_TX_STATUS_AUTO_MODE_NOT_ON  - Indi
  *
  *      FM_TX_STATUS_TOO_MANY_PENDING_CMDS - Too many operations are already waiting
  *                                                      execution in operations queue.
@@ -2057,18 +2060,20 @@ FmTxStatus FM_TX_SetRdsMusicSpeechFlag(FmTxContext *fmContext, FmcRdsMusicSpeech
  *      FM_TX_STATUS_RDS_AUTO_MODE_NOT_ON - Operation can only be performed when in automatic mode.
  */
 FmTxStatus FM_TX_GetRdsMusicSpeechFlag(FmTxContext *fmContext);
-/*-------------------------------------------------------------------------------
+
+/*------------------------------------------------------------------------------
  * FM_TX_SetRdsECC()
  *
  * Brief: 
-*
-*
+ *
+ *
  * Description:
  *
- * Default Valuess:
+ * Default Values:
  *
  * Generated Events:
- *      1. eventType==FM_TX_EVENT_CMD_DONE, with commandType == FM_TX_CMD_SET_RDS_EXTENDED_COUNTRY_CODE
+ *      1. eventType == FM_TX_EVENT_CMD_DONE
+ *         with commandType == FM_TX_CMD_SET_RDS_EXTENDED_COUNTRY_CODE
  *
  * Type:
  *      Asynchronous/Synchronous
@@ -2076,34 +2081,39 @@ FmTxStatus FM_TX_GetRdsMusicSpeechFlag(FmTxContext *fmContext);
  * Parameters:
  *      fmContext [in] - FM context.
  *
- *      diCodes [in] - DI Codes to transmit
+ *      countryCode [in] - Extended Country Code to transmit. Must be in range
+ *          of 8 bits (0-255).
  *
  * Returns:
- *      FM_TX_STATUS_PENDING - Operation started successfully, an event will be sent to
- *                              the application upon completion.
+ *      FM_TX_STATUS_PENDING - Operation started successfully, an event will be
+ *          sent to the application upon completion.
  *
- *      FM_TX_STATUS_INVALID_PARM - The function was called with an invalid parameter
+ *      FM_TX_STATUS_INVALID_PARM - The function was called with an invalid
+ *          parameter
  *
  *      FM_TX_STATUS_CONTEXT_NOT_ENABLED - The context is not enabled
  *
- *      FM_TX_STATUS_TOO_MANY_PENDING_CMDS - Too many operations are already waiting
- *                                                      execution in operations queue.
+ *      FM_TX_STATUS_TOO_MANY_PENDING_CMDS - Too many operations are already
+ *          waiting execution in operations queue.
  *
- *      FM_TX_STATUS_RDS_AUTO_MODE_NOT_ON - Operation can only be performed when in automatic mode.
+ *      FM_TX_STATUS_RDS_AUTO_MODE_NOT_ON - Operation can only be performed when
+ *          in automatic mode.
  */
-FmTxStatus FM_TX_SetRdsECC(FmTxContext *fmContext, FmcRdsExtendedCountryCode countryCode);
+FmTxStatus FM_TX_SetRdsECC(FmTxContext *fmContext,
+                           FmcRdsExtendedCountryCode countryCode);
 
-/*-------------------------------------------------------------------------------
+/*------------------------------------------------------------------------------
  * FM_TX_GetRdsECC()
  *
  * Brief:  
  *
  *
  * Description:
-*
-*
+ *
+ *
  * Generated Events:
- *      1. eventType==FM_TX_EVENT_CMD_DONE, with commandType == FM_TX_CMD_GET_RDS_EXTENDED_COUNTRY_CODE
+ *      1. eventType == FM_TX_EVENT_CMD_DONE
+ *         with commandType == FM_TX_CMD_GET_RDS_EXTENDED_COUNTRY_CODE
  *
  * Type:
  *      Asynchronous/Synchronous
@@ -2113,20 +2123,23 @@ FmTxStatus FM_TX_SetRdsECC(FmTxContext *fmContext, FmcRdsExtendedCountryCode cou
  *
  * Returns:
  *
- *      FM_TX_STATUS_PENDING - Operation started successfully, an event will be sent to
- *                              the application upon completion.
+ *      FM_TX_STATUS_PENDING - Operation started successfully, an event will be
+ *          sent to the application upon completion.
  *
- *      FM_TX_STATUS_INVALID_PARM - The function was called  with an invalid parameter
+ *      FM_TX_STATUS_INVALID_PARM - The function was called  with an invalid
+ *          parameter
  *
  *      FM_TX_STATUS_CONTEXT_NOT_ENABLED - The context is not enabled
  *
- *      FM_TX_STATUS_TOO_MANY_PENDING_CMDS - Too many operations are already waiting
- *                                                      execution in operations queue.
+ *      FM_TX_STATUS_TOO_MANY_PENDING_CMDS - Too many operations are already
+ *          waiting execution in operations queue.
  *
- *      FM_TX_STATUS_RDS_AUTO_MODE_NOT_ON - Operation can only be performed when in automatic mode.
+ *      FM_TX_STATUS_RDS_AUTO_MODE_NOT_ON - Operation can only be performed when
+ *          in automatic mode.
  */
 FmTxStatus FM_TX_GetRdsECC(FmTxContext *fmContext);
-/*-------------------------------------------------------------------------------
+
+/*------------------------------------------------------------------------------
  * FM_TX_WriteRdsRawData()
  *
  * Brief: 

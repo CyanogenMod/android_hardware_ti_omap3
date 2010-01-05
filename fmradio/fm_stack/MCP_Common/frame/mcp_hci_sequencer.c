@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 
+
 #include "mcp_hci_sequencer.h"
 #include "mcp_hal_memory.h"
 #include "mcp_defs.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_FRAME);
 
 /* internal prototypes */
 void _MCP_HciSeq_callback (BtHciIfClientEvent* pEvent);
-
+BtHciIfStatus _MCP_HciSeq_SendCommand(MCP_HciSeq_Context *pContext);
 
 /*---------------------------------------------------------------------------
  *            MCP_HciSeq_CreateSequence()
@@ -40,9 +44,10 @@ void MCP_HciSeq_CreateSequence (MCP_HciSeq_Context *pContext,
     MCP_FUNC_START ("MCP_HciSeq_CreateSequence");
 
     /* nullify variables */
-    pContext->bCancelFlag = MCP_FALSE;
+    pContext->uSequenceId = 0;
     pContext->uCommandCount = 0;
     pContext->uCurrentCommandIdx = 0;
+    pContext->bPendingCommand = MCP_FALSE;
     /* register a HCI IF client */
     pContext->coreId = coreId;
     if(pContext->coreId == MCP_HAL_CORE_ID_BT)
@@ -87,9 +92,9 @@ void MCP_HciSeq_DestroySequence (MCP_HciSeq_Context *pContext)
  */
  /*FM-VAC*/
 BtHciIfStatus MCP_HciSeq_RunSequence (MCP_HciSeq_Context *pContext, 
-                                const McpU32 uCommandCount,
-                                const McpHciSeqCmd *pCommands,
-                                McpBool bCallCbOnlyAfterLastCmd)
+                                      const McpU32 uCommandCount,
+                                      const McpHciSeqCmd *pCommands,
+                                      McpBool bCallCbOnlyAfterLastCmd)
 {
     /* sanity cehck */
     if (HCI_SEQ_MAX_CMDS_PER_SEQUENCE < uCommandCount)
@@ -104,47 +109,24 @@ BtHciIfStatus MCP_HciSeq_RunSequence (MCP_HciSeq_Context *pContext,
                             uCommandCount*sizeof(McpHciSeqCmd));
 
     /* initialize new sequence */
+    pContext->uCommandCount = uCommandCount;
     pContext->uCurrentCommandIdx = 0;
+    pContext->uSequenceId++;
 
-    /* if a sequence is running */
-    if (pContext->uCommandCount > 0)
+    /* if a command is pending */
+    if (MCP_TRUE == pContext->bPendingCommand)
     {
-        pContext->uCommandCount = uCommandCount;
-
-        /* turn on cancel indication, indicating user CB for current command should not be called  */
-        pContext->bCancelFlag = MCP_TRUE;
-
         return BT_HCI_IF_STATUS_PENDING;
     }
-    /* sequence is not running at the moment */
     else
     {
-        pContext->uCommandCount = uCommandCount;
-
         /* prepare first command (by calling the CB) */
         pContext->commandsSequence[ pContext->uCurrentCommandIdx ].fCommandPrepCB( 
-            &(pContext->command), pContext->commandsSequence[ pContext->uCurrentCommandIdx ].pUserData );
+            &(pContext->command),
+            pContext->commandsSequence[ pContext->uCurrentCommandIdx ].pUserData );
 
         /* execute first command */
-        if(pContext->coreId == MCP_HAL_CORE_ID_BT)
-        {
-        
-                return BT_HCI_IF_SendHciCommand(pContext->handle,    
-                                            pContext->command.eHciOpcode, 
-                                            pContext->command.pHciCmdParms, 
-                                            pContext->command.uhciCmdParmsLen,
-                                            pContext->command.uCompletionEvent,
-                                            (void*)pContext);
-        }
-        else if (pContext->coreId == MCP_HAL_CORE_ID_FM)
-        {
-            return FM_TRANSPORT_IF_SendFmVacCommand(    
-                                        pContext->command.pHciCmdParms, 
-                                        pContext->command.uhciCmdParmsLen,
-                                        _MCP_HciSeq_callback,
-                                        (void*)pContext);
-        }
-        return BT_HCI_IF_STATUS_INTERNAL_ERROR;
+        return(_MCP_HciSeq_SendCommand(pContext));
     }
 }
 
@@ -160,8 +142,8 @@ void MCP_HciSeq_CancelSequence (MCP_HciSeq_Context *pContext)
     /* if a sequence is running */
     if (0 < pContext->uCommandCount)
     {
-        /* signal cancel flag - to avoid calling the CB */
-        pContext->bCancelFlag = MCP_TRUE;
+        /* change sequence ID - to avoid calling the CB */
+        pContext->uSequenceId++;
 
         /* nullify command count and current command index */
         pContext->uCommandCount = 0;
@@ -181,11 +163,13 @@ void _MCP_HciSeq_callback (BtHciIfClientEvent* pEvent)
 {
     MCP_HciSeq_Context   *pContext = (MCP_HciSeq_Context*)pEvent->pUserData;
     BtHciIfStatus        tStatus = BT_HCI_IF_STATUS_INTERNAL_ERROR;
+    McpU32               uSequenceId;
 
-    /* CB is not called if previous sequence was canceled! */
-
-    /* check again if cancel was requested during the callback */
-    if (MCP_FALSE == pContext->bCancelFlag)
+    /* Clear flag of pending command */
+    pContext->bPendingCommand = MCP_FALSE;
+    
+    /* CB is not called if previous sequence was canceled or a new sequence was run! */
+    if (pContext->uSeqenceIdOfSentCommand == pContext->uSequenceId)
     {
         /* cancel was not requested - advance to next command */
         pContext->uCurrentCommandIdx++;
@@ -200,16 +184,27 @@ void _MCP_HciSeq_callback (BtHciIfClientEvent* pEvent)
                 /* set the user data in the completion event structure */
                 pEvent->pUserData = pContext->command.pUserData;
         
+                /* if the sequence if finished, reset counters */
+                if (pContext->uCurrentCommandIdx == pContext->uCommandCount)
+                {
+                    pContext->uCommandCount = 0;
+                    pContext->uCurrentCommandIdx = 0;
+                }
+
+                /* save current sequence ID */
+                uSequenceId = pContext->uSequenceId;
+
                 /* call original CB */
                 pContext->command.callback (pEvent);
+
+                /* do not continue processing, if the sequence was cancelled or
+                 * a new sequence started in the callback above */
+                if (uSequenceId != pContext->uSequenceId)
+                {
+                    return;
+                }
             }
         }   
-    }
-    else
-    {
-    
-        /* signal cancel was done (by not calling the CB) */
-        pContext->bCancelFlag = MCP_FALSE;
     }
 
     /* now check if more commands are available for processing */
@@ -220,39 +215,47 @@ void _MCP_HciSeq_callback (BtHciIfClientEvent* pEvent)
             &(pContext->command), pContext->commandsSequence[ pContext->uCurrentCommandIdx ].pUserData );
 
         /* execute first command */
-        if(pContext->coreId== MCP_HAL_CORE_ID_BT)
-        {
-        
-            tStatus=BT_HCI_IF_SendHciCommand(pContext->handle,  
-                                         pContext->command.eHciOpcode, 
-                                         pContext->command.pHciCmdParms, 
-                                         pContext->command.uhciCmdParmsLen,
-                                         pContext->command.uCompletionEvent,
-                                         (void*)pContext);       
-        }
-        else if (pContext->coreId == MCP_HAL_CORE_ID_FM)
-        {
-            tStatus=FM_TRANSPORT_IF_SendFmVacCommand(
-                                             pContext->command.pHciCmdParms, 
-                                             pContext->command.uhciCmdParmsLen,
-                                             _MCP_HciSeq_callback,
-                                             (void*)pContext);       
-        }
-        if (BT_HCI_IF_STATUS_PENDING != tStatus)
-            {
-                /* an error has occurred - set the user data in the completion event structure */
-                pEvent->pUserData = pContext->command.pUserData;
+        tStatus = _MCP_HciSeq_SendCommand(pContext);
 
-                /* and call the CB */
-                pContext->command.callback (pEvent);
-            }
+        if (BT_HCI_IF_STATUS_PENDING != tStatus)
+        {
+            /* an error has occurred - set the user data in the completion event structure */
+            pEvent->pUserData = pContext->command.pUserData;
+
+            /* and call the CB */
+            pContext->command.callback (pEvent);
+        }
     }
-    /* no more commands to execute - mark the sequence as not running */
-    else
+}
+
+BtHciIfStatus _MCP_HciSeq_SendCommand(MCP_HciSeq_Context *pContext)
+{
+    BtHciIfStatus status = BT_HCI_IF_STATUS_INTERNAL_ERROR;
+
+    /* save current sequence ID for the command to be sent */
+    pContext->uSeqenceIdOfSentCommand = pContext->uSequenceId;
+    
+    /* set flag of pending command */
+    pContext->bPendingCommand = MCP_TRUE;
+    
+    /* execute the command */
+    if(MCP_HAL_CORE_ID_BT == pContext->coreId)
     {
-        /* by nullifying number of commands and current command index */
-        pContext->uCommandCount = 0;
-        pContext->uCurrentCommandIdx = 0;
+        status = BT_HCI_IF_SendHciCommand(pContext->handle,  
+                                          pContext->command.eHciOpcode, 
+                                          pContext->command.pHciCmdParms, 
+                                          pContext->command.uhciCmdParmsLen,
+                                          pContext->command.uCompletionEvent,
+                                          (void*)pContext);       
     }
+    else if (MCP_HAL_CORE_ID_FM == pContext->coreId)
+    {
+        status = FM_TRANSPORT_IF_SendFmVacCommand(pContext->command.pHciCmdParms, 
+                                                  pContext->command.uhciCmdParmsLen,
+                                                  _MCP_HciSeq_callback,
+                                                  (void*)pContext);       
+    }
+
+    return (status);
 }
 

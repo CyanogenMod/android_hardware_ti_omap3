@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      fmc_pool.c
@@ -35,8 +36,12 @@
  * Include files
  *
  *******************************************************************************/
-#include "fmc_pool.h"
 #include "fmc_defs.h"
+#include "fmc_os.h"
+#include "fmc_log.h"
+#include "fmc_pool.h"
+
+FMC_LOG_SET_MODULE(FMC_LOG_MODULE_FMPOOL);
 
 static const FMC_U32 _FMC_POOL_INVALID_ELEMENT_INDEX = FMC_POOL_MAX_NUM_OF_POOL_ELEMENTS + 1;
 static const FMC_U8 _FMC_POOL_FREE_ELEMENT_MAP_INDICATION = 0;

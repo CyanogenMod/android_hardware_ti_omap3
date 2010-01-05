@@ -183,6 +183,7 @@ typedef struct _FmRxRdsDataFormat {
 #define RDS_1_AF_FOLLOWS	225
 #define RDS_25_AF_FOLLOWS	249
 #define RDS_MAX_AF_LIST		25
+#define RDS_RAW_GROUP_DATA_LEN		8
 /***********************************************************
 *
 *	Interrupt related definitions

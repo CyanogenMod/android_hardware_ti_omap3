@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_config_reader.c
@@ -32,6 +33,9 @@
 #include "mcp_config_reader.h"
 #include "mcp_hal_fs.h"
 #include "mcp_defs.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_FRAME);
 
 McpBool MCP_CONFIG_READER_Open (McpConfigReader *pConfigReader, 
                                 McpUtf8 *pFileName, 
@@ -73,7 +77,7 @@ McpBool MCP_CONFIG_READER_Open (McpConfigReader *pConfigReader,
         }
         else
         {
-            MCP_LOG_ERROR (("MCP_CONFIG_READER_Open: failed opening file, status :%d", 
+            MCP_LOG_ERROR (("MCP_CONFIG_READER_Open: failed opening file from FS, status :%d", 
                             eFsStatus));
         }
     }
@@ -85,12 +89,35 @@ McpBool MCP_CONFIG_READER_Open (McpConfigReader *pConfigReader,
     if (NULL != pMemConfig)
     {
         pConfigReader->pMemory = pMemConfig;
+         MCP_LOG_INFO(("MCP_CONFIG_READER_Open: opening file from memory, location:0x%p", 
+                            pMemConfig));
         return MCP_TRUE;
     }
 
     MCP_FUNC_END ();
 
     /* both file and memory configurations failed to open */
+    return MCP_FALSE;
+}
+
+McpBool MCP_CONFIG_READER_Close (McpConfigReader *pConfigReader)
+{
+    McpHalFsStatus  eFsStatus;
+
+    /* if configuration is from a file */
+    if (0 != pConfigReader->uFileSize)
+    {
+        eFsStatus = MCP_HAL_FS_Close (pConfigReader->tFile);
+        if(eFsStatus == MCP_HAL_FS_STATUS_SUCCESS)
+        {
+            return MCP_TRUE;
+        }
+    }
+    else
+    {
+        return MCP_TRUE;
+    }
+
     return MCP_FALSE;
 }
 
@@ -125,28 +152,32 @@ McpBool MCP_CONFIG_READER_getNextLine (McpConfigReader *pConfigReader,
             uIndex++;
             pConfigReader->uFileBytesRead++;
         } while ((pConfigReader->uFileBytesRead < pConfigReader->uFileSize) && /* EOF */
-
-                 ('\n' != pLine[ uIndex - 1 ])); /* EOL */
-
-
+                 (0xA != pLine[ uIndex - 1 ])); /* EOL */
 
         /* if EOL was read */
-        if ('\n' == pLine[ uIndex - 1 ])
+        if (0xA == pLine[ uIndex - 1 ])
         {
+            /*
+             * DOS file format would end a line in CR + LF (0xD 0xA). Unix only with LF (0xA).
+             * We read until LF is found, and than check for CR before that, and eliminate it as well
+             * if it's found
+             */
             /* replace EOL with string terminator */
-            pLine[ uIndex - 1 ] = '\0';
+            if ((uIndex > 1) && (0xD == pLine[ uIndex - 2]))
+            {
+                /* DOS file - replace the CR with null */
+                pLine[ uIndex - 2 ] = '\0';
+            }
+            else
+            {
+                /* LINUX file - replace the LF with null */
+                pLine[ uIndex - 1 ] = '\0';
+            }
         }
         else
         {
             /* EOF was probably reached - last char read is valid, set string terminator to next char */
             pLine[ uIndex ] = '\0';
-        }
-
-        /* if EOF was reached */
-        if (pConfigReader->uFileBytesRead >= pConfigReader->uFileSize)
-        {
-            /* close the file */
-            MCP_HAL_FS_Close (pConfigReader->tFile);
         }
 
         return MCP_TRUE;
@@ -180,7 +211,7 @@ McpBool MCP_CONFIG_READER_getNextLine (McpConfigReader *pConfigReader,
     }
     else
     {
-        MCP_LOG_INFO (("MCP_CONFIG_READER_getNextLine: confiuration was not opened successfully, or exhusted"));
+        MCP_LOG_INFO (("MCP_CONFIG_READER_getNextLine: configuration was not opened successfully, or exhusted"));
     }
  
     MCP_FUNC_END ();

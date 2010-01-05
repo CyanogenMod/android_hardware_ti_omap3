@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      ccm_audio_types.h
@@ -88,6 +89,7 @@ typedef enum _ECAL_VAC_Resource
  */
 typedef enum _ECAL_ResourceMask
 {
+    CAL_RESOURCE_MASK_NONE          = 0,
     CAL_RESOURCE_MASK_I2SH          = 1 << CAL_RESOURCE_I2SH,
     CAL_RESOURCE_MASK_PCMH          = 1 << CAL_RESOURCE_PCMH,
     CAL_RESOURCE_MASK_PCMT_1        = 1 << CAL_RESOURCE_PCMT_1,

@@ -42,6 +42,7 @@
 
 #include "ccm_audio_types.h"
 #include "bt_hci_if.h"
+#include "mcp_config_parser.h"
 
 #define CAL_VAC_MAX_NUM_OF_RESOURCES_PER_OP         5
 #define CAL_VAC_MAX_NUM_OF_OPT_RESOURCES_PER_OP     10
@@ -59,12 +60,14 @@ typedef enum _ECAL_ChipVersion
 {
     CAL_CHIP_6350 = 0,
     CAL_CHIP_6450_1_0,
-    CAL_CHIP_6450_1_1,
+    CAL_CHIP_6450_2,
     CAL_CHIP_1273,
+    CAL_CHIP_1273_2,
+    CAL_CHIP_1283,
     CAL_CHIP_5500
 } ECAL_ChipVersion;
 
-typedef McpU32 Cal_Config_ID;
+typedef struct _Cal_Config_ID Cal_Config_ID;
 
 /* CAL CB - events to the VAC regarding the operation will be sent via this callback*/
 typedef void (*TCAL_CB)(void *pUserData, ECAL_RetValue eRetValue);
@@ -144,6 +147,8 @@ typedef struct _TCAL_ResourceSupport
 
 } TCAL_ResourceSupport;
 
+
+
 /********************************************************************************
  *
  * Function declarations
@@ -187,12 +192,13 @@ void CCM_CAL_StaticInit(void);
  * Parameters:
  *      chipId      [in]        - chip logical identifier
  *      hciIfObj    [in]        - BT transport object
+ *	  pConfigParser [in]	- A pointer to config parser object, including the VAC configuration file
  *      ppConfigid  [out]       - a pointer to the configuration structure 
- *
+ *	 
  * Returns:
  *      N/A
  */
-void CAL_Create(McpHalChipId chipId, BtHciIfObj *hciIfObj, Cal_Config_ID **ppConfigid);
+void CAL_Create(McpHalChipId chipId, BtHciIfObj *hciIfObj, Cal_Config_ID **ppConfigid,McpConfigParser 			*pConfigParser);
 
 
 /*-------------------------------------------------------------------------------
@@ -216,7 +222,7 @@ void CAL_Create(McpHalChipId chipId, BtHciIfObj *hciIfObj, Cal_Config_ID **ppCon
 void CAL_Destroy(Cal_Config_ID **ppConfigid);
 
 /*-------------------------------------------------------------------------------
- * CAL_VAC_Set_Chip_Version()
+ * CCM_CAL_Configure()
  *
  * Brief:  
  *      Setting the chip version that is currently running on;
@@ -237,7 +243,7 @@ void CAL_Destroy(Cal_Config_ID **ppConfigid);
  *      N/A
  */
 
-void CAL_VAC_Set_Chip_Version(Cal_Config_ID *pConfigid,
+void CCM_CAL_Configure(Cal_Config_ID *pConfigid,
                               McpU16 projectType,
                               McpU16 versionMajor,
                               McpU16 versionMinor);

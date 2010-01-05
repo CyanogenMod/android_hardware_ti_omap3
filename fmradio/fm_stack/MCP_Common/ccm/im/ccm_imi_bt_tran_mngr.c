@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #include "mcp_hal_os.h"
 #include "mcp_ver_defs.h"
 #include "bt_hci_if.h"
@@ -23,6 +24,9 @@
 #include "mcp_pool.h"
 #include "ccm_imi_bt_tran_mngr.h"
 #include "ccm_imi_bt_tran_sm.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_CCM_IM);
 
 typedef enum _tagCcmIm_BtTranMngr_PendingStackState {
     _CCM_IM_BT_TRAN_MNGR_PENDING_STACK_STATE_ON,
@@ -70,71 +74,71 @@ MCP_STATIC const char _ccmIm_PendingStacksPoolName[] = "PendingStacks";
 MCP_STATIC void _CCM_IM_BtTranMngr_StaticInitInstances(void);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandleNonActiveStackEventWhileTranInProgress(    
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId,
                                 _CcmIm_BtTranMngr_Event event);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPendingOn( 
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPendingOff(    
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPending(   
-                                _CcmIm_BtTranMngr_Obj               *this,
+                                _CcmIm_BtTranMngr_Obj               *thisObj,
                                 CcmImStackId                            stackId,
                                 _CcmIm_BtTranMngr_PendingStackState pendingState);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue( 
-                                _CcmIm_BtTranMngr_Obj               *this,
+                                _CcmIm_BtTranMngr_Obj               *thisObj,
                                 CcmImStackId                            stackId,
                                 _CcmIm_BtTranMngr_PendingStackState pendingState,
                                 McpBool                             asyncCompletion);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_RemoveStackFromPendingQueue( 
-                                _CcmIm_BtTranMngr_Obj               *this,
+                                _CcmIm_BtTranMngr_Obj               *thisObj,
                                 _CcmIm_BtTranMngr_PendingStackData  *pendingStackData);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStackOnAbort(   
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandleStackEventWhileTranNotInProgress(  
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId,
                                 _CcmIm_BtTranMngr_Event event);
 
 MCP_STATIC void _CCM_IM_BtTranMngr_TranSmCb(_CcmIm_BtTranSm_CompletionEvent *event);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOffCompletedEvent(
-                            _CcmIm_BtTranMngr_Obj   *this,
+                            _CcmIm_BtTranMngr_Obj   *thisObj,
                             CcmImStackId                notifyingStackId,
                             _CcmImStatus            completionStatus);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOnCompletedEvent(
-                            _CcmIm_BtTranMngr_Obj   *this,
+                            _CcmIm_BtTranMngr_Obj   *thisObj,
                             CcmImStackId                notifyingStackId,
                             _CcmImStatus            completionStatus);
                             
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOnAbortCompletedEvent(
-                            _CcmIm_BtTranMngr_Obj   *this,
+                            _CcmIm_BtTranMngr_Obj   *thisObj,
                             CcmImStackId                notifyingStackId,
                             _CcmImStatus            completionStatus);
 
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *this);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *thisObj);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_PendingStackOn(
-                                _CcmIm_BtTranMngr_Obj               *this,
+                                _CcmIm_BtTranMngr_Obj               *thisObj,
                                 _CcmIm_BtTranMngr_PendingStackData  *pendingStackData);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_PendingStackOff(
-                                _CcmIm_BtTranMngr_Obj               *this,
+                                _CcmIm_BtTranMngr_Obj               *thisObj,
                                 _CcmIm_BtTranMngr_PendingStackData  *pendingStackData);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranMngr_NotifyStack(
-                                    _CcmIm_BtTranMngr_Obj                   *this, 
+                                    _CcmIm_BtTranMngr_Obj                   *thisObj, 
                                     CcmImStackId                                stackId,
                                     _CcmIm_BtTranMngr_CompletionEventType       eventType,
                                     _CcmImStatus                            completionStatus);
@@ -146,7 +150,7 @@ MCP_STATIC McpBool _CCM_IM_BtTranMngr_PendingQueueMatchByStackId(
                             const MCP_DL_LIST_Node* checkedNode);
 
 MCP_STATIC _CcmIm_BtTranMngr_PendingStackData *_CCM_IM_BtTranMngr_FindPendingStackData(     
-                                                    _CcmIm_BtTranMngr_Obj   *this,
+                                                    _CcmIm_BtTranMngr_Obj   *thisObj,
                                                     CcmImStackId                stackId);
 
 _CcmImStatus _CCM_IM_BtTranMngr_StaticInit(void)
@@ -171,38 +175,38 @@ _CcmImStatus _CCM_IM_BtTranMngr_StaticInit(void)
 _CcmImStatus _CCM_IM_BtTranMngr_Create( McpHalChipId                        chipId,
                                                     _CcmIm_BtTranMngr_CompletionCb  parentCb,
                                                     McpHalOsSemaphoreHandle         ccmImMutexHandle,
-                                                    _CcmIm_BtTranMngr_Obj           **this)
+                                                    _CcmIm_BtTranMngr_Obj           **thisObj)
 {
     _CcmImStatus    status;
     McpPoolStatus   mcpPoolStatus;
 
     MCP_FUNC_START("_CCM_IM_BtTranMngr_Create");
 
-    *this = &_ccmIm_BtTranMngr_Data.tranMngrObjs[chipId];
+    *thisObj = &_ccmIm_BtTranMngr_Data.tranMngrObjs[chipId];
     
-    (*this)->chipId = chipId;
-    (*this)->parentCb = parentCb;
-    (*this)->activeStackId = CCM_IM_INVALID_STACK_ID;
-    (*this)->numOfOnStacks = 0;
+    (*thisObj)->chipId = chipId;
+    (*thisObj)->parentCb = parentCb;
+    (*thisObj)->activeStackId = CCM_IM_INVALID_STACK_ID;
+    (*thisObj)->numOfOnStacks = 0;
 
     /* Initialize pending stacks list head */
-    MCP_DL_LIST_InitializeHead(&(*this)->pendingListHead);
-    (*this)->iteratingPendingStacks = MCP_FALSE;
+    MCP_DL_LIST_InitializeHead(&(*thisObj)->pendingListHead);
+    (*thisObj)->iteratingPendingStacks = MCP_FALSE;
 
     /* Create the memory pool for pending stack info objects */
-    mcpPoolStatus = MCP_POOL_Create(    &(*this)->pendingStacksPool ,
+    mcpPoolStatus = MCP_POOL_Create(    &(*thisObj)->pendingStacksPool ,
                                                   _ccmIm_PendingStacksPoolName,
-                                                    (*this)->pendingStacksMemory, 
+                                                    (*thisObj)->pendingStacksMemory, 
                                         CCM_IM_MAX_NUM_OF_STACKS, 
                                         sizeof(_CcmIm_BtTranMngr_PendingStackData));
     MCP_VERIFY_FATAL((MCP_POOL_STATUS_SUCCESS == mcpPoolStatus), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("Pending Stacks pool creation failed"));
 
     /* Create child instance */
-    status  = _CCM_IM_BtTranSm_Create(  (*this)->chipId,
+    status  = _CCM_IM_BtTranSm_Create(  (*thisObj)->chipId,
                                         _CCM_IM_BtTranMngr_TranSmCb,
                                         ccmImMutexHandle,
-                                        &(*this)->tranSmObj);
+                                        &(*thisObj)->tranSmObj);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranMngr_Create: _CCM_IM_BtTranSm_Create Failed"));
 
@@ -213,22 +217,22 @@ _CcmImStatus _CCM_IM_BtTranMngr_Create( McpHalChipId                        chip
     return status;
 }
                                             
-_CcmImStatus _CCM_IM_BtTranMngr_Destroy(_CcmIm_BtTranMngr_Obj **this)
+_CcmImStatus _CCM_IM_BtTranMngr_Destroy(_CcmIm_BtTranMngr_Obj **thisObj)
 {
     _CcmImStatus    status;
     McpPoolStatus   mcpPoolStatus;
 
     MCP_FUNC_START("_CCM_IM_BtTranMngr_Create");
     
-    status  = _CCM_IM_BtTranSm_Destroy(&(*this)->tranSmObj);
+    status  = _CCM_IM_BtTranSm_Destroy(&(*thisObj)->tranSmObj);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranMngr_Destroy: _CCM_IM_BtTranSm_Destroy Failed"));
 
-    mcpPoolStatus = MCP_POOL_Destroy(&(*this)->pendingStacksPool);
+    mcpPoolStatus = MCP_POOL_Destroy(&(*thisObj)->pendingStacksPool);
     MCP_VERIFY_FATAL((MCP_POOL_STATUS_SUCCESS == mcpPoolStatus), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("Pending Stacks pool Destruction failed"));
 
-    *this = NULL;
+    *thisObj = NULL;
 
     MCP_FUNC_END();
     
@@ -252,7 +256,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_Destroy(_CcmIm_BtTranMngr_Obj **this)
     1. The transport is not in progress, but we forward to the pending mngr. This will ensure that
         events are processed in the order of their arrival.         
 */
-_CcmImStatus _CCM_IM_BtTranMngr_HandleEvent(    _CcmIm_BtTranMngr_Obj   *this,
+_CcmImStatus _CCM_IM_BtTranMngr_HandleEvent(    _CcmIm_BtTranMngr_Obj   *thisObj,
                                                             CcmImStackId                stackId,
                                                             _CcmIm_BtTranMngr_Event event)
 {
@@ -261,17 +265,17 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleEvent(    _CcmIm_BtTranMngr_Obj   *this,
     MCP_LOG_INFO(("_CCM_IM_BtTranMngr_HandleEvent: Received %s for Stack %d", 
                         _CCM_IM_BtTranMngr_DebugEventStr(event), stackId));
     
-    if (_CCM_IM_BtTranSm_IsInProgress(this->tranSmObj) == MCP_TRUE)
+    if (_CCM_IM_BtTranSm_IsInProgress(thisObj->tranSmObj) == MCP_TRUE)
     {
         /* If the event is from the active stack, forward it to the transport state machine */
-        if (this->activeStackId == stackId)
+        if (thisObj->activeStackId == stackId)
         {
             _CcmIm_BtTranSm_Event   tranSmEvent = _CCM_IM_BtTranMngr_External2TranSmEvent(event);
 
             MCP_LOG_INFO(("_CCM_IM_BtTranMngr_HandleEvent: Event for active Stack, Forwarding %s To Tran State Machine", 
                             _CCM_IM_BtTranSm_DebugEventStr(tranSmEvent)));
             
-            status = _CCM_IM_BtTranSm_HandleEvent(  this->tranSmObj, 
+            status = _CCM_IM_BtTranSm_HandleEvent(  thisObj->tranSmObj, 
                                                     tranSmEvent,
                                                     NULL);  
         }
@@ -279,14 +283,14 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleEvent(    _CcmIm_BtTranMngr_Obj   *this,
         {
             MCP_LOG_INFO(("_CCM_IM_BtTranMngr_HandleEvent: Event for inactive Stack, Forwarding to pending Mngr"));
             
-            status = _CCM_IM_BtTranMngr_HandleNonActiveStackEventWhileTranInProgress(this, stackId, event);
+            status = _CCM_IM_BtTranMngr_HandleNonActiveStackEventWhileTranInProgress(thisObj, stackId, event);
         }
     }
     /* Else => Transport is not in progress, forward to the pending mngr to make sure event order is preserved*/
     else
     {
         MCP_LOG_INFO(("_CCM_IM_BtTranMngr_HandleEvent: Tran SM Not in progress, Forwarding to pending Mngr"));
-        status = _CCM_IM_BtTranMngr_HandleStackEventWhileTranNotInProgress(this, stackId, event);
+        status = _CCM_IM_BtTranMngr_HandleStackEventWhileTranNotInProgress(thisObj, stackId, event);
     }
 
     return status;
@@ -307,7 +311,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleEvent(    _CcmIm_BtTranMngr_Obj   *this,
         stack. In that case the operation completes asynchronously, and PENDING is returned to the parent.
 */
 _CcmImStatus _CCM_IM_BtTranMngr_HandleNonActiveStackEventWhileTranInProgress(   
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId,
                                 _CcmIm_BtTranMngr_Event event)
 {
@@ -319,19 +323,19 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleNonActiveStackEventWhileTranInProgress(
     {
         case _CCM_IM_BT_TRAN_MNGR_EVENT_TRAN_OFF:
             
-            status = _CCM_IM_BtTranMngr_HandleStackBecomesPendingOff(this, stackId);
+            status = _CCM_IM_BtTranMngr_HandleStackBecomesPendingOff(thisObj, stackId);
             
         break;
         
         case _CCM_IM_BT_TRAN_MNGR_EVENT_TRAN_ON:
 
-            status = _CCM_IM_BtTranMngr_HandleStackBecomesPendingOn(this, stackId);
+            status = _CCM_IM_BtTranMngr_HandleStackBecomesPendingOn(thisObj, stackId);
             
         break;
         
         case _CCM_IM_BT_TRAN_MNGR_EVENT_TRAN_ON_ABORT:
             
-            status = _CCM_IM_BtTranMngr_HandlePendingStackOnAbort(this, stackId);
+            status = _CCM_IM_BtTranMngr_HandlePendingStackOnAbort(thisObj, stackId);
             
         break;
 
@@ -346,17 +350,17 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleNonActiveStackEventWhileTranInProgress(
 }
 
 _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPendingOn(    
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId)
 {
-    return _CCM_IM_BtTranMngr_HandleStackBecomesPending(this, stackId, _CCM_IM_BT_TRAN_MNGR_PENDING_STACK_STATE_ON);
+    return _CCM_IM_BtTranMngr_HandleStackBecomesPending(thisObj, stackId, _CCM_IM_BT_TRAN_MNGR_PENDING_STACK_STATE_ON);
 }
 
 _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPendingOff(   
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId)
 {
-    return _CCM_IM_BtTranMngr_HandleStackBecomesPending(this, stackId, _CCM_IM_BT_TRAN_MNGR_PENDING_STACK_STATE_OFF);
+    return _CCM_IM_BtTranMngr_HandleStackBecomesPending(thisObj, stackId, _CCM_IM_BT_TRAN_MNGR_PENDING_STACK_STATE_OFF);
 }
 
 
@@ -369,7 +373,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPendingOff(
     is PENDING
 */
 _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPending(  
-                                _CcmIm_BtTranMngr_Obj               *this,
+                                _CcmIm_BtTranMngr_Obj               *thisObj,
                                 CcmImStackId                            stackId,
                                 _CcmIm_BtTranMngr_PendingStackState pendingState)
 {
@@ -377,7 +381,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPending(
 
     MCP_FUNC_START("_CCM_IM_BtTranMngr_HandleStackBecomesPending");
 
-    status = _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue(this, stackId, pendingState, MCP_TRUE);
+    status = _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue(thisObj, stackId, pendingState, MCP_TRUE);
     MCP_VERIFY_FATAL((status  == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR, 
                         ("_CCM_IM_BtTranMngr_HandleStackBecomesPending: _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue Failed"));
 
@@ -394,7 +398,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleStackBecomesPending(
     information is stored in the pending stack data structure.
 */
 _CcmImStatus _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue(    
-                                _CcmIm_BtTranMngr_Obj               *this,
+                                _CcmIm_BtTranMngr_Obj               *thisObj,
                                 CcmImStackId                            stackId,
                                 _CcmIm_BtTranMngr_PendingStackState pendingState,
                                 McpBool                             asyncCompletion)
@@ -406,12 +410,12 @@ _CcmImStatus _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue(
     MCP_FUNC_START("_CCM_IM_BtTranMngr_InsertStackIntoPendingQueue");
 
     /* Verify that the stack is not already on the list */
-    pendingStackData =  _CCM_IM_BtTranMngr_FindPendingStackData(this, stackId);
+    pendingStackData =  _CCM_IM_BtTranMngr_FindPendingStackData(thisObj, stackId);
     MCP_VERIFY_FATAL((pendingStackData == NULL), _CCM_IM_STATUS_INTERNAL_ERROR, 
                         ("_CCM_IM_BtTranMngr_InsertStackIntoPendingQueue: Stack Node Already in Queue"));
 
     /* Allocate memory for the new pending stack data */
-    mcpPoolStatus = MCP_POOL_Allocate(&this->pendingStacksPool , (void **)&pendingStackData);
+    mcpPoolStatus = MCP_POOL_Allocate(&thisObj->pendingStacksPool , (void **)&pendingStackData);
     MCP_VERIFY_FATAL((MCP_POOL_STATUS_SUCCESS == mcpPoolStatus), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("Allocating from Pending Stacks pool Failed"));
 
@@ -423,7 +427,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue(
     pendingStackData->asyncCompletion = asyncCompletion;
     
     /* Add it to the tail of the list to preserve the order (FIFO) */
-    MCP_DL_LIST_InsertTail(&this->pendingListHead,  &pendingStackData->node);
+    MCP_DL_LIST_InsertTail(&thisObj->pendingListHead,  &pendingStackData->node);
 
     status = _CCM_IM_STATUS_SUCCESS;
     
@@ -437,7 +441,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue(
     be on the stack. 
 */
 _CcmImStatus _CCM_IM_BtTranMngr_RemoveStackFromPendingQueue(    
-                                _CcmIm_BtTranMngr_Obj               *this,
+                                _CcmIm_BtTranMngr_Obj               *thisObj,
                                 _CcmIm_BtTranMngr_PendingStackData  *pendingStackData)
 {
     _CcmImStatus    status;
@@ -449,7 +453,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_RemoveStackFromPendingQueue(
     MCP_DL_LIST_RemoveNode(&pendingStackData->node);
 
     /* Free memory for the new pending stack data */
-    mcpPoolStatus = MCP_POOL_Free(&this->pendingStacksPool , (void **)&pendingStackData);
+    mcpPoolStatus = MCP_POOL_Free(&thisObj->pendingStacksPool , (void **)&pendingStackData);
     MCP_VERIFY_FATAL((MCP_POOL_STATUS_SUCCESS == mcpPoolStatus), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("Freeing from Pending Stacks pool Failed"));
 
@@ -467,7 +471,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_RemoveStackFromPendingQueue(
     The function completes synchronously so the function returns SUCCESS
 */
 _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStackOnAbort(  
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId)
 {
     _CcmImStatus                        status;
@@ -475,7 +479,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStackOnAbort(
 
     MCP_FUNC_START("_CCM_IM_BtTranMngr_HandlePendingStackOnAbort");
 
-    pendingStackData =  _CCM_IM_BtTranMngr_FindPendingStackData(this, stackId);
+    pendingStackData =  _CCM_IM_BtTranMngr_FindPendingStackData(thisObj, stackId);
     MCP_VERIFY_FATAL((pendingStackData != NULL), _CCM_IM_STATUS_INTERNAL_ERROR, 
                         ("_CCM_IM_BtTranMngr_HandlePendingStackOnAbort: No Matching Stack Node"));
 
@@ -485,7 +489,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStackOnAbort(
                         ("_CCM_IM_BtTranMngr_HandlePendingStackOnAbort: Invalid Pending Stack State (%d)", pendingStackData->state));
 
     /* Remove the node  stack returns to the off state */
-    status = _CCM_IM_BtTranMngr_RemoveStackFromPendingQueue(this, pendingStackData);
+    status = _CCM_IM_BtTranMngr_RemoveStackFromPendingQueue(thisObj, pendingStackData);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranMngr_RemoveStackFromPendingQueue Failed"));
 
@@ -507,7 +511,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStackOnAbort(
     Since the queue is empty, and the transport is NOT in progress
 */
 _CcmImStatus _CCM_IM_BtTranMngr_HandleStackEventWhileTranNotInProgress( 
-                                _CcmIm_BtTranMngr_Obj   *this,
+                                _CcmIm_BtTranMngr_Obj   *thisObj,
                                 CcmImStackId                stackId,
                                 _CcmIm_BtTranMngr_Event event)
 {
@@ -516,7 +520,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleStackEventWhileTranNotInProgress(
 
     MCP_FUNC_START("_CCM_IM_BtTranMngr_HandleStackEventWhileTranNotInProgress");
 
-    MCP_VERIFY_FATAL((this->iteratingPendingStacks == MCP_FALSE), _CCM_IM_STATUS_INTERNAL_ERROR,
+    MCP_VERIFY_FATAL((thisObj->iteratingPendingStacks == MCP_FALSE), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("Iteration over pending stacks is in progress"));
         
     switch (event)
@@ -538,11 +542,11 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleStackEventWhileTranNotInProgress(
     
     }
 
-    status = _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue(this, stackId, pendingStackState, MCP_FALSE);
+    status = _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue(thisObj, stackId, pendingStackState, MCP_FALSE);
     MCP_VERIFY_FATAL((status  == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR, 
                         ("_CCM_IM_BtTranMngr_HandleStackBecomesPending: _CCM_IM_BtTranMngr_InsertStackIntoPendingQueue Failed"));
 
-    status = _CCM_IM_BtTranMngr_HandlePendingStacks(this);
+    status = _CCM_IM_BtTranMngr_HandlePendingStacks(thisObj);
     
     MCP_FUNC_END();
 
@@ -605,14 +609,14 @@ void _CCM_IM_BtTranMngr_TranSmCb(_CcmIm_BtTranSm_CompletionEvent *event)
     This function is called when the transport SM completes handling an Off request
 */
 _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOffCompletedEvent(
-                    _CcmIm_BtTranMngr_Obj   *this,
+                    _CcmIm_BtTranMngr_Obj   *thisObj,
                     CcmImStackId                notifyingStackId,
                     _CcmImStatus            completionStatus)
 {
     /* The stack must have been in the On state until now => derement the counter */
-    --this->numOfOnStacks;
+    --thisObj->numOfOnStacks;
     
-    _CCM_IM_BtTranMngr_NotifyStack( this, 
+    _CCM_IM_BtTranMngr_NotifyStack( thisObj, 
                                         notifyingStackId, 
                                         _CCM_IM_BT_TRAN_MNGR_COMPLETED_EVENT_TRAN_OFF_COMPLETED,
                                         completionStatus);
@@ -622,14 +626,14 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOffCompletedEvent(
 
 
 _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOnCompletedEvent(
-                    _CcmIm_BtTranMngr_Obj   *this,
+                    _CcmIm_BtTranMngr_Obj   *thisObj,
                     CcmImStackId                notifyingStackId,
                     _CcmImStatus            completionStatus)
 {
     /* The stack must have been in the Off state until now => increment the counter */
-    ++this->numOfOnStacks;
+    ++thisObj->numOfOnStacks;
     
-    _CCM_IM_BtTranMngr_NotifyStack( this, 
+    _CCM_IM_BtTranMngr_NotifyStack( thisObj, 
                                         notifyingStackId, 
                                         _CCM_IM_BT_TRAN_MNGR_COMPLETED_EVENT_TRAN_ON_COMPLETED,
                                         completionStatus);
@@ -638,7 +642,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOnCompletedEvent(
 }
 
 _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOnAbortCompletedEvent(
-                    _CcmIm_BtTranMngr_Obj   *this,
+                    _CcmIm_BtTranMngr_Obj   *thisObj,
                     CcmImStackId                notifyingStackId,
                     _CcmImStatus            completionStatus)
 {
@@ -647,7 +651,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOnAbortCompletedEvent(
         the on was aborted => it was not increased
     */
     
-    _CCM_IM_BtTranMngr_NotifyStack( this, 
+    _CCM_IM_BtTranMngr_NotifyStack( thisObj, 
                                         notifyingStackId, 
                                         _CCM_IM_BT_TRAN_MNGR_COMPLETED_EVENT_TRAN_ON_ABORT_COMPLETED,
                                         completionStatus);
@@ -659,7 +663,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandleTranOnAbortCompletedEvent(
     This function is called to process requests of pending stacks. It processes the request from the beginning
     of the list to its end. 
 */
-_CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *this)
+_CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *thisObj)
 {
     _CcmImStatus                        status;
     _CcmIm_BtTranMngr_PendingStackData  *currElementPtr;
@@ -668,19 +672,19 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *this)
     
     MCP_FUNC_START("_CCM_IM_BtTranMngr_HandlePendingStacks");
 
-    MCP_VERIFY_FATAL((_CCM_IM_BtTranSm_IsInProgress(this->tranSmObj) == MCP_FALSE), _CCM_IM_STATUS_INTERNAL_ERROR,
+    MCP_VERIFY_FATAL((_CCM_IM_BtTranSm_IsInProgress(thisObj->tranSmObj) == MCP_FALSE), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranMngr_HandlePendingStacks: Tran SM Is In Progress"));
 
     /* 
         Protect against a stack event that may cause a new pending stack to be inserted into the queue 
         while we are iterating over existing elements.
     */
-    this->iteratingPendingStacks = MCP_TRUE;
+    thisObj->iteratingPendingStacks = MCP_TRUE;
 
     status = _CCM_IM_STATUS_SUCCESS;
 
     /* Go over all pending stacks, and allow removal of stacks during iteration */
-    MCP_DL_LIST_ITERATE_WITH_REMOVAL(   this->pendingListHead, 
+    MCP_DL_LIST_ITERATE_WITH_REMOVAL(   thisObj->pendingListHead, 
                                             currElementPtr, 
                                             nextElementPtr, 
                                             _CcmIm_BtTranMngr_PendingStackData)
@@ -692,7 +696,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *this)
         tempStackData = *currElementPtr;
 
         /* Remove the stack from the list and release the occupied memory */
-        status = _CCM_IM_BtTranMngr_RemoveStackFromPendingQueue(this, currElementPtr);
+        status = _CCM_IM_BtTranMngr_RemoveStackFromPendingQueue(thisObj, currElementPtr);
         MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                             ("_CCM_IM_BtTranMngr_RemoveStackFromPendingQueue Failed"));
 
@@ -705,13 +709,13 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *this)
         {
             case _CCM_IM_BT_TRAN_MNGR_PENDING_STACK_STATE_ON:
 
-                status = _CCM_IM_BtTranMngr_PendingStackOn(this, &tempStackData);
+                status = _CCM_IM_BtTranMngr_PendingStackOn(thisObj, &tempStackData);
                     
             break;
 
             case _CCM_IM_BT_TRAN_MNGR_PENDING_STACK_STATE_OFF:
                 
-                status = _CCM_IM_BtTranMngr_PendingStackOff(this, &tempStackData);
+                status = _CCM_IM_BtTranMngr_PendingStackOff(thisObj, &tempStackData);
 
             break;
 
@@ -727,7 +731,7 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *this)
         */
         if (status == _CCM_IM_STATUS_PENDING)
         {
-            this->activeStackId = tempStackData.stackId;
+            thisObj->activeStackId = tempStackData.stackId;
             break;
         }
     }
@@ -738,13 +742,13 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *this)
     */
     if (status == _CCM_IM_STATUS_PENDING)
     {       
-        MCP_DL_LIST_ITERATE_NO_REMOVAL(this->pendingListHead, currElementPtr, _CcmIm_BtTranMngr_PendingStackData)
+        MCP_DL_LIST_ITERATE_NO_REMOVAL(thisObj->pendingListHead, currElementPtr, _CcmIm_BtTranMngr_PendingStackData)
         {
             currElementPtr->asyncCompletion = MCP_TRUE;
         }   
     }
 
-    this->iteratingPendingStacks = MCP_FALSE;
+    thisObj->iteratingPendingStacks = MCP_FALSE;
 
     MCP_FUNC_END();
 
@@ -759,16 +763,16 @@ _CcmImStatus _CCM_IM_BtTranMngr_HandlePendingStacks(_CcmIm_BtTranMngr_Obj *this)
     state machine should be triggered to process the request. Otherwise, the numOfOnStacks
     is incremented and the request completes.
 */
-_CcmImStatus _CCM_IM_BtTranMngr_PendingStackOn( _CcmIm_BtTranMngr_Obj               *this,
+_CcmImStatus _CCM_IM_BtTranMngr_PendingStackOn( _CcmIm_BtTranMngr_Obj               *thisObj,
                                                                 _CcmIm_BtTranMngr_PendingStackData  *pendingStackData)
 {
     _CcmImStatus    status;
 
 
-    if (this->numOfOnStacks == 0)
+    if (thisObj->numOfOnStacks == 0)
     {
         /* Transport is off - forward the event to the transport SM */
-        status = _CCM_IM_BtTranSm_HandleEvent(this->tranSmObj, _CCM_IM_BT_TRAN_SM_EVENT_TRAN_ON, NULL);
+        status = _CCM_IM_BtTranSm_HandleEvent(thisObj->tranSmObj, _CCM_IM_BT_TRAN_SM_EVENT_TRAN_ON, NULL);
     }
     else
     {
@@ -777,11 +781,11 @@ _CcmImStatus _CCM_IM_BtTranMngr_PendingStackOn( _CcmIm_BtTranMngr_Obj           
 
     if (status == _CCM_IM_STATUS_SUCCESS)
     {
-        ++this->numOfOnStacks;      
+        ++thisObj->numOfOnStacks;      
         
         if (pendingStackData->asyncCompletion == MCP_TRUE)
         {
-            _CCM_IM_BtTranMngr_NotifyStack( this, 
+            _CCM_IM_BtTranMngr_NotifyStack( thisObj, 
                                                 pendingStackData->stackId, 
                                                 _CCM_IM_BT_TRAN_MNGR_COMPLETED_EVENT_TRAN_ON_COMPLETED,
                                                 _CCM_IM_STATUS_SUCCESS);
@@ -800,14 +804,14 @@ _CcmImStatus _CCM_IM_BtTranMngr_PendingStackOn( _CcmIm_BtTranMngr_Obj           
     state machine should be triggered to process the request. Otherwise, the numOfOnStacks
     is decremented and the request completes.
 */
-_CcmImStatus _CCM_IM_BtTranMngr_PendingStackOff(    _CcmIm_BtTranMngr_Obj               *this,
+_CcmImStatus _CCM_IM_BtTranMngr_PendingStackOff(    _CcmIm_BtTranMngr_Obj               *thisObj,
                                                                 _CcmIm_BtTranMngr_PendingStackData  *pendingStackData)
 {
     _CcmImStatus    status;
     
-    if (this->numOfOnStacks == 1)
+    if (thisObj->numOfOnStacks == 1)
     {
-        status = _CCM_IM_BtTranSm_HandleEvent(this->tranSmObj, _CCM_IM_BT_TRAN_SM_EVENT_TRAN_OFF, NULL);
+        status = _CCM_IM_BtTranSm_HandleEvent(thisObj->tranSmObj, _CCM_IM_BT_TRAN_SM_EVENT_TRAN_OFF, NULL);
     }
     else
     {       
@@ -816,11 +820,11 @@ _CcmImStatus _CCM_IM_BtTranMngr_PendingStackOff(    _CcmIm_BtTranMngr_Obj       
 
     if (status == _CCM_IM_STATUS_SUCCESS)
     {
-        --this->numOfOnStacks;
+        --thisObj->numOfOnStacks;
         
         if (pendingStackData->asyncCompletion == MCP_TRUE)
         {
-            _CCM_IM_BtTranMngr_NotifyStack( this, 
+            _CCM_IM_BtTranMngr_NotifyStack( thisObj, 
                                                 pendingStackData->stackId, 
                                                 _CCM_IM_BT_TRAN_MNGR_COMPLETED_EVENT_TRAN_OFF_COMPLETED,
                                                 _CCM_IM_STATUS_SUCCESS);
@@ -831,19 +835,19 @@ _CcmImStatus _CCM_IM_BtTranMngr_PendingStackOff(    _CcmIm_BtTranMngr_Obj       
     return status;
 }
 
-_CcmImStatus _CCM_IM_BtTranMngr_NotifyStack(    _CcmIm_BtTranMngr_Obj                   *this, 
+_CcmImStatus _CCM_IM_BtTranMngr_NotifyStack(    _CcmIm_BtTranMngr_Obj                   *thisObj, 
                                                         CcmImStackId                                stackId,
                                                         _CcmIm_BtTranMngr_CompletionEventType       eventType,
                                                         _CcmImStatus                            completionStatus)
 {
     _CcmIm_BtTranMngr_CompletionEvent       completionEvent;
 
-    completionEvent.chipId = this->chipId;
+    completionEvent.chipId = thisObj->chipId;
     completionEvent.stackId = stackId;
     completionEvent.eventType = eventType;
     completionEvent.completionStatus = completionStatus;
     
-    (this->parentCb)(&completionEvent);
+    (thisObj->parentCb)(&completionEvent);
 
     return _CCM_IM_STATUS_SUCCESS;
 }
@@ -916,7 +920,7 @@ McpBool _CCM_IM_BtTranMngr_PendingQueueMatchByStackId(
     NULL otherwise
 */
 _CcmIm_BtTranMngr_PendingStackData *_CCM_IM_BtTranMngr_FindPendingStackData(    
-                                        _CcmIm_BtTranMngr_Obj   *this,
+                                        _CcmIm_BtTranMngr_Obj   *thisObj,
                                         CcmImStackId                stackId)
 {
     _CcmIm_BtTranMngr_PendingStackData  *pendingStackData;
@@ -930,7 +934,7 @@ _CcmIm_BtTranMngr_PendingStackData *_CCM_IM_BtTranMngr_FindPendingStackData(
     
     pendingStackData =  (_CcmIm_BtTranMngr_PendingStackData*) 
                             MCP_DL_LIST_FindMatchingNode(
-                                &this->pendingListHead,
+                                &thisObj->pendingListHead,
                                 NULL,
                                 MCP_DL_LIST_SEARCH_DIR_FIRST_TO_LAST,
                                 &templateStackData.node, 
@@ -956,14 +960,14 @@ void _CCM_IM_BtTranMngr_StaticInitInstances(void)
     }
 }
 
-void _CCM_IM_BtTranMngr_GetChipVersion(_CcmIm_BtTranMngr_Obj   *this,
+void _CCM_IM_BtTranMngr_GetChipVersion(_CcmIm_BtTranMngr_Obj   *thisObj,
                                        McpU16 *projectType,
                                        McpU16 *versionMajor,
                                        McpU16 *versionMinor)
 {
     MCP_FUNC_START("_CCM_IM_BtTranSm_GetChipVersion");
 
-    _CCM_IM_BtTranSm_GetChipVersion (this->tranSmObj, projectType, versionMajor, versionMinor);
+    _CCM_IM_BtTranSm_GetChipVersion (thisObj->tranSmObj, projectType, versionMajor, versionMinor);
 
     MCP_FUNC_END();
 }

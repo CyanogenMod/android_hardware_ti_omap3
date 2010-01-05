@@ -16,9 +16,13 @@
  * limitations under the License.
  */
 
+
 #include "mcp_utils_dl_list.h"
 #include "mcp_hal_types.h"
 #include "mcp_defs.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_FRAME);
 
 /*
 	Forward Declaration

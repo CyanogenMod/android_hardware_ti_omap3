@@ -60,7 +60,7 @@ typedef struct
     FMC_U8                  dataLen;
 } _FmRxSmTransportEventData;
 
-struct _FmRxContext {
+struct  _FmRxContext{
     /*FMC_BOOL isAllocated;*/
     FmRxSmContextState  state;
 
@@ -76,7 +76,7 @@ struct _FmRxContext {
     /* Event that is sent to the user of the FM RX API ("application") */
     FmRxEvent           appEvent;
 
-};
+} ;
 
 
 
@@ -186,6 +186,13 @@ typedef struct  {
     ECAL_SampleFrequency eSampleFreq;
 } FmRxSetDigitalAudioConfigurationCmd;
 
+
+typedef struct {
+    FmcBaseCmd op;
+    FmcChannelSpacing channelSpacing; 
+} FmRxSpacingSetCommand;
+
+
 /*Upper events options */
 typedef enum
 {   
@@ -218,11 +225,11 @@ void FM_RX_SM_TaskEventCb(FmcOsEvent osEvent);
     [ToDo] Consider completely hiding the context within fm_tx_sm.c and only exposing functions that provide the
     required services, such as: IsContextAllocated(contex), instead of FM_TX_SM_GetContext()
 */
-FmRxContext* FM_RX_SM_GetContext();
+FmRxContext* FM_RX_SM_GetContext(void);
 
-FmRxSmContextState FM_RX_SM_GetContextState();
+FmRxSmContextState FM_RX_SM_GetContextState(void);
 
-FMC_BOOL FM_RX_SM_IsContextEnabled();
+FMC_BOOL FM_RX_SM_IsContextEnabled(void);
 
 FmRxCmdType FM_RX_SM_GetRunningCmd(void);
 

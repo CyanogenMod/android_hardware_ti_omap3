@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      fmc_os.h
@@ -37,20 +38,36 @@
  * Include files
  *
  *******************************************************************************/
-#include <pthread.h>
 #include "fmc_types.h"
+#include "fmc_defs.h"
 #include "fmhal_config.h"
 
 #define FMC_OS_MS_TO_TICKS(ms)                   (ms)
 
-typedef pthread_mutex_t *							FmcOsSemaphoreHandle;
 
 /*-------------------------------------------------------------------------------
- * BthalOsTaskHandle type
+ * FmcOsTaskHandle type
  *
  *     Defines task handle.
  */
 typedef FMC_U8      FmcOsTaskHandle;
+
+
+/*-------------------------------------------------------------------------------
+ * FmcOsEvent type
+ *
+ *     	Defines event type. Events can be OR'ed together.
+ */
+typedef McpU32      FmcOsEvent;
+
+
+/*-------------------------------------------------------------------------------
+ * FmcOsSemaphoreHandle type
+ *
+ *     Defines semaphore handle.
+ */
+typedef  FMC_U32 	FmcOsSemaphoreHandle;
+
 
 #define FMC_OS_TASK_HANDLE_FM                                 (0x01)
 

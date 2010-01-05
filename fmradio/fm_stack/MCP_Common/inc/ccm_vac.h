@@ -35,7 +35,6 @@
 #define __CCM_VAC_H__
 
 #include "mcp_hal_types.h"
-#include "mcp_hal_types.h"
 #include "ccm_audio_types.h"
 #include "ccm_config.h"
 
@@ -79,12 +78,14 @@ typedef void (*TCCM_VAC_Callback)(ECAL_Operation eOperation,
                                   ECCM_VAC_Event eEvent, 
                                   ECCM_VAC_Status eStatus);
 
+#include "ccm_vaci_configuration_engine.h" /* TODO ronen: understand if there's another way */
+
 /*-------------------------------------------------------------------------------
  * TCCM_VAC_Object type
  *
  *     Defines the VAC object type
  */
-typedef McpU32 TCCM_VAC_Object;
+typedef struct _TCCM_VAC_ConfigurationEngine TCCM_VAC_Object;
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_RegisterCallback()
@@ -110,6 +111,8 @@ typedef McpU32 TCCM_VAC_Object;
 void CCM_VAC_RegisterCallback (TCCM_VAC_Object *ptVac,
                                ECAL_Operation eOperation, 
                                TCCM_VAC_Callback fCB);
+#define CCM_VAC_RegisterCallback(_ptVac, _eOperation, _fCB) \
+        _CCM_VAC_ConfigurationEngine_RegisterCallback((_ptVac), (_eOperation), (_fCB))
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_StartOperation()
@@ -153,6 +156,8 @@ ECCM_VAC_Status CCM_VAC_StartOperation (TCCM_VAC_Object *ptVac,
                                         ECAL_Operation eOperation,
                                         TCAL_DigitalConfig *ptConfig,
                                         TCCM_VAC_UnavailResourceList *ptUnavailResources);
+#define CCM_VAC_StartOperation(_ptVac, _eOperation, _ptConfig, _ptUnavailResources) \
+        _CCM_VAC_ConfigurationEngine_StartOperation((_ptVac), (_eOperation), (_ptConfig), (_ptUnavailResources))
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_StopOperation()
@@ -182,6 +187,8 @@ ECCM_VAC_Status CCM_VAC_StartOperation (TCCM_VAC_Object *ptVac,
  */
 ECCM_VAC_Status CCM_VAC_StopOperation (TCCM_VAC_Object *ptVac,
                                        ECAL_Operation eOperation);
+#define CCM_VAC_StopOperation(_ptVac, _eOperation) \
+        _CCM_VAC_ConfigurationEngine_StopOperation((_ptVac), (_eOperation))
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_ChangeResource()
@@ -230,6 +237,8 @@ ECCM_VAC_Status CCM_VAC_ChangeResource (TCCM_VAC_Object *ptVac,
                                         ECAL_ResourceMask eResourceMask, 
                                         TCAL_DigitalConfig *ptConfig, 
                                         TCCM_VAC_UnavailResourceList *ptUnavailResources);
+#define CCM_VAC_ChangeResource(_ptVac, _eOperation, _eResourceMask, _ptConfig, _ptUnavailResources) \
+        _CCM_VAC_ConfigurationEngine_ChangeResource((_ptVac), (_eOperation), (_eResourceMask), (_ptConfig), (_ptUnavailResources))
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_ChangeConfiguration()
@@ -268,6 +277,8 @@ ECCM_VAC_Status CCM_VAC_ChangeResource (TCCM_VAC_Object *ptVac,
 ECCM_VAC_Status CCM_VAC_ChangeConfiguration (TCCM_VAC_Object *ptVac,
                                              ECAL_Operation eOperation, 
                                              TCAL_DigitalConfig *ptConfig);
+#define CCM_VAC_ChangeConfiguration(_ptVac, _eOperation, _ptConfig) \
+        _CCM_VAC_ConfigurationEngine_ChangeConfiguration((_ptVac), (_eOperation), (_ptConfig))
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_SetResourceProperties()
@@ -293,6 +304,8 @@ ECCM_VAC_Status CCM_VAC_ChangeConfiguration (TCCM_VAC_Object *ptVac,
 void CCM_VAC_SetResourceProperties (TCCM_VAC_Object *ptVac,
                                     ECAL_Resource eResource,
                                     TCAL_ResourceProperties *pProperties);
-
+#define CCM_VAC_SetResourceProperties(_ptVac, _eResource, _pProperties) \
+        _CCM_VAC_ConfigurationEngine_SetResourceProperties((_ptVac), (_eResource), (_pProperties))
 
 #endif /* __CCM_VAC_H__ */
+

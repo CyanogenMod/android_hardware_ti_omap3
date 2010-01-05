@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      ccm_imi_bt_tran_on_sm.h
@@ -125,7 +126,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_StaticInit(void);
  *      btHciIfObj [in] - pointer to BT HCI I/F instance
  *      parentCb [in] - Parent's callback function for event notification
  *      ccmImMutexHandle [in] - CCM IM Mutex Handle
- *      this [out] - pointer to the instance data
+ *      thisObj [out] - pointer to the instance data
  *
  * Returns:
  *      CCM_STATUS_SUCCESS - Operation is successful.
@@ -136,7 +137,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_Create( McpHalChipId                        chip
                                                     BtHciIfObj                      *btHciIfObj,
                                                     _CcmIm_BtTranOnSm_CompletionCb  parentCb,
                                                     McpHalOsSemaphoreHandle         ccmImMutexHandle,
-                                                    _CcmIm_BtTranOnSm_Obj           **this);
+                                                    _CcmIm_BtTranOnSm_Obj           **thisObj);
                                             
 /*-------------------------------------------------------------------------------
  * CCM_IMI_Destroy()
@@ -151,14 +152,14 @@ _CcmImStatus _CCM_IM_BtTranOnSm_Create( McpHalChipId                        chip
  *      Synchronous
  *
  * Parameters:
- *      this [in / out] - pointer to the instance data. Set to null on exit
+ *      thisObj [in / out] - pointer to the instance data. Set to null on exit
  *
  * Returns:
  *      CCM_STATUS_SUCCESS - Operation is successful.
  *
  *      CCM_STATUS_INTERNAL_ERROR - A fatal error occurred
  */
-_CcmImStatus _CCM_IM_BtTranOnSm_Destroy(_CcmIm_BtTranOnSm_Obj **this);
+_CcmImStatus _CCM_IM_BtTranOnSm_Destroy(_CcmIm_BtTranOnSm_Obj **thisObj);
 
 /*-------------------------------------------------------------------------------
  * _CCM_IM_BtTranOnSm_HandleEvent()
@@ -187,7 +188,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandleEvent(    _CcmIm_BtTranOnSm_Obj       *smD
                                                             _CcmIm_BtTranOnSm_Event     event,
                                                             void                            *eventData);
 
-void _CCM_IM_BtTranOnSm_GetChipVersion(_CcmIm_BtTranOnSm_Obj *this, 
+void _CCM_IM_BtTranOnSm_GetChipVersion(_CcmIm_BtTranOnSm_Obj *thisObj, 
                                        McpU16 *projectType,
                                        McpU16 *versionMajor,
                                        McpU16 *versionMinor);

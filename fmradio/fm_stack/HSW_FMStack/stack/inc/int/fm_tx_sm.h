@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      fm_tx_sm.h
@@ -311,11 +312,11 @@ void FM_TX_SM_TaskEventCb(FmcOsEvent osEvent);
 /*
 *   This function returns the SM RDS Transmission Mode (Manual/Auto)
 */
-FmTxRdsTransmissionMode FM_TX_SM_GetRdsMode();
+FmTxRdsTransmissionMode FM_TX_SM_GetRdsMode(void);
 /*
 *   This function returns the state of RDS (Enabled/Disabled)
 */
-FMC_BOOL FM_TX_SM_IsRdsEnabled();
+FMC_BOOL FM_TX_SM_IsRdsEnabled(void);
 /*
     Returns the single context
 
@@ -323,11 +324,11 @@ FMC_BOOL FM_TX_SM_IsRdsEnabled();
     [ToDo] Consider completely hiding the context within fm_tx_sm.c and only exposing functions that provide the
     required services, such as: IsContextAllocated(contex), instead of FM_TX_SM_GetContext()
 */
-FmTxContext* FM_TX_SM_GetContext();
+FmTxContext* FM_TX_SM_GetContext(void);
 
-FmTxSmContextState FM_TX_SM_GetContextState();
+FmTxSmContextState FM_TX_SM_GetContextState(void);
 
-FMC_BOOL FM_TX_SM_IsContextEnabled();
+FMC_BOOL FM_TX_SM_IsContextEnabled(void);
 
 /*
     Allocates space for a command structure object from one of 2 pools:

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      fmc_config.h
@@ -125,7 +126,7 @@
 /*
 *   Must wait at least 20msec before starting to send commands to the FM.
 */
-#define FMC_CONFIG_RX_WAKEUP_TIMEOUT_MS                     (40)
+#define FMC_CONFIG_WAKEUP_TIMEOUT_MS                     (40)
 
 /*
 *   
@@ -185,7 +186,7 @@
 *   The outputs are also enabled/disabled according to this setting.  
 *   This command should be given after the I2S_MODE_CONFIG_SET 
 */
-#define FMC_CONFIG_RX_AUDIO_ENABLE                  (FMC_FW_RX_FM_AUDIO_ENABLE_ANALOG)
+#define FMC_CONFIG_RX_AUDIO_ENABLE                  (FMC_FW_RX_FM_AUDIO_ENABLE_DISABLE)
 
 /*-------------------------------------------------------------------------------
  * FM TX Constants
@@ -206,7 +207,7 @@
 
     Program reference number (bits 0-7):                    Not Assigned
 */
-#define FMC_CONFIG_TX_DEFAULT_RDS_PI_CODE                   ((FmcRdsPiCode)0xC000)
+#define FMC_CONFIG_TX_DEFAULT_RDS_PI_CODE                   ((FmcRdsPiCode)0x0000)
 
 /*
     The default transmitted RDS group type (PS or/and RT )

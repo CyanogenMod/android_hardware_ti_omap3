@@ -16,24 +16,29 @@
  * limitations under the License.
  */
 
+
 #include "mcp_hal_os.h"
 #include "mcp_ver_defs.h"
 #include "ccm_hal_pwr_up_dwn.h"
 #include "bt_hci_if.h"
 #include "ccm_imi_bt_tran_on_sm.h"
 #include "mcp_bts_script_processor.h"
-#include "mcp_hal_misc.h"
+#include "mcp_hal_string.h"
 #include "mcp_rom_scripts_db.h"
 #include "mcp_endian.h"
+#include "mcp_unicode.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_CCM_IM);
 
 /* Read Local Version Event Parms applicable Fields */
 MCP_STATIC const McpUint _CcmIm_BtTranOnSm_HciLocalVersionManufacturerNamePos = 8;
 MCP_STATIC const McpUint _CcmIm_BtTranOnSm_HciLocalVersionLmpSubversionPos = 10;
 MCP_STATIC const McpU16 _CcmIm_BtTranOnSm_TiManufacturerId = 13;
 
-typedef _CcmImStatus (*_CCM_IM_BtTranOnSm_Action)(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
+typedef _CcmImStatus (*_CCM_IM_BtTranOnSm_Action)(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
 
- struct _tagCcmIm_BtTranOnSm_Obj {
+struct _tagCcmIm_BtTranOnSm_Obj {
     _CcmIm_BtTranOnSm_State         state;
     McpBool                         asyncCompletion;
     
@@ -49,7 +54,7 @@ typedef _CcmImStatus (*_CCM_IM_BtTranOnSm_Action)(_CcmIm_BtTranOnSm_Obj *this, v
     McpU16                          projectType;
     McpU16                          versionMajor;
     McpU16                          versionMinor;
-};
+} ;
 
 typedef struct _tagCcmIm_BtTranOnSm_Entry {
     _CCM_IM_BtTranOnSm_Action   action;
@@ -69,35 +74,35 @@ MCP_STATIC void _CCM_IM_BtTranOnSm_StaticInitSm(void);
 MCP_STATIC void _CCM_IM_BtTranOnSm_StaticInitInstances(void);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_InternalHandleEvent(
-                                    _CcmIm_BtTranOnSm_Obj   *this, 
+                                    _CcmIm_BtTranOnSm_Obj   *thisObj, 
                                     _CcmIm_BtTranOnSm_Event event,
                                     void                        *eventData);
 
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerTurnHciOn(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerReadVersion(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortReadVersion(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptCmdCompleted(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptSetTranParmsCompleted(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerConfigHci(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortTurnHciOn(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortExecuteScript(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortConfigHci(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerTurnHciOn(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerReadVersion(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortReadVersion(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptCmdCompleted(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptSetTranParmsCompleted(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerConfigHci(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortTurnHciOn(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortExecuteScript(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortConfigHci(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
 
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerTranOnCompleted(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerOnFailed(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerTranOnAbortCompleted(_CcmIm_BtTranOnSm_Obj *this, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerTranOnCompleted(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerOnFailed(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_HandlerTranOnAbortCompleted(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData);
 
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_PerformCompletion(   _CcmIm_BtTranOnSm_Obj   *this,
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_PerformCompletion(   _CcmIm_BtTranOnSm_Obj   *thisObj,
                                                                                 _CcmImStatus            completionStatus);
 
 MCP_STATIC void _CCM_IM_BtTranOnSm_BtHciIfMngrCb(BtHciIfMngrEvent *event);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranOnSm_GetInitScriptFileName(
-                                            _CcmIm_BtTranOnSm_Obj   *this,
+                                            _CcmIm_BtTranOnSm_Obj   *thisObj,
                                             const McpU8             *hciReadVersionEventParms,
                                             char                    *scriptFileName,
-                                            char                    *scriptFileFullName);
+                                            McpUtf8                 *scriptFileFullName);
 
 MCP_STATIC McpBtsSpStatus _CCM_IM_BtTranOnSm_SpSendHciCmdCb(
                                             McpBtsSpContext         *context,
@@ -126,40 +131,40 @@ _CcmImStatus _CCM_IM_BtTranOnSm_Create( McpHalChipId                        chip
                                                     BtHciIfObj                      *btHciIfObj,
                                                     _CcmIm_BtTranOnSm_CompletionCb  parentCb,
                                                     McpHalOsSemaphoreHandle         ccmImMutexHandle,
-                                                    _CcmIm_BtTranOnSm_Obj           **this)
+                                                    _CcmIm_BtTranOnSm_Obj           **thisObj)
 {
-    *this = &_ccmIm_BtTranOnSm_Data.smObjs[chipId];
+    *thisObj = &_ccmIm_BtTranOnSm_Data.smObjs[chipId];
 
-    (*this)->chipId = chipId;
-    (*this)->btHciIfObj = btHciIfObj;
-    (*this)->parentCb = parentCb;
-    (*this)->ccmImMutexHandle= ccmImMutexHandle;
+    (*thisObj)->chipId = chipId;
+    (*thisObj)->btHciIfObj = btHciIfObj;
+    (*thisObj)->parentCb = parentCb;
+    (*thisObj)->ccmImMutexHandle= ccmImMutexHandle;
 
     return _CCM_IM_STATUS_SUCCESS;
 }
                                             
-_CcmImStatus _CCM_IM_BtTranOnSm_Destroy(_CcmIm_BtTranOnSm_Obj **this)
+_CcmImStatus _CCM_IM_BtTranOnSm_Destroy(_CcmIm_BtTranOnSm_Obj **thisObj)
 {
-    *this = NULL;
+    *thisObj = NULL;
     return _CCM_IM_STATUS_SUCCESS;
 }
 
-_CcmImStatus _CCM_IM_BtTranOnSm_HandleEvent(    _CcmIm_BtTranOnSm_Obj   *this, 
+_CcmImStatus _CCM_IM_BtTranOnSm_HandleEvent(    _CcmIm_BtTranOnSm_Obj   *thisObj, 
                                                             _CcmIm_BtTranOnSm_Event event,
                                                             void                        *eventData)
 {
     /* 
-        This function is called by the parent (BtTranSm) => we should initialize the flag (this is the beginning of the
+        This function is called by the parent (BtTranSm) => we should initialize the flag (thisObj is the beginning of the
         process
     */
-    this->asyncCompletion = MCP_FALSE;
+    thisObj->asyncCompletion = MCP_FALSE;
 
     /* Call the actual SM engine */
-    return _CCM_IM_BtTranOnSm_InternalHandleEvent(this, event, eventData);
+    return _CCM_IM_BtTranOnSm_InternalHandleEvent(thisObj, event, eventData);
 }
 
 _CcmImStatus _CCM_IM_BtTranOnSm_InternalHandleEvent(
-                    _CcmIm_BtTranOnSm_Obj   *this, 
+                    _CcmIm_BtTranOnSm_Obj   *thisObj, 
                     _CcmIm_BtTranOnSm_Event event,
                     void                        *eventData)
 {
@@ -189,27 +194,27 @@ _CcmImStatus _CCM_IM_BtTranOnSm_InternalHandleEvent(
         The on-abort handling will not access BT_HCI_If. If the SM is waiting for a BT_HCI_If event, it just waits for 
             the event to arrive and then aborts.
     */
-    MCP_HAL_OS_LockSemaphore(this->ccmImMutexHandle, MCP_HAL_OS_TIME_INFINITE); 
+    MCP_HAL_OS_LockSemaphore(thisObj->ccmImMutexHandle, MCP_HAL_OS_TIME_INFINITE); 
     
-    MCP_VERIFY_FATAL((this != NULL), _CCM_IM_STATUS_INVALID_PARM, ("_CCM_IM_BtTranOnSm_InternalHandleEvent: Null this"));
+    MCP_VERIFY_FATAL((thisObj != NULL), _CCM_IM_STATUS_INVALID_PARM, ("_CCM_IM_BtTranOnSm_InternalHandleEvent: Null thisObj"));
     MCP_VERIFY_FATAL((event < _CCM_IM_NUM_OF_BT_TRAN_ON_EVENTS), _CCM_IM_STATUS_INVALID_PARM,
                         ("_CCM_IM_BtTranOnSm_InternalHandleEvent: Invalid event (%d)", event));
 
     MCP_LOG_INFO(("_CCM_IM_BtTranOnSm_InternalHandleEvent: Handling SM{%s, %s}", 
-                    _CCM_IM_BtTranOnSm_DebugStatetStr(this->state),
+                    _CCM_IM_BtTranOnSm_DebugStatetStr(thisObj->state),
                     _CCM_IM_BtTranOnSm_DebugEventStr(event)));
     
     /* Extract the SM entry matching the current {state, event} */
-    smEntry = &_ccmIm_BtTranOnSm_Data.sm[this->state][event];
+    smEntry = &_ccmIm_BtTranOnSm_Data.sm[thisObj->state][event];
     
     MCP_VERIFY_FATAL((smEntry->action != NULL), _CCM_IM_STATUS_NULL_SM_ENTRY, 
                         ("_CCM_IM_BtTranOnSm_InternalHandleEvent: No matching SM Entry"));
 
     /* Transit to the next SM state */
-    this->state = smEntry->nextState;
+    thisObj->state = smEntry->nextState;
 
     /* The entry is valid, invoke the action */
-    status = (smEntry->action)(this, eventData);
+    status = (smEntry->action)(thisObj, eventData);
 
     if (status == _CCM_IM_STATUS_SUCCESS)
     {
@@ -217,7 +222,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_InternalHandleEvent(
     }
     else if (status == _CCM_IM_STATUS_PENDING)
     {
-        this->asyncCompletion = MCP_TRUE;   
+        thisObj->asyncCompletion = MCP_TRUE;   
     }
     else
     {
@@ -237,16 +242,16 @@ _CcmImStatus _CCM_IM_BtTranOnSm_InternalHandleEvent(
                             ("_CCM_IM_BtTranSm_InternalHandleEvent: Missing syncNextEvent"));
         if (smEntry->syncNextEvent != _CCM_IM_BT_TRAN_ON_SM_EVENT_NULL_EVENT)
         {
-            status = _CCM_IM_BtTranOnSm_InternalHandleEvent(this, smEntry->syncNextEvent, NULL);
+            status = _CCM_IM_BtTranOnSm_InternalHandleEvent(thisObj, smEntry->syncNextEvent, NULL);
         }
     }
 
-    MCP_LOG_INFO(("_CCM_IM_BtTranOnSm_InternalHandleEvent: On Exit, State: %s", _CCM_IM_BtTranOnSm_DebugStatetStr(this->state)));
+    MCP_LOG_INFO(("_CCM_IM_BtTranOnSm_InternalHandleEvent: On Exit, State: %s", _CCM_IM_BtTranOnSm_DebugStatetStr(thisObj->state)));
     
     MCP_FUNC_END();
 
     /* Unlocking AFTER MCP_FUNC_END() to make sure all paths (including erroneous) will unlock before exiting */
-    MCP_HAL_OS_UnlockSemaphore(this->ccmImMutexHandle);
+    MCP_HAL_OS_UnlockSemaphore(thisObj->ccmImMutexHandle);
     
     return status;
 }
@@ -491,7 +496,7 @@ void    _CCM_IM_BtTranOnSm_StaticInitInstances(void)
 /*
     This function is called to start the BT transport turn on process
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerTurnHciOn(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerTurnHciOn(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus    status;
     BtHciIfStatus       btHciIfStatus;
@@ -506,12 +511,12 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerTurnHciOn(_CcmIm_BtTranOnSm_Obj *this, vo
 
         The current callback is saved. It will be restored when we Complete / Abort the Transport-On process
     */
-    btHciIfStatus = BT_HCI_IF_MngrChangeCb(this->btHciIfObj, _CCM_IM_BtTranOnSm_BtHciIfMngrCb,  &this->btHciIfParentCb);
+    btHciIfStatus = BT_HCI_IF_MngrChangeCb(thisObj->btHciIfObj, _CCM_IM_BtTranOnSm_BtHciIfMngrCb,  &thisObj->btHciIfParentCb);
     MCP_VERIFY_FATAL((btHciIfStatus == BT_HCI_IF_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR, 
                         ("_CCM_IM_BtTranOnSm_HandlerTurnHciOn: BT_HCI_IF_MngrChangeCb Failed"));
 
     /* Initiate the basic initialization of the BT transport. */
-    btHciIfStatus = BT_HCI_IF_MngrTransportOn(this->btHciIfObj);
+    btHciIfStatus = BT_HCI_IF_MngrTransportOn(thisObj->btHciIfObj);
     MCP_VERIFY_FATAL((btHciIfStatus == BT_HCI_IF_STATUS_PENDING), _CCM_IM_STATUS_INTERNAL_ERROR, 
                         ("_CCM_IM_BtTranOnSm_HandlerTurnHciOn: BT_HCI_IF_MngrTransportOn Failed"));
 
@@ -529,7 +534,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerTurnHciOn(_CcmIm_BtTranOnSm_Obj *this, vo
     The file name is generated from information stored in the LMP Seubversion fields. These fields are retrieved via
     the Read Local Version HCI command.
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerReadVersion(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerReadVersion(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus    status;
     BtHciIfStatus       btHciIfStatus;
@@ -538,7 +543,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerReadVersion(_CcmIm_BtTranOnSm_Obj *this, 
     
     MCP_UNUSED_PARAMETER(eventData);
     
-    btHciIfStatus = BT_HCI_IF_MngrSendRadioCommand( this->btHciIfObj,                       /* Bt If Obj */
+    btHciIfStatus = BT_HCI_IF_MngrSendRadioCommand( thisObj->btHciIfObj,                       /* Bt If Obj */
                                                         BT_HCI_IF_HCI_CMD_READ_LOCAL_VERSION,   /* HCI Opcode */
                                                         NULL,                                   /* Parms (none) */
                                                         0);                                     /* Parms Len (0 - No Parms) */
@@ -558,7 +563,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerReadVersion(_CcmIm_BtTranOnSm_Obj *this, 
     The LMP Subversion fields will be extracted from the HCI event and init script execution will start
     using the Script Processor.
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus                status;
     McpBtsSpStatus              btsSpStatus;
@@ -566,8 +571,9 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *this
     McpBtsSpExecuteScriptCbData scriptCbData;
     BtHciIfMngrEvent            *btHciIfMngrEvent;
     BtHciIfHciEventData         *hciEventData;
-    char                        scriptFileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS + 1];
-    char                        scriptFullFileName[MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS + 1];
+    char                        scriptFileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS];
+    McpUtf8                     scriptFullFileName[MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS *
+                                                   MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
 
     MCP_FUNC_START("_CCM_IM_BtTranOnSm_HandlerExecuteScript");
 
@@ -576,11 +582,11 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *this
     hciEventData = &btHciIfMngrEvent->data.hciEventData;
 
     /* Get Init Script file name */
-    status = _CCM_IM_BtTranOnSm_GetInitScriptFileName(this, hciEventData->parms, scriptFileName, scriptFullFileName);
+    status = _CCM_IM_BtTranOnSm_GetInitScriptFileName(thisObj, hciEventData->parms, scriptFileName, scriptFullFileName);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), status,
                         ("_CCM_IM_BtTranOnSm_HandlerExecuteScript: _CCM_IM_BtTranOnSm_GetInitScriptFullFileName Failed"));
 
-    /* Prepare data needed fror the Script Processor */
+    /* Prepare data needed from the Script Processor */
     
     scriptLocation.locationType = MCP_BTS_SP_SCRIPT_LOCATION_FS;
     scriptLocation.locationData.fullFileName = scriptFullFileName;
@@ -590,7 +596,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *this
     scriptCbData.execCompleteCb = _CCM_IM_BtTranOnSm_SpExecCompleteCmdCb;
 
     /* Start script execution */
-    btsSpStatus = MCP_BTS_SP_ExecuteScript(&scriptLocation, &scriptCbData, &this->btsSpContext);
+    btsSpStatus = MCP_BTS_SP_ExecuteScript(&scriptLocation, &scriptCbData, &thisObj->btsSpContext);
 
     if (btsSpStatus == MCP_BTS_SP_STATUS_SUCCESS)
     {
@@ -616,7 +622,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *this
         memInitScriptFound =  MCP_RomScriptsGetMemInitScriptData(
                                     scriptFileName, 
                                     &scriptLocation.locationData.memoryData.size,
-                                        &scriptLocation.locationData.memoryData.address);
+                                    (const McpU8**)&scriptLocation.locationData.memoryData.address);
 
         /* BT Init script can't be loaded => FATAL ERROR */
         MCP_VERIFY_FATAL((memInitScriptFound == MCP_TRUE), _CCM_IM_STATUS_INTERNAL_ERROR,
@@ -626,7 +632,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *this
         scriptLocation.locationType = MCP_BTS_SP_SCRIPT_LOCATION_MEMORY;
 
         /* Retry script execution - this time from memory */
-        btsSpStatus = MCP_BTS_SP_ExecuteScript(&scriptLocation, &scriptCbData, &this->btsSpContext);
+        btsSpStatus = MCP_BTS_SP_ExecuteScript(&scriptLocation, &scriptCbData, &thisObj->btsSpContext);
 
         if (btsSpStatus == MCP_BTS_SP_STATUS_SUCCESS)
         {
@@ -663,7 +669,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerExecuteScript(_CcmIm_BtTranOnSm_Obj *this
     to BT_HCI_IF_MngrSendRadioCommand). Radio commands are sent to BT_HCI_If when the script processor
     sends an HCI command
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptCmdCompleted(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptCmdCompleted(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus        status;
     BtHciIfMngrEvent        *btHciIfMngrEvent;
@@ -676,7 +682,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptCmdCompleted(_CcmIm_BtTranOnSm_Obj 
     hciEventData = &btHciIfMngrEvent->data.hciEventData;
 
     /* Notify the script processor that the HCI command completed to let it continue script processing */
-    MCP_BTS_SP_HciCmdCompleted(&this->btsSpContext, hciEventData->parms, hciEventData->parmLen);
+    MCP_BTS_SP_HciCmdCompleted(&thisObj->btsSpContext, hciEventData->parms, hciEventData->parmLen);
     
     status = _CCM_IM_STATUS_PENDING;
                                                 
@@ -690,7 +696,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptCmdCompleted(_CcmIm_BtTranOnSm_Obj 
     to BT_HCI_IF_MngrSetTranParms). Transport parameters are sent to BT_HCI_If when the script processor
     sends a set transport parameters command
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptSetTranParmsCompleted(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptSetTranParmsCompleted(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus        status;
 
@@ -698,7 +704,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptSetTranParmsCompleted(_CcmIm_BtTran
 
     MCP_UNUSED_PARAMETER(eventData);
         
-    MCP_BTS_SP_SetTranParmsCompleted(&this->btsSpContext);
+    MCP_BTS_SP_SetTranParmsCompleted(&thisObj->btsSpContext);
         
     status = _CCM_IM_STATUS_PENDING;
                                                 
@@ -711,7 +717,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerScriptSetTranParmsCompleted(_CcmIm_BtTran
     This function is called when the init script successfully completed execution. What is left to do is to
     complete HCI Layer configuration (HCI Flow Control).
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerConfigHci(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerConfigHci(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus    status;
     BtHciIfStatus       btHciIfStatus;
@@ -720,7 +726,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerConfigHci(_CcmIm_BtTranOnSm_Obj *this, vo
 
     MCP_UNUSED_PARAMETER(eventData);
     
-    btHciIfStatus = BT_HCI_IF_MngrConfigHci(this->btHciIfObj);
+    btHciIfStatus = BT_HCI_IF_MngrConfigHci(thisObj->btHciIfObj);
     MCP_VERIFY_FATAL((btHciIfStatus == BT_HCI_IF_STATUS_PENDING), _CCM_IM_STATUS_INTERNAL_ERROR, 
                     ("_CCM_IM_BtTranOnSm_HandlerTurnHciOn: BT_HCI_IF_MngrConfigHci Failed"));
 
@@ -735,9 +741,9 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerConfigHci(_CcmIm_BtTranOnSm_Obj *this, vo
     This function is called when an abort event is sent to the SM from the parent while the SM is waiting for 
     BT_HCI_IF_MngrTransportOn to complete.
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortTurnHciOn(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortTurnHciOn(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
-    MCP_UNUSED_PARAMETER(this);
+    MCP_UNUSED_PARAMETER(thisObj);
     MCP_UNUSED_PARAMETER(eventData);
 
     /* The process will be aborted when the HCI On Completed event will arrive, nothing to do till then */
@@ -751,9 +757,9 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortTurnHciOn(_CcmIm_BtTranOnSm_Obj *thi
     This function is called when an abort event is sent to the SM from the parent while the SM is waiting for 
     the HCI Read Local Version command to complete
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortReadVersion(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortReadVersion(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
-    MCP_UNUSED_PARAMETER(this);
+    MCP_UNUSED_PARAMETER(thisObj);
     MCP_UNUSED_PARAMETER(eventData);
 
     /* 
@@ -770,20 +776,20 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortReadVersion(_CcmIm_BtTranOnSm_Obj *t
     This function is called when an abort event is sent to the SM from the parent while the script processor
     is executing the init script. 
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortExecuteScript(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortExecuteScript(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus    status;
     McpBtsSpStatus  btsSpStatus;
 
     MCP_FUNC_START("_CCM_IM_BtTranOnSm_HandlerAbortExecuteScript");
 
-    MCP_UNUSED_PARAMETER(this);
+    MCP_UNUSED_PARAMETER(thisObj);
     MCP_UNUSED_PARAMETER(eventData);
 
     MCP_LOG_INFO(("_CCM_IM_BtTranOnSm_HandlerAbortExecuteScript: Calling MCP_BTS_SP_AbortScriptExecution"));
     
     /* Requesting Script Processor to abort script execution. Waiting for script execution completion event to abort then */
-    btsSpStatus = MCP_BTS_SP_AbortScriptExecution(&this->btsSpContext);
+    btsSpStatus = MCP_BTS_SP_AbortScriptExecution(&thisObj->btsSpContext);
     MCP_VERIFY_FATAL((btsSpStatus == MCP_BTS_SP_STATUS_PENDING), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranOnSm_HandlerAbortExecuteScript: MCP_BTS_SP_AbortScriptExecution Failed (%d)", btsSpStatus));
     
@@ -798,9 +804,9 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortExecuteScript(_CcmIm_BtTranOnSm_Obj 
     This function is called when an abort event is sent to the SM from the parent while the SM is waiting for 
     BT_HCI_IF_MngrConfigHci to complete.
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortConfigHci(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortConfigHci(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
-    MCP_UNUSED_PARAMETER(this);
+    MCP_UNUSED_PARAMETER(thisObj);
     MCP_UNUSED_PARAMETER(eventData);
         
     /* 
@@ -816,36 +822,36 @@ _CcmImStatus _CCM_IM_BtTranOnSm_HandlerAbortConfigHci(_CcmIm_BtTranOnSm_Obj *thi
 /*
     This function is called when the process terminated successfully 
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerTranOnCompleted(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerTranOnCompleted(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     MCP_UNUSED_PARAMETER(eventData);
     
-    return _CCM_IM_BtTranOnSm_PerformCompletion(this, _CCM_IM_STATUS_SUCCESS);
+    return _CCM_IM_BtTranOnSm_PerformCompletion(thisObj, _CCM_IM_STATUS_SUCCESS);
 }
 
 /*
     This function is called when the process failed for some reason 
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerOnFailed(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerOnFailed(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     MCP_UNUSED_PARAMETER(eventData);
 
     MCP_LOG_FATAL(("_CCM_IM_BtTranOnSm_HandlerOnFailed: Tran On Failed"));
     
-    return _CCM_IM_BtTranOnSm_PerformCompletion(this, _CCM_IM_STATUS_FAILED);
+    return _CCM_IM_BtTranOnSm_PerformCompletion(thisObj, _CCM_IM_STATUS_FAILED);
 }
 
 /*
     This function is called when the process was aborted as a result of an abort request from the parent 
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_HandlerTranOnAbortCompleted(_CcmIm_BtTranOnSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranOnSm_HandlerTranOnAbortCompleted(_CcmIm_BtTranOnSm_Obj *thisObj, void *eventData)
 {
     MCP_UNUSED_PARAMETER(eventData);
     
-    return _CCM_IM_BtTranOnSm_PerformCompletion(this, _CCM_IM_STATUS_TRAN_ON_ABORTED);
+    return _CCM_IM_BtTranOnSm_PerformCompletion(thisObj, _CCM_IM_STATUS_TRAN_ON_ABORTED);
 }
 
-_CcmImStatus _CCM_IM_BtTranOnSm_PerformCompletion(  _CcmIm_BtTranOnSm_Obj   *this,
+_CcmImStatus _CCM_IM_BtTranOnSm_PerformCompletion(  _CcmIm_BtTranOnSm_Obj   *thisObj,
                                                                     _CcmImStatus            completionStatus)
 {
     _CcmImStatus                        status;
@@ -857,7 +863,7 @@ _CcmImStatus _CCM_IM_BtTranOnSm_PerformCompletion(  _CcmIm_BtTranOnSm_Obj   *thi
     /*
         Restore the parent's BT HCI If manager callback 
     */
-    btHciIfStatus = BT_HCI_IF_MngrChangeCb(this->btHciIfObj, this->btHciIfParentCb, NULL);
+    btHciIfStatus = BT_HCI_IF_MngrChangeCb(thisObj->btHciIfObj, thisObj->btHciIfParentCb, NULL);
     MCP_VERIFY_FATAL((btHciIfStatus == BT_HCI_IF_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR, 
                         ("_CCM_IM_BtTranOnSm_HandlerTurnHciOn: BT_HCI_IF_MngrChangeCb Failed"));
     
@@ -868,11 +874,11 @@ _CcmImStatus _CCM_IM_BtTranOnSm_PerformCompletion(  _CcmIm_BtTranOnSm_Obj   *thi
         of the id of the stack that initiated Bt Tran On. It is up to the parent SM to record
         this information.
     */
-    completionEvent.chipId = this->chipId;
+    completionEvent.chipId = thisObj->chipId;
     completionEvent.completionStatus = completionStatus;
 
     /* Invoking the callback */
-    (this->parentCb)(&completionEvent);
+    (thisObj->parentCb)(&completionEvent);
 
     status =    _CCM_IM_STATUS_SUCCESS;
     
@@ -942,10 +948,10 @@ void _CCM_IM_BtTranOnSm_BtHciIfMngrCb(BtHciIfMngrEvent *event)
 /*
     This function generates an init script file name from the local version information returned in the HCI event
 */
-_CcmImStatus _CCM_IM_BtTranOnSm_GetInitScriptFileName(_CcmIm_BtTranOnSm_Obj *this,
+_CcmImStatus _CCM_IM_BtTranOnSm_GetInitScriptFileName(_CcmIm_BtTranOnSm_Obj *thisObj,
                                                       const McpU8 *hciReadVersionEventParms,
                                                       char *scriptFileName,
-                                                      char *scriptFileFullName)
+                                                      McpUtf8 *scriptFileFullName)
 {
     _CcmImStatus    status;
     McpU16          manufacturerId;
@@ -980,20 +986,23 @@ _CcmImStatus _CCM_IM_BtTranOnSm_GetInitScriptFileName(_CcmIm_BtTranOnSm_Obj *thi
     projectType = (McpU16)((lmpSubversion & 0x7C00) >> 10);
 
     /* store chip version for later use */
-    this->projectType = projectType;
-    this->versionMajor = versionMajor;
-    this->versionMinor = versionMinor;
+    thisObj->projectType = projectType;
+    thisObj->versionMajor = versionMajor;
+    thisObj->versionMinor = versionMinor;
 
     /* Format the name of the script file */
-    MCP_HAL_MISC_Sprintf(scriptFileName, "TIInit_%d.%d.%d.bts", 
-                                            projectType, 
-                                            versionMajor, 
-                                            versionMinor);
+    MCP_HAL_STRING_Sprintf(scriptFileName,
+                           "tiinit_%d.%d.%d.bts", 
+                           projectType, 
+                           versionMajor, 
+                           versionMinor);
 
     /* Format the full path of the script file */
-    MCP_HAL_MISC_Sprintf(scriptFileFullName, "%s%s", MCP_HAL_CONFIG_FS_SCRIPT_FOLDER, scriptFileName);
+    MCP_StrCpyUtf8(scriptFileFullName,
+                   (const McpUtf8 *)MCP_HAL_CONFIG_FS_SCRIPT_FOLDER);
+    MCP_StrCatUtf8(scriptFileFullName, (const McpUtf8 *)scriptFileName);
 
-    MCP_LOG_INFO(("Init Script File Name:|%s|", scriptFileFullName));
+    MCP_LOG_INFO(("Init Script File Name:|%s|", (char *)scriptFileFullName));
 
     status = _CCM_IM_STATUS_SUCCESS;
     
@@ -1002,16 +1011,16 @@ _CcmImStatus _CCM_IM_BtTranOnSm_GetInitScriptFileName(_CcmIm_BtTranOnSm_Obj *thi
     return status;
 }
 
-void _CCM_IM_BtTranOnSm_GetChipVersion(_CcmIm_BtTranOnSm_Obj *this, 
+void _CCM_IM_BtTranOnSm_GetChipVersion(_CcmIm_BtTranOnSm_Obj *thisObj, 
                                        McpU16 *projectType,
                                        McpU16 *versionMajor,
                                        McpU16 *versionMinor)
 {
     MCP_FUNC_START("_CCM_IM_BtTranOnSm_GetChipVersion");
 
-    *projectType = this->projectType;
-    *versionMajor = this->versionMajor;
-    *versionMinor = this->versionMinor;
+    *projectType = thisObj->projectType;
+    *versionMajor = thisObj->versionMajor;
+    *versionMinor = thisObj->versionMinor;
 
     MCP_FUNC_END ();
 }

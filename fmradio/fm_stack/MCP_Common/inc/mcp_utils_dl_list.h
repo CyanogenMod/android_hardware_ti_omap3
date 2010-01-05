@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_utils_dl_list.h
@@ -38,11 +39,6 @@
  ****************************************************************************/
 
 /*
-	Type of list element
-*/
-typedef struct  _MCP_DL_LIST_Node MCP_DL_LIST_Node;
-
-/*
 	0-based list element index.
 
 	The first element (head) is at index 0
@@ -51,22 +47,6 @@ typedef McpUint McpDlListNodeIndex;
 
 #define MCP_DL_LIST_INVALID_NODE_INDEX		((McpDlListNodeIndex)0xFFFFFFFF)
 
-/*-------------------------------------------------------------------------------
- * McpDlListComparisonFunc type definition
- *
- *	A prototype of a comparison function that compares 2 list entries 
- *
- *	The function is used in the MCP_DL_LIST_FindMatchingNode() function 
- *	to find a matching entry from the entries in the list
- *
- *	It allows the caller to specify a matching policy that suits his needs.
- *
- *	The function should return:
- *		MCP_HAL_TRUE - the entries match
- *		MCP_HAL_FALSE - the entries do not match
-*/
-typedef McpBool (*McpDlListComparisonFunc)(	const MCP_DL_LIST_Node *nodeToMatch, 
-												const MCP_DL_LIST_Node* checkedNode);
 
 /*-------------------------------------------------------------------------------
  * McpDlListSearchDir type definition
@@ -104,12 +84,30 @@ typedef McpUint McpDlListSearchDir;
  *	The structure has 2 pointers, one to link to the next list element (next) 
  *	and one to the previous list element (prev)
 */
- struct  _MCP_DL_LIST_Node
+typedef struct  _MCP_DL_LIST_Node 
 {
     struct _MCP_DL_LIST_Node *next;
     struct _MCP_DL_LIST_Node *prev;
-};
+} MCP_DL_LIST_Node;
 	
+/*-------------------------------------------------------------------------------
+ * McpDlListComparisonFunc type definition
+ *
+ *	A prototype of a comparison function that compares 2 list entries 
+ *
+ *	The function is used in the MCP_DL_LIST_FindMatchingNode() function 
+ *	to find a matching entry from the entries in the list
+ *
+ *	It allows the caller to specify a matching policy that suits his needs.
+ *
+ *	The function should return:
+ *		MCP_HAL_TRUE - the entries match
+ *		MCP_HAL_FALSE - the entries do not match
+*/
+typedef McpBool (*McpDlListComparisonFunc)(	const MCP_DL_LIST_Node *nodeToMatch, 
+												const MCP_DL_LIST_Node* checkedNode);
+
+
 /****************************************************************************
  *
  * Functions and Macros Reference.

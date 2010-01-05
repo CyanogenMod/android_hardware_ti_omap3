@@ -27,19 +27,15 @@
 #include <time.h>
 #include <string.h>
 
+#include "fmc_defs.h"
 #include "fmc_types.h"
 #include "fm_trace.h"
 
-static FILE *g_stack_log_file = NULL;
 static FILE *g_app_log_file = NULL;
-unsigned int g_stack_trace_threshold = FM_STACK_TRACE_THRESHOLD;
 unsigned int g_app_trace_threshold = FM_APP_TRACE_THRESHOLD;
 
 static void __fm_trace(char output_device, char *buffer)
 {
-	if ((output_device & FM_TRACE_TO_STACK_LOGFILE) && g_stack_log_file)
-		fputs(buffer, g_stack_log_file);
-
 	if ((output_device & FM_TRACE_TO_APP_LOGFILE) && g_app_log_file)
 		fputs(buffer, g_app_log_file);
 
@@ -122,31 +118,16 @@ out:
 int fm_trace_init(void)
 {
 	int ret = FMC_STATUS_SUCCESS;
-	FM_BEGIN();
+	FMAPP_BEGIN();
 
 	/* allow multiple initializations. good for early fm application tracing */
-	if (g_stack_log_file || g_app_log_file)
+	if (g_app_log_file)
 		goto out;
-
-	g_stack_log_file = fopen(FM_STACK_LOG_FILE, "a");
-	if (!g_stack_log_file) {
-		FM_ERROR_SYS("failed to open stack log file: %s",
-							FM_STACK_LOG_FILE);
-		ret = FMC_STATUS_FAILED;
-		goto out;
-	}
-
-	/* set tracing to be in line-buffered mode */
-	setlinebuf(g_stack_log_file);
-
-	FM_TRACE("++++++++++++++++++++++++++++++++++++++");
-	FM_TRACE("hello FM stack !");
 
 	g_app_log_file = fopen(FM_APP_LOG_FILE, "a");
 	if (!g_app_log_file) {
-		FM_ERROR_SYS("failed to open app log file: %s", FM_APP_LOG_FILE);
+		FMAPP_ERROR_SYS("failed to open app log file: %s", FM_APP_LOG_FILE);
 		ret = FMC_STATUS_FAILED;
-		fclose(g_stack_log_file);
 		goto out;
 	}
 
@@ -157,24 +138,21 @@ int fm_trace_init(void)
 	FMAPP_TRACE("hello FM app !");
 
 out:
-	FM_END();
+	FMAPP_END();
 	return ret;
 }
 
 void fm_trace_deinit(void)
 {
-	FM_BEGIN();
+	FMAPP_BEGIN();
 
-	FM_TRACE("FM stack - bye");
-
-	if (g_stack_log_file)
-		fclose(g_stack_log_file);
+	FMAPP_TRACE("FM stack - bye");
 
 	if (g_app_log_file)
 		fclose(g_app_log_file);
 
-	g_stack_log_file = g_app_log_file = NULL;
+	g_app_log_file = NULL;
 
-	FM_END();
+	FMAPP_END();
 }
 

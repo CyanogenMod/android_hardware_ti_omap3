@@ -35,9 +35,9 @@
 #ifndef __CCM_VACI_MAPPING_ENGINE_H__
 #define __CCM_VACI_MAPPING_ENGINE_H__
 
-#include "ccm_vaci_chip_abstration.h"
 #include "ccm_vac.h"
 #include "mcp_hal_defs.h"
+
 #include "mcp_config_parser.h"
 #include "ccm_audio_types.h"
 

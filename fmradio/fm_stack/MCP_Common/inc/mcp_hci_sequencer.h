@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_hci_sequencer.h
@@ -75,9 +76,20 @@
  *******************************************************************************/
 #define HCI_SEQ_MAX_CMDS_PER_SEQUENCE      (5)
 
-/* forward declaration */
-typedef struct _MCP_HciSeq_Context  MCP_HciSeq_Context;
-typedef struct _McpHciSeqCmdToken   McpHciSeqCmdToken;
+/*-------------------------------------------------------------------------------
+ * McpHciSeqCmdToken
+ *
+ * holds a sequence command.
+ */
+typedef struct _McpHciSeqCmdToken
+{       
+    BtHciIfClientCb             callback;       
+    BtHciIfHciOpcode            eHciOpcode;
+    McpU8                       *pHciCmdParms;
+    McpU8                       uhciCmdParmsLen;
+    McpU8                       uCompletionEvent;
+    void                        *pUserData;
+} McpHciSeqCmdToken;
 
 /* comamnd preparetion callback - used to prepare next command in sequence */
 typedef void (*McpHciSeqPrepCB)(McpHciSeqCmdToken *pToken, void *pUserData);
@@ -98,22 +110,6 @@ typedef struct _McpHciSeqCmd
     void                    *pUserData;     /* user data supplied to the above CB */
 } McpHciSeqCmd;
 
-
-/*-------------------------------------------------------------------------------
- * McpHciSeqCmdToken
- *
- * holds a sequence command.
- */
-struct _McpHciSeqCmdToken
-{       
-    BtHciIfClientCb             callback;       
-    BtHciIfHciOpcode            eHciOpcode;
-    McpU8                       *pHciCmdParms;
-    McpU8                       uhciCmdParmsLen;
-    McpU8                       uCompletionEvent;
-    void                        *pUserData;
-};
- 
 /*-------------------------------------------------------------------------------
  * MCP_HciSeq_Context
  *
@@ -126,12 +122,14 @@ typedef struct _MCP_HciSeq_Context
     McpHciSeqCmdToken       command;                /* the actual command token */
     BtHciIfClientHandle     handle; /*Handle for every client for the BT_HCI_IF */
     McpHciSeqCmd            commandsSequence[ HCI_SEQ_MAX_CMDS_PER_SEQUENCE ]; /* the commands in the sequence */
-    McpBool                 bCancelFlag;            /* whether the current executing command was cancelled */
     McpU32                  uCommandCount;          /* the number of commands in the above sequence */
     McpU32                  uCurrentCommandIdx;     /* the index of the current command executing */
+    McpU32                  uSequenceId;             /* the currently running sequence ID */
+    McpU32                  uSeqenceIdOfSentCommand; /* and its mirror for currently sent command */
     McpHalCoreId            coreId;
     McpBool                 bCallCBOnlyForLastCmd;
-};
+    McpBool                 bPendingCommand;
+} MCP_HciSeq_Context;
 
 /********************************************************************************
  *

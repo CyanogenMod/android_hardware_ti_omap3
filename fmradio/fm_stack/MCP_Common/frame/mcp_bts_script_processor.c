@@ -16,55 +16,69 @@
  * limitations under the License.
  */
 
-#include "mcp_hal_misc.h"
 #include "mcp_hal_os.h"
+#include "mcp_hal_string.h"
 #include "mcp_hal_misc.h"
 #include "mcp_hal_memory.h"
 #include "mcp_defs.h"
 #include "mcp_endian.h"
 #include "mcp_bts_script_processor.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_FRAME);
 
 /*
     The value 0x42535442 stands for (in ASCII) BTSB
     which is Bluetooth Script Binary
 */
+
+/* Define The maximum representation of McpUint in ASCII*/
+#define MAX_MCP_UINT_SIZE_IN_ASCII    10
+MCP_STATIC  const char	invalidMcpempStr[] = "formatMsg is too long";
+
+/* Global variable for all the debug functions bellow */
+#define MAX_MCP_TMP_STR_SIZE    27
+MCP_STATIC  char	tempStr[MAX_MCP_TMP_STR_SIZE+1];
+
+
+
 #define MCP_BTS_SP_FILE_HEADER_MAGIC                0x42535442
 
 typedef McpU16 McpBtsSpScriptActionType;
 
-#define     MCP_BTS_SP_SCRIPT_ACTION_SEND_COMMAND               ((McpBtsSpScriptActionType)1)
-#define     MCP_BTS_SP_SCRIPT_ACTION_WAIT_FOR_COMMAND_COMPLETE  ((McpBtsSpScriptActionType)2)
-#define     MCP_BTS_SP_SCRIPT_ACTION_SERIAL_PORT_PARMS              ((McpBtsSpScriptActionType)3)
-#define     MCP_BTS_SP_SCRIPT_ACTION_SLEEP                          ((McpBtsSpScriptActionType)4)
-#define     MCP_BTS_SP_SCRIPT_ACTION_RUN_SCRIPT                     ((McpBtsSpScriptActionType)5)
-#define     MCP_BTS_SP_SCRIPT_ACTION_REMARK                         ((McpBtsSpScriptActionType)6)
+#define MCP_BTS_SP_SCRIPT_ACTION_SEND_COMMAND               ((McpBtsSpScriptActionType)1)
+#define MCP_BTS_SP_SCRIPT_ACTION_WAIT_FOR_COMMAND_COMPLETE  ((McpBtsSpScriptActionType)2)
+#define MCP_BTS_SP_SCRIPT_ACTION_SERIAL_PORT_PARMS          ((McpBtsSpScriptActionType)3)
+#define MCP_BTS_SP_SCRIPT_ACTION_SLEEP                      ((McpBtsSpScriptActionType)4)
+#define MCP_BTS_SP_SCRIPT_ACTION_RUN_SCRIPT                 ((McpBtsSpScriptActionType)5)
+#define MCP_BTS_SP_SCRIPT_ACTION_REMARK                     ((McpBtsSpScriptActionType)6)
 
 typedef McpU8   McpBtsSpHciEventStatus;
 
-#define MCP_BTS_SP_HCI_EVENT_STATUS_SUCCESS     ((McpBtsSpHciEventStatus)0x0)
+#define MCP_BTS_SP_HCI_EVENT_STATUS_SUCCESS                 ((McpBtsSpHciEventStatus)0x0)
 
-#define MCP_BTS_SP_HCI_EVENT_STATUS_OFFSET      ((McpBtsSpHciEventStatus)3)
+#define MCP_BTS_SP_HCI_EVENT_STATUS_OFFSET                  ((McpBtsSpHciEventStatus)3)
 
 /*
     
 */
 typedef struct _MCP_BTS_SP_ScriptHeader 
 {
-    McpU32      magicNumber;
-    McpU32      version;
-    McpU8       reserved[24];
+    McpU32 magicNumber;
+    McpU32 version;
+    McpU8 reserved[24];
 } MCP_BTS_SP_ScriptHeader;
 
 typedef struct _MCP_BTS_SP_ScriptActionHeader 
 {
-    McpBtsSpScriptActionType        actionType;
-    McpU16              actionDataLen;
+    McpBtsSpScriptActionType actionType;
+    McpU16 actionDataLen;
 } MCP_BTS_SP_ScriptActionHeader;
 
 typedef struct _MCP_BTS_SP_ActionSerialPortParameters
 {
-    McpU32  baudRate;
-    McpU32  flowControl;
+    McpU32 baudRate;
+    McpU32 flowControl;
 } MCP_BTS_SP_ActionSerialPortParameters;
 
 typedef struct _MCP_BTS_SP_ActionSleep
@@ -80,36 +94,46 @@ typedef enum {
 
 static McpBtsSpStatus _MCP_BTS_SP_VerifyMagicNumber(McpBtsSpContext *context);
 
-static McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(    McpBtsSpContext             *context,
+static McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(McpBtsSpContext *context,
                                                         McpBtsSpProcessingEvent processingEvent,
-                                                        void                    *eventData);
+                                                        void *eventData);
 
-static McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context, McpBool *moreActions);
+static McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context,
+                                                          McpBool *moreActions);
 
-McpBtsSpStatus _MCP_BTS_SP_GetNextAction(   McpBtsSpContext             *context, 
-                                        McpU16          *actionDataActualLen, 
-                                        McpBtsSpScriptActionType    *actionType,
-                                        McpU8           *actionData, 
-                                        McpU16          actionDataMaxLen, 
-                                        McpBool         *moreActions);
+McpBtsSpStatus _MCP_BTS_SP_GetNextAction(McpBtsSpContext *context, 
+                                         McpU16 *actionDataActualLen, 
+                                         McpBtsSpScriptActionType *actionType,
+                                         McpU8 *actionData, 
+                                         McpU16 actionDataMaxLen, 
+                                         McpBool *moreActions);
 
-static void _MCP_BTS_SP_CompleteExecution(McpBtsSpContext *context, McpBtsSpStatus executionStatus);
+static void _MCP_BTS_SP_CompleteExecution(McpBtsSpContext *context,
+                                          McpBtsSpStatus executionStatus);
 
 static const char *_MCP_BTS_SP_DebugStatusStr(McpBtsSpStatus status);
 
-static McpBtsSpStatus _MCP_BTS_SP_OpenScript(McpBtsSpContext *context, const McpBtsSpScriptLocation *scriptLocation);
-static McpBtsSpStatus _MCP_BTS_SP_ReadActionHeader(McpBtsSpContext *context, MCP_BTS_SP_ScriptActionHeader *actionHeader);
-static McpBtsSpStatus _MCP_BTS_SP_ReadScript(McpBtsSpContext *context, void *buf, McpUint len);
+static McpBtsSpStatus _MCP_BTS_SP_OpenScript(McpBtsSpContext *context,
+                                             const McpBtsSpScriptLocation *scriptLocation);
+static McpBtsSpStatus _MCP_BTS_SP_ReadActionHeader(McpBtsSpContext *context,
+                                                   MCP_BTS_SP_ScriptActionHeader *actionHeader);
+static McpBtsSpStatus _MCP_BTS_SP_ReadScript(McpBtsSpContext *context,
+                                             void *buf,
+                                             McpUint len);
 static McpBtsSpStatus _MCP_BTS_SP_CloseScript(McpBtsSpContext *context);
 
-static McpBtsSpStatus _MCP_BTS_SP_FsOpenScript(McpBtsSpContext *context, const char *fullFileName);
-static McpBtsSpStatus _MCP_BTS_SP_FsReadScript(McpBtsSpContext *context, void *buf, McpUint len);
+static McpBtsSpStatus _MCP_BTS_SP_FsOpenScript(McpBtsSpContext *context,
+                                               const McpUtf8 *fullFileName);
+static McpBtsSpStatus _MCP_BTS_SP_FsReadScript(McpBtsSpContext *context,
+                                               void *buf,
+                                               McpUint len);
 static McpBtsSpStatus _MCP_BTS_SP_FsCloseScript(McpBtsSpContext *context);
-
-static McpBtsSpStatus _MCP_BTS_SP_MemOpenScript(    McpBtsSpContext     *context, 
-                                                            McpU8           *address,
-                                                            McpUint         size);
-static McpBtsSpStatus _MCP_BTS_SP_MemReadScript(McpBtsSpContext *context, void *buf, McpUint len);
+static McpBtsSpStatus _MCP_BTS_SP_MemOpenScript(McpBtsSpContext *context, 
+                                                McpU8 *address,
+                                                McpUint size);
+static McpBtsSpStatus _MCP_BTS_SP_MemReadScript(McpBtsSpContext *context,
+                                                void *buf,
+                                                McpUint len);
 static McpBtsSpStatus _MCP_BTS_SP_MemCloseScript(McpBtsSpContext *context);
 
 
@@ -123,9 +147,9 @@ static McpBtsSpStatus _MCP_BTS_SP_MemCloseScript(McpBtsSpContext *context);
     Otherwise, the function returns MCP_BTS_SP_STATUS_PENDING and completion will be notified
     via execCompleteCb
 */
-McpBtsSpStatus MCP_BTS_SP_ExecuteScript(    const McpBtsSpScriptLocation        *scriptLocation, 
-                                                    const McpBtsSpExecuteScriptCbData   *cbData,
-                                                    McpBtsSpContext                     *context)
+McpBtsSpStatus MCP_BTS_SP_ExecuteScript(const McpBtsSpScriptLocation *scriptLocation, 
+                                        const McpBtsSpExecuteScriptCbData *cbData,
+                                        McpBtsSpContext *context)
 {
     McpBtsSpStatus status;
     
@@ -134,7 +158,7 @@ McpBtsSpStatus MCP_BTS_SP_ExecuteScript(    const McpBtsSpScriptLocation        
 
         Applicable fields are initialized from arguments. Others are initialized using default values
     */
-    context->locationType= scriptLocation->locationType;
+    context->locationType = scriptLocation->locationType;
     context->locationData.fileDesc = MCP_HAL_FS_INVALID_FILE_DESC;
     context->scriptSize = 0;
     context->cbData = *cbData;
@@ -148,7 +172,8 @@ McpBtsSpStatus MCP_BTS_SP_ExecuteScript(    const McpBtsSpScriptLocation        
     
     if (status != MCP_BTS_SP_STATUS_SUCCESS)
     {
-        MCP_LOG_ERROR(("MCP_BTS_SP_ExecuteScript: _MCP_BTS_SP_OpenScript Failed (%s), Exiting", _MCP_BTS_SP_DebugStatusStr(status)));
+        MCP_LOG_ERROR(("MCP_BTS_SP_ExecuteScript: _MCP_BTS_SP_OpenScript Failed (%s), Exiting",
+                       _MCP_BTS_SP_DebugStatusStr(status)));
         _MCP_BTS_SP_CompleteExecution(context, status);
         return status;
     }
@@ -158,14 +183,16 @@ McpBtsSpStatus MCP_BTS_SP_ExecuteScript(    const McpBtsSpScriptLocation        
     
     if (status != MCP_BTS_SP_STATUS_SUCCESS)
     {
-        MCP_LOG_ERROR(("MCP_BTS_SP_ExecuteScript: _MCP_BTS_SP_VerifyMagicNumber Failed (%s), Exiting", _MCP_BTS_SP_DebugStatusStr(status)));
+        MCP_LOG_ERROR(("MCP_BTS_SP_ExecuteScript: _MCP_BTS_SP_VerifyMagicNumber Failed (%s), Exiting",
+                       _MCP_BTS_SP_DebugStatusStr(status)));
         _MCP_BTS_SP_CompleteExecution(context, status);
         return status;
     }
 
     /* Start processing script actions */
-    
-    status = _MCP_BTS_SP_ProcessScriptCommands(context, MCP_BTS_SP_PROCESSING_EVENT_START, NULL);
+    status = _MCP_BTS_SP_ProcessScriptCommands(context,
+                                               MCP_BTS_SP_PROCESSING_EVENT_START,
+                                               NULL);
 
     if (status == MCP_BTS_SP_STATUS_SUCCESS)
     {
@@ -195,7 +222,7 @@ McpBtsSpStatus MCP_BTS_SP_AbortScriptExecution(McpBtsSpContext *context)
 
 McpBtsSpStatus _MCP_BTS_SP_VerifyMagicNumber(McpBtsSpContext *context)
 {
-    McpBtsSpStatus          spStatus;
+    McpBtsSpStatus spStatus;
     MCP_BTS_SP_ScriptHeader header;
 
     /* Read script header */
@@ -203,19 +230,21 @@ McpBtsSpStatus _MCP_BTS_SP_VerifyMagicNumber(McpBtsSpContext *context)
 
     if (spStatus != MCP_BTS_SP_STATUS_SUCCESS)
     {
-        MCP_LOG_ERROR(("_MCP_BTS_SP_VerifyMagicNumber: Failed getting script header (%s)", _MCP_BTS_SP_DebugStatusStr(spStatus)));
+        MCP_LOG_ERROR(("_MCP_BTS_SP_VerifyMagicNumber: Failed getting script header (%s)",
+                       _MCP_BTS_SP_DebugStatusStr(spStatus)));
         return spStatus;
     }
 
     /* 
         check magic number
 
-        [ToDo] Consider possible Endiannity problems
+        [ToDo] Consider possible Endianity problems
     */
     if (header.magicNumber != MCP_BTS_SP_FILE_HEADER_MAGIC)
     {
         MCP_LOG_ERROR(("_MCP_BTS_SP_VerifyMagicNumber: Invalid Magic Number (%x), Expected (%x)", 
-                            header.magicNumber, MCP_BTS_SP_FILE_HEADER_MAGIC));
+                       header.magicNumber,
+                       MCP_BTS_SP_FILE_HEADER_MAGIC));
         return MCP_BTS_SP_STATUS_INVALID_SCRIPT;
     }
 
@@ -225,11 +254,11 @@ McpBtsSpStatus _MCP_BTS_SP_VerifyMagicNumber(McpBtsSpContext *context)
 /*
     The main state machine of the script processor
 */
-McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             *context,
-                                                    McpBtsSpProcessingEvent processingEvent,
-                                                    void                    *eventData)
+McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(McpBtsSpContext *context,
+                                                 McpBtsSpProcessingEvent processingEvent,
+                                                 void *eventData)
 {
-    McpBtsSpStatus  spStatus = MCP_BTS_SP_STATUS_SUCCESS;
+    McpBtsSpStatus spStatus = MCP_BTS_SP_STATUS_SUCCESS;
     McpBool keepProcessing;
 
     MCP_UNUSED_PARAMETER(eventData);
@@ -254,7 +283,8 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             
                 }
                 else
                 {
-                    MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessScriptCommands: Unexpected Processing Event (%d)", processingEvent));
+                    MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessScriptCommands: Unexpected Processing Event (%d)",
+                                   processingEvent));
 
                     context->processingState = MCP_BTS_SP_PROCESSING_STATE_DONE;
                     spStatus = MCP_BTS_SP_STATUS_INTERNAL_ERROR;
@@ -312,7 +342,8 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             
                 }
                 else
                 {
-                    MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessScriptCommands: Unexpected Processing Event (%d)", processingEvent));
+                    MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessScriptCommands: Unexpected Processing Event (%d)",
+                                   processingEvent));
 
                     context->processingState = MCP_BTS_SP_PROCESSING_STATE_DONE;
                     spStatus = MCP_BTS_SP_STATUS_INTERNAL_ERROR;
@@ -331,7 +362,8 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             
                 }
                 else
                 {
-                    MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessScriptCommands: Unexpected Processing Event (%d)", processingEvent));
+                    MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessScriptCommands: Unexpected Processing Event (%d)",
+                                   processingEvent));
 
                     context->processingState = MCP_BTS_SP_PROCESSING_STATE_DONE;
                     spStatus = MCP_BTS_SP_STATUS_INTERNAL_ERROR;
@@ -343,15 +375,16 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             
             
             case MCP_BTS_SP_PROCESSING_STATE_DONE:
 
-                MCP_LOG_INFO(("_MCP_BTS_SP_ProcessScriptCommands: Completed (%s)", _MCP_BTS_SP_DebugStatusStr(spStatus)));
+                MCP_LOG_INFO(("_MCP_BTS_SP_ProcessScriptCommands: Completed (%s)",
+                              _MCP_BTS_SP_DebugStatusStr(spStatus)));
                 
                 _MCP_BTS_SP_CompleteExecution(context, spStatus);
 
             break;
             
             default:
-
-                MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessScriptCommands: Invalid Processing State (%s)", context->processingState));
+                MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessScriptCommands: Invalid Processing State (%s)",
+                               context->processingState));
 
                 context->processingState = MCP_BTS_SP_PROCESSING_STATE_DONE;
                 spStatus = MCP_BTS_SP_STATUS_INTERNAL_ERROR;
@@ -369,9 +402,9 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             
 
 McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context, McpBool *moreActions)
 {
-    McpBtsSpStatus                  spStatus;
+    McpBtsSpStatus spStatus;
     McpBtsSpScriptActionDataLenType actionDataActualLen;
-    McpBtsSpScriptActionType            actionType;
+    McpBtsSpScriptActionType actionType;
 
     /* 
         [ToDo] - Check the need for the mopreCommand and its usage
@@ -385,17 +418,17 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context, Mcp
     }
 
     /* Read next action from script and parse it */
-    spStatus = _MCP_BTS_SP_GetNextAction(   context, 
-                                    &actionDataActualLen,
-                                    &actionType,
-                                    context->scriptActionData, 
-                                    MCP_BTS_SP_MAX_SCRIPT_ACTION_DATA_LEN,
-                                    moreActions);
+    spStatus = _MCP_BTS_SP_GetNextAction(context, 
+                                         &actionDataActualLen,
+                                         &actionType,
+                                         context->scriptActionData, 
+                                         MCP_BTS_SP_MAX_SCRIPT_ACTION_DATA_LEN,
+                                         moreActions);
 
     if (spStatus != MCP_BTS_SP_STATUS_SUCCESS)
     {
         MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessNextScriptAction: _MCP_BTS_SP_GetNextAction Failed (%s)", 
-                            _MCP_BTS_SP_DebugStatusStr(spStatus)));
+                       _MCP_BTS_SP_DebugStatusStr(spStatus)));
         return spStatus;
     }
 
@@ -431,18 +464,15 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context, Mcp
             {
                 /* [ToDo] - FATAL may be too severe as an uncoditional handling of errors */
                 MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessNextScriptAction: Failed sending HCI Command via the callback (%d)", 
-                                    _MCP_BTS_SP_DebugStatusStr(spStatus)));
+                               _MCP_BTS_SP_DebugStatusStr(spStatus)));
             }
         }
-            
         break;
 
         case MCP_BTS_SP_SCRIPT_ACTION_WAIT_FOR_COMMAND_COMPLETE:
-
             /* Nothing more to do, wait for client to call MCP_BTS_SP_HciCmdCompleted to continue processing */
             spStatus = MCP_BTS_SP_STATUS_PENDING;
-
-        break;
+            break;
 
         /* Invalid action for Software scripts */
         case MCP_BTS_SP_SCRIPT_ACTION_SERIAL_PORT_PARMS:
@@ -455,20 +485,16 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context, Mcp
             {
                 /* [ToDo] - FATAL may be too severe as an uncoditional handling of errors */
                 MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessNextScriptAction: Setting Speed Callback Failed (%d)", 
-                                            _MCP_BTS_SP_DebugStatusStr(spStatus)));
+                               _MCP_BTS_SP_DebugStatusStr(spStatus)));
             }
         }   
-        
         break;
         
         /* Invalid action for Software scripts */
         case MCP_BTS_SP_SCRIPT_ACTION_RUN_SCRIPT:
-
             MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessNextScriptAction: Run Script action Disallowed in BTS File"));
-            
             spStatus = MCP_BTS_SP_STATUS_INVALID_SCRIPT;
-            
-        break;
+            break;
 
         case MCP_BTS_SP_SCRIPT_ACTION_SLEEP:
         {
@@ -476,23 +502,17 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context, Mcp
             MCP_BTS_SP_ActionSleep *pParams = (MCP_BTS_SP_ActionSleep*)&context->scriptActionData[0];
             MCP_HAL_OS_Sleep(pParams->nDurationInMillisec);
         }
-        
         break;
         
         case MCP_BTS_SP_SCRIPT_ACTION_REMARK:
-
             /* Nothing to do */
             spStatus = MCP_BTS_SP_STATUS_SUCCESS;
-            
-        break;
+            break;
 
         /* Invalid action type detected */      
         default:
-
             MCP_LOG_FATAL(("_MCP_BTS_SP_ProcessNextScriptAction: Invalid Action (%d) in BTS File", actionType));
-            
             spStatus = MCP_BTS_SP_STATUS_INVALID_SCRIPT;
-            
             break;
             
     }
@@ -503,22 +523,23 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context, Mcp
 /*
     Reads the next action from the script file, verify correctness and return its individual elements
 */
-McpBtsSpStatus _MCP_BTS_SP_GetNextAction(   McpBtsSpContext             *context, 
-                                        McpU16          *actionDataActualLen, 
-                                        McpBtsSpScriptActionType    *actionType,
-                                        McpU8           *actionData, 
-                                        McpU16          actionDataMaxLen,
-                                        McpBool         *moreActions)
+McpBtsSpStatus _MCP_BTS_SP_GetNextAction(McpBtsSpContext *context, 
+                                         McpU16 *actionDataActualLen, 
+                                         McpBtsSpScriptActionType *actionType,
+                                         McpU8 *actionData, 
+                                         McpU16 actionDataMaxLen,
+                                         McpBool *moreActions)
 {
-    McpBtsSpStatus              spStatus;
-    MCP_BTS_SP_ScriptActionHeader   actionHeader;
+    McpBtsSpStatus spStatus;
+    MCP_BTS_SP_ScriptActionHeader actionHeader;
 
     /* Read the action header */
     spStatus = _MCP_BTS_SP_ReadActionHeader(context, &actionHeader);
 
     if (spStatus != MCP_BTS_SP_STATUS_SUCCESS)
     {
-        MCP_LOG_FATAL(("_MCP_BTS_SP_GetNextAction: Failed reading action header (%s)", _MCP_BTS_SP_DebugStatusStr(spStatus)));
+        MCP_LOG_FATAL(("_MCP_BTS_SP_GetNextAction: Failed reading action header (%s)",
+                       _MCP_BTS_SP_DebugStatusStr(spStatus)));
         return spStatus;
     }
 
@@ -544,7 +565,8 @@ McpBtsSpStatus _MCP_BTS_SP_GetNextAction(   McpBtsSpContext             *context
 
     if (spStatus != MCP_BTS_SP_STATUS_SUCCESS)
     {
-        MCP_LOG_FATAL(("_MCP_BTS_SP_GetNextAction: Failed reading action Data (%s)", _MCP_BTS_SP_DebugStatusStr(spStatus)));
+        MCP_LOG_FATAL(("_MCP_BTS_SP_GetNextAction: Failed reading action Data (%s)",
+                       _MCP_BTS_SP_DebugStatusStr(spStatus)));
         return spStatus;
     }
 
@@ -564,7 +586,7 @@ McpBtsSpStatus _MCP_BTS_SP_GetNextAction(   McpBtsSpContext             *context
 /*
     This function is called to complete script execution from all possible execution paths.
 */
-void  _MCP_BTS_SP_CompleteExecution(McpBtsSpContext *context, McpBtsSpStatus executionStatus)
+void _MCP_BTS_SP_CompleteExecution(McpBtsSpContext *context, McpBtsSpStatus executionStatus)
 {
     if (executionStatus == MCP_BTS_SP_STATUS_SUCCESS)
     {
@@ -590,9 +612,9 @@ void  _MCP_BTS_SP_CompleteExecution(McpBtsSpContext *context, McpBtsSpStatus exe
     }
 }
 
-void MCP_BTS_SP_HciCmdCompleted(    McpBtsSpContext         *context, 
-                                    McpU8       *eventParms,
-                                    McpU8       eventParmsLen)
+void MCP_BTS_SP_HciCmdCompleted(McpBtsSpContext *context, 
+                                McpU8 *eventParms,
+                                McpU8 eventParmsLen)
 {
     MCP_UNUSED_PARAMETER(eventParms);
     MCP_UNUSED_PARAMETER(eventParmsLen);
@@ -616,8 +638,11 @@ void MCP_BTS_SP_HciCmdCompleted(    McpBtsSpContext         *context,
     
     if (eventType != MCP_BTS_SP_HCI_EVENT_COMMAND_COMPLETE)
     {
-        MCP_LOG_FATAL(("MCP_BTS_SP_HciCmdCompleted: Unexpected HCI Event (%d), Status: %d", eventType, eventStatus));   
-        _MCP_BTS_SP_CompleteExecution(context, MCP_BTS_SP_STATUS_EXECUTION_FAILED_UNEXPECTED_HCI_EVENT);
+        MCP_LOG_FATAL(("MCP_BTS_SP_HciCmdCompleted: Unexpected HCI Event (%d), Status: %d",
+                       eventType,
+                       eventStatus));   
+        _MCP_BTS_SP_CompleteExecution(context,
+                                      MCP_BTS_SP_STATUS_EXECUTION_FAILED_UNEXPECTED_HCI_EVENT);
         return;
     }
 
@@ -626,8 +651,10 @@ void MCP_BTS_SP_HciCmdCompleted(    McpBtsSpContext         *context,
     /* verify that the command completed successfully */
     if (eventStatus != MCP_BTS_SP_HCI_EVENT_STATUS_SUCCESS)
     {
-        MCP_LOG_FATAL(("MCP_BTS_SP_HciCmdCompleted: Command completed unsuccessfully (%d)", eventStatus));  
-        _MCP_BTS_SP_CompleteExecution(context, MCP_BTS_SP_STATUS_EXECUTION_FAILED_COMMAND_FAILED);
+        MCP_LOG_FATAL(("MCP_BTS_SP_HciCmdCompleted: Command completed unsuccessfully (%d)",
+                       eventStatus));  
+        _MCP_BTS_SP_CompleteExecution(context,
+                                      MCP_BTS_SP_STATUS_EXECUTION_FAILED_COMMAND_FAILED);
         return;
     }
     
@@ -650,19 +677,22 @@ McpBtsSpStatus _MCP_BTS_SP_OpenScript(McpBtsSpContext *context, const McpBtsSpSc
     }
     else
     {
-        return _MCP_BTS_SP_MemOpenScript(   context, 
-                                            scriptLocation->locationData.memoryData.address, 
-                                            scriptLocation->locationData.memoryData.size);
+        return _MCP_BTS_SP_MemOpenScript(context, 
+                                         scriptLocation->locationData.memoryData.address, 
+                                         scriptLocation->locationData.memoryData.size);
     }
 }
 
-McpBtsSpStatus _MCP_BTS_SP_ReadActionHeader(McpBtsSpContext *context, MCP_BTS_SP_ScriptActionHeader *actionHeader)
+McpBtsSpStatus _MCP_BTS_SP_ReadActionHeader(McpBtsSpContext *context,
+                                            MCP_BTS_SP_ScriptActionHeader *actionHeader)
 {
     McpBtsSpStatus status;
     
     if (context->locationType == MCP_BTS_SP_SCRIPT_LOCATION_FS)
     {
-        status = _MCP_BTS_SP_FsReadScript(context, actionHeader, sizeof(MCP_BTS_SP_ScriptActionHeader));
+        status = _MCP_BTS_SP_FsReadScript(context,
+                                          actionHeader,
+                                          sizeof(MCP_BTS_SP_ScriptActionHeader));
     }
     else
     {
@@ -704,19 +734,21 @@ McpBtsSpStatus _MCP_BTS_SP_CloseScript(McpBtsSpContext *context)
 /*
     Opens the script file and obtains its size
 */
-McpBtsSpStatus _MCP_BTS_SP_FsOpenScript(McpBtsSpContext *context, const char *fullFileName)
+McpBtsSpStatus _MCP_BTS_SP_FsOpenScript(McpBtsSpContext *context,
+                                        const McpUtf8 *fullFileName)
 {
-    McpHalFsStatus  fsStatus;
-    McpHalFsStat    fsStat;
+    McpHalFsStatus fsStatus;
+    McpHalFsStat fsStat;
 
     /* Get file information */
-    fsStatus = MCP_HAL_FS_Stat((const McpU8*)fullFileName, &fsStat);
+    fsStatus = MCP_HAL_FS_Stat(fullFileName, &fsStat);
 
     if (fsStatus != MCP_HAL_FS_STATUS_SUCCESS)
     {
 
         /* Failed to get file information - report and return proper error code */
-        MCP_LOG_ERROR(("_MCP_BTS_SP_FsOpenScript: MCP_HAL_FS_Stat Failed (%d)", fsStatus));
+        MCP_LOG_ERROR(("_MCP_BTS_SP_FsOpenScript: MCP_HAL_FS_Stat Failed (%d)",
+                       fsStatus));
 
         if (fsStatus == MCP_HAL_FS_STATUS_ERROR_NOTFOUND)
         {
@@ -732,17 +764,19 @@ McpBtsSpStatus _MCP_BTS_SP_FsOpenScript(McpBtsSpContext *context, const char *fu
     context->scriptSize = fsStat.size;
     
     /* Open the script file for reading as a binary file */
-    fsStatus = MCP_HAL_FS_Open( (const McpU8*)fullFileName,  
-                                (MCP_HAL_FS_O_RDONLY | MCP_HAL_FS_O_BINARY), 
-                                &context->locationData.fileDesc);
+    fsStatus = MCP_HAL_FS_Open(fullFileName,  
+                               (MCP_HAL_FS_O_RDONLY | MCP_HAL_FS_O_BINARY), 
+                               &context->locationData.fileDesc);
 
     if (fsStatus != MCP_HAL_FS_STATUS_SUCCESS)
     {
-        MCP_LOG_ERROR(("_MCP_BTS_SP_FsOpenScript: MCP_HAL_FS_Open Failed (%d)", fsStatus));
+        MCP_LOG_ERROR(("_MCP_BTS_SP_FsOpenScript: MCP_HAL_FS_Open Failed (%d)",
+                       fsStatus));
         return MCP_BTS_SP_STATUS_FFS_ERROR;
     }
 
-    MCP_LOG_INFO(("_MCP_BTS_SP_FsOpenScript: Successfully opened %s", fullFileName));       
+    MCP_LOG_INFO(("_MCP_BTS_SP_FsOpenScript: Successfully opened %s",
+                  (char *)fullFileName));       
 
     return MCP_BTS_SP_STATUS_SUCCESS;
 }
@@ -796,7 +830,8 @@ McpBtsSpStatus _MCP_BTS_SP_FsCloseScript(McpBtsSpContext *context)
             
         if (fsStatus != MCP_HAL_FS_STATUS_SUCCESS)
         {
-            MCP_LOG_ERROR(("_MCP_BTS_SP_FsOpenScriptFile: MCP_HAL_FS_Open Failed (%d)", fsStatus));
+            MCP_LOG_ERROR(("_MCP_BTS_SP_FsOpenScriptFile: MCP_HAL_FS_Open Failed (%d)",
+                           fsStatus));
             return MCP_BTS_SP_STATUS_FFS_ERROR;
         }
     }
@@ -804,9 +839,9 @@ McpBtsSpStatus _MCP_BTS_SP_FsCloseScript(McpBtsSpContext *context)
     return MCP_BTS_SP_STATUS_SUCCESS;
 }
 
-McpBtsSpStatus _MCP_BTS_SP_MemOpenScript(   McpBtsSpContext     *context, 
-                                                        McpU8           *address,
-                                                        McpUint         size)
+McpBtsSpStatus _MCP_BTS_SP_MemOpenScript(McpBtsSpContext *context, 
+                                         McpU8 *address,
+                                         McpUint size)
 {
     context->locationData.memoryPos = address;
     
@@ -838,34 +873,46 @@ McpBtsSpStatus _MCP_BTS_SP_MemCloseScript(McpBtsSpContext *context)
 /*
     Utility function that formats a number as a string
 
-    [ToDo] - Dupluicate of a function in FMC_Utils - Consider making an infrastructure utility function
+    [ToDo] - Duplicate of a function in FMC_Utils - Consider making an infrastructure utility function
 */
-const char * _MCP_BTS_SP_FormatNumber(const char *formatMsg, McpUint number, char *tempStr)
+const char *_MCP_BTS_SP_FormatNumber(const char *formatMsg, McpUint number, char *tempStr,McpUint maxTempStrSize)
 {
-    MCP_HAL_MISC_Sprintf(tempStr, formatMsg, number);
+    McpU16 formatMsgLen;
+    formatMsgLen=MCP_HAL_STRING_StrLen(formatMsg);
+
+    /*Verfiy that the tempStr allocation is enough  */
+    if ((McpU16)(formatMsgLen+MAX_MCP_UINT_SIZE_IN_ASCII)>maxTempStrSize)
+        {            
+            return invalidMcpempStr;
+        }    
+
+    MCP_HAL_STRING_Sprintf(tempStr, formatMsg, number);
 
     return tempStr;
 }
 
 const char *_MCP_BTS_SP_DebugStatusStr(McpBtsSpStatus status)
 {
-    char    tempStr[10];
+  
 
     switch (status)
     {
-        case  MCP_BTS_SP_STATUS_SUCCESS:                return "SUCCESS";
-        case  MCP_BTS_SP_STATUS_FAILED:             return "FAILED";
-        case  MCP_BTS_SP_STATUS_PENDING:                return "PENDING";
-        case  MCP_BTS_SP_STATUS_INVALID_PARM:       return "INVALID_PARM";
-        case  MCP_BTS_SP_STATUS_INTERNAL_ERROR:     return "INTERNAL_ERROR";
-        case  MCP_BTS_SP_STATUS_NOT_SUPPORTED:      return "NOT_SUPPORTED";
-        case  MCP_BTS_SP_STATUS_FILE_NOT_FOUND:     return "FILE_NOT_FOUND";
-        case  MCP_BTS_SP_STATUS_FFS_ERROR:          return "FFS_ERROR";
+        case MCP_BTS_SP_STATUS_SUCCESS:             return "SUCCESS";
+        case MCP_BTS_SP_STATUS_FAILED:              return "FAILED";
+        case MCP_BTS_SP_STATUS_PENDING:             return "PENDING";
+        case MCP_BTS_SP_STATUS_INVALID_PARM:        return "INVALID_PARM";
+        case MCP_BTS_SP_STATUS_INTERNAL_ERROR:      return "INTERNAL_ERROR";
+        case MCP_BTS_SP_STATUS_NOT_SUPPORTED:       return "NOT_SUPPORTED";
+        case MCP_BTS_SP_STATUS_FILE_NOT_FOUND:      return "FILE_NOT_FOUND";
+        case MCP_BTS_SP_STATUS_FFS_ERROR:           return "FFS_ERROR";
         case MCP_BTS_SP_STATUS_INVALID_SCRIPT:      return "INVALID_SCRIPT";
         case MCP_BTS_SP_STATUS_HCI_INIT_ERROR:      return "HCI_INIT_ERROR";
         case MCP_BTS_SP_STATUS_INVALID_HCI_CMD:     return "INVALID_HCI_CMD";
         case MCP_BTS_SP_STATUS_HCI_TRANSPORT_ERROR: return "HCI_TRANSPORT_ERROR";
-        default:                                    return _MCP_BTS_SP_FormatNumber("INVALID Status:%x", status, tempStr);
+        default:                                    return _MCP_BTS_SP_FormatNumber("INVALID Status:%x",
+                                                                                    status,
+                                                                                    tempStr,
+                                                                                    MAX_MCP_TMP_STR_SIZE);
     }
 }
 

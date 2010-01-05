@@ -17,14 +17,16 @@
  */
 
 
-#include <pthread.h>
 #include "fmc_defs.h"
 #include "fmc_utils.h"
+#include "fmc_log.h"
 #include "fmc_pool.h"
 #include "fmc_debug.h"
 #include "fmc_config.h"
 #include "fmc_commoni.h"
 #include "fmc_core.h"
+
+FMC_LOG_SET_MODULE(FMC_LOG_MODULE_FMCOMMON);
 
 /* Initialization states */
 typedef enum _tagFmcState {
@@ -39,7 +41,6 @@ typedef struct {
     FMC_UINT                    clientRefCount;
 
     /* Shared Mutex for locking FM stack */
-	pthread_mutex_t				  mutex;
     FmcOsSemaphoreHandle          mutexHandle; 
 
     /* Shared commands Queue */
@@ -98,7 +99,7 @@ FmcStatus FMCI_Init(void)
             
             ++_fmcData.clientRefCount;
             
-            FMC_LOG_INFO(("FMCI_Init: Cleint #%d Initialized - Exiting Successfully"));
+            FMC_LOG_INFO(("FMCI_Init: Cleint #%d Initialized - Exiting Successfully",_fmcData.clientRefCount));
             FMC_RET(FMC_STATUS_SUCCESS);
 
         default:
@@ -109,14 +110,12 @@ FmcStatus FMCI_Init(void)
     }
 
     /* We got here to actually initialize for the first time */
+    
     _fmcData.clientRefCount = 1;
 
     /* Assume failure. If we fail before reaching the end, we will stay in this state */
     _fmcInitState = _FMC_INIT_STATE_INIT_FAILED;
-
-	/* Assign the mutexHandle */
-    _fmcData.mutexHandle = &_fmcData.mutex;
-	
+    
     /* Init Common FM RX & TX OS Issues (task, mutex, etc) */
     status = _FMC_OsInit();
     FMC_VERIFY_FATAL((status == FMC_STATUS_SUCCESS), FMC_STATUS_INTERNAL_ERROR, 
@@ -161,7 +160,7 @@ FmcStatus FMCI_Deinit(void)
     /* We actually de-initialize only when the last client calls the function */
     if (_fmcData.clientRefCount > 0)
     {
-        FMC_LOG_INFO(("FMCI_Deinit: %d Cleints left to de-initialize, exiting without actually de-initializing"));
+        FMC_LOG_INFO(("FMCI_Deinit: %d Cleints left to de-initialize, exiting without actually de-initializing",_fmcData.clientRefCount));
         FMC_RET(FMC_STATUS_SUCCESS);
     }
 
@@ -330,14 +329,6 @@ FMC_ListNode *FMCI_GetCmdsQueue(void)
 
 void _FMC_TaskEventCallback(FmcOsEvent evtMask)
 {
-#if defined(ANDROID)
-    FMC_OS_Sleep(30);
-    if (_fmcInitState == _FMC_INIT_STATE_DEINIT_STARTED)
-    {
-       FMC_OS_Sleep(100);
-    }
-#endif
-
     /* Lock the Mutex on entry to FM state machine */
     FMC_FUNC_START_AND_LOCK("Fm_Stack_EventCallback");
     if(_fmcInitState !=_FMC_INIT_STATE_DEINIT_STARTED)

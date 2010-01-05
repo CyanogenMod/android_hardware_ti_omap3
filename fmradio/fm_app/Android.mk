@@ -14,14 +14,18 @@ ifeq ($(BUILD_FMAPP),1)
 
 
 LOCAL_C_INCLUDES:=\
+ 	$(FM_STACK_PATH)/MCP_Common/Platform/fmhal/LINUX/common/inc \
+	$(FM_STACK_PATH)/MCP_Common/Platform/fmhal/LINUX/OMAP2430/inc \
 	$(FM_STACK_PATH)/MCP_Common/Platform/fmhal/inc/int \
-	$(FM_STACK_PATH)/MCP_Common/Platform/fmhal/inc 	\
-	$(FM_STACK_PATH)/MCP_Common/Platform/os/Linux 	\
-	$(FM_STACK_PATH)/MCP_Common/Platform/inc 		\
-	$(FM_STACK_PATH)/MCP_Common/tran 	\
-	$(FM_STACK_PATH)/MCP_Common/inc 	\
+	$(FM_STACK_PATH)/MCP_Common/Platform/fmhal/inc \
+	$(FM_STACK_PATH)/MCP_Common/Platform/os/LINUX/common \
+	$(FM_STACK_PATH)/MCP_Common/Platform/os/LINUX/common/inc \
+	$(FM_STACK_PATH)/MCP_Common/Platform/os/LINUX/OMAP2430/inc \
+	$(FM_STACK_PATH)/MCP_Common/Platform/inc \
+	$(FM_STACK_PATH)/MCP_Common/tran \
+	$(FM_STACK_PATH)/MCP_Common/inc \
 	$(FM_STACK_PATH)/HSW_FMStack/stack/inc/int \
-	$(FM_STACK_PATH)/HSW_FMStack/stack/inc 	\
+ 	$(FM_STACK_PATH)/HSW_FMStack/stack/inc \
 	external/bluetooth/bluez/include 	\
 	$(FM_STACK_PATH)/fm_app		\
 	$(ALSA_PATH)/include 

@@ -77,6 +77,7 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_StaticInit (void);
  * Parameters:
  *      chipId      [in]     - the chip id for which the VAC object is created
  *      pCAL        [in]     - a pointer to the CAL object
+ *	  pConfigParser [in]	- A pointer to config parser object, including the VAC configuration file
  *      this        [out]    - the configuration engine object
  *
  * Returns:
@@ -85,7 +86,8 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_StaticInit (void);
  */
 ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_Create(McpHalChipId chipId, 
                                                     Cal_Config_ID *pCAL,
-                                                    TCCM_VAC_ConfigurationEngine **this);
+                                                    TCCM_VAC_ConfigurationEngine **thisObj,
+								McpConfigParser 			*pConfigParser);
 
 /*-------------------------------------------------------------------------------
  * _CCM_VAC_ConfigurationEngine_Configure()
@@ -106,7 +108,7 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_Create(McpHalChipId chipId,
  *      CCM_VAC_STATUS_SUCCESS                          - Configuration succeeded
  *      CCM_VAC_STATUS_FAILURE_INVALID_CONFIGURATION    - Configuration failed
  */
-ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_Configure (TCCM_VAC_ConfigurationEngine *this);
+ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_Configure (TCCM_VAC_ConfigurationEngine *thisObj);
 
 /*-------------------------------------------------------------------------------
  * _CCM_VAC_ConfigurationEngine_Destroy()
@@ -126,7 +128,7 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_Configure (TCCM_VAC_ConfigurationEn
  * Returns:
  *      N/A
  */
-void _CCM_VAC_ConfigurationEngine_Destroy (TCCM_VAC_ConfigurationEngine **this);
+void _CCM_VAC_ConfigurationEngine_Destroy (TCCM_VAC_ConfigurationEngine **thisObj);
 
 /*-------------------------------------------------------------------------------
  * _CCM_VAC_ConfigurationEngine_RegisterCallback()
