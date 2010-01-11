@@ -1023,10 +1023,11 @@ int CameraHal::CameraStart()
 
         if (buffers_queued_to_dss[i] == 0)
         {
-            nCameraBuffersQueued++;
             if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[i]) < 0) {
                 LOGE("CameraStart VIDIOC_QBUF Failed: %s", strerror(errno) );
                 goto fail_loop;
+            }else{
+                nCameraBuffersQueued++;
             }
          }
          else LOGI("CameraStart::Could not queue buffer %d to Camera because it is being held by Overlay", i);
