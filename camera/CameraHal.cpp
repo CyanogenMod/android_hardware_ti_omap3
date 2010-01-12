@@ -1384,18 +1384,17 @@ int  CameraHal::ICapturePerform()
         procMessage[8] = iobj->proc.eenf.es_ts;
         procMessage[9] = iobj->proc.eenf.luma_nf;
         procMessage[10] = iobj->proc.eenf.chroma_nf;
-        procMessage[11] = (unsigned int) mPictureHeap.get();
-        procMessage[12] = (unsigned int) yuv_buffer;
-        procMessage[13] = offset;
-        procMessage[14] = yuv_len;
-        procMessage[15] = rotation;
-        procMessage[16] = mZoomTarget;
-        procMessage[17] = mippMode;
-        procMessage[18] = mIPPToEnable;
-        procMessage[19] = quality;
-        procMessage[20] = (unsigned int) mDataCb;
-        procMessage[21] = 0;
-        procMessage[22] = (unsigned int) mCallbackCookie;
+        procMessage[11] = (unsigned int) yuv_buffer;
+        procMessage[12] = offset;
+        procMessage[13] = yuv_len;
+        procMessage[14] = rotation;
+        procMessage[15] = mZoomTarget;
+        procMessage[16] = mippMode;
+        procMessage[17] = mIPPToEnable;
+        procMessage[18] = quality;
+        procMessage[19] = (unsigned int) mDataCb;
+        procMessage[20] = 0;
+        procMessage[21] = (unsigned int) mCallbackCookie;
 
 	    write(procPipe[1], &procMessage, sizeof(procMessage));
 
@@ -1510,13 +1509,18 @@ void CameraHal::snapshotThread()
 
 	            mParameters.getPreviewSize(&preview_width, &preview_height);
 
-	            snapshot_buffer = mOverlay->getBufferAddress( (void*)(lastOverlayBufferDQ) );
-
 #if PPM_INSTRUMENTATION
 
 	            PPM("Before vpp downscales:");
 
 #endif
+
+                mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
+                if ( data == NULL ) {
+                    LOGE(" getBufferAddress returned NULL");
+                }
+
+                snapshot_buffer = data->ptr;
 
                 status = scale_process(yuv_buffer, image_width, image_height,
                          snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, ZoomTarget);
@@ -1698,19 +1702,19 @@ void CameraHal::shutterThread()
 
 void CameraHal::procThread()
 {
-	LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME
 
-	int status;
+    int status;
     int capture_width, capture_height, image_width, image_height;
     unsigned short ipp_ee_q, ipp_ew_ts, ipp_es_ts, ipp_luma_nf, ipp_chroma_nf;
-	fd_set descriptorSet;
-	int max_fd;
-	int err;
-	int pixelFormat;
-	unsigned int procMessage [PROC_THREAD_NUM_ARGS];
-	int jpegQuality, jpegSize, size, base, offset, yuv_offset, yuv_len, image_rotation, image_zoom, ippMode;
-	bool ipp_to_enable;
-	sp<MemoryHeapBase> JPEGPictureHeap, PictureHeap;
+    fd_set descriptorSet;
+    int max_fd;
+    int err;
+    int pixelFormat;
+    unsigned int procMessage [PROC_THREAD_NUM_ARGS];
+    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_offset, yuv_len, image_rotation, image_zoom, ippMode;
+    bool ipp_to_enable;
+    sp<MemoryHeapBase> JPEGPictureHeap;
     sp<MemoryBase> JPEGPictureMemBase;
     data_callback RawPictureCallback;
     data_callback JpegPictureCallback;
@@ -1719,7 +1723,7 @@ void CameraHal::procThread()
 
 	//debug
 	sp<MemoryHeapBase> tmpHeap;
-	int tmpLength;
+	unsigned int tmpLength, tmpOffset;
 	void *tmpBuffer;
 
 	max_fd = procPipe[0] + 1;
@@ -1737,14 +1741,14 @@ void CameraHal::procThread()
     mJPEGOffset = base - (unsigned long) mJPEGPictureHeap->getBase();
     mJPEGBuffer = (void *) base;
 
-    //temporary
     tmpLength  = PICTURE_WIDTH*PICTURE_HEIGHT*2 + ((2*PAGE) - 1);
     tmpLength &= ~((2*PAGE) - 1);
     tmpLength  += 2*PAGE;
-    tmpHeap = new MemoryHeapBase(tmpLength);
 
-    base = (unsigned long) tmpHeap->getBase();
+    base = (unsigned int) malloc(tmpLength);
+    tmpBase = base;
     base = (base + 0xfff) & 0xfffff000;
+    tmpOffset = base - tmpBase;
     tmpBuffer = (void *) base;
 
 	while(1){
@@ -1773,28 +1777,27 @@ void CameraHal::procThread()
 				
 #endif
 
-				capture_width = procMessage[1];
-				capture_height = procMessage[2];
-				image_width = procMessage[3];
-				image_height = procMessage[4];
-				pixelFormat = procMessage[5];
-				ipp_ee_q = procMessage[6];
-				ipp_ew_ts = procMessage[7];
-				ipp_es_ts = procMessage[8];
-				ipp_luma_nf = procMessage[9];
-				ipp_chroma_nf = procMessage[10];
-				PictureHeap = (MemoryHeapBase *) procMessage[11];
-				yuv_buffer = (void *) procMessage[12];
-				yuv_offset =  procMessage[13];
-				yuv_len = procMessage[14];
-				image_rotation = procMessage[15];
-				image_zoom = procMessage[16];
-				ippMode = procMessage[17];
-                ipp_to_enable = procMessage[18];
-                jpegQuality = procMessage[19];
-                JpegPictureCallback = (data_callback) procMessage[20];
-                RawPictureCallback = (data_callback) procMessage[21];
-                PictureCallbackCookie = (void *) procMessage[22];
+                capture_width = procMessage[1];
+                capture_height = procMessage[2];
+                image_width = procMessage[3];
+                image_height = procMessage[4];
+                pixelFormat = procMessage[5];
+                ipp_ee_q = procMessage[6];
+                ipp_ew_ts = procMessage[7];
+                ipp_es_ts = procMessage[8];
+                ipp_luma_nf = procMessage[9];
+                ipp_chroma_nf = procMessage[10];
+                yuv_buffer = (void *) procMessage[11];
+                yuv_offset =  procMessage[12];
+                yuv_len = procMessage[13];
+                image_rotation = procMessage[14];
+                image_zoom = procMessage[15];
+                ippMode = procMessage[16];
+                ipp_to_enable = procMessage[17];
+                jpegQuality = procMessage[18];
+                JpegPictureCallback = (data_callback) procMessage[19];
+                RawPictureCallback = (data_callback) procMessage[20];
+                PictureCallbackCookie = (void *) procMessage[21];
 
                 jpegSize = mJPEGLength;
                 JPEGPictureHeap = mJPEGPictureHeap;
@@ -1996,9 +1999,7 @@ void CameraHal::procThread()
 #endif
 
                 JPEGPictureMemBase.clear();
-
-                PictureHeap->dispose();
-                PictureHeap.clear();
+                free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
 
                 switchBuffer = false;
 
@@ -2012,39 +2013,39 @@ void CameraHal::procThread()
 
 #endif
 
-			} else if( procMessage[0] == PROC_THREAD_EXIT ) {
-				LOGD("PROC_THREAD_EXIT_RECEIVED");
+            } else if( procMessage[0] == PROC_THREAD_EXIT ) {
+			    LOGD("PROC_THREAD_EXIT_RECEIVED");
 
-				mJPEGPictureHeap->dispose();
-				mJPEGPictureHeap.clear();
-				tmpHeap->dispose();
-				tmpHeap.clear();
+                mJPEGPictureHeap->dispose();
+                mJPEGPictureHeap.clear();
+                free((void *) ( ((unsigned int) tmpBuffer) - tmpOffset) );
 
-				break;
-			}
-		}
-	}
+                break;
+            }
+        }
+    }
 
     JPEGPictureHeap.clear();
 
-	LOG_FUNCTION_NAME_EXIT
+    LOG_FUNCTION_NAME_EXIT
 }
 
 #ifdef ICAP_EXPERIMENTAL
 
 int CameraHal::allocatePictureBuffer(size_t length)
 {
-    int base;
+    unsigned int base, tmpBase;
 
     mPictureLength  = length + ((2*PAGE) - 1) + 10*PAGE;
     mPictureLength &= ~((2*PAGE) - 1);
-    mPictureLength  += 2*PAGE ;
-    mPictureHeap = new MemoryHeapBase(mPictureLength);
+    mPictureLength  += 2*PAGE;
 
-    base = (unsigned long) mPictureHeap->getBase();
+    base = (unsigned int) malloc(mPictureLength);
+    tmpBase = base;
     base = (base + 0xfff) & 0xfffff000;
-    mPictureOffset = base - (unsigned long) mPictureHeap->getBase();
+    mPictureOffset = base - tmpBase;
     mYuvBuffer = (uint8_t *) base;
+    mPictureLength -= mPictureOffset;
 
     return 0;
 }
@@ -2053,17 +2054,18 @@ int CameraHal::allocatePictureBuffer(size_t length)
 
 int CameraHal::allocatePictureBuffer(int width, int height)
 {
-    int base;
+    unsigned int base, tmpBase;
 
     mPictureLength  = width*height*2 + ((2*PAGE) - 1) + 10*PAGE;
     mPictureLength &= ~((2*PAGE) - 1);
     mPictureLength  += 2*PAGE;
-    mPictureHeap = new MemoryHeapBase(mPictureLength);
 
-    base = (unsigned long) mPictureHeap->getBase();
+    base = (unsigned int) malloc(mPictureLength);
+    tmpBase = base;
     base = (base + 0xfff) & 0xfffff000;
-    mPictureOffset = base - (unsigned long) mPictureHeap->getBase();
+    mPictureOffset = base - tmpBase;
     mYuvBuffer = (uint8_t *) base;
+    mPictureLength -= mPictureOffset;
 
     return 0;
 }

@@ -155,7 +155,7 @@ typedef struct OMX_IPP
 
 #define PROC_THREAD_PROCESS     0x5
 #define PROC_THREAD_EXIT        0x6
-#define PROC_THREAD_NUM_ARGS    23
+#define PROC_THREAD_NUM_ARGS    22
 #define SHUTTER_THREAD_CALL     0x1
 #define SHUTTER_THREAD_EXIT     0x2
 #define SHUTTER_THREAD_NUM_ARGS 3
