@@ -2036,7 +2036,7 @@ int CameraHal::allocatePictureBuffer(size_t length)
 {
     int base;
 
-    mPictureLength  = length + ((2*PAGE) - 1);
+    mPictureLength  = length + ((2*PAGE) - 1) + 10*PAGE;
     mPictureLength &= ~((2*PAGE) - 1);
     mPictureLength  += 2*PAGE ;
     mPictureHeap = new MemoryHeapBase(mPictureLength);
