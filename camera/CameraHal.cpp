@@ -1388,7 +1388,7 @@ int  CameraHal::ICapturePerform()
         procMessage[12] = offset;
         procMessage[13] = yuv_len;
         procMessage[14] = rotation;
-        procMessage[15] = mZoomTarget;
+        procMessage[15] = zoom_step[mZoomTargetIdx];
         procMessage[16] = mippMode;
         procMessage[17] = mIPPToEnable;
         procMessage[18] = quality;
