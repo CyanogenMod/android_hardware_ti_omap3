@@ -27,6 +27,7 @@
 #define LOG_TAG "CameraHalUtils"
 
 #include "CameraHal.h"
+#include "zoom_step.inc"
 
 namespace android {
 
@@ -774,17 +775,12 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt,
 
 #endif
 
-int CameraHal::ZoomPerform(int zoom)
+int CameraHal::ZoomPerform(float zoom)
 {
     struct v4l2_crop crop;
     int fwidth, fheight;
     int zoom_left,zoom_top,zoom_width, zoom_height, w, h;
     int ret;
-
-    if (zoom < 1) 
-       zoom = 1;
-    if (zoom > 7)
-       zoom = 7;
 
     mParameters.getPreviewSize(&w, &h);
 
@@ -976,7 +972,7 @@ int CameraHal::CapturePicture(){
     snapshot_buffer = mOverlay->getBufferAddress( (void*)0 );
     LOGD("VPP scale_process() \n");
     err = scale_process(yuv_buffer, image_width, image_height,
-                         snapshot_buffer, preview_width, preview_height, 0, jpegFormat, mZoomTarget);
+                         snapshot_buffer, preview_width, preview_height, 0, jpegFormat, zoom_step[mZoomTargetIdx]);
     if( err ) LOGE("scale_process() failed");
     else LOGD("scale_process() OK");
 
@@ -1035,7 +1031,7 @@ int CameraHal::CapturePicture(){
 
         if(mIPPToEnable)
         {
-            err = InitIPP(image_width,image_height);
+            err = InitIPP(image_width,image_height, jpegFormat);
             if( err ) {
                 LOGE("ERROR InitIPP() failed");
                 return -1;
@@ -1044,7 +1040,7 @@ int CameraHal::CapturePicture(){
             mIPPToEnable = false;
         }
 
-		err = PopulateArgsIPP(image_width,image_height);
+		err = PopulateArgsIPP(image_width,image_height, jpegFormat);
 		if( err ) {
 			LOGE("ERROR PopulateArgsIPP() failed");		   
 			return -1;
@@ -1052,7 +1048,7 @@ int CameraHal::CapturePicture(){
 		PPM("BEFORE IPP Process Buffer");
 		
 		LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
-		err = ProcessBufferIPP(yuv_buffer, yuv_len,
+		err = ProcessBufferIPP(yuv_buffer, yuv_len, jpegFormat,
 				        ipp_ee_q,
 				        ipp_ew_ts,
 				        ipp_es_ts, 

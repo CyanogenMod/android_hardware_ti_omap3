@@ -52,20 +52,24 @@ endif
 ifdef FW3A
 
 LOCAL_C_INCLUDES += \
-	hardware/ti/omap3/mm_isp/ipp/inc \
-	hardware/ti/omap3/mm_isp/capl/inc \
 	hardware/ti/omap3/fw3A/include
 
 LOCAL_SHARED_LIBRARIES += \
     libdl \
-    libcapl \
-    libImagePipeline
 
 LOCAL_CFLAGS += -O0 -g3 -DIPP_LINUX -D___ANDROID___ -DFW3A -DICAP
 
 endif
 
 ifdef IMAGE_PROCESSING_PIPELINE
+
+LOCAL_C_INCLUDES += \
+	hardware/ti/omap3/mm_isp/ipp/inc \
+	hardware/ti/omap3/mm_isp/capl/inc \
+
+LOCAL_SHARED_LIBRARIES += \
+    libcapl \
+    libImagePipeline
 
 LOCAL_CFLAGS += -DIMAGE_PROCESSING_PIPELINE
 

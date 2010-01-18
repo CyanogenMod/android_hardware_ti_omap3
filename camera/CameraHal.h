@@ -97,7 +97,7 @@ extern "C" {
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
-
+#define MAX_ZOOM        3
 
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
@@ -358,7 +358,7 @@ public:
     int FW3A_SetSettings();
 #endif
 
-    int ZoomPerform(int zoom);
+    int ZoomPerform(float zoom);
     void nextPreview();
     int ICapturePerform();
     int ICaptureCreate(void);
@@ -495,7 +495,7 @@ public:
     int mflash;
     int mred_eye;
     int mcapture_mode;
-    int mZoomTarget, mZoomCurrent;
+    int mZoomCurrentIdx, mZoomTargetIdx, mZoomSpeed;
     int mcaf;
     int j;
 
