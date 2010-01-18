@@ -16,11 +16,21 @@
  * limitations under the License.
  */
 
+#include "mcp_hal_string.h"
 #include "fmc_types.h"
 #include "fmc_defs.h"
 #include "fmc_utils.h"
+#include "fmc_log.h"
+#include "fmc_os.h"
+
+FMC_LOG_SET_MODULE(FMC_LOG_MODULE_FMUTILS);
 
 #if FMC_CONFIG_FM_STACK == FMC_CONFIG_ENABLED
+
+
+/* Define The maximum representation of FMC_UINT in ASCII*/
+#define MAX_FMC_UINT_SIZE_IN_ASCII    10
+FMC_STATIC  const char	invalidFmcTempStr[] = "formatMsg is too long";
 
 /* [ToDo] Calculate real mapping values */
 static const FmcFwCmdParmsValue _fmcUtilsApi2FwPowerLevelMap[FM_TX_POWER_LEVEL_MAX - FM_TX_POWER_LEVEL_MIN + 1] = 
@@ -358,9 +368,19 @@ FMC_ListNode *FMC_UTILS_FindMatchingListNode(   FMC_ListNode                *lis
                                             &location);
 }
 
-const char * FMC_UTILS_FormatNumber(const char *formatMsg, FMC_UINT number, char *tempStr)
+const char * FMC_UTILS_FormatNumber(const char *formatMsg, FMC_UINT number, char *tempStr,FMC_UINT maxTempStrSize)
 {
-    MCP_HAL_MISC_Sprintf (tempStr, formatMsg, number);
+    FMC_U16 formatMsgLen;
+    formatMsgLen=MCP_HAL_STRING_StrLen(formatMsg);
+
+    /*Verify that the tempStr allocation is enough  */
+    if ((FMC_U16)(formatMsgLen+MAX_FMC_UINT_SIZE_IN_ASCII)>maxTempStrSize)
+        {            
+            return invalidFmcTempStr;
+        }
+    
+
+    MCP_HAL_STRING_Sprintf (tempStr, formatMsg, number);
 
     return tempStr;
 }
@@ -378,6 +398,18 @@ FMC_BOOL FMC_UTILS_IsFreqValid( FmcFreq freq)
         return FMC_FALSE;
     }
     return FMC_TRUE;
+}
+
+FMC_BOOL FMC_UTILS_IsAfCodeValid( FmcAfCode afCode)
+{
+    /* Verify that the afCode is within the range limits*/
+
+    if (((afCode <= 204) &&(afCode >=1 ))||(afCode==FMC_AF_CODE_NO_AF_AVAILABLE))
+    {
+        return FMC_TRUE;
+    }
+ 
+        return FMC_FALSE;
 }
 
 FMC_UINT FMC_UTILS_ChannelSpacingInKhz(FmcChannelSpacing channelSpacing)
@@ -489,10 +521,13 @@ FmcCoreEventType FMC_UTILS_ConvertVacEvent2FmcEvent(ECCM_VAC_Event eEvent)
     {
     case CCM_VAC_EVENT_OPERATION_STARTED:
         return FMC_VAC_EVENT_OPERATION_STARTED;
+    case CCM_VAC_EVENT_OPERATION_STOPPED:
+        return FMC_VAC_EVENT_OPERATION_STOPPED;
     case CCM_VAC_EVENT_RESOURCE_CHANGED:
         return FMC_VAC_EVENT_RESOURCE_CHANGED;
     default:
-        return FMC_STATUS_FAILED;
+        return FMC_VAC_EVENT_CONFIGURATION_CHANGED;
+
     }
 }
 

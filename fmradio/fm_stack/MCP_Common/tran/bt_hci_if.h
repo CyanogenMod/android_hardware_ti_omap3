@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      bt_hci_if.h
@@ -76,6 +77,7 @@ typedef enum tagBtHciIfHciOpcode {
     BT_HCI_IF_HCI_CMD_VS_WRITE_I2C_REGISTER_ENHANCED                = 0xfd36,
     BT_HCI_IF_HCI_CMD_FM_OVER_BT_6350                               = 0xfd61,
     BT_HCI_IF_HCI_CMD_SET_NARROW_BAND_VOICE_PATH                    = 0xfd94,
+    BT_HCI_IF_HCI_CMD_VS_BT_IP1_1_SET_FM_AUDIO_PATH		= 0xfd95,
     /*  Assisted A2DP (A3DP) vendor-specifc HCI commands */
     BT_HCI_IF_HCI_CMD_VS_A3DP_AVPR_ENABLE                           = 0xfd92,
     BT_HCI_IF_HCI_CMD_VS_A3DP_OPEN_STREAM                           = 0xfd8c,

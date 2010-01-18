@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      ccm_vac.h
@@ -57,6 +58,7 @@
  *      CCM_VAC_STATUS_SUCCESS              - Initialization succeeded
  */
 ECCM_VAC_Status CCM_VAC_StaticInit (void);
+#define CCM_VAC_StaticInit() _CCM_VAC_ConfigurationEngine_StaticInit()
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_Create()
@@ -82,7 +84,9 @@ ECCM_VAC_Status CCM_VAC_StaticInit (void);
  */
 ECCM_VAC_Status CCM_VAC_Create (McpHalChipId chipId,
                                 Cal_Config_ID *pCal,
-                                TCCM_VAC_Object **this);
+                                TCCM_VAC_Object **thisObj,
+                                McpConfigParser 			*pConfigParser);
+#define CCM_VAC_Create(_chipId, _pCAL, _thisObj,_pConfigParser) _CCM_VAC_ConfigurationEngine_Create((_chipId), (_pCAL), (_thisObj),(_pConfigParser))
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_Configure()
@@ -103,7 +107,8 @@ ECCM_VAC_Status CCM_VAC_Create (McpHalChipId chipId,
  *      CCM_VAC_STATUS_SUCCESS                          - Configuration succeeded
  *      CCM_VAC_STATUS_FAILURE_INVALID_CONFIGURATION    - Configuration failed
  */
-ECCM_VAC_Status CCM_VAC_Configure (TCCM_VAC_Object *this);
+ECCM_VAC_Status CCM_VAC_Configure (TCCM_VAC_Object *thisObj);
+#define CCM_VAC_Configure(_thisObj) _CCM_VAC_ConfigurationEngine_Configure(_thisObj);
 
 /*-------------------------------------------------------------------------------
  * CCM_VAC_Destroy()
@@ -123,6 +128,7 @@ ECCM_VAC_Status CCM_VAC_Configure (TCCM_VAC_Object *this);
  * Returns:
  *      N/A
  */
-void CCM_VAC_Destroy (TCCM_VAC_Object **this);
+void CCM_VAC_Destroy (TCCM_VAC_Object **thisObj);
+#define CCM_VAC_Destroy(_thisObj) _CCM_VAC_ConfigurationEngine_Destroy((_thisObj));
 
 #endif /* __CCM_VACI_H__ */

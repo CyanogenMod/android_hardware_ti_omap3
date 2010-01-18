@@ -21,9 +21,7 @@
 #define __CCM_IMI_H
 
 #include "ccm_im.h"
-
-struct tagCcmImObj;
-struct tagBtHciIfObj;
+#include "bt_hci_if.h"
 
 typedef void (*CcmChipOnNotificationCb)(void *userData,
                                         McpU16 projectType,
@@ -32,29 +30,29 @@ typedef void (*CcmChipOnNotificationCb)(void *userData,
 
 CcmImStatus CCM_IM_StaticInit(void);
 
-CcmImStatus CCM_IM_Create(McpHalChipId chipId, CcmImObj **this, CcmChipOnNotificationCb, void *userData);
-CcmImStatus CCM_IM_Destroy(CcmImObj **this);
+CcmImStatus CCM_IM_Create(McpHalChipId chipId, CcmImObj **thisObj, CcmChipOnNotificationCb, void *userData);
+CcmImStatus CCM_IM_Destroy(CcmImObj **thisObj);
 
 
 /*-------------------------------------------------------------------------------
  * CCM_IMI_GetBtHciIfObj()
  *
- * Brief:  		
- *	Returns the contained instance of he BT_HCI_If
+ * Brief:       
+ *  Returns the contained instance of he BT_HCI_If
  *
  * Description:
- *	Returns the contained instance of he BT_HCI_If
+ *  Returns the contained instance of he BT_HCI_If
  *
  * Type:
- *		Synchronous
+ *      Synchronous
  *
  * Parameters:
- *		this [in / out] - pointer to the instance data. Set to null on exit
+ *      this [in / out] - pointer to the instance data. Set to null on exit
  *
  * Returns:
- *		Pointer to the contained instance
+ *      Pointer to the contained instance
  */
-struct tagBtHciIfObj *CCM_IMI_GetBtHciIfObj(CcmImObj *this);
+BtHciIfObj *CCM_IMI_GetBtHciIfObj(CcmImObj *thisObj);
 
 #endif  /* __CCM_IMI_H */
 

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 #ifndef __CCM_IM_H
 #define __CCM_IM_H
 
@@ -86,7 +87,7 @@ typedef struct tagCcmImObj CcmImObj;
 
 typedef void* CCM_IM_StackHandle;
 
-CcmImStatus CCM_IM_RegisterStack(CcmImObj           *this, 
+CcmImStatus CCM_IM_RegisterStack(CcmImObj           *thisObj, 
                                         CcmImStackId        stackId, 
                                         CcmImEventCb        callback, 
                                         CCM_IM_StackHandle  *stackHandle);

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_config_parser.c
@@ -30,8 +31,12 @@
 \*******************************************************************************/
 
 #include "mcp_config_parser.h"
-#include "mcp_hal_string.h"
 #include "mcp_defs.h"
+#include "mcp_hal_string.h"
+#include "mcp_utils.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_FRAME);
 
 #define     MCP_CONFIG_PARSE_LINE_LENGTH    50 /* TODO ronen: change this to include section or key lengths */
 
@@ -48,7 +53,8 @@ McpConfigParserStatus MCP_CONFIG_PARSER_Open (McpUtf8 *pFileName,
                                               McpConfigParser *pConfigParser)
 {
     McpU8                   pLine[ MCP_CONFIG_PARSE_LINE_LENGTH ];
-    McpBool                 status;
+    McpConfigParserStatus   status = MCP_CONFIG_PARSER_STATUS_SUCCESS;
+    McpBool                 opStatus = MCP_TRUE;
     McpConfigReader         tConfigReader;
 
 
@@ -58,8 +64,8 @@ McpConfigParserStatus MCP_CONFIG_PARSER_Open (McpUtf8 *pFileName,
         (NULL == pFileName ? (McpU8 *)"NULL": pFileName)));
 
     /* open the file or memory location */
-    status = MCP_CONFIG_READER_Open (&tConfigReader, pFileName, pMemConfig);
-    MCP_VERIFY_ERR ((MCP_TRUE == status),
+    opStatus = MCP_CONFIG_READER_Open (&tConfigReader, pFileName, pMemConfig);
+    MCP_VERIFY_ERR ((MCP_TRUE == opStatus),
                     MCP_CONFIG_PARSER_STATUS_FAILURE_FILE_ERROR,
                     ("MCP_CONFIG_PARSER_Open: unable to open configuration storage"));
 
@@ -70,10 +76,10 @@ McpConfigParserStatus MCP_CONFIG_PARSER_Open (McpUtf8 *pFileName,
     do
     {
         /* read next line */
-        status = MCP_CONFIG_READER_getNextLine (&tConfigReader, pLine);
+        opStatus = MCP_CONFIG_READER_getNextLine (&tConfigReader, pLine);
 
         /* if reading succeeded */
-        if (MCP_TRUE == status)
+        if (MCP_TRUE == opStatus)
         {
             /* if this is an empty line */
             if (MCP_TRUE == _MCP_CONFIG_PARSER_IsEmptyLine (pLine))
@@ -83,6 +89,12 @@ McpConfigParserStatus MCP_CONFIG_PARSER_Open (McpUtf8 *pFileName,
             /* if this is a new section */
             else if (MCP_TRUE == _MCP_CONFIG_PARSER_IsSection (pLine))
             {
+
+                /* Verify we do not overflow the sections buffer */
+                MCP_VERIFY_ERR ((MCP_CONFIG_PARSER_SECTION_NUMBER > pConfigParser->uSectionNum),
+                                MCP_CONFIG_PARSER_STATUS_FAILURE_FILE_ERROR,
+                                ("MCP_CONFIG_PARSER_Open config file contains too many sections"));
+            
                 /* start a new section */
                 pConfigParser->tSections[ pConfigParser->uSectionNum ].uStartingKeyIndex = 
                     pConfigParser->uKeysNum;
@@ -101,6 +113,13 @@ McpConfigParserStatus MCP_CONFIG_PARSER_Open (McpUtf8 *pFileName,
                 MCP_VERIFY_ERR ((0 < pConfigParser->uSectionNum),
                                 MCP_CONFIG_PARSER_STATUS_FAILURE_FILE_ERROR,
                                 ("MCP_CONFIG_PARSER_Open: Key not within section boundry"));
+
+
+                /* Verify we do not overflow the keys buffer */
+                MCP_VERIFY_ERR ((MCP_CONFIG_PARSER_KEY_NUMBER > pConfigParser->uKeysNum),
+                                MCP_CONFIG_PARSER_STATUS_FAILURE_FILE_ERROR,
+                                ("MCP_CONFIG_PARSER_Open config file contains too many keys"));
+                                
                 /* parse key */
                 _MCP_CONFIG_PARSER_GetKeyName (pLine, pConfigParser->pKeyNames[ pConfigParser->uKeysNum ]);
                 _MCP_CONFIG_PARSER_GetKeyValue (pLine, pConfigParser->pKeyValues[ pConfigParser->uKeysNum ]);
@@ -110,11 +129,15 @@ McpConfigParserStatus MCP_CONFIG_PARSER_Open (McpUtf8 *pFileName,
                 pConfigParser->uKeysNum++;
             }
         } 
-    } while (MCP_TRUE == status); /* continue to the next line while reading succeeds */
+    } while (MCP_TRUE == opStatus); /* continue to the next line while reading succeeds */
 
+  	opStatus = MCP_CONFIG_READER_Close(&tConfigReader);
+	MCP_VERIFY_ERR ((MCP_TRUE == opStatus),
+					MCP_CONFIG_PARSER_STATUS_FAILURE_FILE_ERROR,
+					("MCP_CONFIG_PARSER_Open: unable to close configuration storage"));
     MCP_FUNC_END ();
 
-    return MCP_CONFIG_PARSER_STATUS_SUCCESS;
+    return status;
 }
 
 McpConfigParserStatus MCP_CONFIG_PARSER_GetAsciiKey (McpConfigParser *pConfigParser,
@@ -231,7 +254,7 @@ McpConfigParserStatus MCP_CONFIG_PARSER_GetIntegerKey (McpConfigParser *pConfigP
         MCP_CONFIG_PARSER_GetAsciiKey (pConfigParser, pSectionName, pKeyName, &pKeyAsciiValue))
     {
         /* key was found */
-        *pKeyIntValue = MCP_HAL_MISC_AtoU32 ((const char *)pKeyAsciiValue);
+        *pKeyIntValue = MCP_UTILS_AtoU32((const char *)pKeyAsciiValue);
         return MCP_CONFIG_PARSER_STATUS_SUCCESS;
     }
 

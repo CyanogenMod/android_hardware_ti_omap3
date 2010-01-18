@@ -16,9 +16,13 @@
  * limitations under the License.
  */
 
+
 #include "mcp_hal_string.h"
 #include "mcp_rom_scripts_db.h"
 #include "mcp_defs.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_FRAME);
 
 extern const McpRomScripts_Data mcpRomScripts_Data[];
 extern const McpUint mcpRomScripts_NumOfScripts;

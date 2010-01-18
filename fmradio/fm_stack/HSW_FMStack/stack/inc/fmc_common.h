@@ -39,6 +39,7 @@
  *
  *******************************************************************************/
 #include "fmc_types.h"
+#include "fmc_defs.h"
 /********************************************************************************
  *
  * Types
@@ -94,12 +95,12 @@ typedef  FMC_UINT  FmcFreq;
 #define FMC_UNDEFINED_FREQ						((FmcFreq)0xFFFFFFFF)
 
 /* Europe / US band limits */
-#define FMC_FIRST_FREQ_US_EUROPE_KHZ				((FmcBand)87500)
-#define FMC_LAST_FREQ_US_EUROPE_KHZ 			((FmcBand)108000)
+#define FMC_FIRST_FREQ_US_EUROPE_KHZ				((FmcFreq)87500)
+#define FMC_LAST_FREQ_US_EUROPE_KHZ 			((FmcFreq)108000)
 
 /* Japan band limits */
-#define FMC_FIRST_FREQ_JAPAN_KHZ					((FmcBand)76000)
-#define FMC_LAST_FREQ_JAPAN_KHZ 				((FmcBand)90000)
+#define FMC_FIRST_FREQ_JAPAN_KHZ					((FmcFreq)76000)
+#define FMC_LAST_FREQ_JAPAN_KHZ 				((FmcFreq)90000)
 
 /*-------------------------------------------------------------------------------
  * FmcChannelSpacing Type
@@ -108,9 +109,9 @@ typedef  FMC_UINT  FmcFreq;
  */
 typedef FMC_UINT FmcChannelSpacing;
 
-#define FMC_CHANNEL_SPACING_50_KHZ				((FmcChannelSpacing)(0))
-#define FMC_CHANNEL_SPACING_100_KHZ				((FmcChannelSpacing)(1))
-#define FMC_CHANNEL_SPACING_200_KHZ				((FmcChannelSpacing)(2))
+#define FMC_CHANNEL_SPACING_50_KHZ				((FmcChannelSpacing)(1))
+#define FMC_CHANNEL_SPACING_100_KHZ				((FmcChannelSpacing)(2))
+#define FMC_CHANNEL_SPACING_200_KHZ				((FmcChannelSpacing)(4))
 
 /*-------------------------------------------------------------------------------
  * FmcEmphasisFilter type

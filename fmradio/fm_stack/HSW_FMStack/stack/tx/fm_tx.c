@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
+
 #include "fmc_types.h"
 #include "fmc_defs.h"
 #include "fmc_debug.h"
+#include "fmc_log.h"
 #include "fm_txi.h"
 #include "fm_tx_sm.h"
 
+FMC_LOG_SET_MODULE(FMC_LOG_MODULE_FMTX);
 
 /*
 	Possible initialization states
@@ -353,7 +356,7 @@ FmTxStatus FM_TX_SetPowerLevel(FmTxContext *fmContext, FmTxPowerLevel level)
 {
 	return  _FM_TX_SimpleCmdAndCopyParams(fmContext, 
 								level,
-								((level >= FM_TX_POWER_LEVEL_MIN) && (level <= FM_TX_POWER_LEVEL_MAX)),
+								(level <= FM_TX_POWER_LEVEL_MAX),
 								FM_TX_CMD_SET_POWER_LEVEL,
 								"FM_TX_SetPowerLevel");
 }
@@ -553,7 +556,7 @@ FmTxStatus FM_TX_SetPreEmphasisFilter(FmTxContext *fmContext, FmcEmphasisFilter 
 {
 	return  _FM_TX_SimpleCmdAndCopyParams(fmContext, 
 								filter,
-								((filter >= FMC_EMPHASIS_FILTER_NONE) && (filter <= FMC_EMPHASIS_FILTER_75_USEC)),
+								(filter <= FMC_EMPHASIS_FILTER_75_USEC),
 								FM_TX_CMD_SET_PRE_EMPHASIS_FILTER,
 								"FM_TX_SetPreEmphasisFilter");
 
@@ -587,7 +590,7 @@ FmTxStatus FM_TX_SetRdsAfCode(FmTxContext *fmContext, FmcAfCode afCode)
 {
 	return  _FM_TX_SimpleCmdAndCopyParams(fmContext, 
 								afCode,
-								(FMC_UTILS_IsFreqValid( afCode) == FMC_TRUE),
+								(FMC_UTILS_IsAfCodeValid( afCode) == FMC_TRUE),
 								FM_TX_CMD_SET_RDS_AF_CODE,
 								"FM_TX_SetRdsAfCode");
 }
@@ -634,7 +637,7 @@ FmTxStatus FM_TX_SetRdsTextRepertoire(FmTxContext *fmContext, FmcRdsRepertoire r
 {
 	return  _FM_TX_SimpleCmdAndCopyParams(fmContext, 
 								repertoire,
-								(repertoire>=FMC_RDS_REPERTOIRE_G0_CODE_TABLE)||(repertoire<=FMC_RDS_REPERTOIRE_G2_CODE_TABLE),
+								(repertoire<=FMC_RDS_REPERTOIRE_G2_CODE_TABLE),
 								FM_TX_CMD_SET_RDS_TEXT_REPERTOIRE,
 								"FM_TX_SetRdsTextRepertoire");
 }
@@ -729,18 +732,17 @@ FmTxStatus FM_TX_GetRdsMusicSpeechFlag(FmTxContext *fmContext)
 FmTxStatus FM_TX_SetRdsECC(FmTxContext *fmContext, FmcRdsExtendedCountryCode countryCode)
 {
 	return  _FM_TX_SimpleCmdAndCopyParams(fmContext, 
-								countryCode,
-								FMC_TRUE,
-								FM_TX_CMD_SET_RDS_EXTENDED_COUNTRY_CODE,
-								"FM_TX_SetRdsECC");
-
+								          countryCode,
+								          (countryCode <= 255),
+								          FM_TX_CMD_SET_RDS_EXTENDED_COUNTRY_CODE,
+								          "FM_TX_SetRdsECC");
 }
 
 FmTxStatus FM_TX_GetRdsECC(FmTxContext *fmContext)
 {
 	return  _FM_TX_SimpleCmd(fmContext, 
-								FM_TX_CMD_GET_RDS_EXTENDED_COUNTRY_CODE,
-								"FM_TX_GetRdsECC");
+							 FM_TX_CMD_GET_RDS_EXTENDED_COUNTRY_CODE,
+							 "FM_TX_GetRdsECC");
 }
 
 FmTxStatus FM_TX_WriteRdsRawData(FmTxContext *fmContext, const FMC_U8 *rdsRawData, FMC_UINT len)

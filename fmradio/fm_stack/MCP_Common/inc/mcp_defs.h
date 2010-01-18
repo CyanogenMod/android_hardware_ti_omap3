@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #ifndef __MCP_DEFS_H
 #define __MCP_DEFS_H
 
@@ -69,11 +70,11 @@ typedef enum tagMcpStackType {
  */
 #define MCP_UNUSED_PARAMETER(_PARM)     ((_PARM) = (_PARM))
 
-#define MCP_LOG_DEBUG(msg)		MCP_HAL_LOG_DEBUG(__FILE__, __LINE__, "", msg)
-#define MCP_LOG_FUNCTION(msg) 		MCP_HAL_LOG_FUNCTION(__FILE__, __LINE__, "", msg)
-#define MCP_LOG_INFO(msg)			MCP_HAL_LOG_INFO(__FILE__, __LINE__, "", msg)				
-#define MCP_LOG_ERROR(msg)			MCP_HAL_LOG_ERROR(__FILE__, __LINE__, "", msg)			
-#define MCP_LOG_FATAL(msg)			MCP_HAL_LOG_FATAL(__FILE__, __LINE__, "", msg)	
+#define MCP_LOG_DEBUG(msg)		MCP_HAL_LOG_DEBUG(__FILE__, __LINE__, mcpHalLogModuleId, msg)
+#define MCP_LOG_FUNCTION(msg) 		MCP_HAL_LOG_FUNCTION(__FILE__, __LINE__,mcpHalLogModuleId, msg)
+#define MCP_LOG_INFO(msg)			MCP_HAL_LOG_INFO(__FILE__, __LINE__,mcpHalLogModuleId, msg)				
+#define MCP_LOG_ERROR(msg)			MCP_HAL_LOG_ERROR(__FILE__, __LINE__, mcpHalLogModuleId, msg)			
+#define MCP_LOG_FATAL(msg)			MCP_HAL_LOG_FATAL(__FILE__, __LINE__, mcpHalLogModuleId, msg)	
 
 #endif
 

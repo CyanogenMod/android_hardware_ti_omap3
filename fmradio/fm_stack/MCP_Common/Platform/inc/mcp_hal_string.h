@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_hal_string.h
@@ -230,186 +231,55 @@ char *MCP_HAL_STRING_StrCat(char *strDest, const char *strSource);
 char *MCP_HAL_STRING_StrrChr(const char *Str, McpS32 c);
 
 /*-------------------------------------------------------------------------------
- * MCP_HAL_STRING_StrCmpUtf8()
+ * MCP_HAL_STRING_Strstr()
  *
  * Brief: 
- *	    Compares two strings for equality.
- * 
- * Description: 
- *	    Compares two strings for equality.
- *
- * Type:
- *		Synchronous
- *
- * Parameters:
- *     Str1 [in] - String to compare.
- *
- *     Str2 [in] - String to compare.
- *
- * Returns:
- *     Zero - If strings match.
- *     Non-Zero - If strings do not match.
- */
-McpU8 MCP_HAL_STRING_StrCmpUtf8(const McpUtf8 *Str1, const McpUtf8 *Str2);
-
-
-/*-------------------------------------------------------------------------------
- * MCP_HAL_STRING_StriCmpUtf8()
- *
- * Brief: 
- *     Compares two strings for equality regardless of case.
- *
- * Description: 
- *     Compares two strings for equality regardless of case.
- *
- * Type:
- *		Synchronous
- *
- * Parameters:
- *		Str1 [in] - String to compare.
- *
- *		Str2 [in]- String to compare.
- *
- * Returns:
- *     Zero - If strings match.
- *     Non-Zero - If strings do not match.
- */
-McpS32 MCP_HAL_STRING_StriCmpUtf8(const McpUtf8 *Str1, const McpUtf8 *Str2);
-
-
-/*-------------------------------------------------------------------------------
- * MCP_HAL_STRING_StrLenUtf8()
- *
- * Brief: 
- *	    Calculate the length (number of bytes) in the 0-terminated string.
- *
- * Description: 
- *	    Calculate the length (number of bytes) in the 0-terminated string.
- *
- * Type:
- *		Synchronous
- *
- * Parameters:
- *		Str [in]- String to count length (UTF-8 format)
- *
- * Returns:
- *     Returns length of string.(number of bytes)
- */
-McpU16 MCP_HAL_STRING_StrLenUtf8(const McpUtf8 *Str);
-
-/*-------------------------------------------------------------------------------
- * MCP_HAL_STRING_StrnCpyUtf8()
- *
- * Brief: 
- *	    Copy characters of one string to another (same as ANSI C strncpy)
- *
- * Description: 
- *	    Copy characters of one string to another (same as ANSI C strncpy)
- *
- * 		The MCP_HAL_STRING_StrnCpyUtf8 function copies the initial Count characters of StrSource to StrDest and 
- *		returns StrDest. If Count is less than or equal to the length of StrSource, a null character 
- *		is not appended automatically to the copied string. If Count is greater than the length of 
- *		StrSource, the destination string is padded with null characters up to length Count. 
- *
- *		The behavior of OS_StrnCpy is undefined if the source and destination strings overlap.
- *
- * Type:
- *		Synchronous
- *
- * Parameters:
- *		StrDest [out] - Destination string.
- *
- *		StrSource [in] - Source string
- *
- *		Count - Number of bytes to be copied
- *
- * Returns:
- *     Returns strDest. No return value is reserved to indicate an error.
- */
-McpUtf8* MCP_HAL_STRING_StrnCpyUtf8(McpUtf8* StrDest, const McpUtf8 *StrSource, McpU32 Count);
-
-/*-------------------------------------------------------------------------------
- * MCP_HAL_STRING_StrCatUtf8()
- *
- * Brief: 
- *		Append a string (same as ANSI C strcat)
- *
- * Description: 
- *		Append a string (same as ANSI C strcat)
- *
- * 		This function finds the last occurrence of c in string. 
- *		The search includes the terminating null character.
- *		This function appends strSource to strDest and terminates the resulting string 
- *		with a null character. The initial character of strSource overwrites the terminating null 
- *		character of strDest. No overflow checking is performed when strings are copied or 
- *		appended. The behavior of this function is undefined if the source and destination strings 
- *		overlap
- *
- * Type:
- *		Synchronous
- *
- * Parameters:
- *		strDest [in] - Null-terminated destination string.
- *
- *		strSource [in] - Null-terminated source string
- *
- * Returns:
- *		Returns the destination string (strDest). No return value is reserved to indicate an error.
- */
-McpUtf8 *MCP_HAL_STRING_StrCatUtf8(McpUtf8 *strDest, const McpUtf8 *strSource);
-
-
-/*-------------------------------------------------------------------------------
- * MCP_HAL_STRING_StrrChrUtf8()
- *
- * Brief: 
- *      Scan a string for the last occurrence of a character (same as ANSI C strrchr).
+ *      Scan a string for the first occurrence of a second string (same as ANSI C strstr).
  *
  * Description:
- *      Scan a string for the last occurrence of a character (same as ANSI C strrchr).
- *
- * 		This function finds the last occurrence of c in string. 
+ *      Scan a string for the first occurrence of a second string (same as ANSI C strstr).
+ * 		The MCP_HAL_STRING_Strstr function finds the first occurrence of Str2 in Str1. 
  *		The search includes the terminating null character.
  *
  * Type:
  *		Synchronous
  *
  * Parameters:
- *		Str [in] - tNull-terminated string to search
+ *		Str1 [in] - Null-terminated string to search in.
  *
- *      c [in] - Character to be located.
+ *      Str2 [in] - Null-terminated string to find.
  *
  * Returns:
  *	
- *		Returns a pointer to the last occurrence of c in Str, or NULL if c is not found.
+ *		Returns a pointer to the begining of Str2 in Str1, or NULL if Str2 is not found.
  */
-McpUtf8 *MCP_HAL_STRING_StrrChrUtf8(const McpUtf8 *Str, McpU32 c);
+char *MCP_HAL_STRING_Strstr(const char *Str1, const char *Str2);
+
 
 /*-------------------------------------------------------------------------------
- * MCP_HAL_STRING_StrCpyUtf8()
+ * MCP_HAL_STRING_Sprintf()
  *
  * Brief: 
- *		Copy a string (same as ANSI C strcpy)
+ *      Print a formated string into a given buffer.
  *
  * Description:
- * 		This function copies StrSource, including the terminating null character, 
- *		to the location specified by StrDest. No overflow checking is performed when strings 
- *		are copied or appended. 
- *
- *		The behavior of OS_StrCpy is undefined if the source and destination strings overlap 
- *
+  *
  * Type:
  *		Synchronous
  *
  * Parameters:
- *		StrDest [out]- Destination string.
+ *		StrDest [Out] - Destination string to hold the formatted output
  *
- *		StrSource [in]- Source string
+ *      format [in] - Format string.
+ * 
+ * 		... [in] - List of arguments to be printed
  *
  * Returns:
- *     Returns StrDest. No return value is reserved to indicate an error.
+ *	
+ *		Returns the total count of printed characters (not including trailing '\0'.
  */
-McpUtf8* MCP_HAL_STRING_StrCpyUtf8(McpUtf8* StrDest, const McpUtf8 *StrSource);
+McpS32 MCP_HAL_STRING_Sprintf(char* StrDest,const char* format,...);
+
 
 #endif	/* __MCP_HAL_STRING_H */
 

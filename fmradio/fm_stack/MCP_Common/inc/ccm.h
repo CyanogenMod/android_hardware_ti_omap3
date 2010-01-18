@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #ifndef __CCM_H
 #define __CCM_H
 
@@ -29,7 +30,6 @@
 #include "ccm_im.h"
 #include "ccm_vac.h"
 #include "bt_hci_if.h"
-#include "ccm_vaci_chip_abstration.h"
 
 typedef struct tagCcmObj CcmObj;
 
@@ -56,17 +56,17 @@ CcmStatus CCM_StaticInit(void);
  * Returns:
  *      CCM_STATUS_SUCCESS - Operation is successful.
  */
-CcmStatus CCM_Create(McpHalChipId chipId, CcmObj **this);
+CcmStatus CCM_Create(McpHalChipId chipId, CcmObj **thisObj);
 
-CcmStatus CCM_Destroy(CcmObj **this);
+CcmStatus CCM_Destroy(CcmObj **thisObj);
 
-CcmImObj *CCM_GetIm(CcmObj *this);
+CcmImObj *CCM_GetIm(CcmObj *thisObj);
 
-TCCM_VAC_Object *CCM_GetVac(CcmObj *this);
+TCCM_VAC_Object *CCM_GetVac(CcmObj *thisObj);
 
-Cal_Config_ID *CCM_GetCAL(CcmObj *this);
+Cal_Config_ID *CCM_GetCAL(CcmObj *thisObj);
 
-BtHciIfObj *CCM_GetBtHciIfObj(CcmObj *this);
+BtHciIfObj *CCM_GetBtHciIfObj(CcmObj *thisObj);
 
 #endif  /* __CCM_H */
 

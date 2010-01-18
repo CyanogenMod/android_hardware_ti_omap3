@@ -17,14 +17,20 @@
  */
 
 #include "fmc_debug.h"
+#include "fmc_defs.h"
 #include "fmc_types.h"
 #include "fmc_utils.h"
 #include "fm_rx.h"
 #include "fm_tx.h"
+#include "fmc_defs.h"
  
+
+/* Global variable for all the debug functions bellow */
+#define MAX_FMC_TMP_STR_SIZE    27
+FMC_STATIC  char	tempStr[MAX_FMC_TMP_STR_SIZE+1];
+
 const char *FMC_DEBUG_FmcStatusStr(FMC_UINT status)
 {
-	char	tempStr[10];
 	
 	switch (status)
 	{
@@ -50,13 +56,12 @@ const char *FMC_DEBUG_FmcStatusStr(FMC_UINT status)
 			case FMC_STATUS_NO_RESOURCES:			return "NO_RESOURCES";
 			case FMC_STATUS_FM_COMMAND_FAILED:			return "FM_COMMAND_FAILED";
 			case FMC_STATUS_AUDIO_OPERATION_UNAVAILIBLE_RESOURCES:			return "FMC_STATUS_AUDIO_OPERATION_UNAVAILIBLE_RESOURCES";
-			default:											return FMC_UTILS_FormatNumber("INVALID Status:%x", status, tempStr);
+			default:											return FMC_UTILS_FormatNumber("INVALID Status:%x", status, tempStr,MAX_FMC_TMP_STR_SIZE);
 	}
 }
 
 const char *FMC_DEBUG_FmTxStatusStr(FMC_UINT status)
 {
-	char	tempStr[10];
 	
 	if (status <= FMC_STATUS_LAST)
 	{
@@ -74,13 +79,12 @@ const char *FMC_DEBUG_FmTxStatusStr(FMC_UINT status)
 		case FM_TX_STATUS_RDS_MANUAL_MODE_NOT_ON: return "STATUS_RDS_MANUAL_MODE_NOT_ON";
 		case FM_TX_STATUS_CONFLICTING_RDS_CMD_IN_PROGRESS: return "STATUS_CONFLICTING_RDS_CMD_IN_PROGRESS";
 		case FM_TX_STATUS_AUDIO_OPERATION_UNAVAILIBLE_RESOURCES: return "FM_TX_STATUS_AUDIO_OPERATION_UNAVAILIBLE_RESOURCES";
-		default:											return FMC_UTILS_FormatNumber("INVALID Status:%x", status, tempStr);
+		default:											return FMC_UTILS_FormatNumber("INVALID Status:%x", status, tempStr,MAX_FMC_TMP_STR_SIZE);
 	}
 }
 
 const char *FMC_DEBUG_FmTxCmdStr(FMC_UINT cmdType)
 {
-	char	tempStr[10];
 	
 	switch (cmdType) {
 		case FM_TX_CMD_DESTROY:	return "DESTROY";
@@ -129,12 +133,11 @@ const char *FMC_DEBUG_FmTxCmdStr(FMC_UINT cmdType)
 		case FM_TX_CMD_WRITE_RDS_RAW_DATA:	return "WRITE_RDS_RAW_DATA";
 		case FM_TX_CMD_CHANGE_AUDIO_SOURCE:	return "FM_TX_CMD_CHANGE_AUDIO_SOURCE";
 		case FM_TX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION:	return "FM_TX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION";
-		default:											return FMC_UTILS_FormatNumber("INVALID Cmd:%x", cmdType, tempStr);
+		default:											return FMC_UTILS_FormatNumber("INVALID Cmd:%x", cmdType, tempStr,MAX_FMC_TMP_STR_SIZE);
 		}
 }
 const char *FMC_DEBUG_FmRxCmdStr(FMC_UINT cmdType)
 {
-	char	tempStr[10];
 	
 	
 	switch (cmdType) {
@@ -172,17 +175,16 @@ const char *FMC_DEBUG_FmRxCmdStr(FMC_UINT cmdType)
 		case FM_RX_CMD_CHANGE_AUDIO_TARGET: return "FM_RX_CMD_CHANGE_AUDIO_TARGET";
 		case FM_RX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION:	return "FM_RX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION";
 		case FM_RX_CMD_DESTROY: return "FM_RX_CMD_DESTROY";
-		default:											return FMC_UTILS_FormatNumber("INVALID Cmd:%x", cmdType, tempStr);
+		default:											return FMC_UTILS_FormatNumber("INVALID Cmd:%x", cmdType, tempStr,MAX_FMC_TMP_STR_SIZE);
 		}
 }
 const char *FMC_DEBUG_BandStr(FMC_UINT band)
 {
-	char	tempStr[10];
 	
 	switch (band) {
 		case FMC_BAND_EUROPE_US:	return "Europe / US";
 		case FMC_BAND_JAPAN	:		return "Japan";
-		default:						return FMC_UTILS_FormatNumber("INVALID Band:%x", band, tempStr);
+		default:						return FMC_UTILS_FormatNumber("INVALID Band:%x", band, tempStr,MAX_FMC_TMP_STR_SIZE);
 	}
 }
 

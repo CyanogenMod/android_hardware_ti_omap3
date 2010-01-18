@@ -110,7 +110,7 @@ struct  _FMC_ListNode
 {
     struct _FMC_ListNode *NextNode;
     struct _FMC_ListNode *PrevNode;
-};
+} ;
     
 /****************************************************************************
  *
@@ -438,11 +438,12 @@ FMC_BOOL FMC_UTILS_FindAndCompareLocationMatchingListNodes( FMC_ListNode        
  *      formatMsg [in]  - The format string.
  *      number [in]     - The number to convert
  *      tempStr [out]       - The output string
+ *      maxTempStrSize [in]       - Max Size  tempStr buffer.
  *
  * Returns:
  *      tempStr (the argument)
  */
-const char * FMC_UTILS_FormatNumber(const char *formatMsg, FMC_UINT number, char *tempStr);
+const char * FMC_UTILS_FormatNumber(const char *formatMsg, FMC_UINT number, char *tempStr,FMC_UINT maxTempStrSize);
     
 /*-------------------------------------------------------------------------------
  * FMC_UTILS_IsFreqValid()
@@ -465,6 +466,30 @@ const char * FMC_UTILS_FormatNumber(const char *formatMsg, FMC_UINT number, char
  *      FMC_TRUE is the frequency is valid, FMC_FALSE otherwise
  */
 FMC_BOOL FMC_UTILS_IsFreqValid(FmcFreq freq);
+
+
+/*-------------------------------------------------------------------------------
+ * FMC_UTILS_IsAfCodeValid()
+ *
+ * Brief:  
+ *      Checks whether a Af code is valid
+ *
+ * Description:
+ *      AF Code is valid if:
+ *      1. Af code is between the range of 1-204. ( acorrding to RDS spec)
+ *      2. Af code equal to FMC_AF_CODE_NO_AF_AVAILABLE.
+ *
+ * Type:
+ *      Synchronous
+ *
+ * Parameters:
+ *      afCode [in]               - Af code.
+ *
+ * Returns:
+ *      FMC_TRUE if the afCode is valid, FMC_FALSE otherwise
+ */
+FMC_BOOL FMC_UTILS_IsAfCodeValid( FmcAfCode afCode);
+
 
 /*-------------------------------------------------------------------------------
  * FMC_UTILS_ChannelSpacingInKhz()

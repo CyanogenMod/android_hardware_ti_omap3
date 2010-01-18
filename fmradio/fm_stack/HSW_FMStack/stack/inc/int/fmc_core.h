@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      fmc_core.h
@@ -52,6 +53,7 @@
  *
  *******************************************************************************/
 #include "fmc_types.h"
+#include "fmc_defs.h"
 #include "fmc_fw_defs.h"
 #include "ccm.h"
 
@@ -83,7 +85,9 @@ typedef enum
 	FMC_CORE_EVENT_SCRIPT_CMD_COMPLETE,
 	FMC_CORE_EVENT_FM_INTERRUPT,
 	FMC_VAC_EVENT_OPERATION_STARTED,
-	FMC_VAC_EVENT_RESOURCE_CHANGED
+	FMC_VAC_EVENT_OPERATION_STOPPED,
+	FMC_VAC_EVENT_RESOURCE_CHANGED,
+	FMC_VAC_EVENT_CONFIGURATION_CHANGED
 } FmcCoreEventType;
 
 /********************************************************************************
@@ -215,7 +219,7 @@ FmcStatus FMC_CORE_RegisterUnregisterIntCallback(FMC_BOOL reg);
 CcmObj* _FMC_CORE_GetCcmObjStackHandle(void);
 
 FmcStatus fm_open_cmd_socket(int hci_dev);
-
 FmcStatus fm_close_cmd_socket(void);
+
 #endif /* ifndef __FMC_CORE_H */
 

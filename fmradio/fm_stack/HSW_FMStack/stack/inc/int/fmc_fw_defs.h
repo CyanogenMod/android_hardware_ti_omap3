@@ -88,6 +88,7 @@ typedef FMC_U16 FmcFwIntMask;
 #define FMC_FW_OPCODE_RX_TUNER_MODE_SET			((FmcFwOpcode)0x2d)
 #define FMC_FW_OPCODE_RX_STOP_SEARCH				((FmcFwOpcode)0x2e)
 #define FMC_FW_OPCODE_RX_RDS_CNTRL_SET				((FmcFwOpcode)0x2f)
+#define FMC_FW_OPCODE_RX_CHANNEL_SPACING_SET_GET				((FmcFwOpcode)0x38)
 
 /***********************************************************
 	FM TX commands opcodes
@@ -104,8 +105,8 @@ typedef FMC_U16 FmcFwIntMask;
 #define FMC_FW_OPCODE_TX_RDS_AF_SET_GET						((FmcFwOpcode)0x47)
 #define FMC_FW_OPCODE_TX_RDS_PS_DISPLAY_MODE_SET_GET			((FmcFwOpcode)0x4a)
 #define FMC_FW_OPCODE_TX_RDS_REPERTOIRE_SET_GET				((FmcFwOpcode)0x4d)
-#define FMC_FW_OPCODE_TX_RDS_TA_SET								((FmcFwOpcode)0x4e)
-#define FMC_FW_OPCODE_TX_RDS_TP_SET								((FmcFwOpcode)0x4f)
+#define FMC_FW_OPCODE_TX_RDS_TA_SET_GET						((FmcFwOpcode)0x4e)
+#define FMC_FW_OPCODE_TX_RDS_TP_SET_GET						       ((FmcFwOpcode)0x4f)
 #define FMC_FW_OPCODE_TX_RDS_DI_CODES_SET_GET					((FmcFwOpcode)0x50)
 #define FMC_FW_OPCODE_TX_RDS_MUSIC_SPEECH_FLAG_SET_GET		((FmcFwOpcode)0x51)
 #define FMC_FW_OPCODE_TX_RDS_PS_SCROLL_SPEED_SET_GET			((FmcFwOpcode)0x52)

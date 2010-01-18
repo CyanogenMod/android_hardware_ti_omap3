@@ -37,8 +37,6 @@
 #include "ccm_vac.h"
 #include "mcp_config_parser.h"
 #include "ccm_audio_types.h"
-#include "ccm_vaci_chip_abstration.h"
-
 
 /* forward declarations */
 typedef struct _TCCM_VAC_AllocationEngine TCCM_VAC_AllocationEngine;

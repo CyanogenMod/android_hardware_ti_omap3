@@ -23,12 +23,18 @@
 #include "fm_tx_sm.h"
 #include "fmc_core.h"
 #include "fmc_debug.h"
+#include "fmc_log.h"
 #include "fmc_fw_defs.h"
 #include "fmc_config.h"
 #include "fmc_utils.h"
+#include "fmc_log.h"
 #include "mcp_bts_script_processor.h"
 #include "mcp_rom_scripts_db.h"
+#include "mcp_hal_string.h"
+#include "mcp_unicode.h"
 
+
+FMC_LOG_SET_MODULE(FMC_LOG_MODULE_FMTXSM);
 
 typedef enum {
     _FM_TX_SM_EVENT_START,
@@ -148,7 +154,7 @@ typedef struct
     
 } _FmTxSmFwCache;
 
-struct _FmTxContext {
+ struct  _FmTxContext{
     FmTxSmContextState  state;
 
     /* Added 1 for terminating NULL string char */
@@ -199,7 +205,7 @@ struct _FmTxContext {
 
     _FmTxSmVacParams vacParams;
 
-};
+} ;
 
 typedef void (*_FmTxSmCmdStageHandler)(FMC_UINT event, void *eventData);
 
@@ -300,7 +306,7 @@ FMC_STATIC  FmcFwIntMask _FM_TX_SM_HandlerInterrupt_GetInterruptStatusRegCmd( vo
 
 FMC_STATIC  void _FM_TX_SM_HandlerInterrupt_SendReadInterruptStatusRegCmd( void);
 
-FMC_UINT _getIndexOfLastStage();
+FMC_UINT _getIndexOfLastStage(void);
 
 
 /********************************************************************************************************
@@ -329,16 +335,6 @@ FMC_STATIC void _FM_TX_SM_HandlerEnable_StartFmTxInitScriptExec( FMC_UINT event,
 FMC_STATIC void _FM_TX_SM_HandlerEnable_WaitFmTxInitScriptExecComplete( FMC_UINT event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerEnable_SendFmTxOnCmd( FMC_UINT event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerEnable_ApplyDfltConfig( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_SendSetChannelSpacingCmd( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_WaitSetChannelSpacingCmdComplete( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_SendSetRdsTextTypeCmd( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_WaitSetRdsTextTypeCmdComplete( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_SendSetRdsTextRtMsgLenCmd( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_WaitSetRdsTextRtMsgLenCmd( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_SendSetRdsTransactionCmd( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_WaitSetRdsTransactionCmdComplete( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_SendSetRdsTextRtMsgCmd( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerEnable_WaitSetRdsTextRtMsgCmd( FMC_UINT event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerEnable_Complete( FMC_UINT event, void *eventData);
 /*
 ########################################################################################################################
@@ -355,7 +351,6 @@ FMC_STATIC void _FM_TX_SM_HandlerDisable_Complete( FMC_UINT event, void *eventDa
 ########################################################################################################################
 */
 FMC_STATIC void _FM_TX_SM_HandlerTune_Start( FMC_UINT event, void *eventData);
-FMC_STATIC void _FM_TX_SM_HandlerTune_WaitPowEnbInterrupt( FMC_UINT event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerTune_SendSetInterruptMaskCmd( FMC_UINT event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerTune_SendTuneCmd( FMC_UINT event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerTune_WaitTuneCmdComplete( FMC_UINT event, void *eventData);
@@ -424,6 +419,15 @@ FMC_STATIC void _FM_TX_SM_HandlerSetTrafficCodes_Start( FMC_UINT event, void *ev
 FMC_STATIC void _FM_TX_SM_HandlerSetTrafficCodes_SendTaSetCmd( FMC_UINT event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerSetTrafficCodes_SendTpSetCmd( FMC_UINT event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerSetTrafficCodes_Complete( FMC_UINT event, void *eventData);
+/*
+########################################################################################################################
+    Get traffic codes Handlers
+########################################################################################################################
+*/
+FMC_STATIC void _FM_TX_SM_HandlerGetTrafficCodes_Start( FMC_UINT event, void *eventData);
+FMC_STATIC void _FM_TX_SM_HandlerGetTrafficCodes_SendTaGetCmd( FMC_UINT event, void *eventData);
+FMC_STATIC void _FM_TX_SM_HandlerGetTrafficCodes_SendTpGetCmd( FMC_UINT event, void *eventData);
+FMC_STATIC void _FM_TX_SM_HandlerGetTrafficCodes_Complete( FMC_UINT event, void *eventData);
 
 
 /*
@@ -543,6 +547,7 @@ FMC_STATIC void _FM_TX_SM_HandlerSetMuteMode_UpdateCache(void);
 FMC_STATIC void _FM_TX_SM_HandlerStartTransmission_CmdComplete(void);
 FMC_STATIC void _FM_TX_SM_HandlerStopTransmission_CmdComplete(void);
 FMC_STATIC void _FM_TX_SM_HandlerEnableRds_UpdateCache(void);
+FMC_STATIC void  _FM_TX_SM_HandlerPowerLvl_UpdateCache(void);
 FMC_STATIC void _FM_TX_SM_HandlerDisableRds_UpdateCache(void);
 FMC_STATIC void _FM_TX_SM_HandlerSetRdsRTransmittedMask_UpdateCache(void);
 
@@ -577,7 +582,6 @@ FMC_STATIC void _FM_TX_SM_HandlerSetMuteMode_FillEventData(FmTxEvent *event, voi
 FMC_STATIC void _FM_TX_SM_HandlerSetRdsTextScrollMode_FillEventData(FmTxEvent *event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerSetRdsRTransmittedMask_FillEventData(FmTxEvent *event, void *eventData);
 
-FMC_STATIC void _FM_TX_SM_HandlerSetRdsPsDisplayMode_FillEventData(FmTxEvent *event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerSetRdsPsScrollSpeed_FillEventData(FmTxEvent *event, void *eventData); 
  
 FMC_STATIC void _FM_TX_SM_HandlerSetPreEmphasisFilter_FillEventData(FmTxEvent *event, void *eventData);
@@ -590,6 +594,7 @@ FMC_STATIC void _FM_TX_SM_HandlerSetRdsTextRepertoire_FillEventData(FmTxEvent *e
 FMC_STATIC void _FM_TX_SM_HandlerSetRdsMusicSpeechFlag_FillEventData(FmTxEvent *event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerSetRdsPsScrollSpeed_FillEventData(FmTxEvent *event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerSetRdsTrafficCodes_FillEventData(FmTxEvent *event, void *eventData);
+FMC_STATIC void _FM_TX_SM_HandlerGetRdsTrafficCodes_FillEventData(FmTxEvent *event, void *eventData);
 
 FMC_STATIC void _FM_TX_SM_HandlerStartTransmission_FillEventData(FmTxEvent *event, void *eventData);
 FMC_STATIC void _FM_TX_SM_HandlerChangeAudioSource_FillEventData(FmTxEvent *event, void *eventData);
@@ -649,7 +654,7 @@ FMC_STATIC void _FM_TX_SM_HandlerInterrupt_SendSetInterruptMaskRegCmd( void);
 ########################################################################################################################
 */
 
-FMC_STATIC void _FM_TX_SM_InitDefualtConfigValues();
+FMC_STATIC void _FM_TX_SM_InitDefualtConfigValues(void);
 
 FMC_STATIC void _FM_TX_SM_HandlerGeneral_GeneralCmdCompleteAndContinue( FMC_UINT event, void *eventData);
 
@@ -1092,6 +1097,35 @@ FMC_STATIC _FmTxSmCmdStageInfo _fmTxSmCmdProcessor_SetTrafficCodes[] =  {
 FMC_STATIC _FmTxSmCmdInfo _fmTxSmCmdInfo_SetTrafficCodes = {    _fmTxSmCmdProcessor_SetTrafficCodes, 
                                                         sizeof(_fmTxSmCmdProcessor_SetTrafficCodes) / sizeof(_FmTxSmCmdStageInfo)};
 /*
+
+
+
+########################################################################################################################
+    Get Traffic Codes
+########################################################################################################################
+*/
+
+enum {
+    _FM_TX_SM_STAGE_GET_TRAFFIC_CODES_START,
+    _FM_TX_SM_STAGE_GET_TRAFFIC_CODES_SET_TA_CMD,
+    _FM_TX_SM_STAGE_GET_TRAFFIC_CODES_SET_TA_CMD_COMPLETE,
+    _FM_TX_SM_STAGE_GET_TRAFFIC_CODES_SET_TP_CMD,
+    _FM_TX_SM_STAGE_GET_TRAFFIC_CODES_SET_TP_CMD_COMPLETE,
+    _FM_TX_SM_STAGE_GET_TRAFFIC_CODES_COMPLETE
+ } _FmTxSmStageType_GetTrafficCodes;
+
+FMC_STATIC _FmTxSmCmdStageInfo _fmTxSmCmdProcessor_GetTrafficCodes[] =  {
+    {_FM_TX_SM_STAGE_GET_TRAFFIC_CODES_START,                                   _FM_TX_SM_HandlerGetTrafficCodes_Start},
+    {_FM_TX_SM_STAGE_GET_TRAFFIC_CODES_SET_TA_CMD,              _FM_TX_SM_HandlerGetTrafficCodes_SendTaGetCmd},
+    {_FM_TX_SM_STAGE_GET_TRAFFIC_CODES_SET_TA_CMD_COMPLETE,     _FM_TX_SM_HandlerGeneral_GeneralCmdCompleteAndContinue},
+    {_FM_TX_SM_STAGE_GET_TRAFFIC_CODES_SET_TP_CMD,              _FM_TX_SM_HandlerGetTrafficCodes_SendTpGetCmd},
+    {_FM_TX_SM_STAGE_GET_TRAFFIC_CODES_SET_TP_CMD_COMPLETE,     _FM_TX_SM_HandlerGeneral_GeneralCmdCompleteAndContinue},
+    {_FM_TX_SM_STAGE_GET_TRAFFIC_CODES_COMPLETE,                        _FM_TX_SM_HandlerGetTrafficCodes_Complete}
+};
+
+FMC_STATIC _FmTxSmCmdInfo _fmTxSmCmdInfo_GetTrafficCodes = {    _fmTxSmCmdProcessor_GetTrafficCodes, 
+                                                        sizeof(_fmTxSmCmdProcessor_GetTrafficCodes) / sizeof(_FmTxSmCmdStageInfo)};
+/*
 ########################################################################################################################
     Set Audio Source
 ########################################################################################################################
@@ -1377,12 +1411,10 @@ FMC_STATIC _FmTxSmCmdInfo _fmTxSmCmdInfo_GetRdsRawDataCmd = {   _fmTxSmCmdProces
 FMC_STATIC FMC_BOOL recievedDisable = FMC_FALSE;
 
 /* [ToDo Zvi] We nees this flag so if one wishes to disable after enabeling timout accures the disable process will not dispatch the enable command again*/
-FMC_STATIC FMC_BOOL timerExpiredWhileEnable = FMC_FALSE;
+/* FMC_STATIC FMC_BOOL timerExpiredWhileEnable = FMC_FALSE; */
 
 FMC_STATIC FMC_BOOL timerExp = FMC_FALSE;
 
-
-FMC_STATIC FMC_BOOL lastRecievedInt = FMC_FALSE;
 
 FMC_STATIC FMC_U8 smNumOfCmdInQueue = 0;
 
@@ -1393,11 +1425,7 @@ FMC_STATIC FMC_U8 smNumOfCmdInQueue = 0;
 *
 */
 #define FM_TX_SM_TIMOUT_TIME_FOR_LONG_CMD       (50000)
-#if defined(ANDROID)
- #define FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD        (20000)
-#elif defined(SDP3430)
- #define FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD        (5000)
-#endif
+#define FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD        (5000)
 
 /*
 *   end
@@ -1524,9 +1552,10 @@ void _FM_TX_SM_HandlerGeneral_SendSetRdsTextMsgCmd( FMC_UINT event,
                                                                     void *eventData)
 {
     FmcStatus   status;
-    FMC_INT     numOfRdsCharsLeftToSet;
-    FMC_U8  *nextChunk = NULL;
-    FMC_U8  *rdsText;   
+    FMC_UINT    numOfRdsCharsLeftToSet;
+    FMC_U8      *nextChunk = NULL;
+    FMC_U8      *rdsText;   
+
     FMC_FUNC_START("_FM_TX_SM_HandlerGeneral_SendSetRdsTextMsgCmd");
 
     FMC_UNUSED_PARAMETER(event);    
@@ -1545,11 +1574,7 @@ void _FM_TX_SM_HandlerGeneral_SendSetRdsTextMsgCmd( FMC_UINT event,
     }
     nextChunk = &rdsText[_fmTxSmData.context.numOfSetRdsChars];
     
-    numOfRdsCharsLeftToSet = (FMC_INT)FMC_OS_StrLen(nextChunk);
-    
-    FMC_VERIFY_FATAL_NO_RETVAR((numOfRdsCharsLeftToSet >= 0), 
-                                    ("_FM_TX_SM_HandlerGeneral_SendSetRdsTextMsgCmd: Invalid Num Of Chars Left (%d)", 
-                                        numOfRdsCharsLeftToSet));
+    numOfRdsCharsLeftToSet = (FMC_UINT)FMC_OS_StrLen(nextChunk);
     
     if (numOfRdsCharsLeftToSet > 0)
     {
@@ -1609,7 +1634,7 @@ void _FM_TX_SM_HandlerGeneral_WaitSetRdsTextMsgCmd( FMC_UINT event, void *eventD
 ########################################################################################################################
 */
 
-void    _FM_TX_SM_InitDefualtConfigValues()
+void    _FM_TX_SM_InitDefualtConfigValues(void)
 {
 
     /*no need to configure on startup */
@@ -1752,25 +1777,25 @@ FmTxStatus FM_TX_SM_Destroy(FmTxContext **fmContext)
     
     return status;
 }
-FMC_BOOL FM_TX_SM_IsRdsEnabled()
+FMC_BOOL FM_TX_SM_IsRdsEnabled(void)
 {
     return _fmTxSmData.context.fwCache.rdsEnabled;
 }
-FmTxRdsTransmissionMode FM_TX_SM_GetRdsMode()
+FmTxRdsTransmissionMode FM_TX_SM_GetRdsMode(void)
 {
     return _fmTxSmData.context.fwCache.transmissionMode;
 }
-FmTxContext* FM_TX_SM_GetContext()
+FmTxContext* FM_TX_SM_GetContext(void)
 {
     return &_fmTxSmData.context;
 }
 
-FmTxSmContextState FM_TX_SM_GetContextState()
+FmTxSmContextState FM_TX_SM_GetContextState(void)
 {
     return _fmTxSmData.context.state;
 }
 
-FMC_BOOL FM_TX_SM_IsContextEnabled()
+FMC_BOOL FM_TX_SM_IsContextEnabled(void)
 {
     if (    (_fmTxSmData.context.state == FM_TX_SM_CONTEXT_STATE_ENABLED) ||
         (_fmTxSmData.context.state == FM_TX_SM_CONTEXT_STATE_TRANSMITTING))
@@ -1850,7 +1875,7 @@ void _FM_TX_SM_InitCmdsTable(void)
     _fmTxSmCmdsTable[FM_TX_CMD_GET_PRE_EMPHASIS_FILTER] = &_fmTxSmCmdInfo_SimpleGetCmd;
 
     _fmTxSmCmdsTable[FM_TX_CMD_SET_RDS_TRAFFIC_CODES] = &_fmTxSmCmdInfo_SetTrafficCodes;
-    _fmTxSmCmdsTable[FM_TX_CMD_GET_RDS_TRAFFIC_CODES] = &_fmTxSmCmdInfo_SimpleGetCmd;
+    _fmTxSmCmdsTable[FM_TX_CMD_GET_RDS_TRAFFIC_CODES] = &_fmTxSmCmdInfo_GetTrafficCodes;
 
     _fmTxSmCmdsTable[FM_TX_CMD_SET_RDS_EXTENDED_COUNTRY_CODE] = &_fmTxSmCmdInfo_SimpleSetCmd;
     _fmTxSmCmdsTable[FM_TX_CMD_GET_RDS_EXTENDED_COUNTRY_CODE] = &_fmTxSmCmdInfo_SimpleGetCmd;
@@ -1914,6 +1939,7 @@ void _FM_TX_SM_InitSetCmdGetCmdParmValueMap(void)
 */
 void _FM_TX_SM_InitSetCmdCompleteMap(void)
 {
+    _fmTxSmSetCmdCompleteMap[FM_TX_CMD_SET_POWER_LEVEL] = _FM_TX_SM_HandlerPowerLvl_UpdateCache;
     _fmTxSmSetCmdCompleteMap[FM_TX_CMD_TUNE] = _FM_TX_SM_HandlerTune_UpdateCache;
     _fmTxSmSetCmdCompleteMap[FM_TX_CMD_SET_MUTE_MODE] = _FM_TX_SM_HandlerSetMuteMode_UpdateCache;
     _fmTxSmSetCmdCompleteMap[FM_TX_CMD_START_TRANSMISSION] = _FM_TX_SM_HandlerStartTransmission_CmdComplete;
@@ -1952,9 +1978,9 @@ void _FM_TX_SM_InitSetCmdFillEventDataMap(void)
     _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_SET_MUTE_MODE] = _FM_TX_SM_HandlerSetMuteMode_FillEventData;
     _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_SET_RDS_PS_DISPLAY_MODE] = _FM_TX_SM_HandlerSetRdsTextScrollMode_FillEventData;
     _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_SET_RDS_TRANSMITTED_MASK] = _FM_TX_SM_HandlerSetRdsRTransmittedMask_FillEventData;
-
     _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_SET_RDS_PS_DISPLAY_SPEED] =_FM_TX_SM_HandlerSetRdsPsScrollSpeed_FillEventData; 
     _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_SET_RDS_TRAFFIC_CODES] =_FM_TX_SM_HandlerSetRdsTrafficCodes_FillEventData;
+    _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_GET_RDS_TRAFFIC_CODES] =_FM_TX_SM_HandlerGetRdsTrafficCodes_FillEventData;
     _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_SET_RDS_TEXT_PS_MSG] =_FM_TX_SM_RdsTextPsMsg_FillEventData;
     _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_SET_RDS_TEXT_RT_MSG] =_FM_TX_SM_RdsTextRtMsg_FillEventData;
     _fmTxSmSetCmdFillEventDataMap[FM_TX_CMD_WRITE_RDS_RAW_DATA] = _FM_TX_SM_RdsRawData_FillEventData;
@@ -1992,7 +2018,7 @@ void _FM_TX_SM_InitSimpleGetCmd2FwOpcodeMap(void)
     _fmTxSmSimpleGetCmd2FwOpcodeMap[FM_TX_CMD_GET_RDS_TEXT_REPERTOIRE] = FMC_FW_OPCODE_TX_RDS_REPERTOIRE_SET_GET;
     _fmTxSmSimpleGetCmd2FwOpcodeMap[FM_TX_CMD_GET_RDS_MUSIC_SPEECH_FLAG] = FMC_FW_OPCODE_TX_RDS_MUSIC_SPEECH_FLAG_SET_GET;
     _fmTxSmSimpleGetCmd2FwOpcodeMap[FM_TX_CMD_GET_PRE_EMPHASIS_FILTER] = FMC_FW_OPCODE_TX_PREMPH_SET_GET;
-    _fmTxSmSimpleGetCmd2FwOpcodeMap[FM_TX_CMD_SET_RDS_EXTENDED_COUNTRY_CODE] = FMC_FW_OPCODE_TX_RDS_ECC_SET_GET;
+    _fmTxSmSimpleGetCmd2FwOpcodeMap[FM_TX_CMD_GET_RDS_EXTENDED_COUNTRY_CODE] = FMC_FW_OPCODE_TX_RDS_ECC_SET_GET;
 }
 
 void FM_TX_SM_TaskEventCb(FmcOsEvent osEvent)
@@ -2259,7 +2285,8 @@ void _FM_TX_SM_TccmVacCb(ECAL_Operation eOperation,ECCM_VAC_Event eEvent, ECCM_V
 {
     FMC_FUNC_START("_FM_TX_SM_TccmVacCb");
 
-    FMC_UNUSED_PARAMETER(eOperation);
+    if(eOperation == CAL_OPERATION_FM_TX){
+        
     FMC_VERIFY_FATAL_NO_RETVAR((_fmTxSmData.context.transportEventData.eventWaitsForProcessing == FMC_FALSE), 
                                 ("_FM_TX_SM_TransportEventCb: Previous Transport Event Not handled yet"));
     
@@ -2280,7 +2307,12 @@ void _FM_TX_SM_TccmVacCb(ECAL_Operation eOperation,ECCM_VAC_Event eEvent, ECCM_V
     _fmTxSmData.context.transportEventData.eventWaitsForProcessing = FMC_TRUE;
     /* Trigger the event processing in the context of the FM task */
     FMCI_NotifyFmTask(FMC_OS_EVENT_GENERAL);
-
+    }
+    else
+    {
+        FMC_VERIFY_FATAL_NO_RETVAR((eOperation == CAL_OPERATION_FM_TX), 
+                                    ("_FM_TX_SM_TransportEventCb:Fm Tx recieved Vac callbeck , but was not waiting for it."));
+    }
     FMC_FUNC_END();
 }
 
@@ -2336,6 +2368,10 @@ _FmTxSmCmdStageHandler _FM_TX_SM_GetStageHandler(FmTxCmdType cmdType, FMC_UINT s
 
     FMC_FUNC_START("_FM_TX_SM_GetStageHandler");
     
+/* Verify that the command is a valid command */
+    FMC_VERIFY_FATAL_SET_RETVAR((cmdType <= FM_TX_LAST_CMD_TYPE), (stageHandler = NULL), 
+                                    ("Command not valid -%s", FMC_DEBUG_FmTxCmdStr(cmdType)));
+
     /* Extract the appropriate command handler info object */
     cmdInfo = _fmTxSmCmdsTable[(FMC_UINT)cmdType];
 
@@ -2555,6 +2591,10 @@ void _FM_TX_SM_HandlerEnable_SendReadFmAsicIdCmd( FMC_UINT event, void *eventDat
     FmcStatus status;
 
     FMC_FUNC_START("_FM_TX_SM_HandlerEnable_SendReadFmAsicIdCmd");
+
+    /* Must wait 20msec before starting to send commands to the FM after command
+     * FMC_FW_FM_CORE_POWER_UP was sent. */
+    FMC_OS_Sleep(FMC_CONFIG_WAKEUP_TIMEOUT_MS);
     
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
@@ -2628,26 +2668,35 @@ void _FM_TX_SM_HandlerEnable_WaitReadFmAsicVersionCmdComplete( FMC_UINT event, v
 void _FM_TX_SM_HandlerEnable_StartFmInitScriptExec( FMC_UINT event, void *eventData)
 {
 
-    _CcmImStatus                status;
+    _CcmImStatus                status=_CCM_IM_STATUS_SUCCESS;
     McpBtsSpStatus              btsSpStatus;
     McpBtsSpScriptLocation      scriptLocation;
     McpBtsSpExecuteScriptCbData scriptCbData;
-    FMC_U8                          scriptFullFileName[MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS + 1];
+    char                        fileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS *
+                                         MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
+    McpUtf8                     scriptFullFileName[MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS *
+                                                   MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
 
     FMC_FUNC_START("_FM_TX_SM_HandlerEnable_StartFmInitScriptExec");
 
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
 
-    scriptFullFileName[0] = 0;
+    /* Neptune Warning cleanup */
+    FMC_UNUSED_PARAMETER(status);
 
-    MCP_HAL_MISC_Sprintf((char *)scriptFullFileName, "%s%s_%x.%d.bts",
-                            FMC_CONFIG_SCRIPT_FILES_FULL_PATH_LOCATION, 
-                            FMC_CONFIG_SCRIPT_FILES_FMC_INIT_NAME, 
-                            _fmTxSmData.context.fwCache.asicId, _fmTxSmData.context.fwCache.asicVersion);
+    MCP_HAL_STRING_Sprintf(fileName,
+                           "%s_%x.%d.bts",
+                           FMC_CONFIG_SCRIPT_FILES_FMC_INIT_NAME, 
+                           _fmTxSmData.context.fwCache.asicId,
+                           _fmTxSmData.context.fwCache.asicVersion);
+
+    MCP_StrCpyUtf8(scriptFullFileName,
+                   (const McpUtf8 *)FMC_CONFIG_SCRIPT_FILES_FULL_PATH_LOCATION);
+    MCP_StrCatUtf8(scriptFullFileName, (const McpUtf8 *)fileName);
     
     scriptLocation.locationType = MCP_BTS_SP_SCRIPT_LOCATION_FS;
-    scriptLocation.locationData.fullFileName = (char*)scriptFullFileName;
+    scriptLocation.locationData.fullFileName = scriptFullFileName;
     
     scriptCbData.sendHciCmdCb = _FM_TX_SM_TiSpSendHciScriptCmd;
     scriptCbData.setTranParmsCb = NULL;
@@ -2660,19 +2709,21 @@ void _FM_TX_SM_HandlerEnable_StartFmInitScriptExec( FMC_UINT event, void *eventD
         /* Script was not found in FFS => check in ROM */
         
         McpBool memInitScriptFound;
-        FMC_U8 scriptFileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS + 1];
+        char scriptFileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS];
 
-        MCP_LOG_INFO(("%s Not Found on FFS - Checking Memory", scriptFullFileName));
+        FMC_LOG_INFO(("%s Not Found on FFS - Checking Memory", scriptFullFileName));
 
-        MCP_HAL_MISC_Sprintf((char *)scriptFileName, "%s_%x.%d.bts", 
-                            FMC_CONFIG_SCRIPT_FILES_FMC_INIT_NAME,
-                            _fmTxSmData.context.fwCache.asicId, _fmTxSmData.context.fwCache.asicVersion);
+        MCP_HAL_STRING_Sprintf((char *)scriptFileName,
+                               "%s_%x.%d.bts", 
+                               FMC_CONFIG_SCRIPT_FILES_FMC_INIT_NAME,
+                               _fmTxSmData.context.fwCache.asicId,
+                               _fmTxSmData.context.fwCache.asicVersion);
 
         /* Check if memory has a script for this version and load its parameters if found */
-        memInitScriptFound =  MCP_RomScriptsGetMemInitScriptData(
-                                    (char *)scriptFileName, 
-                                    &scriptLocation.locationData.memoryData.size,
-                                        &scriptLocation.locationData.memoryData.address);
+        memInitScriptFound =
+            MCP_RomScriptsGetMemInitScriptData((const char *)scriptFileName, 
+                                               &scriptLocation.locationData.memoryData.size,
+                                               (const McpU8 **)(&scriptLocation.locationData.memoryData.address));
 
         if (memInitScriptFound == MCP_TRUE)
         {
@@ -2733,26 +2784,35 @@ void _FM_TX_SM_HandlerEnable_WaitFmInitScriptExecComplete( FMC_UINT event, void 
 void _FM_TX_SM_HandlerEnable_StartFmTxInitScriptExec( FMC_UINT event, void *eventData)
 {
 
-    _CcmImStatus                status;
+    _CcmImStatus                status=_CCM_IM_STATUS_SUCCESS;
     McpBtsSpStatus              btsSpStatus;
     McpBtsSpScriptLocation      scriptLocation;
     McpBtsSpExecuteScriptCbData scriptCbData;
-    FMC_U8                          scriptFullFileName[MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS + 1];
-
+    char                        fileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS *
+                                         MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
+    McpUtf8                     scriptFullFileName[MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS *
+                                                   MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
+    
     FMC_FUNC_START("_FM_TX_SM_HandlerEnable_StartFmInitScriptExec");
 
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
 
-    scriptFullFileName[0] = 0;
+    /*Neptune Warning cleanup */
+    FMC_UNUSED_PARAMETER(status);
 
-    MCP_HAL_MISC_Sprintf((char *)scriptFullFileName, "%s%s_%x.%d.bts",
-                            FMC_CONFIG_SCRIPT_FILES_FULL_PATH_LOCATION, 
-                            FMC_CONFIG_SCRIPT_FILES_FM_TX_INIT_NAME,
-                            _fmTxSmData.context.fwCache.asicId,_fmTxSmData.context.fwCache.asicVersion);
+    MCP_HAL_STRING_Sprintf(fileName,
+                           "%s_%x.%d.bts",
+                           FMC_CONFIG_SCRIPT_FILES_FM_TX_INIT_NAME,
+                           _fmTxSmData.context.fwCache.asicId,
+                           _fmTxSmData.context.fwCache.asicVersion);
     
+    MCP_StrCpyUtf8(scriptFullFileName,
+                   (const McpUtf8 *)FMC_CONFIG_SCRIPT_FILES_FULL_PATH_LOCATION);
+    MCP_StrCatUtf8(scriptFullFileName, (const McpUtf8 *)fileName);
+
     scriptLocation.locationType = MCP_BTS_SP_SCRIPT_LOCATION_FS;
-    scriptLocation.locationData.fullFileName = (char *)scriptFullFileName;
+    scriptLocation.locationData.fullFileName = scriptFullFileName;
     
     scriptCbData.sendHciCmdCb = _FM_TX_SM_TiSpSendHciScriptCmd;
     scriptCbData.setTranParmsCb = NULL;
@@ -2765,19 +2825,21 @@ void _FM_TX_SM_HandlerEnable_StartFmTxInitScriptExec( FMC_UINT event, void *even
         /* Script was not found in FFS => check in ROM */
         
         McpBool memInitScriptFound;
-        FMC_U8 scriptFileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS + 1];
+        char scriptFileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS];
 
-        MCP_LOG_INFO(("%s Not Found on FFS - Checking Memory", scriptFullFileName));
+        FMC_LOG_INFO(("%s Not Found on FFS - Checking Memory", scriptFullFileName));
 
-        MCP_HAL_MISC_Sprintf((char *)scriptFileName, "%s_%x.%d.bts", 
-                            FMC_CONFIG_SCRIPT_FILES_FM_TX_INIT_NAME,
-                            _fmTxSmData.context.fwCache.asicId,_fmTxSmData.context.fwCache.asicVersion);
+        MCP_HAL_STRING_Sprintf(scriptFileName,
+                               "%s_%x.%d.bts", 
+                               FMC_CONFIG_SCRIPT_FILES_FM_TX_INIT_NAME,
+                               _fmTxSmData.context.fwCache.asicId,
+                               _fmTxSmData.context.fwCache.asicVersion);
 
         /* Check if memory has a script for this version and load its parameters if found */
-        memInitScriptFound =  MCP_RomScriptsGetMemInitScriptData(
-                                    (char *)scriptFileName, 
-                                    &scriptLocation.locationData.memoryData.size,
-                                        &scriptLocation.locationData.memoryData.address);
+        memInitScriptFound =
+            MCP_RomScriptsGetMemInitScriptData((const char *)scriptFileName, 
+                                               &scriptLocation.locationData.memoryData.size,
+                                               (const McpU8 **)(&scriptLocation.locationData.memoryData.address));
 
         if (memInitScriptFound == MCP_TRUE)
         {
@@ -2837,7 +2899,7 @@ void _FM_TX_SM_HandlerEnable_WaitFmTxInitScriptExecComplete( FMC_UINT event, voi
 }
 void _FM_TX_SM_HandlerEnable_SendFmTxOnCmd( FMC_UINT event, void *eventData)
 {
-    FmcStatus status;
+    FmcStatus status=FMC_STATUS_FAILED;
 
     FMC_FUNC_START("_FM_TX_SM_HandlerEnable_SendFmTxOnCmd");
     
@@ -2856,14 +2918,13 @@ void _FM_TX_SM_HandlerEnable_SendFmTxOnCmd( FMC_UINT event, void *eventData)
 
 void _FM_TX_SM_HandlerEnable_ApplyDfltConfig( FMC_UINT event, void *eventData)
 {
-    FMC_STATIC configStage = 0;
-    FmcStatus status;
+    FMC_STATIC FMC_U8 configStage = 0;
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
 
     if(configStage< sizeof(_fmTxEnableDefualtSimpleCommandsToSet)/sizeof(_FmTxSmDefualtConfigValue))
     {
-        status = _FM_TX_SM_UptadeSmStateSendWriteCommand(
+            _FM_TX_SM_UptadeSmStateSendWriteCommand(
                     _fmTxSmSimpleSetCmd2FwOpcodeMap[(_fmTxEnableDefualtSimpleCommandsToSet[configStage]).cmdType], 
                     (FMC_U16)(_fmTxEnableDefualtSimpleCommandsToSet[configStage]).defualtValue);
         /* config the current value and move to the value to configure*/
@@ -2905,6 +2966,9 @@ void _FM_TX_SM_HandlerDisable_Start(FMC_UINT event, void *eventData)
 
     FMC_UNUSED_PARAMETER(eventData);
     
+    /*Neptune Warrning cleanup */
+    FMC_UNUSED_PARAMETER(status);
+
     if(event != _FM_TX_SM_EVENT_START)
 
     FMC_VERIFY_FATAL((event == _FM_TX_SM_EVENT_START), FM_TX_STATUS_INTERNAL_ERROR,
@@ -2915,6 +2979,10 @@ void _FM_TX_SM_HandlerDisable_Start(FMC_UINT event, void *eventData)
     _fmTxSmData.context.state = FM_TX_SM_CONTEXT_STATE_DISABLING;
     
     _fmTxSmData.currCmdInfo.stageIndex++;
+
+      /*Remove the VAC resources if allocated
+        Since this is a tx operation we know it will end sync */
+     CCM_VAC_StopOperation(CCM_GetVac(_FMC_CORE_GetCcmObjStackHandle()),CAL_OPERATION_FM_TX);
 
     _FM_TX_SM_CheckInterruptsAndThenDispatch(_FM_TX_SM_EVENT_CONTINUE, NULL);
     
@@ -2976,11 +3044,14 @@ void _FM_TX_SM_HandlerDisable_SendTransportFmOffCmd( FMC_UINT event, void *event
 
 void _FM_TX_SM_HandlerDisable_Complete( FMC_UINT event, void *eventData)
 {
-    FmTxStatus  status;
+    FmTxStatus  status=FM_TX_STATUS_FAILED;
 
     FMC_FUNC_START("_FM_TX_SM_HandlerDisable_Complete");
 
     FMC_UNUSED_PARAMETER(event);
+
+    /*Neptune Warrning cleanup */
+    FMC_UNUSED_PARAMETER(status);
 
     FMCI_OS_CancelTimer();
     /* Direct transport events to me from now on */
@@ -2995,6 +3066,7 @@ void _FM_TX_SM_HandlerDisable_Complete( FMC_UINT event, void *eventData)
                         ("FM_TX_Enable: FMCI_SetEventCallback Failed (%s)", FMC_DEBUG_FmcStatusStr(status)));
     recievedDisable = FMC_FALSE;
     _fmTxSmData.context.state = FM_TX_SM_CONTEXT_STATE_DISABLED;
+    _fmTxSmData.context.fwCache.transmissionOn = FMC_FALSE;
 
     _FM_TX_SM_HandleCompletionOfCurrCmd(NULL,NULL, eventData);
 
@@ -3020,6 +3092,9 @@ void _FM_TX_SM_HandlerTune_Start( FMC_UINT event, void *eventData)
     FMC_FUNC_START("_FM_TX_SM_HandlerTune_Start");
 
     FMC_UNUSED_PARAMETER(eventData);
+    
+    /*Neptune Warrning cleanup */
+    FMC_UNUSED_PARAMETER(status);
     
     FMC_VERIFY_FATAL((event == _FM_TX_SM_EVENT_START), FM_TX_STATUS_INTERNAL_ERROR,
                         ("_FM_TX_SM_HandlerTune_Start: Unexpected Event (%d)", event));
@@ -3501,13 +3576,13 @@ void _FM_TX_SM_HandlerChangeMonoStereoMode_SendChangeConfigurationCmd( FMC_UINT 
 }
 void _FM_TX_SM_HandlerChangeMonoStereoMode_SetMonoModeCmd( FMC_UINT event, void *eventData)
 {
-
+    FmTxSetMonoStereoModeCmd    *setMonoModeCmd = (FmTxSetMonoStereoModeCmd*)_fmTxSmData.currCmdInfo.baseCmd;
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
     /* if changing digital audio operation configuration succeeded - configure the fm mono stereo mode*/
     if(_fmTxSmData.context.transportEventData.status == FMC_STATUS_SUCCESS)
     {
-        _FM_TX_SM_UptadeSmStateSendWriteCommand(FMC_FW_OPCODE_TX_MONO_SET_GET, _fmTxSmData.context.vacParams.monoStereoMode);
+        _FM_TX_SM_UptadeSmStateSendWriteCommand(FMC_FW_OPCODE_TX_MONO_SET_GET, setMonoModeCmd->monoMode);
         
         _fmTxSmData.currCmdInfo.stageIndex++;
     }
@@ -3711,18 +3786,12 @@ FmcFwCmdParmsValue _FM_TX_SM_HandlerStartTransmission_GetCmdParmValue(void)
 
 void _FM_TX_SM_HandlerStopTransmission_Start( FMC_UINT event, void *eventData)
 {
-    ECCM_VAC_Status vacStatus;
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
 
     FMCI_OS_ResetTimer(FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD);
 
-    /*since this is a tx operation we know it will end sync */
-    vacStatus = CCM_VAC_StopOperation(CCM_GetVac(_FMC_CORE_GetCcmObjStackHandle()),CAL_OPERATION_FM_TX);
-
-    _fmTxSmData.currCmdInfo.stageIndex++;
-    _FM_TX_SM_CheckInterruptsAndThenDispatch(_FM_TX_SM_EVENT_CONTINUE, NULL);
-
+    _FM_TX_SM_HandleVacStatusAndMove2NextStage(CCM_VAC_StopOperation(CCM_GetVac(_FMC_CORE_GetCcmObjStackHandle()),CAL_OPERATION_FM_TX),eventData);
     
 }
 /******************************************************************************************************************************************************************
@@ -3799,11 +3868,12 @@ FmcFwCmdParmsValue _FM_TX_SM_HandlerStopTransmission_GetCmdParmValue(void)
 void _FM_TX_SM_HandlerTransmissionMode_Start( FMC_UINT event, void *eventData)
 {
     FmTxSetRdsTransmissionModeCmd   *setRdsTransmissionModeCmd = (FmTxSetRdsTransmissionModeCmd*)_fmTxSmData.currCmdInfo.baseCmd;
-    FmcStatus status;
+    FmcStatus status=FMC_STATUS_SUCCESS;
     FMC_FUNC_START("_FM_TX_SM_HandlerTransmissionMode_Start");
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
-
+    /*Neptune Warrning cleanup */
+    FMC_UNUSED_PARAMETER(status);
 
     FMC_VERIFY_FATAL((!_fmTxSmData.context.fwCache.rdsEnabled), FM_TX_STATUS_INTERNAL_ERROR,
                         ("_FM_TX_SM_HandlerTransmissionMode_Start: transmission must be OFF when changing modes "));
@@ -3988,11 +4058,12 @@ void _FM_TX_SM_HandlerGetRdsTransmissionModeCmd_Start( FMC_UINT event, void *eve
 void _FM_TX_SM_HandlerTransmitMask_Start( FMC_UINT event, void *eventData)
 {
     FmTxSetRdsTransmittedFieldsMaskCmd  *setRdsTransmitMaskCmd = (FmTxSetRdsTransmittedFieldsMaskCmd*)_fmTxSmData.currCmdInfo.baseCmd;
-    FmcStatus status;
+    FmcStatus status=FMC_STATUS_SUCCESS;
     FMC_FUNC_START("_FM_TX_SM_HandlerTransmitMask_Start");
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
-
+    /*Neptune Warrning cleanup */
+    FMC_UNUSED_PARAMETER(status);
 
     FMC_VERIFY_FATAL((_fmTxSmData.context.fwCache.transmissionMode == FMC_RDS_TRANSMISSION_AUTOMATIC), FM_TX_STATUS_INTERNAL_ERROR,
                         ("_FM_TX_SM_HandlerTransmissionMode_Start: tmast be in auto made to set mask "));
@@ -4132,7 +4203,7 @@ void _FM_TX_SM_HandlerSetTrafficCodes_SendTaSetCmd( FMC_UINT event, void *eventD
 
     trafficCodesCmd  = (FmTxSetRdsTrafficCodesCmd*)_fmTxSmData.currCmdInfo.baseCmd;
     
-    _FM_TX_SM_UptadeSmStateSendWriteCommand(FMC_FW_OPCODE_TX_RDS_TA_SET, (FMC_U16)trafficCodesCmd->taCode);/*[ToDo Zvi] we should insert the real parameters*/
+    _FM_TX_SM_UptadeSmStateSendWriteCommand(FMC_FW_OPCODE_TX_RDS_TA_SET_GET, (FMC_U16)trafficCodesCmd->taCode);
 
     _fmTxSmData.currCmdInfo.stageIndex++;
 
@@ -4145,7 +4216,7 @@ void _FM_TX_SM_HandlerSetTrafficCodes_SendTpSetCmd( FMC_UINT event, void *eventD
 
     trafficCodesCmd  = (FmTxSetRdsTrafficCodesCmd*)_fmTxSmData.currCmdInfo.baseCmd;
     
-    _FM_TX_SM_UptadeSmStateSendWriteCommand(FMC_FW_OPCODE_TX_RDS_TP_SET, (FMC_U16)trafficCodesCmd->tpCode);/*[ToDo Zvi] we should insert the real parameters*/
+    _FM_TX_SM_UptadeSmStateSendWriteCommand(FMC_FW_OPCODE_TX_RDS_TP_SET_GET, (FMC_U16)trafficCodesCmd->tpCode);
 
     _fmTxSmData.currCmdInfo.stageIndex++;
 
@@ -4181,6 +4252,77 @@ void _FM_TX_SM_HandlerSetRdsTrafficCodes_FillEventData(FmTxEvent *event, void *e
     event->p.cmdDone.v.trafficCodes.taCode = (FMC_U32)(_fmTxSmData.context.fwCache.rdsTaCode);
     event->p.cmdDone.v.trafficCodes.tpCode = (FMC_U32)(_fmTxSmData.context.fwCache.rdsTpCode);
 }
+/*
+########################################################################################################################
+    Get Traffic Codes
+########################################################################################################################
+*/
+
+void _FM_TX_SM_HandlerGetTrafficCodes_Start( FMC_UINT event, void *eventData)
+{
+    FMC_UNUSED_PARAMETER(event);    
+    FMC_UNUSED_PARAMETER(eventData);
+
+    FMCI_OS_ResetTimer(FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD);
+
+    _fmTxSmData.currCmdInfo.stageIndex++;
+    _FM_TX_SM_CheckInterruptsAndThenDispatch(_FM_TX_SM_EVENT_CONTINUE, NULL);
+
+}
+void _FM_TX_SM_HandlerGetTrafficCodes_SendTaGetCmd( FMC_UINT event, void *eventData)
+{
+    FMC_UNUSED_PARAMETER(event);    
+    FMC_UNUSED_PARAMETER(eventData);
+    
+    _FM_TX_SM_UptadeSmStateSendReadCommand(FMC_FW_OPCODE_TX_RDS_TA_SET_GET);
+
+    _fmTxSmData.currCmdInfo.stageIndex++;
+
+}
+void _FM_TX_SM_HandlerGetTrafficCodes_SendTpGetCmd( FMC_UINT event, void *eventData)
+{
+    _FmTxSmTransportEventData *transportEventData = NULL;
+
+    FMC_UNUSED_PARAMETER(event);    
+    transportEventData=eventData;
+    _fmTxSmData.context.fwCache.rdsTaCode=FMC_UTILS_BEtoHost16(&transportEventData->data[0]);
+    _FM_TX_SM_UptadeSmStateSendReadCommand(FMC_FW_OPCODE_TX_RDS_TP_SET_GET);
+
+    _fmTxSmData.currCmdInfo.stageIndex++;
+
+}
+void _FM_TX_SM_HandlerGetTrafficCodes_Complete( FMC_UINT event, void *eventData)
+{
+        _FmTxSmTransportEventData *transportEventData = NULL;
+    FMC_FUNC_START("_FM_TX_SM_HandlerGetTrafficCodes_Complete");
+
+    transportEventData=eventData;
+    _fmTxSmData.context.fwCache.rdsTpCode=FMC_UTILS_BEtoHost16(&transportEventData->data[0]);
+        
+    FMC_UNUSED_PARAMETER(event);    
+
+    FMCI_OS_CancelTimer();
+
+    _FM_TX_SM_HandleCompletionOfCurrCmd(NULL,
+                                            _fmTxSmSetCmdFillEventDataMap[_fmTxSmData.currCmdInfo.baseCmd->cmdType], 
+                                            eventData);
+
+    /* Make sure additional commands in queue are processed (if available) */
+    FMCI_NotifyFmTask(FMC_OS_EVENT_GENERAL);
+
+    FMC_FUNC_END();
+
+}
+
+
+void _FM_TX_SM_HandlerGetRdsTrafficCodes_FillEventData(FmTxEvent *event, void *eventData)
+{
+    FMC_UNUSED_PARAMETER(eventData);
+
+    event->p.cmdDone.v.trafficCodes.taCode = (FMC_U32)(_fmTxSmData.context.fwCache.rdsTaCode);
+    event->p.cmdDone.v.trafficCodes.tpCode = (FMC_U32)(_fmTxSmData.context.fwCache.rdsTpCode);
+}
+
 /*
 ########################################################################################################################
     Set PS Text
@@ -4685,11 +4827,8 @@ FmcFwCmdParmsValue _FM_TX_SM_HandlerSetPreEmphasisFilter_GetCmdParmValue(void)
 FmcFwCmdParmsValue _FM_TX_SM_HandlerSetRdsAfCode_GetCmdParmValue(void)
 {
     FmTxSetRdsAfCodeCmd *setRdsAfCodeCmd = (FmTxSetRdsAfCodeCmd*)_fmTxSmData.currCmdInfo.baseCmd;
-    /* 
-        Convert the absolute frequency to a firmware channel index
-    */
-    /*AF not supported in Japan*/
-    return FMC_UTILS_FreqToFwChannelIndex(FMC_BAND_EUROPE_US,FMC_CHANNEL_SPACING_50_KHZ,setRdsAfCodeCmd->afCode);
+
+    return (FmcFwCmdParmsValue)setRdsAfCodeCmd->afCode;
 }
 FmcFwCmdParmsValue _FM_TX_SM_HandlerSetRdsPiCode_GetCmdParmValue(void)
 {
@@ -4756,6 +4895,10 @@ void _FM_TX_SM_HandlerSetMuteMode_UpdateCache(void)
 void _FM_TX_SM_HandlerEnableRds_UpdateCache(void)
 {
     _fmTxSmData.context.fwCache.rdsEnabled = FMC_TRUE;
+}
+void _FM_TX_SM_HandlerPowerLvl_UpdateCache(void)
+{
+    _fmTxSmData.context.fwCache.powerLevel =_FM_TX_SM_HandlerSetPowerLevel_GetCmdParmValue();
 }
 
 void _FM_TX_SM_HandlerDisableRds_UpdateCache(void)
@@ -4989,9 +5132,9 @@ FmTxStatus _FM_TX_SM_HandleCompletionOfCurrCmd( _FmTxSmSetCmdCompleteFunc   cmdC
     return status;
 }
 
-void _FM_TX_SM_SendAppCmdCompleteEvent( FmTxContext                         *context, 
-                                                        FmTxStatus                      completionStatus,
-                                                        FmTxCmdType                 cmdType)
+void _FM_TX_SM_SendAppCmdCompleteEvent(FmTxContext *context, 
+                                       FmTxStatus completionStatus,
+                                       FmTxCmdType cmdType)
 {
     FMC_UNUSED_PARAMETER(context);
 
@@ -4999,6 +5142,37 @@ void _FM_TX_SM_SendAppCmdCompleteEvent( FmTxContext                         *con
     _fmTxSmData.context.appEvent.eventType = FM_TX_EVENT_CMD_DONE;
     _fmTxSmData.context.appEvent.status = completionStatus;
     _fmTxSmData.context.appEvent.p.cmdDone.cmdType = cmdType;
+
+    switch(cmdType)
+    {
+        case FM_TX_CMD_GET_MUTE_MODE:
+            /* When issuing a FM_TX_CMD_GET_MUTE_MODE we need to parse the
+             * values to the FmcMuteMode values. */
+            switch(_fmTxSmData.context.appEvent.p.cmdDone.v.value)
+            {
+                case FMC_FW_TX_UNMUTE:
+                    _fmTxSmData.context.appEvent.p.cmdDone.v.value = FMC_NOT_MUTE;
+                    break;
+                
+                case FMC_FW_TX_MUTE:
+                    _fmTxSmData.context.appEvent.p.cmdDone.v.value = FMC_MUTE;
+                    break;
+
+                default:
+                    FMC_ASSERT(0);
+                    break;
+            }
+            break;
+
+        case FM_TX_CMD_GET_RDS_EXTENDED_COUNTRY_CODE:
+            /* Get only Extended Country Code - bits 15-8 */
+            _fmTxSmData.context.appEvent.p.cmdDone.v.value =
+                            _fmTxSmData.context.appEvent.p.cmdDone.v.value >> 8;
+            break;
+
+        default:
+            break;
+    }
     
     (_fmTxSmData.context.appCb)(&_fmTxSmData.context.appEvent);
 }
@@ -5015,13 +5189,12 @@ McpBtsSpStatus _FM_TX_SM_TiSpSendHciScriptCmd(  McpBtsSpContext *context,
                                                         McpU8   *hciCmdParms, 
                                                         McpUint len)
 {
-    FmcStatus fmcStatus;
         
     FMC_UNUSED_PARAMETER(context);
 
     _FM_TX_SM_UpdateState(_FM_TX_SM_STATE_WAITING_FOR_CC);
     /* Send the next HCI Script command */
-    fmcStatus = FMC_CORE_SendHciScriptCommand(  hciOpcode, 
+    FMC_CORE_SendHciScriptCommand(  hciOpcode, 
                                                                     hciCmdParms, 
                                                                     len);
 
@@ -5329,7 +5502,7 @@ FmcFreq FM_TX_SM_GetCurrentAndPendingTunedFreq(FmTxContext *context)
     
     return freq;
 }
-FMC_UINT _getIndexOfLastStage()
+FMC_UINT _getIndexOfLastStage(void)
 {
     return ((_fmTxSmCmdsTable[(FMC_UINT)_fmTxSmData.currCmdInfo.baseCmd->cmdType]->numOfStages) - 1);
 }
@@ -5356,16 +5529,16 @@ void _FM_TX_SM_HandleVacStatusAndMove2NextStage(ECCM_VAC_Status vacStatus,void *
             _fmTxSmData.currCmdInfo.status = FM_TX_STATUS_AUDIO_OPERATION_UNAVAILIBLE_RESOURCES;
             _fmTxSmData.currCmdInfo.stageIndex = _getIndexOfLastStage();
         }
-	 else if(vacStatus == CCM_VAC_STATUS_FAILURE_OPERATION_NOT_SUPPORTED)
-	 {
-		_fmTxSmData.currCmdInfo.status = FM_TX_STATUS_NOT_APPLICABLE;
-		_fmTxSmData.currCmdInfo.stageIndex = _getIndexOfLastStage();
-	 }
-	 else 
-	 {
-		 _fmTxSmData.currCmdInfo.status = FM_TX_STATUS_INTERNAL_ERROR;
-		 _fmTxSmData.currCmdInfo.stageIndex = _getIndexOfLastStage();
-	 }
+     else if(vacStatus == CCM_VAC_STATUS_FAILURE_OPERATION_NOT_SUPPORTED)
+     {
+        _fmTxSmData.currCmdInfo.status = FM_TX_STATUS_NOT_APPLICABLE;
+        _fmTxSmData.currCmdInfo.stageIndex = _getIndexOfLastStage();
+     }
+     else 
+     {
+         _fmTxSmData.currCmdInfo.status = FM_TX_STATUS_INTERNAL_ERROR;
+         _fmTxSmData.currCmdInfo.stageIndex = _getIndexOfLastStage();
+     }
         _FM_TX_SM_CheckInterruptsAndThenDispatch(_FM_TX_SM_EVENT_CONTINUE, eventData);  
     }
 }
@@ -5386,7 +5559,7 @@ ECAL_ResourceMask _convertTxSourceToCal(FmTxAudioSource source,TCAL_ResourceProp
             pProperties->uPropertiesNumber = 0;
             return CAL_RESOURCE_MASK_FM_ANALOG;
         default:/*Ileagal source*/
-            return 0;
+            return CAL_RESOURCE_MASK_NONE;
     }
 }
 

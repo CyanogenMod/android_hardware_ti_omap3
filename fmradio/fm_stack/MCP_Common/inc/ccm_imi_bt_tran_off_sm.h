@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 #ifndef __CCM_IMI_BT_TRAN_OFF_SM_H
 #define __CCM_IMI_BT_TRAN_OFF_SM_H
 
@@ -65,9 +66,9 @@ _CcmImStatus _CCM_IM_BtTranOffSm_Create(    McpHalChipId                        
                                                     BtHciIfObj                      *btHciIfObj,
                                                     _CcmIm_BtTranOffSm_CompletionCb parentCb,
                                                     McpHalOsSemaphoreHandle         ccmImMutexHandle,
-                                                    _CcmIm_BtTranOffSm_Obj          **this);
+                                                    _CcmIm_BtTranOffSm_Obj          **thisObj);
                                             
-_CcmImStatus _CCM_IM_BtTranOffSm_Destroy(_CcmIm_BtTranOffSm_Obj **this);
+_CcmImStatus _CCM_IM_BtTranOffSm_Destroy(_CcmIm_BtTranOffSm_Obj **thisObj);
 
 _CcmImStatus _CCM_IM_BtTranOffSm_HandleEvent(   _CcmIm_BtTranOffSm_Obj      *smData, 
                                                             _CcmIm_BtTranOffSm_Event        event,

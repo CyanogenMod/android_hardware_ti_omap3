@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and  
  * limitations under the License.
  */
+
 /*******************************************************************************\
 *
 *   FILE NAME:      mcp_config_reader.h
@@ -77,6 +78,22 @@ typedef struct _McpConfigReader
 McpBool MCP_CONFIG_READER_Open (McpConfigReader *pConfigReader, 
                                 McpUtf8 *pFileName, 
                                 McpU8 *pMemConfig);
+/*-------------------------------------------------------------------------------
+ * MCP_CONFIG_READER_Close()
+ *
+ * Brief:  
+ *		Closes the file indicated by pConfigReader->tFile if exists.
+ *		
+ * Description:
+ *		Closes the file indicated by pConfigReader->tFile if exists.
+ *
+ * Type:
+ *		Synchronous
+ *
+ * Parameters:
+ *		pConfigParser	[in]	- The memory for the config reader object
+ */
+McpBool MCP_CONFIG_READER_Close (McpConfigReader *pConfigReader);
 
 /*-------------------------------------------------------------------------------
  * MCP_CONFIG_READER_getNextLine()

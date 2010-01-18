@@ -16,14 +16,18 @@
  * limitations under the License.
  */
 
+
 #include "mcp_hal_os.h"
 #include "mcp_ver_defs.h"
 #include "bt_hci_if.h"
 #include "ccm_imi_bt_tran_sm.h"
 #include "ccm_imi_bt_tran_on_sm.h"
 #include "ccm_imi_bt_tran_off_sm.h"
+#include "mcp_hal_log.h"
 
-typedef _CcmImStatus (*_CCM_IM_BtTranSm_Action)(_CcmIm_BtTranSm_Obj *this, void *eventData);
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_CCM_IM);
+
+typedef _CcmImStatus (*_CCM_IM_BtTranSm_Action)(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
 
 struct _tagCcmIm_BtTranSm_Obj {
     _CcmIm_BtTranSm_State           state;
@@ -59,18 +63,18 @@ MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_InternalHandleEvent(
                                                         _CcmIm_BtTranSm_Event   event,
                                                         void                        *eventData);
 
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTurnTranOn(_CcmIm_BtTranSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnCompleted(_CcmIm_BtTranSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnFailed(_CcmIm_BtTranSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOff(_CcmIm_BtTranSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOffCompleted(_CcmIm_BtTranSm_Obj *this, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTurnTranOn(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnCompleted(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnFailed(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOff(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOffCompleted(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
 
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerAbortOn(_CcmIm_BtTranSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedStartOff(_CcmIm_BtTranSm_Obj *this, void *eventData);
-MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedOffCompleted(_CcmIm_BtTranSm_Obj *this, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerAbortOn(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedStartOff(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
+MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedOffCompleted(_CcmIm_BtTranSm_Obj *thisObj, void *eventData);
 
 MCP_STATIC _CcmImStatus _CCM_IM_BtTranSm_PerformCompletion( 
-                                _CcmIm_BtTranSm_Obj                     *this,
+                                _CcmIm_BtTranSm_Obj                     *thisObj,
                                 _CcmIm_BtTranSm_CompletionEventType eventType,
                                 _CcmImStatus                        completionStatus);
                                                                 
@@ -109,36 +113,36 @@ _CcmImStatus _CCM_IM_BtTranSm_StaticInit(void)
 _CcmImStatus _CCM_IM_BtTranSm_Create(   McpHalChipId                        chipId,
                                                     _CcmIm_BtTranSm_CompletionCb    parentCb,
                                                 McpHalOsSemaphoreHandle         ccmImMutexHandle,
-                                                    _CcmIm_BtTranSm_Obj             **this)
+                                                    _CcmIm_BtTranSm_Obj             **thisObj)
 {
     _CcmImStatus    status;
     BtHciIfStatus       btHciIfStatus;
 
     MCP_FUNC_START("_CCM_IM_BtTranSm_Create");
 
-    *this = &_ccmIm_BtTranSm_Data.smObjs[chipId];
+    *thisObj = &_ccmIm_BtTranSm_Data.smObjs[chipId];
 
-    (*this)->chipId = chipId;
-    (*this)->parentCb = parentCb;
+    (*thisObj)->chipId = chipId;
+    (*thisObj)->parentCb = parentCb;
 
     /* Create the BT HCI If obj that is used by both BtTranSmOn and BtTranSmOff state instances */
-    btHciIfStatus = BT_HCI_IF_Create((*this)->chipId, NULL, &((*this)->btHciIfObj));
+    btHciIfStatus = BT_HCI_IF_Create((*thisObj)->chipId, NULL, &((*thisObj)->btHciIfObj));
     MCP_VERIFY_FATAL((btHciIfStatus == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranSm_Create: BT_HCI_IF_Create Failed"));
 
-    status  = _CCM_IM_BtTranOnSm_Create(    (*this)->chipId,
-                                            (*this)->btHciIfObj,
+    status  = _CCM_IM_BtTranOnSm_Create(    (*thisObj)->chipId,
+                                            (*thisObj)->btHciIfObj,
                                             _CCM_IM_BtTranSm_TranOnSmCb,
                                             ccmImMutexHandle,
-                                            &(*this)->tranOnSmObj);
+                                            &(*thisObj)->tranOnSmObj);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranSm_Create: _CCM_IM_BtTranOnSm_Create Failed"));
 
-    status  = _CCM_IM_BtTranOffSm_Create(   (*this)->chipId,
-                                            (*this)->btHciIfObj,
+    status  = _CCM_IM_BtTranOffSm_Create(   (*thisObj)->chipId,
+                                            (*thisObj)->btHciIfObj,
                                             _CCM_IM_BtTranSm_TranOffSmCb,
                                             ccmImMutexHandle,
-                                            &(*this)->tranOffSmObj);
+                                            &(*thisObj)->tranOffSmObj);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranSm_Create: _CCM_IM_BtTranOffSm_Create Failed"));
 
@@ -149,33 +153,33 @@ _CcmImStatus _CCM_IM_BtTranSm_Create(   McpHalChipId                        chip
     return status;
 }
                                             
-_CcmImStatus _CCM_IM_BtTranSm_Destroy(_CcmIm_BtTranSm_Obj **this)
+_CcmImStatus _CCM_IM_BtTranSm_Destroy(_CcmIm_BtTranSm_Obj **thisObj)
 {
     _CcmImStatus    status;
     BtHciIfStatus       btHciIfStatus;
 
     MCP_FUNC_START("_CCM_IM_BtTranSm_Create");
     
-    status  = _CCM_IM_BtTranOffSm_Destroy(&(*this)->tranOffSmObj);
+    status  = _CCM_IM_BtTranOffSm_Destroy(&(*thisObj)->tranOffSmObj);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranSm_Destroy: _CCM_IM_BtTranOffSm_Destroy Failed"));
 
-    status  = _CCM_IM_BtTranOnSm_Destroy(&(*this)->tranOnSmObj);
+    status  = _CCM_IM_BtTranOnSm_Destroy(&(*thisObj)->tranOnSmObj);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranSm_Destroy: _CCM_IM_BtTranOnSm_Destroy Failed"));
 
-    btHciIfStatus = BT_HCI_IF_Destroy(&((*this)->btHciIfObj));
+    btHciIfStatus = BT_HCI_IF_Destroy(&((*thisObj)->btHciIfObj));
     MCP_VERIFY_FATAL((btHciIfStatus == _CCM_IM_STATUS_SUCCESS), _CCM_IM_STATUS_INTERNAL_ERROR,
                         ("_CCM_IM_BtTranSm_Destroy: BT_HCI_IF_Destroy Failed"));
 
-    *this = NULL;
+    *thisObj = NULL;
 
     MCP_FUNC_END();
     
     return status;
 }
 
-_CcmImStatus _CCM_IM_BtTranSm_HandleEvent(  _CcmIm_BtTranSm_Obj         *this, 
+_CcmImStatus _CCM_IM_BtTranSm_HandleEvent(  _CcmIm_BtTranSm_Obj         *thisObj, 
                                                         _CcmIm_BtTranSm_Event   event,
                                                         void                        *eventData)
 {
@@ -183,13 +187,13 @@ _CcmImStatus _CCM_IM_BtTranSm_HandleEvent(  _CcmIm_BtTranSm_Obj         *this,
         This function is called by the parent (BtTranMngr) => we should initialize the flag (this is the beginning of the
         process
     */
-    this->asyncCompletion = MCP_FALSE;
+    thisObj->asyncCompletion = MCP_FALSE;
 
     /* Call the actual SM engine */
-    return _CCM_IM_BtTranSm_InternalHandleEvent(this, event, eventData);
+    return _CCM_IM_BtTranSm_InternalHandleEvent(thisObj, event, eventData);
 }
 
-_CcmImStatus _CCM_IM_BtTranSm_InternalHandleEvent(  _CcmIm_BtTranSm_Obj         *this, 
+_CcmImStatus _CCM_IM_BtTranSm_InternalHandleEvent(  _CcmIm_BtTranSm_Obj         *thisObj, 
                                                                 _CcmIm_BtTranSm_Event   event,
                                                                 void                        *eventData)
 {
@@ -198,25 +202,25 @@ _CcmImStatus _CCM_IM_BtTranSm_InternalHandleEvent(  _CcmIm_BtTranSm_Obj         
     
     MCP_FUNC_START("_CCM_IM_BtTranSm_InternalHandleEvent");
     
-    MCP_VERIFY_FATAL((this != NULL), _CCM_IM_STATUS_INVALID_PARM, ("_CCM_IM_BtTranSm_InternalHandleEvent: Null this"));
+    MCP_VERIFY_FATAL((thisObj != NULL), _CCM_IM_STATUS_INVALID_PARM, ("_CCM_IM_BtTranSm_InternalHandleEvent: Null this"));
     MCP_VERIFY_FATAL((event < _CCM_IM_NUM_OF_BT_TRAN_SM_EVENTS), _CCM_IM_STATUS_INVALID_PARM,
                         ("_CCM_IM_BtTranSm_InternalHandleEvent: Invalid event (%d)", event));
 
     MCP_LOG_INFO(("_CCM_IM_BtTranSm_InternalHandleEvent: Handling SM{%s, %s}", 
-                    _CCM_IM_BtTranSm_DebugStatetStr(this->state),
+                    _CCM_IM_BtTranSm_DebugStatetStr(thisObj->state),
                     _CCM_IM_BtTranSm_DebugEventStr(event)));
     
     /* Extract the SM entry matching the current {state, event} */
-    smEntry = &_ccmIm_BtTranSm_Data.sm[this->state][event];
+    smEntry = &_ccmIm_BtTranSm_Data.sm[thisObj->state][event];
     
     MCP_VERIFY_FATAL((smEntry->action != NULL), _CCM_IM_STATUS_NULL_SM_ENTRY, 
                         ("_CCM_IM_BtTranSm_InternalHandleEvent: No matching SM Entry"));
     
     /* Transit to the next SM state */
-    this->state = smEntry->nextState;
+    thisObj->state = smEntry->nextState;
 
     /* The entry is valid, invoke the action */
-    status = (smEntry->action)(this, eventData);
+    status = (smEntry->action)(thisObj, eventData);
 
     if (status == _CCM_IM_STATUS_SUCCESS)
     {
@@ -224,7 +228,7 @@ _CcmImStatus _CCM_IM_BtTranSm_InternalHandleEvent(  _CcmIm_BtTranSm_Obj         
     }
     else if (status == _CCM_IM_STATUS_PENDING)
     {
-        this->asyncCompletion = MCP_TRUE;   
+        thisObj->asyncCompletion = MCP_TRUE;   
     }
     else
     {
@@ -240,11 +244,11 @@ _CcmImStatus _CCM_IM_BtTranSm_InternalHandleEvent(  _CcmIm_BtTranSm_Obj         
 
         if (smEntry->syncNextEvent != _CCM_IM_BT_TRAN_SM_EVENT_NULL_EVENT)
         {
-            status = _CCM_IM_BtTranSm_InternalHandleEvent(this, smEntry->syncNextEvent, NULL);
+            status = _CCM_IM_BtTranSm_InternalHandleEvent(thisObj, smEntry->syncNextEvent, NULL);
         }
     }
 
-    MCP_LOG_INFO(("_CCM_IM_BtTranSm_InternalHandleEvent: On Exit, State: %s", _CCM_IM_BtTranSm_DebugStatetStr(this->state)));
+    MCP_LOG_INFO(("_CCM_IM_BtTranSm_InternalHandleEvent: On Exit, State: %s", _CCM_IM_BtTranSm_DebugStatetStr(thisObj->state)));
     
     MCP_FUNC_END();
     
@@ -278,12 +282,12 @@ BtHciIfObj *CCM_IM_BtTranSm_GetBtHciIfObj(_CcmIm_BtTranSm_Obj *smData)
     return smData->btHciIfObj;
 }
 
-void _CCM_IM_BtTranSm_GetChipVersion(_CcmIm_BtTranSm_Obj *this,
+void _CCM_IM_BtTranSm_GetChipVersion(_CcmIm_BtTranSm_Obj *thisObj,
                                      McpU16 *projectType,
                                      McpU16 *versionMajor,
                                      McpU16 *versionMinor)
 {
-    _CCM_IM_BtTranOnSm_GetChipVersion(this->tranOnSmObj, projectType, versionMajor, versionMinor);
+    _CCM_IM_BtTranOnSm_GetChipVersion(thisObj->tranOnSmObj, projectType, versionMajor, versionMinor);
 }
 
 void _CCM_IM_BtTranSm_StaticInitSm(void)
@@ -427,7 +431,7 @@ void    _CCM_IM_BtTranSm_StaticInitInstances(void)
 
     The tran_on_sm will be called to handle that
 */
-_CcmImStatus _CCM_IM_BtTranSm_HandlerTurnTranOn(_CcmIm_BtTranSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranSm_HandlerTurnTranOn(_CcmIm_BtTranSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus    status;
 
@@ -435,7 +439,7 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerTurnTranOn(_CcmIm_BtTranSm_Obj *this, void 
     
     MCP_UNUSED_PARAMETER(eventData);
 
-    status  = _CCM_IM_BtTranOnSm_HandleEvent(   this->tranOnSmObj,
+    status  = _CCM_IM_BtTranOnSm_HandleEvent(   thisObj->tranOnSmObj,
                                                 _CCM_IM_BT_TRAN_ON_SM_EVENT_START,
                                                 NULL);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_PENDING), status, ("_CCM_IM_BtTranSm_HandlerTurnTranOn"));
@@ -448,11 +452,11 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerTurnTranOn(_CcmIm_BtTranSm_Obj *this, void 
 /*
     This function is called when tran_on_sm completes turning the transport on
 */
-_CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnCompleted(_CcmIm_BtTranSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnCompleted(_CcmIm_BtTranSm_Obj *thisObj, void *eventData)
 {
     MCP_UNUSED_PARAMETER(eventData);
     
-    return _CCM_IM_BtTranSm_PerformCompletion(this, 
+    return _CCM_IM_BtTranSm_PerformCompletion(thisObj, 
                                                 _CCM_IM_BT_TRAN_SM_COMPLETED_EVENT_TRAN_ON_COMPLETED,
                                                 _CCM_IM_STATUS_SUCCESS);
 }
@@ -460,13 +464,13 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnCompleted(_CcmIm_BtTranSm_Obj *this, 
 /*
     This function is called when transport on failed
 */
-_CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnFailed(_CcmIm_BtTranSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnFailed(_CcmIm_BtTranSm_Obj *thisObj, void *eventData)
 {
     MCP_UNUSED_PARAMETER(eventData);
 
     MCP_LOG_FATAL(("_CCM_IM_BtTranSm_HandlerTranOnFailed: Tran On Failed"));
     
-    return _CCM_IM_BtTranSm_PerformCompletion(this, 
+    return _CCM_IM_BtTranSm_PerformCompletion(thisObj, 
                                                 _CCM_IM_BT_TRAN_SM_COMPLETED_EVENT_TRAN_ON_COMPLETED,
                                                 _CCM_IM_STATUS_FAILED);
 }
@@ -476,7 +480,7 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOnFailed(_CcmIm_BtTranSm_Obj *this, voi
 
     The tran_off_sm will be called to handle that
 */
-_CcmImStatus _CCM_IM_BtTranSm_HandlerTranOff(_CcmIm_BtTranSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranSm_HandlerTranOff(_CcmIm_BtTranSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus    status;
 
@@ -484,7 +488,7 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOff(_CcmIm_BtTranSm_Obj *this, void *ev
     
     MCP_UNUSED_PARAMETER(eventData);
     
-    status  = _CCM_IM_BtTranOffSm_HandleEvent(  this->tranOffSmObj,
+    status  = _CCM_IM_BtTranOffSm_HandleEvent(  thisObj->tranOffSmObj,
                                                 _CCM_IM_BT_TRAN_OFF_SM_EVENT_START,
                                                 NULL);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS) || (status == _CCM_IM_STATUS_PENDING), status,
@@ -498,11 +502,11 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOff(_CcmIm_BtTranSm_Obj *this, void *ev
 /*
     This function is called when tran_off_sm completes shutting down the transport
 */
-_CcmImStatus _CCM_IM_BtTranSm_HandlerTranOffCompleted(_CcmIm_BtTranSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranSm_HandlerTranOffCompleted(_CcmIm_BtTranSm_Obj *thisObj, void *eventData)
 {
     MCP_UNUSED_PARAMETER(eventData);
     
-    return _CCM_IM_BtTranSm_PerformCompletion(this, 
+    return _CCM_IM_BtTranSm_PerformCompletion(thisObj, 
                                                 _CCM_IM_BT_TRAN_SM_COMPLETED_EVENT_TRAN_OFF_COMPLETED,
                                                 _CCM_IM_STATUS_SUCCESS);
 }
@@ -512,7 +516,7 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerTranOffCompleted(_CcmIm_BtTranSm_Obj *this,
 
     The event is forwarded to tran_on_sm that should handle it according to its state
 */
-_CcmImStatus _CCM_IM_BtTranSm_HandlerAbortOn(_CcmIm_BtTranSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranSm_HandlerAbortOn(_CcmIm_BtTranSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus    status;
 
@@ -520,7 +524,7 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerAbortOn(_CcmIm_BtTranSm_Obj *this, void *ev
     
     MCP_UNUSED_PARAMETER(eventData);
 
-    status  = _CCM_IM_BtTranOnSm_HandleEvent(   this->tranOnSmObj,
+    status  = _CCM_IM_BtTranOnSm_HandleEvent(   thisObj->tranOnSmObj,
                                                 _CCM_IM_BT_TRAN_ON_SM_EVENT_ABORT,
                                                 NULL);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_PENDING), status, ("_CCM_IM_BtTranOnSm_HandleEvent"));
@@ -536,7 +540,7 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerAbortOn(_CcmIm_BtTranSm_Obj *this, void *ev
     transport off. This is required in order to bring the transport back to the state it was before starting to turn it
     on (which is the off state).
 */
-_CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedStartOff(_CcmIm_BtTranSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedStartOff(_CcmIm_BtTranSm_Obj *thisObj, void *eventData)
 {
     _CcmImStatus    status;
 
@@ -545,7 +549,7 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedStartOff(_CcmIm_BtTranSm_Obj *this
     MCP_UNUSED_PARAMETER(eventData);
 
     /* Call the BtTranOffSm to turn the transport off */
-    status  = _CCM_IM_BtTranOffSm_HandleEvent(  this->tranOffSmObj,
+    status  = _CCM_IM_BtTranOffSm_HandleEvent(  thisObj->tranOffSmObj,
                                                 _CCM_IM_BT_TRAN_OFF_SM_EVENT_START,
                                                 NULL);
     MCP_VERIFY_FATAL((status == _CCM_IM_STATUS_SUCCESS) || (status == _CCM_IM_STATUS_PENDING), status,
@@ -560,17 +564,17 @@ _CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedStartOff(_CcmIm_BtTranSm_Obj *this
     This function is called during the On-Abort process. It is called when the transport off process completed.
     Now the transport is back in the off state.
 */
-_CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedOffCompleted(_CcmIm_BtTranSm_Obj *this, void *eventData)
+_CcmImStatus _CCM_IM_BtTranSm_HandlerOnAbortedOffCompleted(_CcmIm_BtTranSm_Obj *thisObj, void *eventData)
 {
     MCP_UNUSED_PARAMETER(eventData);
     
-    return _CCM_IM_BtTranSm_PerformCompletion(this, 
+    return _CCM_IM_BtTranSm_PerformCompletion(thisObj, 
                                                 _CCM_IM_BT_TRAN_SM_COMPLETED_EVENT_TRAN_ON_ABORT_COMPLETED,
                                                 _CCM_IM_STATUS_SUCCESS);
 }
 
 _CcmImStatus _CCM_IM_BtTranSm_PerformCompletion(    
-                                _CcmIm_BtTranSm_Obj                     *this,
+                                _CcmIm_BtTranSm_Obj                     *thisObj,
                                 _CcmIm_BtTranSm_CompletionEventType eventType,
                                 _CcmImStatus                        completionStatus)
 {
@@ -581,18 +585,18 @@ _CcmImStatus _CCM_IM_BtTranSm_PerformCompletion(
 
     MCP_LOG_INFO(("_CCM_IM_BtTranSm_PerformCompletion: BT Tran Off Completed (status: %d), Calling Parent", completionStatus));
 
-    if (this->asyncCompletion == MCP_TRUE)
+    if (thisObj->asyncCompletion == MCP_TRUE)
     {
         /* 
             Notify parent SM (BtTranSm) of completion and its status. BtTranSm is not aware
             of the id of the stack that initiated Bt Tran Off. It is up to the parent SM to record
             this information.
         */
-        completionEvent.chipId = this->chipId;
+        completionEvent.chipId = thisObj->chipId;
         completionEvent.completionStatus = completionStatus;
         completionEvent.eventType = eventType;
         
-        (this->parentCb)(&completionEvent);
+        (thisObj->parentCb)(&completionEvent);
     }
         
     status =    _CCM_IM_STATUS_SUCCESS;

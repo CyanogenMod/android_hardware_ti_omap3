@@ -26,6 +26,11 @@
 #include "ccm_imi.h"
 #include "ccm_vaci.h"
 #include "ccm_vaci_chip_abstration.h"
+#include "mcp_config_parser.h"
+#include "mcp_unicode.h"
+#include "mcp_hal_log.h"
+
+MCP_HAL_LOG_SET_MODULE(MCP_HAL_LOG_MODULE_TYPE_CCM);
 
 struct tagCcmObj {
     McpUint         refCount;
@@ -34,6 +39,8 @@ struct tagCcmObj {
     CcmImObj        *imObj;
     TCCM_VAC_Object *vacObj;
     Cal_Config_ID   *calObj;
+
+McpConfigParser 			tConfigParser;			/* configuration file storage and parser */
 };
 
 typedef struct tagCcmStaticData {
@@ -55,42 +62,11 @@ void _CCM_NotifyChipOn(void *handle,
 
 CcmStatus CCM_StaticInit(void)
 {
-    CcmStatus       status;
-    CcmImStatus     imStatus;
-    ECCM_VAC_Status vacStatus;
-    
-    /* Used to init once only */
-    static McpBool firstInit = MCP_TRUE;
-
     MCP_FUNC_START("CCM_StaticInit");
 
-    if (firstInit == MCP_FALSE)
-    {
-        MCP_LOG_INFO(("_CCM_StaticInit Already Initialized, Exiting Successfully"));
-        MCP_RET(CCM_STATUS_SUCCESS);
-    }
-
-    firstInit = MCP_FALSE;
-
-    status = _CCM_StaticInit();
-    MCP_VERIFY_FATAL((status == CCM_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR, ("_CCM_StaticInit"));
-
-    /* Initialize contained entities (IM, PM, VAC) */
-    
-    imStatus = CCM_IM_StaticInit();
-    MCP_VERIFY_FATAL((imStatus == CCM_IM_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR, ("CCM_IM_StaticInit"));
-
-    vacStatus = CCM_VAC_StaticInit();
-    MCP_VERIFY_FATAL ((CCM_VAC_STATUS_SUCCESS == vacStatus), CCM_STATUS_INTERNAL_ERROR,
-                      ("CCM_StaticInit: VAC initialization failed with status %d", vacStatus));
-
-    CCM_CAL_StaticInit();
-
-    status = CCM_STATUS_SUCCESS;
-    
     MCP_FUNC_END();
     
-    return status;
+    return CCM_STATUS_SUCCESS;
 }
 
 /*
@@ -98,137 +74,49 @@ CcmStatus CCM_StaticInit(void)
     - Perform CCM "class" static initialization (if necessary - first time)
     - "Create" the instance (again, if it's the first creation of this instance)
 */
-CcmStatus CCM_Create(McpHalChipId chipId, CcmObj **this)
+CcmStatus CCM_Create(McpHalChipId chipId, CcmObj **thisObj)
 {
-    CcmStatus       status;
-    CcmImStatus     imStatus;
-    ECCM_VAC_Status vacStatus;
-    
     MCP_FUNC_START("CCM_Create");
-
-    MCP_VERIFY_FATAL((chipId < MCP_HAL_MAX_NUM_OF_CHIPS), CCM_STATUS_INTERNAL_ERROR, (("Invalid Chip Id"), chipId));
-    
-    if (_CCM_StaticData._ccm_Objs[chipId].refCount == 0)
-    {
-        _CCM_StaticData._ccm_Objs[chipId].chipId = chipId;
-        
-        imStatus = CCM_IM_Create(chipId, &_CCM_StaticData._ccm_Objs[chipId].imObj,
-                                 _CCM_NotifyChipOn, &_CCM_StaticData._ccm_Objs[chipId]);
-        MCP_VERIFY_FATAL((imStatus == CCM_IM_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR, ("CCM_IM_Create Failed"));
-
-        CAL_Create (chipId, CCM_IMI_GetBtHciIfObj (_CCM_StaticData._ccm_Objs[chipId].imObj),
-                    &(_CCM_StaticData._ccm_Objs[chipId].calObj));
-        /* CAL creation cannot fail */
-
-        vacStatus = CCM_VAC_Create (chipId, _CCM_StaticData._ccm_Objs[chipId].calObj, 
-                                    &(_CCM_StaticData._ccm_Objs[chipId].vacObj));
-        MCP_VERIFY_FATAL ((CCM_VAC_STATUS_SUCCESS == vacStatus), CCM_STATUS_INTERNAL_ERROR,
-                          ("CCM_Create: VAC creation failed with status %d", vacStatus));
-    }
-
-    ++_CCM_StaticData._ccm_Objs[chipId].refCount;
-
-    /* Set the instance pointer (out parameter) to be used in external references to this instance */
-    *this = &_CCM_StaticData._ccm_Objs[chipId];
-
-    status = CCM_STATUS_SUCCESS;
     
     MCP_FUNC_END();
 
-    return status;
+    return CCM_STATUS_SUCCESS;
 }
 
 /*
     
 */
-CcmStatus CCM_Destroy(CcmObj **this)
-{
-    CcmStatus       status;
-    CcmImStatus     imStatus;
-
-    McpHalChipId    chipId = (*this)->chipId;
-        
+CcmStatus CCM_Destroy(CcmObj **thisObj)
+{   
     MCP_FUNC_START("CCM_Destroy");
-
-    MCP_VERIFY_FATAL((_CCM_StaticData._ccm_Objs[chipId].refCount > 0), CCM_STATUS_INTERNAL_ERROR, 
-                        ("CCM_IM_Destroy: CCM(#%d) Doesn't Exist", chipId));
-
-    /* Another client of this instance wishes to destroy it */      
-    --_CCM_StaticData._ccm_Objs[chipId].refCount;
-
-    if (_CCM_StaticData._ccm_Objs[chipId].refCount == 0)
-    {
-        /* Last instance client, now we can actually perform destruction*/
-        imStatus = CCM_IM_Destroy(&((*this)->imObj));
-        MCP_VERIFY_FATAL((imStatus == CCM_IM_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR, ("CCM_IM_Destroy Failed"));
-
-        CCM_VAC_Destroy (&((*this)->vacObj));
-        /* VAC destruction cannot fail */
-
-        CAL_Destroy (&((*this)->calObj));
-        /* CAL destruction cannot fail */
-    }
-
-    *this = NULL;
-
-    status = CCM_STATUS_SUCCESS;
-    
+   
     MCP_FUNC_END();
 
-    return status;
+    return CCM_STATUS_SUCCESS;
 }
 
-CcmImObj *CCM_GetIm(CcmObj *this)
+CcmImObj *CCM_GetIm(CcmObj *thisObj)
 {
-    return this->imObj;
+    return 0xdeadbeef;
 }
 
-TCCM_VAC_Object *CCM_GetVac(CcmObj *this)
+TCCM_VAC_Object *CCM_GetVac(CcmObj *thisObj)
 {
-    return NULL;
+    return 0xdeadbeef;
 }
 
-Cal_Config_ID *CCM_GetCAL(CcmObj *this)
+Cal_Config_ID *CCM_GetCAL(CcmObj *thisObj)
 {
-    return NULL;
+    return 0xdeadbeef;
 }
 
 CcmStatus _CCM_StaticInit(void)
 {
-    CcmStatus               status;
-    McpHalOsStatus          mcpHalOsStatus;
-    CcmHalPwrUpDwnStatus    ccmHalPwrUpDwnStatus;
-    McpHalFsStatus          halFsStatus;
-    McpUint                 chipIdx;
-    McpHalPmStatus          halPmStatus;
-
     MCP_FUNC_START("_CCM_StaticInit");
-
-    mcpHalOsStatus = MCP_HAL_OS_Init();
-    MCP_VERIFY_FATAL((mcpHalOsStatus == MCP_HAL_OS_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR,
-                        ("MCP_HAL_OS_Init Failed (%d)", mcpHalOsStatus));
-            
-    halFsStatus = MCP_HAL_FS_Init();
-    MCP_VERIFY_FATAL((halFsStatus == MCP_HAL_FS_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR,
-                        ("MCP_HAL_FS_Init Failed (%d)", halFsStatus));
-    halPmStatus = MCP_HAL_PM_Init();
-    MCP_VERIFY_FATAL((halFsStatus == MCP_HAL_FS_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR,
-                        ("MCP_HAL_FS_Init Failed (%d)", halFsStatus));
-
-    ccmHalPwrUpDwnStatus = CCM_HAL_PWR_UP_DWN_Init();
-    MCP_VERIFY_FATAL((ccmHalPwrUpDwnStatus == CCM_HAL_PWR_UP_DWN_STATUS_SUCCESS), CCM_STATUS_INTERNAL_ERROR,
-                        ("CCM_HAL_PWR_UP_DWN_Init Failed (%d)", ccmHalPwrUpDwnStatus));
-
-    for (chipIdx = 0; chipIdx < MCP_HAL_MAX_NUM_OF_CHIPS; ++chipIdx)
-    {
-        _CCM_StaticData._ccm_Objs[chipIdx].refCount = 0;
-    }
-
-    status = CCM_STATUS_SUCCESS;
-    
+ 
     MCP_FUNC_END();
 
-    return status;
+    return CCM_STATUS_SUCCESS;
 }
 
 void _CCM_NotifyChipOn(void *handle,
@@ -236,17 +124,10 @@ void _CCM_NotifyChipOn(void *handle,
                        McpU16 versionMajor,
                        McpU16 versionMinor)
 {
-    CcmObj *this = (CcmObj *)handle;
-
-    /* configure the CAL */
-    CAL_VAC_Set_Chip_Version(this->calObj, projectType, versionMajor, versionMinor);
-
-    /* configure the VAC */
-    CCM_VAC_Configure(this->vacObj);
 }
 
-BtHciIfObj *CCM_GetBtHciIfObj(CcmObj *this)
+BtHciIfObj *CCM_GetBtHciIfObj(CcmObj *thisObj)
 {
-    return CCM_IMI_GetBtHciIfObj (this->imObj);
+    return 0xdeadbeef;
 }
 

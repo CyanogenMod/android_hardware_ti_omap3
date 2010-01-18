@@ -279,7 +279,7 @@ typedef struct tagMcpBtsSpScriptLocation {
     
     union {
         /* For FFS scripts - full path of script file*/
-        char *fullFileName;
+        McpUtf8 *fullFileName;
 
         /* For memory */
         struct {
@@ -288,12 +288,6 @@ typedef struct tagMcpBtsSpScriptLocation {
         } memoryData;
     } locationData;
 } McpBtsSpScriptLocation;
-
-/*-------------------------------------------------------------------------------
- * McpBtsSpProcessingState Forward declaration
- */
-typedef enum _McpBtsSpProcessingState McpBtsSpProcessingState;
-
 
 typedef struct tagMcpBtsSpExecuteScriptCbData {
     /* Callback function that is used to send HCI commands*/
@@ -306,13 +300,13 @@ typedef struct tagMcpBtsSpExecuteScriptCbData {
     McpBtsSpExecuteCompleteCb       execCompleteCb;
 } McpBtsSpExecuteScriptCbData;
 
-enum _McpBtsSpProcessingState {
+typedef enum _McpBtsSpProcessingState {
     MCP_BTS_SP_PROCESSING_STATE_NONE,
     MCP_BTS_SP_PROCESSING_STATE_PROCESS_NEXT_ACTION,
     MCP_BTS_SP_PROCESSING_STATE_WAIT_FOR_COMMAND_COMPLETE,
     MCP_BTS_SP_PROCESSING_STATE_WAIT_FOR_LAST_COMMAND_COMPLETE,
     MCP_BTS_SP_PROCESSING_STATE_DONE
-};
+} McpBtsSpProcessingState;
 
 /*
  * McpBtsSpContext structure
