@@ -27,6 +27,7 @@
 #define LOG_TAG "CameraHal"
 
 #include "CameraHal.h"
+#include "zoom_step.inc"
 
 #define RES_720P    1280
 
@@ -82,8 +83,6 @@ CameraHal::CameraHal()
 			file_index(0),
 			mflash(2),
 			mcapture_mode(1),
-			mZoomTarget(1),
-			mZoomCurrent(1),
 			mcaf(0),
 			j(0)
 {
@@ -107,6 +106,10 @@ CameraHal::CameraHal()
     mCallbackCookie = 0;
     mMsgEnabled = 0 ;
 	mFalsePreview = false;  //Eclair HAL
+    mZoomSpeed = 1;
+    mZoomTargetIdx = 0;
+    mZoomCurrentIdx = 0;
+    rotation = 0;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -205,6 +208,9 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, CameraHal::supportedFPS);
     p.set(CameraParameters::KEY_SUPPORTED_THUMBNAIL_SIZES, CameraHal::supprotedThumbnailSizes);
+    p.set("max-zoom" , MAX_ZOOM);
+    p.set("zoom", 0);
+    p.set("zoom-supported", "true");
 
     memset(tmpBuffer, '\0', PARAM_BUFFER);
     strncat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_AUTO, PARAM_BUFFER);
@@ -1041,12 +1047,12 @@ int CameraHal::CameraStart()
         goto fail_loop;
     }
 
-    if ( mZoomTarget != mZoomCurrent ) {
+    if ( mZoomTargetIdx != mZoomCurrentIdx ) {
         
-        if( ZoomPerform(mZoomTarget) < 0 )
+        if( ZoomPerform(zoom_step[mZoomCurrentIdx]) < 0 )
             LOGE("Error while applying zoom");   
         
-        mZoomCurrent = mZoomTarget;
+        mZoomTargetIdx = mZoomCurrentIdx;
     }
 
     LOG_FUNCTION_NAME_EXIT
@@ -1092,7 +1098,7 @@ int CameraHal::CameraStop()
     }
 
 	//Force the zoom to be updated next time preview is started.
-	mZoomCurrent = 1;
+	mZoomCurrentIdx = 0;
 
 #ifdef DEBUG_LOG
 
@@ -1113,12 +1119,39 @@ void CameraHal::nextPreview()
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     int w, h, ret, queue_to_dss_failed;
+    static int frame_count = 0;
+    int zoom_inc;
 
     overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
     int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
     int index;
     
     mParameters.getPreviewSize(&w, &h);
+
+    //Zoom
+    frame_count++;
+    if( mZoomCurrentIdx != mZoomTargetIdx){
+
+        if( mZoomCurrentIdx < mZoomTargetIdx)
+            zoom_inc = 1;
+        else
+            zoom_inc = -1;
+
+        if ( mZoomSpeed > 0 ){
+            if( (frame_count % mZoomSpeed) == 0){
+                mZoomCurrentIdx += zoom_inc;
+            }
+        } else {
+            mZoomCurrentIdx = mZoomTargetIdx;
+        }
+
+        ZoomPerform(zoom_step[mZoomCurrentIdx]);
+        mParameters.set("zoom", ((int) zoom_step[mZoomCurrentIdx]));
+
+        if( mZoomCurrentIdx == mZoomTargetIdx )
+            mNotifyCb(CAMERA_MSG_ZOOM, ((int) zoom_step[mZoomCurrentIdx] - 1), 1, mCallbackCookie);
+
+    }
 
     /* De-queue the next avaliable buffer */
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
@@ -1810,7 +1843,7 @@ void CameraHal::procThread()
 
 #ifdef DEBUG_LOG
 
-                    LOGI("Process VPP ( %d x %d -> %d x %d ) - starting", capture_width, capture_height, (int) image_width, (int) image_height);
+                    LOGI("Process VPP ( %d x %d -> %d x %d ) - rotation = %d, zoom = %d, starting", capture_width, capture_height, (int) image_width, (int) image_height, image_rotation, image_zoom);
 
 #endif
 
@@ -2563,9 +2596,11 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         quality = 100;
     } 
 
-    mZoomTarget = mParameters.getInt("zoom");
-    if( (mZoomTarget < 1) || (mZoomTarget > 7) ){
-        mZoomTarget = 1;
+    zoom = mParameters.getInt("zoom");
+    if( (zoom >= 0) && ( zoom <= MAX_ZOOM) ){
+        mZoomTargetIdx = zoom_idx[zoom];
+    } else {
+        mZoomTargetIdx = zoom_idx[0];
     }
 
 #ifdef FW3A
@@ -2819,7 +2854,7 @@ int CameraHal::onSnapshot(void *priv, void *buf, int width, int height)
     snapshotMessage[1] = (unsigned int) buf;
     snapshotMessage[2] = width;
     snapshotMessage[3] = height;
-    snapshotMessage[4] = camHal->mZoomTarget;
+    snapshotMessage[4] = zoom_step[camHal->mZoomTargetIdx];
 
     write(camHal->snapshotPipe[1], &snapshotMessage, sizeof(snapshotMessage));
 
