@@ -3557,7 +3557,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
     OMX_CONF_SET_ERROR_BAIL(eError, OMX_ErrorUnsupportedSetting);
     }
 
-    pCreatePhaseArgs->ucQPFirstIFrame         = (OMX_U8)pQuantization->nQpI;
+    pCreatePhaseArgs->ucQPFirstIFrame         = 8;
     pCreatePhaseArgs->ucProfile               = 1;
 
     if (pCreatePhaseArgs->ucIsMPEG4 == 1) 
