@@ -323,6 +323,13 @@ typedef enum MP3D_COMP_PORT_TYPE {
     MP3D_INPUT_PORT = 0,
     MP3D_OUTPUT_PORT
 }MP3D_COMP_PORT_TYPE;
+/* ======================================================================= */
+/**
+ * pthread variable to indicate OMX returned all buffers to app
+ */
+/* ======================================================================= */
+    pthread_mutex_t bufferReturned_mutex;
+    pthread_cond_t bufferReturned_condition;
 
 /* ======================================================================= */
 /** OMX_INDEXAUDIOTYPE: This enum is used by the TI OMX Component.
@@ -474,6 +481,7 @@ typedef struct USN_AudioCodecParams{
 typedef struct {
     /* Number of frames in a buffer */
     unsigned long ulFrameCount;
+    unsigned long ulIsLastBuffer;
 }MP3DEC_UAlgOutBufParamStruct;
 
 /* ======================================================================= */
@@ -728,16 +736,18 @@ typedef struct MP3DEC_COMPONENT_PRIVATE
     OMX_U32 bEnableCommandPending;
     OMX_U32 bEnableCommandParam;
 
+    /*Counts number of invalid buffers from DSP */
     OMX_U32 nInvalidFrameCount;
+    /* Count number of pending output buffrs */
     OMX_U32 numPendingBuffers;
     OMX_U32 bNoIdleOnStop;
     OMX_U32 bDspStoppedWhileExecuting;
     OMX_BOOL bLoadedCommandPending;
 
-    /** Number of FillBufferDones acomplished, used to transition to idle */
-    OMX_S32 nOutStandingFillDones;
-    OMX_S8 nUnhandledFillThisBuffers;
-    OMX_S8 nUnhandledEmptyThisBuffers;
+    /** Counts number of buffers received from client */
+    OMX_U32 nHandledFillThisBuffers;
+    /** Count number of buffers recieved from client */
+    OMX_U32 nHandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
 
@@ -1098,5 +1108,18 @@ void* MP3DEC_ComponentThread (void* pThreadData);
 /*            and returns the value in a TUint value.                        */
 /*  =========================================================================*/
 OMX_U32 MP3DEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BOOL bIcreasePosition);
+
+/*=======================================================================*/
+/*! @fn SignalIfAllBuffersAreReturned
+
+ * @brief Sends pthread signal to indicate OMX has returned all buffers to app
+
+ * @param  none
+
+ * @Return void
+
+ */
+/*=======================================================================*/
+void SignalIfAllBuffersAreReturned(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 #endif
