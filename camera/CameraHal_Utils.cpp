@@ -1088,7 +1088,7 @@ int CameraHal::CapturePicture(){
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
-        exif_buffer *exif_buf = get_exif_buffer();
+        exif_buffer *exif_buf = get_exif_buffer(gpsLocation);
 
 		PPM("BEFORE JPEG Encode Image");
 		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	  
@@ -1105,6 +1105,11 @@ int CameraHal::CapturePicture(){
 		PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
 	
         exif_buf_free (exif_buf);
+        
+        if( NULL != gpsLocation ) {
+            free(gpsLocation);
+            gpsLocation = NULL;
+        }
         mJPEGPictureMemBase.clear();		
         mJPEGPictureHeap.clear();
         

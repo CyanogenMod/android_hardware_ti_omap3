@@ -238,7 +238,49 @@ void exif_entry_set_srational (ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
   exif_entry_unref (pE);
 }
 
-exif_buffer *get_exif_buffer()
+void exif_entry_set_gps_coord(ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
+    ExifRational r1, ExifRational r2, ExifRational r3)
+{
+    ExifEntry *pE;
+    ExifByteOrder eO;
+
+    pE = exif_entry_new ();
+    exif_content_add_entry (pEdata->ifd[eEifd], pE);
+    exif_entry_gps_initialize(pE, eEtag);
+    eO = exif_data_get_byte_order (pE->parent->parent);
+    if (pE->data) {
+        exif_set_rational (pE->data, eO, r1);
+        exif_set_rational (pE->data + exif_format_get_size (pE->format), eO, r2);
+        exif_set_rational (pE->data + 2 * exif_format_get_size (pE->format), eO, 
+        r3);
+    } else {
+        printf ("ERROR: unallocated e->data Tag %d\n", eEtag);
+    }
+    exif_entry_fix (pE);
+    /* exif_entry_dump (pE, 2); */
+    exif_entry_unref (pE);
+}
+
+void exif_entry_set_gps_altitude(ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag, ExifRational r1)
+{
+    ExifEntry *pE;
+    ExifByteOrder eO;
+
+    pE = exif_entry_new ();
+    exif_content_add_entry (pEdata->ifd[eEifd], pE);
+    exif_entry_gps_initialize(pE, eEtag);
+    eO = exif_data_get_byte_order (pE->parent->parent);
+    if (pE->data) {
+        exif_set_rational (pE->data, eO, r1);
+    } else {
+        printf ("ERROR: unallocated e->data Tag %d\n", eEtag);
+    }
+    exif_entry_fix (pE);
+    /* exif_entry_dump (pE, 2); */
+    exif_entry_unref (pE);
+}
+
+exif_buffer *get_exif_buffer(void *gpsLocation)
 {
     ExifData *pEd;
     exif_buffer *sEb;
@@ -318,6 +360,32 @@ exif_buffer *get_exif_buffer()
     exif_entry_set_short (pEd, EXIF_IFD_1, EXIF_TAG_COMPRESSION, 6); /* JPEG */
     exif_entry_set_long (pEd, EXIF_IFD_1, EXIF_TAG_JPEG_INTERCHANGE_FORMAT, 0xFFFFFFFF);
     exif_entry_set_long (pEd, EXIF_IFD_1, EXIF_TAG_JPEG_INTERCHANGE_FORMAT_LENGTH, 0xFFFFFFFF);
+
+    if ( NULL != gpsLocation ) {
+        ExifRational r1, r2, r3;
+        gps_data *gps = (gps_data *) gpsLocation;
+        
+        /* gps data */
+        r1.denominator = 1;
+        r2.denominator = 1;
+        r3.denominator = 1;
+        
+        r1.numerator = gps->longDeg;
+        r2.numerator = gps->longMin;
+        r3.numerator = gps->longSec;
+        
+        exif_entry_set_gps_coord(pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_LONGITUDE, r1, r2, r3);
+        
+        r1.numerator = gps->latDeg;
+        r2.numerator = gps->latMin;
+        r3.numerator = gps->latSec;
+        
+        exif_entry_set_gps_coord(pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_LATITUDE, r1, r2, r3);
+    
+        r1.numerator = gps->altitude;
+        exif_entry_set_gps_altitude(pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_ALTITUDE, r1);
+
+    }
 
     /* copy data to our buffer */
     exif_data_save_data (pEd, &sEb->data, &sEb->size);

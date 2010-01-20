@@ -224,6 +224,13 @@ typedef struct {
 } libtest_obj;
 #endif
 
+typedef struct {
+    int longDeg, longMin, longSec;
+    int latDeg, latMin, latSec;
+    int altitude;
+    unsigned long timestamp;
+} gps_data;
+
 class CameraHal : public CameraHardwareInterface {
 public:
     virtual sp<IMemoryHeap> getRawHeap() const;
@@ -367,6 +374,7 @@ public:
     int ICaptureDestroy(void);
 	void PPM(const char *);
 	void PPM(const char *,struct timeval*);
+    status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
 
 #ifndef ICAP
 	int CapturePicture();
@@ -412,6 +420,7 @@ public:
     int FW3A_AF_TimeOut;
 	    
     mutable Mutex mLock;
+    gps_data *gpsLocation;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
     int mPictureOffset, mJPEGOffset, mJPEGLength, mPictureLength;

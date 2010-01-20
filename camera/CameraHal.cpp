@@ -29,6 +29,8 @@
 #include "CameraHal.h"
 #include "zoom_step.inc"
 
+#include <math.h>
+
 #define RES_720P    1280
 
 namespace android {
@@ -110,6 +112,7 @@ CameraHal::CameraHal()
     mZoomTargetIdx = 0;
     mZoomCurrentIdx = 0;
     rotation = 0;
+    gpsLocation = NULL;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -192,7 +195,7 @@ void CameraHal::initDefaultParameters()
     char tmpBuffer[PARAM_BUFFER];
  
     LOG_FUNCTION_NAME
-	
+
     p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
     p.setPreviewFrameRate(30);
     p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV422I);
@@ -1999,7 +2002,7 @@ void CameraHal::procThread()
 
 #endif
 
-                exif_buffer *exif_buf = get_exif_buffer();
+                exif_buffer *exif_buf = get_exif_buffer(gpsLocation);
 
                 if( switchBuffer ) {
                     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, tmpBuffer, tmpLength,
@@ -2050,6 +2053,10 @@ void CameraHal::procThread()
 
 #endif
                 exif_buf_free(exif_buf);
+                if( NULL != gpsLocation ) {
+                    free(gpsLocation);
+                    gpsLocation = NULL;
+                }
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
 
@@ -2534,6 +2541,40 @@ int CameraHal::validateSize(int w, int h)
     return true;
 }
 
+status_t CameraHal::convertGPSCoord(double coord, int *deg, int *min, int *sec)
+{
+    double tmp;
+    
+    LOG_FUNCTION_NAME
+
+    if ( coord < 0 ) {
+        
+        LOGE("Invalid GPS coordinate");
+        
+        return EINVAL;
+    }
+
+    *deg = (int) floor(coord);
+    tmp = ( coord - floor(coord) )*60;
+    *min = (int) floor(tmp);
+    tmp = ( tmp - floor(tmp) )*60;
+    *sec = (int) floor(tmp);
+
+    if( *sec >= 60 ) {
+        *sec = 0;
+        *min += 1;
+    }
+
+    if( *min >= 60 ) {
+        *min = 0;
+        *deg += 1;
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+    
+    return NO_ERROR;
+}
+
 status_t CameraHal::setParameters(const CameraParameters &params)
 {
     LOG_FUNCTION_NAME
@@ -2622,6 +2663,29 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mZoomTargetIdx = zoom_idx[zoom];
     } else {
         mZoomTargetIdx = zoom_idx[0];
+    }
+
+    if ( ( params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL )) {
+
+        double gpsCoord;
+
+        gpsLocation = (gps_data *) malloc( sizeof(gps_data));
+        
+        if( NULL != gpsLocation ) {
+            LOGE("initializing gps_data structure");
+            gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_LATITUDE), NULL);
+            convertGPSCoord(gpsCoord, &gpsLocation->latDeg, &gpsLocation->latMin, &gpsLocation->latSec);
+            
+            gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_LONGITUDE), NULL);
+            convertGPSCoord(gpsCoord, &gpsLocation->longDeg, &gpsLocation->longMin, &gpsLocation->longSec);
+
+            gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_ALTITUDE), NULL);
+            gpsLocation->altitude = gpsCoord;
+
+        } else {
+            LOGE("Not enough memory to allocate gps_data structure");
+        }
+
     }
 
 #ifdef FW3A

@@ -14,6 +14,13 @@ typedef struct _exif_buffer
   unsigned int size;
 } exif_buffer;
 
+typedef struct {
+    int longDeg, longMin, longSec;
+    int latDeg, latMin, latSec;
+    int altitude;
+    unsigned long timestamp;
+} gps_data;
+
 void exif_buf_free (exif_buffer * buf);
 
 exif_buffer *exif_new_buf(unsigned char *data, unsigned int size);
@@ -41,6 +48,6 @@ void exif_entry_set_slong (ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
 void exif_entry_set_srational (ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
     ExifSRational r);
 
-exif_buffer * get_exif_buffer();
+exif_buffer * get_exif_buffer(void *gpsLocation);
 
 #endif
