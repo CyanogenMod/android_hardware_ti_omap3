@@ -34,6 +34,7 @@
 
 #include "JpegEncoder.h"
 #include <utils/Log.h>
+#include <OMX_JpegEnc_CustomCmd.h>
 
 #define PRINTF LOGD
 
@@ -75,6 +76,9 @@ OMX_ERRORTYPE OMX_JPEGE_EventHandler(OMX_HANDLETYPE hComponent,
 
 JpegEncoder::JpegEncoder()
 {
+    thumb_width = 0;
+    thumb_height = 0;
+    mexif_buf = NULL;
     pInBuffHead = NULL;
     pOutBuffHead = NULL;
     semaphore = NULL;
@@ -195,6 +199,11 @@ bool JpegEncoder::StartFromLoadedState()
     char strQFactor[] = "OMX.TI.JPEG.encoder.Config.QFactor";
 	char strColorFormat[] = "OMX.TI.JPEG.encoder.Config.ColorFormatConvertion_420pTo422i";
 	char strPPLibEnable[] = "OMX.TI.JPEG.encoder.Config.PPLibEnable";
+
+    char indexCustom[] = "OMX.TI.JPEG.encoder.Config.APP1";
+    /** Exif */
+    JPEG_APPTHUMB_MARKER jpeg_marker;
+    OMX_BOOL bAPP1 = OMX_TRUE;
 
     OMX_S32 nCompId = 300;
     OMX_PORT_PARAM_TYPE PortType;
@@ -381,6 +390,29 @@ bool JpegEncoder::StartFromLoadedState()
         goto EXIT;
     }
 
+    if( NULL != mexif_buf){
+        jpeg_marker.nThumbnailWidth = thumb_width;
+        jpeg_marker.nThumbnailHeight = thumb_height;
+        jpeg_marker.bMarkerEnabled = bAPP1;
+        jpeg_marker.nMarkerSize = mexif_buf->size + 4;
+        jpeg_marker.pMarkerBuffer = (OMX_U8 *) calloc (1, jpeg_marker.nMarkerSize); /* FIXME */
+        memcpy (jpeg_marker.pMarkerBuffer + 4, mexif_buf->data, mexif_buf->size);
+        PRINTF("%d::OMX_GetExtensionIndex \n", __LINE__);
+        eError = OMX_GetExtensionIndex(pOMXHandle, indexCustom, (OMX_INDEXTYPE*)&nCustomIndex);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+            goto EXIT;
+        }
+        PRINTF("%d::OMX_SetConfig \n", __LINE__);
+        eError = OMX_SetConfig(pOMXHandle, nCustomIndex, &jpeg_marker);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+            goto EXIT;
+        }
+    	
+        free(jpeg_marker.pMarkerBuffer);
+    }
+
     eError = OMX_UseBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize, (OMX_U8*)mInputBuffer);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGEnc test:: %d:error= %x\n", __LINE__, eError);
@@ -412,7 +444,7 @@ EXIT:
 
 }
 
-bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality,int isPixelFmt420p)
+bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, exif_buffer *exif_buf, int isPixelFmt420p, int th_width, int th_height)
 {
 
     bool ret = true;
@@ -471,8 +503,11 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
         mHeight = height;
         mQuality = quality;
 		mIsPixelFmt420p = isPixelFmt420p;
+		mexif_buf = exif_buf;
         iLastState = STATE_LOADED;
         iState = STATE_LOADED;
+        thumb_width = th_width;
+        thumb_height = th_height;
     
         ret = StartFromLoadedState();
         if (ret == false)

@@ -39,6 +39,8 @@ Better Error handling
 #include <semaphore.h>
 
 #include <utils/Log.h>
+#include "JpegEncoderEXIF.h"
+#include <OMX_JpegEnc_CustomCmd.h>
 
 extern "C" {
     #include "OMX_Component.h"
@@ -82,10 +84,12 @@ public:
     sem_t *semaphore;
     JPEGENC_State iState;
     JPEGENC_State iLastState;
+    exif_buffer *mexif_buf;
+    int thumb_width, thumb_height;
 
     ~JpegEncoder();
     JpegEncoder();
-    bool encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, int mIsPixelFmt420p);    
+    bool encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, exif_buffer *exif_buf, int mIsPixelFmt420p, int thumb_width, int thumb_height);    
     bool SetJpegEncodeParameters(JpegEncoderParams * jep) {memcpy(&jpegEncParams, jep, sizeof(JpegEncoderParams)); return true;}
     void Run();
     void PrintState();

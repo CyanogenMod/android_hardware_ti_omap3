@@ -1088,9 +1088,11 @@ int CameraHal::CapturePicture(){
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
+        exif_buffer *exif_buf = get_exif_buffer();
+
 		PPM("BEFORE JPEG Encode Image");
 		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	  
-        jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,jpegFormat);
+        jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality, exif_buf, jpegFormat, THUMB_WIDTH, THUMB_HEIGHT);
 		PPM("AFTER JPEG Encode Image");
 
 		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
@@ -1102,9 +1104,10 @@ int CameraHal::CapturePicture(){
 
 		PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
 	
-
+        exif_buf_free (exif_buf);
         mJPEGPictureMemBase.clear();		
         mJPEGPictureHeap.clear();
+        
 #else
 
 

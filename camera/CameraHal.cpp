@@ -1999,16 +1999,18 @@ void CameraHal::procThread()
 
 #endif
 
+                exif_buffer *exif_buf = get_exif_buffer();
+
                 if( switchBuffer ) {
                     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, tmpBuffer, tmpLength,
-                                                 image_width, image_height, jpegQuality, pixelFormat)))
+                                                 image_width, image_height, jpegQuality, exif_buf, pixelFormat, THUMB_WIDTH, THUMB_HEIGHT)))
                     {
                         err = -1;
                         LOGE("JPEG Encoding failed");
                     }
                 } else {
                     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
-                                                 image_width, image_height, jpegQuality, pixelFormat)))
+                                                 image_width, image_height, jpegQuality, exif_buf, pixelFormat, THUMB_WIDTH, THUMB_HEIGHT)))
                     {
                         err = -1;
                         LOGE("JPEG Encoding failed");
@@ -2047,7 +2049,7 @@ void CameraHal::procThread()
                 LOGD("jpegEncoder->jpegSize=%d jpegSize=%d", jpegEncoder->jpegSize, jpegSize);
 
 #endif
-
+                exif_buf_free(exif_buf);
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
 

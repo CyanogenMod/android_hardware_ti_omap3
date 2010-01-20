@@ -41,6 +41,7 @@
 #include <ui/CameraHardwareInterface.h>
 #include "MessageQueue.h"
 #include "overlay_common.h"
+#include <JpegEncoderEXIF.h>
 
 #define RESIZER 1
 #define JPEG 1
@@ -97,6 +98,8 @@ extern "C" {
 #define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_ZOOM        3
+#define THUMB_WIDTH     80
+#define THUMB_HEIGHT    60
 
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
