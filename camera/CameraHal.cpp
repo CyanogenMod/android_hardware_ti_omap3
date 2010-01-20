@@ -2738,7 +2738,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
                 fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_MANUAL;
 
             }
-      }
+        }
 
         valstr = mParameters.get("touch-focus");
         if( NULL != valstr ){
@@ -2758,31 +2758,27 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             }
 //Support to be added in 3A framework interface soon.
 #if 0
+
             fobj->settings_2a.general.face_tracking.enable = 1;
             fobj->settings_2a.general.face_tracking.count = 1;
             fobj->settings_2a.general.face_tracking.update = 1;
             fobj->settings_2a.general.face_tracking.faces[0].top = af_y;
             fobj->settings_2a.general.face_tracking.faces[0].left = af_x;
+
 #endif
+
             LOGD("NEW PARAMS: af_x = %d, af_y = %d", af_x, af_y);
         }
 
-      FW3A_SetSettings();
-#if 0
+
         iso = mParameters.getInt("iso");
-        af = mParameters.getInt("af");
         mcapture_mode = mParameters.getInt("mode");        
-        wb = mParameters.getInt("wb");
         exposure = mParameters.getInt("exposure");
-        scene = mParameters.getInt("scene");
-        effects = mParameters.getInt("effects");
         compensation = mParameters.getInt("compensation");
         saturation = mParameters.getInt("saturation");
         sharpness = mParameters.getInt("sharpness");
         contrast = mParameters.getInt("contrast");
         brightness = mParameters.getInt("brightness");
-        mred_eye = mParameters.getInt("red");
-        flash = mParameters.getInt("flash");
         caf = mParameters.getInt("caf");
         rotation = mParameters.getInt("picture-rotation");
 
@@ -2798,32 +2794,15 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         
         if(sharpness != -1)
             fobj->settings_2a.general.sharpness = sharpness;
-        
-        if(scene!= -1)
-            fobj->settings_2a.general.scene = (FW3A_SCENE_MODE) scene;
-        
-        if(effects!= -1)
-            fobj->settings_2a.general.effects = (FW3A_CONFIG_EFFECTS) effects;
-
-        if(wb!= -1)
-            fobj->settings_2a.awb.mode = (WHITE_BALANCE_MODE_VALUES) wb;
 
         if(iso!= -1)
             fobj->settings_2a.ae.iso = (EXPOSURE_ISO_VALUES) iso;
-
-        if(af!= -1)
-            fobj->settings_2a.af.focus_mode = (FOCUS_MODE_VALUES) af;
 
         if(exposure!= -1)
             fobj->settings_2a.ae.mode = (EXPOSURE_MODE_VALUES) exposure;
 
         if(compensation!= -1)
             fobj->settings_2a.ae.compensation = compensation;
-
-        if(mflash != flash){
-            mflash = flash;
-            fobj->settings_2a.general.flash_mode = (FW3A_FLASH_MODE) mflash;
-        }
 
         fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_AUTO;
         fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_MULTI_NORMAL;
@@ -2839,9 +2818,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             previewThreadAckQ.get(&msg);
             return msg.command == PREVIEW_ACK ? NO_ERROR : INVALID_OPERATION;
         }
-#endif
     }
-
 #endif
     
     LOG_FUNCTION_NAME_EXIT
