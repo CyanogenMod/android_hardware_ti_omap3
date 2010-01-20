@@ -57,7 +57,6 @@
 #include "fw/icapture/linux/camera_2A/icapture_interface.h"
 #include "../modules/fw/include/mk_note/maker_note_mms_priv.h"
 #include "fw/vfinder/linux/camera_2A/camera_alg.h"
-#include "fw/vfinder/fw_message.h"
 #endif
 
 #ifdef HARDWARE_OMX
