@@ -451,29 +451,47 @@ void setDefaultControls(uint32_t devices, int mode)
 {
     ALSAControl control("hw:00");
 
-    if (devices & AudioSystem::DEVICE_OUT_EARPIECE) {
-        control.set("Earpiece Mixer AudioL2", 1); // on
-        control.set("HandsfreeR Mux", "AudioR1"); // # hack for zoom2. N.C.
-        control.set("HandsfreeL Mux", "AudioL1"); // # hack for zoom2. N.C.
+    /* check whether the devices is input or not */
+    /* for output devices */
+    if (devices & 0x0000FFFF){
+        if (devices & AudioSystem::DEVICE_OUT_EARPIECE) {
+            control.set("Earpiece Mixer AudioL2", 1); // on
+            control.set("HandsfreeR Mux", "AudioR1"); // # hack for zoom2. N.C.
+            control.set("HandsfreeL Mux", "AudioL1"); // # hack for zoom2. N.C.
+        } else {
+           control.set("Earpiece Mixer AudioL2", (unsigned int)0); // off
+        }
+
+        if (devices & AudioSystem::DEVICE_OUT_SPEAKER) {
+            control.set("HandsfreeR Switch", 1); // on
+            control.set("HandsfreeL Switch", 1); // on
+            control.set("HandsfreeR Mux", "AudioR2");
+            control.set("HandsfreeL Mux", "AudioL2");
+        } else {
+            control.set("HandsfreeR Switch", (unsigned int)0); // off
+            control.set("HandsfreeL Switch", (unsigned int)0); // off
+        }
+
+        if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
+            control.set("HeadsetR Mixer AudioR2", 1); // on
+            control.set("HeadsetL Mixer AudioL2", 1); // on
+            control.set("HandsfreeR Mux", "AudioR2");
+            control.set("HandsfreeL Mux", "AudioL2");
+        } else {
+            control.set("HeadsetR Mixer AudioR2", (unsigned int)0); // off
+            control.set("HeadsetL Mixer AudioL2", (unsigned int)0); // off
+        }
     }
 
-    if (devices & AudioSystem::DEVICE_OUT_SPEAKER) {
-        control.set("HandsfreeR Switch", 1); // on
-        control.set("HandsfreeL Switch", 1); // on
-        control.set("HandsfreeR Mux", "AudioR2");
-        control.set("HandsfreeL Mux", "AudioL2");
-    }
-
-    if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
-        control.set("HeadsetR Mixer AudioR2", 1); // on
-        control.set("HeadsetL Mixer AudioL2", 1); // on
-        control.set("HandsfreeR Mux", "AudioR2");
-        control.set("HandsfreeL Mux", "AudioL2");
-    }
-
-    if (devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) {
-        control.set("Analog Left Capture Route Main mic", 1); // on
-        control.set("Analog Right Capture Route Sub mic", 1); // on
+    /* for input devices */
+    if (devices >> 16) {
+        if (devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) {
+            control.set("Analog Left Capture Route Main mic", 1); // on
+            control.set("Analog Right Capture Route Sub mic", 1); // on
+        } else {
+            control.set("Analog Left Capture Route Main mic", (unsigned int)0); // off
+            control.set("Analog Right Capture Route Sub mic", (unsigned int)0); // off
+       }
     }
 }
 
