@@ -2626,6 +2626,16 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     if ( NULL != fobj ){
 
+        if ( params.get("meter-mode") != NULL ) {
+            if (strcmp(params.get("meter-mode"), (const char *) "center") == 0) {
+                    fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_SINGLE_CENTER;
+                    fobj->settings_2a.ae.spot_weighting = EXPOSURE_SPOT_CENTER;
+            } else if (strcmp(params.get("meter-mode"), (const char *) "average") == 0) {
+                fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_MULTI_AVERAGE;
+                fobj->settings_2a.ae.spot_weighting = EXPOSURE_SPOT_WIDE;
+            }
+        }
+
         if ( params.get(CameraParameters::KEY_SCENE_MODE) != NULL ) {
             if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_AUTO) == 0) {
                 fobj->settings_2a.general.scene = CONFIG_SCENE_MODE_MANUAL;
