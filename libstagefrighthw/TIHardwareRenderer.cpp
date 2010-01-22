@@ -48,7 +48,7 @@ TIHardwareRenderer::TIHardwareRenderer(
     CHECK(mDecodedHeight > 0);
 
     sp<OverlayRef> ref = mISurface->createOverlay(
-            mDisplayWidth, mDisplayHeight, OVERLAY_FORMAT_CbYCrY_422_I);
+            mDisplayWidth, mDisplayHeight, OVERLAY_FORMAT_CbYCrY_422_I, 0);
 
     if (ref.get() == NULL) {
         LOGE("Unable to create the overlay!");
