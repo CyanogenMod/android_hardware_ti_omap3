@@ -2700,6 +2700,16 @@ status_t CameraHal::setParameters(const CameraParameters &params)
                 fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_MULTI_AVERAGE;
                 fobj->settings_2a.ae.spot_weighting = EXPOSURE_SPOT_WIDE;
             }
+        } 
+
+        if ( params.get("capture") != NULL ) {
+            if (strcmp(params.get("capture"), (const char *) "still") == 0) {
+                //Set 3A config to enable variable fps
+
+            } else if (strcmp(params.get("capture"), (const char *) "video") == 0) {
+                //Set 3A config to disable variable fps
+
+            }
         }
 
         if ( params.get(CameraParameters::KEY_SCENE_MODE) != NULL ) {
