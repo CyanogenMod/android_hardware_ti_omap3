@@ -89,7 +89,7 @@ CameraHal::CameraHal()
 			j(0)
 {
 #if PPM_INSTRUMENTATION
-	gettimeofday(&ppm_start, NULL);
+    gettimeofday(&ppm_start, NULL);
 #endif
 
     isStart_FW3A = false;
@@ -101,13 +101,13 @@ CameraHal::CameraHal()
     mPictureHeap = NULL;
     mIPPInitAlgoState = false;
     mIPPToEnable = false;
-	mRecordEnabled = 0;
+    mRecordEnabled = 0;
     mNotifyCb = 0;
     mDataCb = 0;
     mDataCbTimestamp = 0;
     mCallbackCookie = 0;
     mMsgEnabled = 0 ;
-	mFalsePreview = false;  //Eclair HAL
+    mFalsePreview = false;  //Eclair HAL
     mZoomSpeed = 1;
     mZoomTargetIdx = 0;
     mZoomCurrentIdx = 0;
@@ -144,41 +144,41 @@ CameraHal::CameraHal()
     mPreviewThread = new PreviewThread(this);
     mPreviewThread->run("CameraPreviewThread", PRIORITY_URGENT_DISPLAY);
 
-	if( pipe(procPipe) != 0 ){
-		LOGE("Failed creating pipe");
-	}
+    if( pipe(procPipe) != 0 ){
+        LOGE("Failed creating pipe");
+    }
 
-	if( pipe(shutterPipe) != 0 ){
-		LOGE("Failed creating pipe");
-	}
+    if( pipe(shutterPipe) != 0 ){
+        LOGE("Failed creating pipe");
+    }
 	
-	if( pipe(rawPipe) != 0 ){
-		LOGE("Failed creating pipe");
-	}
+    if( pipe(rawPipe) != 0 ){
+        LOGE("Failed creating pipe");
+    }
 
-	if( pipe(snapshotPipe) != 0 ){
-		LOGE("Failed creating pipe");
-	}
+    if( pipe(snapshotPipe) != 0 ){
+        LOGE("Failed creating pipe");
+    }
 
-	if( pipe(snapshotReadyPipe) != 0 ){
-		LOGE("Failed creating pipe");
-	}
+    if( pipe(snapshotReadyPipe) != 0 ){
+        LOGE("Failed creating pipe");
+    }
 
-	mPROCThread = new PROCThread(this);
+    mPROCThread = new PROCThread(this);
     mPROCThread->run("CameraPROCThread", PRIORITY_URGENT_DISPLAY);
-	LOGD("STARTING PROC THREAD \n");
+    LOGD("STARTING PROC THREAD \n");
     
-	mShutterThread = new ShutterThread(this);
+    mShutterThread = new ShutterThread(this);
     mShutterThread->run("CameraShutterThread", PRIORITY_URGENT_DISPLAY);
-	LOGD("STARTING Shutter THREAD \n");
+    LOGD("STARTING Shutter THREAD \n");
 
-	mRawThread = new RawThread(this);
+    mRawThread = new RawThread(this);
     mRawThread->run("CameraRawThread", PRIORITY_URGENT_DISPLAY);
-	LOGD("STARTING Raw THREAD \n");
+    LOGD("STARTING Raw THREAD \n");
 
-	mSnapshotThread = new SnapshotThread(this);
+    mSnapshotThread = new SnapshotThread(this);
     mSnapshotThread->run("CameraSnapshotThread", PRIORITY_URGENT_DISPLAY);
-	LOGD("STARTING Snapshot THREAD \n");
+    LOGD("STARTING Snapshot THREAD \n");
 
 #ifdef FW3A
     if (fobj!=NULL)
@@ -329,10 +329,10 @@ CameraHal::~CameraHal()
         mPreviewThread.clear();
     }
 
-	procMessage[0] = PROC_THREAD_EXIT;
-	write(procPipe[1], procMessage, sizeof(unsigned int));
+    procMessage[0] = PROC_THREAD_EXIT;
+    write(procPipe[1], procMessage, sizeof(unsigned int));
 
-	{ // scope for the lock
+    { // scope for the lock
         Mutex::Autolock lock(mLock);
         procThread = mPROCThread;
     }
@@ -349,10 +349,10 @@ CameraHal::~CameraHal()
         close(procPipe[1]);
     }
 
-	procMessage[0] = SHUTTER_THREAD_EXIT;
-	write(shutterPipe[1], procMessage, sizeof(unsigned int));
+    procMessage[0] = SHUTTER_THREAD_EXIT;
+    write(shutterPipe[1], procMessage, sizeof(unsigned int));
 
-	{ // scope for the lock
+    { // scope for the lock
         Mutex::Autolock lock(mLock);
         shutterThread = mShutterThread;
     }
@@ -369,8 +369,8 @@ CameraHal::~CameraHal()
         close(shutterPipe[1]);
     }
     
-	procMessage[0] = RAW_THREAD_EXIT;
-	write(rawPipe[1], procMessage, sizeof(unsigned int));
+    procMessage[0] = RAW_THREAD_EXIT;
+    write(rawPipe[1], procMessage, sizeof(unsigned int));
 
 	{ // scope for the lock
         Mutex::Autolock lock(mLock);
@@ -434,10 +434,11 @@ CameraHal::~CameraHal()
         LOGD("Destroying current overlay");
         mOverlay->destroy();
     }
-    
-    LOGD("<<< Release");
 
+    free((void *) ( ((unsigned int) mYuvBuffer) - mPictureOffset) );
     singleton.clear();
+
+    LOGD("<<< Release");
 }
 
 void CameraHal::previewThread()
@@ -1450,7 +1451,7 @@ int  CameraHal::ICapturePerform()
         procMessage[12] = offset;
         procMessage[13] = yuv_len;
         procMessage[14] = rotation;
-        procMessage[15] = zoom_step[mZoomTargetIdx];
+        procMessage[15] = mZoomTargetIdx;
         procMessage[16] = mippMode;
         procMessage[17] = mIPPToEnable;
         procMessage[18] = quality;
@@ -1527,53 +1528,53 @@ void CameraHal::snapshotThread()
     int err, status;
     unsigned int snapshotMessage[5], snapshotReadyMessage;
     int image_width, image_height, pixelFormat, preview_width, preview_height;
-	overlay_buffer_t overlaybuffer;
+    overlay_buffer_t overlaybuffer;
     void *yuv_buffer, *snapshot_buffer;
-    int ZoomTarget;
+    double ZoomTarget;
 
     LOG_FUNCTION_NAME
 
     pixelFormat = PIX_YUV422I;
-	max_fd = snapshotPipe[0] + 1;
+    max_fd = snapshotPipe[0] + 1;
 
-	FD_ZERO(&descriptorSet);
-	FD_SET(snapshotPipe[0], &descriptorSet);
+    FD_ZERO(&descriptorSet);
+    FD_SET(snapshotPipe[0], &descriptorSet);
 
     while(1) {
         err = select(max_fd,  &descriptorSet, NULL, NULL, NULL);
 
 #ifdef DEBUG_LOG
 
-		LOGD("SNAPSHOT THREAD SELECT RECEIVED A MESSAGE\n");
+       LOGD("SNAPSHOT THREAD SELECT RECEIVED A MESSAGE\n");
 
 #endif
 
-		if (err < 1) {
-			LOGE("Snapshot: Error in select");
-		}
+       if (err < 1) {
+           LOGE("Snapshot: Error in select");
+       }
 
-		if(FD_ISSET(snapshotPipe[0], &descriptorSet)){
+       if(FD_ISSET(snapshotPipe[0], &descriptorSet)){
 
-			read(snapshotPipe[0], &snapshotMessage, sizeof(snapshotMessage));
+           read(snapshotPipe[0], &snapshotMessage, sizeof(snapshotMessage));
 
-			if(snapshotMessage[0] == SNAPSHOT_THREAD_START){
+           if(snapshotMessage[0] == SNAPSHOT_THREAD_START){
 
 #ifdef DEBUG_LOG
 
-				LOGD("SNAPSHOT_THREAD_START RECEIVED\n");
+                LOGD("SNAPSHOT_THREAD_START RECEIVED\n");
 
 #endif
 
                 yuv_buffer = (void *) snapshotMessage[1];
-				image_width = snapshotMessage[2];
-				image_height = snapshotMessage[3];
-				ZoomTarget = snapshotMessage[4];
+                image_width = snapshotMessage[2];
+                image_height = snapshotMessage[3];
+                ZoomTarget = zoom_step[snapshotMessage[4]];
 
-	            mParameters.getPreviewSize(&preview_width, &preview_height);
+                mParameters.getPreviewSize(&preview_width, &preview_height);
 
 #if PPM_INSTRUMENTATION
 
-	            PPM("Before vpp downscales:");
+                PPM("Before vpp downscales:");
 
 #endif
 
@@ -1589,27 +1590,27 @@ void CameraHal::snapshotThread()
 
 #ifdef DEBUG_LOG
 
-	            PPM("After vpp downscales:");
+               PPM("After vpp downscales:");
 
-	            if( status )
-	                LOGE("scale_process() failed");
-	            else
-	                LOGD("scale_process() OK");
+               if( status )
+                   LOGE("scale_process() failed");
+               else
+                   LOGD("scale_process() OK");
 
 #endif
 
 #if PPM_INSTRUMENTATION
 
-	            PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
+               PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 
 #endif
 
-	            status = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
+                status = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
                 if (status) {
-		            LOGE("mOverlay->queueBuffer() failed!!!!");
+                     LOGE("mOverlay->queueBuffer() failed!!!!");
                 } else {
-                    buffers_queued_to_dss[lastOverlayBufferDQ]=1;
-                    nOverlayBuffersQueued++;
+                     buffers_queued_to_dss[lastOverlayBufferDQ]=1;
+                     nOverlayBuffersQueued++;
                 }
 
                 status = mOverlay->dequeueBuffer(&overlaybuffer);
@@ -1623,11 +1624,11 @@ void CameraHal::snapshotThread()
 
                 write(snapshotReadyPipe[1], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
 
-		    } else if (snapshotMessage[0] == SNAPSHOT_THREAD_EXIT) {
-				LOGD("SNAPSHOT_THREAD_EXIT RECEIVED");
+          } else if (snapshotMessage[0] == SNAPSHOT_THREAD_EXIT) {
+                LOGD("SNAPSHOT_THREAD_EXIT RECEIVED");
 
-				break;
-		    }
+                break;
+          }
         }
     }
 
@@ -1774,7 +1775,8 @@ void CameraHal::procThread()
     int err;
     int pixelFormat;
     unsigned int procMessage [PROC_THREAD_NUM_ARGS];
-    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_offset, yuv_len, image_rotation, image_zoom, ippMode;
+    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_offset, yuv_len, image_rotation, ippMode;
+    double image_zoom;
     bool ipp_to_enable;
     sp<MemoryHeapBase> JPEGPictureHeap;
     sp<MemoryBase> JPEGPictureMemBase;
@@ -1853,7 +1855,7 @@ void CameraHal::procThread()
                 yuv_offset =  procMessage[12];
                 yuv_len = procMessage[13];
                 image_rotation = procMessage[14];
-                image_zoom = procMessage[15];
+                image_zoom = zoom_step[procMessage[15]];
                 ippMode = procMessage[16];
                 ipp_to_enable = procMessage[17];
                 jpegQuality = procMessage[18];
@@ -2877,7 +2879,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         caf = mParameters.getInt("caf");
         rotation = mParameters.getInt("picture-rotation");
 
-        FW3A_GetSettings();
         if(contrast != -1)
             fobj->settings_2a.general.contrast = contrast;
 
@@ -2972,7 +2973,7 @@ int CameraHal::onSnapshot(void *priv, void *buf, int width, int height)
     snapshotMessage[1] = (unsigned int) buf;
     snapshotMessage[2] = width;
     snapshotMessage[3] = height;
-    snapshotMessage[4] = zoom_step[camHal->mZoomTargetIdx];
+    snapshotMessage[4] = camHal->mZoomTargetIdx;
 
     write(camHal->snapshotPipe[1], &snapshotMessage, sizeof(snapshotMessage));
 
