@@ -133,13 +133,13 @@ DBAPI DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 			(TEXT("NODE: DSPNode_Allocate: "
 				"hProcessor is Invalid \r\n")));
-		goto func_cont;
+		goto func_end;
 	}
 	if (!(pNodeID) || !(phNode)) {
 		status = DSP_EPOINTER;
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("NODE: DSPNode_Allocate: "
 			"Invalid pointer in the Input\r\n")));
-		goto func_cont;
+		goto func_end;
 	}
 	/* First get the NODE properties, allocate, reserve
 				memory for Node heap */
@@ -187,14 +187,11 @@ DBAPI DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
 		tempStruct.ARGS_NODE_ALLOCATE.phNode = phNode;
 		status = DSPTRAP_Trap(&tempStruct, CMD_NODE_ALLOCATE_OFFSET);
 	}
-func_cont:
 	 /* If 1st SM segment is configured then allocate and map it to
 		this process.*/
-	if (!DSP_SUCCEEDED(status)) {
-		if (pGPPVirtAddr)
-			free(pGPPVirtAddr);
-		return status;
-	}
+	if (DSP_FAILED(status))
+		goto func_end;
+
 	tempStruct.ARGS_CMM_GETHANDLE.hProcessor = hProcessor;
 	tempStruct.ARGS_CMM_GETHANDLE.phCmmMgr = &hCmm;
 	status = DSPTRAP_Trap(&tempStruct, CMD_CMM_GETHANDLE_OFFSET);
@@ -216,8 +213,8 @@ func_cont:
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT(
 			"NODE: DSPNode_Allocate:Failed to CMM handle\r\n")));
 	}
-	if (!DSP_SUCCEEDED(status))
-		return status;
+	if (DSP_FAILED(status))
+		goto func_end;
 
 	GetNodeType(*phNode, &nodeType);
 	if ((nodeType != NODE_DEVICE) && (pInfo.ulNumGPPSMSegs > 0)) {
@@ -236,7 +233,7 @@ func_cont:
 				tempStruct.ARGS_NODE_DELETE.hNode = *phNode;
 				DSPTRAP_Trap(&tempStruct,
 					CMD_NODE_DELETE_OFFSET);
-				return status;
+				goto func_end;
 			}
 			/* set node translator's virt addr range for seg */
 			bufAttr.uAlignment = 0;
@@ -256,6 +253,10 @@ func_cont:
 			}
 		}
 	}
+func_end:
+	if (DSP_FAILED(status) && pGPPVirtAddr)
+		free(pGPPVirtAddr);
+
     return status;
 }
 
