@@ -470,8 +470,18 @@ void CameraHal::previewThread()
                     if (FW3A_Stop_AF() < 0){
 						LOGE("ERROR FW3A_Stop_AF()");						
 					}
+
+                    bool focus_flag;
+                    if ( fobj->status_2a.af.status == AF_STATUS_SUCCESS ) {
+                        focus_flag = true;
+                        LOGE("AF Success");
+                    } else {
+                        focus_flag = false;
+                        LOGE("AF Fail");
+                    }
+
                     if(mMsgEnabled & CAMERA_MSG_FOCUS)
-						mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+						mNotifyCb(CAMERA_MSG_FOCUS, focus_flag, 0, mCallbackCookie);
                 }
             }
 #endif
@@ -606,7 +616,7 @@ void CameraHal::previewThread()
                 {
 
 //Disable Autofocus in Eclair for now
-#if 0
+#if 1 
 
 #ifdef FW3A   
 
@@ -1163,7 +1173,6 @@ void CameraHal::nextPreview()
         err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
         if (err == 0) {
             if (fobj->status_2a.ae.camera_shake == SHAKE_HIGH_RISK) {
-                LOGD("Low light event");
                 mParameters.set("low-light", "1");
             } else {
                 mParameters.set("low-light", "0");
@@ -2828,32 +2837,32 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
         valstr = mParameters.get("touch-focus");
         if( NULL != valstr ){
-            int af_x = 0;
-            int af_y = 0;
+            if ( strcmp(valstr, (const char *) "disabled") != 0) {
 
-            af_coord = strtok((char *) valstr, PARAMS_DELIMITER);
+                int af_x = 0;
+                int af_y = 0;
 
-            if( NULL != af_coord){
-                af_x = atoi(af_coord);
+                af_coord = strtok((char *) valstr, PARAMS_DELIMITER);
+
+                if( NULL != af_coord){
+                    af_x = atoi(af_coord);
+                }
+
+                af_coord = strtok(NULL, PARAMS_DELIMITER);
+
+                if( NULL != af_coord){
+                    af_y = atoi(af_coord);
+                }
+
+                fobj->settings_2a.general.face_tracking.enable = 1;
+                fobj->settings_2a.general.face_tracking.count = 1;
+                fobj->settings_2a.general.face_tracking.update = 1;
+                fobj->settings_2a.general.face_tracking.faces[0].top = af_y;
+                fobj->settings_2a.general.face_tracking.faces[0].left = af_x;
+                fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_EXTENDED;
+
+                LOGD("NEW PARAMS: af_x = %d, af_y = %d", af_x, af_y);
             }
-
-            af_coord = strtok(NULL, PARAMS_DELIMITER);
-
-            if( NULL != af_coord){
-                af_y = atoi(af_coord);
-            }
-//Support to be added in 3A framework interface soon.
-#if 0
-
-            fobj->settings_2a.general.face_tracking.enable = 1;
-            fobj->settings_2a.general.face_tracking.count = 1;
-            fobj->settings_2a.general.face_tracking.update = 1;
-            fobj->settings_2a.general.face_tracking.faces[0].top = af_y;
-            fobj->settings_2a.general.face_tracking.faces[0].left = af_x;
-
-#endif
-
-            LOGD("NEW PARAMS: af_x = %d, af_y = %d", af_x, af_y);
         }
 
 
