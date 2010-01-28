@@ -70,6 +70,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 /*-------program files ----------------------------------------*/
+
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
+
 #include "OMX_G726Enc_Utils.h"
 #include "g726enc_sn_uuid.h"
 #include <encode_common_ti.h>
@@ -313,6 +318,11 @@ OMX_ERRORTYPE G726ENC_FillLCMLInitParams(OMX_HANDLETYPE pComponent,
         pTemp_lcml->eDir = OMX_DirInput;
         
         pBufferParamTemp = (OMX_U8*)SafeMalloc( sizeof(G726ENC_ParamStruct) + 256);
+	if (pBufferParamTemp == NULL) {
+	    G726ENC_DPRINT("%d :: Memory Allocation Failed\n", __LINE__);
+	    eError = OMX_ErrorInsufficientResources;
+	    goto EXIT;
+	}
         memset(pBufferParamTemp, 0x0, sizeof(G726ENC_ParamStruct) + 256);
         pTemp_lcml->pIpParam =  (G726ENC_ParamStruct*)(pBufferParamTemp + 128);
         
@@ -519,6 +529,7 @@ OMX_ERRORTYPE G726ENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     G726ENC_LCML_BUFHEADERTYPE *pTemp_lcml = NULL;
     OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pComponent;
     OMX_U8* pBufParmsTemp = NULL;
+    OMX_U8* pParamsTemp = NULL;        
     G726ENC_COMPONENT_PRIVATE *pComponentPrivate = (G726ENC_COMPONENT_PRIVATE *)
                                                      pHandle->pComponentPrivate;
     G726ENC_DPRINT("%d :: Entering G726ENC_CleanupInitParams()\n", __LINE__);
@@ -540,6 +551,10 @@ OMX_ERRORTYPE G726ENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
           pTemp_lcml++;
     }
 
+    pParamsTemp = (OMX_U8*)pComponentPrivate->pParams;
+    if (pParamsTemp != NULL)
+        pParamsTemp -= 128;
+    OMX_NBMEMFREE_STRUCT(pParamsTemp);
     pTemp_lcml = pComponentPrivate->pLcmlBufHeader[G726ENC_OUTPUT_PORT];
 
     for(i=0; i<pComponentPrivate->nRuntimeOutputBuffers; i++) {
@@ -726,10 +741,13 @@ OMX_U32 G726ENC_HandleCommand (G726ENC_COMPONENT_PRIVATE *pComponentPrivate)
                 
 #ifdef RESOURCE_MANAGER_ENABLED
                 /* Need check the resource with RM */
-                pComponentPrivate->rmproxyCallback.RMPROXY_Callback = (void *) G726_ResourceManagerCallback;
-				if (pComponentPrivate->curState != OMX_StateWaitForResources) {
-				    rm_error = RMProxy_NewSendCommand(pHandle, RMProxy_RequestResource, OMX_G726_Encoder_COMPONENT, 
-                                                               G726ENC_CPU, 3456,&(pComponentPrivate->rmproxyCallback));
+                pComponentPrivate->rmproxyCallback.RMPROXY_Callback = (void *) G726ENC_ResourceManagerCallback;
+                if (pComponentPrivate->curState != OMX_StateWaitForResources) {
+                    rm_error = RMProxy_NewSendCommand(pHandle, RMProxy_RequestResource,
+                                                      OMX_G726_Encoder_COMPONENT, 
+                                                      G726ENC_CPU,
+                                                      3456,
+                                                      &(pComponentPrivate->rmproxyCallback));
                 if(rm_error == OMX_ErrorNone) {
                     /* resource is available */
                     pComponentPrivate->curState = OMX_StateIdle;
@@ -754,6 +772,13 @@ OMX_U32 G726ENC_HandleCommand (G726ENC_COMPONENT_PRIVATE *pComponentPrivate)
                     rm_error = RMProxy_NewSendCommand(pHandle, RMProxy_StateSet, OMX_G726_Encoder_COMPONENT, OMX_StateIdle, 3456,NULL);
 				
               }
+                pComponentPrivate->curState = OMX_StateIdle;
+                pComponentPrivate->cbInfo.EventHandler( pHandle,
+                                                        pHandle->pApplicationPrivate,
+                                                        OMX_EventCmdComplete,
+                                                        OMX_CommandStateSet,
+                                                        pComponentPrivate->curState,
+                                                        NULL);    				
 #else                
                 pComponentPrivate->curState = OMX_StateIdle;
                 pComponentPrivate->cbInfo.EventHandler( pHandle,
@@ -1414,14 +1439,7 @@ OMX_ERRORTYPE G726ENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                 pComponentPrivate->nEmptyBufferDoneCount++;
             }
             if(pBufHeader->nFlags == OMX_BUFFERFLAG_EOS) {
-
-                pComponentPrivate->pOutputBufferList->pBufHdr[0]->nFlags |= OMX_BUFFERFLAG_EOS;
-                pComponentPrivate->cbInfo.EventHandler( pComponentPrivate->pHandle,
-                                                        pComponentPrivate->pHandle->pApplicationPrivate,
-                                                        OMX_EventBufferFlag,
-                                                        pComponentPrivate->pOutputBufferList->pBufHdr[0]->nOutputPortIndex,
-                                                        pComponentPrivate->pOutputBufferList->pBufHdr[0]->nFlags, NULL);
-                pBufHeader->nFlags = 0;
+              pComponentPrivate->pOutputBufferList->pBufHdr[0]->nFlags |= OMX_BUFFERFLAG_EOS;
             }
             if(pBufHeader->pMarkData){
                 /* copy mark to output buffer header */
@@ -1880,6 +1898,7 @@ OMX_ERRORTYPE G726ENC_LCMLCallback (TUsnCodecEvent event,void * args[10])
             if(pComponentPrivate->lastOutBufArrived!=NULL && !pComponentPrivate->dasfMode){
                      pComponentPrivate->lastOutBufArrived->nFlags = OMX_BUFFERFLAG_EOS;
                      pComponentPrivate->LastBufSent=0;
+                     /*TODO: add eventhandler to report eos to application*/
             }
         }
     }
@@ -2230,3 +2249,34 @@ EXIT:
     return eError;
 }
 
+#ifdef RESOURCE_MANAGER_ENABLED
+/***********************************
+ *  Callback to the RM                                       *
+ ***********************************/
+void G726ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
+{
+    OMX_COMMANDTYPE Cmd = OMX_CommandStateSet;
+    OMX_STATETYPE state = OMX_StateIdle;
+    OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)cbData.hComponent;
+    G726ENC_COMPONENT_PRIVATE *pCompPrivate = NULL;
+
+    pCompPrivate = (G726ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+
+    if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesPreempted){
+        if (pCompPrivate->curState == OMX_StateExecuting || 
+            pCompPrivate->curState == OMX_StatePause) {
+
+            write (pCompPrivate->cmdPipe[1], &Cmd, sizeof(Cmd));
+            write (pCompPrivate->cmdDataPipe[1], &state ,sizeof(OMX_U32));
+
+            pCompPrivate->bPreempted = 1;
+        }
+    }
+    else if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesAcquired){
+        pCompPrivate->cbInfo.EventHandler ( pHandle, 
+                                            pHandle->pApplicationPrivate,
+                                            OMX_EventResourcesAcquired, 
+                                            0, 0, NULL);
+    }
+}
+#endif

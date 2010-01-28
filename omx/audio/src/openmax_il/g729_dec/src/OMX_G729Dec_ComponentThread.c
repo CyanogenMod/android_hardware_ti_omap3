@@ -183,7 +183,7 @@ void* G729DEC_ComponentThread (void* pThreadData)
                                                     pHandle->pApplicationPrivate,
                                                     OMX_EventError,OMX_ErrorInsufficientResources,0,
                                                     "Error from COmponent Thread in select");
-            exit(1);
+            eError = OMX_ErrorInsufficientResources;
 
         } 
         else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds))){
@@ -233,5 +233,5 @@ void* G729DEC_ComponentThread (void* pThreadData)
     }
  EXIT:
     G729DEC_DPRINT("%d::Exiting ComponentThread\n",__LINE__);
-    return (void*)OMX_ErrorNone;
+    return (void*)eError;
 }

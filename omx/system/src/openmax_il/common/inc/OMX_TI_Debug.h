@@ -544,4 +544,67 @@ struct OMX_TI_Debug
 #define OMX_DBG_COL_STATE OMX_DBG_COL_BLUE
 #endif
 
+#ifdef OMX_MEMDEBUG
+#define mem_array_size=500;
+
+void *arr[mem_array_size];
+int lines[mem_array_size];
+int bytes[mem_array_size];
+char file[mem_array_size][50];
+
+#define newmalloc(x) mymalloc(__LINE__,__FILE__,x)
+#define newfree(z) myfree(z,__LINE__,__FILE__)
+
+void * mymalloc(int line, char *s, int size);
+int myfree(void *dp, int line, char *s);
+
+void * mymalloc(int line, char *s, int size)
+{
+   void *p;    
+   int e=0;
+   p = malloc(size);
+   if(p==NULL){
+       OMXDBG_PRINT(stderr, ERROR, 4, 0, "Memory not available\n");
+       /* ddexit(1); */
+       }
+   else{
+         while((lines[e]!=0)&& (e<(mem_array_size - 1)) ){
+              e++;
+         }
+         arr[e]=p;
+         lines[e]=line;
+         bytes[e]=size;
+         strcpy(file[e],s);
+         OMXDBG_PRINT(stderr, BUFFER, 2, 0, 
+            "Allocating %d bytes on address %p, line %d file %s pos %d\n", size, p, line, s, e);
+   }
+   return p;
+}
+
+int myfree(void *dp, int line, char *s){
+    int q;
+    for(q=0;q<mem_array_size;q++){
+        if(arr[q]==dp){
+           OMXDBG_PRINT(stderr, PRINT, 2, 0, "Deleting %d bytes on address %p, line %d file %s\n",
+                   bytes[q],dp, line, s);
+           free(dp);
+           dp = NULL;
+           lines[q]=0;
+           strcpy(file[q],"");
+           break;
+        }            
+     }    
+     if(mem_array_size==q){
+         OMXDBG_PRINT(stderr, PRINT, 2, 0, "\n\nPointer not found. Line:%d    File%s!!\n\n",line, s);
+     }
+}
+
+#else
+
+#define newmalloc(x) malloc(x)
+#define newfree(z) free(z)
+
+#endif
+
+
 #endif

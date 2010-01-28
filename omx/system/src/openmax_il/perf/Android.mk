@@ -1,3 +1,4 @@
+ifeq ($(PERF_INSTRUMENTATION),1)
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -38,3 +39,4 @@ LOCAL_CFLAGS := $(TI_OMX_CFLAGS)
 LOCAL_MODULE:= libPERF
 
 include $(BUILD_SHARED_LIBRARY)
+endif

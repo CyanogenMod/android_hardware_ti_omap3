@@ -53,6 +53,9 @@
 #include <OMX_Component.h>
 #include <TIDspOmx.h>
 
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
 
 #ifdef UNDER_CE
 	#define sleep Sleep
@@ -688,6 +691,11 @@ typedef struct G726ENC_COMPONENT_PRIVATE
     /** preempted flag */
     OMX_BOOL bPreempted;
 
+    /** Pointer to RM callback **/
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
+
 } G726ENC_COMPONENT_PRIVATE;
 
 
@@ -964,6 +972,13 @@ OMX_U32 G726ENC_IsValid(G726ENC_COMPONENT_PRIVATE *pComponentPrivate,
 						 OMX_U8 *pBuffer,
 						 OMX_DIRTYPE eDir);
 
+
+#ifdef RESOURCE_MANAGER_ENABLED
+/***********************************
+ *  Callback to the RM                                       *
+ ***********************************/
+void G726ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
 
 /* ======================================================================= */
 /** OMX_G726ENC_INDEXAUDIOTYPE  Defines the custom configuration settings

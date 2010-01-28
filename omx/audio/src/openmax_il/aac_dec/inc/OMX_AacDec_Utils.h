@@ -47,7 +47,11 @@
 #include "LCML_DspCodec.h"
 #include <pthread.h>
 #include <sched.h>
-/* #include <ResourceManagerProxyAPI.h> */
+
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
+
 #ifdef UNDER_CE
 #include <windows.h>
 #include <oaf_osal.h>
@@ -78,6 +82,7 @@
 #endif
  
 #define OBJECTTYPE_LC 2
+#define OBJECTTYPE_LTP 4
 #define OBJECTTYPE_HE 5
 #define OBJECTTYPE_HE2 29
 
@@ -231,10 +236,7 @@
 #else /* for Linux */
 
 #ifdef  AACDEC_DEBUG
-    #define AACDEC_DPRINT printf    //__android_log_print(ANDROID_LOG_VERBOSE, __FILE__,"%s %d:: ",__FUNCTION__, __LINE__);\
-	                            //__android_log_print(ANDROID_LOG_VERBOSE, __FILE__, __VA_ARGS__);\
-    	                            //__android_log_print(ANDROID_LOG_VERBOSE, __FILE__, "\n");
-
+    #define AACDEC_DPRINT printf
     #undef AACDEC_BUFPRINT printf
     #undef AACDEC_MEMPRINT printf
     #define AACDEC_STATEPRINT printf
@@ -264,45 +266,8 @@
 
 #define AACDEC_EPRINT LOGE
 
-                           /* __android_log_print(ANDROID_LOG_VERBOSE, __FILE__,"%s %d::	ERROR",__FUNCTION__, __LINE__);\
-	                    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, __VA_ARGS__);\
-    	                    __android_log_print(ANDROID_LOG_VERBOSE, __FILE__, "\n"); */
-
 #endif
 
-/* ======================================================================= */
-/**
- * @def    AACD_OMX_MALLOC   Macro to allocate Memory
- */
-/* ======================================================================= */
-#define AACD_OMX_MALLOC(_pStruct_, _sName_)                         \
-    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));               \
-    if(_pStruct_ == NULL){                                          \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");            \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__);                   \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");            \
-        eError = OMX_ErrorInsufficientResources;                    \
-        goto EXIT;                                                  \
-    }                                                               \
-    memset(_pStruct_,0,sizeof(_sName_));                            \
-    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
-
-/* ======================================================================= */
-/**
- * @def    AACDEC_OMX_MALLOC_SIZE   Macro to allocate Memory
- */
-/* ======================================================================= */
-#define AACDEC_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)            \
-    _ptr_ = (_name_*)newmalloc(_size_);                         \
-    if(_ptr_ == NULL){                                          \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");        \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__);               \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_ptr_,0,_size_);                                     \
-    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_ptr_);
 
 /* ======================================================================= */
 /**
@@ -327,18 +292,6 @@
             eError = OMX_ErrorBadParameter;             \
             goto EXIT;                                  \
         }                                               \
-    }
-
-/* ======================================================================= */
-/**
- * @def    AACDEC_OMX_FREE   Macro to free the Memory
- */
-/* ======================================================================= */
-#define AACDEC_OMX_FREE(ptr)                                            \
-    if(NULL != ptr) {                                                   \
-        OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Freeing Address = %p\n",__LINE__,ptr);   \
-        newfree(ptr);                                                   \
-        ptr = NULL;                                                     \
     }
 
 /* ======================================================================= */
@@ -373,8 +326,6 @@
 /* ======================================================================= */
 #undef AACDEC_MEMDETAILS
 
-#define EXTRA_BYTES 128 /* For Cache alignment*/
-#define DSP_CACHE_ALIGNMENT 256 /* For Cache alignment*/
 #define AACDEC_OUTPUT_PORT 1
 #define AACDEC_INPUT_PORT 0
 #define AACDEC_APP_ID  100
@@ -434,21 +385,6 @@
 
 /* ======================================================================= */
 /**
- * @def    Mem test application
- */
-/* ======================================================================= */
-#undef AACDEC_DEBUGMEM 
-
-#ifdef AACDEC_DEBUGMEM
-#define newmalloc(x) mymalloc(__LINE__,__FILE__,x)
-#define newfree(z) myfree(z,__LINE__,__FILE__) 
-#else
-#define newmalloc(x) malloc(x)
-#define newfree(z) free(z)
-#endif
-
-/* ======================================================================= */
-/**
  * @def    AACDec macros for MONO,STEREO_INTERLEAVED,STEREO_NONINTERLEAVED
  */
 /* ======================================================================= */
@@ -466,10 +402,10 @@
 
 /* ======================================================================= */
 /**
- * pthread variable to indicate OMX returned all buffers to app
+ * pthread variable to indicate OMX returned all buffers to app 
  */
 /* ======================================================================= */
-pthread_mutex_t bufferReturned_mutex;
+pthread_mutex_t bufferReturned_mutex; 
 pthread_cond_t bufferReturned_condition;
 
 /**
@@ -558,8 +494,8 @@ typedef struct {
     long       DownSampleSbr;
     long       iEnablePS;
     long       lSamplingRateIdx;
-    long       nProfile;
     long       bRawFormat;
+    long       dualMonoMode;
 } MPEG4AACDEC_UALGParams;
 
 /* ======================================================================= */
@@ -656,7 +592,7 @@ typedef struct USN_AudioCodecParams{
 /* ==================================================================== */
 typedef struct {
     unsigned long ulFrameCount;
-  unsigned long isLastBuffer;
+    unsigned long isLastBuffer;
 }AACDEC_UAlgOutBufParamStruct;
 
 typedef struct AACDEC_UALGParams{
@@ -854,7 +790,10 @@ typedef struct AACDEC_COMPONENT_PRIVATE
     /** Pointer to port priority management structure */
     OMX_PRIORITYMGMTTYPE* pPriorityMgmt;
 
-	/* RMPROXY_CALLBACKTYPE rmproxyCallback; */
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
+
     OMX_BOOL bPreempted;
 
 	
@@ -893,7 +832,7 @@ typedef struct AACDEC_COMPONENT_PRIVATE
 
     OMX_U32 nOpBit;
     OMX_U32 parameteric_stereo;
-    OMX_U32 nProfile;
+    OMX_U32 dualMonoMode;
     OMX_U32 SBR;
     OMX_U32 RAW;
     OMX_U32 nFillThisBufferCount;
@@ -929,7 +868,6 @@ typedef struct AACDEC_COMPONENT_PRIVATE
 #ifndef UNDER_CE    
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
-
     OMX_U8 AlloBuf_waitingsignal;
     
     pthread_mutex_t InLoaded_mutex;
@@ -948,8 +886,10 @@ typedef struct AACDEC_COMPONENT_PRIVATE
     pthread_cond_t codecFlush_threshold;
     OMX_U8 codecFlush_waitingsignal;
 
-    OMX_S8 nUnhandledFillThisBuffers;
-    OMX_S8 nUnhandledEmptyThisBuffers;
+    OMX_U32 nUnhandledFillThisBuffers;
+    OMX_U32 nHandledFillThisBuffers;
+    OMX_U32 nUnhandledEmptyThisBuffers;
+    OMX_U32 nHandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
 #else
@@ -1333,8 +1273,9 @@ OMX_ERRORTYPE AACDECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 inde
 /*================================================================== */
 OMX_U32 AACDEC_IsValid(AACDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
 
-/* void AACDEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData); */
-
+#ifdef RESOURCE_MANAGER_ENABLED
+void AACDEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
 /*=======================================================================*/
 /*! @fn AACDec_GetSampleRateIndexL
 
@@ -1361,18 +1302,23 @@ OMX_U32 AACDEC_ParseHeader(OMX_BUFFERHEADERTYPE* pBufHeader,
 /*  =========================================================================*/
 OMX_U32 AACDEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BOOL bIcreasePosition);
 
+/*  =========================================================================*/
+/*  func    AACDEC_HandleUSNError
+ *
+ *  desc    Handles error messages returned by the dsp
+ *
+ * @Return n/a
+ *
+ *  =========================================================================*/
+void AACDEC_HandleUSNError (AACDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
+
 /*=======================================================================*/
-/*! @fn SignalIfAllBuffersAreReturned
-
- * @brief Sends pthread signal to indicate OMX has returned all buffers to app
-
- * @param  none
-
- * @Return void
-
+/*! @fn SignalIfAllBuffersAreReturned 
+ * @brief Sends pthread signal to indicate OMX has returned all buffers to app 
+ * @param  none 
+ * @Return void 
  */
 /*=======================================================================*/
 void SignalIfAllBuffersAreReturned(AACDEC_COMPONENT_PRIVATE *pComponentPrivate);
-
 
 #endif

@@ -57,7 +57,7 @@
 #include <OMX_Component.h>
 #include <OMX_Core.h>
 #include <OMX_Audio.h>
-#include <TIDspOmx.h>
+/*#include <TIDspOmx.h>*/
 
 #include <pthread.h>
 #include <stdio.h>
@@ -496,7 +496,7 @@ int main(int argc, char* argv[])
     OMX_BUFFERHEADERTYPE* pOutputBufferHeader[10];
     OMX_BUFFERHEADERTYPE* pBuf;
     bInvalidState=OMX_FALSE;
-    TI_OMX_DATAPATH dataPath;
+    /* TI_OMX_DATAPATH dataPath;*/
     FILE* fOut = NULL;
     FILE* fIn = fopen(argv[1], "r");
 
@@ -523,11 +523,11 @@ int main(int argc, char* argv[])
     int wbamrdecfdread;
 #endif
 
-    TI_OMX_DSP_DEFINITION* audioinfo;
+    /*TI_OMX_DSP_DEFINITION* audioinfo;*/
     OMX_AUDIO_CONFIG_MUTETYPE* pCompPrivateStructMute = NULL; 
     OMX_AUDIO_CONFIG_VOLUMETYPE* pCompPrivateStructVolume = NULL; 
 
-	TI_OMX_STREAM_INFO *streaminfo;
+	/*TI_OMX_STREAM_INFO *streaminfo;
     streaminfo = newmalloc(sizeof(TI_OMX_STREAM_INFO));
 	audioinfo = newmalloc(sizeof(TI_OMX_DSP_DEFINITION));
 	
@@ -537,8 +537,9 @@ int main(int argc, char* argv[])
         error = OMX_ErrorInsufficientResources;
         goto EXIT;
     }
+	
     ArrayOfPointers[0]=(TI_OMX_STREAM_INFO*)streaminfo;
-    ArrayOfPointers[1]=(TI_OMX_DSP_DEFINITION*)audioinfo;
+    ArrayOfPointers[1]=(TI_OMX_DSP_DEFINITION*)audioinfo;*/
 
     pthread_mutex_init(&WaitForState_mutex, NULL);
     pthread_cond_init (&WaitForState_threshold, NULL);
@@ -1070,12 +1071,12 @@ int main(int argc, char* argv[])
     }
 
 	/* get TeeDN or ACDN mode */
-	audioinfo->acousticMode = atoi(argv[8]);
-
+	/*audioinfo->acousticMode = atoi(argv[8]);*/
+	/*
     if (audioinfo->acousticMode == OMX_TRUE) {
         printf("Using Acoustic Device Node Path\n");
-        dataPath = DATAPATH_ACDN;
-    }
+	dataPath = DATAPATH_ACDN;
+    }*/
     else if (dasfmode) {
 #ifdef RTM_PATH    
         printf("Using Real Time Mixer Path\n");
@@ -1088,7 +1089,7 @@ int main(int argc, char* argv[])
 #endif        
     }
 
-    audioinfo->dasfMode = dasfmode;
+    /*audioinfo->dasfMode = dasfmode;*/
     error = OMX_GetExtensionIndex(pHandle, "OMX.TI.index.config.wbamrheaderinfo",&index);
 	if (error != OMX_ErrorNone) {
 		printf("Error getting extension index\n");
@@ -1114,26 +1115,26 @@ int main(int argc, char* argv[])
     streamId = audioinfo->streamId;
 #endif
 	
-	error = OMX_SetConfig (pHandle, index, audioinfo);
+	/*error = OMX_SetConfig (pHandle, index, audioinfo);
     if(error != OMX_ErrorNone) {
         error = OMX_ErrorBadParameter;
         APP_DPRINT("%d :: Error from OMX_SetConfig() function\n",__LINE__);
         goto EXIT;
     }
-
-    error = OMX_GetExtensionIndex(pHandle, "OMX.TI.index.config.wbamr.datapath",&index);
+	*/
+    /*error = OMX_GetExtensionIndex(pHandle, "OMX.TI.index.config.wbamr.datapath",&index);
 	if (error != OMX_ErrorNone) {
 		printf("Error getting extension index\n");
 		goto EXIT;
-	}
+	}*/
     
 
-	error = OMX_SetConfig (pHandle, index, &dataPath);
+	/*error = OMX_SetConfig (pHandle, index, &dataPath);
     if(error != OMX_ErrorNone) {
         error = OMX_ErrorBadParameter;
         APP_DPRINT("%d :: AmrDecTest.c :: Error from OMX_SetConfig() function\n",__LINE__);
         goto EXIT;
-    }
+    }*/
 
 
      /* default setting for Mute/Unmute */ 
@@ -1745,9 +1746,9 @@ SHUTDOWN:
 			goto EXIT;
     }
    
-    newfree(audioinfo);
+    /*newfree(audioinfo);
     
-    newfree(streaminfo);
+    newfree(streaminfo);*/
 
 
 	

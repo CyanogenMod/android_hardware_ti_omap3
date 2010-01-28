@@ -164,8 +164,7 @@ void* MP3DEC_ComponentThread (void* pThreadData)
                                                     OMX_ErrorInsufficientResources, 
                                                     OMX_TI_ErrorSevere,
                                                     "Error from COmponent Thread in select");
-            eError = OMX_ErrorInsufficientResources; 
-            break;
+            eError = OMX_ErrorInsufficientResources;
 
         } else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds))) {
             int ret;

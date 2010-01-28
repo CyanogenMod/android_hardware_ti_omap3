@@ -176,7 +176,7 @@ void* G729ENC_CompThread(void* pThreadData)
                                                    OMX_ErrorInsufficientResources,
                                                    0,
                                                    "");
-            exit(1);
+            eError = OMX_ErrorInsufficientResources;
         }
         else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds))) 
         {
@@ -235,5 +235,5 @@ void* G729ENC_CompThread(void* pThreadData)
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
     G729ENC_DPRINT("Exiting. Returning = 0x%x\n", eError);
-    return (void*)OMX_ErrorNone;
+    return (void*)eError;
 }

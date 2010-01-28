@@ -1,5 +1,3 @@
-ifneq ($(BUILD_WITHOUT_PV),true)
-
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
@@ -43,4 +41,3 @@ LOCAL_SHARED_LIBRARIES := libOMX_Core
 
 include $(BUILD_SHARED_LIBRARY)
 
-endif

@@ -137,7 +137,13 @@ OMX_ERRORTYPE GetLCMLHandleJpegDec(OMX_HANDLETYPE pComponent)
     }
 
     /*calling gethandle and passing phandle to be filled */
-    eError = (*fpGetHandle)(&LCML_pHandle);
+    if ( fpGetHandle != NULL ) {
+        eError = (*fpGetHandle)(&LCML_pHandle);
+    }
+    else  {
+        eError = OMX_ErrorInvalidComponent;
+        goto EXIT;
+    }
     if (eError != OMX_ErrorNone) {
         eError = OMX_ErrorUndefined;
         OMX_PRDSP5(pComponentPrivate->dbg, "eError != OMX_ErrorNone... in (*fpGetHandle)(&LCML_pHandle);\n");
@@ -400,6 +406,7 @@ OMX_ERRORTYPE Free_ComponentResourcesJpegDec(JPEGDEC_COMPONENT_PRIVATE *pCompone
     OMX_COMMANDTYPE eCmd = OMX_CustomCommandStopThread;
     struct OMX_TI_Debug dbg;
 
+    OMX_DBG_INIT_BASE(dbg);
     if (!pComponentPrivate) {
 	OMXDBG_PRINT(stderr, ERROR, 5, 0, "pComponentPrivate is NULL.\n");
         goto EXIT;
@@ -569,10 +576,10 @@ OMX_ERRORTYPE Fill_LCMLInitParamsJpegDec(LCML_DSP *lcml_dsp,
     OMX_CHECK_PARAM(pComponent);
     pHandle = (OMX_COMPONENTTYPE *)pComponent;
     pComponentPrivate = (JPEGDEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+    JPEGDEC_OMX_CONF_CHECK_CMD(pComponentPrivate, 1, 1);
+
     pPortDefIn = pComponentPrivate->pCompPort[JPEGDEC_INPUT_PORT]->pPortDef;
     pPortDefOut = pComponentPrivate->pCompPort[JPEGDEC_OUTPUT_PORT]->pPortDef;
-
-    JPEGDEC_OMX_CONF_CHECK_CMD(pComponentPrivate, 1, 1);
 
     lcml_dsp->In_BufInfo.DataTrMethod = DMM_METHOD;
     lcml_dsp->Out_BufInfo.DataTrMethod = DMM_METHOD;
@@ -949,7 +956,7 @@ OMX_U32 HandleCommandFlush(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
         eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,EMMCodecControlStrmCtrl, (void*)aParam);
         OMX_PRDSP2(pComponentPrivate->dbg, "eError %x\n", eError); 
         if (eError != OMX_ErrorNone) {
-            goto EXIT;
+            goto PRINT_EXIT;
         }
 #ifdef UNDER_CE
     nTimeOut = 0;
@@ -1012,7 +1019,7 @@ OMX_U32 HandleCommandFlush(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
         eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,EMMCodecControlStrmCtrl, (void*)aParam);
 	OMX_PRDSP2(pComponentPrivate->dbg, "eError %x\n", eError); 
        if (eError != OMX_ErrorNone) {
-            goto EXIT;
+            goto PRINT_EXIT;
         }
 #ifdef UNDER_CE
         nTimeOut = 0;
@@ -1071,8 +1078,9 @@ OMX_U32 HandleCommandFlush(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
                                        JPEGDEC_OUTPUT_PORT,
                                        NULL);
     }
-EXIT:
+PRINT_EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "Exiting HandleCommand nFlush Function\n");
+EXIT:
     return eError;
 
 }   /* End of HandleCommandFlush */
@@ -1167,14 +1175,14 @@ OMX_U32 HandleCommandJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
                 }
                 if(eError != OMX_ErrorNone){
                     OMX_PRBUFFER4(pComponentPrivate->dbg, "Port population time out\n");
-                    goto EXIT;
+                    goto PRINT_EXIT;
                 }
             }
 
             eError =  GetLCMLHandleJpegDec(pHandle);
             if (eError != OMX_ErrorNone) {
 		OMX_PRDSP5(pComponentPrivate->dbg, "GetLCMLHandle failed...\n");
-                goto EXIT;
+                goto PRINT_EXIT;
             }
 
             pLcmlHandle =(LCML_DSP_INTERFACE*)pComponentPrivate->pLCML;
@@ -1192,7 +1200,7 @@ OMX_U32 HandleCommandJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
             eError = LCML_InitMMCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle, NULL, &pLcmlHandle, NULL, &cb);
             if (eError != OMX_ErrorNone) {
 	        OMX_PRDSP4(pComponentPrivate->dbg, "InitMMCodec failed...\n");
-                goto EXIT;
+                goto PRINT_EXIT;
             }
             else {
                 pComponentPrivate->nIsLCMLActive = 1;
@@ -1201,7 +1209,7 @@ OMX_U32 HandleCommandJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
             eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle, EMMCodecControlUsnEos, NULL);
             if (eError != OMX_ErrorNone) {
                 OMX_PRDSP4(pComponentPrivate->dbg, "Enable EOS at LCML failed...\n");
-                goto EXIT;
+                goto PRINT_EXIT;
             }
             /* need check the resource with RM */
 
@@ -1525,7 +1533,7 @@ OMX_U32 HandleCommandJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
                 }
             }
             if (eError != OMX_ErrorNone){ /*Verify if UnPopulation compleate*/
-                goto EXIT;
+                goto PRINT_EXIT;
             }
 
 #ifdef RESOURCE_MANAGER_ENABLED
@@ -1617,8 +1625,9 @@ OMX_U32 HandleCommandJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate,
         break;
     } /* End of Switch */
 
-EXIT:
+PRINT_EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "Exiting HandleCommand Function %x\n", eError);
+EXIT:
     return eError;
 } 
   /* End of HandleCommandJpegDec */
@@ -1904,8 +1913,8 @@ OMX_ERRORTYPE HandleDataBuf_FromDspJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponent
     }
 
 
-EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "Exit\n");
+EXIT:
     return eError;
 }   /* End of HandleDataBuf_FromDspJpegDec */
 
@@ -1951,8 +1960,8 @@ OMX_ERRORTYPE HandleFreeDataBufJpegDec(JPEGDEC_COMPONENT_PRIVATE *pComponentPriv
                                               pBuffHead);
     }
 
-EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "JPEGexiting\n");
+EXIT:
     return eError;
 }   /* End of HandleFreeDataBufJpegDec */
 
@@ -2196,15 +2205,15 @@ void ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
     OMX_COMMANDTYPE Cmd = OMX_CommandStateSet;
     OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)cbData.hComponent;
     JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
-    OMX_ERRORTYPE RM_Error = *(cbData.RM_Error);
+    OMX_ERRORTYPE eError = *(cbData.RM_Error);
     
     pComponentPrivate = (JPEGDEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 
     JPEGDEC_OMX_CONF_CHECK_CMD(pComponentPrivate, 1, 1); 
 
-    OMX_PRINT1(pComponentPrivate->dbg, "RM_Error = %x\n", RM_Error);
+    OMX_PRINT1(pComponentPrivate->dbg, "RM_Error = %x\n", eError);
 
-    if (RM_Error == OMX_RmProxyCallback_ResourcesPreempted) {
+    if (eError == OMX_RmProxyCallback_ResourcesPreempted) {
 
         pComponentPrivate->bPreempted = 1;
         
@@ -2234,7 +2243,7 @@ void ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
         write (pComponentPrivate->nCmdDataPipe[1], &(pComponentPrivate->nToState) ,sizeof(OMX_U32));
         
     }
-    else if (RM_Error == OMX_RmProxyCallback_ResourcesAcquired ){
+    else if (eError == OMX_RmProxyCallback_ResourcesAcquired ){
 
         if (pComponentPrivate->nCurState == OMX_StateWaitForResources) /* Wait for Resource Response */
         {
@@ -2255,7 +2264,8 @@ void ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
         }            
         
     }
-
+    EXIT:
+        OMX_PRMGR2(pComponentPrivate->dbg, "OMX_RmProxyCallback exiting.\n");
 }
 #endif
 
@@ -2313,18 +2323,20 @@ void LinkedList_Create(LinkedList *LinkedList) {
 void LinkedList_AddElement(LinkedList *LinkedList, void *pValue) {
     /* create new node and fill the value */
     Node *pNewNode = (Node *)malloc(sizeof(Node));
-    pNewNode->pValue = (void *)pValue;
-    /*printf("LinkedList:::: Pointer=%p has been added.\n", pNewNode->pValue); */
-    /* add new node on the root to implement quick FIFO */
-    /* modify new node pointers */
-    if(LinkedList->pRoot == NULL) {
-        pNewNode->pNextNode = NULL;
+    if ( pNewNode != NULL )  {
+        pNewNode->pValue = (void *)pValue;
+        /*printf("LinkedList:::: Pointer=%p has been added.\n", pNewNode->pValue); */
+        /* add new node on the root to implement quick FIFO */
+        /* modify new node pointers */
+        if(LinkedList->pRoot == NULL) {
+            pNewNode->pNextNode = NULL;
+        }
+        else {
+             pNewNode->pNextNode = LinkedList->pRoot;
+        }
+        /*modify root */
+        LinkedList->pRoot = pNewNode;
     }
-    else {
-         pNewNode->pNextNode = LinkedList->pRoot;
-    }
-    /*modify root */
-    LinkedList->pRoot = pNewNode;
 }
 
 void LinkedList_FreeElement(LinkedList *LinkedList, void *pValue) {

@@ -62,21 +62,6 @@
 #define MAX_NUM_OF_BUFS 10
 #define NUM_OF_PORTS 2
 
-/* ======================================================================= */
-/**
- * @def    Mem test application
- */
-/* ======================================================================= */
-#undef AACENC_DEBUGMEM 
-
-#ifdef AACENC_DEBUGMEM
-#define newmalloc(x) mymalloc(__LINE__,__FILE__,x)
-#define newfree(z) myfree(z,__LINE__,__FILE__) 
-#else
-#define newmalloc(x) malloc(x)
-#define newfree(z) free(z)
-#endif
-
 typedef enum OMX_AACENC_INDEXAUDIOTYPE {
     OMX_IndexCustomAacEncHeaderInfoConfig = 0xFF000001,
     OMX_IndexCustomAacEncStreamIDConfig,

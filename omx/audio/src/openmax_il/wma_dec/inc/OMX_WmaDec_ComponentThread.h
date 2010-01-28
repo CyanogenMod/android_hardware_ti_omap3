@@ -46,7 +46,7 @@
 
 /* ===========================================================  */
 /**
-*  ComponentThread()  Component thread
+*  WMADEC_ComponentThread()  Component thread
 * 
 *
 *  @param pThreadData		Thread data
@@ -55,7 +55,7 @@
 *
 */
 /*================================================================== */
-void* ComponentThread (void* pThreadData);
+void* WMADEC_ComponentThread (void* pThreadData);
 void WMAD_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 
 #endif

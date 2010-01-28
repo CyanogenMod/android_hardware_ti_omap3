@@ -279,12 +279,12 @@
     (_s_)->nVersion.s.nRevision = 0x0;          \
     (_s_)->nVersion.s.nStep = 0x0
 
-#define OMX_G722MEMFREE_STRUCT(_pStruct_)                       \
-    G722ENC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
-    if(_pStruct_ != NULL)                                       \
-    {                                                           \
-        free(_pStruct_);                                        \
-        _pStruct_ = NULL;                                       \
+#define OMX_G722MEMFREE_STRUCT(_pStruct_)                           \
+    if(_pStruct_ != NULL)                                           \
+    {                                                               \
+        G722ENC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
+        free(_pStruct_);                                            \
+        _pStruct_ = NULL;                                           \
     }
 
 #define OMX_G722CLOSE_PIPE(_pStruct_,err)                       \

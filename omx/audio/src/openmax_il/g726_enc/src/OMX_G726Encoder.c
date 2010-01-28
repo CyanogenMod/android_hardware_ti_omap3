@@ -361,6 +361,11 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
 
     strcpy((char*)pComponentPrivate->componentRole.cRole, "audio_encoder.g726"); 
     pComponentPrivate->sDeviceString = SafeMalloc(100*sizeof(OMX_STRING));
+    if (pComponentPrivate->sDeviceString == NULL) {
+	G726ENC_DPRINT("%d :: OMX_ErrorInsufficientResources", __LINE__);
+	eError = OMX_ErrorInsufficientResources;
+	goto EXIT;
+    }
     /* Initialize device string to the default value */
     strcpy((char*)pComponentPrivate->sDeviceString,":srcul/codec\0");
      
@@ -647,6 +652,10 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
 
     switch(nParamIndex){
         case OMX_IndexParamAudioInit:
+	    if (pComponentPrivate->sPortParam == NULL) {
+	        eError = OMX_ErrorBadParameter;
+                break;
+	    }
             G726ENC_DPRINT("%d :: GetParameter OMX_IndexParamAudioInit \n",__LINE__);
             memcpy(ComponentParameterStructure, pComponentPrivate->sPortParam, sizeof(OMX_PORT_PARAM_TYPE));
             break;
@@ -709,6 +718,10 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
 			break;
 
             case OMX_IndexParamPriorityMgmt:
+	        if (pComponentPrivate->sPriorityMgmt == NULL) {
+                    eError = OMX_ErrorBadParameter;
+		    break;
+		}
                 G726ENC_DPRINT("%d :: GetParameter OMX_IndexParamPriorityMgmt \n",__LINE__);
                 memcpy(ComponentParameterStructure, pComponentPrivate->sPriorityMgmt, sizeof(OMX_PRIORITYMGMTTYPE));
                 break;
@@ -788,10 +801,20 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
                 G726ENC_DPRINT("%d :: SetParameter OMX_IndexParamAudioG726 \n",__LINE__);
                 pCompG726Param = (OMX_AUDIO_PARAM_G726TYPE *)pCompParam;
                 if (pCompG726Param->nPortIndex == OMX_DirOutput) {
+	            if (((G726ENC_COMPONENT_PRIVATE *)
+		        pHandle->pComponentPrivate)->G726Params[G726ENC_OUTPUT_PORT] == NULL) {
+	                eError = OMX_ErrorBadParameter;
+                        break;
+	            }
                     memcpy(((G726ENC_COMPONENT_PRIVATE *)
                             pHandle->pComponentPrivate)->G726Params[G726ENC_OUTPUT_PORT], pCompG726Param, sizeof(OMX_AUDIO_PARAM_G726TYPE));
                 }
                 else if (pCompG726Param->nPortIndex == OMX_DirInput) {
+		    if (((G726ENC_COMPONENT_PRIVATE *)
+		        pHandle->pComponentPrivate)->G726Params[G726ENC_INPUT_PORT] == NULL) {
+	                eError = OMX_ErrorBadParameter;
+                        break;
+	            }
                     memcpy(((G726ENC_COMPONENT_PRIVATE *)
                             pHandle->pComponentPrivate)->G726Params[G726ENC_INPUT_PORT], pCompG726Param, sizeof(OMX_AUDIO_PARAM_G726TYPE));
                 }
@@ -818,11 +841,19 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
 			  }
         	break;
 		case OMX_IndexParamPriorityMgmt:
+		       if (pComponentPrivate->sPriorityMgmt == NULL) {
+                           eError = OMX_ErrorBadParameter;
+			   break;
+		       }
 				G726ENC_DPRINT("%d :: SetParameter OMX_IndexParamPriorityMgmt \n",__LINE__);
 	        	memcpy(pComponentPrivate->sPriorityMgmt, (OMX_PRIORITYMGMTTYPE*)pCompParam, sizeof(OMX_PRIORITYMGMTTYPE));
 			break;
 
 	    case OMX_IndexParamAudioInit:
+		       if (pComponentPrivate->sPortParam == NULL) {
+                           eError = OMX_ErrorBadParameter;
+			   break;
+		       }
 				G726ENC_DPRINT("%d :: SetParameter OMX_IndexParamAudioInit \n",__LINE__);
 				memcpy(pComponentPrivate->sPortParam, (OMX_PORT_PARAM_TYPE*)pCompParam, sizeof(OMX_PORT_PARAM_TYPE));
 		    break;
@@ -894,11 +925,10 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
                                 OMX_PTR ComponentConfigStructure)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
+    G726ENC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
 	OMX_COMPONENTTYPE* pHandle = (OMX_COMPONENTTYPE*)hComp;
 	TI_OMX_DSP_DEFINITION *pTiDspDefinition = NULL;
     TI_OMX_DATAPATH dataPath; 
-    G726ENC_COMPONENT_PRIVATE *pComponentPrivate =
-                         (G726ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     OMX_S16 *customFlag = NULL;
     OMX_AUDIO_CONFIG_VOLUMETYPE *pGainStructure = NULL;
     OMX_U32 fdwrite = 0;
@@ -913,6 +943,7 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
 		goto EXIT;
 	}
 
+	pComponentPrivate = (G726ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 	switch (nConfigIndex) {
 
 		case OMX_IndexCustomG726ENCModeConfig: 
@@ -1713,8 +1744,13 @@ static OMX_ERRORTYPE ComponentRoleEnum(
     pComponentPrivate = (G726ENC_COMPONENT_PRIVATE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
 
     if(nIndex == 0){
-      memcpy(cRole, &pComponentPrivate->componentRole.cRole, sizeof(OMX_U8) * OMX_MAX_STRINGNAME_SIZE); 
-      G726ENC_DPRINT("::::In ComponenetRoleEnum: cRole is set to %s\n",cRole);
+      if (cRole == NULL) {
+          eError = OMX_ErrorBadParameter;
+      }
+      else {
+          memcpy(cRole, &pComponentPrivate->componentRole.cRole, sizeof(OMX_U8) * OMX_MAX_STRINGNAME_SIZE); 
+          G726ENC_DPRINT("::::In ComponenetRoleEnum: cRole is set to %s\n",cRole);
+      }
     }
     else {
       eError = OMX_ErrorNoMore;

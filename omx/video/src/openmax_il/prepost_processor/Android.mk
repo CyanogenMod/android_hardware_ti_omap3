@@ -40,7 +40,7 @@ endif
 ifeq ($(BUILD_VPP_TEST),1)
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES:=
+LOCAL_SRC_FILES:= tests/VPPTest.c
 
 LOCAL_C_INCLUDES := $(TI_OMX_COMP_C_INCLUDES) \
 	$(TI_OMX_VIDEO)/prepost_processor/inc \

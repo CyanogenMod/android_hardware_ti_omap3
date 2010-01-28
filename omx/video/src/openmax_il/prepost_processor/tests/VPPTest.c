@@ -868,15 +868,15 @@ int main(int argc, char* argv[])
         LoadBaseImage();
 #endif
 
-    error = OMX_Init();
+    error = TIOMX_Init();
     if(error != OMX_ErrorNone) {
-        printf("%d :: Error returned by OMX_Init()\n",__LINE__);
+        printf("%d :: Error returned by TIOMX_init()\n",__LINE__);
         goto EXIT;
     }
 
 /********************************************************************************************************/
     /* Load the VPP Component */
-    error = OMX_GetHandle(&pHandle,strAmrDecoder,&AppData, &AmrCaBa);
+    error = TIOMX_GetHandle(&pHandle,strAmrDecoder,&AppData, &AmrCaBa);
     if( (error != OMX_ErrorNone) || (pHandle == NULL) ){
         fprintf (stderr,"Error in Get Handle function\n");
         goto EXIT;
@@ -2007,7 +2007,7 @@ int main(int argc, char* argv[])
 EXIT:
     
     printf ("VPPTEST:: Free the Component handle\n"); 
-    error = OMX_FreeHandle(pHandle);
+    error = TIOMX_FreeHandle(pHandle);
     if( (error != OMX_ErrorNone)) {
         fprintf (stderr,"Error in Free Handle function\n");
         goto EXIT;
@@ -2022,7 +2022,7 @@ EXIT:
 
     
         /* De-Initialize OMX Core */
-    error = OMX_Deinit();
+    error = TIOMX_Deinit();
     if (error != OMX_ErrorNone) {
         printf("VPPTEST:: Failed to de-init OMX Core!\n");
         goto EXIT;

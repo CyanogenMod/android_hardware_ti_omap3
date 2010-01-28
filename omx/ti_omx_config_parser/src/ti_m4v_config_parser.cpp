@@ -99,23 +99,6 @@ int16 SearchNextM4VFrame(mp4StreamType *psBits)
     return status;
 }
 
-int16 SearchVOLHeader(mp4StreamType *psBits)
-{
-    uint32 codeword = 0;
-    int16 status = 0;
-    do
-    {
-        /* Search for VOL_HEADER */
-        status = SearchNextM4VFrame(psBits); /* search 0x00 0x00 0x01 */
-        if (status != 0)
-            return MP4_INVALID_VOL_PARAM;
-
-        status = ReadBits(psBits, VOL_START_CODE_LENGTH, &codeword);
-    }
-    while ((codeword != VOL_START_CODE) && (status == 0));
-    return status;
-}
-
 OSCL_EXPORT_REF int16 iGetM4VConfigInfo(uint8 *buffer, int32 length, int32 *width, int32 *height, int32 *display_width, int32 *display_height)
 {
     int16 status;
@@ -170,12 +153,7 @@ OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int3
 
 
         ReadBits(psBits, 32, &codeword);
-        if (codeword != VISUAL_OBJECT_START_CODE)
-        {
-            if (SearchVOLHeader(psBits) != 0)
-                return MP4_INVALID_VOL_PARAM;
-            goto decode_vol;
-        }
+        if (codeword != VISUAL_OBJECT_START_CODE) return MP4_INVALID_VOL_PARAM;
 
         /*  is_visual_object_identifier            */
         ReadBits(psBits, 1, &codeword);
@@ -214,8 +192,17 @@ OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int3
         }
         else
         {
-            if (SearchVOLHeader(psBits) != 0)
-                return MP4_INVALID_VOL_PARAM;
+            int16 status = 0;
+            do
+            {
+                /* Search for VOL_HEADER */
+                status = SearchNextM4VFrame(psBits); /* search 0x00 0x00 0x01 */
+                if (status != 0)
+                    return MP4_INVALID_VOL_PARAM;
+
+                status = ReadBits(psBits, VOL_START_CODE_LENGTH, &codeword);
+            }
+            while ((codeword != VOL_START_CODE) && (status == 0));
             goto decode_vol;
         }
         /* next_start_code() */
@@ -249,8 +236,17 @@ OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int3
             }
             else
             {
-                if (SearchVOLHeader(psBits) != 0)
-                    return MP4_INVALID_VOL_PARAM;
+                int16 status = 0;
+                do
+                {
+                    /* Search for VOL_HEADER */
+                    status = SearchNextM4VFrame(psBits); /* search 0x00 0x00 0x01 */
+                    if (status != 0)
+                        return MP4_INVALID_VOL_PARAM;
+
+                    status = ReadBits(psBits, VOL_START_CODE_LENGTH, &codeword);
+                }
+                while ((codeword != VOL_START_CODE) && (status == 0));
                 goto decode_vol;
             }
         }
@@ -422,8 +418,19 @@ decode_vol:
         }
         else
         {
-            if (SearchVOLHeader(psBits) != 0)
-                return MP4_INVALID_VOL_PARAM;
+            int16 status = 0;
+            do
+            {
+                /* Search for VOL_HEADER */
+                status = SearchNextM4VFrame(psBits); /* search 0x00 0x00 0x01 */
+                if (status != 0)
+                {
+                    return MP4_INVALID_VOL_PARAM;
+                }
+
+                status = ReadBits(psBits, VOL_START_CODE_LENGTH, &codeword);
+            }
+            while ((codeword != VOL_START_CODE) && (status == 0));
             goto decode_vol;
         }
     }
@@ -787,7 +794,7 @@ int16 DecodeUserData(mp4StreamType *pStream)
 }
 
 
-OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc)
+OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc, uint32 *entropy_coding_mode_flag)
 {
     int16 status;
     mp4StreamType psBits;
@@ -896,13 +903,29 @@ OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *widt
     psBits.bytePos = 0;
     psBits.dataBitPos = 0;
 
-    status = DecodePPS(&psBits);
+    status = DecodePPS(&psBits, entropy_coding_mode_flag);
 
     OSCL_FREE(temp);
 
     return status;
 }
 
+void scaling_list_h264(int32 i4_list_size, mp4StreamType *psBits)
+{
+    int32 i4_j, i4_delta_scale, i4_lastScale = 8, i4_nextScale =8;
+
+
+    for(i4_j = 0; i4_j < i4_list_size; i4_j++)
+    {
+        if(i4_nextScale !=0)
+        {
+             se_v(psBits, &i4_delta_scale);
+            i4_nextScale = ((i4_lastScale + i4_delta_scale + 256) & 0xff);
+
+        }
+        i4_lastScale  = (i4_nextScale == 0)? (i4_lastScale) : (i4_nextScale);
+    }
+}
 
 int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc)
 {
@@ -910,19 +933,15 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
     int32 temp0;
     uint left_offset, right_offset, top_offset, bottom_offset;
     uint i;
+    c_bool highProfileDetected = false;
 
     ReadBits(psBits, 8, &temp);
-
-
 
     if ((temp & 0x1F) != 7) return MP4_INVALID_VOL_PARAM;
 
     ReadBits(psBits, 8, &temp);
 
     *profile_idc = temp;
-
-    if(*profile_idc != H264_PROFILE_IDC_BASELINE)
-        return MP4_INVALID_VOL_PARAM;
 
     ReadBits(psBits, 1, &temp);
     ReadBits(psBits, 1, &temp);
@@ -936,6 +955,75 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
         return MP4_INVALID_VOL_PARAM;
 
     ue_v(psBits, &temp);
+
+    if(*profile_idc == H264_PROFILE_IDC_HIGH)
+    {
+        /* High Profile detected; additional parameters to be parsed */
+        uint32 i4_chroma_format_idc, i4_bit_depth_luma_minus8, i4_bit_depth_chroma_minus8;
+        uint32 i4_seq_scaling_matrix_present_flag, i4_qpprime_y_zero_transform_bypass_flag;
+
+        highProfileDetected = true;
+
+        /* reading chroma_format_idc   */
+        ue_v(psBits, &i4_chroma_format_idc);
+
+        if(i4_chroma_format_idc != 1 )
+        {
+            /* chroma_format_idc 1 represents 420. Other possibility is monochrome, not supported currently */
+            return (-1);
+        }
+
+        /* reading bit_depth_luma_minus8   */
+        ue_v(psBits, &i4_bit_depth_luma_minus8);
+
+        if(i4_bit_depth_luma_minus8 != 0)
+        {
+            /* only 8 bit supported, higher bit depth not supported */
+            return (-1);
+        }
+
+        /* reading bit_depth_chroma_minus8   */
+        ue_v(psBits, &i4_bit_depth_chroma_minus8);
+
+        if(i4_bit_depth_chroma_minus8 != 0)
+        {
+            /* only 8 bit supported, higher bit depth not supported */
+            return (-1);
+        }
+
+        /* reading qpprime_y_zero_transform_bypass_flag   */
+        ReadBits(psBits, 1, &i4_qpprime_y_zero_transform_bypass_flag);
+        if(i4_qpprime_y_zero_transform_bypass_flag != 0)
+        {
+            return (-1);
+        }
+
+        /* reading seq_scaling_matrix_present_flag   */
+        ReadBits(psBits, 1, &i4_seq_scaling_matrix_present_flag);
+
+        if(i4_seq_scaling_matrix_present_flag)
+        {
+            int32 i4_i;
+            for(i4_i =0; i4_i < 8; i4_i++)
+            {
+                uint32 i4_scaling_list_present;
+                ReadBits(psBits, 1, &i4_scaling_list_present);
+
+                if(i4_scaling_list_present)
+                {
+                    if(i4_i < 6)
+                    {
+                        scaling_list_h264(16, psBits);
+                    }
+                    else
+                    {
+                        scaling_list_h264(64, psBits);
+                    }
+                }
+            }
+        }
+    }
+
     ue_v(psBits, &temp);
     ue_v(psBits, &temp);
 
@@ -963,7 +1051,6 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
     *display_width = *width = (temp + 1) << 4;
     ue_v(psBits, &temp);
     *display_height = *height = (temp + 1) << 4;
-
 
     ReadBits(psBits, 1, &temp);
     if (!temp)
@@ -1127,9 +1214,9 @@ int32 DecodeHRD(mp4StreamType *psBits)
 #endif
 
 // only check for entropy coding mode
-int32 DecodePPS(mp4StreamType *psBits)
+int32 DecodePPS(mp4StreamType *psBits, uint32 *entropy_coding_mode_flag)
 {
-    uint32 temp, pic_parameter_set_id, seq_parameter_set_id, entropy_coding_mode_flag;
+    uint32 temp, pic_parameter_set_id, seq_parameter_set_id;
 
     ReadBits(psBits, 8, &temp);
 
@@ -1138,11 +1225,7 @@ int32 DecodePPS(mp4StreamType *psBits)
     ue_v(psBits, &pic_parameter_set_id);
     ue_v(psBits, &seq_parameter_set_id);
 
-    ReadBits(psBits, 1, &entropy_coding_mode_flag);
-    if (entropy_coding_mode_flag)
-    {
-        return 1;
-    }
+    ReadBits(psBits, 1, entropy_coding_mode_flag);
 
     return 0;
 }
