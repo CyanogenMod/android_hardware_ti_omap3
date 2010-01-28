@@ -2714,10 +2714,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         if ( params.get("capture") != NULL ) {
             if (strcmp(params.get("capture"), (const char *) "still") == 0) {
                 //Set 3A config to enable variable fps
-
+                fobj->settings_2a.ae.framerate = 0;
             } else if (strcmp(params.get("capture"), (const char *) "video") == 0) {
                 //Set 3A config to disable variable fps
-
+                fobj->settings_2a.ae.framerate = 30;
             }
         }
 
