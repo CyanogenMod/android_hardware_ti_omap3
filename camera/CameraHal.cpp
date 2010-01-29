@@ -1784,8 +1784,8 @@ void CameraHal::procThread()
     data_callback JpegPictureCallback;
     void *yuv_buffer, *outBuffer, *PictureCallbackCookie;
     bool switchBuffer = false;
+    int thumb_width, thumb_height;
 
-	//debug
 	sp<MemoryHeapBase> tmpHeap;
 	unsigned int tmpLength, tmpOffset;
 	void *tmpBuffer;
@@ -1817,27 +1817,27 @@ void CameraHal::procThread()
 
 	while(1){
 
-		err = select(max_fd,  &descriptorSet, NULL, NULL, NULL);
+        err = select(max_fd,  &descriptorSet, NULL, NULL, NULL);
 
 #ifdef DEBUG_LOG
 
-		LOGD("PROCESSING THREAD SELECT RECEIVED A MESSAGE\n");
+        LOGD("PROCESSING THREAD SELECT RECEIVED A MESSAGE\n");
 
 #endif
 
-		if (err < 1) {
-			LOGE("Proc: Error in select");
-		}
+        if (err < 1) {
+            LOGE("Proc: Error in select");
+        }
 
-		if(FD_ISSET(procPipe[0], &descriptorSet)){
+        if(FD_ISSET(procPipe[0], &descriptorSet)){
 
-			read(procPipe[0], &procMessage, sizeof(procMessage));
+            read(procPipe[0], &procMessage, sizeof(procMessage));
 			
-			if(procMessage[0] == PROC_THREAD_PROCESS){
+            if(procMessage[0] == PROC_THREAD_PROCESS){
 
 #ifdef DEBUG_LOG
 
-				LOGD("PROC_THREAD_PROCESS_RECEIVED\n");
+                LOGD("PROC_THREAD_PROCESS_RECEIVED\n");
 				
 #endif
 
@@ -1867,6 +1867,8 @@ void CameraHal::procThread()
                 JPEGPictureHeap = mJPEGPictureHeap;
                 outBuffer = mJPEGBuffer;
                 offset = mJPEGOffset;
+                thumb_width = THUMB_WIDTH;
+                thumb_height = THUMB_HEIGHT;
 
 #if RESIZER
 
@@ -1874,11 +1876,14 @@ void CameraHal::procThread()
 
 #ifdef DEBUG_LOG
 
-                    LOGI("Process VPP ( %d x %d -> %d x %d ) - rotation = %d, zoom = %d, starting", capture_width, capture_height, (int) image_width, (int) image_height, image_rotation, image_zoom);
+                    LOGI("Process VPP ( %d x %d -> %d x %d ) - rotation = %d, zoom = %5.2f, starting", capture_width, capture_height, (int) image_width, (int) image_height, image_rotation, image_zoom);
 
 #endif
 
-		            err = scale_process(yuv_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom);
+                    if ( 0 != image_rotation ) //VPP rotation is only supported when the output pixeformat 420P
+                        pixelFormat = PIX_YUV420P;
+
+                    err = scale_process(yuv_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom);
 
 #ifdef DEBUG_LOG
 
@@ -1896,6 +1901,9 @@ void CameraHal::procThread()
                         int tmp = image_width;
                         image_width = image_height;
                         image_height = tmp;
+                        tmp = thumb_width;
+                        thumb_width = thumb_height;
+                        thumb_height = tmp;
                     }
 
                 }
@@ -2017,14 +2025,14 @@ void CameraHal::procThread()
 
                 if( switchBuffer ) {
                     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, tmpBuffer, tmpLength,
-                                                 image_width, image_height, jpegQuality, exif_buf, pixelFormat, THUMB_WIDTH, THUMB_HEIGHT)))
+                                                 image_width, image_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height)))
                     {
                         err = -1;
                         LOGE("JPEG Encoding failed");
                     }
                 } else {
                     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
-                                                 image_width, image_height, jpegQuality, exif_buf, pixelFormat, THUMB_WIDTH, THUMB_HEIGHT)))
+                                                 image_width, image_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height)))
                     {
                         err = -1;
                         LOGE("JPEG Encoding failed");
