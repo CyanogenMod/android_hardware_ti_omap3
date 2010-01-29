@@ -103,9 +103,9 @@ int CameraHal::FW3A_Destroy()
     LOG_FUNCTION_NAME_EXIT
 
     ret = fobj->lib.Release2A(&fobj->cam_iface_2a);
-  	if (ret < 0) {
-    		LOGE("Cannot Release2A");
-  	} else {
+    if (ret < 0) {
+        LOGE("Cannot Release2A");
+    } else {
         LOGD("2A released");
     }
 

@@ -2293,8 +2293,8 @@ int CameraHal::ICaptureDestroy(void)
     }
 
     iobj->lib_private = NULL;
- 
-    dlclose(iobj->lib.lib_handle);
+
+//    dlclose(iobj->lib.lib_handle);
     free(iobj);
     iobj = NULL;
 #endif
