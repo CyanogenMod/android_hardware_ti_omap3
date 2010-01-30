@@ -1120,7 +1120,7 @@ void CameraHal::nextPreview()
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     int w, h, ret, queue_to_dss_failed;
     static int frame_count = 0;
-    int zoom_inc;
+    int zoom_inc, err;
 
     overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
     int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
@@ -1152,6 +1152,23 @@ void CameraHal::nextPreview()
             mNotifyCb(CAMERA_MSG_ZOOM, ((int) zoom_step[mZoomCurrentIdx] - 1), 1, mCallbackCookie);
 
     }
+
+#ifdef FW3A
+
+    //Low light notification
+    if( ( frame_count % 10) == 0) {
+        err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
+        if (err == 0) {
+            if (fobj->status_2a.ae.camera_shake == SHAKE_HIGH_RISK) {
+                LOGD("Low light event");
+                mParameters.set("low-light", "1");
+            } else {
+                mParameters.set("low-light", "0");
+            }
+         }
+    }
+
+#endif
 
     /* De-queue the next avaliable buffer */
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
