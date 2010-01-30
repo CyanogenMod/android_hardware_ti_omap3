@@ -2544,6 +2544,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     int contrast, brightness, flash, caf;
 	int error;
 	int base;
+    const char *valstr;
+    char *af_coord;
     Message msg;
 
     Mutex::Autolock lock(mLock);
@@ -2737,6 +2739,33 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
             }
       }
+
+        valstr = mParameters.get("touch-focus");
+        if( NULL != valstr ){
+            int af_x = 0;
+            int af_y = 0;
+
+            af_coord = strtok((char *) valstr, PARAMS_DELIMITER);
+
+            if( NULL != af_coord){
+                af_x = atoi(af_coord);
+            }
+
+            af_coord = strtok(NULL, PARAMS_DELIMITER);
+
+            if( NULL != af_coord){
+                af_y = atoi(af_coord);
+            }
+//Support to be added in 3A framework interface soon.
+#if 0
+            fobj->settings_2a.general.face_tracking.enable = 1;
+            fobj->settings_2a.general.face_tracking.count = 1;
+            fobj->settings_2a.general.face_tracking.update = 1;
+            fobj->settings_2a.general.face_tracking.faces[0].top = af_y;
+            fobj->settings_2a.general.face_tracking.faces[0].left = af_x;
+#endif
+            LOGD("NEW PARAMS: af_x = %d, af_y = %d", af_x, af_y);
+        }
 
       FW3A_SetSettings();
 #if 0
