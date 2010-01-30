@@ -19,6 +19,7 @@ LOCAL_SHARED_LIBRARIES:= \
     libcutils \
 
 LOCAL_C_INCLUDES += \
+        kernel/android-2.6.29/include \
 	frameworks/base/include/ui \
 	hardware/ti/omap3/liboverlay
 
