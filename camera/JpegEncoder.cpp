@@ -377,6 +377,7 @@ bool JpegEncoder::StartFromLoadedState()
 		}
 	}
 
+/*
     bPPLibEnable = OMX_FALSE;
     eError = OMX_GetExtensionIndex(pOMXHandle, strPPLibEnable, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
@@ -389,6 +390,7 @@ bool JpegEncoder::StartFromLoadedState()
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
         goto EXIT;
     }
+*/
 
     if( NULL != mexif_buf){
         jpeg_marker.nThumbnailWidth = thumb_width;
