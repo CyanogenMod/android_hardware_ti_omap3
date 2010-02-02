@@ -572,7 +572,7 @@ VAU NUM] [NMU Mode] [LP Order]\n");
         audioinfo->nIpBufSize = atoi(argv[8]);
         APP_DPRINT("%d [TEST APP] input buffer size = %ld \n",__LINE__,audioinfo->nIpBufSize);
         audioinfo->nOpBufs = atoi(argv[9]);
-        if(audioinfo->nOpBufs > 4){
+        if(audioinfo->nOpBufs > 4 && audioinfo->nOpBufs < 0){
             APP_DPRINT( "Cannot support %ld Output buffers\n", audioinfo->nOpBufs);
             goto EXIT;          
         }        
@@ -1232,29 +1232,35 @@ VAU NUM] [NMU Mode] [LP Order]\n");
                     nOutBuff++;
                     OMX_FillThisBuffer(pHandle, pBuf);
                     APP_DPRINT("%d [TEST APP] pBuf->nFlags = %ld\n",__LINE__, pBuf->nFlags);
+
+                    if(pBuf->nFlags == 1) {
+                        APP_DPRINT("%d [TEST APP] Sending OMX_StateIdle.........From APP \n",__LINE__);
+#ifdef OMX_GETTIME
+                        GT_START();
+#endif
+                        eError = OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateIdle, NULL);
+                        if(eError != OMX_ErrorNone) {
+                            printf("Error from SendCommand-Idle(Stop) State function\n");
+                            goto EXIT;
+                        }
+                        eError = WaitForState(pHandle, OMX_StateIdle);
+#ifdef OMX_GETTIME
+                        GT_END("Call to SendCommand <OMX_StateIdle>");
+#endif
+                        if ( eError != OMX_ErrorNone ){
+                            printf("Error:WaitForState has timed out %d", eError);
+                            goto EXIT;
+                        }
+                        audioinfo->dasfMode = 0;
+                        pBuf->nFlags = 0;
+                        APP_DPRINT("%d [TEST APP] Shutting down ---------- \n",__LINE__);
+                    }
                 }
                 if( FD_ISSET(Event_Pipe[0], &rfds) ) {
                     OMX_U8 pipeContents;
                     read(Event_Pipe[0], &pipeContents, sizeof(OMX_U8));
+                    printf("## RM event: %d\n",pipeContents);            
 
-                    if(pipeContents==2){
-                      eError = OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateIdle, NULL);
-                      if(eError != OMX_ErrorNone) {
-                        printf("Error from SendCommand-Idle(Stop) State function\n");
-                        goto EXIT;
-                      }
-                      eError = WaitForState(pHandle, OMX_StateIdle);
-#ifdef OMX_GETTIME
-                      GT_END("Call to SendCommand <OMX_StateIdle>");
-#endif
-                      if ( eError != OMX_ErrorNone ){
-                        printf("Error:WaitForState has timed out %d", eError);
-                        goto EXIT;
-                      }
-                      audioinfo->dasfMode = 0;
-                      //pBuf->nFlags = 0;
-                      APP_DPRINT("%d [TEST APP] Shutting down ---------- \n",__LINE__);
-                    }
                 }
             } /* While Loop Ending Here */
 

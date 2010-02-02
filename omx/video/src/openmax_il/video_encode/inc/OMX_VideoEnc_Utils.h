@@ -22,13 +22,13 @@
 *             Texas Instruments OMAP(TM) Platform Software
 *  (c) Copyright Texas Instruments, Incorporated.  All Rights Reserved.
 *
-*  Use of this software is controlled by the terms and conditions found
+*  Use of this software is controlled by the terms and conditions found 
 *  in the license agreement under which this software has been supplied.
 * =========================================================================== */
 /**
 * @file OMX_VideoEnc_Utils.h
 *
-* This file implements OMX Component for MPEG-4 encoder that
+* This file implements OMX Component for MPEG-4 encoder that 
 * is fully compliant with the OMX specification 1.5.
 *
 * @path  $(CSLPATH)\inc
@@ -36,13 +36,13 @@
 * @rev  0.1
 */
 /* -------------------------------------------------------------------------- */
-/* =============================================================================
-*!
-*! Revision History
+/* ============================================================================= 
+*! 
+*! Revision History 
 *! ================================================================
 *!
-*! 02-Feb-2006 mf: Revisions appear in reverse chronological order;
-*! that is, newest first.  The date format is dd-Mon-yyyy.
+*! 02-Feb-2006 mf: Revisions appear in reverse chronological order; 
+*! that is, newest first.  The date format is dd-Mon-yyyy.  
 * =========================================================================== */
 
 #ifndef OMX_VIDEOENC_UTILS__H
@@ -60,10 +60,6 @@
     #endif
 #include <OMX_TI_Debug.h>
 #include <OMX_Component.h>
-#ifdef LOG_TAG
-    #undef LOG_TAG
-#endif
-#define LOG_TAG "TI_OMX_VideoEnc"
 
 #ifdef UNDER_CE
     #include <oaf_debug.h>
@@ -78,12 +74,10 @@
 #define VIDENC_MAX_NUM_OF_OUT_BUFFERS 10
 #define VIDENC_NUM_OF_IN_BUFFERS  5
 #define VIDENC_NUM_OF_OUT_BUFFERS 10
-
 #define VIDENC_NUM_OF_PORTS 2
 
-#define VIDENC_MAXBITRATES 7
 
-#if 1
+#if 1 
     #define GPP_PRIVATE_NODE_HEAP
 #endif
 
@@ -94,23 +88,21 @@
 #if 1
     #define __KHRONOS_CONF_1_1__
 #endif
-
+    
 #define KHRONOS_1_2
 
-#define VIDENC_MAX_COMPONENT_TIMEOUT 0xFFFFFFFF
+#define VIDENC_MAX_COMPONENT_TIMEOUT 0xFFFFFFFF 
 #define OMX_NOPORT 0xFFFFFFFE
 #define MAXNUMSLCGPS 8  /*< max. number of slice groups*/
-/* Remove after OMX 1.1 migration */
+/* Remove after OMX 1.1 migration */ 
 #ifndef __KHRONOS_CONF_1_1__
-    #define OMX_BUFFERFLAG_SYNCFRAME 0x00000040
+    #define OMX_BUFFERFLAG_SYNCFRAME 0x00000040 
 #endif
 #define OMX_LFRAMETYPE_H264 1
 #define OMX_CFRAMETYPE_MPEG4 1
 /*Select Timeout */
 #define  VIDENC_TIMEOUT_SEC 120;
 #define  VIDENC_TIMEOUT_USEC 0;
-#define WVGA_MAX_WIDTH 854
-#define WVGA_MAX_HEIGHT WVGA_MAX_WIDTH
 
 /*
 * Definition of capabilities index and structure
@@ -129,7 +121,7 @@ typedef struct PV_OMXComponentCapabilityFlagsType
     OMX_BOOL iOMXComponentUsesNALStartCode;
     OMX_BOOL iOMXComponentCanHandleIncompleteFrames;
     OMX_BOOL iOMXComponentUsesFullAVCFrames;
-} PV_OMXComponentCapabilityFlagsType;
+} PV_OMXComponentCapabilityFlagsType; 
 
 /*
  * Redirects control flow in an error situation.
@@ -144,7 +136,7 @@ do {                                                        \
 
 #define OMX_VIDENC_BAIL_IF_ERROR(_eError, _hComp)           \
 do {                                                        \
-    if(_eError != OMX_ErrorNone) {  \
+    if(_eError != OMX_ErrorNone) {	\
         _eError = OMX_VIDENC_HandleError(_hComp, _eError);  \
         if(_eError != OMX_ErrorNone) {                      \
             OMX_ERROR5(_hComp->dbg, "*Fatal Error : %x\n", _eError); \
@@ -172,10 +164,10 @@ do {                                                        \
 
 /*
  * Checking paramaters for non-NULL values.
- * The macro takes three parameters because inside the code the highest
+ * The macro takes three parameters because inside the code the highest 
  *   number of parameters passed for checking in a single instance is three.
- * In case one or two parameters are passed, the ramaining parameters
- *   are set to 1 (or a nonzero value).
+ * In case one or two parameters are passed, the ramaining parameters 
+ *   are set to 1 (or a nonzero value). 
  */
 #define OMX_CONF_CHECK_CMD(_ptr1, _ptr2, _ptr3)             \
 do {                                                        \
@@ -187,32 +179,32 @@ do {                                                        \
 
 /*
 * Initialize the Circular Buffer data. The Tail and Head pointers are NULL.
-*The number of nodes inside the circular buffer is equal to zero.
+*The number of nodes inside the circular buffer is equal to zero. 
 *Also the number of nodes that contains BufferData is iqual zero.
 *It should be in the ComponentInit call of the Component.
 */
 #define OMX_CONF_CIRCULAR_BUFFER_INIT(_pPrivateData_)       \
-do {                                                        \
+do {                                                            \
     (_pPrivateData_)->sCircularBuffer.pHead = NULL;         \
     (_pPrivateData_)->sCircularBuffer.pTail = NULL;         \
     (_pPrivateData_)->sCircularBuffer.nElements = 0;        \
-        (_pPrivateData_)->sCircularBuffer.nFillElements = 0;\
+        (_pPrivateData_)->sCircularBuffer.nFillElements = 0;    \
 } while(0)
 
 /*
-*Restart the Circular Buffer. The tail points to the same node as the head. The
+*Restart the Circular Buffer. The tail points to the same node as the head. The 
 *number of fill elements is set to zero. It should be put in the Idle->Execution
-*transition.
+*transition. 
 */
 #define OMX_CONF_CIRCULAR_BUFFER_RESTART(_sCircular_)       \
-do {                                                        \
+do {                                                            \
     (_sCircular_).pTail = (_sCircular_).pHead;              \
-    (_sCircular_).nFillElements = 0;                        \
+        (_sCircular_).nFillElements = 0;                        \
 } while(0)
-
+    
 /*
 *Add node to the Circular Buffer.  Should be use when UseBuffer or AllocateBuffer
-*is call. The new node is insert in the head of the list. The it will go the last node
+*is call. The new node is insert in the head of the list. The it will go the last node 
 *and rewrite pNext with the new address of the Head.
 */
 #define OMX_CONF_CIRCULAR_BUFFER_ADD_NODE(_pPrivateData_, _sCircular_)\
@@ -241,7 +233,7 @@ do {                                                        \
 } while(0)
 
 /*
-* Will move the Tail of the Cirular Buffer to the next element. In the tail resides the last buffer to enter
+* Will move the Tail of the Cirular Buffer to the next element. In the tail resides the last buffer to enter 
 *the component from the Application layer. It will get all the Data to be propageted from
 * the pBufferHeader and write it in the node. Then it will move the Tail to the next element.
 *It should be put in the function that handles the filled buffer from the application.
@@ -335,9 +327,9 @@ do {                                                        \
     if(_e_ != OMX_ErrorNone) goto OMX_CONF_CMD_BAIL;        \
 } while(0)
 
-/*
+/* 
  * Initializes a data structure using a pointer to the structure.
- * The initialization of OMX structures always sets up the nSize and nVersion fields
+ * The initialization of OMX structures always sets up the nSize and nVersion fields 
  *   of the structure.
  */
 #define OMX_CONF_INIT_STRUCT(_s_, _name_)       \
@@ -348,8 +340,8 @@ do {                                            \
     (_s_)->nVersion.s.nRevision     = 0x0;      \
     (_s_)->nVersion.s.nStep         = 0x0;      \
 } while(0)
-
-
+    
+    
 /* Event Handler Macro*/
 #define OMX_VIDENC_EVENT_HANDLER(_hComponent_, _eEvent_, _nData1_, _nData2_, _pEventData_) \
 do {                                                        \
@@ -374,7 +366,7 @@ do {                                                        \
         goto OMX_CONF_CMD_BAIL;                             \
     }                                                       \
     else {                                                  \
-        OMX_TRACE1(dbg, "malloc() -> %p\n", _p_);           \
+        OMX_TRACE1(dbg, "malloc() -> %p\n", _p_); \
     }                                                       \
     memset((_p_), 0x0, _s_);                                \
     if ((_p_) == NULL) {                                    \
@@ -388,7 +380,7 @@ do {                                                        \
         goto OMX_CONF_CMD_BAIL;                             \
     }                                                       \
 } while(0)
-
+    
 #define VIDENC_FREE(_p_, _h_, dbg)                          \
 do {                                                        \
     OMX_VIDENC_ListRemove((&dbg), _h_, _p_);                \
@@ -400,7 +392,7 @@ typedef struct VIDENC_NODE
     OMX_PTR pData;
     struct VIDENC_NODE* pNext;
 }VIDENC_NODE;
-
+    
 typedef enum VIDEOENC_PORT_INDEX
 {
     VIDENC_INPUT_PORT = 0x0,
@@ -445,11 +437,11 @@ typedef enum VIDENC_CUSTOM_INDEX
     VideoEncodeCustomConfigIndexTargetFrameRate,
     VideoEncodeCustomConfigIndexQPI,
     VideoEncodeCustomConfigIndexAIRRate,
-    VideoEncodeCustomConfigIndexUnrestrictedMV,
+    VideoEncodeCustomConfigIndexTargetBitRate,
     /*Segment mode Metadata*/
-    VideoEncodeCustomConfigIndexMVDataEnable,
-    VideoEncodeCustomConfigIndexResyncDataEnable,
-    /*ASO*/
+	VideoEncodeCustomConfigIndexMVDataEnable,
+	VideoEncodeCustomConfigIndexResyncDataEnable,
+	/*ASO*/
     VideoEncodeCustomConfigIndexNumSliceASO,
     VideoEncodeCustomConfigIndexAsoSliceOrder,
     /*FMO*/
@@ -459,8 +451,8 @@ typedef enum VIDENC_CUSTOM_INDEX
     VideoEncodeCustomConfigIndexSliceGroupChangeRate,
     VideoEncodeCustomConfigIndexSliceGroupChangeCycle,
     VideoEncodeCustomConfigIndexSliceGroupParams,
-    /*others*/
-    VideoEncodeCustomConfigIndexMIRRate,
+	/*others*/
+	VideoEncodeCustomConfigIndexMIRRate,
     VideoEncodeCustomConfigIndexMaxMVperMB,
     VideoEncodeCustomConfigIndexIntra4x4EnableIdc,
     /*only for H264*/
@@ -475,19 +467,19 @@ typedef enum VIDENC_BUFFER_OWNER
     VIDENC_BUFFER_WITH_CLIENT = 0x0,
     VIDENC_BUFFER_WITH_COMPONENT,
     VIDENC_BUFFER_WITH_DSP,
-    VIDENC_BUFFER_WITH_TUNNELEDCOMP
+    VIDENC_BUFFER_WITH_TUNNELEDCOMP 
 } VIDENC_BUFFER_OWNER;
 
 typedef enum VIDENC_AVC_NAL_FORMAT
 {
-    VIDENC_AVC_NAL_UNIT = 0,    /*Default, one buffer per frame, no NAL mode*/
-    VIDENC_AVC_NAL_SLICE,       /*One NAL unit per buffer, one or more NAL units conforms a Frame*/
-    VIDENC_AVC_NAL_FRAME        /*One frame per buffer, one or more NAL units inside the buffer*/
+	VIDENC_AVC_NAL_UNIT = 0,	/*Default, one buffer per frame, no NAL mode*/
+	VIDENC_AVC_NAL_SLICE,		/*One NAL unit per buffer, one or more NAL units conforms a Frame*/
+	VIDENC_AVC_NAL_FRAME		/*One frame per buffer, one or more NAL units inside the buffer*/
 }VIDENC_AVC_NAL_FORMAT;
 
 typedef struct VIDENC_BUFFER_PRIVATE
 {
-    OMX_PTR pMetaData;/*pointer to metadata structure, this structure is used when MPEG4 segment mode is enabled  */
+	OMX_PTR pMetaData;/*pointer to metadata structure, this structure is used when MPEG4 segment mode is enabled  */
     OMX_BUFFERHEADERTYPE* pBufferHdr;
     OMX_PTR pUalgParam;
     VIDENC_BUFFER_OWNER eBufferOwner;
@@ -497,10 +489,10 @@ typedef struct VIDENC_BUFFER_PRIVATE
 
 typedef struct VIDENC_MPEG4_SEGMENTMODE_METADATA
 {
-    unsigned int mvDataSize;/*unsigned int*/
-    unsigned int numPackets;/*unsigned int*/
-    OMX_PTR pMVData;/*pointer to unsigned char MVData[3264]*/
-    OMX_PTR pResyncData;/*pointer to unsigned char ResyncData[5408]*/
+	unsigned int mvDataSize;/*unsigned int*/
+	unsigned int numPackets;/*unsigned int*/
+	OMX_PTR pMVData;/*pointer to unsigned char MVData[3264]*/
+	OMX_PTR pResyncData;/*pointer to unsigned char ResyncData[5408]*/
 }VIDENC_MPEG4_SEGMENTMODE_METADATA;
 
 typedef struct VIDEOENC_PORT_TYPE
@@ -513,33 +505,33 @@ typedef struct VIDEOENC_PORT_TYPE
     OMX_VIDEO_PARAM_PORTFORMATTYPE* pPortFormat;
 
 #ifdef __KHRONOS_CONF_1_1__
-    OMX_VIDEO_PARAM_PROFILELEVELTYPE* pProfileType;
-    OMX_CONFIG_FRAMERATETYPE* pFrameRateConfig;
-    OMX_VIDEO_CONFIG_BITRATETYPE* pBitRateTypeConfig;
-    OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE* pErrorCorrectionType;
-    OMX_VIDEO_PARAM_INTRAREFRESHTYPE* pIntraRefreshType;
+	OMX_VIDEO_PARAM_PROFILELEVELTYPE* pProfileType;
+	OMX_CONFIG_FRAMERATETYPE* pFrameRateConfig;
+	OMX_VIDEO_CONFIG_BITRATETYPE* pBitRateTypeConfig;
+	OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE* pErrorCorrectionType;
+	OMX_VIDEO_PARAM_INTRAREFRESHTYPE* pIntraRefreshType;
 #endif
 
-    OMX_VIDEO_PARAM_BITRATETYPE* pBitRateType;
+	OMX_VIDEO_PARAM_BITRATETYPE* pBitRateType;
     VIDENC_BUFFER_PRIVATE* pBufferPrivate[VIDENC_MAX_NUM_OF_BUFFERS];
 } VIDEOENC_PORT_TYPE;
 
 #ifndef KHRONOS_1_2
 typedef enum OMX_EXTRADATATYPE
 {
-        OMX_ExtraDataNone = 0,
+	    OMX_ExtraDataNone = 0,
         OMX_ExtraDataQuantization
-} OMX_EXTRADATATYPE;
+    } OMX_EXTRADATATYPE;
 #endif
 
 typedef struct OMX_OTHER_EXTRADATATYPE_1_1_2
 {
-    OMX_U32 nSize;
-    OMX_VERSIONTYPE nVersion;
-    OMX_U32 nPortIndex;
-    OMX_EXTRADATATYPE eType;
-    OMX_U32 nDataSize;
-    OMX_U8 data[1];
+	OMX_U32 nSize;
+	OMX_VERSIONTYPE nVersion;
+	OMX_U32 nPortIndex;
+	OMX_EXTRADATATYPE eType;
+	OMX_U32 nDataSize;
+	OMX_U8 data[1];
 } OMX_OTHER_EXTRADATATYPE_1_1_2;
 
 typedef struct VIDEO_PROFILE_LEVEL
@@ -548,8 +540,9 @@ typedef struct VIDEO_PROFILE_LEVEL
     OMX_S32  nLevel;
 } VIDEO_PROFILE_LEVEL_TYPE;
 
+
 /**
- * The VIDENC_COMPONENT_PRIVATE data structure is used to store component's
+ * The VIDENC_COMPONENT_PRIVATE data structure is used to store component's 
  *                              private data.
  */
 typedef struct VIDENC_COMPONENT_PRIVATE
@@ -557,9 +550,9 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     OMX_PORT_PARAM_TYPE* pPortParamType;
     VIDEOENC_PORT_TYPE* pCompPort[VIDENC_NUM_OF_PORTS];
 #ifdef __KHRONOS_CONF_1_1__
-    OMX_PORT_PARAM_TYPE* pPortAudioType;
-    OMX_PORT_PARAM_TYPE* pPortImageType;
-    OMX_PORT_PARAM_TYPE* pPortOtherType;
+	OMX_PORT_PARAM_TYPE* pPortAudioType;
+	OMX_PORT_PARAM_TYPE* pPortImageType;
+	OMX_PORT_PARAM_TYPE* pPortOtherType;
 #endif
 
     OMX_PRIORITYMGMTTYPE* pPriorityMgmt;
@@ -580,21 +573,21 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     int nFree_oPipe[2];
     int nFilled_iPipe[2];
     int nCmdPipe[2];
-    int nCmdDataPipe[2];
+    int nCmdDataPipe[2]; 
     void* pModLcml;
     void* pLcmlHandle;
     LCML_DSP_INTERFACE* pLCML;
     int nFrameCnt;
 #ifdef __PERF_INSTRUMENTATION__
     PERF_OBJHANDLE pPERF, pPERFcomp;
-    OMX_U32 nLcml_nCntIp;
+    OMX_U32 nLcml_nCntIp;         
     OMX_U32 nLcml_nCntOpReceived;
 #endif
-    unsigned int nVBVSize;
+    unsigned int nVBVSize; 
     OMX_MARKTYPE* pMarkBuf;
     OMX_PTR pMarkData;
-    OMX_HANDLETYPE hMarkTargetComponent;
-    OMX_U32 nFlags;
+    OMX_HANDLETYPE hMarkTargetComponent; 
+    OMX_U32 nFlags; 
     OMX_U32 nCounter;
     /* these are duplicates */
     unsigned int nIntraFrameInterval;  /* should be OMX_VIDEO_CONFIG_AVCINTRAPERIOD */
@@ -602,19 +595,18 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     unsigned int nQPI;              /* same as OMX_VIDEO_PARAM_QUANTIZATIONTYPE */
     unsigned int nAIRRate;          /* same as OMX_VIDEO_PARAM_INTRAREFRESHTYPE */
     unsigned int nTargetBitRate;    /* should be OMX_VIDEO_CONFIG_BITRATETYPE */
-    OMX_U32 nMIRRate;
-    OMX_U8  ucUnrestrictedMV;
-
+	OMX_U32 nMIRRate;
+    
     OMX_U32 nInBufferSize;
     OMX_U32 nOutBufferSize;
 #ifndef UNDER_CE
-    pthread_mutex_t mVideoEncodeBufferMutex;
+    pthread_mutex_t mVideoEncodeBufferMutex; 
 #endif
     OMX_BOOL bDeblockFilter;
     OMX_BOOL bCodecStarted;
     OMX_BOOL bCodecLoaded;
     OMX_BOOL bDSPStopAck;
-    OMX_BOOL bForceIFrame;
+    OMX_BOOL bForceIFrame; 
     OMX_BOOL bFlushComplete;
     OMX_BOOL bEmptyPipes;
     OMX_BOOL bHideEvents;
@@ -643,12 +635,12 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     OMX_U32 sliceGroupChangeCycle;
     OMX_U32 sliceGroupParams[MAXNUMSLCGPS];
 #ifndef UNDER_CE
-    pthread_mutex_t videoe_mutex;   /* pthread_cond_t  control_cond; */
-    pthread_mutex_t videoe_mutex_app;
-    pthread_cond_t  populate_cond;
-    pthread_cond_t  unpopulate_cond;
-    pthread_cond_t  stop_cond;
-    pthread_cond_t  flush_cond;
+	pthread_mutex_t videoe_mutex;	/* pthread_cond_t  control_cond; */
+	pthread_mutex_t videoe_mutex_app;
+	pthread_cond_t  populate_cond;
+	pthread_cond_t  unpopulate_cond;
+	pthread_cond_t  stop_cond;
+	pthread_cond_t  flush_cond;
 #else
     OMX_Event AlloBuf_event;
     OMX_U8 AlloBuf_waitingsignal;
@@ -673,11 +665,6 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     OMX_COLOR_FORMATTYPE colorFormats[3];
     struct OMX_TI_Debug dbg;
     PV_OMXComponentCapabilityFlagsType* pCapabilityFlags;
-    /*Variables neded to manage the VOL header request*/
-    MP4VE_GPP_SN_UALGInputParams* pTempUalgInpParams;
-    OMX_BOOL bRequestVOLHeader;
-    OMX_BOOL bWaitingForVOLHeaderBuffer;
-    OMX_BOOL bWaitingVOLHeaderCallback;
 
     /* Reference count for pending state change requests */
     OMX_U32 nPendingStateChangeRequests;
@@ -729,7 +716,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
 
 OMX_ERRORTYPE OMX_VIDENC_LCML_Callback(TUsnCodecEvent event, void* argsCb [10]);
 
-OMX_ERRORTYPE OMX_VIDENC_Allocate_DSPResources (OMX_IN VIDENC_COMPONENT_PRIVATE* pComponentPrivate,
+OMX_ERRORTYPE OMX_VIDENC_Allocate_DSPResources (OMX_IN VIDENC_COMPONENT_PRIVATE* pComponentPrivate,  
                                                    OMX_IN OMX_U32 nPortIndex);
 OMX_ERRORTYPE OMX_VIDENC_EmptyDataPipes (void* pThreadData);
 
@@ -747,17 +734,6 @@ void OMX_VIDENC_ResourceManagerCallBack(RMPROXY_COMMANDDATATYPE cbData);
 #endif
 
 OMX_U32 GetMaxAVCBufferSize(OMX_U32 width, OMX_U32 height);
-
-OMX_U32 OMX_VIDENC_GetDefaultBitRate(VIDENC_COMPONENT_PRIVATE* pComponentPrivate);
-
-void printMpeg4Params(MP4VE_GPP_SN_Obj_CreatePhase* pCreatePhaseArgs,
-                      struct OMX_TI_Debug *dbg);
-
-void printH264CreateParams(H264VE_GPP_SN_Obj_CreatePhase* pCreatePhaseArgs, struct OMX_TI_Debug *dbg);
-
-void printMpeg4UAlgInParam(MP4VE_GPP_SN_UALGInputParams* pUalgInpParams, int printAlways, struct OMX_TI_Debug *dbg);
-
-void printH264UAlgInParam(H264VE_GPP_SN_UALGInputParams* pUalgInpParams, int printAlways, struct OMX_TI_Debug *dbg);
 
 OMX_ERRORTYPE AddStateTransition(VIDENC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE RemoveStateTransition(VIDENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);

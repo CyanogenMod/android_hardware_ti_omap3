@@ -88,6 +88,15 @@
 #define HASHINGENABLE 1
 #endif
 
+#ifdef AACENC_DEBUGMEM
+ void *arr[500]; 
+ int lines[500]; 
+ int bytes[500]; 
+ char file[500][50];
+
+void * mymalloc(int line, char *s, int size);
+int myfree(void *dp, int line, char *s);
+#endif
 
 
 /* ========================================================================== */
@@ -115,6 +124,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParams(OMX_HANDLETYPE pComponent, LCML_DSP *plc
     OMX_U32 i                               = 0;
     OMX_BUFFERHEADERTYPE *pTemp             = NULL;
     OMX_S32 size_lcml                       = 0;
+    char *pTemp_char                        = NULL;
     char *ptr;
     LCML_AACENC_BUFHEADERTYPE *pTemp_lcml   = NULL;
     LCML_DSP_INTERFACE *pHandle = (LCML_DSP_INTERFACE *)pComponent;
@@ -177,7 +187,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParams(OMX_HANDLETYPE pComponent, LCML_DSP *plc
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: Comp: OMX_AacEncUtils.c\n",__LINE__);
     if(pComponentPrivate->dasfmode == 1) {
         OMX_PRDSP2(pComponentPrivate->dbg, "%d :: Codec is configuring to DASF mode\n",__LINE__);
-        OMX_MALLOC_GENERIC(strmAttr, LCML_STRMATTR);
+        OMX_MALLOC_STRUCT(strmAttr, LCML_STRMATTR);
         OMX_PRINT1(pComponentPrivate->dbg, "strmAttr %p \n",strmAttr);
         
         pComponentPrivate->strmAttr = strmAttr;
@@ -307,7 +317,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParams(OMX_HANDLETYPE pComponent, LCML_DSP *plc
 
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: Comp: OMX_AacEncUtils.c\n",__LINE__);
     size_lcml = nIpBuf * sizeof(LCML_AACENC_BUFHEADERTYPE);
-    OMX_MALLOC_SIZE(ptr, size_lcml,char);
+    OMX_MALLOC_STRUCT_SIZE(ptr, size_lcml,char);
     pTemp_lcml = (LCML_AACENC_BUFHEADERTYPE *)ptr;
     pComponentPrivate->pLcmlBufHeader[INPUT_PORT] = pTemp_lcml;
     for (i=0; i<nIpBuf; i++) 
@@ -323,9 +333,12 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParams(OMX_HANDLETYPE pComponent, LCML_DSP *plc
         pTemp_lcml->buffer = pTemp;
         pTemp_lcml->eDir = OMX_DirInput;
 
-        OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pIpParam,
-                               sizeof(AACENC_UAlgInBufParamStruct),
+        OMX_MALLOC_STRUCT_SIZE(pTemp_lcml->pIpParam,
+                               (sizeof(AACENC_UAlgInBufParamStruct) + DSP_CACHE_ALIGNMENT),
                                AACENC_UAlgInBufParamStruct);
+        pTemp_char = (char*)pTemp_lcml->pIpParam;
+        pTemp_char += EXTRA_BYTES;
+        pTemp_lcml->pIpParam = (AACENC_UAlgInBufParamStruct*)pTemp_char;
         OMX_PRDSP2(pComponentPrivate->dbg, "pTemp_lcml->pIpParam %p \n",pTemp_lcml->pIpParam);
         
         pTemp_lcml->pIpParam->bLastBuffer = 0;
@@ -338,7 +351,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParams(OMX_HANDLETYPE pComponent, LCML_DSP *plc
     /* Allocate memory for all output buffer headers,  This memory pointer will be sent to LCML */
     size_lcml = nOpBuf * sizeof(LCML_AACENC_BUFHEADERTYPE);
 
-    OMX_MALLOC_SIZE(ptr, size_lcml,char);
+    OMX_MALLOC_STRUCT_SIZE(ptr, size_lcml,char);
     pTemp_lcml = (LCML_AACENC_BUFHEADERTYPE *)ptr;
 
     pComponentPrivate->pLcmlBufHeader[OUTPUT_PORT] = pTemp_lcml;
@@ -359,9 +372,12 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParams(OMX_HANDLETYPE pComponent, LCML_DSP *plc
         pTemp_lcml->eDir = OMX_DirOutput;
         /* SN : Each output buffer may be accompanied by an output buffer parameters structure*/ 
 
-        OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pOpParam, 
-                               sizeof(AACENC_UAlgOutBufParamStruct),
+        OMX_MALLOC_STRUCT_SIZE(pTemp_lcml->pOpParam, 
+                               (sizeof(AACENC_UAlgOutBufParamStruct) + DSP_CACHE_ALIGNMENT),
                                AACENC_UAlgOutBufParamStruct);
+        pTemp_char = (char*)pTemp_lcml->pOpParam;
+        pTemp_char += EXTRA_BYTES;
+        pTemp_lcml->pOpParam = (AACENC_UAlgOutBufParamStruct*)pTemp_char;
 
         OMX_PRDSP1(pComponentPrivate->dbg, "%d :: UTIL: size of pOpParam: %d \n",__LINE__,sizeof(pTemp_lcml->pOpParam->unFrameSizes));
         OMX_PRDSP1(pComponentPrivate->dbg, "%d :: UTIL: numframes of pOpParam: %d \n\n",__LINE__,sizeof(pTemp_lcml->pOpParam->unNumFramesEncoded)) ;
@@ -376,10 +392,14 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParams(OMX_HANDLETYPE pComponent, LCML_DSP *plc
     pComponentPrivate->bNoIdleOnStop= OMX_FALSE;
 
 
-    OMX_MALLOC_SIZE_DSPALIGN(pComponentPrivate->ptAlgDynParams,
-                                sizeof(MPEG4AACENC_UALGParams),
+        OMX_MALLOC_STRUCT_SIZE(pComponentPrivate->ptAlgDynParams,
+                                (sizeof(MPEG4AACENC_UALGParams)+DSP_CACHE_ALIGNMENT),
                                 MPEG4AACENC_UALGParams); 
 
+        pTemp_char = (char*)pComponentPrivate->ptAlgDynParams;
+        pTemp_char += EXTRA_BYTES;
+        pComponentPrivate->ptAlgDynParams = (MPEG4AACENC_UALGParams*)pTemp_char;
+        
     OMX_PRINT2(pComponentPrivate->dbg, "UTIL: pComponentPrivate->ptAlgDynParams %p \n",pComponentPrivate->ptAlgDynParams);
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -462,9 +482,9 @@ OMX_ERRORTYPE AACENC_StartComponentThread(OMX_HANDLETYPE pComponent)
 
     /* create the pipe used to send commands to the thread */
 #ifdef UNDER_CE     
-    eError = pthread_create (&(pComponentPrivate->ComponentThread), &attr, AACENC_ComponentThread, pComponentPrivate);
+    eError = pthread_create (&(pComponentPrivate->ComponentThread), &attr, ComponentThread, pComponentPrivate);
 #else   
-    eError = pthread_create (&(pComponentPrivate->ComponentThread), NULL, AACENC_ComponentThread, pComponentPrivate);
+    eError = pthread_create (&(pComponentPrivate->ComponentThread), NULL, ComponentThread, pComponentPrivate);
 #endif
     if (eError || !pComponentPrivate->ComponentThread) {
         OMX_ERROR4(pComponentPrivate->dbg, "%d :: Inside  AACENC_StartComponentThread\n", __LINE__);
@@ -578,6 +598,7 @@ OMX_ERRORTYPE AACENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 nIpBuf = 0;
     OMX_U32 nOpBuf = 0;
+    char *pTemp    = NULL;
     OMX_U32 i      = 0;
 
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: Entering AACENC_CleanupInitParams()\n", __LINE__);
@@ -587,7 +608,13 @@ OMX_ERRORTYPE AACENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     nIpBuf = pComponentPrivate->nRuntimeInputBuffers;
     for(i=0; i<nIpBuf; i++) 
     {
-        OMX_MEMFREE_STRUCT_DSPALIGN(pTemp_lcml->pIpParam, AACENC_UAlgInBufParamStruct);
+        pTemp = (char*)pTemp_lcml->pIpParam;
+        if (pTemp != NULL) 
+        {
+            pTemp -= 128;
+        }
+        pTemp_lcml->pIpParam = (AACENC_UAlgInBufParamStruct*)pTemp;
+        OMX_MEMFREE_STRUCT(pTemp_lcml->pIpParam);
         pTemp_lcml++;
     }
 
@@ -596,16 +623,33 @@ OMX_ERRORTYPE AACENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     nOpBuf = pComponentPrivate->nRuntimeOutputBuffers;
     for (i=0; i<nOpBuf; i++)
     {
-        OMX_MEMFREE_STRUCT_DSPALIGN(pTemp_lcml->pOpParam, AACENC_UAlgOutBufParamStruct);
+        pTemp = (char*)pTemp_lcml->pOpParam;
+        if (pTemp != NULL) 
+        {
+            pTemp -= 128;
+        }
+        pTemp_lcml->pOpParam = (AACENC_UAlgOutBufParamStruct*)pTemp;
+        OMX_MEMFREE_STRUCT(pTemp_lcml->pOpParam);
         pTemp_lcml++;
     }
 
     OMX_MEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[INPUT_PORT]);
     OMX_MEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[OUTPUT_PORT]);
-    OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->ptAlgDynParams, MPEG4AACENC_UALGParams);
+    pTemp = (char*)pComponentPrivate->ptAlgDynParams;
+    if (pTemp != NULL) 
+    {        
+        pTemp -= 128;
+    }
+    pComponentPrivate->ptAlgDynParams = (MPEG4AACENC_UALGParams*)pTemp;
+    OMX_MEMFREE_STRUCT(pComponentPrivate->ptAlgDynParams);
     if(pComponentPrivate->dasfmode == 1) 
     {
-        OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pParams, AACENC_AudioCodecParams);
+        pTemp = (char*)pComponentPrivate->pParams;
+        if (pTemp != NULL) {        
+            pTemp -= 128;
+        }
+        pComponentPrivate->pParams = (AACENC_AudioCodecParams*)pTemp;
+        OMX_MEMFREE_STRUCT(pComponentPrivate->pParams);
     }
 
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: Exiting Successfully AACENC_CleanupInitParams()\n",__LINE__);
@@ -699,6 +743,7 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
     LCML_CALLBACKTYPE cb;
     LCML_DSP *pLcmlDsp = NULL;
     LCML_AACENC_BUFHEADERTYPE *pLcmlHdr;
+    char *pTemp_char = NULL;
     int inputPortFlag = 0;
     int outputPortFlag = 0;
 
@@ -819,13 +864,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                         if (pLcmlHandle == NULL) 
                         {
                             OMX_ERROR4(pComponentPrivate->dbg, "%d :: AACENC: LCML Handle is NULL........exiting..\n",__LINE__);
-                            eError = OMX_ErrorHardware;
-                            pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
                             goto EXIT;
                         }
 
@@ -836,12 +874,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                         if(eError != OMX_ErrorNone) 
                         {
                             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error returned from AACENCFill_LCMLInitParams()\n",__LINE__);
-                            pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorMajor,
-                                                NULL);
                             goto EXIT;
                         }
                         pComponentPrivate->pLcmlHandle = (LCML_DSP_INTERFACE *)pLcmlHandle;
@@ -859,12 +891,12 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                             /* send an event to client */
                             /* client should unload the component if the codec is not able to load */
                             eError = OMX_ErrorInvalidState;
-                            pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
+                            pComponentPrivate->cbInfo.EventHandler (pHandle,
+                                    pHandle->pApplicationPrivate,
+                                    OMX_EventError,
+                                    eError,
+                                    OMX_TI_ErrorSevere,
+                                    NULL);
                             goto EXIT;
                         }
 
@@ -881,6 +913,8 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                         OMX_PRINT2(pComponentPrivate->dbg, "%d :: AACENC: About to call RMProxy_SendCommand\n", __LINE__);
 #ifdef RESOURCE_MANAGER_ENABLED
 
+                        pComponentPrivate->rmproxyCallback.RMPROXY_Callback = (void *) AACENC_ResourceManagerCallback;
+                        rm_error = RMProxy_NewSendCommand(pHandle, RMProxy_RequestResource, OMX_AAC_Encoder_COMPONENT,AACENC_CPU_USAGE, 3456, &(pComponentPrivate->rmproxyCallback));
 
                         OMX_PRDSP1(pComponentPrivate->dbg, "%d :: AACENC: Returned from RMProxy_SendCommand\n", __LINE__);
                         OMX_PRDSP1(pComponentPrivate->dbg, "%d :: AACENC: RMProxy_SendCommand returned %d\n", __LINE__,rm_error);
@@ -965,12 +999,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                         if(eError != OMX_ErrorNone) 
                         {
                             OMX_ERROR4(pComponentPrivate->dbg, "%d: Error Occurred in Codec Stop..\n",__LINE__);
-                            pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
                             goto EXIT;
                         }
                         OMX_PRSTATE2(pComponentPrivate->dbg, "%d :: AACENC: After MMCodecControlStop\n", __LINE__);
@@ -1049,11 +1077,14 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                         {
                             OMX_PRDSP2(pComponentPrivate->dbg, "%d :: ---- Comp: DASF Functionality is ON ---\n",__LINE__);
 
-                            OMX_MALLOC_SIZE_DSPALIGN(pComponentPrivate->pParams,
-                                sizeof(AACENC_AudioCodecParams),
+                            OMX_MALLOC_STRUCT_SIZE(pComponentPrivate->pParams,
+                                (sizeof(AACENC_AudioCodecParams)+DSP_CACHE_ALIGNMENT),
                                 AACENC_AudioCodecParams); 
 
                             OMX_PRDSP2(pComponentPrivate->dbg, "AACENC: pComponentPrivate->pParams %p \n",pComponentPrivate->pParams);
+                        pTemp_char = (char*)pComponentPrivate->pParams;
+                            pTemp_char += EXTRA_BYTES;
+                            pComponentPrivate->pParams = (AACENC_AudioCodecParams*)pTemp_char;
                             if(pComponentPrivate->unNumChannels == 1)   /*MONO*/
                                 pComponentPrivate->pParams->iAudioFormat = 0x0001;
                             else
@@ -1071,12 +1102,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                             if(eError != OMX_ErrorNone) 
                             {
                                 OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error: Occurred in Codec StreamControl..\n",__LINE__);
-                                pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
                                 goto EXIT;
                             }
                         }
@@ -1104,12 +1129,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                         if(eError != OMX_ErrorNone) 
                         {
                             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error: Occurred in Codec StreamControl..\n",__LINE__);
-                            pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
                             goto EXIT;
                         }
                         OMX_PRDSP1(pComponentPrivate->dbg, "%d :: AACENC: Algcontrol has been sent to DSP\n",__LINE__);
@@ -1119,12 +1138,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                         if(eError != OMX_ErrorNone) 
                         {
                             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error: Occurred in Codec Start..\n", __LINE__);
-                            pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
                             goto EXIT;
                         }
                 }
@@ -1135,12 +1148,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                     if (eError != OMX_ErrorNone) 
                     {
                         OMX_ERROR4(pComponentPrivate->dbg, "%d:: Error: While Resuming the codec\n",__LINE__);
-                        pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
                         goto EXIT;
                     }
                     for (i=0; i < pComponentPrivate->nNumInputBufPending; i++) 
@@ -1160,16 +1167,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                                             (OMX_U8 *) pLcmlHdr->pIpParam,
                                             sizeof(AACENC_UAlgInBufParamStruct),
                                             NULL);
-                               if(eError != OMX_ErrorNone){
-                                   OMX_ERROR4(pComponentPrivate->dbg, "%d:: Error: LCML QUEUE BUFFER\n",__LINE__);
-                                   pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
-                                   goto EXIT;
-                               }
                         }
                     }
                     pComponentPrivate->nNumInputBufPending =0;
@@ -1185,24 +1182,14 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                             
 
                                 eError = LCML_QueueBuffer( 
-                                             ((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                             EMMCodecOuputBuffer,
-                                             pComponentPrivate->pOutputBufHdrPending[i]->pBuffer,
-                                             pComponentPrivate->pOutputBufHdrPending[i]->nAllocLen,
-                                             0,
-                                             (OMX_U8 *) pLcmlHdr->pOpParam,
-                                             sizeof(AACENC_UAlgOutBufParamStruct),
-                                             NULL);
-                                if(eError != OMX_ErrorNone){
-                                   OMX_ERROR4(pComponentPrivate->dbg, "%d:: Error: LCML QUEUE BUFFER\n",__LINE__);
-                                   pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
-                                   goto EXIT;
-                               }
+                                ((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
+                                EMMCodecOuputBuffer,
+                                pComponentPrivate->pOutputBufHdrPending[i]->pBuffer,
+                                pComponentPrivate->pOutputBufHdrPending[i]->nAllocLen,
+                                0,
+                                (OMX_U8 *) pLcmlHdr->pOpParam,
+                                sizeof(AACENC_UAlgOutBufParamStruct),
+                                NULL);
                             }
                     }
                     pComponentPrivate->nNumOutputBufPending = 0;
@@ -1227,7 +1214,7 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
 #endif
 
                 pComponentPrivate->curState = OMX_StateExecuting;
- 
+
 #ifdef __PERF_INSTRUMENTATION__
                 PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryStart | PERF_BoundarySteadyState);
 #endif
@@ -1236,6 +1223,7 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
                 if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
                      return OMX_ErrorUndefined;
                 }
+
 
                 /*Send state change notificaiton to Application */
                 pComponentPrivate->cbInfo.EventHandler(pHandle,
@@ -1839,17 +1827,6 @@ OMX_U32 AACENCHandleCommand(AACENC_COMPONENT_PRIVATE *pComponentPrivate)
 EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: AACENC: Exiting AACENCHandleCommand Function\n",__LINE__);
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: AACENC: Returning %d\n",__LINE__,eError);
-    /* report the error to the client via event */
-    if(eError != OMX_ErrorNone && eError != EXIT_COMPONENT_THRD){
-        OMX_ERROR4(pComponentPrivate->dbg, "%d:: Error: LCML QUEUE BUFFER\n",__LINE__);
-        pComponentPrivate->cbInfo.EventHandler (pHandle, 
-                                                pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
-
-    }
     return eError;
 }
 
@@ -2170,9 +2147,7 @@ OMX_ERRORTYPE AACENCHandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader, AACE
                     {
                         AACENC_SetPending(pComponentPrivate,pBufHeader,OMX_DirOutput,__LINE__);
                         pComponentPrivate->LastOutputBufferHdrQueued = pBufHeader;
-			if (pLcmlHdr != NULL) {
-			    pLcmlHdr->pOpParam->unNumFramesEncoded = 0; /* Resetting the value  for each time*/
-			}
+                        pLcmlHdr->pOpParam->unNumFramesEncoded=0; /* Resetting the value  for each time*/
                         eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
                                                   EMMCodecOuputBuffer, 
                                                   (OMX_U8 *)pBufHeader->pBuffer, 
@@ -2211,17 +2186,6 @@ OMX_ERRORTYPE AACENCHandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader, AACE
     }
 EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: UTIL:Exiting from  HandleDataBuf_FromApp ..........>>>>>\n",__LINE__);
-    /* report the error to the client via event */
-    if(eError != OMX_ErrorNone){
-        OMX_ERROR4(pComponentPrivate->dbg, "%d:: Error: LCML QUEUE BUFFER\n",__LINE__);
-        pComponentPrivate->cbInfo.EventHandler (pComponentPrivate->pHandle, 
-                                                pComponentPrivate->pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
-
-    }
     return eError;
 }
 
@@ -2602,7 +2566,7 @@ pHandle = pComponentPrivate_CC->pHandle;
         if(pComponentPrivate_CC->codecStop_waitingsignal == 0){
             pComponentPrivate_CC->codecStop_waitingsignal = 1;             
             pthread_cond_signal(&pComponentPrivate_CC->codecStop_threshold);
-            OMX_PRINT2(pComponentPrivate_CC->dbg, "stop ack. received. stop waiting for sending disable command completed\n");
+            OMX_ERROR2(pComponentPrivate_CC->dbg, "stop ack. received. stop waiting for sending disable command completed\n");
         }
         pthread_mutex_unlock(&pComponentPrivate_CC->codecStop_mutex);
 		
@@ -2674,49 +2638,137 @@ pHandle = pComponentPrivate_CC->pHandle;
     
     else if (event == EMMCodecDspError) 
     {
-        OMX_PRSTATE2(pComponentPrivate_CC->dbg, "%d :: commandedState  = %d\n",__LINE__,(int)args[0]);
-        OMX_PRDSP2(pComponentPrivate_CC->dbg, "%d :: arg4 = %d\n",__LINE__,(int)args[4]);
-        OMX_PRDSP2(pComponentPrivate_CC->dbg, "%d :: arg5 = %d\n",__LINE__,(int)args[5]);
-        OMX_PRDSP2(pComponentPrivate_CC->dbg, "%d ::UTIL: EMMCodecDspError Here\n",__LINE__);
-        switch ( (OMX_U32) args [4])
+
+        for(j=0;j<9;j++)
         {
-            /* USN_ERR_NONE,: Indicates that no error encountered during execution of the command and the command execution completed succesfully.
-             * USN_ERR_WARNING,: Indicates that process function returned a warning. The exact warning is returned in Arg2 of this message.
-             * USN_ERR_PROCESS,: Indicates that process function returned a error type. The exact error type is returnd in Arg2 of this message.
-             * USN_ERR_PAUSE,: Indicates that execution of pause resulted in error.
-             * USN_ERR_STOP,: Indicates that execution of stop resulted in error.
-             * USN_ERR_ALGCTRL,: Indicates that execution of alg control resulted in error.
-             * USN_ERR_STRMCTRL,: Indiactes the execution of STRM control command, resulted in error.
-             * USN_ERR_UNKNOWN_MSG,: Indicates that USN received an unknown command. */
-
-#ifdef _ERROR_PROPAGATION__
-            case USN_ERR_PAUSE:
-            case USN_ERR_STOP:
-            case USN_ERR_ALGCTRL:
-            case USN_ERR_STRMCTRL:
-            case USN_ERR_UNKNOWN_MSG:
-                {
-                    pComponentPrivate_CC->bIsInvalidState=OMX_TRUE;
-                    pComponentPrivate_CC->curState = OMX_StateInvalid;
-                    pHandle = pComponentPrivate_CC->pHandle;
-                    pComponentPrivate_CC->cbInfo.EventHandler(pHandle,
-                            pHandle->pApplicationPrivate,
-                            OMX_EventError,
-                            OMX_ErrorInvalidState,
-                            OMX_TI_ErrorSevere,
-                            NULL);
-                }
-                break;
-#endif
-
-            case USN_ERR_WARNING:
-            case USN_ERR_PROCESS:
-                AACENC_HandleUSNError (pComponentPrivate_CC, (OMX_U32)args[5]);
-                break;
-            default:
-                break;
+            OMX_PRINT2(pComponentPrivate_CC->dbg, "arg [%d] = %p \n",j,args[j]);
         }
 
+#ifdef _ERROR_PROPAGATION__
+        /* Cheking for MMU_fault */
+        if((args[4] == (void*)USN_ERR_UNKNOWN_MSG) && (args[5] == (void*)NULL)) 
+        {
+            OMX_PRINT2(pComponentPrivate_CC->dbg, "%d :: UTIL: MMU_Fault \n",__LINE__);
+            pComponentPrivate_CC->bIsInvalidState=OMX_TRUE;
+            OMX_PRSTATE2(pComponentPrivate_CC->dbg, "State changed to OMX_StateInvalid Line %d\n",__LINE__);
+            
+            pComponentPrivate_CC->curState = OMX_StateInvalid;
+            pHandle = pComponentPrivate_CC->pHandle;
+            pComponentPrivate_CC->cbInfo.EventHandler(pHandle, 
+                                   pHandle->pApplicationPrivate,
+                                   OMX_EventError,
+                                   OMX_ErrorHardware, 
+                                   OMX_TI_ErrorSevere,
+                                   NULL);
+        }
+#endif      
+        if(((int)args[4] == USN_ERR_WARNING) && ((int)args[5] == IUALG_WARN_PLAYCOMPLETED)) 
+        {
+            OMX_PRINT2(pComponentPrivate_CC->dbg, "%d :: UTIL: Inside the LCML_Callback: IUALG_WARN_PLAYCOMPLETED\n",__LINE__);
+            pHandle = pComponentPrivate_CC->pHandle;
+            pComponentPrivate_CC->bPlayCompleteFlag = 1;
+            
+            OMX_PRINT2(pComponentPrivate_CC->dbg, "%d :: UTIL: pComponentPrivate_CC->bPlayCompleteFlag = %ld \n",__LINE__,pComponentPrivate_CC->bPlayCompleteFlag);
+            OMX_PRINT2(pComponentPrivate_CC->dbg, "bPlayCompleteFlag\n");
+            pComponentPrivate_CC->LastOutbuf->nFlags |= OMX_BUFFERFLAG_EOS;  /* Extra feature Not used */
+            OMX_PRBUFFER2(pComponentPrivate_CC->dbg, "%d :: UTIL: Buffer with EOS flag: %p \n",__LINE__,pComponentPrivate_CC->LastOutbuf);
+            /* add callback to application to indicate SN/USN has completed playing of current set of date */
+            pComponentPrivate_CC->cbInfo.EventHandler(pHandle,                
+                                    pHandle->pApplicationPrivate,
+                                    OMX_EventBufferFlag,
+                                    (OMX_U32)NULL,
+                                    OMX_BUFFERFLAG_EOS,NULL);
+        }
+
+        if((int)args[5] == IUALG_ERR_GENERAL) 
+        {
+            char *pArgs = "damedesuStr";
+            OMX_ERROR4(pComponentPrivate_CC->dbg,  "Algorithm error. Cannot continue" );
+            OMX_PRINT2(pComponentPrivate_CC->dbg, "%d :: arg5 = %p\n",__LINE__,args[5]);
+            OMX_PRDSP2(pComponentPrivate_CC->dbg, "%d :: LCML_Callback: IUALG_ERR_GENERAL\n",__LINE__);
+            pHandle = pComponentPrivate_CC->pHandle;
+            pLcmlHandle = (LCML_DSP_INTERFACE *)pComponentPrivate_CC->pLcmlHandle;
+
+#ifndef UNDER_CE
+
+                        pComponentPrivate_CC->bIsStopping = 1;
+					if (pComponentPrivate_CC->codecStop_waitingsignal == 0){ 
+						pthread_mutex_lock(&pComponentPrivate_CC->codecStop_mutex); 	
+					}
+                    eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
+                                                  MMCodecControlStop,(void *)pArgs);
+
+                    if (pComponentPrivate_CC->codecStop_waitingsignal == 0){
+                        pthread_cond_wait(&pComponentPrivate_CC->codecStop_threshold, &pComponentPrivate_CC->codecStop_mutex);
+                        pComponentPrivate_CC->codecStop_waitingsignal = 0;
+                        pthread_mutex_unlock(&pComponentPrivate_CC->codecStop_mutex);
+                    }
+            if(eError != OMX_ErrorNone) 
+            {
+                OMX_ERROR4(pComponentPrivate_CC->dbg, "%d: Error Occurred in Codec Stop..\n",__LINE__);
+                goto EXIT;
+            }
+            OMX_PRSTATE2(pComponentPrivate_CC->dbg, "%d :: AACENC: Codec has been Stopped here\n",__LINE__);
+            pComponentPrivate_CC->curState = OMX_StateIdle;
+
+            /* Decrement reference count with signal enabled */
+            if(RemoveStateTransition(pComponentPrivate_CC, OMX_TRUE) != OMX_ErrorNone) {
+                 return OMX_ErrorUndefined;
+            }
+
+            pComponentPrivate_CC->cbInfo.EventHandler(pHandle, pHandle->pApplicationPrivate,
+                                OMX_EventCmdComplete, OMX_CommandStateSet,OMX_StateIdle, NULL);
+#else
+            pComponentPrivate_CC->cbInfo.EventHandler(pHandle, 
+                                                        pHandle->pApplicationPrivate,
+                                                        OMX_EventError, 
+                                                        OMX_ErrorUndefined,
+                                                        OMX_TI_ErrorSevere, 
+                                                        NULL);
+#endif
+        }
+
+        
+        if( (int)args[5] == IUALG_ERR_DATA_CORRUPT )
+        {
+            char *pArgs = "damedesuStr";
+            OMX_PRINT2(pComponentPrivate_CC->dbg,  "Algorithm error. Corrupt data" );
+            OMX_PRINT2(pComponentPrivate_CC->dbg, "%d :: arg5 = %p\n",__LINE__,args[5]);
+            OMX_PRDSP2(pComponentPrivate_CC->dbg, "%d :: LCML_Callback: IUALG_ERR_DATA_CORRUPT\n",__LINE__);
+            pHandle = pComponentPrivate_CC->pHandle;
+            pLcmlHandle = (LCML_DSP_INTERFACE *)pComponentPrivate_CC->pLcmlHandle;
+#ifndef UNDER_CE
+
+                        pComponentPrivate_CC->bIsStopping = 1;
+					if (pComponentPrivate_CC->codecStop_waitingsignal == 0){ 
+						pthread_mutex_lock(&pComponentPrivate_CC->codecStop_mutex); 	
+					}
+                    eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
+                                                  MMCodecControlStop,(void *)pArgs);
+
+                    if (pComponentPrivate_CC->codecStop_waitingsignal == 0){
+                        pthread_cond_wait(&pComponentPrivate_CC->codecStop_threshold, &pComponentPrivate_CC->codecStop_mutex);
+                        pComponentPrivate_CC->codecStop_waitingsignal = 0;
+                        pthread_mutex_unlock(&pComponentPrivate_CC->codecStop_mutex);
+                    }
+            if(eError != OMX_ErrorNone) 
+            {
+                OMX_ERROR4(pComponentPrivate_CC->dbg, "%d: Error Occurred in Codec Stop..\n",__LINE__);
+                goto EXIT;
+            }
+            OMX_PRINT2(pComponentPrivate_CC->dbg, "%d :: AACENC: Codec has been Stopped here\n",__LINE__);
+            pComponentPrivate_CC->curState = OMX_StateIdle;
+            pComponentPrivate_CC->cbInfo.EventHandler(pHandle, pHandle->pApplicationPrivate,
+                                                      OMX_EventCmdComplete, OMX_ErrorNone,0, NULL);
+#else
+            pComponentPrivate_CC->cbInfo.EventHandler(pHandle, 
+                                                    pHandle->pApplicationPrivate,
+                                                    OMX_EventError, 
+                                                    OMX_ErrorUndefined,
+                                                    OMX_TI_ErrorSevere, 
+                                                    NULL);
+#endif                  
+        }
     }
 
 
@@ -2773,17 +2825,8 @@ pHandle = pComponentPrivate_CC->pHandle;
 
 EXIT:
     OMX_PRINT1(pComponentPrivate_CC->dbg, "%d:pComponentPrivate->curState = %d\n",__LINE__,pComponentPrivate_CC->curState);
+
     OMX_PRINT1(pComponentPrivate_CC->dbg, "%d :: UTIL: Exiting the LCML_Callback Function\n",__LINE__);
-    /* report the error to the client via event */
-    if(eError != OMX_ErrorNone){
-        OMX_ERROR4(pComponentPrivate_CC->dbg, "%d:: Error: \n",__LINE__);
-        pComponentPrivate_CC->cbInfo.EventHandler (pComponentPrivate_CC->pHandle, 
-                                                pComponentPrivate_CC->pHandle->pApplicationPrivate,
-                                                OMX_EventError, 
-                                                eError,
-                                                OMX_TI_ErrorSevere,
-                                                NULL);
-    }
     return eError;
 }
 
@@ -3126,7 +3169,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent)
     OMX_PRBUFFER2(pComponentPrivate->dbg, "%d :: ------ Buffer Details ------------\n",__LINE__);
 
     size_lcml = nIpBuf * sizeof(LCML_AACENC_BUFHEADERTYPE);
-    OMX_MALLOC_SIZE(pTemp_lcml, size_lcml, LCML_AACENC_BUFHEADERTYPE);
+    OMX_MALLOC_STRUCT_SIZE(pTemp_lcml, size_lcml, LCML_AACENC_BUFHEADERTYPE);
     OMX_PRDSP2(pComponentPrivate->dbg, "pTemp_lcml %p to %p \n",pTemp_lcml,(pTemp_lcml + sizeof(pTemp_lcml) ));
     
     pComponentPrivate->pLcmlBufHeader[INPUT_PORT] = pTemp_lcml;
@@ -3143,7 +3186,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent)
         pTemp_lcml->buffer = pTemp;
         pTemp_lcml->eDir = OMX_DirInput;
 
-        OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pIpParam, sizeof(AACENC_UAlgInBufParamStruct), AACENC_UAlgInBufParamStruct);
+        OMX_MALLOC_STRUCT(pTemp_lcml->pIpParam, AACENC_UAlgInBufParamStruct);
         OMX_PRDSP2(pComponentPrivate->dbg, "pTemp_lcml %p to %p \n",pTemp_lcml,(pTemp_lcml + sizeof(pTemp_lcml) ));
         
         pTemp_lcml->pIpParam->bLastBuffer = 0;
@@ -3156,7 +3199,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent)
     /* Allocate memory for all output buffer headers,  This memory pointer will be sent to LCML */
     size_lcml = nOpBuf * sizeof(LCML_AACENC_BUFHEADERTYPE);
 
-    OMX_MALLOC_SIZE(pTemp_lcml, size_lcml, LCML_AACENC_BUFHEADERTYPE);
+    OMX_MALLOC_STRUCT_SIZE(pTemp_lcml, size_lcml, LCML_AACENC_BUFHEADERTYPE);
     OMX_PRDSP2(pComponentPrivate->dbg, "size_lcml %d to %lx \n", (int)size_lcml,(size_lcml + sizeof(size_lcml) ));
     
     pComponentPrivate->pLcmlBufHeader[OUTPUT_PORT] = pTemp_lcml;
@@ -3181,7 +3224,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent)
         pTemp_lcml->buffer = pTemp;
         pTemp_lcml->eDir = OMX_DirOutput;
 
-        OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pOpParam, sizeof(AACENC_UAlgOutBufParamStruct), AACENC_UAlgOutBufParamStruct);
+        OMX_MALLOC_STRUCT( pTemp_lcml->pOpParam, AACENC_UAlgOutBufParamStruct);
         
         OMX_PRINT2(pComponentPrivate->dbg, "\n pTemp_lcml->pOpParam %p \n",pTemp_lcml->pOpParam);
         pTemp->nFlags = NORMAL_BUFFER;
@@ -3318,86 +3361,77 @@ int AACEnc_GetSampleRateIndexL( const int aRate)
     return index;
 }
 
-/*  =========================================================================*/
-/*  func    AACENC_HandleUSNError
-/*
-/*  desc    Handles error messages returned by the dsp
-/*
-/*@return n/a
-/*
-/*  =========================================================================*/
-void AACENC_HandleUSNError (AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg)
+
+#ifdef AACENC_DEBUGMEM
+
+/* ========================================================================== */
+/**
+* @mymalloc() This function is used to debug memory leaks
+*
+* @param 
+*
+* @pre None
+*
+* @post None
+*
+* @return None
+*/
+/* ========================================================================== */
+void* mymalloc(int line, char *s, int size)
 {
-    OMX_COMPONENTTYPE *pHandle = NULL;
-    OMX_U32 i;
-    switch (arg)
-    {
+   void *p;    
+   int e=0;
 
-        case IUALG_WARN_CONCEALED:
-        case IUALG_WARN_UNDERFLOW:
-        case IUALG_WARN_OVERFLOW:
-        case IUALG_WARN_ENDOFDATA:
-            OMX_ERROR4(pComponentPrivate->dbg,  "Algorithm Error" );
-            /* all of these are informative messages, Algo can recover, no need to notify the
-             * IL Client at this stage of the implementation */
-            break;
-        case IUALG_WARN_PLAYCOMPLETED:
-
-            {
-                OMX_PRINT2(pComponentPrivate->dbg, "%d :: UTIL: IUALG_WARN_PLAYCOMPLETED/USN_ERR_WARNING event received\n", __LINE__);
-                pComponentPrivate->bPlayCompleteFlag = 1;
-#ifndef UNDER_CE
-                pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                                       pComponentPrivate->pHandle->pApplicationPrivate,
-                                                       OMX_EventBufferFlag,
-                                                       (OMX_U32)NULL,
-                                                       OMX_BUFFERFLAG_EOS,
-                                                       NULL);
-                pComponentPrivate->pLcmlBufHeader[0]->pIpParam->bLastBuffer = 0;
-#else
-                /* add callback to application to indicate SN/USN has completed playing of current set of date */
-                pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                                       pComponentPrivate->pHandle->pApplicationPrivate,
-                                                       OMX_EventBufferFlag,
-                                                       (OMX_U32)NULL,
-                                                       OMX_BUFFERFLAG_EOS,
-                                                       NULL);
-#endif
-            }
-            break;
-
-#ifdef _ERROR_PROPAGATION__
-        case IUALG_ERR_BAD_HANDLE:
-        case IUALG_ERR_DATA_CORRUPT:
-        case IUALG_ERR_NOT_SUPPORTED:
-        case IUALG_ERR_ARGUMENT:
-        case IUALG_ERR_NOT_READY:
-        case IUALG_ERR_GENERAL:
-
-            {
-                /* all of these are fatal messages, Algo can not recover
-                 * hence return an error */
-                OMX_ERROR4(pComponentPrivate->dbg,  "Algorithm Error, cannot recover" );
-                pComponentPrivate->bIsInvalidState=OMX_TRUE;
-                pComponentPrivate->curState = OMX_StateInvalid;
-                pHandle = pComponentPrivate->pHandle;
-                pComponentPrivate->cbInfo.EventHandler(pHandle,
-                        pHandle->pApplicationPrivate,
-                        OMX_EventError,
-                        OMX_ErrorInvalidState,
-                        OMX_TI_ErrorSevere,
-                        NULL);
-            }
-            break;
-#endif
-        default:
-            break;
-    }
+   p = malloc(size);
+   if(p==NULL){
+       OMXDBG_PRINT(stderr, ERROR, 4, 0, "Memory not available\n");
+       }
+   else{
+         while((lines[e]!=0)&& (e<500) ){
+              e++;
+         }
+         arr[e]=p;
+         lines[e]=line;
+         bytes[e]=size;
+         strcpy(file[e],s);
+         OMXDBG_PRINT(stderr, BUFFER, 2, 0, "Allocating %d bytes on address %p, line %d file %s pos %d\n", size, p, line, s, e);
+  }
+   return p;
 }
 
+ /* ========================================================================== */
+/**
+* @myfree() This function is used to debug memory leaks
+*
+* @param 
+*
+* @pre None
+*
+* @post None
+*
+* @return None
+*/
+/* ========================================================================== */
+int myfree(void *dp, int line, char *s){
 
-#ifdef RESOURCE_MANAGER_ENABLED
-void AACENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
+    int q;
+    for(q=0;q<500;q++){
+        if(arr[q]==dp){
+           OMXDBG_PRINT(stderr, PRINT, 2, 0, "Deleting %d bytes on address %p, line %d file %s\n", bytes[q],dp, line, s);
+           free(dp);
+           dp = NULL;
+           lines[q]=0;
+           strcpy(file[q],"");
+           break;
+        }            
+     }    
+     if(500==q)
+         OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n\nPointer not found. Line:%d    File%s!!\n\n",line, s);
+}
+#endif
+
+
+/* void AACENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
 {
     OMX_COMMANDTYPE Cmd = OMX_CommandStateSet;
     OMX_STATETYPE state = OMX_StateIdle;
@@ -3425,7 +3459,7 @@ void AACENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
     }
 
 }
-#endif
+*/
 
 OMX_ERRORTYPE AddStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate) {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
@@ -3461,3 +3495,6 @@ OMX_ERRORTYPE RemoveStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate,
 
     return eError;
 }
+
+
+

@@ -23,6 +23,7 @@
 
 #define newmalloc(x) malloc(x)
 #define newfree(z) free(z)
+
 #ifdef ANDROID
 /* Log for Android system*/
 #include <utils/Log.h>
@@ -268,6 +269,7 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #define VIDDEC_DEFAULT_MPEG2_BFRAMES                VIDDEC_MINUS
 #define VIDDEC_DEFAULT_MPEG2_PROFILE                OMX_VIDEO_MPEG2ProfileSimple
 #define VIDDEC_DEFAULT_MPEG2_LEVEL                  OMX_VIDEO_MPEG2LevelLL
+
 #define VIDDEC_DEFAULT_H264_PORTINDEX                 VIDDEC_INPUT_PORT
 #define VIDDEC_DEFAULT_H264_SLICEHEADERSPACING        VIDDEC_ZERO
 #define VIDDEC_DEFAULT_H264_PFRAMES                   VIDDEC_MINUS
@@ -313,7 +315,6 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 
 #define VIDDEC_PADDING_FULL                           256
 #define VIDDEC_PADDING_HALF                           VIDDEC_PADDING_FULL / 2
-
 #define VIDDEC_ALIGNMENT                              4
 
 #define VIDDEC_CLEARFLAGS                             0
@@ -361,14 +362,8 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #define VIDDEC_VGA_WIDTH                              640
 #define VIDDEC_VGA_HEIGHT                             480
 
-#define VIDDEC_D1MAX_WIDTH                            864
-#define VIDDEC_D1MAX_HEIGHT                           VIDDEC_D1MAX_WIDTH
-
-/* In the current release the suport for : VIDDEC_MAX_FRAMERATE  & VIDDEC_MAX_BITRATE
- * is not provided by the algorithm. But is require to set this field to a non-zero value */
-#define VIDDEC_MAX_FRAMERATE                        30000  /* Max frame rate to be suported * 1000 */
-#define VIDDEC_MAX_BITRATE                        8000000  /* Max bit rate (in bits per second) to be suported */
-
+#define VIDDEC_D1MAX_WIDTH                            720
+#define VIDDEC_D1MAX_HEIGHT                           576
 #define VIDDEC_WMV_PROFILE_ID0                          0
 #define VIDDEC_WMV_PROFILE_ID1                          1
 #define VIDDEC_WMV_PROFILE_ID2                          2
@@ -576,7 +571,7 @@ typedef struct VIDDEC_QUEUE_TYPE {
     OMX_PTR Elements;
     OMX_U32 CounterElements[VIDDEC_MAX_QUEUE_SIZE];
     OMX_U32 nHead;
-    OMX_S32 nTail;
+    OMX_U32 nTail;
     OMX_U32 nElements;
     OMX_U32 nErrorCount;
     pthread_mutex_t mMutex;
@@ -869,7 +864,6 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_PORT_PARAM_TYPE* pPortParamTypeAudio;
     OMX_PORT_PARAM_TYPE* pPortParamTypeImage;
     OMX_PORT_PARAM_TYPE* pPortParamTypeOthers;
-
 #endif
     OMX_CALLBACKTYPE cbInfo;
     OMX_PARAM_PORTDEFINITIONTYPE* pPortDef[NUM_OF_PORTS];
@@ -935,7 +929,6 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 
     OMX_STATETYPE eIdleToLoad;
     OMX_STATETYPE eExecuteToIdle;
-    OMX_BOOL iEndofInputSent;
     OMX_BOOL bPipeCleaned;
     OMX_BOOL bFirstBuffer;
 
@@ -956,10 +949,10 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 #endif
     VIDDEC_RMPROXY_STATES eRMProxyState;
 
-    OMX_U8 nCountInputBFromDsp;
-    OMX_U8 nCountOutputBFromDsp;
-    OMX_U8 nCountInputBFromApp;
-    OMX_U8 nCountOutputBFromApp;
+    volatile int32_t nInputBCountDsp;
+    volatile int32_t nOutputBCountDsp;
+    volatile int32_t nInputBCountApp;
+    volatile int32_t nOutputBCountApp;
 
     VIDDEC_CBUFFER_BUFFERFLAGS aBufferFlags[CBUFFER_SIZE];
     VIDDEC_LCML_STATES eLCMLState;
@@ -969,10 +962,6 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_BOOL bIsSparkInput;
 #endif
     VIDDEC_MUTEX sMutex;
-    pthread_mutex_t mutexInputBFromApp;
-    pthread_mutex_t mutexOutputBFromApp;
-    pthread_mutex_t mutexInputBFromDSP;
-    pthread_mutex_t mutexOutputBFromDSP;
     VIDDEC_MUTEX sDynConfigMutex;
     VIDDEC_SEMAPHORE sInSemaphore;
     VIDDEC_SEMAPHORE sOutSemaphore;
@@ -1019,22 +1008,6 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 } VIDDEC_COMPONENT_PRIVATE;
 
 /*****************macro definitions*********************/
-/*----------------------------------------------------------------------------*/
-/**
-  * OMX_GET_DATABUFF_SIZE() Get the needed buffer data size base in the request.
-  *
-  * This method will give the needed data buffer size acording with
-  * specific requirements from the codec and component.
-  *
-  * @param _nSizeBytes_     Requested size from client
-  *
-  **/
-/*----------------------------------------------------------------------------*/
-
-#define OMX_GET_DATABUFF_SIZE(_nSizeBytes_)                         \
-         (_nSizeBytes_ + VIDDEC_PADDING_FULL + VIDDEC_WMV_BUFFER_OFFSET + VIDDEC_ALIGNMENT)
-
-
 #define OMX_MALLOC_STRUCT(_pStruct_, _sName_, _memusage_)           \
     _pStruct_ = (_sName_*)malloc(sizeof(_sName_));                  \
     if(_pStruct_ == NULL){                                          \
@@ -1062,24 +1035,35 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel4]*/
 
 
+
 /*----------------------------------------------------------------------------*/
 /**
   * OMX_ALIGN_BUFFER() Align the buffer to the desire number of bytes.
   *
   * This method will update the component function pointer to the handle
   *
-  * @param _pBuffer_     Pointer to align
-  * @param _nBytes_      # of byte to alignment desire
+  * @param _pBuffer_	    Pointer to align
+  * @param _nBytes_	    # of byte to alignment desire
   *
   **/
 /*----------------------------------------------------------------------------*/
 
-#define OMX_ALIGN_BUFFER(_pBuffer_, _nBytes_)                  \
-    while((OMX_U8)_pBuffer_ & (_nBytes_-1)){                   \
-       _pBuffer_++;                                            \
-    }
+#define OMX_ALIGN_BUFFER(_pBuffer_, _nBytes_) \
+    _pBuffer_ = (OMX_U8*) ((((OMX_U32) _pBuffer_) + (_nBytes_ - 1)) & (~(_nBytes_ - 1)));
 
-
+/*----------------------------------------------------------------------------*/
+/**
+  * OMX_MALLOC_BUFFER_VIDDEC() Allocate buffer for video decoder component
+  *
+  * This method will allocate memory for the _pBuffer_. Taking care of cache
+  * coherency requirement and include configuration data if require.
+  *
+  * @param _pBuffer_	    Pointer to buffer to be use
+  * @param _nSize_	    # of byte to allocate
+  * @param _pOriginalBuffer_  Pointer to the original allocate address
+  *
+  **/
+/*----------------------------------------------------------------------------*/
 
 #define OMX_MALLOC_BUFFER_VIDDEC(_pBuffer_, _nSize_, _pOriginalBuffer_)	    \
     _pBuffer_ =  OMX_MALLOC_STRUCT_SIZED(_pBuffer_, OMX_U8, _nSize_ + VIDDEC_PADDING_FULL + VIDDEC_WMV_BUFFER_OFFSET + VIDDEC_ALIGNMENT, pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel1]);			\
@@ -1090,11 +1074,11 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 
 /*----------------------------------------------------------------------------*/
 /**
-  * OMX_FREE() Free memory
+  * OMX_FREE_VIDDEC() Free memory
   *
   * This method will free memory and set pointer to NULL
   *
-  * @param _pBuffer_     Pointer to free
+  * @param _pBuffer_	    Pointer to free
   *
   **/
 /*----------------------------------------------------------------------------*/
@@ -1143,6 +1127,9 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
         OMX_PRBUFFER1(pComponentPrivate->dbg, "Free original allocated buffer: %p\n", _pBuffHead_->pBuffer);	\
         OMX_FREE_VIDDEC(_pBuffHead_->pBuffer);							    \
     }
+
+
+
 /*----------------------------------------------------------------------------*/
 /**
   * OMX_WMV_INSERT_CODEC_DATA()
@@ -1150,39 +1137,37 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
   * This method will insert the codec data to the first frame to be sent to
   * queue in LCML
   *
-  * @param _pBuffHead_    Pointer to free
+  * @param _pBuffHead_	    Buffer header pointer
   * @param _pComponentPrivate_  Component private structure to provide needed
-  *                             references
+  *				references
   *
   **/
 /*----------------------------------------------------------------------------*/
 
-#define OMX_WMV_INSERT_CODEC_DATA(_pBuffHead_, _pComponentPrivate_)                     \
-    {                                                                                   \
-        OMX_U8* _pTempBuffer_ = NULL;                                                   \
-        /* Copy frame data in a temporary buffer*/                                      \
-        OMX_MALLOC_STRUCT_SIZED(_pTempBuffer_, OMX_U8, _pBuffHead_->nFilledLen, NULL);  \
-        memcpy (_pTempBuffer_, _pBuffHead_->pBuffer, _pBuffHead_->nFilledLen);          \
-                                                                                        \
-        /*Copy configuration data at the begining of the buffer*/                       \
-        memcpy (_pBuffHead_->pBuffer, _pComponentPrivate_->pCodecData, _pComponentPrivate_->nCodecDataSize);   \
-        _pBuffHead_->pBuffer += _pComponentPrivate_->nCodecDataSize;                                           \
-        /* Add frame start code */     \
-        (*(_pBuffHead_->pBuffer++)) = 0x00;  \
-        (*(_pBuffHead_->pBuffer++)) = 0x00;  \
-        (*(_pBuffHead_->pBuffer++)) = 0x01;  \
-        (*(_pBuffHead_->pBuffer++)) = 0x0d;  \
-                                             \
-        /* Insert again the frame buffer */  \
-        memcpy (_pBuffHead_->pBuffer, _pTempBuffer_, _pBuffHead_->nFilledLen); \
-        /* pTempBuffer no longer need*/                                        \
+#define OMX_WMV_INSERT_CODEC_DATA(_pBuffHead_, _pComponentPrivate_)			\
+    {											\
+	OMX_U8* _pTempBuffer_ = NULL;							\
+	/* Copy frame data in a temporary buffer*/					\
+        OMX_MALLOC_STRUCT_SIZED(_pTempBuffer_, OMX_U8, _pBuffHead_->nFilledLen, NULL);	\
+	memcpy (_pTempBuffer_, _pBuffHead_->pBuffer, _pBuffHead_->nFilledLen);		\
+											\
+        /*Copy configuration data at the begining of the buffer*/			\
+	memcpy (_pBuffHead_->pBuffer, _pComponentPrivate_->pCodecData, _pComponentPrivate_->nCodecDataSize);	\
+        _pBuffHead_->pBuffer += _pComponentPrivate_->nCodecDataSize;			\
+	/* Add frame start code */							\
+        (*(_pBuffHead_->pBuffer++)) = 0x00;						\
+	(*(_pBuffHead_->pBuffer++)) = 0x00;						\
+        (*(_pBuffHead_->pBuffer++)) = 0x01;						\
+	(*(_pBuffHead_->pBuffer++)) = 0x0d;						\
+											\
+        /* Insert again the frame buffer */						\
+	memcpy (_pBuffHead_->pBuffer, _pTempBuffer_, _pBuffHead_->nFilledLen);		\
+        /* pTempBuffer no longer need*/							\
 	OMX_FREE_VIDDEC(_pTempBuffer_);							\
-                             \
-        _pBuffHead_->pBuffer -= (pComponentPrivate->nCodecDataSize + 4);       \
-        _pBuffHead_->nFilledLen += pComponentPrivate->nCodecDataSize + 4;      \
+											\
+	_pBuffHead_->pBuffer -= (pComponentPrivate->nCodecDataSize + 4);		\
+        _pBuffHead_->nFilledLen += pComponentPrivate->nCodecDataSize + 4;		\
     }
-
-
 
 
 #define OMX_CONF_INIT_STRUCT(_s_, _name_, dbg)       \
@@ -1420,7 +1405,7 @@ OMX_ERRORTYPE VIDDEC_CopyBuffer(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX
 OMX_ERRORTYPE VIDDEC_UnloadCodec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE VIDDEC_LoadCodec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE VIDDEC_Set_SN_StreamType(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
-OMX_ERRORTYPE VIDDEC_SetMpeg4_Parameters(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
+OMX_ERRORTYPE VIDDEC_Set_Debocking(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 
 #ifdef VIDDEC_ACTIVATEPARSER
 OMX_ERRORTYPE VIDDEC_ParseVideo_WMV9_VC1( OMX_S32* nWidth, OMX_S32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
@@ -1433,10 +1418,9 @@ OMX_ERRORTYPE VIDDEC_ParseVideo_H264(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate
 OMX_ERRORTYPE VIDDEC_ParseVideo_MPEG2( OMX_S32* nWidth, OMX_S32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
 OMX_U32 VIDDEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BOOL bIcreasePosition);
 OMX_S32 VIDDEC_UVLC_dec(OMX_U32 *nPosition, OMX_U8* pBuffer);
+
 OMX_ERRORTYPE AddStateTransition(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE RemoveStateTransition(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
-OMX_ERRORTYPE IncrementCount (OMX_U8 * pCounter, pthread_mutex_t *pMutex);
-OMX_ERRORTYPE DecrementCount (OMX_U8 * pCounter, pthread_mutex_t *pMutex);
 
 #endif
 #endif

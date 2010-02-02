@@ -62,7 +62,6 @@
 #include <OMX_Component.h>
 #include "OMX_JpegEnc_CustomCmd.h"
 #include "JPEGTestEnc.h"
-#include "OMX_JpegEnc_Utils.h"
 
 /* DSP recovery includes */
 #include <qosregistry.h>
@@ -81,7 +80,8 @@
 #ifdef UNDER_CE
 OMX_STRING StrJpegEncoder= "OMX.TI.IMAGE.JPEG.ENC"; 
 #else
- OMX_STRING StrJpegEncoder= "OMX.TI.JPEG.Encoder";
+ OMX_STRING StrJpegEncoder= "OMX.TI.JPEG.Encoder"; 
+/* OMX_STRING StrJpegEncoder= "OMX.TI.JPEG.encoder"; */
 #endif
 
 OMX_U8 APPLICATION1_NOTHUMB[]={
@@ -718,7 +718,6 @@ OMX_ERRORTYPE EventHandler(OMX_HANDLETYPE hComponent,OMX_PTR pAppData,OMX_EVENTT
     MyEvent.pEventInfo = pEventData;
     PRINT("Inside Test Application EventHandler function\n");
     eError = pComponent->GetState (hComponent, &state);
-
     if ( eError != OMX_ErrorNone ) {
         PRINT("Error: From JPEGENC_GetState\n");
     }
@@ -1018,7 +1017,6 @@ void PrintUsage(void)
     printf("w.. Width Of Image\n");
     printf("h.. Height Of Image\n");
     printf("f.. Input Of Image:\n    1.- YUV 420 Planer\n    2.- YUV 422 Interleaved UYVY\n    3.- 32 bit RAW (RGB32)\n    4.- 16 bit RAW (RGB16)\n    5.- YUV 422 Interleaved YUYV\n");
-    printf("z.. 420p to 422i conversion before encode \n");
     printf("q.. Quality Factor Of Image: 1 to 100\n");
     printf("b.. Exit Buffer: 1 o 2\n");
     printf("c.. Marker Comment: The comment string length should be less than 255 characters\n");
@@ -1083,8 +1081,6 @@ int main(int argc, char** argv)
     OMX_PARAM_PORTDEFINITIONTYPE* pOutPortDef = NULL;
     OMX_CONFIG_RECTTYPE sCrop;
 
-    OMX_BOOL bConvertion_420pTo422i = OMX_FALSE;
-
 #ifdef UNDER_CE
     TCHAR* szInFile = NULL;
     TCHAR* szOutFile = NULL; 
@@ -1124,7 +1120,7 @@ int main(int argc, char** argv)
 #endif
 
     int next_option;
-    const char* const short_options = "i:o:w:h:f:q:b:c:x:y:s:k:t:u:r:v:l:n:p:ajemdvlz";
+    const char* const short_options = "i:o:w:h:f:q:b:c:x:y:s:k:t:u:r:v:l:n:p:ajemd";
     const struct option long_options[] = 
     {
         { "InputFile",1, NULL, 'i' },
@@ -1151,7 +1147,6 @@ int main(int argc, char** argv)
         { "MarkerAPP5",0,NULL,'d'},
         { "CroppedWidth",0,NULL,'v'},               
         { "CroppedHeight",0,NULL,'l'},                       
-        { "420pTo422iConversion",0,NULL,'z'},
         { NULL, 0, NULL, 0 }                
     };
 
@@ -1228,11 +1223,6 @@ do
         inputformat=atoi(optarg);
         break;
     
-        case 'z':
-        bConvertion_420pTo422i = OMX_TRUE;
-        PRINT("\n ********* bConvertion_420pTo422i is set to TRUE \n");
-        break;
-
         case 'q':
         qualityfactor=atoi(optarg);
         break;
@@ -1542,9 +1532,6 @@ do
 	if ( inputformat == 2 || inputformat == 3 || inputformat == 4 ) {
 	     pOutPortDef->format.image.eColorFormat =  OMX_COLOR_FormatCbYCrY; 
 	}
-	else if ( inputformat == 1 && bConvertion_420pTo422i ) {
-	    pOutPortDef->format.image.eColorFormat =  OMX_COLOR_FormatCbYCrY;
-	}
 	else {
 	    pOutPortDef->format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
 	}
@@ -1572,13 +1559,6 @@ do
 	   goto EXIT;
 	}
     
-	error = OMX_SetConfig(pHandle, OMX_IndexCustomColorFormatConvertion_420pTo422i, &bConvertion_420pTo422i);
-	if ( error != OMX_ErrorNone ) {
-	    printf("%d::APP_Error at function call: %x\n", __LINE__, error);
-	   error = OMX_ErrorBadParameter;
-	   goto EXIT;
-	}
-
 	if (bSetCustomQuatizationTable){
 
 		pQuantizationTable->eQuantizationTable = OMX_IMAGE_QuantizationTableLuma;
@@ -2045,7 +2025,7 @@ EXIT:
     
 	error = TIOMX_Deinit();
 	if ( error != OMX_ErrorNone ) {
-	    printf("Error returned by OMX_DeInit()\n");
+	    printf("Error returned by OMX_Init()\n");
 	}
 
 #ifdef STRESS
@@ -2073,7 +2053,7 @@ int LoadBaseImage() {
     unsigned int numProcs;
     char* argv[2];
    
-    argv[0] = "/lib/dsp/baseimage.dof";
+    argv[0] = "/system/lib/dsp/baseimage.dof";
     
     status = (DBAPI)DspManager_Open(0, NULL);
     if (DSP_FAILED(status)) {

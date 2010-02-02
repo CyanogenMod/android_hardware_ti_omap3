@@ -18,13 +18,13 @@
 *             Texas Instruments OMAP(TM) Platform Software
 *  (c) Copyright Texas Instruments, Incorporated.  All Rights Reserved.
 *
-*  Use of this software is controlled by the terms and conditions found
+*  Use of this software is controlled by the terms and conditions found 
 *  in the license agreement under which this software has been supplied.
 * =========================================================================== */
 /**
 * @file VideoEncTest.c
 *
-* This file implements OMX Component for MPEG-4 encoder that
+* This file implements OMX Component for MPEG-4 encoder that 
 * is fully compliant with the OMX specification 1.5.
 *
 * @path  $(CSLPATH)\src
@@ -32,40 +32,40 @@
 * @rev  0.1
 */
 /* -------------------------------------------------------------------------- */
-/* =============================================================================
-*!
-*! Revision History
+/* ============================================================================= 
+*! 
+*! Revision History 
 *! ===================================
 *!
-*! 02-Feb-2006 mf: Revisions appear in reverse chronological order;
-*! that is, newest first.  The date format is dd-Mon-yyyy.
+*! 02-Feb-2006 mf: Revisions appear in reverse chronological order; 
+*! that is, newest first.  The date format is dd-Mon-yyyy.  
 * =========================================================================== */
 #define _XOPEN_SOURCE 600
 
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <sched.h>
-#include <unistd.h>
-#include <sys/types.h>
+#include <stdarg.h> 
+#include <string.h> 
+#include <sched.h> 
+#include <unistd.h> 
+#include <sys/types.h> 
 #include <sys/select.h>
-#include <time.h>
-#include <OMX_Component.h>
+#include <time.h> 
+#include <OMX_Component.h> 
 #include <getopt.h>
 #include <sys/types.h>
 
 #define DSP_MMU_FAULT_HANDLING
 
-#ifdef DSP_MMU_FAULT_HANDLING
+#ifdef DSP_MMU_FAULT_HANDLING 
 #include <dbapi.h>
 #include <DSPManager.h>
 #include <DSPProcessor.h>
 #include <DSPProcessor_OEM.h>
 #endif
 
-/* For debug printing
+/* For debug printing 
    Add -DAPP_DEBUG to CFLAGS in test Makefile */
 #define KHRONOS_1_2
 #if VIDENCTEST_DEBUG
@@ -77,13 +77,10 @@
     #define VIDENCTEST_MAX_TIME_OUTS 1000000
 #endif
 #define VIDENCTEST_UNUSED_ARG(arg) (void)(arg)
-#if 0
-    #define VIDENCTEST_COLOR
+#if 0 
+    #define VIDENCTEST_COLOR 
     #define VIDENCTEST_PRINT_PARAMS
 #endif
-
-#define VIDENCTEST_USE_DEFAULT_VALUE (OMX_U32)-1
-#define VIDENCTEST_USE_DEFAULT_VALUE_UI (unsigned int)-1
 
 #define VIDENCTEST_MALLOC(_p_, _s_, _c_, _h_)                           \
     _p_ = (_c_*)malloc(_s_);                                            \
@@ -117,20 +114,21 @@
         VIDENCTEST_HandleError(pAppData, _e_);               \
         goto EXIT;                                          \
     }                                                       \
-
+    
 #define VIDENCTEST_CHECK_EXIT(_e_, _s_)                     \
     if (_e_ != OMX_ErrorNone){                              \
         printf("\n------VIDENCTEST ERROR-------\n %x : %s \n", _e_, _s_);  \
         goto EXIT;                                          \
-    }
-
+    }      
+    
+    
 #if 1
     #define CALC_TIME
 #endif
 
 #define MAX_UNRESPONSIVE_COUNT 50
-#define NUM_OF_IN_BUFFERS 4
-#define NUM_OF_OUT_BUFFERS 4
+#define NUM_OF_IN_BUFFERS 4 
+#define NUM_OF_OUT_BUFFERS 4 
 #define MAX_NUM_OF_PORTS 16
 #define MAX_EVENTS 256
 /*
@@ -176,7 +174,7 @@
     }
 
 
-/*static const int iQ16_Const = 1 << 16;*/
+static const int iQ16_Const = 1 << 16;
 static const float fQ16_Const = (float)(1 << 16);
 
 /*static float Q16Tof(int nQ16)
@@ -184,35 +182,34 @@ static const float fQ16_Const = (float)(1 << 16);
     return nQ16 / fQ16_Const;
 }*/
 
-static int fToQ16(float f)
+static float fToQ16(float f)
 {
     return (int)(f*fQ16_Const);
 }
-
-#ifdef DSP_MMU_FAULT_HANDLING
+    
+#ifdef DSP_MMU_FAULT_HANDLING 
 static int bInvalid_state;
 int LoadBaseImage();
 #endif
-
-void VIDENCTEST_Log(const char *szFileName, int iLineNum, const char *szFunctionName, const char *strFormat, ...)
+    
+void VIDENCTEST_Log(int iLineNum, const char *szFunctionName, const char *strFormat, ...)
 {
     va_list list;
-    VIDENCTEST_UNUSED_ARG(szFileName);
-    VIDENCTEST_UNUSED_ARG(iLineNum);
-    fprintf(stdout, "%s():", szFunctionName);
+
+    fprintf(stdout, "%d. %s():", iLineNum, szFunctionName);
     va_start(list, strFormat);
     vfprintf(stdout, strFormat, list);
     va_end(list);
 }
 
 #ifdef __VIDENCTEST_DPRINT__
-    #define VIDENCTEST_DPRINT(STR, ARG...) VIDENCTEST_Log(__FILE__, __LINE__, __FUNCTION__, STR, ##ARG)
+    #define VIDENCTEST_DPRINT(STR, ARG...) VIDENCTEST_Log(__LINE__, __FUNCTION__, STR, ##ARG) 
 #else
     #define VIDENCTEST_DPRINT(...)
 #endif
 
 #ifdef __VIDENCTEST_MTRACE__
-    #define VIDENCTEST_MTRACE(STR, ARG...) VIDENCTEST_Log(__FILE__, __LINE__, __FUNCTION__, STR, ##ARG)
+    #define VIDENCTEST_MTRACE(STR, ARG...) VIDENCTEST_Log(__LINE__, __FUNCTION__, STR, ##ARG) 
 #else
     #define VIDENCTEST_MTRACE(...)
 #endif
@@ -349,7 +346,7 @@ typedef struct MYDATATYPE {
     OMX_U32 nTargetFrameRate;
     OMX_U32 nAIRRate;
     OMX_U32 nTargetBitRate;
-    OMX_U32 nStartPortNumber;
+    OMX_U32 nStartPortNumber; 
     OMX_U32 nPorts;
     OMX_U8 nInBufferCount;
     OMX_U8 nOutBufferCount;
@@ -359,7 +356,7 @@ typedef struct MYDATATYPE {
     OMX_BOOL bExit;
     OMX_U32 nSizeIn;
     OMX_U32 nSizeOut;
-
+    
     OMX_U32 nReferenceFrame;
     OMX_U32 nNumberOfTimesTodo;
     OMX_U32 nNumberOfTimesDone;
@@ -370,10 +367,8 @@ typedef struct MYDATATYPE {
     OMX_U32 nMIRRate;
     OMX_U32 nResynchMarkerSpacing;
     unsigned int nEncodingPreset;
-    OMX_U8 nUnrestrictedMV;
     OMX_U8 NalFormat;
     OMX_U8 bLastOutBuffer;
-    OMX_U32  nQPIoF;
 } MYDATATYPE;
 
 typedef struct EVENT_PRIVATE {
@@ -398,10 +393,10 @@ int maxint(int a, int b)
   * Creates the List Head of the Component Memory List.
   *
   * @param pListHead VIDENCTEST_NODE double pointer with the List Header of the Memory List.
-  *
-  * @retval OMX_ErrorNone
+  *                
+  * @retval OMX_ErrorNone 
   *               OMX_ErrorInsufficientResources if the malloc fails
-  *
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_ListCreate(struct VIDENCTEST_NODE** pListHead)
@@ -409,15 +404,15 @@ OMX_ERRORTYPE VIDENCTEST_ListCreate(struct VIDENCTEST_NODE** pListHead)
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
     *pListHead = (VIDENCTEST_NODE*)malloc(sizeof(VIDENCTEST_NODE)); /* need to malloc!!! */
-    if (*pListHead == NULL) {
-        VIDENCTEST_DPRINT("malloc() error.\n");
-        eError = OMX_ErrorInsufficientResources;
-        goto EXIT;
-    }
-
+    if (*pListHead == NULL) {                                      
+        VIDENCTEST_DPRINT("malloc() error.\n");                    
+        eError = OMX_ErrorInsufficientResources;            
+        goto EXIT;                                          
+    }      
+     
     VIDENCTEST_DPRINT("Create MemoryListHeader[%p]\n", *pListHead);
     memset(*pListHead, 0x0, sizeof(VIDENCTEST_NODE));
-
+    
 EXIT:
     return eError;
 }
@@ -430,9 +425,9 @@ EXIT:
   *
   * @param pListHead VIDENCTEST_NODE Points List Header of the Memory List.
   *                pData OMX_PTR points to the new allocated data.
-  * @retval OMX_ErrorNone
+  * @retval OMX_ErrorNone 
   *               OMX_ErrorInsufficientResources if the malloc fails
-  *
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 
@@ -443,25 +438,25 @@ OMX_ERRORTYPE VIDENCTEST_ListAdd(struct VIDENCTEST_NODE* pListHead, OMX_PTR pDat
     VIDENCTEST_NODE* pNewNode = NULL;
 
     pNewNode = (VIDENCTEST_NODE*)malloc(sizeof(VIDENCTEST_NODE)); /* need to malloc!!! */
-    if (pNewNode == NULL) {
-        VIDENCTEST_DPRINT("malloc() error.\n");
-        eError = OMX_ErrorInsufficientResources;
-        goto EXIT;
-    }
-
-    memset(pNewNode, 0x0, sizeof(VIDENCTEST_NODE));
+    if (pNewNode == NULL) {                                      
+        VIDENCTEST_DPRINT("malloc() error.\n");                    
+        eError = OMX_ErrorInsufficientResources;            
+        goto EXIT;                                          
+    }       
+    
+    memset(pNewNode, 0x0, sizeof(VIDENCTEST_NODE)); 
     pNewNode->pData = pData;
     pNewNode->pNext = NULL;
     VIDENCTEST_DPRINT("Add MemoryNode[%p] -> [%p]\n", pNewNode, pNewNode->pData);
-
+    
     pTmp = pListHead;
 
     while (pTmp->pNext != NULL) {
         pTmp = pTmp->pNext;
     }
     pTmp->pNext = pNewNode;
-
-EXIT:
+   
+EXIT:    
     return eError;
 }
 
@@ -473,9 +468,9 @@ EXIT:
   *
   * @param pListHead VIDENCTEST_NODE Points List Header of the Memory List.
   *                pData OMX_PTR points to the new allocated data.
-  * @retval OMX_ErrorNone
-  *
-  *
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 
@@ -510,10 +505,10 @@ OMX_ERRORTYPE VIDENCTEST_ListRemove(struct VIDENCTEST_NODE* pListHead, OMX_PTR p
   * Called inside OMX_ComponentDeInit()  Remove all nodes and free all the memory in the Component Memory List.
   *
   * @param pListHead VIDENCTEST_NODE Points List Header of the Memory List.
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 
@@ -528,11 +523,11 @@ OMX_ERRORTYPE VIDENCTEST_ListDestroy(struct VIDENCTEST_NODE* pListHead)
         pTmp = pNode->pNext;
         if (pTmp->pData != NULL) {
             VIDENCTEST_FREE(pTmp->pData, pListHead);
-        }
+        } 
         pNode->pNext = pTmp->pNext;
         VIDENCTEST_FREE(pTmp, pListHead);
     }
-
+    
     VIDENCTEST_DPRINT("Destroy MemoryListHeader[%p]\n", pListHead);
     free(pListHead);
     return eError;
@@ -545,10 +540,10 @@ OMX_ERRORTYPE VIDENCTEST_ListDestroy(struct VIDENCTEST_NODE* pListHead)
   * Called inside OMX_ComponentDeInit()  Remove all nodes and free all the memory in the Component Memory List.
   *
   * @param pListHead VIDENCTEST_NODE Points List Header of the Memory List.
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 void VIDENCTEST_EventHandler(OMX_HANDLETYPE hComponent, MYDATATYPE* pAppData, OMX_EVENTTYPE eEvent, OMX_U32 nData1, OMX_U32 nData2, OMX_PTR pEventData)
@@ -557,7 +552,7 @@ void VIDENCTEST_EventHandler(OMX_HANDLETYPE hComponent, MYDATATYPE* pAppData, OM
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_HANDLETYPE pHandle;
     VIDENCTEST_NODE* pListHead;
-
+    
     pHandle= pAppData->pHandle;
     pListHead = pAppData->pMemoryListHead;
     VIDENCTEST_UNUSED_ARG(hComponent);
@@ -572,7 +567,7 @@ void VIDENCTEST_EventHandler(OMX_HANDLETYPE hComponent, MYDATATYPE* pAppData, OM
     pEventPrivate->pAppData = pAppData;
     pEventPrivate->eEvent = eEvent;
     pEventPrivate->nData1 = nData1;
-    pEventPrivate->nData2 = nData2;
+    pEventPrivate->nData2 = nData2; 
     pEventPrivate->pEventData = pEventData;
 
     write(pAppData->eventPipe[1], &pEventPrivate, sizeof(pEventPrivate));
@@ -585,18 +580,19 @@ void VIDENCTEST_EventHandler(OMX_HANDLETYPE hComponent, MYDATATYPE* pAppData, OM
   *
   * Callback function when output buffer is done fill with h.264/mpeg4/h.263 data
   *
-  * @param
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  * @param 
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 void VIDENCTEST_FillBufferDone(OMX_HANDLETYPE hComponent, MYDATATYPE* pAppData, OMX_BUFFERHEADERTYPE* pBuffer)
 {
+    /*pAppData->nOutBufferCount++;*/
     VIDENCTEST_UNUSED_ARG(hComponent);
     VIDENCTEST_DPRINT("FillBufferDone :: %p \n", pBuffer);
-    write(pAppData->OpBuf_Pipe[1], &pBuffer, sizeof(pBuffer));
+    write(pAppData->OpBuf_Pipe[1], &pBuffer, sizeof(pBuffer)); 
 }
 
 /*-----------------------------------------------------------------------------*/
@@ -605,18 +601,18 @@ void VIDENCTEST_FillBufferDone(OMX_HANDLETYPE hComponent, MYDATATYPE* pAppData, 
   *
   * Callback function when and input buffer has been encoded. Returns an Empty Buffer.
   *
-  * @param
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  * @param 
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 void VIDENCTEST_EmptyBufferDone(OMX_HANDLETYPE hComponent, MYDATATYPE* pAppData, OMX_BUFFERHEADERTYPE* pBuffer)
 {
     VIDENCTEST_UNUSED_ARG(hComponent);
     VIDENCTEST_DPRINT("EmptyBufferDone :: %p \n", pBuffer);
-    write(pAppData->IpBuf_Pipe[1], &pBuffer, sizeof(pBuffer));
+    write(pAppData->IpBuf_Pipe[1], &pBuffer, sizeof(pBuffer)); 
 }
 
 /*-----------------------------------------------------------------------------*/
@@ -625,11 +621,11 @@ void VIDENCTEST_EmptyBufferDone(OMX_HANDLETYPE hComponent, MYDATATYPE* pAppData,
   *
   * Fill buffer with data from the input file (YUV data 420/422 little endian/ 422 big endian).
   *
-  * @param
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  * @param 
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 int VIDENCTEST_fill_data(OMX_BUFFERHEADERTYPE *pBuf, FILE *fIn, int buffersize)
@@ -649,13 +645,13 @@ int VIDENCTEST_fill_data(OMX_BUFFERHEADERTYPE *pBuf, FILE *fIn, int buffersize)
     nError = feof(fIn);
     if (nError != 0 ) {
         VIDENCTEST_DPRINT("EOS reached...\n");
-    }
-
+    }               
+    
     pBuf->nFilledLen = nRead;
     if (feof(fIn)) {
-        VIDENCTEST_DPRINT("Setting OMX_BUFFERFLAGE_EOS -> %p\n", pBuf);
+        VIDENCTEST_DPRINT("Setting OMX_BUFFERFLAGE_EOS -> %p\n", pBuf);                
         pBuf->nFlags = OMX_BUFFERFLAG_EOS;
-    }
+    }               
     return nRead;
 }
 
@@ -666,11 +662,11 @@ int VIDENCTEST_fill_data(OMX_BUFFERHEADERTYPE *pBuf, FILE *fIn, int buffersize)
   * Function call when an error ocurrs. The function un-load and free all the resource
   * depending the eError recieved.
   * @param pHandle Handle of MYDATATYPE structure
-  * @param eError Error ocurred.
- *
-  * @retval OMX_ErrorNone
-  *
-  *
+  * @param eError Error ocurred. 
+ *  
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 
@@ -681,10 +677,10 @@ OMX_ERRORTYPE VIDENCTEST_HandleError(MYDATATYPE* pAppData, OMX_ERRORTYPE eError)
     OMX_U32 nCounter;
     VIDENCTEST_NODE* pListHead;
     OMX_ERRORTYPE eErr = OMX_ErrorNone;
-
+    
     VIDENCTEST_DPRINT ("Enters to HandleError\n");
     pListHead = pAppData->pMemoryListHead;
-
+    
     switch (pAppData->eCurrentState) {
         case VIDENCTEST_StateReady:
         case VIDENCTEST_StateStarting:
@@ -696,26 +692,26 @@ OMX_ERRORTYPE VIDENCTEST_HandleError(MYDATATYPE* pAppData, OMX_ERRORTYPE eError)
         case VIDENCTEST_StateWaitEvent:
          VIDENCTEST_DPRINT ("Free buffers\n");
             if (pAppData->bAllocateOBuf == OMX_TRUE) {
-                for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {
-                    pAppData->pOBuffer[nCounter] -= 128;
+                for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {                   
+                    pAppData->pOBuffer[nCounter] -= 128;                        
                     pAppData->pOBuffer[nCounter] = (unsigned char*)pAppData->pOBuffer[nCounter];
                     VIDENCTEST_FREE(pAppData->pOBuffer[nCounter], pListHead);
                     pAppData->pOBuffer[nCounter] = NULL;
-                }
+                }  
             }
             for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {
                 eError = OMX_FreeBuffer(pHandle, pAppData->pOutPortDef->nPortIndex, pAppData->pOutBuff[nCounter]);
             }
-            if (pAppData->bAllocateIBuf == OMX_TRUE) {
-                for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
+            if (pAppData->bAllocateIBuf == OMX_TRUE) { 
+                for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {                      
                     pAppData->pIBuffer[nCounter] -= 128;
-                    pAppData->pIBuffer[nCounter] = (unsigned char*)pAppData->pIBuffer[nCounter];
+                    pAppData->pIBuffer[nCounter] = (unsigned char*)pAppData->pIBuffer[nCounter];                           
                     VIDENCTEST_FREE(pAppData->pIBuffer[nCounter], pListHead);
                     pAppData->pIBuffer[nCounter] = NULL;
-                }
+                } 
             }
             for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
-                eError = OMX_FreeBuffer(pHandle, pAppData->pInPortDef->nPortIndex, pAppData->pInBuff[nCounter]);
+                eError = OMX_FreeBuffer(pHandle, pAppData->pInPortDef->nPortIndex, pAppData->pInBuff[nCounter]);    
             }
         case VIDENCTEST_StateLoaded:
             VIDENCTEST_DPRINT ("DeInit Component\n");
@@ -728,7 +724,7 @@ OMX_ERRORTYPE VIDENCTEST_HandleError(MYDATATYPE* pAppData, OMX_ERRORTYPE eError)
             if(pAppData->NalFormat == VIDENC_TEST_NAL_FRAME || pAppData->NalFormat == VIDENC_TEST_NAL_SLICE) {
                 fclose(pAppData->fNalnd);
             }
-
+            
             eErr = close(pAppData->IpBuf_Pipe[0]);
             if (0 != eErr && OMX_ErrorNone == eError) {
                 eError = OMX_ErrorHardware;
@@ -746,7 +742,7 @@ OMX_ERRORTYPE VIDENCTEST_HandleError(MYDATATYPE* pAppData, OMX_ERRORTYPE eError)
                 eError = OMX_ErrorHardware;
                 VIDENCTEST_DPRINT ("Error while closing data pipe\n");
             }
-
+            
             eErr = close(pAppData->IpBuf_Pipe[1]);
             if (0 != eErr && OMX_ErrorNone == eError) {
                 eError = OMX_ErrorHardware;
@@ -773,14 +769,14 @@ OMX_ERRORTYPE VIDENCTEST_HandleError(MYDATATYPE* pAppData, OMX_ERRORTYPE eError)
         default:
             ;
     }
-
-#ifdef DSP_MMU_FAULT_HANDLING
+    
+#ifdef DSP_MMU_FAULT_HANDLING 
     if(bInvalid_state == OMX_TRUE)
     {
         LoadBaseImage();
     }
 #endif
-
+        
 EXIT:
     return eErrorHandleError;
 }
@@ -792,10 +788,10 @@ EXIT:
   * Initialize H264 Parameters.
   *
   * @param pAppData
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_SetH264Parameter(MYDATATYPE* pAppData)
@@ -805,16 +801,24 @@ OMX_ERRORTYPE VIDENCTEST_SetH264Parameter(MYDATATYPE* pAppData)
 
     /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (input) */
     /**********************************************************************/
+    memset(pAppData->pInPortDef, 0x0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));    
+    pAppData->pInPortDef->nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);         
+    pAppData->pInPortDef->nVersion.s.nVersionMajor = 0x1;       
+    pAppData->pInPortDef->nVersion.s.nVersionMinor = 0x0;       
+    pAppData->pInPortDef->nVersion.s.nRevision = 0x0;           
+    pAppData->pInPortDef->nVersion.s.nStep = 0x0;
+    pAppData->pInPortDef->nPortIndex = VIDENC_INPUT_PORT;
+    pAppData->pInPortDef->eDir = OMX_DirInput;
     pAppData->pInPortDef->nBufferCountActual = NUM_OF_IN_BUFFERS;
     pAppData->pInPortDef->nBufferCountMin = 1;
     pAppData->pInPortDef->bEnabled = OMX_TRUE;
     pAppData->pInPortDef->bPopulated = OMX_FALSE;
     pAppData->pInPortDef->eDomain = OMX_PortDomainVideo;
-
+    
     /* OMX_VIDEO_PORTDEFINITION values for input port */
     pAppData->pInPortDef->format.video.cMIMEType = "yuv";
-    pAppData->pInPortDef->format.video.pNativeRender = NULL;
-    pAppData->pInPortDef->format.video.nStride = -1;
+    pAppData->pInPortDef->format.video.pNativeRender = NULL; 
+    pAppData->pInPortDef->format.video.nStride = -1; 
     pAppData->pInPortDef->format.video.nSliceHeight = -1;
     pAppData->pInPortDef->format.video.xFramerate = fToQ16(pAppData->nFramerate);
     pAppData->pInPortDef->format.video.bFlagErrorConcealment = OMX_FALSE;
@@ -823,112 +827,110 @@ OMX_ERRORTYPE VIDENCTEST_SetH264Parameter(MYDATATYPE* pAppData)
     pAppData->pInPortDef->format.video.nFrameHeight = pAppData->nHeight;
 
 
+    if (pAppData->eColorFormat == OMX_COLOR_FormatYUV420Planar) {
+        pAppData->pInPortDef->nBufferSize = (pAppData->pInPortDef->format.video.nFrameWidth * pAppData->pInPortDef->format.video.nFrameHeight * 1.5);
+    }
+    else if (pAppData->eColorFormat == OMX_COLOR_FormatYCbYCr || pAppData->eColorFormat == OMX_COLOR_FormatCbYCrY) {
+        pAppData->pInPortDef->nBufferSize = (pAppData->pInPortDef->format.video.nFrameWidth * pAppData->pInPortDef->format.video.nFrameHeight * 2);
+    }
+    else {
+        VIDENCTEST_DPRINT("Error: Invalid color format.\n");
+        eError = OMX_ErrorUnsupportedSetting;
+        goto EXIT;
+    }
 
     eError = OMX_SetParameter(pHandle, OMX_IndexParamPortDefinition, pAppData->pInPortDef);
     VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
 
-    /* To get nBufferSize */
-    eError = OMX_GetParameter(pHandle, OMX_IndexParamPortDefinition, pAppData->pInPortDef);
-    VIDENCTEST_CHECK_EXIT(eError, "Error at GetParameter");
-
-    pAppData->nSizeIn = pAppData->pInPortDef->nBufferSize;
-
-    /* Set the component's OMX_VIDEO_PARAM_AVCTYPE structure (output) */
-    /*************************************************************/
-    memset(pAppData->pH264, 0x0, sizeof(OMX_VIDEO_PARAM_AVCTYPE));
-    pAppData->pH264->nSize = sizeof(OMX_VIDEO_PARAM_AVCTYPE);
-    pAppData->pH264->nVersion.s.nVersionMajor = 0x1;
-    pAppData->pH264->nVersion.s.nVersionMinor = 0x0;
-    pAppData->pH264->nVersion.s.nRevision = 0x0;
-    pAppData->pH264->nVersion.s.nStep = 0x0;
-    pAppData->pH264->nPortIndex = VIDENC_OUTPUT_PORT;
-    pAppData->pH264->nSliceHeaderSpacing = 0;
-    pAppData->pH264->nPFrames = -1;
-    pAppData->pH264->nBFrames = -1;
-    pAppData->pH264->bUseHadamard = 0;
-    pAppData->pH264->nRefFrames = -1;
-    pAppData->pH264->nRefIdx10ActiveMinus1 = -1;
-    pAppData->pH264->nRefIdx11ActiveMinus1 = -1;
-    pAppData->pH264->bEnableUEP = OMX_FALSE;
-    pAppData->pH264->bEnableFMO = OMX_FALSE;
-    pAppData->pH264->bEnableASO = OMX_FALSE;
-    pAppData->pH264->bEnableRS = OMX_FALSE;
-    pAppData->pH264->eProfile = OMX_VIDEO_AVCProfileBaseline;
-    pAppData->pH264->nAllowedPictureTypes = -1;
-    pAppData->pH264->bFrameMBsOnly = OMX_FALSE;
-    pAppData->pH264->bMBAFF = OMX_FALSE;
-    pAppData->pH264->bEntropyCodingCABAC = OMX_FALSE;
-    pAppData->pH264->bWeightedPPrediction = OMX_FALSE;
-    pAppData->pH264->nWeightedBipredicitonMode = -1;
-    pAppData->pH264->bconstIpred = OMX_FALSE;
-    pAppData->pH264->bDirect8x8Inference = OMX_FALSE;
-    pAppData->pH264->bDirectSpatialTemporal = OMX_FALSE;
-    pAppData->pH264->nCabacInitIdc = -1;
-    pAppData->pH264->eLoopFilterMode = OMX_VIDEO_AVCLoopFilterDisable;
-    pAppData->pH264->eLevel = pAppData->eLevelH264;
-
-    eError = OMX_SetParameter (pHandle, OMX_IndexParamVideoAvc, pAppData->pH264);
-    VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
-
     /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (output) */
     /***********************************************************************/
-    /*memset(pAppData->pOutPortDef, 0x1, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-    pAppData->pOutPortDef->nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
-    pAppData->pOutPortDef->nVersion.s.nVersionMajor = 0x1;
-    pAppData->pOutPortDef->nVersion.s.nVersionMinor = 0x0;
-    pAppData->pOutPortDef->nVersion.s.nRevision = 0x0;
+    memset(pAppData->pOutPortDef, 0x1, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));   
+    pAppData->pOutPortDef->nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);                
+    pAppData->pOutPortDef->nVersion.s.nVersionMajor = 0x1;      
+    pAppData->pOutPortDef->nVersion.s.nVersionMinor = 0x0;      
+    pAppData->pOutPortDef->nVersion.s.nRevision = 0x0;          
     pAppData->pOutPortDef->nVersion.s.nStep = 0x0;
     pAppData->pOutPortDef->nPortIndex = VIDENC_OUTPUT_PORT;
-    pAppData->pOutPortDef->eDir = OMX_DirOutput;*/
-    pAppData->pOutPortDef->nBufferCountActual = NUM_OF_OUT_BUFFERS;
-    pAppData->pOutPortDef->nBufferCountMin = 1;
-    /*pAppData->pOutPortDef->nBufferSize = pAppData->nOutBuffSize;*/
+    pAppData->pOutPortDef->eDir = OMX_DirOutput;
+    pAppData->pOutPortDef->nBufferCountActual = NUM_OF_OUT_BUFFERS; 
+    pAppData->pOutPortDef->nBufferCountMin = 1; 
+    pAppData->pOutPortDef->nBufferSize = pAppData->nOutBuffSize; 
     pAppData->pOutPortDef->bEnabled = OMX_TRUE;
     pAppData->pOutPortDef->bPopulated = OMX_FALSE;
     pAppData->pOutPortDef->eDomain = OMX_PortDomainVideo;
-
+    
     /* OMX_VIDEO_PORTDEFINITION values for input port */
     pAppData->pOutPortDef->format.video.cMIMEType = "264";
-    pAppData->pOutPortDef->format.video.pNativeRender = NULL;
+    pAppData->pOutPortDef->format.video.pNativeRender = NULL; 
     pAppData->pOutPortDef->format.video.nFrameWidth = pAppData->nWidth;
     pAppData->pOutPortDef->format.video.nFrameHeight = pAppData->nHeight;
-    pAppData->pOutPortDef->format.video.nStride = 0;
-    pAppData->pOutPortDef->format.video.nSliceHeight = 0;
-    pAppData->pOutPortDef->format.video.nBitrate = pAppData->nBitrate;
-    pAppData->pOutPortDef->format.video.xFramerate = 0;
+    pAppData->pOutPortDef->format.video.nStride = 0; 
+    pAppData->pOutPortDef->format.video.nSliceHeight = 0; 
+    pAppData->pOutPortDef->format.video.nBitrate = pAppData->nBitrate; 
+    pAppData->pOutPortDef->format.video.xFramerate = 0; 
     pAppData->pOutPortDef->format.video.bFlagErrorConcealment = OMX_FALSE;
     pAppData->pOutPortDef->format.video.eCompressionFormat = pAppData->eCompressionFormat;
 
     eError = OMX_SetParameter (pHandle, OMX_IndexParamPortDefinition, pAppData->pOutPortDef);
     VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
 
-    /* Retreive nBufferSize */
-    eError = OMX_GetParameter (pHandle, OMX_IndexParamPortDefinition, pAppData->pOutPortDef);
-    VIDENCTEST_CHECK_EXIT(eError, "Error at GetParameter");
+    /* Set the component's OMX_VIDEO_PARAM_AVCTYPE structure (output) */
+    /*************************************************************/
+    memset(pAppData->pH264, 0x0, sizeof(OMX_VIDEO_PARAM_AVCTYPE));      
+    pAppData->pH264->nSize = sizeof(OMX_VIDEO_PARAM_AVCTYPE);           
+    pAppData->pH264->nVersion.s.nVersionMajor = 0x1;    
+    pAppData->pH264->nVersion.s.nVersionMinor = 0x0;    
+    pAppData->pH264->nVersion.s.nRevision = 0x0;                
+    pAppData->pH264->nVersion.s.nStep = 0x0;
+    pAppData->pH264->nPortIndex = VIDENC_OUTPUT_PORT;
+    pAppData->pH264->nSliceHeaderSpacing = 0;  
+    pAppData->pH264->nPFrames = -1;     
+    pAppData->pH264->nBFrames = -1;     
+    pAppData->pH264->bUseHadamard = 0;
+    pAppData->pH264->nRefFrames = -1;  
+    pAppData->pH264->nRefIdx10ActiveMinus1 = -1;
+    pAppData->pH264->nRefIdx11ActiveMinus1 = -1;
+    pAppData->pH264->bEnableUEP = OMX_FALSE;  
+    pAppData->pH264->bEnableFMO = OMX_FALSE;  
+    pAppData->pH264->bEnableASO = OMX_FALSE;  
+    pAppData->pH264->bEnableRS = OMX_FALSE;  
+    pAppData->pH264->eProfile = OMX_VIDEO_AVCProfileBaseline;
+    pAppData->pH264->nAllowedPictureTypes = -1;  
+    pAppData->pH264->bFrameMBsOnly = OMX_FALSE;                                                                             
+    pAppData->pH264->bMBAFF = OMX_FALSE;               
+    pAppData->pH264->bEntropyCodingCABAC = OMX_FALSE; 
+    pAppData->pH264->bWeightedPPrediction = OMX_FALSE; 
+    pAppData->pH264->nWeightedBipredicitonMode = -1;
+    pAppData->pH264->bconstIpred = OMX_FALSE;
+    pAppData->pH264->bDirect8x8Inference = OMX_FALSE; 
+    pAppData->pH264->bDirectSpatialTemporal = OMX_FALSE;
+    pAppData->pH264->nCabacInitIdc = -1;
+    pAppData->pH264->eLoopFilterMode = OMX_VIDEO_AVCLoopFilterDisable;
+    pAppData->pH264->eLevel = pAppData->eLevelH264;
 
-    pAppData->nSizeOut = pAppData->pOutPortDef->nBufferSize;
+    eError = OMX_SetParameter (pHandle, OMX_IndexParamVideoAvc, pAppData->pH264);
+    VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter"); 
 
     /* Set the component's OMX_VIDEO_PARAM_BITRATETYPE structure (output) */
     /*************************************************************/
-    pAppData->pVidParamBitrate->nSize = sizeof(OMX_VIDEO_PARAM_BITRATETYPE);
-    pAppData->pVidParamBitrate->nVersion.s.nVersionMajor = 0x1;
-    pAppData->pVidParamBitrate->nVersion.s.nVersionMinor = 0x0;
-    pAppData->pVidParamBitrate->nVersion.s.nRevision = 0x0;
+    pAppData->pVidParamBitrate->nSize = sizeof(OMX_VIDEO_PARAM_BITRATETYPE);            
+    pAppData->pVidParamBitrate->nVersion.s.nVersionMajor = 0x1; 
+    pAppData->pVidParamBitrate->nVersion.s.nVersionMinor = 0x0; 
+    pAppData->pVidParamBitrate->nVersion.s.nRevision = 0x0;             
     pAppData->pVidParamBitrate->nVersion.s.nStep = 0x0;
     pAppData->pVidParamBitrate->nPortIndex = VIDENC_OUTPUT_PORT;
     pAppData->pVidParamBitrate->eControlRate = pAppData->eControlRate;
-    pAppData->pVidParamBitrate->nTargetBitrate = pAppData->pOutPortDef->format.video.nBitrate;
 
     /* TODO: need to convert what value DSP is expecting to equivalent OMX value */
     eError = OMX_SetParameter (pHandle, OMX_IndexParamVideoBitrate, pAppData->pVidParamBitrate);
     VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
-
+    
     /* Set the component's OMX_VIDEO_PARAM_QUANTIZATIONTYPE structure (output) */
     /*************************************************************/
-    pAppData->pQuantization->nSize = sizeof(OMX_VIDEO_PARAM_QUANTIZATIONTYPE);
-    pAppData->pQuantization->nVersion.s.nVersionMajor = 0x1;
-    pAppData->pQuantization->nVersion.s.nVersionMinor = 0x0;
-    pAppData->pQuantization->nVersion.s.nRevision = 0x0;
+    pAppData->pQuantization->nSize = sizeof(OMX_VIDEO_PARAM_QUANTIZATIONTYPE);          
+    pAppData->pQuantization->nVersion.s.nVersionMajor = 0x1;    
+    pAppData->pQuantization->nVersion.s.nVersionMinor = 0x0;    
+    pAppData->pQuantization->nVersion.s.nRevision = 0x0;                
     pAppData->pQuantization->nVersion.s.nStep = 0x0;
     pAppData->pQuantization->nPortIndex = VIDENC_OUTPUT_PORT;
     pAppData->pQuantization->nQpI = pAppData->nQpI;
@@ -943,27 +945,19 @@ OMX_ERRORTYPE VIDENCTEST_SetH264Parameter(MYDATATYPE* pAppData)
     eError = OMX_SetParameter(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->bDeblockFilter));
     VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
 
-    if(pAppData->nEncodingPreset!=VIDENCTEST_USE_DEFAULT_VALUE_UI && pAppData->nEncodingPreset<=4){
+    if(pAppData->nEncodingPreset>-1 && pAppData->nEncodingPreset<4){
         printf("EncodingPreset %d selected\n", pAppData->nEncodingPreset);
         eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.EncodingPreset", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
         VIDENCTEST_CHECK_EXIT(eError, "OMX_GetExtensionIndex function");
         eError = OMX_SetParameter(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nEncodingPreset));
         VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for nEncodingPreset");
     }
-
-    if(pAppData->nUnrestrictedMV != (OMX_U8)VIDENCTEST_USE_DEFAULT_VALUE_UI){
-        printf("nUnrestrictedMV %d selected\n", pAppData->nUnrestrictedMV);
-        eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.UnrestrictedMV", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
+    
+        eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.NALFormat", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
         VIDENCTEST_CHECK_EXIT(eError, "OMX_GetExtensionIndex function");
-        eError = OMX_SetParameter(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nUnrestrictedMV));
-        VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for nUnrestrictedMV");
-    }
-
-    eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.NALFormat", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
-    VIDENCTEST_CHECK_EXIT(eError, "OMX_GetExtensionIndex function");
-    eError = OMX_SetParameter(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->NalFormat));
-    VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for NalFormat");
-
+        eError = OMX_SetParameter(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->NalFormat));
+        VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for NalFormat");
+    
 EXIT:
     return eError;
 }
@@ -975,84 +969,102 @@ EXIT:
   * Intialize Mpeg4 structures.
   *
   * @param pAppData
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_SetMpeg4Parameter(MYDATATYPE* pAppData)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_HANDLETYPE pHandle = pAppData->pHandle;
-
+   
     /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (input) */
     /**********************************************************************/
+    memset(pAppData->pInPortDef, 0x0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));    
+    pAppData->pInPortDef->nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);         
+    pAppData->pInPortDef->nVersion.s.nVersionMajor = 0x1;       
+    pAppData->pInPortDef->nVersion.s.nVersionMinor = 0x0;       
+    pAppData->pInPortDef->nVersion.s.nRevision = 0x0;           
+    pAppData->pInPortDef->nVersion.s.nStep = 0x0;
+    pAppData->pInPortDef->nPortIndex = VIDENC_INPUT_PORT;
+    pAppData->pInPortDef->eDir = OMX_DirInput;
     pAppData->pInPortDef->nBufferCountActual = NUM_OF_IN_BUFFERS;
     pAppData->pInPortDef->nBufferCountMin = 2;
     pAppData->pInPortDef->bEnabled = OMX_TRUE;
     pAppData->pInPortDef->bPopulated = OMX_FALSE;
     pAppData->pInPortDef->eDomain = OMX_PortDomainVideo;
-
+        
     /* OMX_VIDEO_PORTDEFINITION values for input port */
     pAppData->pInPortDef->format.video.cMIMEType = "yuv";
-    pAppData->pInPortDef->format.video.pNativeRender = NULL;
-    pAppData->pInPortDef->format.video.nStride = -1;
-    pAppData->pInPortDef->format.video.nSliceHeight = -1;
+    pAppData->pInPortDef->format.video.pNativeRender = NULL; 
+    pAppData->pInPortDef->format.video.nStride = -1; 
+    pAppData->pInPortDef->format.video.nSliceHeight = -1; 
     pAppData->pInPortDef->format.video.xFramerate = fToQ16(pAppData->nFramerate);
     pAppData->pInPortDef->format.video.bFlagErrorConcealment = OMX_FALSE;
     pAppData->pInPortDef->format.video.eColorFormat = pAppData->eColorFormat;
     pAppData->pInPortDef->format.video.nFrameWidth = pAppData->nWidth;
     pAppData->pInPortDef->format.video.nFrameHeight = pAppData->nHeight;
-
+    
+    if (pAppData->eColorFormat == OMX_COLOR_FormatYUV420Planar) {
+        pAppData->pInPortDef->nBufferSize = (pAppData->pInPortDef->format.video.nFrameWidth * pAppData->pInPortDef->format.video.nFrameHeight * 1.5);
+    }
+    else if (pAppData->eColorFormat == OMX_COLOR_FormatYCbYCr ||
+             pAppData->eColorFormat == OMX_COLOR_FormatCbYCrY) {
+        pAppData->pInPortDef->nBufferSize = (pAppData->pInPortDef->format.video.nFrameWidth * pAppData->pInPortDef->format.video.nFrameHeight * 2);
+    }
+    else {
+        VIDENCTEST_DPRINT("Error: Invalid color format.\n");
+        eError = OMX_ErrorUnsupportedSetting;
+        goto EXIT;
+    }
+        
     eError = OMX_SetParameter (pHandle, OMX_IndexParamPortDefinition, pAppData->pInPortDef);
     VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
-
-    /* To get nBufferSize */
-    eError = OMX_GetParameter(pHandle, OMX_IndexParamPortDefinition, pAppData->pInPortDef);
-    VIDENCTEST_CHECK_EXIT(eError, "Error at GetParameter");
-
-    pAppData->nSizeIn = pAppData->pInPortDef->nBufferSize;
+    
 
     /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (output) */
     /*************************************************************/
+    memset(pAppData->pOutPortDef, 0x1, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));   
+    pAppData->pOutPortDef->nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);                
+    pAppData->pOutPortDef->nVersion.s.nVersionMajor = 0x1;      
+    pAppData->pOutPortDef->nVersion.s.nVersionMinor = 0x0;      
+    pAppData->pOutPortDef->nVersion.s.nRevision = 0x0;          
+    pAppData->pOutPortDef->nVersion.s.nStep = 0x0;
+    pAppData->pOutPortDef->nPortIndex = VIDENC_OUTPUT_PORT;
+    pAppData->pOutPortDef->eDir = OMX_DirOutput;
     pAppData->pOutPortDef->nBufferCountActual = NUM_OF_OUT_BUFFERS;
     pAppData->pOutPortDef->nBufferCountMin = 1;
+    pAppData->pOutPortDef->nBufferSize = pAppData->nWidth * pAppData->nHeight / 2; 
     pAppData->pOutPortDef->bEnabled = OMX_TRUE;
     pAppData->pOutPortDef->bPopulated = OMX_FALSE;
     pAppData->pOutPortDef->eDomain = OMX_PortDomainVideo;
-
+    
     /* OMX_VIDEO_PORTDEFINITION values for input port */
     pAppData->pOutPortDef->format.video.cMIMEType = "mp4";
-    pAppData->pOutPortDef->format.video.pNativeRender = NULL;
+    pAppData->pOutPortDef->format.video.pNativeRender = NULL; 
     pAppData->pOutPortDef->format.video.nFrameWidth = pAppData->nWidth;
     pAppData->pOutPortDef->format.video.nFrameHeight = pAppData->nHeight;
     pAppData->pOutPortDef->format.video.nStride = 0;
-    pAppData->pOutPortDef->format.video.nSliceHeight = 0;
-    pAppData->pOutPortDef->format.video.nBitrate = pAppData->nBitrate;
-    pAppData->pOutPortDef->format.video.xFramerate = 0;
+    pAppData->pOutPortDef->format.video.nSliceHeight = 0; 
+    pAppData->pOutPortDef->format.video.nBitrate = pAppData->nBitrate; 
+    pAppData->pOutPortDef->format.video.xFramerate = 0; 
     pAppData->pOutPortDef->format.video.bFlagErrorConcealment = OMX_FALSE;
     pAppData->pOutPortDef->format.video.eCompressionFormat = pAppData->eCompressionFormat;
 
     eError = OMX_SetParameter (pHandle, OMX_IndexParamPortDefinition, pAppData->pOutPortDef);
     VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
-
-    /* Retreive nBufferSize */
-    eError = OMX_GetParameter (pHandle, OMX_IndexParamPortDefinition, pAppData->pOutPortDef);
-    VIDENCTEST_CHECK_EXIT(eError, "Error at GetParameter");
-
-    pAppData->nSizeOut = pAppData->pOutPortDef->nBufferSize;
-
+  
     /* Set the component's OMX_VIDEO_PARAM_BITRATETYPE structure (output) */
     /*************************************************************/
-    pAppData->pVidParamBitrate->nSize = sizeof(OMX_VIDEO_PARAM_BITRATETYPE);
-    pAppData->pVidParamBitrate->nVersion.s.nVersionMajor = 0x1;
-    pAppData->pVidParamBitrate->nVersion.s.nVersionMinor = 0x0;
-    pAppData->pVidParamBitrate->nVersion.s.nRevision = 0x0;
+    pAppData->pVidParamBitrate->nSize = sizeof(OMX_VIDEO_PARAM_BITRATETYPE);            
+    pAppData->pVidParamBitrate->nVersion.s.nVersionMajor = 0x1; 
+    pAppData->pVidParamBitrate->nVersion.s.nVersionMinor = 0x0; 
+    pAppData->pVidParamBitrate->nVersion.s.nRevision = 0x0;             
     pAppData->pVidParamBitrate->nVersion.s.nStep = 0x0;
     pAppData->pVidParamBitrate->nPortIndex = VIDENC_OUTPUT_PORT;
     pAppData->pVidParamBitrate->eControlRate = pAppData->eControlRate;
-    pAppData->pVidParamBitrate->nTargetBitrate = pAppData->pOutPortDef->format.video.nBitrate;
 
     /* TODO: need to convert what value DSP is expecting to equivalent OMX value */
 
@@ -1061,26 +1073,26 @@ OMX_ERRORTYPE VIDENCTEST_SetMpeg4Parameter(MYDATATYPE* pAppData)
 
     /* Set the component's OMX_VIDEO_PARAM_H263TYPE structure (output) */
     /*************************************************************/
-    if (pAppData->eCompressionFormat == OMX_VIDEO_CodingH263) {
-        pAppData->pH263->nSize = sizeof(OMX_VIDEO_PARAM_H263TYPE);
-        pAppData->pH263->nVersion.s.nVersionMajor = 0x1;
-        pAppData->pH263->nVersion.s.nVersionMinor = 0x0;
-        pAppData->pH263->nVersion.s.nRevision = 0x0;
+    if (pAppData->eCompressionFormat == OMX_VIDEO_CodingH263) {    
+        pAppData->pH263->nSize = sizeof(OMX_VIDEO_PARAM_H263TYPE);              
+        pAppData->pH263->nVersion.s.nVersionMajor = 0x1;        
+        pAppData->pH263->nVersion.s.nVersionMinor = 0x0;        
+        pAppData->pH263->nVersion.s.nRevision = 0x0;            
         pAppData->pH263->nVersion.s.nStep = 0x0;
         pAppData->pH263->nPortIndex = VIDENC_OUTPUT_PORT;
-        pAppData->pH263->eLevel = pAppData->eLevelH63;
+        pAppData->pH263->eLevel = pAppData->eLevelH63; 
         pAppData->pH263->nGOBHeaderInterval = pAppData->nGOBHeaderInterval;
 
         eError = OMX_SetParameter (pHandle, OMX_IndexParamVideoH263, pAppData->pH263);
         VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
-    }
+    } 
 
     /* Set the component's OMX_VIDEO_PARAM_QUANTIZATIONTYPE structure (output) */
     /*************************************************************/
-    pAppData->pQuantization->nSize = sizeof(OMX_VIDEO_PARAM_QUANTIZATIONTYPE);
-    pAppData->pQuantization->nVersion.s.nVersionMajor = 0x1;
-    pAppData->pQuantization->nVersion.s.nVersionMinor = 0x0;
-    pAppData->pQuantization->nVersion.s.nRevision = 0x0;
+    pAppData->pQuantization->nSize = sizeof(OMX_VIDEO_PARAM_QUANTIZATIONTYPE);          
+    pAppData->pQuantization->nVersion.s.nVersionMajor = 0x1;    
+    pAppData->pQuantization->nVersion.s.nVersionMinor = 0x0;    
+    pAppData->pQuantization->nVersion.s.nRevision = 0x0;                
     pAppData->pQuantization->nVersion.s.nStep = 0x0;
     pAppData->pQuantization->nPortIndex = VIDENC_OUTPUT_PORT;
     pAppData->pQuantization->nQpI = pAppData->nQpI;
@@ -1090,27 +1102,27 @@ OMX_ERRORTYPE VIDENCTEST_SetMpeg4Parameter(MYDATATYPE* pAppData)
 
     /* Set the component's OMX_VIDEO_PARAM_MPEG4TYPE structure (output) */
     /*************************************************************/
-    if (pAppData->eCompressionFormat == OMX_VIDEO_CodingMPEG4) {
-        pAppData->pMpeg4->nSize = sizeof(OMX_VIDEO_PARAM_MPEG4TYPE);
-        pAppData->pMpeg4->nVersion.s.nVersionMajor = 0x1;
-        pAppData->pMpeg4->nVersion.s.nVersionMinor = 0x0;
-        pAppData->pMpeg4->nVersion.s.nRevision = 0x0;
+    if (pAppData->eCompressionFormat == OMX_VIDEO_CodingMPEG4) {    
+        pAppData->pMpeg4->nSize = sizeof(OMX_VIDEO_PARAM_MPEG4TYPE);                
+        pAppData->pMpeg4->nVersion.s.nVersionMajor = 0x1;   
+        pAppData->pMpeg4->nVersion.s.nVersionMinor = 0x0;   
+        pAppData->pMpeg4->nVersion.s.nRevision = 0x0;               
         pAppData->pMpeg4->nVersion.s.nStep = 0x0;
         pAppData->pMpeg4->nPortIndex = VIDENC_OUTPUT_PORT;
         pAppData->pMpeg4->eLevel = pAppData->eLevelMpeg4;
-
+        
         eError = OMX_SetParameter (pHandle, OMX_IndexParamVideoMpeg4, pAppData->pMpeg4);
         VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
     }
-
+    
     /* SR10527: Set MPEG4/H263 encode VBV Size using the custom OMX index */
     eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Param.VBVSize", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
     VIDENCTEST_CHECK_EXIT(eError, "OMX_GetExtensionIndex function");
-
+    
     eError = OMX_SetParameter(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nVBVSize));
     VIDENCTEST_CHECK_EXIT(eError, "Error at SetParameter");
 
-    if(pAppData->nMIRRate != VIDENCTEST_USE_DEFAULT_VALUE){
+    if(pAppData->nMIRRate != -1){
         printf("MIRRate selected\n");
         eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.MIRRate", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
         VIDENCTEST_CHECK_EXIT(eError, "OMX_GetExtensionIndex function");
@@ -1118,7 +1130,7 @@ OMX_ERRORTYPE VIDENCTEST_SetMpeg4Parameter(MYDATATYPE* pAppData)
         VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for nMIRRate");
     }
 
-    if(pAppData->nResynchMarkerSpacing != VIDENCTEST_USE_DEFAULT_VALUE){
+    if(pAppData->nResynchMarkerSpacing != -1){
         printf("ResynchMarkerSpacing selected\n");
         OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE ErrorCorrectionType;
         ErrorCorrectionType.nSize = sizeof(OMX_VIDEO_PARAM_ERRORCORRECTIONTYPE);
@@ -1132,16 +1144,9 @@ OMX_ERRORTYPE VIDENCTEST_SetMpeg4Parameter(MYDATATYPE* pAppData)
         ErrorCorrectionType.bEnableDataPartitioning= OMX_FALSE;
         ErrorCorrectionType.bEnableRVLC= OMX_FALSE;
         ErrorCorrectionType.nResynchMarkerSpacing = pAppData->nResynchMarkerSpacing;
-
+        
         eError = OMX_SetConfig(pHandle, OMX_IndexParamVideoErrorCorrection, &ErrorCorrectionType);
         VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for ErrorCorrection");
-    }
-    if(pAppData->nUnrestrictedMV != (OMX_U8)VIDENCTEST_USE_DEFAULT_VALUE_UI){
-        printf("nUnrestrictedMV %d selected\n", pAppData->nUnrestrictedMV);
-        eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.UnrestrictedMV", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
-        VIDENCTEST_CHECK_EXIT(eError, "OMX_GetExtensionIndex function");
-        eError = OMX_SetParameter(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nUnrestrictedMV));
-        VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for nUnrestrictedMV");
     }
 EXIT:
     return eError;
@@ -1154,24 +1159,63 @@ EXIT:
   * Allocate necesary resources.
   *
   * @param pAppData
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_AllocateResources(MYDATATYPE* pAppData)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     int retval = 0;
+    OMX_U8 nCounter = 0;
     VIDENCTEST_NODE* pListHead;
-
+    
     pListHead = pAppData->pMemoryListHead;
 
-    VIDENCTEST_MALLOC(pAppData->pCb, sizeof(OMX_CALLBACKTYPE), OMX_CALLBACKTYPE, pListHead);
-    VIDENCTEST_MALLOC(pAppData->pInPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE), OMX_PARAM_PORTDEFINITIONTYPE, pListHead);
-    VIDENCTEST_MALLOC(pAppData->pOutPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE), OMX_PARAM_PORTDEFINITIONTYPE, pListHead);
+    if (pAppData->eColorFormat == OMX_COLOR_FormatYUV420Planar) {
+        pAppData->nSizeIn = pAppData->nWidth * pAppData->nHeight * 1.5;
+    }
+    else if (pAppData->eColorFormat == OMX_COLOR_FormatYCbYCr || pAppData->eColorFormat == OMX_COLOR_FormatCbYCrY) {
+        pAppData->nSizeIn = pAppData->nWidth * pAppData->nHeight * 2.0;
+    }
+    else {
+        VIDENCTEST_DPRINT("Error: Invalid color format value.\n");
+        eError = OMX_ErrorUnsupportedSetting;
+        goto EXIT;
+    }
+        
+    if (pAppData->eCompressionFormat == OMX_VIDEO_CodingH263 || pAppData->eCompressionFormat == OMX_VIDEO_CodingMPEG4 ) { 
+        pAppData->nSizeOut = pAppData->nWidth * pAppData->nHeight / 2; 
+    }
+    else if (pAppData->eCompressionFormat == OMX_VIDEO_CodingAVC) { 
+        pAppData->nSizeOut = pAppData->nOutBuffSize;
+    }
+    else {
+        VIDENCTEST_DPRINT("Error: Invalid compression format value.\n");
+        eError = OMX_ErrorUnsupportedSetting;
+        goto EXIT;
+    }
 
+    VIDENCTEST_MALLOC(pAppData->pCb, sizeof(OMX_CALLBACKTYPE), OMX_CALLBACKTYPE, pListHead);
+    VIDENCTEST_MALLOC(pAppData->pInPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE), OMX_PARAM_PORTDEFINITIONTYPE, pListHead); 
+    VIDENCTEST_MALLOC(pAppData->pOutPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE), OMX_PARAM_PORTDEFINITIONTYPE, pListHead); 
+
+    for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
+        if (pAppData->bAllocateIBuf == OMX_TRUE) { 
+            VIDENCTEST_MALLOC(pAppData->pIBuffer[nCounter], pAppData->nSizeIn + 256, OMX_U8, pListHead);         
+            pAppData->pIBuffer[nCounter] += 128;           
+            pAppData->pIBuffer[nCounter] = (unsigned char*)pAppData->pIBuffer[nCounter];          
+        }
+    }
+    for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {
+        if (pAppData->bAllocateOBuf == OMX_TRUE) {
+            VIDENCTEST_MALLOC(pAppData->pOBuffer[nCounter], pAppData->nSizeOut + 256, OMX_U8, pListHead);            
+            pAppData->pOBuffer[nCounter] += 128;
+            pAppData->pOBuffer[nCounter] = (unsigned char*)pAppData->pOBuffer[nCounter];
+            }
+    }
     if (pAppData->eCompressionFormat == OMX_VIDEO_CodingH263) {
         VIDENCTEST_MALLOC(pAppData->pVidParamBitrate, sizeof(OMX_VIDEO_PARAM_BITRATETYPE), OMX_VIDEO_PARAM_BITRATETYPE, pListHead);
         VIDENCTEST_MALLOC(pAppData->pH263, sizeof(OMX_VIDEO_PARAM_H263TYPE), OMX_VIDEO_PARAM_H263TYPE, pListHead);
@@ -1190,7 +1234,7 @@ OMX_ERRORTYPE VIDENCTEST_AllocateResources(MYDATATYPE* pAppData)
         goto EXIT;
     }
     VIDENCTEST_MALLOC(pAppData->pQuantization, sizeof(OMX_VIDEO_PARAM_QUANTIZATIONTYPE), OMX_VIDEO_PARAM_QUANTIZATIONTYPE, pListHead);
-
+        
     /* Create a pipe used to queue data from the callback. */
     retval = pipe(pAppData->IpBuf_Pipe);
     if (retval != 0) {
@@ -1214,54 +1258,15 @@ EXIT:
 
 /*-----------------------------------------------------------------------------*/
 /**
-  * AllocateBuffers()
-  *
-  * Allocate necesary resources.
-  *
-  * @param pAppData
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
-  **/
-/*-----------------------------------------------------------------------------*/
-OMX_ERRORTYPE VIDENCTEST_AllocateBuffers(MYDATATYPE* pAppData)
-{
-    OMX_ERRORTYPE eError = OMX_ErrorNone;
-    OMX_U8 nCounter = 0;
-    VIDENCTEST_NODE* pListHead;
-
-    pListHead = pAppData->pMemoryListHead;
-
-    for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
-        if (pAppData->bAllocateIBuf == OMX_TRUE) {
-            VIDENCTEST_MALLOC(pAppData->pIBuffer[nCounter], pAppData->nSizeIn + 256, OMX_U8, pListHead);
-            pAppData->pIBuffer[nCounter] += 128;
-            pAppData->pIBuffer[nCounter] = (unsigned char*)pAppData->pIBuffer[nCounter];
-        }
-    }
-    for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {
-        if (pAppData->bAllocateOBuf == OMX_TRUE) {
-            VIDENCTEST_MALLOC(pAppData->pOBuffer[nCounter], pAppData->nSizeOut + 256, OMX_U8, pListHead);
-            pAppData->pOBuffer[nCounter] += 128;
-            pAppData->pOBuffer[nCounter] = (unsigned char*)pAppData->pOBuffer[nCounter];
-            }
-    }
-
-    return eError;
-}
-
-/*-----------------------------------------------------------------------------*/
-/**
   * FreeResources()
   *
   * Free all allocated memory.
   *
   * @param pAppData
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_FreeResources(MYDATATYPE* pAppData)
@@ -1269,9 +1274,9 @@ OMX_ERRORTYPE VIDENCTEST_FreeResources(MYDATATYPE* pAppData)
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 i = 0;
     VIDENCTEST_NODE* pListHead;
-
+    
     pListHead = pAppData->pMemoryListHead;
-
+    
     VIDENCTEST_FREE(pAppData->pCb, pListHead);
     VIDENCTEST_FREE(pAppData->pInPortDef, pListHead);
     VIDENCTEST_FREE(pAppData->pOutPortDef, pListHead);
@@ -1300,7 +1305,7 @@ OMX_ERRORTYPE VIDENCTEST_FreeResources(MYDATATYPE* pAppData)
     for (i = 0; i < pAppData->nEventCount; i++) {
         VIDENCTEST_FREE(pAppData->pEventArray[i], pListHead);
     }
-
+    
     return eError;
 }
 
@@ -1308,16 +1313,16 @@ OMX_ERRORTYPE VIDENCTEST_FreeResources(MYDATATYPE* pAppData)
 /**
   * PrintCorrectArgs()
   *
-  * Print the description of the input arguments. Also Prints a sample line.
+  * Print the description of the input arguments. Also Prints a sample line. 
   *
   * @param bPrintH264. IF set will print the H264 argument description.
   * @param bPrintMpeg4. If set will print the Mpeg4/H263  argument description.
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
-/*-----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------*/    
 OMX_ERRORTYPE VIDENCTEST_PrintCorrectArgs(OMX_BOOL bPrintH264, OMX_BOOL bPrintMpeg4)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
@@ -1325,43 +1330,43 @@ OMX_ERRORTYPE VIDENCTEST_PrintCorrectArgs(OMX_BOOL bPrintH264, OMX_BOOL bPrintMp
     if (bPrintMpeg4 == OMX_TRUE) {
         printf("MPEG4/H.263 Encode Usage: ./VideoEncTest <arg01> <arg02> <arg03> ...");
         printf("\narg01 : <input.yuv>");
-        printf("\narg02 : <output.mp4>");
-        printf("\narg03 : <width>");
-        printf("\narg04 : <height>");
-        printf("\narg05 : <19:420/25:422-BE/26:422-LE>");
-        printf("\narg06 : <bitrate>");
-        printf("\narg07 : <framerate>");
-        printf("\narg08 : <3:H263/4:MPEG4/7:H264>");
-        printf("\narg09 : <rateCtrl/1:var/2:const>");
-        printf("\narg10 : <GOB> --H.263 only--");
-        printf("\narg11 : <QPI>");
-        printf("\narg12 : <level>");
-        printf("\narg13 : <allocateBufFlag>");
-        printf("\narg14 : <VBVsize>");
+        printf("\narg02 : <output.mp4>");                                        
+        printf("\narg03 : <width>");                                           
+        printf("\narg04 : <height>");                                              
+        printf("\narg05 : <19:420/25:422-BE/26:422-LE>");                                          
+        printf("\narg06 : <bitrate>");                                                
+        printf("\narg07 : <framerate>");                                                  
+        printf("\narg08 : <3:H263/4:MPEG4/7:H264>");                                            
+        printf("\narg09 : <rateCtrl/1:var/2:const>");                                                 
+        printf("\narg10 : <GOB> --H.263 only--");                            
+        printf("\narg11 : <QPI>");                                               
+        printf("\narg12 : <level>");                                                      
+        printf("\narg13 : <allocateBufFlag>");                                               
+        printf("\narg14 : <VBVsize>");                                                                
         printf("\narg15 : <0:full-rec/1:partial-rec->stop/2:rec->pause->resume/3:rec->stop->restart>");
         printf("\narg16 : <stop/pause frame/iteration> -- use zero if arg15 = 0:full-rec <or> use a valid frame # if arg15 = 1, 2, 3 --\n");
         printf("\narg17 : <Number of Repetitions of test>");
         printf("\nSample OMX MPEG4 Encode test:\n");
         printf("/omx/VideoEncTest /omx/patterns/carphone_qcif_420p_short.yuv /omx/patterns/carphone_qcif_420p_short.mp4 176 144 19 64000 15 4 1 0 12 0 1 120 0 0 1\n");
         printf("\nSample OMX H.263 Encode test:\n");
-        printf("/omx/VideoEncTest /omx/patterns/carphone_qcif_420p_short.yuv /omx/patterns/carphone_qcif_420p_short.263 176 144 19 64000 15 3 2 0 12 10 1 120 0 0 1\n\n");
+        printf("/omx/VideoEncTest /omx/patterns/carphone_qcif_420p_short.yuv /omx/patterns/carphone_qcif_420p_short.263 176 144 19 64000 15 3 2 0 12 10 1 120 0 0 1\n\n");          
     }
     if (bPrintH264 == OMX_TRUE) {
-        printf("H.264 Encode Usage: ./VideoEncTest <arg01> <arg02> <arg03> ...");
-        printf("\narg01 :: <input.yuv>");
-        printf("\narg02 :: <output.H264>");
-        printf("\narg03 :: <width>");
-        printf("\narg04 :: <height>");
-        printf("\narg05 :: <19:420/25:422-BE/26:422-LE>");
-        printf("\narg06 :: <bitrate>");
-        printf("\narg07 :: <framerate>");
-        printf("\narg08 :: <3:H263/4:MPEG4/7:H264>");
-        printf("\narg09 :: <level>");
-        printf("\narg10 :: <out_buff_size>");
-        printf("\narg11 :: <allocateBufFlag>");
-        printf("\narg12 :: <deblockFilter>");
-        printf("\narg13 :: <rateCtrl/0:none/1:var/2:const>");
-        printf("\narg14 :: <QPI> --set rate control to zero--");
+        printf("H.264 Encode Usage: ./VideoEncTest <arg01> <arg02> <arg03> ..."); 
+        printf("\narg01 :: <input.yuv>");                                                  
+        printf("\narg02 :: <output.H264>");                                                     
+        printf("\narg03 :: <width>");                                                                 
+        printf("\narg04 :: <height>");                                     
+        printf("\narg05 :: <19:420/25:422-BE/26:422-LE>");                               
+        printf("\narg06 :: <bitrate>");                                       
+        printf("\narg07 :: <framerate>");                                       
+        printf("\narg08 :: <3:H263/4:MPEG4/7:H264>");                              
+        printf("\narg09 :: <level>");                                                 
+        printf("\narg10 :: <out_buff_size>");                                             
+        printf("\narg11 :: <allocateBufFlag>");                                               
+        printf("\narg12 :: <deblockFilter>");                                                   
+        printf("\narg13 :: <rateCtrl/0:none/1:var/2:const>");                              
+        printf("\narg14 :: <QPI> --set rate control to zero--");                                    
         printf("\narg15 :: <0:full-rec/1:partial-rec->stop/2:rec->pause->resume/3:rec->stop->restart>");
         printf("\narg16 :: <stop/pause frame/iteration> -- use zero if arg15 = 0:full-rec <or> use a valid frame # if arg15 = 1, 2, 3 --\n");
         printf("\narg17 :: <Number of Repetitions of test>");
@@ -1369,7 +1374,7 @@ OMX_ERRORTYPE VIDENCTEST_PrintCorrectArgs(OMX_BOOL bPrintH264, OMX_BOOL bPrintMp
         printf("/omx/VideoEncTest /omx/patterns/carphone_qcif_420p_short.yuv /omx/patterns/carphone_qcif_420p_short.264 176 144 19 64000 15 7 10 26250 1 1 1 0 0 0 1\n\n");
     }
     return eError;
-}
+}        
 
 /*-----------------------------------------------------------------------------*/
 /**
@@ -1378,12 +1383,12 @@ OMX_ERRORTYPE VIDENCTEST_PrintCorrectArgs(OMX_BOOL bPrintH264, OMX_BOOL bPrintMp
   *Initialize all the parameters for the VideoEncoder Structures
   *
   * @param  pAppData MYDATA handle
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
-/*-----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------*/        
 OMX_ERRORTYPE VIDENCTEST_PassToLoaded(MYDATATYPE* pAppData)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
@@ -1391,7 +1396,7 @@ OMX_ERRORTYPE VIDENCTEST_PassToLoaded(MYDATATYPE* pAppData)
     VIDENCTEST_NODE* pListHead;
     OMX_U32 i;
     OMX_CALLBACKTYPE sCb = {(void*)VIDENCTEST_EventHandler, (void*)VIDENCTEST_EmptyBufferDone, (void*)VIDENCTEST_FillBufferDone};
-
+    
     pListHead = pAppData->pMemoryListHead;
 
     eError = VIDENCTEST_AllocateResources(pAppData);
@@ -1403,7 +1408,7 @@ OMX_ERRORTYPE VIDENCTEST_PassToLoaded(MYDATATYPE* pAppData)
 
     pAppData->fdmax = maxint(pAppData->OpBuf_Pipe[0], pAppData->fdmax);
 
-
+    
 
     /* Initialize OMX Core */
 
@@ -1419,7 +1424,7 @@ OMX_ERRORTYPE VIDENCTEST_PassToLoaded(MYDATATYPE* pAppData)
         eError = OMX_ErrorUndefined;
         goto EXIT;
     }
-
+        
     pAppData->pHandle = pHandle;
 
     /* Get starting port number and the number of ports */
@@ -1437,10 +1442,9 @@ OMX_ERRORTYPE VIDENCTEST_PassToLoaded(MYDATATYPE* pAppData)
     for (i = pAppData->nStartPortNumber; i < pAppData->nPorts; i++) {
         VIDENCTEST_MALLOC(pAppData->pPortDef[i], sizeof(OMX_PARAM_PORTDEFINITIONTYPE), OMX_PARAM_PORTDEFINITIONTYPE, pListHead);
 
-        pAppData->pPortDef[i]->nPortIndex = i;
         eError = OMX_GetParameter(pHandle, OMX_IndexParamPortDefinition, pAppData->pPortDef[i]);
         VIDENCTEST_CHECK_EXIT(eError, "Error returned from GetParameter()");
-
+        
         if (pAppData->pPortDef[i]->eDir == OMX_DirInput) {
             memcpy(pAppData->pInPortDef, pAppData->pPortDef[i], sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
         }
@@ -1449,9 +1453,9 @@ OMX_ERRORTYPE VIDENCTEST_PassToLoaded(MYDATATYPE* pAppData)
         }
         VIDENCTEST_FREE(pAppData->pPortDef[i], pListHead);
     }
-
+        
     switch (pAppData->eCompressionFormat) {
-        case OMX_VIDEO_CodingH263:
+        case OMX_VIDEO_CodingH263: 
             eError = VIDENCTEST_SetMpeg4Parameter(pAppData);
             VIDENCTEST_CHECK_EXIT(eError, "Error returned from SetMpeg4Parameter()");
             break;
@@ -1468,15 +1472,12 @@ OMX_ERRORTYPE VIDENCTEST_PassToLoaded(MYDATATYPE* pAppData)
             eError = OMX_ErrorUnsupportedSetting;
             goto EXIT;
     }
-
-    VIDENCTEST_AllocateBuffers(pAppData);
-    VIDENCTEST_CHECK_EXIT(eError, "Error at Allocation of Resources");
-
+    
     pAppData->eCurrentState = VIDENCTEST_StateLoaded;
-
+    
  EXIT:
     return eError;
-
+    
 }
 
 /*-----------------------------------------------------------------------------*/
@@ -1486,74 +1487,74 @@ OMX_ERRORTYPE VIDENCTEST_PassToLoaded(MYDATATYPE* pAppData)
   *Pass the Component to Idle and allocate the buffers
   *
   * @param  pAppData MYDATA handle
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
-/*-----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------*/  
 OMX_ERRORTYPE VIDENCTEST_PassToReady(MYDATATYPE* pAppData)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_HANDLETYPE pHandle;
     OMX_U32 nCounter;
-
+    
     pHandle = pAppData->pHandle;
-
+    
     eError = OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateIdle, NULL);
     VIDENCTEST_CHECK_EXIT(eError, "Error from SendCommand-Idle(Init) State function");
 
     for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
        if (pAppData->bAllocateIBuf == OMX_TRUE) {
-            eError = OMX_UseBuffer(pHandle,
-                                  &pAppData->pInBuff[nCounter],
-                                  pAppData->pInPortDef->nPortIndex,
-                                  pAppData,
+            eError = OMX_UseBuffer(pHandle, 
+                                  &pAppData->pInBuff[nCounter], 
+                                  pAppData->pInPortDef->nPortIndex, 
+                                  pAppData, 
                                   pAppData->pInPortDef->nBufferSize,
                                   pAppData->pIBuffer[nCounter]);
             VIDENCTEST_CHECK_EXIT(eError, "Error from OMX_UseBuffer function");
        }
        else {
-            eError = OMX_AllocateBuffer(pHandle,
-                                       &pAppData->pInBuff[nCounter],
-                                       pAppData->pInPortDef->nPortIndex,
-                                       pAppData,
+            eError = OMX_AllocateBuffer(pHandle, 
+                                       &pAppData->pInBuff[nCounter], 
+                                       pAppData->pInPortDef->nPortIndex, 
+                                       pAppData, 
                                        pAppData->pInPortDef->nBufferSize);
-            VIDENCTEST_CHECK_EXIT(eError, "Error from OMX_AllocateBuffer State function");
+            VIDENCTEST_CHECK_EXIT(eError, "Error from OMX_AllocateBuffer State function");                           
        }
     }
-
+    
     pAppData->nInBufferCount = NUM_OF_IN_BUFFERS;
-
+    
     for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {
         if (pAppData->bAllocateOBuf == OMX_TRUE) {
-            eError = OMX_UseBuffer(pHandle,
-                                   &pAppData->pOutBuff[nCounter],
-                                   pAppData->pOutPortDef->nPortIndex,
-                                   pAppData,
+            eError = OMX_UseBuffer(pHandle, 
+                                   &pAppData->pOutBuff[nCounter], 
+                                   pAppData->pOutPortDef->nPortIndex, 
+                                   pAppData, 
                                    pAppData->pOutPortDef->nBufferSize,
                                    pAppData->pOBuffer[nCounter]);
-            VIDENCTEST_CHECK_EXIT(eError, "Error from OMX_UseBuffer function");
+            VIDENCTEST_CHECK_EXIT(eError, "Error from OMX_UseBuffer function");                       
         }
         else {
-            eError = OMX_AllocateBuffer(pHandle,
-                                        &pAppData->pOutBuff[nCounter],
-                                        pAppData->pOutPortDef->nPortIndex,
-                                        pAppData,
+            eError = OMX_AllocateBuffer(pHandle, 
+                                        &pAppData->pOutBuff[nCounter], 
+                                        pAppData->pOutPortDef->nPortIndex, 
+                                        pAppData, 
                                         pAppData->pOutPortDef->nBufferSize);
-            VIDENCTEST_CHECK_EXIT(eError, "Error from OMX_AllocateBuffer function");
+            VIDENCTEST_CHECK_EXIT(eError, "Error from OMX_AllocateBuffer function");                            
         }
     }
-
+    
     pAppData->nOutBufferCount = NUM_OF_OUT_BUFFERS;
-
+    
     pAppData->bLastOutBuffer = 0;
-
-
+    
+    
 EXIT:
     return eError;
-
-}
+    
+}   
 
 /*-----------------------------------------------------------------------------*/
 /**
@@ -1562,29 +1563,29 @@ EXIT:
   *Pass the component to executing  and fill the first 4 buffers.
   *
   * @param  pAppData MYDATA handle
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
-/*-----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------*/  
 OMX_ERRORTYPE VIDENCTEST_Starting(MYDATATYPE* pAppData)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_HANDLETYPE pHandle;
     OMX_U32 nCounter = 0;
     OMX_U32 nBuffersToSend;
-
+    
     pHandle = pAppData->pHandle;
     pAppData->pComponent = (OMX_COMPONENTTYPE*)pHandle;
 
     /* SR10519/17735: Set the interval for the insertion of intra frames at run-time using a custom OMX index */
     eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.IntraFrameInterval", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
     VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_GetExtensionIndex function");
-
+   
    /* MPEG4/H263 DSP socket node default value */
-    if(pAppData->nIntraFrameInterval == VIDENCTEST_USE_DEFAULT_VALUE){
-            pAppData->nIntraFrameInterval = 30;
+    if(pAppData->nIntraFrameInterval == -1){
+            pAppData->nIntraFrameInterval = 30; 
     }
     eError = OMX_SetConfig(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nIntraFrameInterval));
     VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_SetConfig function");
@@ -1594,28 +1595,28 @@ OMX_ERRORTYPE VIDENCTEST_Starting(MYDATATYPE* pAppData)
         pAppData->eCompressionFormat == OMX_VIDEO_CodingH263) {
         /* SR10540: Set the Target Frame Rate at run-time using a custom OMX index */
         eError = OMX_GetExtensionIndex(pHandle,
-                                       "OMX.TI.VideoEncode.Config.TargetFrameRate",
+                                       "OMX.TI.VideoEncode.Config.TargetFrameRate", 
                                        (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
         VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_GetExtensionIndex function");
-
-        pAppData->nTargetFrameRate = pAppData->nFramerate; /* Refer to DSP socket node interface guide for usage */
+        
+        pAppData->nTargetFrameRate = pAppData->nFramerate; /* Refer to DSP socket node interface guide for usage */ 
         eError = OMX_SetConfig(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nTargetFrameRate));
         VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_SetConfig function");
     }
 
     /* SR10523: Set the AIRRate at run-time using a custom OMX index */
     eError = OMX_GetExtensionIndex(pHandle,
-                                   "OMX.TI.VideoEncode.Config.AIRRate",
+                                   "OMX.TI.VideoEncode.Config.AIRRate", 
                                    (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
     VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_GetExtensionIndex function");
-    pAppData->nAIRRate = 0; /* Refer to DSP socket node interface guide for usage */
+    pAppData->nAIRRate = 0; /* Refer to DSP socket node interface guide for usage */ 
     eError = OMX_SetConfig(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nAIRRate));
     VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_SetConfig function");
 
     /* SR12005: Set the Target Bit Rate at run-time using a custom OMX index */
     eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.TargetBitRate", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
     VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_GetExtensionIndex function");
-
+    
     pAppData->nTargetBitRate = pAppData->nBitrate; /* Refer to DSP socket node interface guide for usage */
     eError = OMX_SetConfig(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nTargetBitRate));
     VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_SetConfig function");
@@ -1623,7 +1624,7 @@ OMX_ERRORTYPE VIDENCTEST_Starting(MYDATATYPE* pAppData)
     /*Initialize Frame Counter */
     pAppData->nCurrentFrameIn = 0;
     pAppData->nCurrentFrameOut = 0;
-
+    
 
     /*Validation of stopframe in cases of Pause->Resume and Stop->Restart test cases*/
     if ( pAppData->eTypeOfTest == VIDENCTEST_StopRestart || pAppData->eTypeOfTest == VIDENCTEST_PauseResume) {
@@ -1646,7 +1647,7 @@ OMX_ERRORTYPE VIDENCTEST_Starting(MYDATATYPE* pAppData)
             nBuffersToSend = pAppData->nReferenceFrame;
             }
 
-
+        
 
     for (nCounter = 0; nCounter < nBuffersToSend; nCounter++) {
         pAppData->pOutBuff[nCounter]->nFilledLen = 0;
@@ -1654,7 +1655,7 @@ OMX_ERRORTYPE VIDENCTEST_Starting(MYDATATYPE* pAppData)
         VIDENCTEST_CHECK_EXIT(eError, "Error in FillThisBuffer");
         pAppData->nOutBufferCount--;
     }
-
+    
     /* Send EmptyThisBuffer to OMX Video Encoder */
     for (nCounter = 0; nCounter < nBuffersToSend; nCounter++) {
         pAppData->pInBuff[nCounter]->nFilledLen = VIDENCTEST_fill_data(pAppData->pInBuff[nCounter], pAppData->fIn , pAppData->pInPortDef->nBufferSize);
@@ -1666,13 +1667,13 @@ OMX_ERRORTYPE VIDENCTEST_Starting(MYDATATYPE* pAppData)
             pAppData->nInBufferCount--;
             goto EXIT;
         }
-        else {
+        else {              
             pAppData->pComponent->EmptyThisBuffer(pHandle, pAppData->pInBuff[nCounter]);
             pAppData->nInBufferCount--;
             pAppData->nCurrentFrameIn++;
-        }
+        }                
     }
-
+    
     pAppData->eCurrentState = VIDENCTEST_StateEncoding;
 
 EXIT:
@@ -1686,20 +1687,20 @@ EXIT:
   *Pass the component to executing  and fill the first 4 buffers.
   *
   * @param  pAppData MYDATA handle
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
-/*-----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------*/  
  OMX_ERRORTYPE VIDENCTEST_DeInit(MYDATATYPE* pAppData)
- {
+ {   
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_ERRORTYPE eErr = OMX_ErrorNone;
     VIDENCTEST_NODE* pListHead;
     OMX_HANDLETYPE pHandle = pAppData->pHandle;
     pListHead = pAppData->pMemoryListHead;
-
+ 
     /* Free Component Handle */
     eError = TIOMX_FreeHandle(pHandle);
     VIDENCTEST_CHECK_EXIT(eError, "Error in TIOMX_FreeHandle");
@@ -1707,14 +1708,14 @@ EXIT:
     /* De-Initialize OMX Core */
     eError = TIOMX_Deinit();
     VIDENCTEST_CHECK_EXIT(eError, "Error in TIOMX_Deinit");
-
+    
     /* shutdown */
     fclose(pAppData->fIn);
     fclose(pAppData->fOut);
     if(pAppData->NalFormat == VIDENC_TEST_NAL_FRAME || pAppData->NalFormat == VIDENC_TEST_NAL_SLICE) {
         fclose(pAppData->fNalnd);
     }
-
+    
     eErr = close(pAppData->IpBuf_Pipe[0]);
     if (0 != eErr && OMX_ErrorNone == eError) {
         eError = OMX_ErrorHardware;
@@ -1732,7 +1733,7 @@ EXIT:
         eError = OMX_ErrorHardware;
         VIDENCTEST_DPRINT ("Error while closing data pipe\n");
     }
-
+    
     eErr = close(pAppData->IpBuf_Pipe[1]);
     if (0 != eErr && OMX_ErrorNone == eError) {
         eError = OMX_ErrorHardware;
@@ -1750,21 +1751,21 @@ EXIT:
         eError = OMX_ErrorHardware;
         VIDENCTEST_DPRINT ("Error while closing data pipe\n");
     }
-
+    
     pAppData->fIn = NULL;
     pAppData->fOut = NULL;
     pAppData->fNalnd = NULL;
-
+ 
     VIDENCTEST_FreeResources(pAppData);
     VIDENCTEST_CHECK_EXIT(eError, "Error in FillThisBuffer");
-
+    
     VIDENCTEST_FREE(pAppData, pListHead);
     VIDENCTEST_ListDestroy(pListHead);
     pAppData = NULL;
-
+    
 EXIT:
     return eError;
-
+ 
 }
 
 /*-----------------------------------------------------------------------------*/
@@ -1775,10 +1776,10 @@ EXIT:
   *
   * @param  pAppData
   * @param  nData2 - State that has been set.
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_HandleState(MYDATATYPE* pAppData, OMX_U32 eState)
@@ -1787,7 +1788,7 @@ OMX_ERRORTYPE VIDENCTEST_HandleState(MYDATATYPE* pAppData, OMX_U32 eState)
     OMX_HANDLETYPE pHandle = pAppData->pHandle;
     OMX_U32 nCounter = 0;
     VIDENCTEST_NODE* pListHead;
-
+    
     pListHead = pAppData->pMemoryListHead;
 
     switch (eState) {
@@ -1818,18 +1819,18 @@ OMX_ERRORTYPE VIDENCTEST_HandleState(MYDATATYPE* pAppData, OMX_U32 eState)
                     }
                     pAppData->bStop = OMX_FALSE;
                 }
-
+                
                 VIDENCTEST_PRINT("Disable Input Port\n");
                 eError = OMX_SendCommand(pHandle, OMX_CommandPortDisable, VIDENC_INPUT_PORT, NULL);
                 VIDENCTEST_CHECK_EXIT(eError, "Error from OMX_SendCommand function\n");
 
-                if (pAppData->bAllocateIBuf == OMX_TRUE) {
+                if (pAppData->bAllocateIBuf == OMX_TRUE) { 
                     for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
                         pAppData->pIBuffer[nCounter] -= 128;
                         pAppData->pIBuffer[nCounter] = (unsigned char*)pAppData->pIBuffer[nCounter];
                         VIDENCTEST_FREE(pAppData->pIBuffer[nCounter], pListHead);
                         pAppData->pIBuffer[nCounter] = NULL;
-                    }
+                    } 
                 }
                 for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
                     eError = OMX_FreeBuffer(pHandle, pAppData->pInPortDef->nPortIndex, pAppData->pInBuff[nCounter]);
@@ -1874,16 +1875,16 @@ EXIT:
   *
   * @param  pAppData
   * @param  argv
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_CheckArgs_H263(MYDATATYPE* pAppData, char** argv)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-
+    
     switch (atoi(argv[9])) {
         case 0:
             pAppData->eControlRate = OMX_Video_ControlRateDisable;
@@ -1899,10 +1900,10 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs_H263(MYDATATYPE* pAppData, char** argv)
             printf("*Error: Input Argument CONTROL RATE is not valid");
             goto EXIT;
     }
-
+    
     pAppData->nGOBHeaderInterval = atoi(argv[10]);
     pAppData->nQpI = atoi(argv[11]);
-
+        
     switch (atoi(argv[12])) {
         case 10:
             pAppData->eLevelH63 = OMX_VIDEO_H263Level10;
@@ -1933,19 +1934,19 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs_H263(MYDATATYPE* pAppData, char** argv)
             printf("*Error: Input Argument LEVEL is not valid");
             goto EXIT;
     }
-
-    if (atoi(argv[13]) == 0) {
+    
+    if (atoi(argv[13]) == 0) { 
         pAppData->bAllocateIBuf = OMX_FALSE;
         pAppData->bAllocateOBuf = OMX_FALSE;
     }
-    else {
+    else { 
         pAppData->bAllocateIBuf = OMX_TRUE;
         pAppData->bAllocateOBuf = OMX_TRUE;
     }
 
     pAppData->nVBVSize = atoi(argv[14]);
-
-
+    
+    
 EXIT:
     return eError;
 }
@@ -1958,16 +1959,16 @@ EXIT:
   *
   * @param  pAppData
   * @param  argv
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_CheckArgs_Mpeg4(MYDATATYPE* pAppData, char** argv)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-
+    
     switch (atoi(argv[9])) {
         case 0:
             pAppData->eControlRate = OMX_Video_ControlRateDisable;
@@ -1983,13 +1984,13 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs_Mpeg4(MYDATATYPE* pAppData, char** argv)
             printf("*Error: Input Argument CONTROL RATE is not valid");
             goto EXIT;
     }
-
+            
     pAppData->nQpI = atoi(argv[11]);
 
 #if 0
    pAppData->eLevelMpeg4 = atoi(argv[12]);
 
-#else
+#else    
     switch (atoi(argv[12])) {
         case 0:
             pAppData->eLevelMpeg4 = OMX_VIDEO_MPEG4Level0;
@@ -2018,20 +2019,20 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs_Mpeg4(MYDATATYPE* pAppData, char** argv)
             goto EXIT;
         }
 #endif
+    
 
-
-    if (atoi(argv[13]) == 0) {
+    if (atoi(argv[13]) == 0) { 
         pAppData->bAllocateIBuf = OMX_FALSE;
         pAppData->bAllocateOBuf = OMX_FALSE;
     }
-    else {
+    else { 
         pAppData->bAllocateIBuf = OMX_TRUE;
         pAppData->bAllocateOBuf = OMX_TRUE;
     }
 
     pAppData->nVBVSize = atoi(argv[14]);
-
-
+    
+    
 EXIT:
     return eError;
 }
@@ -2044,16 +2045,16 @@ EXIT:
   *
   * @param  pAppData
   * @param  argv
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_CheckArgs_AVC(MYDATATYPE* pAppData, char** argv)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-
+    
     switch (atoi(argv[9])) {
         case 10:
             pAppData->eLevelH264 = OMX_VIDEO_AVCLevel1;
@@ -2090,11 +2091,11 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs_AVC(MYDATATYPE* pAppData, char** argv)
 
     pAppData->nOutBuffSize  = atoi(argv[10]);
 
-    if (atoi(argv[11]) == 0) {
+    if (atoi(argv[11]) == 0) { 
         pAppData->bAllocateIBuf = OMX_FALSE;
         pAppData->bAllocateOBuf = OMX_FALSE;
     }
-    else {
+    else { 
         pAppData->bAllocateIBuf = OMX_TRUE;
         pAppData->bAllocateOBuf = OMX_TRUE;
     }
@@ -2110,8 +2111,8 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs_AVC(MYDATATYPE* pAppData, char** argv)
         printf("*Error: Input Argument DEBLOCK FILTER is not valid");
         goto EXIT;
     }
-
-
+    
+    
     switch (atoi(argv[13])) {
         case 0:
             pAppData->eControlRate = OMX_Video_ControlRateDisable;
@@ -2125,9 +2126,9 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs_AVC(MYDATATYPE* pAppData, char** argv)
         default:
             ;
     }
-
+    
     pAppData->nQpI = atoi(argv[14]);
-
+     
 EXIT:
     return eError;
 }
@@ -2140,10 +2141,10 @@ EXIT:
   *
   * @param  argc
   * @param  argv
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 
@@ -2159,8 +2160,6 @@ OMX_ERRORTYPE VIDENCTEST_CheckOptionalArgs(MYDATATYPE* pAppData, int argc, char*
         {"nEncodingPreset",   1, NULL, 'p'},
         {"nRrker",   1, NULL, 'e'},
         {"NALFormat",   1, NULL, 'n'},
-        {"nQPIoF", 1, NULL, 'q'},
-        {"nUnrestrictedMV", 1, NULL, 'u'},
         {NULL,          0, NULL,   0}
     };
 
@@ -2194,20 +2193,13 @@ OMX_ERRORTYPE VIDENCTEST_CheckOptionalArgs(MYDATATYPE* pAppData, int argc, char*
                 printf("%d Nal Format found, Value= %s\n",next_option,optarg);
                 pAppData->NalFormat=atoi(optarg);
                 break;
-            case 'q':
-                printf("%d QPI value changed each %d frames\n",next_option,atoi(optarg));
-                pAppData->nQPIoF=atoi(optarg);
-            case 'u':
-                printf("%d nUnrestrictedMV found, Value= %s\n",next_option,optarg);
-                pAppData->nUnrestrictedMV=atoi(optarg);
-                break;
             case -1:
                 break;
             default:
                 printf("** Warning: %d No valid param found. Proceeding with test. optarg= %s\n",next_option,optarg);
-
+                
             }
-
+    
     }
     while(next_option != -1);
 
@@ -2224,10 +2216,10 @@ OMX_ERRORTYPE VIDENCTEST_CheckOptionalArgs(MYDATATYPE* pAppData, int argc, char*
   * @param  argc
   * @param  argv
   * @param pAppDataTmp
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_CheckArgs(int argc, char** argv, MYDATATYPE** pAppDataTmp)
@@ -2235,25 +2227,22 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs(int argc, char** argv, MYDATATYPE** pAppDataT
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     VIDENCTEST_NODE*  pMemoryListHead;
     MYDATATYPE* pAppData;
-
-    eError = VIDENCTEST_ListCreate(&pMemoryListHead);
+    
+    eError = VIDENCTEST_ListCreate(&pMemoryListHead);    
     VIDENCTEST_CHECK_EXIT(eError, "Error at Creating Memory List");
-
+    
     VIDENCTEST_MALLOC(pAppData, sizeof(MYDATATYPE), MYDATATYPE, pMemoryListHead);
     VIDENCTEST_CHECK_EXIT(eError, "Error at Allocating MYDATATYPE structure");
     *pAppDataTmp = pAppData;
     pAppData->pMemoryListHead = pMemoryListHead;
     pAppData->eCurrentState = VIDENCTEST_StateUnLoad;
-    pAppData->nMIRRate=VIDENCTEST_USE_DEFAULT_VALUE;
-    pAppData->nResynchMarkerSpacing=VIDENCTEST_USE_DEFAULT_VALUE;
-    pAppData->nIntraFrameInterval=VIDENCTEST_USE_DEFAULT_VALUE;
-    pAppData->nEncodingPreset=VIDENCTEST_USE_DEFAULT_VALUE_UI;
-    pAppData->nUnrestrictedMV=(OMX_U8)VIDENCTEST_USE_DEFAULT_VALUE_UI;
+    pAppData->nMIRRate=-1;
+    pAppData->nResynchMarkerSpacing=-1;
+    pAppData->nIntraFrameInterval=-1;
+    pAppData->nEncodingPreset=-1;
     pAppData->NalFormat = 0;
-    pAppData->nQPIoF = 0;
-    pAppData->bForceIFrame = 0;
 
-
+    
     if (argc < 15){
         printf("*Error: Input argument COLOR FORMAT is not valid");
         VIDENCTEST_PrintCorrectArgs(OMX_TRUE, OMX_TRUE);
@@ -2261,33 +2250,33 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs(int argc, char** argv, MYDATATYPE** pAppDataT
         goto EXIT;
     }
     else {
-
+        
         pAppData->szInFile = argv[1];
         pAppData->fIn = fopen(pAppData->szInFile, "r");
         if (!pAppData->fIn) {
             printf("Error: failed to open the file <%s>", pAppData->szInFile);
             eError = OMX_ErrorBadParameter;
             goto EXIT;
-        }
-
+        }    
+        
         pAppData->szOutFile = argv[2];
         pAppData->fOut = fopen(pAppData->szOutFile, "w");
         if (!pAppData->fOut) {
             VIDENCTEST_DPRINT("Error: failed to open the file <%s>", pAppData->szOutFile);
             eError = OMX_ErrorBadParameter;
             goto EXIT;
-        }
-
+        }   
+        
         pAppData->nWidth = atoi(argv[3]);
         if (pAppData->nWidth & 15) {
-            printf("**Warning: Input Argument WIDTH is not multiple of 16. \n");
+            printf("**Warning: Input Argument WIDTH is not multiple of 16. \n"); 
         }
-
+        
         pAppData->nHeight = atoi(argv[4]);
         if (pAppData->nHeight & 15) {
             printf("**Warning: Input Argument HEIGHT is not multiple of 16. \n");
         }
-
+        
         switch (atoi(argv[5])) {
             case 19:
                 pAppData->eColorFormat = OMX_COLOR_FormatYUV420Planar;/*420*/
@@ -2304,17 +2293,17 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs(int argc, char** argv, MYDATATYPE** pAppDataT
                 eError = OMX_ErrorBadParameter;
                 goto EXIT;
         }
-
+        
         pAppData->nBitrate = atoi(argv[6]);
-        if(pAppData->nBitrate > 10000000) {
+        if(pAppData->nBitrate < 64000 || pAppData->nBitrate > 8000000) {
             printf("**Warning: Input argument BITRATE outside of tested range, behavior of component unknown.\n");
         }
-
+        
         pAppData->nFramerate = atoi(argv[7]);
         if(pAppData->nFramerate < 7 || pAppData->nFramerate > 30) {
             printf("**Warning: Input argument FRAMERATE outside of tested range, behavior of component unknown.\n");
         }
-
+        
         switch (atoi(argv[8])) {
             case 3:
                 pAppData->eCompressionFormat = OMX_VIDEO_CodingH263;
@@ -2338,7 +2327,7 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs(int argc, char** argv, MYDATATYPE** pAppDataT
                 goto EXIT;
         }
     }
-
+    
     if (argc < 16) {
         pAppData->eTypeOfTest = VIDENCTEST_FullRecord;
         printf("**Warning: Input Arguments TYPE OF TEST is not include input. Using Default value VIDENCTEST_FullRecord.\n");
@@ -2374,13 +2363,15 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs(int argc, char** argv, MYDATATYPE** pAppDataT
     else{
         pAppData->nReferenceFrame = atoi(argv[16]);
     }
-
+    
     if (argc < 18) {
         pAppData->nNumberOfTimesTodo = 1;
+        printf("**Warning: Input Arguments nNumberOfTimesTodo has not been specified. Using Default value 1.\n");
     }
     else{
         if(argv[17][0]<'0' || argv[17][0] > '9'){
             pAppData->nNumberOfTimesTodo = 1;
+            printf("**Warning: Input Arguments nNumberOfTimesTodo has not been specified.. Using Default value 1.\n");
         }
         else{
             pAppData->nNumberOfTimesTodo  = atoi(argv[17]);
@@ -2391,7 +2382,7 @@ OMX_ERRORTYPE VIDENCTEST_CheckArgs(int argc, char** argv, MYDATATYPE** pAppDataT
     VIDENCTEST_CheckOptionalArgs(pAppData, argc, argv);
 
     if(pAppData->NalFormat == VIDENC_TEST_NAL_FRAME || pAppData->NalFormat == VIDENC_TEST_NAL_SLICE) {
-        VIDENCTEST_MALLOC(pAppData->szOutFileNal, strlen(pAppData->szOutFile)+3, char, pMemoryListHead);
+        VIDENCTEST_MALLOC(pAppData->szOutFileNal, strlen(pAppData->szOutFile)+3, char, pMemoryListHead); 
         strcpy(pAppData->szOutFileNal, pAppData->szOutFile);
         strcat(pAppData->szOutFileNal, "nd");
         pAppData->fNalnd = fopen(pAppData->szOutFileNal, "w");
@@ -2410,15 +2401,15 @@ EXIT:
 /**
   * Confirm()
   *
-  *Check what type of test, repetions to be done and takes certain path.
+  *Check what type of test, repetions to be done and takes certain path. 
   *
   * @param  argc
   * @param  argv
   * @param pAppDataTmp
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_Confirm(MYDATATYPE* pAppData)
@@ -2475,12 +2466,12 @@ OMX_ERRORTYPE VIDENCTEST_Confirm(MYDATATYPE* pAppData)
                     else{
                         pAppData->bStop = OMX_FALSE;
                     }
-
+                    
                     pAppData->fOut = fopen(pAppData->szOutFile, "w");
                     if (!pAppData->fOut){
                         VIDENCTEST_CHECK_EXIT(OMX_ErrorUndefined, "Error at fopen function");
                     }
-                    if(pAppData->NalFormat == VIDENC_TEST_NAL_FRAME || pAppData->NalFormat == VIDENC_TEST_NAL_SLICE) {
+                    if(pAppData->NalFormat == VIDENC_TEST_NAL_FRAME || pAppData->NalFormat == VIDENC_TEST_NAL_SLICE) { 
                         pAppData->fNalnd = fopen(pAppData->szOutFileNal, "w");
                         if (!pAppData->fNalnd){
                             VIDENCTEST_CHECK_EXIT(OMX_ErrorUndefined, "Error at fopen function");
@@ -2492,9 +2483,9 @@ OMX_ERRORTYPE VIDENCTEST_Confirm(MYDATATYPE* pAppData)
                 VIDENCTEST_CHECK_EXIT(eError, "Error at OMX_SendCommand function");
             }
         }
-
+        
         pAppData->eCurrentState = VIDENCTEST_StateWaitEvent;
-
+        
 EXIT:
     return eError;
 }
@@ -2508,10 +2499,10 @@ EXIT:
   * @param  argc
   * @param  argv
   * @param pAppDataTmp
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_HandlePortDisable(MYDATATYPE* pAppData, OMX_U32 ePort)
@@ -2520,17 +2511,17 @@ OMX_ERRORTYPE VIDENCTEST_HandlePortDisable(MYDATATYPE* pAppData, OMX_U32 ePort)
     OMX_HANDLETYPE pHandle = pAppData->pHandle;
     OMX_U32 nCounter;
     VIDENCTEST_NODE* pListHead;
-
+    
     pAppData->nUnresponsiveCount = 0;
     pListHead = pAppData->pMemoryListHead;
-
+    
     if (ePort == VIDENC_INPUT_PORT){
         eError = OMX_SendCommand(pHandle, OMX_CommandPortDisable, VIDENC_OUTPUT_PORT, NULL);
         VIDENCTEST_CHECK_EXIT(eError, "Error at OMX_SendCommand function");
-
+        
         if (pAppData->bAllocateOBuf == OMX_TRUE) {
-            for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {
-                pAppData->pOBuffer[nCounter] -= 128;
+            for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {                   
+                pAppData->pOBuffer[nCounter] -= 128;                        
                 pAppData->pOBuffer[nCounter] = (unsigned char*)pAppData->pOBuffer[nCounter];
                 VIDENCTEST_FREE(pAppData->pOBuffer[nCounter], pListHead);
                 pAppData->pOBuffer[nCounter] = NULL;
@@ -2550,7 +2541,7 @@ OMX_ERRORTYPE VIDENCTEST_HandlePortDisable(MYDATATYPE* pAppData, OMX_U32 ePort)
         else {
             eError = OMX_SendCommand(pHandle, OMX_CommandPortEnable, VIDENC_INPUT_PORT, NULL);
             VIDENCTEST_CHECK_EXIT(eError, "Error at OMX_SendCommand function");
-
+            
             for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
                 if (pAppData->bAllocateIBuf == OMX_TRUE) {
                     VIDENCTEST_MALLOC(pAppData->pIBuffer[nCounter], pAppData->nSizeIn + 256, OMX_U8, pListHead);
@@ -2561,26 +2552,26 @@ OMX_ERRORTYPE VIDENCTEST_HandlePortDisable(MYDATATYPE* pAppData, OMX_U32 ePort)
 
             for (nCounter = 0; nCounter < NUM_OF_IN_BUFFERS; nCounter++) {
                 if (pAppData->bAllocateIBuf == OMX_TRUE) {
-                eError = OMX_UseBuffer(pHandle,
-                                        &pAppData->pInBuff[nCounter],
-                                        pAppData->pInPortDef->nPortIndex,
-                                        pAppData,
+                eError = OMX_UseBuffer(pHandle, 
+                                        &pAppData->pInBuff[nCounter], 
+                                        pAppData->pInPortDef->nPortIndex, 
+                                        pAppData, 
                                         pAppData->pInPortDef->nBufferSize,
                                         pAppData->pIBuffer[nCounter]);
                 VIDENCTEST_CHECK_EXIT(eError, "Error at OMX_UseBuffer function");
                 }
                 else {
-                    eError = OMX_AllocateBuffer(pHandle,
-                                                &pAppData->pInBuff[nCounter],
-                                                pAppData->pInPortDef->nPortIndex,
-                                                pAppData,
+                    eError = OMX_AllocateBuffer(pHandle, 
+                                                &pAppData->pInBuff[nCounter], 
+                                                pAppData->pInPortDef->nPortIndex, 
+                                                pAppData, 
                                                 pAppData->pInPortDef->nBufferSize);
                     VIDENCTEST_CHECK_EXIT(eError, "Error at OMX_AllocateBuffer function");
                 }
             }
         }
     }
-
+    
 
 EXIT:
     return eError;
@@ -2593,11 +2584,11 @@ EXIT:
   *Handles PortEnable Event
   *
   * @param  pAppData
-  * @param  nPort
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  * @param  nPort 
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_HandlePortEnable(MYDATATYPE* pAppData, OMX_U32 ePort)
@@ -2606,37 +2597,37 @@ OMX_ERRORTYPE VIDENCTEST_HandlePortEnable(MYDATATYPE* pAppData, OMX_U32 ePort)
     OMX_HANDLETYPE pHandle = pAppData->pHandle;
     OMX_U32 nCounter;
     VIDENCTEST_NODE* pListHead;
-
+    
     pAppData->nUnresponsiveCount = 0;
     pListHead = pAppData->pMemoryListHead;
-
+    
     if (ePort == VIDENC_INPUT_PORT){
         eError = OMX_SendCommand(pHandle, OMX_CommandPortEnable, VIDENC_OUTPUT_PORT, NULL);
         VIDENCTEST_CHECK_EXIT(eError, "Error at OMX_SendCommand function");
-
+        
         for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {
             if (pAppData->bAllocateOBuf == OMX_TRUE) {
-                VIDENCTEST_MALLOC(pAppData->pOBuffer[nCounter], pAppData->nSizeOut + 256, OMX_U8, pListHead);
-                pAppData->pOBuffer[nCounter] += 128;
+                VIDENCTEST_MALLOC(pAppData->pOBuffer[nCounter], pAppData->nSizeOut + 256, OMX_U8, pListHead);                          
+                pAppData->pOBuffer[nCounter] += 128;                          
                 pAppData->pOBuffer[nCounter] = (unsigned char*)pAppData->pOBuffer[nCounter];
             }
         }
 
         for (nCounter = 0; nCounter < NUM_OF_OUT_BUFFERS; nCounter++) {
             if (pAppData->bAllocateOBuf == OMX_TRUE) {
-                eError = OMX_UseBuffer(pHandle,
-                                        &pAppData->pOutBuff[nCounter],
-                                        pAppData->pOutPortDef->nPortIndex,
-                                        pAppData,
+                eError = OMX_UseBuffer(pHandle, 
+                                        &pAppData->pOutBuff[nCounter], 
+                                        pAppData->pOutPortDef->nPortIndex, 
+                                        pAppData, 
                                         pAppData->pOutPortDef->nBufferSize,
                                         pAppData->pOBuffer[nCounter]);
                 VIDENCTEST_CHECK_EXIT(eError, "Error at OMX_UseBuffer function");
             }
             else {
-                eError = OMX_AllocateBuffer(pHandle,
-                                            &pAppData->pOutBuff[nCounter],
-                                            pAppData->pOutPortDef->nPortIndex,
-                                            pAppData,
+                eError = OMX_AllocateBuffer(pHandle, 
+                                            &pAppData->pOutBuff[nCounter], 
+                                            pAppData->pOutPortDef->nPortIndex, 
+                                            pAppData, 
                                             pAppData->pOutPortDef->nBufferSize);
                 VIDENCTEST_CHECK_EXIT(eError, "Error at OMX_AllocateBuffer function");
             }
@@ -2658,11 +2649,11 @@ EXIT:
   *Handles PortEnable Event
   *
   * @param  pAppData
-  * @param  nPort
+  * @param  nPort 
+  * 
+  * @retval OMX_ErrorNone 
   *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 OMX_ERRORTYPE VIDENCTEST_HandleEventError(MYDATATYPE* pAppData, OMX_U32 eErr, OMX_U32 nData2)
@@ -2672,7 +2663,7 @@ OMX_ERRORTYPE VIDENCTEST_HandleEventError(MYDATATYPE* pAppData, OMX_U32 eErr, OM
     VIDENCTEST_PRINT("\n------VIDENCTEST ERROR-------\nOMX_EventError\n");
     VIDENCTEST_PRINT("eErr : %x \n", eErr);
     VIDENCTEST_PRINT("nData2 : %x \n", nData2);
-
+    
     switch (eErr){
      case OMX_ErrorNone:
         break;
@@ -2688,34 +2679,34 @@ OMX_ERRORTYPE VIDENCTEST_HandleEventError(MYDATATYPE* pAppData, OMX_U32 eErr, OM
      case OMX_ErrorUnderflow:
      case OMX_ErrorOverflow:
         break;
-     case OMX_ErrorInvalidState:
-#ifdef DSP_MMU_FAULT_HANDLING
+     case OMX_ErrorInvalidState: 
+#ifdef DSP_MMU_FAULT_HANDLING 
         bInvalid_state = OMX_TRUE;
 #endif
      case OMX_ErrorHardware:
-     case OMX_ErrorStreamCorrupt:
-     case OMX_ErrorPortsNotCompatible:
+     case OMX_ErrorStreamCorrupt: 
+     case OMX_ErrorPortsNotCompatible: 
      case OMX_ErrorResourcesLost:
-     case OMX_ErrorNoMore:
-     case OMX_ErrorVersionMismatch:
-     case OMX_ErrorNotReady:
-     case OMX_ErrorTimeout:
-     case OMX_ErrorSameState:
-     case OMX_ErrorResourcesPreempted:
+     case OMX_ErrorNoMore: 
+     case OMX_ErrorVersionMismatch: 
+     case OMX_ErrorNotReady: 
+     case OMX_ErrorTimeout: 
+     case OMX_ErrorSameState: 
+     case OMX_ErrorResourcesPreempted: 
         eError = eErr;
         break;
-     case OMX_ErrorPortUnresponsiveDuringAllocation:
-     case OMX_ErrorPortUnresponsiveDuringDeallocation:
+     case OMX_ErrorPortUnresponsiveDuringAllocation: 
+     case OMX_ErrorPortUnresponsiveDuringDeallocation: 
      case OMX_ErrorPortUnresponsiveDuringStop:
         if(pAppData->nUnresponsiveCount++ > MAX_UNRESPONSIVE_COUNT){
             eError = eErr;
         }
         break;
-     case OMX_ErrorIncorrectStateTransition:
+     case OMX_ErrorIncorrectStateTransition: 
      case OMX_ErrorIncorrectStateOperation:
-     case OMX_ErrorUnsupportedSetting:
-     case OMX_ErrorUnsupportedIndex:
-     case OMX_ErrorBadPortIndex:
+     case OMX_ErrorUnsupportedSetting: 
+     case OMX_ErrorUnsupportedIndex: 
+     case OMX_ErrorBadPortIndex: 
      case OMX_ErrorMax:
      default:
         ;
@@ -2733,16 +2724,16 @@ OMX_ERRORTYPE VIDENCTEST_HandleEventError(MYDATATYPE* pAppData, OMX_U32 eErr, OM
   *
   * @param  argc
   * @param argv
-  *
-  * @retval OMX_ErrorNone
-  *
-  *
+  *       
+  * @retval OMX_ErrorNone 
+  *               
+  *         
   **/
 /*-----------------------------------------------------------------------------*/
 int main(int argc, char** argv)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    OMX_HANDLETYPE pHandle;
+    OMX_HANDLETYPE pHandle;        
     OMX_BUFFERHEADERTYPE* pBuffer;
     OMX_U32 nError;
     OMX_U32 nTimeCount;
@@ -2752,7 +2743,7 @@ int main(int argc, char** argv)
     sigset_t set;
 
     nTimeCount = 0;
-#ifdef DSP_MMU_FAULT_HANDLING
+#ifdef DSP_MMU_FAULT_HANDLING 
     bInvalid_state = OMX_FALSE;
 #endif
     OMX_OTHER_EXTRADATATYPE_1_1_2 *pExtraDataType;
@@ -2760,7 +2751,7 @@ int main(int argc, char** argv)
     OMX_U32* pIndexNal;
     OMX_U32 nNalSlices;
 
-
+    
     VIDENCTEST_PRINT("Enter to CheckArgs\n");
 
     eError = VIDENCTEST_CheckArgs(argc, argv, &pAppData);
@@ -2772,25 +2763,25 @@ int main(int argc, char** argv)
     eError = VIDENCTEST_PassToLoaded(pAppData);
     VIDENCTEST_CHECK_ERROR(eError, "Error at Initialization of Component");
     VIDENCTEST_PRINT("Exit to PassToLoaded\n");
-
+    
     pListHead = pAppData->pMemoryListHead;
     pHandle = pAppData->pHandle;
-
+    
     VIDENCTEST_PRINT("Enter to PassToReady\n");
     eError = VIDENCTEST_PassToReady(pAppData);
     VIDENCTEST_CHECK_ERROR(eError, "Error at Passing to ComponentReady State");
     VIDENCTEST_PRINT("Exit to PassToReady\n");
-
+    
     while(1){
         FD_ZERO(&rfds);
         FD_SET(pAppData->IpBuf_Pipe[0], &rfds);
-        FD_SET(pAppData->OpBuf_Pipe[0], &rfds);
+        FD_SET(pAppData->OpBuf_Pipe[0], &rfds); 
         FD_SET(pAppData->eventPipe[0], &rfds);
-
+        
         sigemptyset(&set);
         sigaddset(&set,SIGALRM);
         pAppData->nRetVal = pselect(pAppData->fdmax+1, &rfds, NULL, NULL, NULL,&set);
-
+        
         if (pAppData->nRetVal == -1) {
             perror("pselect()");
             VIDENCTEST_DPRINT("Error\n");
@@ -2809,7 +2800,7 @@ int main(int argc, char** argv)
         else{
             nTimeCount = 0;
         }
-
+        
         if (FD_ISSET(pAppData->eventPipe[0], &rfds)) {
             EVENT_PRIVATE* pEventPrivate = NULL;
             OMX_EVENTTYPE eEvent = -1;
@@ -2844,7 +2835,7 @@ int main(int argc, char** argv)
                             VIDENCTEST_CHECK_ERROR(eError, "Error at PortPortEnable function");
                             VIDENCTEST_PRINT("Exits to HandlePortEnable\n");
                             break;
-                        case OMX_CommandMarkBuffer:
+                        case OMX_CommandMarkBuffer: 
                             ;
                     }
                     break;
@@ -2886,89 +2877,62 @@ int main(int argc, char** argv)
                     VIDENCTEST_CHECK_ERROR(OMX_ErrorUndefined, "Error at EmptyThisBuffer function");
                     break;
             }
-
+            
             VIDENCTEST_FREE(pEventPrivate, pListHead);
         }
-
+        
         if(FD_ISSET(pAppData->IpBuf_Pipe[0], &rfds)){
             VIDENCTEST_PRINT("Input Pipe event receive\n");
             read(pAppData->IpBuf_Pipe[0], &pBuffer, sizeof(pBuffer));
             pAppData->nInBufferCount++;
-
+            
             if(pAppData->eCurrentState == VIDENCTEST_StateEncoding) {
                 pBuffer->nFilledLen = VIDENCTEST_fill_data(pBuffer, pAppData->fIn , pAppData->pInPortDef->nBufferSize);
-
+                
                 if (pBuffer->nFlags == OMX_BUFFERFLAG_EOS && pBuffer->nFilledLen == 0) {
                     pAppData->eCurrentState = VIDENCTEST_StateStopping;
                     eError = pAppData->pComponent->EmptyThisBuffer(pHandle, pBuffer);
                     VIDENCTEST_CHECK_ERROR(eError, "Error at EmptyThisBuffer function");
                     pAppData->nInBufferCount--;
                 }
-
-                if(pAppData->eTypeOfTest != VIDENCTEST_FullRecord){
+                
+                if( pAppData->eTypeOfTest != VIDENCTEST_FullRecord){
                     if(pAppData->nCurrentFrameIn == pAppData->nReferenceFrame){
-                        pAppData->eCurrentState = VIDENCTEST_StateStopping;
-                        if(pAppData->eTypeOfTest == VIDENCTEST_PauseResume) {
-                            eError = pAppData->pComponent->EmptyThisBuffer(pHandle, pBuffer);
-                            VIDENCTEST_CHECK_ERROR(eError, "Error at EmptyThisBuffer function");
-                            pAppData->nInBufferCount--;
-                            pAppData->nCurrentFrameIn++;
-                        }
+                            pAppData->eCurrentState = VIDENCTEST_StateStopping;
                     }
-                }
-
+                }    
+                
                 if(pAppData->eCurrentState == VIDENCTEST_StateEncoding){
-                    if(pAppData->nQPIoF > 0) {
-                        if(!(pAppData->nCurrentFrameIn % pAppData->nQPIoF)) {
-                            pAppData->bForceIFrame = OMX_TRUE;
-
-                            eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.ForceIFrame", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
-                            VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_GetExtensionIndex function");
-                            eError = OMX_SetConfig(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->bForceIFrame));
-                            VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for bForceIFrame");
-                            eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.QPI", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
-                            VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_GetExtensionIndex function");
-                            eError = OMX_SetConfig(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->nQpI));
-                            VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for bForceIFrame");
-                        }
-                        else {
-                            pAppData->bForceIFrame = OMX_FALSE;
-                            eError = OMX_GetExtensionIndex(pHandle,"OMX.TI.VideoEncode.Config.ForceIFrame", (OMX_INDEXTYPE*)(&(pAppData->nVideoEncodeCustomParamIndex)));
-                            VIDENCTEST_CHECK_EXIT(eError, "Error in OMX_GetExtensionIndex function");
-                            eError = OMX_SetConfig(pHandle, pAppData->nVideoEncodeCustomParamIndex, &(pAppData->bForceIFrame));
-                            VIDENCTEST_CHECK_EXIT(eError, "Error at SetConfig for bForceIFrame");
-                        }
-                    }
                     eError = pAppData->pComponent->EmptyThisBuffer(pHandle, pBuffer);
                     VIDENCTEST_CHECK_ERROR(eError, "Error at EmptyThisBuffer function");
                     pAppData->nInBufferCount--;
                     pAppData->nCurrentFrameIn++;
                 }
             }
-
+            
             if(pAppData->eCurrentState == VIDENCTEST_StateStopping) {
                 if(pAppData->nInBufferCount == NUM_OF_IN_BUFFERS){
                     pAppData->eCurrentState = VIDENCTEST_StateConfirm;
                 }
             }
         }
-
+        
         if(FD_ISSET(pAppData->OpBuf_Pipe[0], &rfds)){
             VIDENCTEST_PRINT("Output Pipe event receive\n");
             read(pAppData->OpBuf_Pipe[0], &pBuffer, sizeof(pBuffer));
             pAppData->nOutBufferCount++;
-
-
+            pAppData->nCurrentFrameOut++;
+            
+            
             /* check is it is the last buffer */
             if((pBuffer->nFlags & OMX_BUFFERFLAG_EOS) ||
-                (pAppData->eTypeOfTest != VIDENCTEST_FullRecord &&
+                (pAppData->eTypeOfTest != VIDENCTEST_FullRecord && 
                 pAppData->nCurrentFrameIn == pAppData->nReferenceFrame)) {
                 pAppData->bLastOutBuffer = 1;
             }
 
             /*App sends last buffer as null buffer, so buffer with EOS contains only garbage*/
-            if(pBuffer->nFilledLen) {
-                pAppData->nCurrentFrameOut++;
+            /*if(!(pBuffer->nFlags & OMX_BUFFERFLAG_EOS))*/ {
                 fwrite(pBuffer->pBuffer, 1, pBuffer->nFilledLen, pAppData->fOut);
                 nError = ferror(pAppData->fOut);
                 if (nError != 0) {
@@ -2978,7 +2942,7 @@ int main(int argc, char** argv)
                 if (nError != 0) {
                     VIDENCTEST_DPRINT("ERROR: flushing file\n");
                 }
-
+               
                 if(pAppData->NalFormat == VIDENC_TEST_NAL_SLICE){
                     nNalSlices = 1;
                     fwrite(&nNalSlices, 1, sizeof(OMX_U32), pAppData->fNalnd);
@@ -3026,7 +2990,7 @@ int main(int argc, char** argv)
                 pAppData->nOutBufferCount--;
             }
         }
-
+        
         if (pAppData->eCurrentState == VIDENCTEST_StateConfirm ) {
             if (pAppData->bLastOutBuffer){
                 VIDENCTEST_PRINT("Number of Input  Buffer at Client Side : %i\n", pAppData->nInBufferCount);
@@ -3038,46 +3002,42 @@ int main(int argc, char** argv)
                 VIDENCTEST_PRINT("Exits to Confirm Function\n");
             }
         }
-
+        
         if (pAppData->eCurrentState == VIDENCTEST_StateUnLoad) {
             VIDENCTEST_PRINT("Exiting while\n");
             break;
         }
         sched_yield();
     }
-    if(pAppData->nCurrentFrameIn != pAppData->nCurrentFrameOut)
-    {
-        printf("App: Warning!!! FrameIn: %d FrameOut: %d\n", (int)pAppData->nCurrentFrameIn, (int)pAppData->nCurrentFrameOut);
-    }
-
+    
     eError = VIDENCTEST_DeInit(pAppData);
 
-EXIT:
+EXIT:    
     return eError;
 }
 
-#ifdef DSP_MMU_FAULT_HANDLING
+#ifdef DSP_MMU_FAULT_HANDLING 
 int LoadBaseImage()
 {
     unsigned int uProcId = 0;   /* default proc ID is 0. */
     unsigned int index = 0;
-
+    
     struct DSP_PROCESSORINFO dspInfo;
     DSP_HPROCESSOR hProc;
     DSP_STATUS status = DSP_SOK;
     unsigned int numProcs;
     char* argv[2];
-
+   
     argv[0] = "/lib/dsp/baseimage.dof";
-
+    
     status = (DBAPI)DspManager_Open(0, NULL);
     if (DSP_FAILED(status)) {
         printf("DSPManager_Open failed \n");
         return -1;
-    }
+    } 
     while (DSP_SUCCEEDED(DSPManager_EnumProcessorInfo(index,&dspInfo,
         (unsigned int)sizeof(struct DSP_PROCESSORINFO),&numProcs))) {
-        if ((dspInfo.uProcessorType == DSPTYPE_55) ||
+        if ((dspInfo.uProcessorType == DSPTYPE_55) || 
             (dspInfo.uProcessorType == DSPTYPE_64)) {
             uProcId = index;
             status = DSP_SOK;
@@ -3094,11 +3054,11 @@ int LoadBaseImage()
                 status = DSPProcessor_Start(hProc);
                 if (DSP_SUCCEEDED(status)) {
                     fprintf(stderr,"Baseimage Loaded\n");
-                }
+                } 
                 else {
                     fprintf(stderr,"APP: Baseimage start error!\n");
                 }
-            }
+            } 
             else {
                 fprintf(stderr,"APP: Baseimage load error!\n");
             }

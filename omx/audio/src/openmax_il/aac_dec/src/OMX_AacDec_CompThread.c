@@ -151,11 +151,13 @@ void* AACDEC_ComponentThread (void* pThreadData)
             pComponentPrivate->cbInfo.EventHandler (pHandle,
                                                     pHandle->pApplicationPrivate,
                                                     OMX_EventError,
-                                                    OMX_ErrorInsufficientResources,
+                                                    OMX_ErrorHardware, 
                                                     OMX_TI_ErrorSevere,
                                                     "Error from COmponent Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-        }
+            eError = OMX_ErrorHardware;
+            break;
+            
+        } 
         else if (FD_ISSET (pComponentPrivate->cmdPipe[0], &rfds)) {
             OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: CMD pipe is set in Component Thread\n",__LINE__);
             nRet = AACDEC_HandleCommand (pComponentPrivate);

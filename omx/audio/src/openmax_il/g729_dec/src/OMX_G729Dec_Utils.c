@@ -276,6 +276,7 @@ OMX_ERRORTYPE G729DECFill_LCMLInitParams(OMX_HANDLETYPE pComponent,
             free(strmAttr);
             strmAttr = NULL;
         }
+        memset(pTemp_lcml, 0x0, size_lcml);     
         eError = OMX_ErrorInsufficientResources;
         goto EXIT;
     }
@@ -1456,11 +1457,6 @@ OMX_ERRORTYPE G729DECHandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
              bufParamsArray += 128;
              memset(bufParamsArray, 0, 9 * sizeof(unsigned long int)); */
         pInBufStruct = (G729DEC_BufParamStruct*)pBufHeader->pInputPortPrivate;
-
-	 if (pInBufStruct == NULL) {
-	     G729DEC_EPRINT("%d :: Error: input port NULL ...\n", __LINE__);
-	     goto EXIT;
-	 }
         /* fill array for SN params */
         if(pInBufStruct->bNoUseDefaults == OMX_TRUE){ /*indicates that khronos conformance tests are NOT running */
             pComponentPrivate->bufParamsArray[0] = 0;
@@ -1500,9 +1496,11 @@ OMX_ERRORTYPE G729DECHandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             pLcmlHdr->pIpParam->usLastFrame = 0;
             pComponentPrivate->bufParamsArray[0] = 0;
         }
-	 pLcmlHdr->pIpParam->usFrameLost = pInBufStruct->frameLost;
-	 if (pInBufStruct->frameLost == 1) {
-	     G729DEC_PRINT_INFO("Frame LOST event\n");
+        if(pInBufStruct!=NULL){  
+            pLcmlHdr->pIpParam->usFrameLost = pInBufStruct->frameLost;
+            if(pInBufStruct->frameLost==1){
+                G729DEC_PRINT_INFO("Frame LOST event\n");
+            }
         }
         /* Store time stamp information */
         pComponentPrivate->arrTimestamp[pComponentPrivate->IpBufindex] = pBufHeader->nTimeStamp;
@@ -1869,7 +1867,7 @@ OMX_ERRORTYPE G729DECLCML_Callback (TUsnCodecEvent event,void * args [10])
     } 
     else if (event == EMMCodecStrmCtrlAck) 
     {
-        G729DEC_DPRINT("%d :: GOT MESSAGE USN_DSPACK_STRMCTRL ----\n",__LINE__);
+        LCML_DPRINT("%d :: GOT MESSAGE USN_DSPACK_STRMCTRL ----\n",__LINE__);
         if (args[1] == (void *)USN_STRMCMD_FLUSH)
         {
             G729DEC_DPRINT("revceived USN_STRMCMD_FLUSH\n");
@@ -2496,35 +2494,3 @@ OMX_ERRORTYPE G729DEC_TransitionToIdle(G729DEC_COMPONENT_PRIVATE *pComponentPriv
     return eError;
 }
 
-
-#ifdef RESOURCE_MANAGER_ENABLED
-/***********************************
- *  Callback to the RM                                       *
- ***********************************/
-void G729DEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
-{
-    OMX_COMMANDTYPE Cmd = OMX_CommandStateSet;
-    OMX_STATETYPE state = OMX_StateIdle;
-    OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)cbData.hComponent;
-    G729DEC_COMPONENT_PRIVATE *pCompPrivate = NULL;
-
-    pCompPrivate = (G729DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
-
-    if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesPreempted){
-        if (pCompPrivate->curState == OMX_StateExecuting || 
-            pCompPrivate->curState == OMX_StatePause) {
-
-            write (pCompPrivate->cmdPipe[1], &Cmd, sizeof(Cmd));
-            write (pCompPrivate->cmdDataPipe[1], &state ,sizeof(OMX_U32));
-
-            pCompPrivate->bPreempted = 1;
-        }
-    }
-    else if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesAcquired){
-        pCompPrivate->cbInfo.EventHandler ( pHandle, 
-                                            pHandle->pApplicationPrivate,
-                                            OMX_EventResourcesAcquired, 
-                                            0, 0, NULL);
-    }
-}
-#endif

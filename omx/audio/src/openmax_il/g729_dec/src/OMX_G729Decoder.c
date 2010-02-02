@@ -275,6 +275,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     G729DEC_DPRINT("%d Malloced pcmParams = 0x%p\n",__LINE__,((G729DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate)->pcmParams);
 
  
+    pComponentPrivate = pHandle->pComponentPrivate;
     OMX_G729MALLOC_STRUCT(pComponentPrivate->pInputBufferList, G729DEC_BUFFERLIST);
 
     pComponentPrivate->pInputBufferList->numBuffers = 0; /* initialize number of buffers */
@@ -322,10 +323,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->bNoIdleOnStop = OMX_FALSE;
     pComponentPrivate->pParams = NULL;
     pComponentPrivate->sDeviceString = malloc(100*sizeof(OMX_STRING));
-    if (pComponentPrivate->sDeviceString == NULL) {
-	 G729DEC_DPRINT("%d ::malloc failed\n", __LINE__);
-	 goto EXIT;
-    }
     strcpy((char*)pComponentPrivate->sDeviceString,"/eteedn:i0:o0/codec\0");
     pComponentPrivate->IpBufindex = 0;
     pComponentPrivate->OpBufindex = 0;
@@ -867,10 +864,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
         break;
 
     case OMX_IndexParamPriorityMgmt:
-        if (pComponentPrivate->sPriorityMgmt == NULL) {
-            eError = OMX_ErrorBadParameter;
-            goto EXIT;
-        }
         memcpy(ComponentParameterStructure, pComponentPrivate->sPriorityMgmt, sizeof(OMX_PRIORITYMGMTTYPE));
         break;
 
@@ -961,17 +954,14 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
         {
             OMX_AUDIO_PARAM_G729TYPE *pCompG729Param =
                 (OMX_AUDIO_PARAM_G729TYPE *)pCompParam;
-	    if (((G729DEC_COMPONENT_PRIVATE*)
-	        pHandle->pComponentPrivate)->g729Params == NULL) {
-                eError = OMX_ErrorBadParameter;
-                goto EXIT;
-            }
+
+                                      
             /* 0 means Input port */
-	    if(pCompG729Param->nPortIndex == 0) {
-		memcpy(((G729DEC_COMPONENT_PRIVATE*)
-	            pHandle->pComponentPrivate)->g729Params,
-		    pCompG729Param, sizeof(OMX_AUDIO_PARAM_G729TYPE));
-	    }
+            if(pCompG729Param->nPortIndex == 0) {
+                memcpy(((G729DEC_COMPONENT_PRIVATE*)
+                        pHandle->pComponentPrivate)->g729Params,
+                       pCompG729Param, sizeof(OMX_AUDIO_PARAM_G729TYPE));
+            }
             else {
                 eError = OMX_ErrorBadPortIndex;
             }
@@ -1006,11 +996,6 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
             goto EXIT;
         }
         else{
-	    if (pComponentPrivate->sPriorityMgmt == NULL) {
-                eError = OMX_ErrorBadParameter;
-                goto EXIT;
-            }
-
             memcpy(pComponentPrivate->sPriorityMgmt, (OMX_PRIORITYMGMTTYPE*)pCompParam, sizeof(OMX_PRIORITYMGMTTYPE)); 
                         
         }
@@ -1027,10 +1012,6 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
         break;
 
     case OMX_IndexParamAudioPcm:
-        if (pComponentPrivate->pcmParams == NULL) {
-            eError = OMX_ErrorBadParameter;
-            goto EXIT;
-        }
         if(pCompParam){
             pPcmPort= (OMX_AUDIO_PARAM_PCMMODETYPE *)pCompParam;
             memcpy(pComponentPrivate->pcmParams, pPcmPort, sizeof(OMX_AUDIO_PARAM_PCMMODETYPE));
@@ -1091,11 +1072,8 @@ static OMX_ERRORTYPE GetConfig (OMX_HANDLETYPE hComp,
 
     pComponentPrivate = (G729DEC_COMPONENT_PRIVATE *)
         (((OMX_COMPONENTTYPE*)hComp)->pComponentPrivate);
-  
-    if (pComponentPrivate == NULL) 
-        eError = OMX_ErrorBadParameter;
-    else
-        memcpy(ComponentConfigStructure,pComponentPrivate,sizeof(G729DEC_COMPONENT_PRIVATE));
+
+    memcpy(ComponentConfigStructure,pComponentPrivate,sizeof(G729DEC_COMPONENT_PRIVATE));
 
     return eError;
 }
@@ -1118,7 +1096,8 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_COMPONENTTYPE* pHandle = (OMX_COMPONENTTYPE*)hComp;
-    G729DEC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
+    G729DEC_COMPONENT_PRIVATE *pComponentPrivate =
+        (G729DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     OMX_S16 *customFlag = NULL;
     TI_OMX_DSP_DEFINITION *configData = NULL;
     
@@ -1135,8 +1114,6 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
         goto EXIT;
     }
 
-    pComponentPrivate =
-	 (G729DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     switch (nConfigIndex) {
     case  OMX_IndexCustomG729DecHeaderInfoConfig:
         {
@@ -1553,18 +1530,58 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
     PERF_Done(pComponentPrivate->pPERF);
 #endif 
 
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->sDeviceString);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pInputBufferList);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pOutputBufferList);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->g729Params);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pcmParams);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->sPriorityMgmt);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pPortDef[G729DEC_INPUT_PORT]);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pPortDef[G729DEC_OUTPUT_PORT]);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pInPortFormat);
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pOutPortFormat);
+    if (pComponentPrivate->sDeviceString != NULL) {
+        free(pComponentPrivate->sDeviceString);
+    }
+
+    if (pComponentPrivate->pInputBufferList != NULL){
+        free(pComponentPrivate->pInputBufferList);
+        pComponentPrivate->pInputBufferList = NULL;
+    }
+
+    if (pComponentPrivate->pOutputBufferList != NULL){
+        free(pComponentPrivate->pOutputBufferList);
+        pComponentPrivate->pOutputBufferList = NULL;
+    }
+
+    if (pComponentPrivate->g729Params != NULL){
+        free (pComponentPrivate->g729Params);
+        pComponentPrivate->g729Params = NULL;
+    }
+
+    if (pComponentPrivate->pcmParams != NULL){
+        free (pComponentPrivate->pcmParams);
+        pComponentPrivate->pcmParams = NULL;
+    }    
+
+    if (pComponentPrivate->sPriorityMgmt != NULL){
+        free (pComponentPrivate->sPriorityMgmt);
+        pComponentPrivate->sPriorityMgmt = NULL;
+    }
+
+    if (pComponentPrivate->pPortDef[G729DEC_INPUT_PORT] != NULL){
+        free (pComponentPrivate->pPortDef[G729DEC_INPUT_PORT]);
+        pComponentPrivate->pPortDef[G729DEC_INPUT_PORT] = NULL;
+    }
+
+    if (pComponentPrivate->pPortDef[G729DEC_OUTPUT_PORT] != NULL){
+        free (pComponentPrivate->pPortDef[G729DEC_OUTPUT_PORT]);
+        pComponentPrivate->pPortDef[G729DEC_OUTPUT_PORT] = NULL;
+    }
+
+    if (pComponentPrivate->pInPortFormat != NULL){
+        free (pComponentPrivate->pInPortFormat);
+        pComponentPrivate->pInPortFormat = NULL;
+    }
     
-    OMX_G729MEMFREE_STRUCT(pComponentPrivate);
+    if (pComponentPrivate->pOutPortFormat != NULL){
+        free (pComponentPrivate->pOutPortFormat);
+        pComponentPrivate->pOutPortFormat = NULL;
+    }
+    
+    G729DEC_MEMPRINT("%d:[FREE] %p\n",__LINE__,pComponentPrivate);
+    free(pComponentPrivate);
+    pComponentPrivate = NULL;
     G729DEC_DPRINT ("%d ::After free(pComponentPrivate)\n",__LINE__);
 
     return eError;
@@ -1822,7 +1839,10 @@ static OMX_ERRORTYPE FreeBuffer(
                 tempBuff -= CACHE_ALIGNMENT;
                 OMX_G729MEMFREE_STRUCT(tempBuff);
             }
-            OMX_G729MEMFREE_STRUCT(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pInputPortPrivate);
+            if ((G729DEC_BufParamStruct*)pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pInputPortPrivate != NULL){
+                free(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pInputPortPrivate);
+                pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pInputPortPrivate = NULL;
+            }
         }
         OMX_G729MEMFREE_STRUCT(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]);
         pComponentPrivate->pInputBufferList->numBuffers--;
@@ -1860,7 +1880,10 @@ static OMX_ERRORTYPE FreeBuffer(
                 tempBuff -= CACHE_ALIGNMENT;
                 OMX_G729MEMFREE_STRUCT(tempBuff);
             }
-            OMX_G729MEMFREE_STRUCT(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pInputPortPrivate);
+            if ((G729DEC_BufParamStruct*)pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pInputPortPrivate != NULL){
+                free(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pInputPortPrivate);
+                pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pInputPortPrivate = NULL;
+            }
         }
         OMX_G729MEMFREE_STRUCT(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]);
 

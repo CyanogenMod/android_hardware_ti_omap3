@@ -14,19 +14,19 @@ PERF_CUSTOMIZABLE := 1
 PERF_READER := 1
 
 TI_OMX_CFLAGS := -Wall -fpic -pipe -DSTATIC_TABLE -O0 -DOMAP_3430
+
 ifeq ($(RESOURCE_MANAGER_ENABLED),1)
 TI_OMX_CFLAGS += -DRESOURCE_MANAGER_ENABLED 
 endif
 ifeq ($(PERF_INSTRUMENTATION),1)
 TI_OMX_CFLAGS += -D__PERF_INSTRUMENTATION__
 endif
+
 ifeq ($(BUILD_WITH_TI_AUDIO),1)
 TI_OMX_CFLAGS += -DBUILD_WITH_TI_AUDIO
 BUILD_AAC_DECODER := 1
 BUILD_MP3_DECODER := 1
 BUILD_WMA_DECODER := 1
-BUILD_AMRNB_DECODER := 1
-BUILD_AMRWB_DECODER := 1
 endif
 
 TI_OMX_TOP := $(LOCAL_PATH)
@@ -51,15 +51,6 @@ TI_OMX_COMP_SHARED_LIBRARIES += \
 	libPERF
 endif
 
-ifeq ($(ENABLE_RMPM_STUB),1)
-TI_OMX_CFLAGS += -D__ENABLE_RMPM_STUB__
-endif
-
-ifeq ($(DVFS_ENABLED),1)
-TI_OMX_CFLAGS += -DDVFS_ENABLED
-endif
-
-
 TI_OMX_COMP_C_INCLUDES := \
 	$(TI_OMX_INCLUDES) \
 	$(TI_BRIDGE_INCLUDES) \
@@ -67,19 +58,17 @@ TI_OMX_COMP_C_INCLUDES := \
 	$(TI_OMX_SYSTEM)/common/inc \
 	$(TI_OMX_SYSTEM)/perf/inc 
 
+#call to common omx
+include $(TI_OMX_SYSTEM)/omx_core/src/Android.mk
+include $(TI_OMX_SYSTEM)/lcml/src/Android.mk
 
 ifeq ($(PERF_INSTRUMENTATION),1)
 include $(TI_OMX_SYSTEM)/perf/Android.mk
 endif
-
 ifeq ($(PERF_READER),1)
 #TODO: Implement automatic building
 #include $(TI_OMX_SYSTEM)/perf/reader/Android.mk
 endif
-
-#call to common omx & system components
-include $(TI_OMX_SYSTEM)/omx_core/src/Android.mk
-include $(TI_OMX_SYSTEM)/lcml/src/Android.mk
 
 #call to audio
 include $(TI_OMX_AUDIO)/aac_dec/src/Android.mk
@@ -117,7 +106,6 @@ include $(TI_OMX_VIDEO)/video_decode/Android.mk
 include $(TI_OMX_VIDEO)/video_encode/Android.mk
 include $(TI_OMX_VIDEO)/video_encode/test/Android.mk
 include $(TI_OMX_VIDEO)/prepost_processor/Android.mk
-
 #call to image
 include $(TI_OMX_IMAGE)/jpeg_enc/Android.mk
 include $(TI_OMX_IMAGE)/jpeg_dec/Android.mk
@@ -129,4 +117,3 @@ include $(TI_OMX_TOP)/core_plugin/Android.mk
 include $(TI_OMX_TOP)/ti_omx_config_parser/Android.mk
 
 endif
-

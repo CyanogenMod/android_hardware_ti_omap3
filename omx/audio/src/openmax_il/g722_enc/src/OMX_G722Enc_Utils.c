@@ -164,7 +164,7 @@ void* ComponentThread (void* pThreadData)
                                                     pHandle,pHandle->pApplicationPrivate,
                                                     OMX_EventError,OMX_ErrorInsufficientResources, 0,
                                                     "Error from COmponent Thread in select");
-            eError = OMX_ErrorInsufficientResources;
+            exit(1);
 
         } else if (FD_ISSET (pComponentPrivate->cmdPipe[0], &rfds)) {
             G722ENC_DPRINT ("%d :: CMD pipe is set in Component Thread\n",__LINE__);
@@ -218,7 +218,7 @@ void* ComponentThread (void* pThreadData)
     }
  EXIT:
     G722ENC_DPRINT ("%d :: Exiting ComponentThread \n",__LINE__);
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }
 
 /* ================================================================================= */
@@ -480,6 +480,18 @@ OMX_ERRORTYPE G722ENC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,
             arr = NULL;
         }
     
+        if (pTemp_lcml) {
+            G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pTemp_lcml);
+            free(pTemp_lcml);
+            pTemp_lcml = NULL;
+        }
+
+        if (pTemp_lcml->pIpParam) {
+            G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pTemp_lcml->pIpParam);
+            free(pTemp_lcml->pIpParam);
+            pTemp_lcml->pIpParam = NULL;
+        }
+
         eError = OMX_ErrorInsufficientResources;
         goto EXIT;
     }
@@ -705,7 +717,7 @@ OMX_ERRORTYPE G722Enc_FreeCompResources(OMX_HANDLETYPE pComponent)
         }
 
         if (pComponentPrivate->pcmParams) {
-            G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pComponentPrivate->pcmParams);
+            G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pComponentPrivate->g722Params[G722ENC_INPUT_PORT]);
             free(pComponentPrivate->pcmParams);
             pComponentPrivate->pcmParams = NULL;
         }
@@ -1628,7 +1640,7 @@ OMX_ERRORTYPE G722ENC_LCML_Callback (TUsnCodecEvent event,void * args [10])
         pComponentPrivate_CC->bNoIdleOnStop= OMX_FALSE;
     }
     else if(event == EMMCodecAlgCtrlAck) {
-        G722ENC_DPRINT ("GOT MESSAGE USN_DSPACK_ALGCTRL \n");
+        LCML_DPRINT ("GOT MESSAGE USN_DSPACK_ALGCTRL \n");
     }
     else if (event == EMMCodecDspError) {
         if(((int)args[4] == 1) && ((int)args[5] == 0x500)) {
@@ -1660,7 +1672,7 @@ OMX_ERRORTYPE G722ENC_LCML_Callback (TUsnCodecEvent event,void * args [10])
         }
     }
     else if (event == EMMCodecStrmCtrlAck) {
-        G722ENC_DPRINT("%d :: GOT MESSAGE USN_DSPACK_STRMCTRL ----\n",__LINE__);
+        LCML_DPRINT("%d :: GOT MESSAGE USN_DSPACK_STRMCTRL ----\n",__LINE__);
         pComponentPrivate_CC->bStreamCtrlCalled = 1;
     
     }
@@ -2669,6 +2681,18 @@ OMX_ERRORTYPE G722ENC_Fill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent)
             G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,strmAttr);
             free(strmAttr);
             strmAttr = NULL;
+        }
+
+        if (pTemp_lcml) {
+            G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pTemp_lcml);
+            free(pTemp_lcml);
+            pTemp_lcml = NULL;
+        }
+
+        if (pTemp_lcml->pIpParam) {
+            G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pTemp_lcml->pIpParam);
+            free(pTemp_lcml->pIpParam);
+            pTemp_lcml->pIpParam = NULL;
         }
 
         eError = OMX_ErrorInsufficientResources;

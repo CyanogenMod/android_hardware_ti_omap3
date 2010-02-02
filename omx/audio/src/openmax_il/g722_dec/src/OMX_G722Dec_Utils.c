@@ -156,7 +156,7 @@ void* G722DEC_ComponentThread (void* pThreadData)
                                                     pHandle,pHandle->pApplicationPrivate,
                                                     OMX_EventError,OMX_ErrorInsufficientResources, 0,
                                                     "Error from COmponent Thread in select");
-            eError = OMX_ErrorInsufficientResources;
+            goto EXIT;
 
         } else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds))) {
             /*                   && (pComponentPrivate->curState != OMX_StatePause)) { */
@@ -195,7 +195,7 @@ void* G722DEC_ComponentThread (void* pThreadData)
     pComponentPrivate->bCompThreadStarted = 0;
 
     G722DEC_DPRINT (":: Exiting ComponentThread \n");
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }
 /* ================================================================================= * */
 /**

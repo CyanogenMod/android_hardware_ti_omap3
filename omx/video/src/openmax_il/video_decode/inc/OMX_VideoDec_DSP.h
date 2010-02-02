@@ -42,12 +42,12 @@
 #ifndef OMX_VIDDEC_DSP__H
 #define OMX_VIDDEC_DSP__H
 
-#define OMX_H264DEC_NUM_DLLS 5
-#define OMX_MP4DEC_NUM_DLLS  5
+#define OMX_H264DEC_NUM_DLLS 4 
+#define OMX_MP4DEC_NUM_DLLS  4 
 #define OMX_MP2DEC_NUM_DLLS  4 
-#define OMX_WMVDEC_NUM_DLLS  5
+#define OMX_WMVDEC_NUM_DLLS  4 
  #ifdef VIDDEC_SPARK_CODE
-    #define OMX_SPARKDEC_NUM_DLLS  5
+    #define OMX_SPARKDEC_NUM_DLLS  4 
  #endif
 
 #ifndef VIDDEC_SN_R8_14
@@ -62,7 +62,6 @@
     #define WMV_DEC_NODE_DLL   "wmv9dec_sn.dll64P"
     #define RINGIO_NODE_DLL    "ringio.dll64P"
     #define USN_DLL            "usn.dll64P"
-    #define CONVERSIONS_DLL    "conversions.dll64P"
  #ifdef VIDDEC_SPARK_CODE
     #define SPARK_DEC_NODE_DLL  "sparkdec_sn.dll64P"
  #endif
@@ -73,7 +72,6 @@
     #define WMV_DEC_NODE_DLL  "\\windows\\wmv9dec_sn.dll64P"
     #define RINGIO_NODE_DLL   "\\windows\\ringio.dll64P"
     #define USN_DLL           "\\windows\\usn.dll64P"
-    #define CONVERSIONS_DLL   "\\windows\\conversions.dll64P"
  #ifdef VIDDEC_SPARK_CODE
     #define SPARK_DEC_NODE_DLL "\\windows\\sparkdec_sn.dll64P" 
  #endif
@@ -130,12 +128,6 @@ static const struct DSP_UUID RINGIO_TI_UUID = {
     }
 };
 
-static const struct DSP_UUID CONVERSIONS_UUID = {
-            0x722DD0DA, 0xF532, 0x4238, 0xB8, 0x46, {
-                        0xAB, 0xFF, 0x5D, 0xA4, 0xBA, 0x02
-            }
-};
-
 #ifdef VIDDEC_SPARK_CODE 
     #define STRING_SPARKDSOCKET_TI_UUID "DD8AC7F0_33BF_446B_938E_FDF00B467ED6"
     static const struct DSP_UUID SPARKDSOCKET_TI_UUID = {
@@ -162,12 +154,11 @@ typedef struct WMV9DEC_SNCreatePhArg {
     OMX_U32 ulMaxFrameRate;
     OMX_U32 ulMaxBitRate;
     OMX_U32 ulDataEndianness;
-    OMX_S32 ulProfile;
+    OMX_U32 ulProfile;
     OMX_S32 ulMaxLevel;
     OMX_U32 ulProcessMode;
     OMX_S32 lPreRollBufConfig;
-    OMX_U32 usIsElementaryStream;
-    OMX_U32 bCopiedCCDBuffer;
+    OMX_S16 usIsElementaryStream;
     OMX_U16 endArgs;
 } WMV9DEC_SNCreatePhArg;
 
@@ -292,9 +283,7 @@ typedef struct MP4VD_GPP_SN_Obj_CreatePhase {
 
 typedef struct
 {
-    OMX_S32 nBuffCount;
-    OMX_U32 uRingIOBlocksize;
-    OMX_S32 nPerformMode;
+    long int nBuffCount;
 } MP4VD_GPP_SN_UALGInputParams;
 
 typedef struct
@@ -605,8 +594,7 @@ typedef struct MP4VDEC_UALGDynamicParams
   OMX_U32         ulDecodeHeader;    
   OMX_U32         ulDisplayWidth;  
   OMX_U32         ulFrameSkipMode; 
-  OMX_U32         ulPPType;
-  OMX_BOOL        useHighPrecIdctQp1;
+  OMX_U32        ulPPType;
 }MP4VDEC_UALGDynamicParams;
 
 #ifdef VIDDEC_SPARK_CODE 

@@ -344,34 +344,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     }
     
     pComponentPrivate->sDeviceString = malloc(100*sizeof(OMX_STRING));
-    if (pComponentPrivate->sDeviceString == NULL) {
-	/* Free previously allocated memory before bailing */
-	if (pcm_ip) {
-	    G722ENC_MEMPRINT("%d:::[FREE] %p\n", __LINE__, pcm_ip);
-	    free(pcm_ip);
-	    pcm_ip = NULL;
-	}
-
-	if (pcm_op) {
-	    G722ENC_MEMPRINT("%d:::[FREE] %p\n", __LINE__, pcm_op);
-	    free(pcm_op);
-	    pcm_op = NULL;
-	}
-
-	if (pComponentPrivate->pInputBufferList) {
-	    G722ENC_MEMPRINT("%d:::[FREE] %p\n", __LINE__, pComponentPrivate->pInputBufferList);
-	    free(pComponentPrivate->pInputBufferList);
-	    pComponentPrivate->pInputBufferList = NULL;
-	}
-
-	if (pHandle->pComponentPrivate) {
-	    G722ENC_MEMPRINT("%d:::[FREE] %p\n", __LINE__, pHandle->pComponentPrivate);
-	    free(pHandle->pComponentPrivate);
-	    pHandle->pComponentPrivate = NULL;
-	}
-	eError = OMX_ErrorInsufficientResources;
-	goto EXIT;
-    }
     memset (pComponentPrivate->sDeviceString, 0, 100*sizeof(OMX_STRING));
     strcpy((char*)pComponentPrivate->sDeviceString,"/eteedn:i0:o0/codec\0");
     pComponentPrivate->pInputBufferList->numBuffers = 0; /* initialize number of buffers */
@@ -511,6 +483,12 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
         G722ENC_DPRINT("%d :: malloc failed\n",__LINE__);
         /* Free previously allocated memory before bailing */
 
+        if (pHandle->pComponentPrivate) {
+            G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pHandle->pComponentPrivate);
+            free(pHandle->pComponentPrivate);
+            pHandle->pComponentPrivate = NULL;
+        }
+
         if (pcm_ip) {
             G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pcm_ip);
             free(pcm_ip);
@@ -534,12 +512,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
             free(pComponentPrivate->pOutputBufferList);
             pComponentPrivate->pOutputBufferList = NULL;
         }
-
-	if (pHandle->pComponentPrivate) {
-	    G722ENC_MEMPRINT("%d:::[FREE] %p\n", __LINE__, pHandle->pComponentPrivate);
-	    free(pHandle->pComponentPrivate);
-	    pHandle->pComponentPrivate = NULL;
-	}
 
         if (pPortDef_ip) {
             G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,pPortDef_ip);
@@ -788,17 +760,13 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
     G722ENC_DPRINT ("%d :: Entering the GetParameter():: %x\n",__LINE__,nParamIndex);
 
     pComponentPrivate = (G722ENC_COMPONENT_PRIVATE *)(((OMX_COMPONENTTYPE*)hComp)->pComponentPrivate);
-    if (pComponentPrivate == NULL) {
-	eError = OMX_ErrorBadParameter;
-	goto EXIT;
-    }
+    pParameterStructure = (OMX_PARAM_PORTDEFINITIONTYPE*)ComponentParameterStructure;
 
-    pParameterStructure = (OMX_PARAM_PORTDEFINITIONTYPE *)ComponentParameterStructure;
     if (pParameterStructure == NULL) {
         eError = OMX_ErrorBadParameter;
         goto EXIT;
-    }
 
+    }
     if(pComponentPrivate->curState == OMX_StateInvalid) {
         pComponentPrivate->cbInfo.EventHandler(
                                                hComp,
@@ -813,7 +781,12 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
     switch(nParamIndex){
     case OMX_IndexParamAudioInit:
         G722ENC_DPRINT ("OMX_IndexParamAudioInit\n");
-	memcpy(ComponentParameterStructure, &pComponentPrivate->sPortParam, sizeof(OMX_PORT_PARAM_TYPE));
+        if (pComponentPrivate != NULL) {
+            memcpy(ComponentParameterStructure, &pComponentPrivate->sPortParam, sizeof(OMX_PORT_PARAM_TYPE));
+        }
+        else {
+            eError = OMX_ErrorBadParameter;
+        }
         break;
 
     case OMX_IndexParamPortDefinition:
@@ -868,10 +841,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
     case OMX_IndexParamAudioAdpcm:
         if(((OMX_AUDIO_PARAM_ADPCMTYPE *)(ComponentParameterStructure))->nPortIndex ==
            G722ENC_INPUT_PORT) {
-	    if (pComponentPrivate->pcmParams == NULL) {
-                eError = OMX_ErrorBadParameter;
-		break;
-	    }
             memcpy(ComponentParameterStructure,
                    pComponentPrivate->pcmParams,
                    sizeof(OMX_AUDIO_PARAM_ADPCMTYPE)
@@ -879,10 +848,7 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
         } 
         else if(((OMX_AUDIO_PARAM_ADPCMTYPE *)(ComponentParameterStructure))->nPortIndex ==
                 G722ENC_OUTPUT_PORT) {
-	    if (pComponentPrivate->g722Params == NULL) {
-                eError = OMX_ErrorBadParameter;
-		break;
-	    }
+
             memcpy(ComponentParameterStructure,
                    pComponentPrivate->g722Params,
                    sizeof(OMX_AUDIO_PARAM_ADPCMTYPE)
@@ -895,10 +861,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
         break;
         
     case OMX_IndexParamPriorityMgmt:
-	if (pComponentPrivate->sPriorityMgmt == NULL) {
-             eError = OMX_ErrorBadParameter;
-	     break;
-	}
         memcpy(ComponentParameterStructure,
                pComponentPrivate->sPriorityMgmt,
                sizeof(OMX_PRIORITYMGMTTYPE));
@@ -1033,10 +995,6 @@ static OMX_ERRORTYPE SetParameter (
         break;
     case OMX_IndexParamPriorityMgmt:
         if (pComponentPrivate->curState == OMX_StateLoaded){
-	    if (pComponentPrivate->sPriorityMgmt == NULL) {
-                eError = OMX_ErrorBadParameter;
-	        break;
-	    }
             memcpy(pComponentPrivate->sPriorityMgmt,
                    (OMX_PRIORITYMGMTTYPE*)ComponentParameterStructure,
                    sizeof(OMX_PRIORITYMGMTTYPE));
@@ -1173,7 +1131,6 @@ static OMX_ERRORTYPE GetConfig (OMX_HANDLETYPE hComp,
  EXIT:
     if(streamInfo)
     {
-        G722ENC_MEMPRINT("%d:::[FREE] %p\n",__LINE__,streamInfo);
         free(streamInfo);
         streamInfo = NULL;
     }
@@ -1195,8 +1152,9 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
                                 OMX_PTR ComponentConfigStructure)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    G722ENC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
     OMX_COMPONENTTYPE* pHandle = (OMX_COMPONENTTYPE*)hComp;
+    G722ENC_COMPONENT_PRIVATE *pComponentPrivate =
+        (G722ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     TI_OMX_DSP_DEFINITION* pDspDefinition = NULL;
     OMX_AUDIO_CONFIG_VOLUMETYPE *pGainStructure = NULL;
     OMX_S16 *customFlag = NULL;
@@ -1209,7 +1167,6 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
-    pComponentPrivate = (G722ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     G722ENC_DPRINT("Entering setConfig Switch statements\n");
     switch (nConfigIndex) 
     {

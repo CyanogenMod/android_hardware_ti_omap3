@@ -26,10 +26,7 @@
 #include <OMX_TI_Debug.h>
 #include "LCML_DspCodec.h"
 #include "OMX_AacEncoder.h"
-
-#ifdef RESOURCE_MANAGER_ENABLED
-#include <ResourceManagerProxyAPI.h>
-#endif
+/* #include <ResourceManagerProxyAPI.h> */
 
 #define AACENC_MAJOR_VER 0x0001
 #define AACENC_MINOR_VER 0x0001
@@ -54,6 +51,9 @@
 /* PV opencore capability custom parameter index */
     #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
 #endif
+
+#define EXTRA_BYTES 128 
+#define DSP_CACHE_ALIGNMENT 256 
 
 #ifdef __PERF_INSTRUMENTATION__
     #include "perf.h"
@@ -82,6 +82,30 @@
     _eError = _eCode;               \
     goto OMX_CONF_CMD_BAIL;         \
 }
+
+#define OMX_MALLOC_STRUCT(_pStruct_, _sName_)   \
+    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));   \
+    if(_pStruct_ == NULL){  \
+        eError = OMX_ErrorInsufficientResources;    \
+        goto EXIT;  \
+    } \
+    memset(_pStruct_,0,sizeof(_sName_));
+    
+#define OMX_MALLOC_STRUCT_SIZE(_ptr_, _size_,_name_)    \
+    _ptr_ = (_name_ *)newmalloc(_size_);    \
+    if(_ptr_ == NULL){  \
+        eError = OMX_ErrorInsufficientResources;    \
+        goto EXIT;  \
+    } \
+    memset(_ptr_,0,_size_);
+    
+    
+#define OMX_MEMFREE_STRUCT(_pStruct_)\
+    OMXDBG_PRINT(stderr, PRINT, 2, OMX_DBG_BASEMASK, "%d :: FREEING MEMORY = %p\n",__LINE__,_pStruct_);\
+    if(_pStruct_ != NULL){\
+        newfree(_pStruct_);\
+        _pStruct_ = NULL;\
+    }
 
 #define OMX_CLOSE_PIPE(_pStruct_,err)\
     OMXDBG_PRINT(stderr, PRINT, 2, OMX_DBG_BASEMASK, "%d :: CLOSING PIPE \n",__LINE__);\
@@ -333,10 +357,7 @@ typedef struct AACENC_COMPONENT_PRIVATE
     
     OMX_PRIORITYMGMTTYPE* sPriorityMgmt;
     
-#ifdef RESOURCE_MANAGER_ENABLED
-    RMPROXY_CALLBACKTYPE rmproxyCallback;
-#endif
-
+/*  RMPROXY_CALLBACKTYPE rmproxyCallback; */
     OMX_BOOL bPreempted;
     
     OMX_AUDIO_PARAM_PORTFORMATTYPE sInPortFormat;
@@ -373,6 +394,9 @@ typedef struct AACENC_COMPONENT_PRIVATE
     int cmdPipe[2];
     /** The pipes for sending buffers to the thread */
     int cmdDataPipe[2];
+
+    /** The pipes for sending buffers to the thread */
+  /*  int lcml_Pipe[2];  */
 
     /** Set to indicate component is stopping */
     OMX_U32 bIsStopping;
@@ -542,7 +566,7 @@ typedef struct AACENC_COMPONENT_PRIVATE
     pthread_cond_t codecFlush_threshold;
     OMX_U8 codecFlush_waitingsignal;
 
-    pthread_mutex_t InLoaded_mutex;
+pthread_mutex_t InLoaded_mutex;
     pthread_cond_t InLoaded_threshold;
     OMX_U8 InLoaded_readytoidle;
     
@@ -644,6 +668,7 @@ OMX_U32 AACENC_IsPending(AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFFER
 *          OMX Error code = Error
 */
 /*================================================================== */
+/*OMX_ERRORTYPE AACENC_TransitionToIdle(AACENC_COMPONENT_PRIVATE *pComponentPrivate); */
 
 OMX_ERRORTYPE AACENC_TransitionToPause(AACENC_COMPONENT_PRIVATE *pComponentPrivate);
 
@@ -651,9 +676,7 @@ OMX_ERRORTYPE AACENCFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent);
 
 OMX_ERRORTYPE AACENCWriteConfigHeader(AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFFERHEADERTYPE *pBufHdr);
 
-#ifdef RESOURCE_MANAGER_ENABLED
-void AACENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
-#endif
+/* void AACENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData); */
 
 #ifndef UNDER_CE
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
@@ -672,16 +695,6 @@ OMX_ERRORTYPE AACENC_FreeCompResources(OMX_HANDLETYPE pComponent);
 
 OMX_ERRORTYPE AddStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE RemoveStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
-
-/*  =========================================================================*/
-/*  func    AACENC_HandleUSNError
-/*
-/*  desc    Handles error messages returned by the dsp
-/*
-/*@return n/a
-/*
-/*  =========================================================================*/
-void AACENC_HandleUSNError (AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
 
 #endif

@@ -21,16 +21,11 @@
 #include "oscl_base.h"
 #include "oscl_types.h"
 
-#include <utils/Log.h>
-#define LOG_TAG "TI_Parser_Utils"
-
 #define USE_LATER 0  // for some code that will be needed in the future
 
 #define MP4_INVALID_VOL_PARAM -1
 #define SHORT_HEADER_MODE -4
 
-#define WVGA_MAX_WIDTH 900
-#define WVGA_MAX_HEIGHT WVGA_MAX_WIDTH
 
 #define VISUAL_OBJECT_SEQUENCE_START_CODE 	0x01B0
 #define VISUAL_OBJECT_SEQUENCE_END_CODE 	0x01B1
@@ -56,7 +51,6 @@
 #define H264_PROFILE_IDC_BASELINE 66
 #define H264_PROFILE_IDC_MAIN 77
 #define H264_PROFILE_IDC_EXTENDED 88
-#define H264_PROFILE_IDC_HIGH 100
 
 typedef struct
 {
@@ -121,8 +115,7 @@ int16 DecodeUserData(mp4StreamType *pStream);
 		int32 *, 
 		int32 *, 
 		int32 *profile, 
-		int32 *level,
-		uint32 *entropy_coding_mode_flag);
+		int32 *level);
 
 int32 FindNAL(uint8** nal_pnt, uint8* buffer, int32 length);
 int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc);
@@ -130,7 +123,7 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
 int32 DecodeHRD(mp4StreamType *psBits);
 int32 DecodeVUI(mp4StreamType *psBits);
 #endif
-int32 DecodePPS(mp4StreamType *psBits, uint32 *entropy_coding_mode_flag);
+int32 DecodePPS(mp4StreamType *psBits);
 
 void ue_v(mp4StreamType *psBits, uint32 *codeNum);
 void se_v(mp4StreamType *psBits, int32 *value);

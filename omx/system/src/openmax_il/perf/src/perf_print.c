@@ -371,8 +371,8 @@ void __print_Command(FILE *fOut,
 			me->csv ? "," : "(",
 			ulArgument,
             me->csv ? "," : ") = ",
-            (ulCommand != PERF_CommandStatus  ?
-             "INVALID" : PERF_CommandTypes[ulCommand]),			
+            (ulCommand < PERF_CommandMax  ?
+             PERF_CommandTypes[ulCommand] : "INVALID"),			
             me->csv ? "" : ")");
 
     print_print_location(perf, fOut, 5);

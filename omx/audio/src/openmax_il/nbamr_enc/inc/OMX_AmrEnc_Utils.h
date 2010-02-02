@@ -65,10 +65,7 @@
 #include "OMX_TI_Common.h"
 #include "OMX_TI_Debug.h"
 #include <TIDspOmx.h>
-
-#ifdef RESOURCE_MANAGER_ENABLED
-#include <ResourceManagerProxyAPI.h>
-#endif
+/* #include <ResourceManagerProxyAPI.h> */
 
 #ifdef __PERF_INSTRUMENTATION__
     #include "perf.h"
@@ -225,6 +222,14 @@
     (_s_)->nVersion.s.nRevision = 0x0;      \
     (_s_)->nVersion.s.nStep = 0x0
 
+#define OMX_NBMEMFREE_STRUCT(_pStruct_)\
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: [FREE] %p\n",__LINE__,_pStruct_);\
+    if(_pStruct_ != NULL){\
+        newfree(_pStruct_);\
+        _pStruct_ = NULL;\
+    }
+
+
 #define OMX_NBCLOSE_PIPE(_pStruct_,err)\
     OMXDBG_PRINT(stderr, COMM, 2, OMX_DBG_BASEMASK, "%d :: CLOSING PIPE \n",__LINE__); \
     err = close (_pStruct_);\
@@ -234,6 +239,32 @@
         goto EXIT;\
     }
 
+#define NBAMRENC_OMX_MALLOC(_pStruct_, _sName_)   \
+    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));      \
+    if(_pStruct_ == NULL){      \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
+        eError = OMX_ErrorInsufficientResources; \
+        goto EXIT;      \
+    } \
+    memset(_pStruct_,0,sizeof(_sName_));\
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
+
+
+
+#define NBAMRENC_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)   \
+    _ptr_ = (_name_ *)newmalloc(_size_);      \
+    if(_ptr_ == NULL){      \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__); \
+        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
+        eError = OMX_ErrorInsufficientResources; \
+        goto EXIT;      \
+    } \
+    memset(_ptr_,0,_size_); \
+    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_ptr_);
+
 #define NBAMRENC_OMX_ERROR_EXIT(_e_, _c_, _s_)\
     _e_ = _c_;\
     OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n**************** OMX ERROR ************************\n");\
@@ -241,6 +272,24 @@
     OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n**************** OMX ERROR ************************\n");\
     goto EXIT;
 
+#define NBAMRENC_OMX_FREE(ptr) \
+    if(NULL != ptr) { \
+        OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Freeing Address = %p\n",__LINE__,ptr); \
+        newfree(ptr); \
+        ptr = NULL; \
+    }
+    
+
+/* ======================================================================= */
+/**
+ * @def EXTRA_BYTES      Extra bytes For Cache alignment
+ *      DSP_CACHE_ALIGNMENT    Cache alignment value
+ */
+/* ======================================================================= */
+
+#define EXTRA_BYTES 128 
+#define DSP_CACHE_ALIGNMENT 256 
+    
 /* ======================================================================= */
 /**
  * @def NBAMRENC_NUM_INPUT_BUFFERS   Default number of input buffers
@@ -597,23 +646,23 @@ typedef struct NBAMRENC_AudioCodecParams {
 /* =================================================================================== */
 /**
 * NBAMRENC_TALGCtrl                 Socket Node Alg Control parameters.
-* NBAMRENC_TALGCtrlDTX                 Socket Node Alg Control parameters (DTX).
 * NBAMRENC_UAlgInBufParamStruct     Input Buffer Param Structure
 * NBAMRENC_UAlgOutBufParamStruct    Output Buffer Param Structure
 */
 /* =================================================================================== */
 /* Algorithm specific command parameters */
 typedef struct {
-    int iSize;
+    unsigned int iSize;
     unsigned int iBitrate;
-
+    unsigned int iDTX;
+    unsigned int iMode;
+    unsigned int iFrameSize;
+    unsigned int iNoiseSuppressionMode;
+    unsigned int ittyTddMode;
+    unsigned int idtmfMode;
+    unsigned int idataTransmit;
 }NBAMRENC_TALGCtrl;
 
-typedef struct {
-    int iSize;
-    unsigned int iVADFlag;
-
-}NBAMRENC_TALGCtrlDTX;
 /* =================================================================================== */
 /**
 * NBAMRENC_UAlgInBufParamStruct     Input Buffer Param Structure
@@ -714,10 +763,7 @@ typedef struct AMRENC_COMPONENT_PRIVATE
     OMX_PORT_PARAM_TYPE* sPortParam;
     OMX_PRIORITYMGMTTYPE* sPriorityMgmt;
     
-#ifdef RESOURCE_MANAGER_ENABLED
-    RMPROXY_CALLBACKTYPE rmproxyCallback;
-#endif
-
+    /* RMPROXY_CALLBACKTYPE rmproxyCallback; */
     OMX_BOOL bPreempted;
     
     OMX_PARAM_PORTDEFINITIONTYPE* pPortDef[NBAMRENC_NUM_OF_PORTS];
@@ -752,9 +798,9 @@ typedef struct AMRENC_COMPONENT_PRIVATE
 
     OMX_U32 nMultiFrameMode;
 
-    OMX_S32 fdwrite;
+    OMX_U32 fdwrite;
 
-    OMX_S32 fdread;
+    OMX_U32 fdread;
 
     /** Set to indicate component is stopping */
     OMX_U32 bIsStopping;
@@ -822,8 +868,6 @@ typedef struct AMRENC_COMPONENT_PRIVATE
     LCML_STRMATTR *strmAttr;
 
     NBAMRENC_TALGCtrl *pAlgParam;
-
-    NBAMRENC_TALGCtrlDTX *pAlgParamDTX;
 
     NBAMRENC_AudioCodecParams *pParams;
 
@@ -933,6 +977,8 @@ typedef struct AMRENC_COMPONENT_PRIVATE
     OMX_U32 nPendingStateChangeRequests;
     pthread_mutex_t mutexStateChangeRequest;
     pthread_cond_t StateChangeCondition;
+
+
 } AMRENC_COMPONENT_PRIVATE;
 
 
@@ -1195,9 +1241,9 @@ OMX_U32 NBAMRENC_IsValid(AMRENC_COMPONENT_PRIVATE *pComponentPrivate,
                          OMX_U8 *pBuffer,
                          OMX_DIRTYPE eDir);
 
-#ifdef RESOURCE_MANAGER_ENABLED
-void NBAMRENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
-#endif
+                         
+/* void NBAMRENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData); */
+
 /* ======================================================================= */
 /** OMX_NBAMRENC_INDEXAUDIOTYPE  Defines the custom configuration settings
 *                              for the component
@@ -1216,11 +1262,8 @@ typedef enum OMX_NBAMRENC_INDEXAUDIOTYPE {
 
 OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf, struct OMX_TI_Debug dbg);
 OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr, struct OMX_TI_Debug dbg);
-
-void NBAMRENC_HandleUSNError (AMRENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 OMX_ERRORTYPE AddStateTransition(AMRENC_COMPONENT_PRIVATE *pComponentPrivate);
 OMX_ERRORTYPE RemoveStateTransition(AMRENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BOOL bEnableSignal);
-
 /*===============================================================*/
 
 typedef enum {

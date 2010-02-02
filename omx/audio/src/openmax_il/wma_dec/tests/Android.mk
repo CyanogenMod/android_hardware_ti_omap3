@@ -1,4 +1,5 @@
 ifeq ($(BUILD_WMA_DEC_TEST),1)
+
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)

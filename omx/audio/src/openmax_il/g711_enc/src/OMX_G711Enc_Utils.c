@@ -481,8 +481,6 @@ OMX_ERRORTYPE G711ENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     OMX_U32 i = 0;
     OMX_U8* pParmsTemp = NULL;
     G711ENC_LCML_BUFHEADERTYPE *pTemp_lcml = NULL;
-    OMX_U8 *pBufParmsTemp = NULL;
-    OMX_U8 *pFrameParmsTemp = NULL;
     OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pComponent;
     G711ENC_COMPONENT_PRIVATE *pComponentPrivate = (G711ENC_COMPONENT_PRIVATE *)
         pHandle->pComponentPrivate;
@@ -502,13 +500,6 @@ OMX_ERRORTYPE G711ENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     nIpBuf = pComponentPrivate->nRuntimeInputBuffers;
     for(i=0; i<nIpBuf; i++) {
         OMX_G711ENC_MEMFREE_STRUCT(pTemp_lcml->pIpParam);
-        pBufParmsTemp = (OMX_U8*)pTemp_lcml->pBufferParam; 
-        pBufParmsTemp -=EXTRA_BYTES;
-        OMX_G711ENC_MEMFREE_STRUCT(pBufParmsTemp);
-        OMX_G711ENC_MEMFREE_STRUCT(pTemp_lcml->pDmmBuf);
-        pFrameParmsTemp = (OMX_U8*)pTemp_lcml->pFrameParam; 
-        pFrameParmsTemp -=EXTRA_BYTES;
-        OMX_G711ENC_MEMFREE_STRUCT(pFrameParmsTemp); 
         pTemp_lcml++;
     }
 
@@ -516,11 +507,6 @@ OMX_ERRORTYPE G711ENC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     nOpBuf =  pComponentPrivate->nRuntimeOutputBuffers;
     for(i=0; i<nOpBuf; i++) {
         OMX_G711ENC_MEMFREE_STRUCT(pTemp_lcml->pOpParam);
-        OMX_G711ENC_MEMFREE_STRUCT(pTemp_lcml->pBufferParam);
-        OMX_G711ENC_MEMFREE_STRUCT(pTemp_lcml->pDmmBuf);
-        pBufParmsTemp = (OMX_U8*)pTemp_lcml->pFrameParam; 
-        pBufParmsTemp -=EXTRA_BYTES;
-        OMX_G711ENC_MEMFREE_STRUCT(pBufParmsTemp);
         pTemp_lcml++;
     }
 
@@ -1405,10 +1391,8 @@ OMX_ERRORTYPE G711ENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
     OMX_U8 nFrames = 0,i = 0;
     LCML_DSP_INTERFACE * phandle = NULL;
     OMX_U8* pBufParmsTemp = NULL;
-
-    OMX_U32 frameLength_in;
-    OMX_U32 frameLength_out;
-
+    OMX_U32 frameLength = 0;
+    
     LCML_DSP_INTERFACE *pLcmlHandle = (LCML_DSP_INTERFACE *) pComponentPrivate->pLcmlHandle;
     G711ENC_DPRINT ("%d :: Entering G711ENC_HandleDataBufFromApp Function\n",__LINE__);
     /*Find the direction of the received buffer from buffer list */
@@ -1432,22 +1416,9 @@ OMX_ERRORTYPE G711ENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                     G711ENC_DPRINT("%d :: Error: Invalid Buffer Came ...\n",__LINE__);
                     goto EXIT;
                 }
-                switch (pComponentPrivate->frametype) {
-                case 0:
-                  frameLength_in = G711ENC_INPUT_FRAME_SIZE;
-                  break;
-                case 1:
-                  frameLength_in = G711ENC_INPUT_FRAME_SIZE_20MS;
-                  break;
-                case 2:
-                  frameLength_in = G711ENC_INPUT_FRAME_SIZE_30MS;
-                  break;
-                default:
-                  frameLength_in = G711ENC_INPUT_FRAME_SIZE;
-                  break;
-                }
-
-                nFrames = (OMX_U8)(pBufHeader->nFilledLen / frameLength_in);
+                
+                frameLength = G711ENC_INPUT_FRAME_SIZE;  
+                nFrames = (OMX_U8)(pBufHeader->nFilledLen / frameLength);
                 pComponentPrivate->nNumOfFramesSent = nFrames;
                 phandle = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)pLcmlHandle->pCodecinterfacehandle)->pCodec);
 
@@ -1585,21 +1556,6 @@ OMX_ERRORTYPE G711ENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             goto EXIT;
         }
 
-        switch (pComponentPrivate->frametype) {
-        case 0:
-          frameLength_out = G711ENC_OUTPUT_FRAME_SIZE;
-          break;
-        case 1:
-          frameLength_out = G711ENC_OUTPUT_FRAME_SIZE_20MS;
-          break;
-        case 2:
-          frameLength_out = G711ENC_OUTPUT_FRAME_SIZE_30MS;
-          break;
-        default:
-          frameLength_out = G711ENC_OUTPUT_FRAME_SIZE;
-          break;
-        }
-
         phandle = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)pLcmlHandle->pCodecinterfacehandle)->pCodec);
 
         if( (pLcmlHdr->pBufferParam->usNbFrames < nFrames) && 
@@ -1652,7 +1608,7 @@ OMX_ERRORTYPE G711ENC_HandleDataBufFromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                         eError = LCML_QueueBuffer( pLcmlHandle->pCodecinterfacehandle,
                                                    EMMCodecOuputBuffer,
                                                    (OMX_U8 *)pBufHeader->pBuffer,
-                                                   frameLength_out * nFrames,
+                                                   G711ENC_OUTPUT_FRAME_SIZE * nFrames,
                                                    0,
                                                    (OMX_U8 *) pLcmlHdr->pBufferParam,
                                                    sizeof(G711ENC_ParamStruct),
@@ -2649,35 +2605,4 @@ OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResP
     return eError;
 }
 
-#ifdef RESOURCE_MANAGER_ENABLED
-/***********************************
- *  Callback to the RM                                       *
- ***********************************/
-void G711ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
-{
-    OMX_COMMANDTYPE Cmd = OMX_CommandStateSet;
-    OMX_STATETYPE state = OMX_StateIdle;
-    OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)cbData.hComponent;
-    G711ENC_COMPONENT_PRIVATE *pCompPrivate = NULL;
-
-    pCompPrivate = (G711ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
-
-    if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesPreempted){
-        if (pCompPrivate->curState == OMX_StateExecuting || 
-            pCompPrivate->curState == OMX_StatePause) {
-
-            write (pCompPrivate->cmdPipe[1], &Cmd, sizeof(Cmd));
-            write (pCompPrivate->cmdDataPipe[1], &state ,sizeof(OMX_U32));
-
-            pCompPrivate->bPreempted = 1;
-        }
-    }
-    else if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesAcquired){
-        pCompPrivate->cbInfo.EventHandler ( pHandle, 
-                                            pHandle->pApplicationPrivate,
-                                            OMX_EventResourcesAcquired, 
-                                            0, 0, NULL);
-    }
-}
-#endif
 

@@ -209,7 +209,7 @@ static OMX_ERRORTYPE JPEGENC_FreeBuffer(OMX_IN  OMX_HANDLETYPE hComponent,
     } 
     else {
             eError = OMX_ErrorBadPortIndex;
-            goto PRINT_EXIT;
+            goto EXIT;
     }
 
     if (pBuffPrivate->bAllocByComponent == OMX_TRUE) {
@@ -269,9 +269,9 @@ static OMX_ERRORTYPE JPEGENC_FreeBuffer(OMX_IN  OMX_HANDLETYPE hComponent,
         }
     }
 
-PRINT_EXIT:
-    OMX_PRINT1(pComponentPrivate->dbg, "Exit from FreeBuffer\n");
 EXIT:
+    OMX_PRINT1(pComponentPrivate->dbg, "Exit from FreeBuffer\n");
+
     return eError;
 }
 
@@ -524,22 +524,13 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
     pComponentPrivate->bSetHuffmanTable = OMX_FALSE;
     pComponentPrivate->bSetLumaQuantizationTable = OMX_FALSE;
     pComponentPrivate->bSetChromaQuantizationTable = OMX_FALSE;    
-    pComponentPrivate->bConvert420pTo422i = OMX_FALSE;
-#ifdef __JPEG_OMX_PPLIB_ENABLED__
-    pComponentPrivate->bPPLibEnable = OMX_TRUE;
-#else
-    pComponentPrivate->bPPLibEnable = OMX_FALSE;
-#endif
-
+    
     pComponentPrivate->InParams.pInParams = NULL;
     pComponentPrivate->InParams.size = 0;   
     pComponentPrivate->bPreempted = OMX_FALSE;
-
 #ifdef __JPEG_OMX_PPLIB_ENABLED__
     pComponentPrivate->pOutParams = NULL;
 #endif
-
-
     OMX_MALLOC(pComponentPrivate->pDynParams, sizeof(IDMJPGE_TIGEM_DynamicParams)+256);
     if (!pComponentPrivate->pDynParams) {
         eError = OMX_ErrorInsufficientResources;
@@ -697,6 +688,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
        return OMX_ErrorUndefined;
     }
     pComponentPrivate->nPendingStateChangeRequests = 0;
+
 
 #ifdef RESOURCE_MANAGER_ENABLED
     /* load the ResourceManagerProxy thread */
@@ -865,10 +857,12 @@ static OMX_ERRORTYPE JPEGENC_SendCommand (
 
     switch ( Cmd ) {
     case OMX_CommandStateSet:
+
          /* Add a pending transition */
          if(AddStateTransition(pCompPrivate) != OMX_ErrorNone) {
              return OMX_ErrorUndefined;
          }
+
         eCmd = SetState;
         pCompPrivate->nToState = nParam;
         break;
@@ -1010,7 +1004,7 @@ static OMX_ERRORTYPE JPEGENC_GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
 
     if ( pComponentPrivate->nCurState == OMX_StateInvalid ) {
         eError = OMX_ErrorInvalidState;
-        goto PRINT_EXIT;
+        goto EXIT;
     }
     pInpPortType = pComponentPrivate->pCompPort[JPEGENC_INP_PORT];
     pOutPortType = pComponentPrivate->pCompPort[JPEGENC_OUT_PORT];
@@ -1132,9 +1126,9 @@ static OMX_ERRORTYPE JPEGENC_GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
         eError = OMX_ErrorUnsupportedIndex;
         break;
     }
-PRINT_EXIT:
-    OMX_PRINT1(pComponentPrivate->dbg, "Exit function eError = %x\n", eError);
+
 EXIT:
+    OMX_PRINT1(pComponentPrivate->dbg, "Exit function eError = %x\n", eError);
     return eError;
 
 }
@@ -1181,21 +1175,19 @@ static OMX_ERRORTYPE JPEGENC_SetParameter (OMX_HANDLETYPE hComponent,
 
     pInpPortType = pComponentPrivate->pCompPort[JPEGENC_INP_PORT];
     pOutPortType = pComponentPrivate->pCompPort[JPEGENC_OUT_PORT];
-    OMX_CHECK_PARAM(pInpPortType);
-    OMX_CHECK_PARAM(pOutPortType);
 
     switch ( nParamIndex ) {
     case OMX_IndexParamImagePortFormat:
     {
         OMX_IMAGE_PARAM_PORTFORMATTYPE* pComponentParam = (OMX_IMAGE_PARAM_PORTFORMATTYPE *)pCompParam;
-        OMX_MEMCPY_CHECK(pInpPortType->pPortFormat);
-        OMX_MEMCPY_CHECK(pOutPortType->pPortFormat);
         if ( pComponentParam->nPortIndex == pInpPortType->pPortFormat->nPortIndex )
         {
             memcpy(pInpPortType->pPortFormat, pComponentParam, sizeof(OMX_IMAGE_PARAM_PORTFORMATTYPE));
+            OMX_MEMCPY_CHECK(pInpPortType->pPortFormat);
         } 
         else if ( pComponentParam->nPortIndex == pOutPortType->pPortFormat->nPortIndex ) {
             memcpy(pOutPortType->pPortFormat, pComponentParam, sizeof(OMX_IMAGE_PARAM_PORTFORMATTYPE));
+            OMX_MEMCPY_CHECK(pOutPortType->pPortFormat);
         }
         else {
              eError = OMX_ErrorBadPortIndex;
@@ -1204,20 +1196,20 @@ static OMX_ERRORTYPE JPEGENC_SetParameter (OMX_HANDLETYPE hComponent,
     }
     case OMX_IndexParamImageInit:
     {
-        OMX_MEMCPY_CHECK(pComponentPrivate->pPortParamType);
         memcpy(pComponentPrivate->pPortParamType, (OMX_PORT_PARAM_TYPE*)pCompParam, sizeof(OMX_PORT_PARAM_TYPE));
+        OMX_MEMCPY_CHECK(pComponentPrivate->pPortParamType);
         break;
     }
     case OMX_IndexParamPortDefinition:
     {
         OMX_PARAM_PORTDEFINITIONTYPE* pComponentParam = (OMX_PARAM_PORTDEFINITIONTYPE *)pCompParam;
-        OMX_MEMCPY_CHECK(pInpPortType->pPortDef);
-        OMX_MEMCPY_CHECK(pOutPortType->pPortDef);
         if ( pComponentParam->nPortIndex == pInpPortType->pPortDef->nPortIndex ) {
             memcpy(pInpPortType->pPortDef, pComponentParam, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+            OMX_MEMCPY_CHECK(pInpPortType->pPortDef);
         } 
         else if ( pComponentParam->nPortIndex == pOutPortType->pPortDef->nPortIndex ) {
             memcpy(pOutPortType->pPortDef, pComponentParam, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+            OMX_MEMCPY_CHECK(pOutPortType->pPortDef);
         } 
         else {
             eError = OMX_ErrorBadPortIndex;
@@ -1226,14 +1218,14 @@ static OMX_ERRORTYPE JPEGENC_SetParameter (OMX_HANDLETYPE hComponent,
     }
     case OMX_IndexParamPriorityMgmt:
     {
-        OMX_MEMCPY_CHECK(pComponentPrivate->pPriorityMgmt);
         memcpy(pComponentPrivate->pPriorityMgmt, (OMX_PRIORITYMGMTTYPE*)pCompParam, sizeof(OMX_PRIORITYMGMTTYPE));
+        OMX_MEMCPY_CHECK(pComponentPrivate->pPriorityMgmt);
         break;
     }
     case OMX_IndexParamQFactor:
     {           
-        OMX_MEMCPY_CHECK(pComponentPrivate->pQualityfactor);
         memcpy(pComponentPrivate->pQualityfactor, (OMX_IMAGE_PARAM_QFACTORTYPE*)pCompParam, sizeof(OMX_IMAGE_PARAM_QFACTORTYPE));
+        OMX_MEMCPY_CHECK(pComponentPrivate->pQualityfactor);
         break;
     }
     case OMX_IndexParamCompBufferSupplier:
@@ -1363,7 +1355,7 @@ static OMX_ERRORTYPE JPEGENC_SetConfig (OMX_HANDLETYPE hComp,
 {
     OMX_ERRORTYPE      eError   = OMX_ErrorNone;
     OMX_COMPONENTTYPE* pHandle  = NULL;
-    JPEGENC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
+    JPEGENC_COMPONENT_PRIVATE *pComponentPrivate;
     
     OMX_CHECK_PARAM(hComp);
 
@@ -1387,6 +1379,10 @@ static OMX_ERRORTYPE JPEGENC_SetConfig (OMX_HANDLETYPE hComp,
 	case OMX_IndexCustomAPP0:
 		{
 			JPEG_APPTHUMB_MARKER *pMarkerInfo = (JPEG_APPTHUMB_MARKER *) ComponentConfigStructure;
+			if (pMarkerInfo->nThumbnailHeight < 0 || pMarkerInfo->nThumbnailWidth < 0) {
+				eError = OMX_ErrorBadParameter;
+				goto EXIT;
+			}
 
 			if (pComponentPrivate->sAPP0.pMarkerBuffer != NULL) {
 					OMX_FREE(pComponentPrivate->sAPP0.pMarkerBuffer);
@@ -1407,6 +1403,10 @@ static OMX_ERRORTYPE JPEGENC_SetConfig (OMX_HANDLETYPE hComp,
 	case OMX_IndexCustomAPP1:
 		{
 			JPEG_APPTHUMB_MARKER *pMarkerInfo = (JPEG_APPTHUMB_MARKER *) ComponentConfigStructure;
+			if (pMarkerInfo->nThumbnailHeight < 0 || pMarkerInfo->nThumbnailWidth < 0) {
+				eError = OMX_ErrorBadParameter;
+				goto EXIT;
+			}
 
 			if (pComponentPrivate->sAPP1.pMarkerBuffer != NULL) {
 				OMX_FREE(pComponentPrivate->sAPP1.pMarkerBuffer);
@@ -1427,6 +1427,10 @@ static OMX_ERRORTYPE JPEGENC_SetConfig (OMX_HANDLETYPE hComp,
 	case OMX_IndexCustomAPP5:
 		{
 			JPEG_APPTHUMB_MARKER *pMarkerInfo = (JPEG_APPTHUMB_MARKER *) ComponentConfigStructure;
+			if (pMarkerInfo->nThumbnailHeight < 0 || pMarkerInfo->nThumbnailWidth < 0) {
+				eError = OMX_ErrorBadParameter;
+				goto EXIT;
+			}
 
 			if (pComponentPrivate->sAPP5.pMarkerBuffer != NULL) {
 				OMX_FREE(pComponentPrivate->sAPP5.pMarkerBuffer);
@@ -1513,8 +1517,8 @@ static OMX_ERRORTYPE JPEGENC_SetConfig (OMX_HANDLETYPE hComp,
     }
     case OMX_IndexCustomQFactor:
     {           
-        OMX_MEMCPY_CHECK(pComponentPrivate->pQualityfactor);
         memcpy(pComponentPrivate->pQualityfactor, (OMX_IMAGE_PARAM_QFACTORTYPE*)ComponentConfigStructure, sizeof(OMX_IMAGE_PARAM_QFACTORTYPE));
+        OMX_MEMCPY_CHECK(pComponentPrivate->pQualityfactor);
         break;
     }
     case OMX_IndexConfigCommonInputCrop :
@@ -1533,21 +1537,6 @@ static OMX_ERRORTYPE JPEGENC_SetConfig (OMX_HANDLETYPE hComp,
     case OMX_IndexCustomDebug:
         OMX_DBG_SETCONFIG(pComponentPrivate->dbg, ComponentConfigStructure);
 	break;
-
-	case OMX_IndexCustomColorFormatConvertion_420pTo422i :
-	{
-		pComponentPrivate->bConvert420pTo422i = *((OMX_BOOL*)ComponentConfigStructure);
-		break;
-	}
-
-	 case OMX_IndexCustomPPLibEnable :
-	{
-#ifdef __JPEG_OMX_PPLIB_ENABLED__
-		pComponentPrivate->bPPLibEnable = *((OMX_BOOL*)ComponentConfigStructure);
-#endif
-		break;
-	}
-
     default:
         eError = OMX_ErrorUnsupportedIndex;
         break;
@@ -1561,8 +1550,8 @@ static OMX_ERRORTYPE JPEGENC_SetConfig (OMX_HANDLETYPE hComp,
         }
     }
 
-    OMX_PRINT1(pComponentPrivate->dbg, "Inside JPEGENC_SetConfig function\n");
 EXIT:
+    OMX_PRINT1(pComponentPrivate->dbg, "Inside JPEGENC_SetConfig function\n");
     return eError;
 }
 
@@ -1583,6 +1572,7 @@ EXIT:
 /*-------------------------------------------------------------------*/
 static OMX_ERRORTYPE JPEGENC_GetState (OMX_HANDLETYPE hComponent, OMX_STATETYPE* pState)
 {
+
     OMX_ERRORTYPE eError                        = OMX_ErrorNone;
     OMX_COMPONENTTYPE* pHandle = NULL;
     JPEGENC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
@@ -1590,50 +1580,49 @@ static OMX_ERRORTYPE JPEGENC_GetState (OMX_HANDLETYPE hComponent, OMX_STATETYPE*
     int nPendingStateChangeRequests = 0;
     int ret = 0;
     /* Set to sufficiently high value */
-    int mutex_timeout = 3; 
+    int mutex_timeout = 3;
 
     if(hComponent == NULL || pState == NULL) {
         return OMX_ErrorBadParameter;
     }
 
-
     pHandle = (OMX_COMPONENTTYPE*)hComponent;
     pComponentPrivate = (JPEGENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate;
-    
+
     /* Retrieve current state */
     if (pHandle && pHandle->pComponentPrivate) {
-        /* Check for any pending state transition requests */ 
+        /* Check for any pending state transition requests */
         if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
             return OMX_ErrorUndefined;
         }
         nPendingStateChangeRequests = pComponentPrivate->nPendingStateChangeRequests;
         if(!nPendingStateChangeRequests) {
            if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
-               return OMX_ErrorUndefined; 
+               return OMX_ErrorUndefined;
            }
-           
+
            /* No pending state transitions */
 	   *pState = ((JPEGENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->nCurState;
             eError = OMX_ErrorNone;
         }
         else {
-       	   /* Wait for component to complete state transition */
+           /* Wait for component to complete state transition */
            clock_gettime(CLOCK_REALTIME, &abs_time);
-           abs_time.tv_sec += mutex_timeout; 
+           abs_time.tv_sec += mutex_timeout;
            abs_time.tv_nsec = 0;
-	   ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time); 
+           ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time);
            if (!ret) {
               /* Component has completed state transitions*/
               *pState = ((JPEGENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->nCurState;
               if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
-                 return OMX_ErrorUndefined; 
+                 return OMX_ErrorUndefined;
               }
               eError = OMX_ErrorNone;
            }
            else if(ret == ETIMEDOUT) {
               /* Unlock mutex in case of timeout */
               pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
-              return OMX_ErrorTimeout; 
+              return OMX_ErrorTimeout;
            }
         }
      }
@@ -1641,6 +1630,10 @@ static OMX_ERRORTYPE JPEGENC_GetState (OMX_HANDLETYPE hComponent, OMX_STATETYPE*
         eError = OMX_ErrorInvalidComponent;
         *pState = OMX_StateInvalid;
     }
+
+    return eError;
+
+EXIT:
     return eError;
 }
 
@@ -1667,13 +1660,12 @@ static OMX_ERRORTYPE JPEGENC_EmptyThisBuffer (OMX_HANDLETYPE pComponent,
     OMX_ERRORTYPE              eError            = OMX_ErrorNone;
     OMX_COMPONENTTYPE         *pHandle           = NULL;
     JPEGENC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
-    JPEGENC_BUFFER_PRIVATE    *pBuffPrivate = NULL;
+    JPEGENC_BUFFER_PRIVATE    *pBuffPrivate;
     OMX_HANDLETYPE             hTunnelComponent;
     int i;
     int ret;
 
     OMX_CHECK_PARAM(pComponent);
-    OMX_CHECK_PARAM(pBuffHead);
 
     pHandle = (OMX_COMPONENTTYPE *)pComponent;
     pComponentPrivate = (JPEGENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
@@ -1692,6 +1684,7 @@ static OMX_ERRORTYPE JPEGENC_EmptyThisBuffer (OMX_HANDLETYPE pComponent,
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
+
     if ( pBuffHead->nSize != sizeof(OMX_BUFFERHEADERTYPE) ) {
         eError = OMX_ErrorBadParameter;
         OMX_PRBUFFER4(pComponentPrivate->dbg, "JPEG-ENC: buffer header size is not correct\n");
@@ -1931,8 +1924,10 @@ static OMX_ERRORTYPE JPEGENC_ComponentDeInit(OMX_HANDLETYPE hComponent)
 	pHandle = (OMX_COMPONENTTYPE *)hComponent;
 	pComponentPrivate = (JPEGENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 	memcpy(&dbg, &(pComponentPrivate->dbg), sizeof(dbg));
+
         pthread_mutex_destroy(&pComponentPrivate->mutexStateChangeRequest);
         pthread_cond_destroy(&pComponentPrivate->StateChangeCondition);
+
 	JPEGEnc_Free_ComponentResources(pComponentPrivate);
 
 #ifdef RESOURCE_MANAGER_ENABLED
@@ -1947,6 +1942,8 @@ static OMX_ERRORTYPE JPEGENC_ComponentDeInit(OMX_HANDLETYPE hComponent)
 	}
 
 #endif
+
+
     
 EXIT:
 #if 0
@@ -2331,7 +2328,7 @@ static OMX_ERRORTYPE ComponentRoleEnum(
 
 /*-------------------------------------------------------------------*/
 /**
-  * JPEGENC_GetExtensionIndex() 
+  * JPEGENC_GetExtensionIndex()
   *
   * Return the index corresponding to the string.
   *
@@ -2341,31 +2338,27 @@ static OMX_ERRORTYPE ComponentRoleEnum(
 /*-------------------------------------------------------------------*/
 OMX_ERRORTYPE JPEGENC_GetExtensionIndex(OMX_IN OMX_HANDLETYPE hComponent, OMX_IN OMX_STRING cParameterName, OMX_OUT OMX_INDEXTYPE* pIndexType)
 {
-    OMX_U16 nIndex;
     OMX_ERRORTYPE eError = OMX_ErrorUndefined;
     JPEGENC_CUSTOM_PARAM_DEFINITION sJpegEncCustomParams[] = {
-    {"OMX.TI.JPEG.encoder.Config.HuffmanTable", OMX_IndexCustomHuffmanTable},    
-    {"OMX.TI.JPEG.encoder.Config.CommentFlag", OMX_IndexCustomCommentFlag},
-    {"OMX.TI.JPEG.encoder.Config.CommentString", OMX_IndexCustomCommentString},
-    {"OMX.TI.JPEG.encoder.Config.InputFrameWidth", OMX_IndexCustomInputFrameWidth},
-    {"OMX.TI.JPEG.encoder.Config.InputFrameHeight", OMX_IndexCustomInputFrameHeight},
-    {"OMX.TI.JPEG.encoder.Config.APP0", OMX_IndexCustomAPP0},
-    {"OMX.TI.JPEG.encoder.Config.APP1", OMX_IndexCustomAPP1},
-    {"OMX.TI.JPEG.encoder.Config.APP5", OMX_IndexCustomAPP5},
-    {"OMX.TI.JPEG.encoder.Config.APP13", OMX_IndexCustomAPP13},
-    {"OMX.TI.JPEG.encoder.Config.QFactor", OMX_IndexCustomQFactor},
-    {"OMX.TI.JPEG.encoder.Config.DRI", OMX_IndexCustomDRI},
-    {"OMX.TI.JPEG.encoder.Config.Debug", OMX_IndexCustomDebug},
-    {"OMX.TI.JPEG.encoder.Config.ColorFormatConvertion_420pTo422i", OMX_IndexCustomColorFormatConvertion_420pTo422i},
-    {"OMX.TI.JPEG.encoder.Config.PPLibEnable", OMX_IndexCustomPPLibEnable},
-    {"",0x0}
+        {"OMX.TI.JPEG.encoder.Config.HuffmanTable", OMX_IndexCustomHuffmanTable},
+        {"OMX.TI.JPEG.encoder.Config.CommentFlag", OMX_IndexCustomCommentFlag},
+        {"OMX.TI.JPEG.encoder.Config.CommentString", OMX_IndexCustomCommentString},
+        {"OMX.TI.JPEG.encoder.Config.InputFrameWidth", OMX_IndexCustomInputFrameWidth},
+        {"OMX.TI.JPEG.encoder.Config.InputFrameHeight", OMX_IndexCustomInputFrameHeight},
+        {"OMX.TI.JPEG.encoder.Config.APP0", OMX_IndexCustomAPP0},
+        {"OMX.TI.JPEG.encoder.Config.APP1", OMX_IndexCustomAPP1},
+        {"OMX.TI.JPEG.encoder.Config.APP5", OMX_IndexCustomAPP5},
+        {"OMX.TI.JPEG.encoder.Config.APP13", OMX_IndexCustomAPP13},
+        {"OMX.TI.JPEG.encoder.Config.QFactor", OMX_IndexCustomQFactor},
+        {"OMX.TI.JPEG.encoder.Config.DRI", OMX_IndexCustomDRI},
+        {"OMX.TI.JPEG.encoder.Config.Debug", OMX_IndexCustomDebug}
     };
 
-    /* Check parameter validity */    
+    /* Check parameter validity */
     OMX_CHECK_PARAM(hComponent);
     OMX_CHECK_PARAM(pIndexType);
-    *pIndexType = OMX_IndexMax;
 
+    OMX_U32 nIndex;
     const OMX_U32 nExtensions = sizeof(sJpegEncCustomParams)/sizeof(JPEGENC_CUSTOM_PARAM_DEFINITION);
     for (nIndex = 0; nIndex < nExtensions; ++nIndex) {
         if (!strcmp((const char*)cParameterName, (const char*)(&(sJpegEncCustomParams[nIndex].cCustomParamName)))){
@@ -2375,13 +2368,12 @@ OMX_ERRORTYPE JPEGENC_GetExtensionIndex(OMX_IN OMX_HANDLETYPE hComponent, OMX_IN
         }
     }
 
-    if(*pIndexType == OMX_IndexMax){
+    if (nIndex >= nExtensions){
          eError = OMX_ErrorUnsupportedIndex;
     }
 
 EXIT:
     return eError;
 }
-
 
 

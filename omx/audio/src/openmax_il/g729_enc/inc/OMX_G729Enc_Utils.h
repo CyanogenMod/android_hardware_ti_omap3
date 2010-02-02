@@ -64,10 +64,6 @@
 #include <OMX_Component.h>
 #include <TIDspOmx.h>
 
-#ifdef RESOURCE_MANAGER_ENABLED
-#include <ResourceManagerProxyAPI.h>
-#endif
-
 #undef __G729_EPRINT__
 
 
@@ -205,9 +201,9 @@ void G729ENC_Log(const char *szFileName, int iLineNum, const char *szFunctionNam
     (_s_)->nVersion.s.nStep = 0x0
 
 #define OMX_G729MEMFREE_STRUCT(_pStruct_)                       \
+    G729ENC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
     if(_pStruct_ != NULL)                                       \
     {                                                           \
-        G729ENC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
         free(_pStruct_);                                        \
         _pStruct_ = NULL;                                       \
     }
@@ -886,10 +882,6 @@ typedef struct G729ENC_COMPONENT_PRIVATE
 
     OMX_BOOL bPreempted;
 
-    /** Pointer to RM callback **/
-#ifdef RESOURCE_MANAGER_ENABLED
-    RMPROXY_CALLBACKTYPE rmproxyCallback;
-#endif
     
 } G729ENC_COMPONENT_PRIVATE;
 
@@ -1200,13 +1192,5 @@ typedef enum OMX_G729ENC_INDEXAUDIOTYPE
  */
 /*================================================================== */
 OMX_ERRORTYPE G729ENC_TransitionToIdle(G729ENC_COMPONENT_PRIVATE *pComponentPrivate);
-
-#ifdef RESOURCE_MANAGER_ENABLED
-/***********************************
- *  Callback to the RM                                       *
- ***********************************/
-void G729ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
-#endif
-
 #endif  /* OMX_G729ENC_UTILS__H */
 

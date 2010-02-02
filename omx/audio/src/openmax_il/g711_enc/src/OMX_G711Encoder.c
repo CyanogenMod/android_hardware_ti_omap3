@@ -690,10 +690,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
 
     switch(nParamIndex){
     case OMX_IndexParamAudioInit:
-        if (pComponentPrivate->sPortParam == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-        }
         G711ENC_DPRINT("%d :: GetParameter OMX_IndexParamAudioInit \n",__LINE__);
         memcpy(ComponentParameterStructure, pComponentPrivate->sPortParam, sizeof(OMX_PORT_PARAM_TYPE));
         break;
@@ -776,10 +772,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
 
     case OMX_IndexParamPriorityMgmt:
         G711ENC_DPRINT("%d :: GetParameter OMX_IndexParamPriorityMgmt \n",__LINE__);
-        if (pComponentPrivate->sPriorityMgmt == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-	}
         memcpy(ComponentParameterStructure, pComponentPrivate->sPriorityMgmt, sizeof(OMX_PRIORITYMGMTTYPE));
         break;
         
@@ -861,20 +853,10 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
         G711ENC_DPRINT("%d :: SetParameter OMX_IndexParamAudioG711 \n",__LINE__);
         pCompG711Param = (OMX_AUDIO_PARAM_PCMMODETYPE *)pCompParam;
         if (pCompG711Param->nPortIndex == OMX_DirOutput) {
-            if (((G711ENC_COMPONENT_PRIVATE *)
-                    pHandle->pComponentPrivate)->G711Params[G711ENC_OUTPUT_PORT] == NULL) {
-                eError = OMX_ErrorBadParameter;
-		break;
-            }  
             memcpy(((G711ENC_COMPONENT_PRIVATE *)
                     pHandle->pComponentPrivate)->G711Params[G711ENC_OUTPUT_PORT], pCompG711Param, sizeof(OMX_AUDIO_PARAM_PCMMODETYPE));
         }
         else if (pCompG711Param->nPortIndex == OMX_DirInput) {
-            if (((G711ENC_COMPONENT_PRIVATE *)
-                    pHandle->pComponentPrivate)->G711Params[G711ENC_INPUT_PORT] == NULL) {
-                eError = OMX_ErrorBadParameter;
-		break;
-            }  
             memcpy(((G711ENC_COMPONENT_PRIVATE *)
                     pHandle->pComponentPrivate)->G711Params[G711ENC_INPUT_PORT], pCompG711Param, sizeof(OMX_AUDIO_PARAM_PCMMODETYPE));
         }
@@ -904,19 +886,11 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
         }
         break;
     case OMX_IndexParamPriorityMgmt:
-	if (pComponentPrivate->sPriorityMgmt == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-	}
         G711ENC_DPRINT("%d :: SetParameter OMX_IndexParamPriorityMgmt \n",__LINE__);
         memcpy(pComponentPrivate->sPriorityMgmt, (OMX_PRIORITYMGMTTYPE*)pCompParam, sizeof(OMX_PRIORITYMGMTTYPE));
         break;
 
     case OMX_IndexParamAudioInit:
-	if (pComponentPrivate->sPortParam == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-	}
         G711ENC_DPRINT("%d :: SetParameter OMX_IndexParamAudioInit \n",__LINE__);
         memcpy(pComponentPrivate->sPortParam, (OMX_PORT_PARAM_TYPE*)pCompParam, sizeof(OMX_PORT_PARAM_TYPE));
         break;
@@ -1004,10 +978,10 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
                                 OMX_PTR ComponentConfigStructure)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    G711ENC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
     OMX_COMPONENTTYPE* pHandle = (OMX_COMPONENTTYPE*)hComp;
     TI_OMX_DSP_DEFINITION *pTiDspDefinition = NULL;
     G711ENC_FTYPES *confFrameParams = NULL;
+    G711ENC_COMPONENT_PRIVATE *pComponentPrivate =(G711ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     TI_OMX_DATAPATH dataPath;
     OMX_S16 *customFlag = NULL;
     
@@ -1018,7 +992,6 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
         goto EXIT;
     }
 
-    pComponentPrivate = (G711ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     G711ENC_DPRINT("Index: %x \n",nConfigIndex);
     switch (nConfigIndex) {
 
@@ -1112,7 +1085,8 @@ static OMX_ERRORTYPE GetState (OMX_HANDLETYPE pComponent, OMX_STATETYPE* pState)
         *pState = OMX_StateLoaded;
     }
     eError = OMX_ErrorNone;
-    G711ENC_DPRINT("State = %d \n", (*pState));
+    G711ENC_DPRINT("State = %d \n",((G711ENC_COMPONENT_PRIVATE*)
+                                    pHandle->pComponentPrivate)->curState );
 
  EXIT:
     G711ENC_DPRINT("%d :: Exiting GetState\n", __LINE__);

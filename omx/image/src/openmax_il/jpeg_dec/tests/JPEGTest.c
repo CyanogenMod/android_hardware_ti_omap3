@@ -905,7 +905,7 @@ int main(int argc, char** argv)
     PRINT("Calling OMX_SetParameter\n");
 
 	/* Set max width & height value*/
-    eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decoder.Param.SetMaxResolution", (OMX_INDEXTYPE*)&nCustomIndex);
+    eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decode.Param.SetMaxResolution", (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         printf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
@@ -1152,7 +1152,7 @@ int main(int argc, char** argv)
         goto EXIT;
     }
 
-    eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decoder.Config.ProgressiveFactor", (OMX_INDEXTYPE*)&nCustomIndex);
+    eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decode.Config.ProgressiveFactor", (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         printf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
@@ -1163,7 +1163,7 @@ int main(int argc, char** argv)
         goto EXIT;
     }
 
-    eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decoder.Config.OutputColorFormat", (OMX_INDEXTYPE*)&nCustomIndex);
+    eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decode.Config.OutputColorFormat", (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         printf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         goto EXIT;
@@ -1176,7 +1176,7 @@ int main(int argc, char** argv)
     }
 
     if(nMCURow){
-        eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decoder.Param.SectionDecode", (OMX_INDEXTYPE*)&nCustomIndex);
+        eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decode.Param.SectionDecode", (OMX_INDEXTYPE*)&nCustomIndex);
         if ( eError != OMX_ErrorNone ) {
             printf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
             goto EXIT;
@@ -1197,7 +1197,7 @@ int main(int argc, char** argv)
     }
 
     if(nXOrg || nYOrg || nXLength || nYLength){
-        eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decoder.Param.SubRegionDecode", (OMX_INDEXTYPE*)&nCustomIndex);
+        eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.decode.Param.SubRegionDecode", (OMX_INDEXTYPE*)&nCustomIndex);
         if ( eError != OMX_ErrorNone ) {
             printf ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
             goto EXIT;
@@ -1562,7 +1562,7 @@ int LoadBaseImage() {
     unsigned int numProcs;
     char* argv[2];
    
-    argv[0] = "/lib/dsp/baseimage.dof";
+    argv[0] = "/system/lib/dsp/baseimage.dof";
     
     status = (DBAPI)DspManager_Open(0, NULL);
     if (DSP_FAILED(status)) {

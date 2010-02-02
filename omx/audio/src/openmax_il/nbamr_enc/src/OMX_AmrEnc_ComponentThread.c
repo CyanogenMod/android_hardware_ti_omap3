@@ -156,7 +156,7 @@ void* NBAMRENC_CompThread(void* pThreadData)
                     goto EXIT;
                 }
              }
-             OMX_PRINT1(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
+             OMX_ERROR2(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
         } else if(-1 == status) {
             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error in Select\n", __LINE__);
             pComponentPrivate->cbInfo.EventHandler ( pHandle,
@@ -166,6 +166,7 @@ void* NBAMRENC_CompThread(void* pThreadData)
                                                      OMX_TI_ErrorSevere,
                                                      "Error from Component Thread in select");
             eError = OMX_ErrorInsufficientResources;
+            break;
 
         } else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds))
                    && (pComponentPrivate->curState != OMX_StatePause)) {

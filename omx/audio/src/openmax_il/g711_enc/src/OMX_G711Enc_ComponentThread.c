@@ -142,7 +142,7 @@ void* G711ENC_CompThread(void* pThreadData)
                                                      OMX_ErrorInsufficientResources,
                                                      0,
                                                      "Error from CompThread in select");
-            eError = OMX_ErrorInsufficientResources;
+            exit(1);
 
         }
 
@@ -188,5 +188,5 @@ void* G711ENC_CompThread(void* pThreadData)
  EXIT:
     G711ENC_DPRINT("%d :: Exiting G711ENC_CompThread\n", __LINE__);
     G711ENC_DPRINT("%d :: Returning = 0x%x\n",__LINE__,eError);
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }

@@ -120,8 +120,7 @@ void* ComponentThread (void* pThreadData)
                                                     OMX_EventError,
                                                     OMX_ErrorInsufficientResources,0,
                                                     "Error from COmponent Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-
+            exit(1);
         } else if (FD_ISSET(pComponentPrivate->dataPipe[0], &rfds)){
             G711DEC_DPRINT ("%d :: DATA pipe is set in Component Thread\n",__LINE__);
             ret = read(pComponentPrivate->dataPipe[0], &pBufHeader, sizeof(pBufHeader));
@@ -163,5 +162,5 @@ void* ComponentThread (void* pThreadData)
     }
  EXIT:
     G711DEC_DPRINT("%d::Exiting ComponentThread\n",__LINE__);
-    return (void*)eError;
+    return (void*)OMX_ErrorNone;
 }

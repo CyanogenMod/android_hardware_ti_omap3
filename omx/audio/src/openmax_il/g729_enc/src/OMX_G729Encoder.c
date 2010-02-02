@@ -383,12 +383,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->bPreempted = OMX_FALSE;
 
     pComponentPrivate->sDeviceString = malloc(100*sizeof(OMX_STRING));
-    if (pComponentPrivate->sDeviceString == NULL) {
-	G729ENC_EPRINT("OMX_ErrorInsufficientResources.\n");
-	eError = OMX_ErrorInsufficientResources;
-	goto EXIT;
-    }
-
     strcpy((char*)pComponentPrivate->sDeviceString,"/eteedn:i0:o0/codec\0");
         
     
@@ -748,10 +742,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
     {
     case OMX_IndexParamAudioInit:
         G729ENC_DPRINT("case OMX_IndexParamAudioInit\n");
-	if (pComponentPrivate->sPortParam == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-	}
         memcpy(ComponentParameterStructure, pComponentPrivate->sPortParam, 
                sizeof(OMX_PORT_PARAM_TYPE));
         break;
@@ -844,10 +834,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
         }
         break;            
     case OMX_IndexParamPriorityMgmt:
-	if (pComponentPrivate->sPriorityMgmt == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-	}
         G729ENC_DPRINT("Case OMX_IndexParamPriorityMgmt\n");
         memcpy(ComponentParameterStructure,
                pComponentPrivate->sPriorityMgmt,
@@ -995,20 +981,12 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
         }
         break;
     case OMX_IndexParamPriorityMgmt:
-        if (pComponentPrivate->sPriorityMgmt == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-	}
         G729ENC_DPRINT("Case OMX_IndexParamPriorityMgmt\n");
         memcpy(pComponentPrivate->sPriorityMgmt,
                (OMX_PRIORITYMGMTTYPE*)pCompParam,
                sizeof(OMX_PRIORITYMGMTTYPE));
         break;
     case OMX_IndexParamAudioInit:
-        if (pComponentPrivate->sPortParam == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-	}
         G729ENC_DPRINT("SetParameter OMX_IndexParamAudioInit\n");
         memcpy(pComponentPrivate->sPortParam,
                (OMX_PORT_PARAM_TYPE*)pCompParam,
@@ -1027,10 +1005,6 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
 
     case OMX_IndexParamAudioPcm:
         if(pCompParam){
-        if (pComponentPrivate->pcmParams == NULL) {
-            eError = OMX_ErrorBadParameter;
-	    break;
-	}
             pPcmPort= (OMX_AUDIO_PARAM_PCMMODETYPE *)pCompParam;
             memcpy(pComponentPrivate->pcmParams, pPcmPort, sizeof(OMX_AUDIO_PARAM_PCMMODETYPE));
         }
@@ -1121,9 +1095,10 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
                                 OMX_PTR ComponentConfigStructure)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    G729ENC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
     OMX_COMPONENTTYPE* pHandle = (OMX_COMPONENTTYPE*)hComp;
     TI_OMX_DSP_DEFINITION *pTiDspDefinition = NULL;
+    G729ENC_COMPONENT_PRIVATE *pComponentPrivate =
+        (G729ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     TI_OMX_DSP_DEFINITION *configData = NULL;
     OMX_AUDIO_CONFIG_VOLUMETYPE *pGainStructure = NULL;
     TI_OMX_DATAPATH dataPath;
@@ -1135,8 +1110,6 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
         G729ENC_EPRINT("Invalid HANDLE OMX_ErrorBadParameter.\n");
         goto EXIT;
     }
-
-    pComponentPrivate = (G729ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 #ifdef _ERROR_PROPAGATION__
     if (pComponentPrivate->curState == OMX_StateInvalid)
     {

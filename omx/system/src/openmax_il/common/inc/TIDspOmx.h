@@ -609,7 +609,8 @@
     int i = sizeof(OMX_MMMIXER_ITOA_str) - 1;\
     do {\
         OMX_MMMIXER_ITOA_str[--i] = '0' + _integer_ % 10;\
-    } while ((_integer_ = _integer_ / 10) && i > 0);\
+    }\
+    while ((_integer_ = _integer_ / 10) && i >= 0);\
     strcpy(_alpha_,&OMX_MMMIXER_ITOA_str[i]);\
 }    
 

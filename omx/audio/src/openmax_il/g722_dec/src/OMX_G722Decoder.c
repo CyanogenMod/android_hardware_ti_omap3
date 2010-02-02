@@ -674,7 +674,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
     switch(nParamIndex){
     case OMX_IndexParamAudioInit:
         G722DEC_DPRINT(":: GetParameter OMX_IndexParamAudioInit\n");
-        G722D_OMX_CONF_CHECK_CMD(pComponentPrivate->sPortParam, 1, 1);
         memcpy(ComponentParameterStructure, pComponentPrivate->sPortParam, sizeof(OMX_PORT_PARAM_TYPE));
         break;
 
@@ -742,7 +741,6 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
 
     case OMX_IndexParamPriorityMgmt:
         G722DEC_DPRINT(" :: GetParameter OMX_IndexParamPriorityMgmt \n");
-        G722D_OMX_CONF_CHECK_CMD(pComponentPrivate->pPriorityMgmt, 1, 1);
         memcpy(ComponentParameterStructure, pComponentPrivate->pPriorityMgmt, sizeof(OMX_PRIORITYMGMTTYPE));
         break;
 
@@ -910,14 +908,12 @@ static OMX_ERRORTYPE SetParameter (
 
     case OMX_IndexParamPriorityMgmt:
         G722DEC_DPRINT(":: SetParameter OMX_IndexParamPriorityMgmt \n");
-        G722D_OMX_CONF_CHECK_CMD(pComponentPrivate->pPriorityMgmt, 1, 1);
         memcpy(pComponentPrivate->pPriorityMgmt, (OMX_PRIORITYMGMTTYPE*)pCompParam, 
                sizeof(OMX_PRIORITYMGMTTYPE));
         break;
 
     case OMX_IndexParamAudioInit:
         G722DEC_DPRINT(":: SetParameter OMX_IndexParamAudioInit \n");
-        G722D_OMX_CONF_CHECK_CMD(pComponentPrivate->sPortParam, 1, 1);
         memcpy(pComponentPrivate->sPortParam, (OMX_PORT_PARAM_TYPE*)pCompParam, 
                sizeof(OMX_PORT_PARAM_TYPE));
         break;
@@ -925,7 +921,6 @@ static OMX_ERRORTYPE SetParameter (
     case OMX_IndexParamStandardComponentRole:
         if (pCompParam) {
             pRole = (OMX_PARAM_COMPONENTROLETYPE *)pCompParam;
-            G722D_OMX_CONF_CHECK_CMD(pComponentPrivate->componentRole, 1, 1);
             memcpy(pComponentPrivate->componentRole, (void *)pRole, sizeof(OMX_PARAM_COMPONENTROLETYPE));
         } else {
             eError = OMX_ErrorBadParameter;
@@ -1751,10 +1746,8 @@ static OMX_ERRORTYPE AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
  EXIT:
     if(OMX_ErrorNone != eError) {
         G722DEC_DPRINT("%d :: ************* ERROR: Freeing Other Malloced Resources\n",__LINE__);
-	 if (NULL != pBufferHeader) {
-	     G722D_OMX_FREE(pBufferHeader->pBuffer);
-	     G722D_OMX_FREE(pBufferHeader);
-	 }
+        G722D_OMX_FREE(pBufferHeader->pBuffer);
+        G722D_OMX_FREE(pBufferHeader);
     }
 
     return eError;

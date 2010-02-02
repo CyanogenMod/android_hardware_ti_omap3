@@ -55,10 +55,7 @@
 #ifdef DSP_RENDERING_ON
 #include <AudioManagerAPI.h>
 #endif
- 
-#ifdef RESOURCE_MANAGER_ENABLED
-#include <ResourceManagerProxyAPI.h>
-#endif
+/* #include <ResourceManagerProxyAPI.h> */
 #endif
 
 #ifndef ANDROID
@@ -176,18 +173,6 @@ typedef enum WBAMR_DEC_COMP_PORT_TYPE {
  */
 /* ======================================================================= */
 #define IP_WBAMRDEC_BUFFERSIZE 8192
-/* ======================================================================= */
-/**
- * @def    NUM_MIME_BYTES_ARRAY               amrMimeBytes array size
- */
-/* ======================================================================= */
-#define NUM_MIME_BYTES_ARRAY 16
-/* ======================================================================= */
-/**
- * @def    NUM_IF2_BYTES_ARRAY                amrIF2Bytes array size
- */
-/* ======================================================================= */
-#define NUM_IF2_BYTES_ARRAY 16
 
 /* ======================================================================= */
 /**
@@ -255,13 +240,6 @@ typedef enum OMX_INDEXAUDIOTYPE_WBAMRDEC {
     OMX_IndexCustomDebug
 }OMX_INDEXAUDIOTYPE_WBAMRDEC;
 
-/* ======================================================================= */
-/**
- * pthread variable to indicate OMX returned all buffers to app 
- */
-/* ======================================================================= */
-pthread_mutex_t bufferReturned_mutex; 
-pthread_cond_t bufferReturned_condition; 
 
 /* ======================================================================= */
 /** WBAMR_DEC_StreamType  Stream types
@@ -533,7 +511,7 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     OMX_U32 lcml_nOpBuf;
 
     OMX_U32 app_nBuf;
-    OMX_U32 wbamrIf2Bytes[NUM_IF2_BYTES_ARRAY];                        /*Array With IF2 Lenght Information*/
+    OMX_U32 wbamrIf2Bytes[16];                        /*Array With IF2 Lenght Information*/
     OMX_U32 lcml_nCntIp;
     OMX_U32 lcml_nCntOpReceived;
     OMX_U32 num_Reclaimed_Op_Buff;
@@ -560,7 +538,7 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     WBAMR_DEC_BUFFERLIST *pOutputBufferList;
     LCML_STRMATTR *strmAttr;
     OMX_U32 nVersion;
-    OMX_U32 wbamrMimeBytes[NUM_MIME_BYTES_ARRAY];
+    OMX_U32 wbamrMimeBytes[16];
     OMX_U32 nHoldLength;
     OMX_U8* pHoldBuffer;
     OMX_U32 bLcmlHandleOpened;
@@ -654,11 +632,9 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     
     /** Pointer to port priority management structure */
     OMX_PRIORITYMGMTTYPE* pPriorityMgmt;
-
-#ifdef RESOURCE_MANAGER_ENABLED
-    RMPROXY_CALLBACKTYPE rmproxyCallback;
-#endif
-
+    
+/*  RMPROXY_CALLBACKTYPE rmproxyCallback; */
+    
     OMX_BOOL bPreempted;
     OMX_BOOL bFrameLost;
 
@@ -670,18 +646,5 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     struct OMX_TI_Debug dbg;    
 
 } WBAMR_DEC_COMPONENT_PRIVATE;
-
-/*=======================================================================*/
-/*! @fn SignalIfAllBuffersAreReturned 
-
- * @brief Sends pthread signal to indicate OMX has returned all buffers to app 
-
- * @param  none 
-
- * @Return void 
-
- */
-/*=======================================================================*/
-void SignalIfAllBuffersAreReturned(WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 #endif /* OMX_WBAMR_DECODER_H */

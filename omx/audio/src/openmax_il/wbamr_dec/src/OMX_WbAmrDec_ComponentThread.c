@@ -152,7 +152,7 @@ void* WBAMR_DEC_ComponentThread (void* pThreadData)
                     goto EXIT;
                 }
             }
-            OMX_PRINT2(pComponentPrivate->dbg,"Component Time Out !!!!!!!!!!!! \n");
+            OMX_ERROR2(pComponentPrivate->dbg,"Component Time Out !!!!!!!!!!!! \n");
         } else if (-1 == status) {
             OMX_ERROR4(pComponentPrivate->dbg, "Error in Select\n");
             pComponentPrivate->cbInfo.EventHandler (pHandle,
@@ -162,6 +162,7 @@ void* WBAMR_DEC_ComponentThread (void* pThreadData)
                                                     OMX_TI_ErrorSevere,
                                                     "Error from Component Thread in select");
             eError = OMX_ErrorInsufficientResources;
+            break;
 
         } else if (FD_ISSET (pComponentPrivate->dataPipe[0], &rfds)) {
             OMX_PRCOMM2(pComponentPrivate->dbg, "DATA pipe is set in Component Thread\n");

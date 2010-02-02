@@ -70,8 +70,6 @@
 #endif
 #include "OMX_JpegEnc_CustomCmd.h"
 
-#include <utils/Log.h>
-#define LOG_TAG "OMX_JPGENC"
 
 #ifdef __PERF_INSTRUMENTATION__
 #include "perf.h"
@@ -88,9 +86,8 @@
 #define COMP_MAX_NAMESIZE 127
 
 #define OMX_CustomCommandStopThread (OMX_CommandMax - 1)
-
-#define PADDING_128_BYTE	128
-#define PADDING_256_BYTE	256
+#define PADDING_128_BYTE 128
+#define PADDING_256_BYTE 256
 #define JPEGENC_THUMBNAIL_ABSENT_WARNING 4
 
 #ifdef UNDER_CE
@@ -109,9 +106,6 @@
 #endif
 
 #define DSP_MMU_FAULT_HANDLING
-
-//JPEG Encoder Specific DSP Err Codes
-#define IUALG_ERR_INSUFF_BUFFER 0x8401
 
 /*Linked List */
 
@@ -408,8 +402,6 @@ typedef struct JPEGENC_COMPONENT_PRIVATE
     OMX_BOOL bSetLumaQuantizationTable;
     OMX_BOOL bSetChromaQuantizationTable;
     OMX_BOOL bSetHuffmanTable;
-	OMX_BOOL bConvert420pTo422i;
-	OMX_BOOL bPPLibEnable;
     OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE *pCustomLumaQuantTable;
     OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE *pCustomChromaQuantTable;
     JPEGENC_CUSTOM_HUFFMANTTABLETYPE *pHuffmanTable;
@@ -475,6 +467,7 @@ typedef struct JPEGENC_COMPONENT_PRIVATE
     OMX_U32 nPendingStateChangeRequests;
     pthread_mutex_t mutexStateChangeRequest;
     pthread_cond_t StateChangeCondition;
+
 
 } JPEGENC_COMPONENT_PRIVATE;
 
@@ -600,9 +593,7 @@ typedef enum OMX_JPEGE_INDEXTYPE  {
     OMX_IndexCustomQFactor,
     OMX_IndexCustomDRI,
     OMX_IndexCustomHuffmanTable,
-    OMX_IndexCustomDebug,
-	OMX_IndexCustomColorFormatConvertion_420pTo422i,
-	OMX_IndexCustomPPLibEnable
+    OMX_IndexCustomDebug
 }OMX_INDEXIMAGETYPE;
 
 typedef struct IUALG_Buf {
