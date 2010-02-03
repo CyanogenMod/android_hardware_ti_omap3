@@ -1199,8 +1199,6 @@ void CameraHal::nextPreview()
 
 #endif
 
-    LOGE("Before dqbuf");
-
     /* De-queue the next avaliable buffer */
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
         LOGE("VIDIOC_DQBUF Failed!!!");
@@ -1209,9 +1207,7 @@ void CameraHal::nextPreview()
         nCameraBuffersQueued--;
     }
 
-    LOGE("After dqbuf");
-
-    //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, 160*120*2);
+    //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, 640*480*2);
 
     queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
     if (queue_to_dss_failed)
@@ -1605,6 +1601,8 @@ void CameraHal::snapshotThread()
 
                 snapshot_buffer = data->ptr;
 
+                scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
+
                 status = scale_process(yuv_buffer, image_width, image_height,
                          snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, ZoomTarget);
 
@@ -1624,6 +1622,7 @@ void CameraHal::snapshotThread()
                PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 
 #endif
+                scale_deinit();
 
                 status = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
                 if (status) {
@@ -1903,6 +1902,8 @@ void CameraHal::procThread()
                     if ( 0 != image_rotation ) //VPP rotation is only supported when the output pixeformat 420P
                         pixelFormat = PIX_YUV420P;
 
+                    scale_init(capture_width, capture_height, image_width, image_height, PIX_YUV422I, pixelFormat);
+
                     err = scale_process(yuv_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom);
 
 #ifdef DEBUG_LOG
@@ -1925,6 +1926,8 @@ void CameraHal::procThread()
                         thumb_width = thumb_height;
                         thumb_height = tmp;
                     }
+
+                    scale_deinit();
 
                 }
 #else
