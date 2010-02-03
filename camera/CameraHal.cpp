@@ -416,7 +416,7 @@ CameraHal::~CameraHal()
     FW3A_Destroy();
 #endif
 
-    CameraDestroy();
+    CameraDestroy(true);
 
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -463,14 +463,14 @@ void CameraHal::previewThread()
             if (isStart_FW3A_AF) {
                 err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
                 if ((err == 0) && (AF_STATUS_RUNNING != fobj->status_2a.af.status)) {
-			#if PPM_INSTRUMENTATION	
-				PPM("AF Completed in ",&focus_before);
-			#endif
+#if PPM_INSTRUMENTATION
+                    PPM("AF Completed in ",&focus_before);
+#endif
 				
                     fobj->cam_iface_2a->ReadMakerNote(fobj->cam_iface_2a->pPrivateHandle, ancillary_buffer, (uint32 *) &ancillary_len);
                     if (FW3A_Stop_AF() < 0){
-						LOGE("ERROR FW3A_Stop_AF()");						
-					}
+                        LOGE("ERROR FW3A_Stop_AF()");
+                    }
 
                     bool focus_flag;
                     if ( fobj->status_2a.af.status == AF_STATUS_SUCCESS ) {
@@ -482,7 +482,7 @@ void CameraHal::previewThread()
                     }
 
                     if(mMsgEnabled & CAMERA_MSG_FOCUS)
-						mNotifyCb(CAMERA_MSG_FOCUS, focus_flag, 0, mCallbackCookie);
+                        mNotifyCb(CAMERA_MSG_FOCUS, focus_flag, 0, mCallbackCookie);
                 }
             }
 #endif
@@ -511,36 +511,41 @@ void CameraHal::previewThread()
 
                 if( ! mPreviewRunning ) {
 
+                    if( CameraCreate() < 0){
+                        LOGE("ERROR CameraCreate()");
+                        err = -1;
+                    }
+
                     PPM("CONFIGURING CAMERA TO RESTART PREVIEW");
-					if (CameraConfigure() < 0){
-						LOGE("ERROR CameraConfigure()");
-						err= -1;
-					}
+                    if (CameraConfigure() < 0){
+                        LOGE("ERROR CameraConfigure()");
+                        err = -1;
+                    }
 #ifdef FW3A
                     if (FW3A_Start() < 0){
-						LOGE("ERROR FW3A_Start()");
-						err= -1;
-					}
+                        LOGE("ERROR FW3A_Start()");
+                        err = -1;
+                    }
                     if (FW3A_SetSettings() < 0){
-						LOGE("ERROR FW3A_SetSettings()");
-						err= -1;
-					}
+                        LOGE("ERROR FW3A_SetSettings()");
+                        err = -1;
+                    }
                     
 #endif
                     if (CameraStart() < 0){
-						LOGE("ERROR CameraStart()");
-						err = -1;
-					}   
+                        LOGE("ERROR CameraStart()");
+                        err = -1;
+                    }
 
-					if(!mfirstTime){
-						PPM("Standby to first shot");					
-						mfirstTime++;
-					}
-					else{			
-					#if PPM_INSTRUMENTATION		
-						PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);					
-					#endif
-					}
+                    if(!mfirstTime){
+                        PPM("Standby to first shot");
+                        mfirstTime++;
+                    }
+                    else{
+#if PPM_INSTRUMENTATION
+                        PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
+#endif
+                    }
                 }
                 else
                 {
@@ -561,35 +566,41 @@ void CameraHal::previewThread()
 
             case PREVIEW_STOP:
             {
-				LOGD("Receive Command: PREVIEW_STOP");
-				err = 0;
+                LOGD("Receive Command: PREVIEW_STOP");
+                err = 0;
                 if( mPreviewRunning ) {
-#ifdef FW3A					
+#ifdef FW3A
                     if( FW3A_Stop_AF() < 0){
-						LOGE("ERROR FW3A_Stop_AF()");
-						err= -1;
-					}
-					if( FW3A_Stop_CAF() < 0){
-						LOGE("ERROR FW3A_Stop_CAF()");
-						err= -1;
-					}
-					if( FW3A_Stop() < 0){
-						LOGE("ERROR FW3A_Stop()");
-						err= -1;
-					}
-					if( FW3A_GetSettings() < 0){
-						LOGE("ERROR FW3A_GetSettings()");
-						err= -1;
-					}               
+                        LOGE("ERROR FW3A_Stop_AF()");
+                        err= -1;
+                    }
+                    if( FW3A_Stop_CAF() < 0){
+                        LOGE("ERROR FW3A_Stop_CAF()");
+                        err= -1;
+                    }
+                    if( FW3A_Stop() < 0){
+                        LOGE("ERROR FW3A_Stop()");
+                        err= -1;
+                    }
+                    if( FW3A_GetSettings() < 0){
+                        LOGE("ERROR FW3A_GetSettings()");
+                        err= -1;
+                    }
 #endif
-					if( CameraStop() < 0){
-						LOGE("ERROR CameraStop()");
-						err= -1;
-					}
-                   
+                    if( CameraStop() < 0){
+                        LOGE("ERROR CameraStop()");
+                        err= -1;
+                    }
+
+                    if( CameraDestroy(false) < 0){
+                        LOGE("ERROR CameraDestroy()");
+                        err= -1;
+                    }
+
                     if (err) {
                         LOGE("ERROR Cannot deinit preview.");
                     }
+
                     LOGD("PREVIEW_STOP %s", err ? "NACK" : "ACK");
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
                 }
@@ -604,7 +615,7 @@ void CameraHal::previewThread()
             }
             break;
 	
-			case PREVIEW_AF_START:
+            case PREVIEW_AF_START:
             {
                 LOGD("Receive Command: PREVIEW_AF_START");
 				err = 0;
@@ -621,26 +632,26 @@ void CameraHal::previewThread()
 
 #ifdef FW3A   
 
-					if (isStart_FW3A_CAF!= 0){
-						if( FW3A_Stop_CAF() < 0){
-							LOGE("ERROR FW3A_Stop_CAF();");
-							err = -1;
-						}
-                    }
+                   if (isStart_FW3A_CAF!= 0){
+                        if( FW3A_Stop_CAF() < 0){
+                            LOGE("ERROR FW3A_Stop_CAF();");
+                            err = -1;
+                        }
+                   }
 
 #if PPM_INSTRUMENTATION
 
-					gettimeofday(&focus_before, NULL);
+                    gettimeofday(&focus_before, NULL);
 
 #endif
 
-					if (isStart_FW3A_AF == 0){
-						if( FW3A_Start_AF() < 0){
-							LOGE("ERROR FW3A_Start_AF()");
-							err = -1;
-						}
-        
-					}
+                    if (isStart_FW3A_AF == 0){
+                        if( FW3A_Start_AF() < 0){
+                            LOGE("ERROR FW3A_Start_AF()");
+                            err = -1;
+                         }
+ 
+                    }
 #endif
 
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
@@ -648,7 +659,7 @@ void CameraHal::previewThread()
 #else
 
                     if(mMsgEnabled & CAMERA_MSG_FOCUS)
-						mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+                        mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
 
                     msg.command = PREVIEW_ACK;
 
@@ -660,52 +671,52 @@ void CameraHal::previewThread()
             }
             break;
 		
-			case PREVIEW_CAF_START:
-			{	
+            case PREVIEW_CAF_START:
+            {
                 LOGD("Receive Command: PREVIEW_CAF_START");
-				err=0;
+                err=0;
 
                 if( !mPreviewRunning )
                     msg.command = PREVIEW_NACK;
                 else
                 {
 #ifdef FW3A    
-					if( FW3A_Start_CAF() < 0){
-						LOGE("ERROR FW3A_Start_CAF()");
-						err = -1;
-					} 
+                    if( FW3A_Start_CAF() < 0){
+                        LOGE("ERROR FW3A_Start_CAF()");
+                        err = -1;
+                    }
 #endif
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
                 }
                 LOGD("Receive Command: PREVIEW_CAF_START %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK"); 
                 previewThreadAckQ.put(&msg);
-			}
-			break;
-                
-			case PREVIEW_CAF_STOP:
-			{
+            }
+            break;
+
+           case PREVIEW_CAF_STOP:
+           {
                 LOGD("Receive Command: PREVIEW_CAF_STOP");
-				err = 0;
+                err = 0;
 
                 if( !mPreviewRunning )
                     msg.command = PREVIEW_NACK;
                 else
                 {
 #ifdef FW3A    
-					if( FW3A_Stop_CAF() < 0){
-						LOGE("ERROR FW3A_Stop_CAF()");
-						err = -1;
-					} 
+                    if( FW3A_Stop_CAF() < 0){
+                         LOGE("ERROR FW3A_Stop_CAF()");
+                         err = -1;
+                    }
 #endif
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
                 }
                 LOGD("Receive Command: PREVIEW_CAF_STOP %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK"); 
                 previewThreadAckQ.put(&msg);
-			}
-			break;
-	
-            case PREVIEW_CAPTURE:
-            {
+           }
+           break;
+
+           case PREVIEW_CAPTURE:
+           {
                 int flg_AF;
                 int flg_CAF;
                 err = 0;
@@ -714,13 +725,13 @@ void CameraHal::previewThread()
 
                 LOGD("ENTER OPTION PREVIEW_CAPTURE");
 
-				PPM("RECEIVED COMMAND TO TAKE A PICTURE");
+                PPM("RECEIVED COMMAND TO TAKE A PICTURE");
 
 #endif
 
-			#if PPM_INSTRUMENTATION
-				gettimeofday(&ppm_receiveCmdToTakePicture, NULL);
-			#endif
+#if PPM_INSTRUMENTATION
+                gettimeofday(&ppm_receiveCmdToTakePicture, NULL);
+#endif
 
                 if( mPreviewRunning ) {
 
@@ -734,105 +745,105 @@ void CameraHal::previewThread()
 
 #endif
 
-				    if( CameraStop() < 0){
-					    LOGE("ERROR CameraStop()");
-					    err = -1;
-				    }
+                    if( CameraStop() < 0){
+                        LOGE("ERROR CameraStop()");
+                        err = -1;
+                    }
 
-#ifdef FW3A     
-				    if( (flg_AF = FW3A_Stop_AF()) < 0){
-					    LOGE("ERROR FW3A_Stop_AF()");
-					    err = -1;
-				    }            
-				    if( (flg_CAF = FW3A_Stop_CAF()) < 0){
-					    LOGE("ERROR FW3A_Stop_CAF()");
-					    err = -1;
-				    }
-				    if( FW3A_Stop() < 0){
-					    LOGE("ERROR FW3A_Stop()");
-					    err = -1;
-				    }          
+#ifdef FW3A
+                   if( (flg_AF = FW3A_Stop_AF()) < 0){
+                        LOGE("ERROR FW3A_Stop_AF()");
+                        err = -1;
+                   }
+                   if( (flg_CAF = FW3A_Stop_CAF()) < 0){
+                       LOGE("ERROR FW3A_Stop_CAF()");
+                       err = -1;
+                   }
+                   if( FW3A_Stop() < 0){
+                       LOGE("ERROR FW3A_Stop()");
+                       err = -1;
+                   }
 #endif
 
-                    mPreviewRunning = false;
+                   mPreviewRunning = false;
 
-                }
+               }
 #ifdef FW3A
-				if( FW3A_GetSettings() < 0){
-					LOGE("ERROR FW3A_GetSettings()");
-					err = -1;
-				}
+               if( FW3A_GetSettings() < 0){
+                   LOGE("ERROR FW3A_GetSettings()");
+                   err = -1;
+               }
 #endif
 
 #ifdef DEBUG_LOG
 
-                PPM("STOPPED PREVIEW");
+               PPM("STOPPED PREVIEW");
 
 #endif
 
 #ifdef ICAP
-				if( ICapturePerform() < 0){
-					LOGE("ERROR ICapturePerform()");
-					err = -1;
-				}     
+               if( ICapturePerform() < 0){
+                   LOGE("ERROR ICapturePerform()");
+                   err = -1;
+               }
 #else
-				if( CapturePicture() < 0){
-					LOGE("ERROR CapturePicture()");
-					err = -1;
-				}   
+               if( CapturePicture() < 0){
+                   LOGE("ERROR CapturePicture()");
+                   err = -1;
+               }
 #endif
-                if( err )
-                    LOGE("Capture failed.");
+               if( err )
+                   LOGE("Capture failed.");
 
-                //restart the preview
+               //restart the preview
 
 #ifdef DEBUG_LOG
 
-                PPM("CONFIGURING CAMERA TO RESTART PREVIEW");
+               PPM("CONFIGURING CAMERA TO RESTART PREVIEW");
 
 #endif
 
-				if (CameraConfigure() < 0)
-					LOGE("ERROR CameraConfigure()");
+               if (CameraConfigure() < 0)
+                   LOGE("ERROR CameraConfigure()");
 
 #ifdef FW3A
 
-                if (FW3A_Start() < 0)
-					LOGE("ERROR FW3A_Start()");
+               if (FW3A_Start() < 0)
+                   LOGE("ERROR FW3A_Start()");
 
-                if (FW3A_SetSettings() < 0)
-					LOGE("ERROR FW3A_SetSettings()");
+               if (FW3A_SetSettings() < 0)
+                   LOGE("ERROR FW3A_SetSettings()");
 
 #endif
-                if (CameraStart() < 0)
-					LOGE("ERROR CameraStart()");
+               if (CameraStart() < 0)
+                   LOGE("ERROR CameraStart()");
 
 #if PPM_INSTRUMENTATION
 
-				PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
+               PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
 
 #endif
 
 #ifdef ICAP_EXPERIMENTAL
 
-                allocatePictureBuffer(iobj->cfg.sizeof_img_buf);
+               allocatePictureBuffer(iobj->cfg.sizeof_img_buf);
 
 #else
 
-                allocatePictureBuffer(PICTURE_WIDTH, PICTURE_HEIGHT);
+               allocatePictureBuffer(PICTURE_WIDTH, PICTURE_HEIGHT);
 
 #endif
 
-                mPreviewRunning = true;
+               mPreviewRunning = true;
 
-                msg.command = PREVIEW_ACK;
-                previewThreadAckQ.put(&msg);
-                LOGD("EXIT OPTION PREVIEW_CAPTURE");
-            }
-            break;
+               msg.command = PREVIEW_ACK;
+               previewThreadAckQ.put(&msg);
+               LOGD("EXIT OPTION PREVIEW_CAPTURE");
+           }
+           break;
 
-            case PREVIEW_CAPTURE_CANCEL:
-            {
+           case PREVIEW_CAPTURE_CANCEL:
+           {
                 LOGD("Receive Command: PREVIEW_CAPTURE_CANCEL");
                 msg.command = PREVIEW_NACK;
                 previewThreadAckQ.put(&msg);
@@ -842,37 +853,37 @@ void CameraHal::previewThread()
             case PREVIEW_KILL:
             {
                 LOGD("Receive Command: PREVIEW_KILL");
-				err = 0;				
+                err = 0;
 	
                 if (mPreviewRunning) {
 #ifdef FW3A 
-					if( FW3A_Stop_AF() < 0){
-						LOGE("ERROR FW3A_Stop_AF()");
-						err = -1;
-					}
-					if( FW3A_Stop_CAF() < 0){
-						LOGE("ERROR FW3A_Stop_CAF()");
-						err = -1;
-					}
-					if( FW3A_Stop() < 0){
-						LOGE("ERROR FW3A_Stop()");
-						err = -1;
-					}
+                   if( FW3A_Stop_AF() < 0){
+                        LOGE("ERROR FW3A_Stop_AF()");
+                        err = -1;
+                   }
+                   if( FW3A_Stop_CAF() < 0){
+                        LOGE("ERROR FW3A_Stop_CAF()");
+                        err = -1;
+                   }
+                   if( FW3A_Stop() < 0){
+                        LOGE("ERROR FW3A_Stop()");
+                        err = -1;
+                   }
 #endif 
-					if( CameraStop() < 0){
-						LOGE("ERROR FW3A_Stop()");
-						err = -1;
-					}
-                    mPreviewRunning = false;
+                   if( CameraStop() < 0){
+                        LOGE("ERROR FW3A_Stop()");
+                        err = -1;
+                   }
+                   mPreviewRunning = false;
                 }
 	
-				msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
+                msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
                 LOGD("Receive Command: PREVIEW_CAF_STOP %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK"); 
 
                 previewThreadAckQ.put(&msg);
                 shouldLive = false;
-            }
-            break;
+          }
+          break;
         }
     }
 
@@ -899,19 +910,24 @@ exit:
 }
 
 
-int CameraHal::CameraDestroy()
+int CameraHal::CameraDestroy(bool destroyOverlay)
 {
-    int err;	
+    int err, buffer_count;
 
-	LOG_FUNCTION_NAME
+    LOG_FUNCTION_NAME
 
     close(camera_device);
     camera_device = -1;
 
-    if (mOverlay != NULL) {
+    if ((mOverlay != NULL) && (destroyOverlay)) {
+        buffer_count = mOverlay->getBufferCount();
         mOverlay->destroy();
         mOverlay = NULL;
         nOverlayBuffersQueued = 0;
+
+	for ( int i = 0 ; i < buffer_count ; i++ )
+            buffers_queued_to_dss[i] = 0;
+
     }
 
     LOG_FUNCTION_NAME_EXIT
@@ -953,21 +969,21 @@ int CameraHal::CameraConfigure()
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     err = ioctl(camera_device, VIDIOC_G_PARM, &parm);
     if(err != 0) {
-		LOGD("VIDIOC_G_PARM ");
-		return -1;
+        LOGD("VIDIOC_G_PARM ");
+        return -1;
     }
     
     LOGD("CameraConfigure: Old frame rate is %d/%d  fps",
-		parm.parm.capture.timeperframe.denominator,
-		parm.parm.capture.timeperframe.numerator);
+    parm.parm.capture.timeperframe.denominator,
+    parm.parm.capture.timeperframe.numerator);
   
-	parm.parm.capture.timeperframe.numerator = 1;
-	parm.parm.capture.timeperframe.denominator = framerate;
-	err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
-	if(err != 0) {
-		LOGE("VIDIOC_S_PARM ");
-		return -1;
-	}
+    parm.parm.capture.timeperframe.numerator = 1;
+    parm.parm.capture.timeperframe.denominator = framerate;
+    err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
+    if(err != 0) {
+        LOGE("VIDIOC_S_PARM ");
+        return -1;
+    }
     
     LOGI("CameraConfigure: New frame rate is %d/%d fps",parm.parm.capture.timeperframe.denominator,parm.parm.capture.timeperframe.numerator);
 
@@ -1183,6 +1199,8 @@ void CameraHal::nextPreview()
 
 #endif
 
+    LOGE("Before dqbuf");
+
     /* De-queue the next avaliable buffer */
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
         LOGE("VIDIOC_DQBUF Failed!!!");
@@ -1190,6 +1208,8 @@ void CameraHal::nextPreview()
     }else{
         nCameraBuffersQueued--;
     }
+
+    LOGE("After dqbuf");
 
     //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, 160*120*2);
 
@@ -1409,39 +1429,39 @@ int  CameraHal::ICapturePerform()
     int max_fd;
     unsigned int snapshotReadyMessage;
 
-	max_fd = snapshotReadyPipe[0] + 1;
+    max_fd = snapshotReadyPipe[0] + 1;
 
-	FD_ZERO(&descriptorSet);
-	FD_SET(snapshotReadyPipe[0], &descriptorSet);
+    FD_ZERO(&descriptorSet);
+    FD_SET(snapshotReadyPipe[0], &descriptorSet);
 
 #ifdef DEBUG_LOG
 
-		LOGD("Waiting on SnapshotThread ready message");
+    LOGD("Waiting on SnapshotThread ready message");
 
 #endif
 
     err = select(max_fd,  &descriptorSet, NULL, NULL, NULL);
-	if (err < 1) {
-		LOGE("Error in select");
-	}
+    if (err < 1) {
+       LOGE("Error in select");
+    }
 
-	if(FD_ISSET(snapshotReadyPipe[0], &descriptorSet))
-		read(snapshotReadyPipe[0], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
+    if(FD_ISSET(snapshotReadyPipe[0], &descriptorSet))
+        read(snapshotReadyPipe[0], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
 //
     if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE) {
 
 #if PPM_INSTRUMENTATION
 
-	    PPM("SENDING MESSAGE TO PROCESSING THREAD");
+        PPM("SENDING MESSAGE TO PROCESSING THREAD");
 
 #endif
 
-	    procMessage[0] = PROC_THREAD_PROCESS;
-	    procMessage[1] = iobj->proc.out_img_w;
-	    procMessage[2] = iobj->proc.out_img_h;
-	    procMessage[3] = image_width;
-	    procMessage[4] = image_height;
-	    procMessage[5] = pixelFormat;
+        procMessage[0] = PROC_THREAD_PROCESS;
+        procMessage[1] = iobj->proc.out_img_w;
+        procMessage[2] = iobj->proc.out_img_h;
+        procMessage[3] = image_width;
+        procMessage[4] = image_height;
+        procMessage[5] = pixelFormat;
         procMessage[6] = iobj->proc.eenf.ee_q;
         procMessage[7] = iobj->proc.eenf.ew_ts;
         procMessage[8] = iobj->proc.eenf.es_ts;
@@ -1459,7 +1479,7 @@ int  CameraHal::ICapturePerform()
         procMessage[20] = 0;
         procMessage[21] = (unsigned int) mCallbackCookie;
 
-	    write(procPipe[1], &procMessage, sizeof(procMessage));
+        write(procPipe[1], &procMessage, sizeof(procMessage));
 
         mIPPToEnable = false; // reset ipp enable after sending to proc thread
     }
@@ -1507,11 +1527,11 @@ int  CameraHal::ICapturePerform()
 
 #ifdef DEBUG_LOG
 
-	LOG_FUNCTION_NAME_EXIT
+    LOG_FUNCTION_NAME_EXIT
 
 #endif
 
-	return 0;
+    return 0;
 
 fail_config :
 fail_process:
@@ -1647,53 +1667,53 @@ void CameraHal::rawThread()
     void *PictureCallbackCookie;
     sp<MemoryBase> rawData;
 
-	max_fd = rawPipe[0] + 1;
+    max_fd = rawPipe[0] + 1;
 
-	FD_ZERO(&descriptorSet);
-	FD_SET(rawPipe[0], &descriptorSet);
+    FD_ZERO(&descriptorSet);
+    FD_SET(rawPipe[0], &descriptorSet);
 
     while(1) {
         err = select(max_fd,  &descriptorSet, NULL, NULL, NULL);
 
 #ifdef DEBUG_LOG
 
-		LOGD("RAW THREAD SELECT RECEIVED A MESSAGE\n");
+            LOGD("RAW THREAD SELECT RECEIVED A MESSAGE\n");
 
 #endif
 
-		if (err < 1) {
-			LOGE("Raw: Error in select");
-		}
+            if (err < 1) {
+                LOGE("Raw: Error in select");
+            }
 
-		if(FD_ISSET(rawPipe[0], &descriptorSet)){
+            if(FD_ISSET(rawPipe[0], &descriptorSet)){
 
-			read(rawPipe[0], &rawMessage, sizeof(rawMessage));
+                read(rawPipe[0], &rawMessage, sizeof(rawMessage));
 
-			if(rawMessage[0] == RAW_THREAD_CALL){
+                if(rawMessage[0] == RAW_THREAD_CALL){
 
 #ifdef DEBUG_LOG
 
-				LOGD("RAW_THREAD_CALL RECEIVED\n");
+                LOGD("RAW_THREAD_CALL RECEIVED\n");
 
 #endif
 
-				RawCallback = (data_callback) rawMessage[1];
-				PictureCallbackCookie = (void *) rawMessage[2];
-				rawData = (MemoryBase *) rawMessage[3];
+                RawCallback = (data_callback) rawMessage[1];
+                PictureCallbackCookie = (void *) rawMessage[2];
+                rawData = (MemoryBase *) rawMessage[3];
 
                 RawCallback(CAMERA_MSG_RAW_IMAGE, rawData, PictureCallbackCookie);
 
 #ifdef DEBUG_LOG
 
-				PPM("RAW CALLBACK CALLED");
+                PPM("RAW CALLBACK CALLED");
 
 #endif
 
-		    } else if (rawMessage[0] == RAW_THREAD_EXIT) {
-				LOGD("RAW_THREAD_EXIT RECEIVED");
+            } else if (rawMessage[0] == RAW_THREAD_EXIT) {
+                LOGD("RAW_THREAD_EXIT RECEIVED");
 
-				break;
-		    }
+                break;
+            }
         }
     }
 
@@ -1711,52 +1731,52 @@ void CameraHal::shutterThread()
     notify_callback ShutterCallback;
     void *PictureCallbackCookie;
 
-	max_fd = shutterPipe[0] + 1;
+    max_fd = shutterPipe[0] + 1;
 
-	FD_ZERO(&descriptorSet);
-	FD_SET(shutterPipe[0], &descriptorSet);
+    FD_ZERO(&descriptorSet);
+    FD_SET(shutterPipe[0], &descriptorSet);
 
     while(1) {
         err = select(max_fd,  &descriptorSet, NULL, NULL, NULL);
 
 #ifdef DEBUG_LOG
 
-		LOGD("SHUTTER THREAD SELECT RECEIVED A MESSAGE\n");
+        LOGD("SHUTTER THREAD SELECT RECEIVED A MESSAGE\n");
 
 #endif
 
-		if (err < 1) {
-			LOGE("Shutter: Error in select");
-		}
+        if (err < 1) {
+            LOGE("Shutter: Error in select");
+        }
 
-		if(FD_ISSET(shutterPipe[0], &descriptorSet)){
+        if(FD_ISSET(shutterPipe[0], &descriptorSet)){
 
-			read(shutterPipe[0], &shutterMessage, sizeof(shutterMessage));
+           read(shutterPipe[0], &shutterMessage, sizeof(shutterMessage));
 
-			if(shutterMessage[0] == SHUTTER_THREAD_CALL){
+           if(shutterMessage[0] == SHUTTER_THREAD_CALL){
 
 #ifdef DEBUG_LOG
 
-				LOGD("SHUTTER_THREAD_CALL_RECEIVED\n");
+                LOGD("SHUTTER_THREAD_CALL_RECEIVED\n");
 
 #endif
 
-				ShutterCallback = (notify_callback) shutterMessage[1];
-				PictureCallbackCookie = (void *) shutterMessage[2];
+                ShutterCallback = (notify_callback) shutterMessage[1];
+                PictureCallbackCookie = (void *) shutterMessage[2];
 
-				ShutterCallback(CAMERA_MSG_SHUTTER, 0, 0, PictureCallbackCookie);
+                ShutterCallback(CAMERA_MSG_SHUTTER, 0, 0, PictureCallbackCookie);
 
 #ifdef DEBUG_LOG
 
-				PPM("CALLED SHUTTER CALLBACK");
+                PPM("CALLED SHUTTER CALLBACK");
 
 #endif
 
-		    } else if (shutterMessage[0] == SHUTTER_THREAD_EXIT) {
-				LOGD("SHUTTER_THREAD_EXIT RECEIVED");
+            } else if (shutterMessage[0] == SHUTTER_THREAD_EXIT) {
+                LOGD("SHUTTER_THREAD_EXIT RECEIVED");
 
-				break;
-		    }
+                break;
+            }
         }
     }
 
@@ -1786,14 +1806,14 @@ void CameraHal::procThread()
     bool switchBuffer = false;
     int thumb_width, thumb_height;
 
-	sp<MemoryHeapBase> tmpHeap;
-	unsigned int tmpLength, tmpOffset;
-	void *tmpBuffer;
+    sp<MemoryHeapBase> tmpHeap;
+    unsigned int tmpLength, tmpOffset;
+    void *tmpBuffer;
 
-	max_fd = procPipe[0] + 1;
+    max_fd = procPipe[0] + 1;
 
-	FD_ZERO(&descriptorSet);
-	FD_SET(procPipe[0], &descriptorSet);
+    FD_ZERO(&descriptorSet);
+    FD_SET(procPipe[0], &descriptorSet);
 
     mJPEGLength  = PICTURE_WIDTH*PICTURE_HEIGHT + ((2*PAGE) - 1);
     mJPEGLength &= ~((2*PAGE) - 1);
@@ -1815,7 +1835,7 @@ void CameraHal::procThread()
     tmpOffset = base - tmpBase;
     tmpBuffer = (void *) base;
 
-	while(1){
+    while(1){
 
         err = select(max_fd,  &descriptorSet, NULL, NULL, NULL);
 
@@ -1914,99 +1934,99 @@ void CameraHal::procThread()
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
-	            if(ippMode == -1 ){
-		            ippMode = IPP_EdgeEnhancement_Mode;
-	            }
-
-#ifdef DEBUG_LOG
-
-	            LOGD("IPPmode=%d",ippMode);
-	            if(ippMode == IPP_CromaSupression_Mode){
-		            LOGD("IPP_CromaSupression_Mode");
-	            }
-	            else if(ippMode == IPP_EdgeEnhancement_Mode){
-		            LOGD("IPP_EdgeEnhancement_Mode");
-	            }
-	            else if(ippMode == IPP_Disabled_Mode){
-		            LOGD("IPP_Disabled_Mode");
-	            }
-
-#endif
-
-	            if(ippMode){
-
-		            if(ippMode != IPP_CromaSupression_Mode && ippMode != IPP_EdgeEnhancement_Mode)
-			            LOGE("ERROR ippMode unsupported");
-
-                if(ipp_to_enable) {
-
-#ifdef DEBUG_LOG
-
-		                PPM("Before init IPP");
-
-#endif
-
-		                err = InitIPP(image_width, image_height, pixelFormat);
-		                if( err )
-			                LOGE("ERROR InitIPP() failed");
-
-#ifdef DEBUG_LOG
-
-		                PPM("After IPP Init");
-
-#endif
-
+                if(ippMode == -1 ){
+                    ippMode = IPP_EdgeEnhancement_Mode;
                 }
 
-		            err = PopulateArgsIPP(image_width, image_height, pixelFormat);
-		            if( err )
-			            LOGE("ERROR PopulateArgsIPP() failed");
-
 #ifdef DEBUG_LOG
 
-		            PPM("BEFORE IPP Process Buffer");
-                    LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
+                LOGD("IPPmode=%d",ippMode);
+                if(ippMode == IPP_CromaSupression_Mode){
+                    LOGD("IPP_CromaSupression_Mode");
+                }
+                else if(ippMode == IPP_EdgeEnhancement_Mode){
+                    LOGD("IPP_EdgeEnhancement_Mode");
+                }
+                else if(ippMode == IPP_Disabled_Mode){
+                    LOGD("IPP_Disabled_Mode");
+                }
 
 #endif
 
-                    if( switchBuffer) {
-		                err = ProcessBufferIPP(tmpBuffer, tmpLength,
-		                            pixelFormat,
-				                    ipp_ee_q,
-				                    ipp_ew_ts,
-				                    ipp_es_ts,
-				                    ipp_luma_nf,
-				                    ipp_chroma_nf);
-				    } else {
-		                err = ProcessBufferIPP(yuv_buffer, yuv_len,
-		                            pixelFormat,
-				                    ipp_ee_q,
-				                    ipp_ew_ts,
-				                    ipp_es_ts,
-				                    ipp_luma_nf,
-				                    ipp_chroma_nf);
-				    }
-		            if( err )
-			            LOGE("ERROR ProcessBufferIPP() failed");
+	        if(ippMode){
+
+                    if(ippMode != IPP_CromaSupression_Mode && ippMode != IPP_EdgeEnhancement_Mode)
+                         LOGE("ERROR ippMode unsupported");
+
+                    if(ipp_to_enable) {
 
 #ifdef DEBUG_LOG
 
-		            PPM("AFTER IPP Process Buffer");
+                         PPM("Before init IPP");
 
 #endif
 
-                   if(!(pIPP.ippconfig.isINPLACE)){
-		                yuv_buffer = pIPP.pIppOutputBuffer;
-	                }
+                         err = InitIPP(image_width, image_height, pixelFormat);
+                         if( err )
+                             LOGE("ERROR InitIPP() failed");
 
-	                pixelFormat = PIX_YUV420P;
+#ifdef DEBUG_LOG
 
-	                if( switchBuffer)
-	                    tmpLength = image_width * image_height * 1.5;
-	                else
-	                    yuv_len = image_width * image_height * 1.5;
+                             PPM("After IPP Init");
 
-	            }
+#endif
+
+                         }
+
+                        err = PopulateArgsIPP(image_width, image_height, pixelFormat);
+                        if( err )
+                             LOGE("ERROR PopulateArgsIPP() failed");
+
+#ifdef DEBUG_LOG
+
+                             PPM("BEFORE IPP Process Buffer");
+                             LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
+
+#endif
+
+                        if( switchBuffer) {
+                             err = ProcessBufferIPP(tmpBuffer, tmpLength,
+                                                    pixelFormat,
+                                                    ipp_ee_q,
+                                                    ipp_ew_ts,
+                                                    ipp_es_ts,
+                                                    ipp_luma_nf,
+                                                    ipp_chroma_nf);
+                        } else {
+                             err = ProcessBufferIPP(yuv_buffer, yuv_len,
+                                                    pixelFormat,
+                                                    ipp_ee_q,
+                                                    ipp_ew_ts,
+                                                    ipp_es_ts,
+                                                    ipp_luma_nf,
+                                                    ipp_chroma_nf);
+                        }
+                        if( err )
+                             LOGE("ERROR ProcessBufferIPP() failed");
+
+#ifdef DEBUG_LOG
+
+                        PPM("AFTER IPP Process Buffer");
+
+#endif
+
+                        if(!(pIPP.ippconfig.isINPLACE)){
+                            yuv_buffer = pIPP.pIppOutputBuffer;
+                        }
+
+                        pixelFormat = PIX_YUV420P;
+
+                        if( switchBuffer)
+                            tmpLength = image_width * image_height * 1.5;
+                        else
+                            yuv_len = image_width * image_height * 1.5;
+
+                   }
 
 #endif
 
@@ -2015,9 +2035,9 @@ void CameraHal::procThread()
 
 #ifdef DEBUG_LOG
 
-	            PPM("BEFORE JPEG Encode Image");
+                PPM("BEFORE JPEG Encode Image");
 
-	            LOGD(" outbuffer = %p, jpegSize = %d, yuv_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, tmpBuffer/*yuv_buffer*/, mJPEGLength/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
+                LOGD(" outbuffer = %p, jpegSize = %d, yuv_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, tmpBuffer/*yuv_buffer*/, mJPEGLength/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
 
 #endif
 
@@ -2049,18 +2069,18 @@ void CameraHal::procThread()
 
 #if PPM_INSTRUMENTATION
 
-	            PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
+                PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
 
 #endif
                 if(JpegPictureCallback) {
 
 #if JPEG
 
-		            JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
+                    JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
 
 #else
 
-		            JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, PictureCallbackCookie);
+                    JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, PictureCallbackCookie);
 
 #endif
 
@@ -2083,16 +2103,16 @@ void CameraHal::procThread()
 
 #ifdef OPP_OPTIMIZATION
 
-                    if ( RMProxy_ReleaseBoost() != OMX_ErrorNone ) {
-                        LOGE("OPP Release Boost failed");
-                    } else {
-                        LOGE("OPP Release Boost success");
-                    }
+                if ( RMProxy_ReleaseBoost() != OMX_ErrorNone ) {
+                     LOGE("OPP Release Boost failed");
+                } else {
+                     LOGE("OPP Release Boost success");
+                }
 
 #endif
 
             } else if( procMessage[0] == PROC_THREAD_EXIT ) {
-			    LOGD("PROC_THREAD_EXIT_RECEIVED");
+                LOGD("PROC_THREAD_EXIT_RECEIVED");
 
                 mJPEGPictureHeap->dispose();
                 mJPEGPictureHeap.clear();
@@ -2347,8 +2367,8 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
         previewThreadCommandQ.put(&msg);
         previewThreadAckQ.get(&msg);
     }	// Eclair HAL
-    
-	LOG_FUNCTION_NAME_EXIT
+
+    LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
 }
@@ -2365,7 +2385,7 @@ status_t CameraHal::startPreview()
 	    return NO_ERROR;
     }      //Eclair HAL
 
-    mFalsePreview =false;   //Eclair HAL
+    mFalsePreview = false;   //Eclair HAL
 
     Message msg;
     msg.command = PREVIEW_START;

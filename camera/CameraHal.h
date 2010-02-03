@@ -393,7 +393,7 @@ public:
 #endif   
 
     int CameraCreate();
-    int CameraDestroy();
+    int CameraDestroy(bool destroyOverlay);
     int CameraConfigure();	
 	int CameraSetFrameRate();
     int CameraStart();
