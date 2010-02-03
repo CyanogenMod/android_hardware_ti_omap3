@@ -2239,17 +2239,6 @@ int CameraHal::ICaptureCreate(void)
 #endif
 
 #ifdef HARDWARE_OMX
-
-#ifdef VPP
-    if ( scale_init(PICTURE_WIDTH, PICTURE_HEIGHT, PICTURE_WIDTH, PICTURE_HEIGHT, PIX_YUV422I, PIX_YUV422I) < 0 ) {
-        LOGE("scale_init failed()");
-
-        return -1;
-    } else {
-        isStart_VPP = true;
-    }
-#endif
-
 #ifdef IMAGE_PROCESSING_PIPELINE
 
 	mippMode = IPP_Disabled_Mode;
@@ -2294,11 +2283,6 @@ int CameraHal::ICaptureDestroy(void)
 {
     int err;
 #ifdef HARDWARE_OMX
-#ifdef VPP
-    if( isStart_VPP )
-        scale_deinit();
-#endif
-
 #if JPEG
     if( isStart_JPEG )
         delete jpegEncoder;
