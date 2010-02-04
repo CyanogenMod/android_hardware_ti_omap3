@@ -119,6 +119,7 @@ struct overlay_data_context_t {
     mapping_data_t    *mapping_data;    
     int cacheable_buffers;
     int maintain_coherency;
+    int attributes_changed;
 };
 
 static int  create_shared_data(overlay_shared_t **shared);
@@ -804,6 +805,7 @@ int overlay_initialize(struct overlay_data_device_t *dev,
     ctx->shared       = NULL;
     ctx->cacheable_buffers = 0;
     ctx->maintain_coherency = 1;    
+    ctx->attributes_changed = 0;
 
     if (fstat(ctx->ctl_fd, &stat)) {
         LOGE("Error = %s from %s\n", strerror(errno), "overlay initialize");
@@ -857,8 +859,8 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
 
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
-    if ((ctx->width == (int)w) && (ctx->height == (int)h)){
-        LOGE("same as current width and height. so do nothing");
+    if ((ctx->width == (int)w) && (ctx->height == (int)h) && (ctx->attributes_changed == 0)){
+        LOGE("Same as current width and height. Attributes did not change either. So do nothing.");
         return 0;
     }
 
@@ -941,6 +943,7 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
 
     /* The control pameters just got set */
     ctx->shared->controlReady = 1;
+    ctx->attributes_changed = 0; // Reset it
 
 
 end:
@@ -974,9 +977,11 @@ static int overlay_data_setParameter(struct overlay_data_device_t *dev,
     {
     case CACHEABLE_BUFFERS:
         ctx->cacheable_buffers = value;
+        ctx->attributes_changed = 1;
         break;
     case MAINTAIN_COHERENCY:
         ctx->maintain_coherency = value;
+        ctx->attributes_changed = 1;
         break;
         
     }
