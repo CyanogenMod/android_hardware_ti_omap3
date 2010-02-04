@@ -28,13 +28,13 @@
 /**
 * @file OMX_VideoEnc_DSP.h
 *
-* This is a header file for a TI OMX video component that is fully 
+* This is a header file for a TI OMX video component that is fully
 * compliant with the OMX Video specification.
-* This the file that the application that uses OMX would include 
+* This the file that the application that uses OMX would include
 * in its code.
 *
 * @path $(CSLPATH)\
-* 
+*
 * @rev 0.1
 */
 /* -------------------------------------------------------------------------- */
@@ -42,8 +42,8 @@
 #ifndef OMX_VIDEOENC_DSP__H
 #define OMX_VIDEOENC_DSP__H
 
-#define OMX_H264ENC_NUM_DLLS 3 
-#define OMX_MP4ENC_NUM_DLLS  3 
+#define OMX_H264ENC_NUM_DLLS 3
+#define OMX_MP4ENC_NUM_DLLS  3
 #define MAXNUMSLCGPS      8  /*< max. number of slice groups*/
 
 #ifndef UNDER_CE
@@ -51,8 +51,8 @@
     #define MP4_ENC_NODE_DLL  "m4venc_sn.dll64P"
     #define USN_DLL           "usn.dll64P"
 #else
-    #define H264_ENC_NODE_DLL "/windows/h264venc_sn.dll64P"    
-    #define MP4_ENC_NODE_DLL  "/windows/m4venc_sn.dll64P"    
+    #define H264_ENC_NODE_DLL "/windows/h264venc_sn.dll64P"
+    #define MP4_ENC_NODE_DLL  "/windows/m4venc_sn.dll64P"
     #define USN_DLL           "/windows/usn.dll64P"
 #endif
 
@@ -84,7 +84,7 @@ typedef enum
 }IH264VENC_StreamFormat;
 
 /*H264 Encoder Specific Error Code bits*/
-typedef enum 
+typedef enum
 {
   IH264VENC_SEQPARAMERR=0,          /* Indicates error during sequence parameter set generation*/
   IH264VENC_PICPARAMERR,            /* Indicates error during picture parameter set generation*/
@@ -99,7 +99,7 @@ typedef enum
 } IH264VENC_ErrorBit;
 
 /* H.264 Encoder Slice and Picture level Loop Filter Control*/
-typedef enum 
+typedef enum
 {
   FILTER_ALL_EDGES = 0,             /* Enable filtering of all the edges*/
   DISABLE_FILTER_ALL_EDGES,         /* Disable filtering of all the edges*/
@@ -109,7 +109,7 @@ typedef enum
 
 
 /* H.264 Encoder Slice level Control for Intra4x4 Modes */
-typedef enum 
+typedef enum
 {
   INTRA4x4_NONE = 0 ,   /* Disable Intra4x4 modes */
   INTRA4x4_ISLICES  ,   /* Enable Intra4x4 modes only in I Slices*/
@@ -150,7 +150,7 @@ typedef enum
   IH264_INTRAREFRESH_CYCLIC_SLICES  ,  /* Insters Intra Slices in a cyclic fashion: */
                                        /* no of intra slices is equal to sliceRefreshRowNumber*/
   IH264_INTRAREFRESH_RDOPT_MBS         /* position of intra macro blocks is intelligently */
-                                       /* chosen by encoder, but the number of forcely coded*/ 
+                                       /* chosen by encoder, but the number of forcely coded*/
                                        /* intra macro blocks in a frame is gaurnteed to be */
                                        /* equal to totalMbsInFrame/airMbPeriod : Not valid for DM6446*/
 
@@ -201,10 +201,10 @@ typedef struct H264VE_GPP_SN_Obj_CreatePhase {
     unsigned char  ucProfile;
     unsigned char  ucLevel;
 
-	unsigned short usNalCallback;
+    unsigned short usNalCallback;
 
-	unsigned int   ulEncodingPreset;
-	unsigned int   ulRcAlgo;
+    unsigned int   ulEncodingPreset;
+    unsigned int   ulRcAlgo;
     unsigned short endArgs;
 } H264VE_GPP_SN_Obj_CreatePhase;
 
@@ -258,46 +258,45 @@ typedef struct IH264VENC_DynamicParams {
     void   (*pfNalUnitCallBack)(OMX_U32 *pNalu, OMX_U32 *pPacketSizeInBytes, void *pContext) ; /* Function pointer of the call-back function to be used by Encoder*/
     void *pContext                          ; /*pointer to context structure used during callback*/
     /*Following Parameter are related to Arbitrary Slice Ordering (ASO)*/
-    OMX_U32 numSliceASO                    ; /* Number of valid enteries in asoSliceOrder array valid range is [0,8], 
+    OMX_U32 numSliceASO                    ; /* Number of valid enteries in asoSliceOrder array valid range is [0,8],
                                                where 0 and 1 doesn't have any effect*/
     OMX_U32 asoSliceOrder[MAXNUMSLCGPS]    ; /* Array containing the order of slices in which they should
                                                 be present in bit-stream. vaild enteries are [0, any entry lesser than numSlicesASO]*/
     /* Following Parameter are related to Flexible macro block ordering (FMO)*/
     OMX_U32 numSliceGroups                 ; /* Total Number of slice groups, valid enteries are [0,8]*/
     OMX_U32 sliceGroupMapType              ; /* Slice GroupMapType : For Valid enteries see IH264VENC_SliceGroupMapType*/
-    OMX_U32 sliceGroupChangeDirectionFlag  ; /* Slice Group Change Direction Flag: Only valid when sliceGroupMapType 
-                                                 is equal to IH264_RASTER_SCAN_SLICE_GRP. 
+    OMX_U32 sliceGroupChangeDirectionFlag  ; /* Slice Group Change Direction Flag: Only valid when sliceGroupMapType
+                                                 is equal to IH264_RASTER_SCAN_SLICE_GRP.
                                                  For valid values refer IH264VENC_SliceGroupChangeDirection*/
-    OMX_U32 sliceGroupChangeRate           ; /* Slice Group Change Rate: Only valid when sliceGroupMapType 
-                                              is equal to IH264_RASTER_SCAN_SLICE_GRP. 
+    OMX_U32 sliceGroupChangeRate           ; /* Slice Group Change Rate: Only valid when sliceGroupMapType
+                                              is equal to IH264_RASTER_SCAN_SLICE_GRP.
                                                valid values are : [0, factor of number of Mbs in a row]*/
-    OMX_U32 sliceGroupChangeCycle          ; /* Slice Group Change Cycle: Only valid when sliceGroupMapType 
-                                               is equal to IH264_RASTER_SCAN_SLICE_GRP. 
+    OMX_U32 sliceGroupChangeCycle          ; /* Slice Group Change Cycle: Only valid when sliceGroupMapType
+                                               is equal to IH264_RASTER_SCAN_SLICE_GRP.
                                                Valid values can be 0 to numMbsRowsInPicture, also constrained
                                                by sliceGroupChangeRate*sliceGroupChangeCycle < totalMbsInFrame*/
-    OMX_U32 sliceGroupParams[MAXNUMSLCGPS] ; /* This field is useful in case of sliceGroupMapType equal to either 
+    OMX_U32 sliceGroupParams[MAXNUMSLCGPS] ; /* This field is useful in case of sliceGroupMapType equal to either
                                               IH264_INTERLEAVED_SLICE_GRP or IH264_FOREGRND_WITH_LEFTOVER_SLICE_GRP
                                               In both cases it has different meaning:
                                               In case of IH264_INTERLEAVED_SLICE_GRP:
-                                              The i-th entery in this array is used to specify the number of consecutive 
-                                               slice group macroblocks to be assigned to the i-th slice group in 
+                                              The i-th entery in this array is used to specify the number of consecutive
+                                               slice group macroblocks to be assigned to the i-th slice group in
                                                raster scan order of slice group macroblock units.
                                                Valid values are 0 to totalMbsInFrame again constrained by sum of all the elements
                                                shouldn't exceed totalMbsInFrame
                                                In case of IH264_FOREGRND_WITH_LEFTOVER_SLICE_GRP:
-                                               First entry in the array specify the start position of foreground region in terms 
+                                               First entry in the array specify the start position of foreground region in terms
                                                of macroblock number, valid values are [0, totalMbsInFrame-1]
-                                               Second entry in the array specify the end position of foreground region in terms 
+                                               Second entry in the array specify the end position of foreground region in terms
                                                of macroblock number, valid values are [0, totalMbsInFrame-1] with following constrains:
                                                endPos > startPos && endPos%mbsInOneRow > startPos%mbsInOneRow*/
 } IH264VENC_DynamicParams;
-
 
 /* H264 Encoder DSP s/n run-time input parameters */
 typedef struct H264VE_GPP_SN_UALGInputParams
 {
 
-    IH264VENC_DynamicParams H264VENC_TI_DYNAMICPARAMS; 
+    IH264VENC_DynamicParams H264VENC_TI_DYNAMICPARAMS;
     OMX_U32   ulFrameIndex;
 
 } H264VE_GPP_SN_UALGInputParams;
@@ -305,11 +304,11 @@ typedef struct H264VE_GPP_SN_UALGInputParams
 /* H264 Encoder DSP s/n run-time output parameters */
 typedef struct H264VE_GPP_SN_UALGOutputParams {
     OMX_U32   ulBitstreamSize;
-	OMX_S32   lFrameType;
-	OMX_U32   ulNALUnitsPerFrame;	/*Number of total NAL units per frame*/
-	OMX_U32   ulNALUnitsSizes[240];
-	OMX_U32   ulFrameIndex;			/*Gives the number of the input frame wich NAL unit belongs*/
-	OMX_U32   ulNALUnitIndex;		/*Number of current NAL unit inside the frame*/
+    OMX_S32   lFrameType;
+    OMX_U32   ulNALUnitsPerFrame;   /*Number of total NAL units per frame*/
+    OMX_U32   ulNALUnitsSizes[240];
+    OMX_U32   ulFrameIndex;         /*Gives the number of the input frame wich NAL unit belongs*/
+    OMX_U32   ulNALUnitIndex;       /*Number of current NAL unit inside the frame*/
 } H264VE_GPP_SN_UALGOutputParams;
 
 /* MPEG4/H263 Encoder DSP s/n create phase arguments */
@@ -344,8 +343,8 @@ typedef struct MP4VE_GPP_SN_Obj_CreatePhase {
     unsigned int   ulMaxDelay;
 
 #ifndef MODE_3410
-	unsigned int   ulVbvParamEnable;	
-	unsigned int   ulH263SliceMode;	
+    unsigned int   ulVbvParamEnable;
+    unsigned int   ulH263SliceMode;
 #endif
 
     unsigned int   ulUseGOV;
@@ -375,13 +374,13 @@ typedef struct MP4VE_GPP_SN_UALGInputParams {
     unsigned int   ulHalfPel;
     unsigned int   ulACPred;
     unsigned int   ul4MV;
-	unsigned int   uluseUMV;
+    unsigned int   uluseUMV;
     unsigned int   ulMVDataEnable;
     unsigned int   ulResyncDataEnable;
 
-	unsigned int   ulQPInter;           	/* default QP for P frame, range 1 to 31  */	
-	unsigned int   ulLastFrame;
-	unsigned int   ulcapturewidth;
+    unsigned int   ulQPInter;               /* default QP for P frame, range 1 to 31  */
+    unsigned int   ulLastFrame;
+    unsigned int   ulcapturewidth;
     unsigned int   ulQpMax;
     unsigned int   ulQpMin;
 } MP4VE_GPP_SN_UALGInputParams;
@@ -390,24 +389,24 @@ typedef struct MP4VE_GPP_SN_UALGInputParams {
 typedef struct MP4VE_GPP_SN_UALGOutputParams {
     unsigned int   ulBitstreamSize;
     unsigned int  cFrameType;/*changed from unsigned char  as SN did*/
-	unsigned int   mvDataSize;
+    unsigned int   mvDataSize;
     unsigned int   numPackets;
     #ifdef MODE_3410
-	unsigned char   MVData[9600];
+    unsigned char   MVData[9600];
     unsigned char   ResyncData[4800];
-	#else
-	unsigned char   MVData[12960];
-    unsigned char   ResyncData[1620];
-	#endif
+    #else
+    unsigned char   MVData[12960];
+    unsigned int    ResyncData[1620];
+    #endif
 } MP4VE_GPP_SN_UALGOutputParams;
 
-/* 
+/*
  *  ======== IVIDEO_RateControlPreset ========
  *  IVIDEO_DEFAULT => Default rate control of encoder
- *  IVIDEO_LOW_DELAY => CBR rate control for video conferencing 
- *  IVIDEO_STORAGE => VBR rate control for local storage (DVD) recording 
+ *  IVIDEO_LOW_DELAY => CBR rate control for video conferencing
+ *  IVIDEO_STORAGE => VBR rate control for local storage (DVD) recording
  *  IVIDEO_TWOPASS => two pass rate control for non real time applications
- *  IVIDEO_USER_DEFINED => User defined configuration using advanced parameters 
+ *  IVIDEO_USER_DEFINED => User defined configuration using advanced parameters
  */
 typedef enum {
     IVIDEO_LOW_DELAY =1, IVIDEO_STORAGE, IVIDEO_TWOPASS, IVIDEO_NONE, IVIDEO_USER_DEFINED

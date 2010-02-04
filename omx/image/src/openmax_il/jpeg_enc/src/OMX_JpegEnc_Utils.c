@@ -129,7 +129,9 @@ OMX_ERRORTYPE GetJpegEncLCMLHandle(OMX_HANDLETYPE pComponent)
 
     handle = dlopen("libLCML.so", RTLD_LAZY);
     if ( !handle ) {
-        fputs(dlerror(), stderr);
+        if ( (error = (char *)dlerror()) != NULL ) {
+            fputs(error, stderr);
+        }
         eError = OMX_ErrorComponentNotFound;
         goto EXIT;
     }
@@ -142,7 +144,13 @@ OMX_ERRORTYPE GetJpegEncLCMLHandle(OMX_HANDLETYPE pComponent)
     }
 
     /*  calling gethandle and passing phandle to b filled   */
-    eError = (*fpGetHandle)(&LCML_pHandle);
+    if ( fpGetHandle != NULL ) {
+        eError = (*fpGetHandle)(&LCML_pHandle);
+    }
+    else  {
+        eError = OMX_ErrorInvalidComponent;
+        goto EXIT;
+    }
 
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorUndefined;
@@ -230,8 +238,8 @@ OMX_ERRORTYPE JpegEncDisablePort (JPEGENC_COMPONENT_PRIVATE* pComponentPrivate, 
        }
    }
 
-EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "Exit form JPEGEnc Disable Port eError is = %x\n",eError);
+EXIT:
     return eError;
 }
 
@@ -422,13 +430,13 @@ OMX_ERRORTYPE JPEGEnc_Free_ComponentResources(JPEGENC_COMPONENT_PRIVATE *pCompon
     OMX_U32 nParam = 0;
     struct OMX_TI_Debug dbg;
 
+    OMX_DBG_INIT_BASE(dbg);
+    OMX_CHECK_PARAM(pComponentPrivate);
+
 #ifdef __PERF_INSTRUMENTATION__
         PERF_Boundary(pComponentPrivate->pPERF,
                       PERF_BoundaryStart | PERF_BoundaryCleanup);
 #endif
-
-    OMX_DBG_INIT_BASE(dbg);
-    OMX_CHECK_PARAM(pComponentPrivate);
 
     if ( pComponentPrivate->pLCML != NULL && pComponentPrivate->isLCMLActive) {
     	LCML_ControlCodec(((LCML_DSP_INTERFACE*)pComponentPrivate->pLCML)->pCodecinterfacehandle,EMMCodecControlDestroy,NULL);
@@ -623,9 +631,10 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
           lcml_dsp->ProfileID = 10;
       }
 #else
+    /* according to JPEG Enc SN Interface guide */
+    /* if PPLib is not enabled than  use profile 1 by default */
     lcml_dsp->ProfileID = 2;
 #endif
-
 
     /* CrPhArgs for JpegEnc */
     ptCreateString[0] = JPGENC_SNTEST_STRMCNT;
@@ -656,15 +665,37 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
     ptCreateString[14] = 512; /* Maximum Horizontal Size of the Thumbnail for App13 marker */
     ptCreateString[15] = 384; /* Maximum Vertical Size of the Thumbnail for App13 marker */
     ptCreateString[16] = 0; /* Number of scans is always 0 */
-    if (pPortDefIn->format.image.eColorFormat == OMX_COLOR_FormatYUV420PackedPlanar)
+
+/*
+this option supportsonly up to 3 mega pixels
+	if (pPortDefIn->format.image.eColorFormat == OMX_COLOR_FormatYUV420PackedPlanar)
     {
     	ptCreateString[16] = 1;
     }
+*/
 
     ptCreateString[17] = 0;
     if ( pPortDefIn->format.image.eColorFormat == OMX_COLOR_Format32bitARGB8888){
     	ptCreateString[17] = 1; //Convert flag
     }
+	
+	/*Do an internal conversion from YUV420P to YUV422I and encode so that
+	this JPEG would be viewable using the TI JPEG decoder*/
+	else if (pComponentPrivate->bConvert420pTo422i ){
+		if (pPortDefIn->format.image.eColorFormat == OMX_COLOR_FormatYUV420PackedPlanar ){
+			ptCreateString[17] = 10;
+			if(pComponentPrivate->bPPLibEnable)
+			{
+				/* memory requirement for having both conversion and pplib is much larger */
+				lcml_dsp->ProfileID +=3;
+			}
+		}
+		else{
+			OMX_PRMGR4(pComponentPrivate->dbg, "Error invalid ColorFormat for YUVConvertion\n");
+			eError=-1;
+			goto EXIT;
+		}
+	}
 
     ptCreateString[18] = 512; /* Maximum Horizontal Size of the Thumbnail for App5 marker */
     ptCreateString[19] = 384; /* Maximum Vertical Size of the Thumbnail for App5 marker */
@@ -686,7 +717,8 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
     //                7:422_IN_UY_WS, 8:422_IN_YU_WS, 9:YUV420P, 10:GRAY8, 11:GRAY4, 12:GRAY2_IN, 13:GRAY1
     if (pPortDefIn->format.image.eColorFormat ==  OMX_COLOR_FormatCbYCrY
         ||  pPortDefIn->format.image.eColorFormat == OMX_COLOR_Format32bitARGB8888
-        ||  pPortDefIn->format.image.eColorFormat == OMX_COLOR_FormatYCbYCr)
+        ||  pPortDefIn->format.image.eColorFormat == OMX_COLOR_FormatYCbYCr
+        ||  ptCreateString[17] == 10)
     {
         ptCreateStringPPLIB[14] = 5;
     }
@@ -704,7 +736,8 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
 
     //YuvOutputFormat
     // --> 0 = OFF, 1 = YUV420, 2 = YUV422ILE, 3 = YUV422IBE
-    if (pPortDefIn->format.image.eColorFormat ==  OMX_COLOR_FormatYUV420PackedPlanar)
+    if (pPortDefIn->format.image.eColorFormat ==  OMX_COLOR_FormatYUV420PackedPlanar
+        && ptCreateString[17] != 10)
     {
         ptCreateStringPPLIB[15] = 1;
     }
@@ -718,7 +751,13 @@ OMX_ERRORTYPE Fill_JpegEncLCMLInitParams(LCML_DSP *lcml_dsp, OMX_U16 arr[], OMX_
     //     7 = GRAY8, 8 = GRAY4, 9 = GRAY2, 10 = GRAY1
     ptCreateStringPPLIB[16] = 0;
 
-    ptCreateString[34] = END_OF_CR_PHASE_ARGS;
+    if(pComponentPrivate->bPPLibEnable)
+    {
+        ptCreateString[34] = END_OF_CR_PHASE_ARGS;
+    }else
+    {
+        ptCreateString[20] = END_OF_CR_PHASE_ARGS;
+    }
 #else
     ptCreateString[20] = END_OF_CR_PHASE_ARGS;
 #endif
@@ -746,7 +785,7 @@ static OMX_ERRORTYPE HandleJpegEncInternalFlush(JPEGENC_COMPONENT_PRIVATE *pComp
         pLcmlHandle = (LCML_DSP_INTERFACE*)pComponentPrivate->pLCML;
         eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,EMMCodecControlStrmCtrl, (void*)aParam);
         if (eError != OMX_ErrorNone) {
-            goto EXIT;
+            goto PRINT_EXIT;
         }
 
         pthread_mutex_lock(&pComponentPrivate->jpege_mutex);
@@ -768,7 +807,7 @@ static OMX_ERRORTYPE HandleJpegEncInternalFlush(JPEGENC_COMPONENT_PRIVATE *pComp
         pLcmlHandle = (LCML_DSP_INTERFACE*)pComponentPrivate->pLCML;
         eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,EMMCodecControlStrmCtrl, (void*)aParam);
         if (eError != OMX_ErrorNone) {
-            goto EXIT;
+            goto PRINT_EXIT;
         }
 
         pthread_mutex_lock(&pComponentPrivate->jpege_mutex);
@@ -782,8 +821,9 @@ static OMX_ERRORTYPE HandleJpegEncInternalFlush(JPEGENC_COMPONENT_PRIVATE *pComp
         pComponentPrivate->bFlushComplete = OMX_FALSE;
     }
 
+    PRINT_EXIT:
+        OMX_PRINT1(pComponentPrivate->dbg, "Exiting HandleCommand FLush Function JEPG Encoder\n");
     EXIT:
-    OMX_PRINT1(pComponentPrivate->dbg, "Exiting HandleCommand FLush Function JEPG Encoder\n");
     return eError;
 
 }
@@ -808,7 +848,7 @@ OMX_ERRORTYPE HandleJpegEncCommandFlush(JPEGENC_COMPONENT_PRIVATE *pComponentPri
         pLcmlHandle = (LCML_DSP_INTERFACE*)pComponentPrivate->pLCML;
         eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,EMMCodecControlStrmCtrl, (void*)aParam);
         if (eError != OMX_ErrorNone) {
-            goto EXIT;
+            goto PRINT_EXIT;
         }
        OMX_PRDSP2(pComponentPrivate->dbg, "sent EMMCodecControlStrmCtrl command\n");
 
@@ -890,7 +930,7 @@ OMX_ERRORTYPE HandleJpegEncCommandFlush(JPEGENC_COMPONENT_PRIVATE *pComponentPri
         pLcmlHandle = (LCML_DSP_INTERFACE*)pComponentPrivate->pLCML;
         eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,EMMCodecControlStrmCtrl, (void*)aParam);
         if (eError != OMX_ErrorNone) {
-            goto EXIT;
+            goto PRINT_EXIT;
         }
         OMX_PRDSP2(pComponentPrivate->dbg, "(1) sent EMMCodecControlStrmCtrl command\n");
 
@@ -939,7 +979,7 @@ OMX_ERRORTYPE HandleJpegEncCommandFlush(JPEGENC_COMPONENT_PRIVATE *pComponentPri
             ret = read(pComponentPrivate->free_outBuf_Q[0], &pBuffHead, sizeof(pBuffHead));
             if ( ret == -1 ) {
                 OMX_PRCOMM4(pComponentPrivate->dbg, "Error while reading from the pipe\n");
-                goto EXIT;
+                goto PRINT_EXIT;
             }
             OMX_PRCOMM1(pComponentPrivate->dbg, "after read\n");
             if (pBuffHead != NULL) {
@@ -974,8 +1014,9 @@ OMX_ERRORTYPE HandleJpegEncCommandFlush(JPEGENC_COMPONENT_PRIVATE *pComponentPri
                                                NULL);
     }
 
+    PRINT_EXIT:
+        OMX_PRINT1(pComponentPrivate->dbg, "Exiting HandleCommand FLush Function JEPG Encoder\n");
     EXIT:
-   OMX_PRINT1(pComponentPrivate->dbg, "Exiting HandleCommand FLush Function JEPG Encoder\n");
     return eError;
 
 }
@@ -1548,6 +1589,7 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
             PERF_Boundary(pComponentPrivate->pPERFcomp,
                           PERF_BoundaryComplete | PERF_BoundarySetup);
 #endif
+
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                               pComponentPrivate->pHandle->pApplicationPrivate,
                           OMX_EventCmdComplete,
@@ -1758,6 +1800,7 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
             PERF_Boundary(pComponentPrivate->pPERFcomp,
                           PERF_BoundarySteadyState| PERF_BoundaryComplete);
 #endif
+
          /* Decrement reference count with signal enabled */
          if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
                return OMX_ErrorUndefined;
@@ -1800,12 +1843,11 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
                 goto EXIT;
             }
             /*
-            pComponentPrivate->nCurState = OMX_StatePause;
+            pComponentPrivate->nCurState = OMX_StatePause; */
             /* Decrement reference count with signal enabled */
             if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
                    return OMX_ErrorUndefined;
-            }
-
+           }
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,pComponentPrivate->pHandle->pApplicationPrivate,
                                                    OMX_EventCmdComplete, OMX_CommandStateSet, pComponentPrivate->nCurState, NULL);
         } else {
@@ -1955,7 +1997,6 @@ OMX_ERRORTYPE HandleJpegEncCommand (JPEGENC_COMPONENT_PRIVATE *pComponentPrivate
                 if(RemoveStateTransition(pComponentPrivate, 1) != OMX_ErrorNone) {
                   return OMX_ErrorUndefined;
                 }
-
                 pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
                                                        OMX_EventCmdComplete,
@@ -2099,7 +2140,7 @@ OMX_ERRORTYPE HandleJpegEncFreeOutputBufferFromApp(JPEGENC_COMPONENT_PRIVATE *pC
     if (pComponentPrivate->pOutParams != NULL)
     {
         pComponentPrivate->pOutParams = (OMX_U8*)pComponentPrivate->pOutParams - PADDING_128_BYTE;
-        OMX_FREE(pComponentPrivate->pOutParams);
+	OMX_FREE(pComponentPrivate->pOutParams);
     }
     OMX_MALLOC(pComponentPrivate->pOutParams,sizeof(PPLIB_UALGRunTimeParam_t) + PADDING_256_BYTE);
     pComponentPrivate->pOutParams = (OMX_U8*)pComponentPrivate->pOutParams + PADDING_128_BYTE;
@@ -2822,10 +2863,12 @@ OMX_ERRORTYPE JpegEncLCML_Callback (TUsnCodecEvent event,void * argsCb [10])
     int i;
 
     JPEGENC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
-    OMX_COMPONENTTYPE *pHandle;
+    OMX_COMPONENTTYPE *pHandle = NULL;
 
     if ( ((LCML_DSP_INTERFACE*)argsCb[6] ) != NULL ) {
         pComponentPrivate = (JPEGENC_COMPONENT_PRIVATE*)((LCML_DSP_INTERFACE*)argsCb[6])->pComponentPrivate;
+        OMX_CHECK_PARAM(pComponentPrivate);
+
         pHandle = (OMX_COMPONENTTYPE *)pComponentPrivate->pHandle; 
     }
     else {
@@ -2917,7 +2960,7 @@ OMX_ERRORTYPE JpegEncLCML_Callback (TUsnCodecEvent event,void * argsCb [10])
             eError = HandleJpegEncFreeDataBuf(pComponentPrivate, pBuffHead);
         }
     }
-    goto EXIT;
+    goto PRINT_EXIT;
     } /* end     if ( event == EMMCodecBufferProcessed ) */
 
     if ( event == EMMCodecProcessingStoped ) {
@@ -2943,36 +2986,35 @@ OMX_ERRORTYPE JpegEncLCML_Callback (TUsnCodecEvent event,void * argsCb [10])
 
         OMX_TRACE1(pComponentPrivate->dbg, "after stop signal\n");
 
-        goto EXIT;
+        goto PRINT_EXIT;
     }
 
     if ( event == EMMCodecDspError ) {
     
        OMX_PRDSP4(pComponentPrivate->dbg, "in EMMCodecDspError EMMCodec Args -> %x, %x\n", (int)argsCb[4] , (int)argsCb[5]);
-
-       if ((int)argsCb[4] == USN_ERR_PROCESS && (int)argsCb[5] == IUALG_ERR_INSUFF_BUFFER) {
-           OMX_PRDSP4(pComponentPrivate->dbg, "DSP Error. The allocated output buffer length is insufficient.\n");
+        if ((int)argsCb[4] == USN_ERR_PROCESS && (int)argsCb[5] == IUALG_ERR_INSUFF_BUFFER) {
+            OMX_PRDSP4(pComponentPrivate->dbg,
+                    "DSP Error. The allocated output buffer length is insufficient");
            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                      pComponentPrivate->pHandle->pApplicationPrivate,
                                      OMX_EventError,
                                      OMX_ErrorInsufficientResources,
                                      OMX_TI_ErrorCritical,
                                      "The allocated output buffer length is insufficient");
-           goto EXIT;
+           goto PRINT_EXIT;
        }
-
        if ((int)argsCb[4] != 0x1 || (int)argsCb[5] != 0x500) {
-	   if ((int)argsCb[5] == JPEGENC_THUMBNAIL_ABSENT_WARNING) {
-           OMX_PRDSP4(pComponentPrivate->dbg, "Thumbnail is not generated as it \
-                   exceeds 64K spec size limit for the given thumbnail resolution and yuv data\n");
-           pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                     pComponentPrivate->pHandle->pApplicationPrivate,
-                                     OMX_EventError,
-                                     OMX_ErrorUndefined,
-                                     OMX_TI_ErrorMinor,
-                                     "Thumbnail not generated as it exceeds 64K size limit set by spec");
-	       goto EXIT;
-	   }
+		   if ((int)argsCb[5] == JPEGENC_THUMBNAIL_ABSENT_WARNING) {
+	           OMX_PRDSP4(pComponentPrivate->dbg, "Thumbnail is not generated as it \
+	                   exceeds 64K spec size limit for the given thumbnail resolution and yuv data\n");
+	           pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+	                                     pComponentPrivate->pHandle->pApplicationPrivate,
+	                                     OMX_EventError,
+	                                     OMX_ErrorUndefined,
+	                                     OMX_TI_ErrorMinor,
+	                                     "Thumbnail not generated as it exceeds 64K size limit set by spec");
+		       goto EXIT;
+		   }
            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                      pComponentPrivate->pHandle->pApplicationPrivate,
                                      OMX_EventError, 
@@ -2987,7 +3029,7 @@ OMX_ERRORTYPE JpegEncLCML_Callback (TUsnCodecEvent event,void * argsCb [10])
                                                    OMX_ErrorInvalidState,
                                                    OMX_TI_ErrorCritical,
                                                    "DSP Hardware Error");
-           goto EXIT;
+           goto PRINT_EXIT;
        }
 #ifdef DSP_MMU_FAULT_HANDLING
         /* Cheking for MMU_fault */
@@ -3012,7 +3054,7 @@ OMX_ERRORTYPE JpegEncLCML_Callback (TUsnCodecEvent event,void * argsCb [10])
                                                OMX_ErrorHardware, 
                                                OMX_TI_ErrorCritical,
                                                NULL);
-        goto EXIT;
+        goto PRINT_EXIT;
     }
     if ( event == EMMCodecProcessingPaused ) {
         OMX_PRDSP2(pComponentPrivate->dbg, "ENTERING TO EMMCodecProcessingPaused JPEG Encoder\n");
@@ -3046,9 +3088,9 @@ OMX_ERRORTYPE JpegEncLCML_Callback (TUsnCodecEvent event,void * argsCb [10])
         pthread_mutex_unlock(&pComponentPrivate->jpege_mutex);
         */
     }
-
-EXIT:
+PRINT_EXIT:
     OMX_PRDSP1(pComponentPrivate->dbg, "Exiting the LCML_Callback function\n");
+EXIT:
     return eError;
 }
 /*-------------------------------------------------------------------*/
@@ -3194,21 +3236,26 @@ void LinkedList_Create(LinkedList *LinkedList) {
 void LinkedList_AddElement(LinkedList *LinkedList, void *pValue) {
     /* create new node and fill the value */
     Node *pNewNode = (Node *)malloc(sizeof(Node));
-    pNewNode->pValue = (void *)pValue;
-    /*printf("LinkedList:::: Pointer=%p has been added.\n", pNewNode->pValue); */
-    /* add new node on the root to implement quick FIFO */
-    /* modify new node pointers */
+    if ( pNewNode != NULL ) {
+        pNewNode->pValue = (void *)pValue;
+        /*printf("LinkedList:::: Pointer=%p has been added.\n", pNewNode->pValue); */
+        /* add new node on the root to implement quick FIFO */
+        /* modify new node pointers */
 
-    pthread_mutex_lock(&LinkedList->lock);
-    if(LinkedList->pRoot == NULL) {
-        pNewNode->pNextNode = NULL;
+        pthread_mutex_lock(&LinkedList->lock);
+        if(LinkedList->pRoot == NULL) {
+            pNewNode->pNextNode = NULL;
+        }
+        else {
+             pNewNode->pNextNode = LinkedList->pRoot;
+        }
+        /*modify root */
+        LinkedList->pRoot = pNewNode;
+        pthread_mutex_unlock(&LinkedList->lock);
     }
     else {
-         pNewNode->pNextNode = LinkedList->pRoot;
+         LOGE("Linked list memory allocation failed.\n" );
     }
-    /*modify root */
-    LinkedList->pRoot = pNewNode;
-    pthread_mutex_unlock(&LinkedList->lock);
 }
 
 void LinkedList_FreeElement(LinkedList *LinkedList, void *pValue) {
@@ -3245,9 +3292,9 @@ void LinkedList_FreeAll(LinkedList *LinkedList) {
         pTempNode = LinkedList->pRoot->pNextNode;
         /*printf("LinkedList:::: Pointer=%p has been freed\n", LinkedList->pRoot->pValue); */
         if(LinkedList->pRoot->pValue != NULL) {
-            free(LinkedList->pRoot->pValue);
-            LinkedList->pRoot->pValue = NULL;
-        }
+		free(LinkedList->pRoot->pValue);
+		LinkedList->pRoot->pValue = NULL;
+	}
         free(LinkedList->pRoot);
         LinkedList->pRoot = pTempNode;
         nodes++;
@@ -3276,14 +3323,14 @@ void LinkedList_Destroy(LinkedList *LinkedList) {
 OMX_ERRORTYPE AddStateTransition(JPEGENC_COMPONENT_PRIVATE* pComponentPrivate) {
 
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-
+     
     if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
        return OMX_ErrorUndefined;
     }
 
     /* Increment state change request reference count */
     pComponentPrivate->nPendingStateChangeRequests++;
-
+    
     if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
        return OMX_ErrorUndefined;
     }
@@ -3293,24 +3340,22 @@ OMX_ERRORTYPE AddStateTransition(JPEGENC_COMPONENT_PRIVATE* pComponentPrivate) {
 
 OMX_ERRORTYPE RemoveStateTransition(JPEGENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal) {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-
+     
      /* Decrement state change request reference count*/
     if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
        return OMX_ErrorUndefined;
     }
 
     pComponentPrivate->nPendingStateChangeRequests--;
-
+     
     /* If there are no more pending requests, signal the thread waiting on this*/
     if(!pComponentPrivate->nPendingStateChangeRequests && bEnableSignal) {
        pthread_cond_signal(&(pComponentPrivate->StateChangeCondition));
     }
-
+ 
     if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
        return OMX_ErrorUndefined;
     }
-
+    
     return eError;
 }
-
-

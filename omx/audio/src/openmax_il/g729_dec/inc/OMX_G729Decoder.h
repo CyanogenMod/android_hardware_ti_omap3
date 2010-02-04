@@ -54,6 +54,10 @@
 #include <OMX_Component.h>
 #include <pthread.h>
 
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
+
 #ifdef __PERF_INSTRUMENTATION__
 #include "perf.h"
 #endif
@@ -199,9 +203,9 @@
     (_s_)->nVersion.s.nStep = 0x0;
 
 #define OMX_G729MEMFREE_STRUCT(_pStruct_)                       \
-    G729DEC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
     if(_pStruct_ != NULL)                                       \
     {                                                           \
+        G729DEC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
         free(_pStruct_);                                        \
         _pStruct_ = NULL;                                       \
     }
@@ -637,6 +641,11 @@ typedef struct G729DEC_COMPONENT_PRIVATE
 
     OMX_BOOL bPreempted;
 
+    /** Pointer to RM callback **/
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
+
 
 #ifdef __PERF_INSTRUMENTATION__
     PERF_OBJHANDLE pPERF, pPERFcomp;
@@ -693,6 +702,13 @@ OMX_ERRORTYPE G729DEC_StartComponentThread(OMX_HANDLETYPE pHandle);
 OMX_ERRORTYPE G729DEC_StopComponentThread(OMX_HANDLETYPE pHandle);
 OMX_ERRORTYPE G729DEC_FreeCompResources(OMX_HANDLETYPE pComponent);
 void SendFlushCompleteEvent(G729DEC_COMPONENT_PRIVATE *pComponentPrivate, int port);
+
+#ifdef RESOURCE_MANAGER_ENABLED
+/***********************************
+ *  Callback to the RM                                       *
+ ***********************************/
+void G729DEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
 
 /*--------macros ----------------------------------------------*/
 #ifndef UNDER_CE

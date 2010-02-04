@@ -146,6 +146,6 @@ typedef enum WBAMRENC_OMX_INDEXAUDIOTYPE {
     OMX_IndexCustomWbAmrEncStreamIDConfig,
     OMX_WbIndexCustomDataPath,
     OMX_IndexCustomDebug
-}WBAMRENC_OMX_INDEXAUDIOTYPE;
+} WBAMRENC_OMX_INDEXAUDIOTYPE;
 
 #endif /* OMX_WBAMRENCODER_H */

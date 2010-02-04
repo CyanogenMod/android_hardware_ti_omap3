@@ -3591,18 +3591,20 @@ void LinkedList_Create(LinkedList *LinkedList) {
 void LinkedList_AddElement(LinkedList *LinkedList, void *pValue) {
     /* create new node and fill the value */
     Node *pNewNode = (Node *)malloc(sizeof(Node));
-    pNewNode->pValue = (void *)pValue;
-    /*printf("LinkedList:::: Pointer=%p has been added.\n", pNewNode->pValue); */
-    /* add new node on the root to implement quick FIFO */
-    /* modify new node pointers */
-    if(LinkedList->pRoot == NULL) {
-        pNewNode->pNextNode = NULL;
+    if (pNewNode != NULL) {
+        pNewNode->pValue = (void *)pValue;
+        /*printf("LinkedList:::: Pointer=%p has been added.\n", pNewNode->pValue); */
+        /* add new node on the root to implement quick FIFO */
+        /* modify new node pointers */
+        if (LinkedList->pRoot == NULL) {
+            pNewNode->pNextNode = NULL;
+        }
+        else {
+             pNewNode->pNextNode = LinkedList->pRoot;
+        }   
+        /*modify root */
+        LinkedList->pRoot = pNewNode;
     }
-    else {
-         pNewNode->pNextNode = LinkedList->pRoot;
-    }
-    /*modify root */
-    LinkedList->pRoot = pNewNode;
 }
 
 void LinkedList_FreeElement(LinkedList *LinkedList, void *pValue) {

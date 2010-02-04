@@ -131,8 +131,7 @@ PERF_RT_create(PERF_Private *perf, PERF_Config *config,
         /* configuration */
         me->summary     = config->rt_summary != 0;
         me->debug       = config->rt_debug & 0x1FF;
-        me->detailed    = (config->rt_detailed < 0) ? 0 :
-                          (config->rt_detailed > 2) ? 2 : (int) config->rt_detailed;
+        me->detailed    = (config->rt_detailed > 2) ? 2 : (int) config->rt_detailed;
 
         me->granularity = (config->rt_granularity < 1) ? 1 :
                           (config->rt_granularity > MAX_GRANULARITY) ?

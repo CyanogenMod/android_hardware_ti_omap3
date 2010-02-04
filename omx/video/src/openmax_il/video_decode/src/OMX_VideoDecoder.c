@@ -96,6 +96,8 @@ extern OMX_ERRORTYPE VIDDEC_Stop_ComponentThread(OMX_HANDLETYPE pComponent);
 /*extern OMX_ERRORTYPE VIDDEC_HandleCommandMarkBuffer(VIDDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 nParam1, OMX_PTR pCmdData);
 extern OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 nParam1, OMX_PTR pCmdData);*/
 extern OMX_ERRORTYPE VIDDEC_Load_Defaults (VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_S32 nPassing);
+extern OMX_ERRORTYPE IncrementCount (OMX_U8 * pCounter, pthread_mutex_t *pMutex);
+extern OMX_ERRORTYPE DecrementCount (OMX_U8 * pCounter, pthread_mutex_t *pMutex);
 
 /*******************************************************************************
 *  PUBLIC DECLARATIONS Defined here, used elsewhere
@@ -115,7 +117,6 @@ VIDDEC_CUSTOM_PARAM sVideoDecCustomParams[] =                                {{V
 #else
                                                                              {VIDDEC_CUSTOMPARAM_ISNALBIGENDIAN, VideoDecodeCustomParamIsNALBigEndian}};
 #endif
-
 /* H.263 Supported Levels & profiles */
 VIDEO_PROFILE_LEVEL_TYPE SupportedH263ProfileLevels[] = {
   {OMX_VIDEO_H263ProfileBaseline, OMX_VIDEO_H263Level10},
@@ -160,7 +161,6 @@ VIDEO_PROFILE_LEVEL_TYPE SupportedAVCProfileLevels[] ={
   {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel3},
   {OMX_VIDEO_AVCProfileBaseline, OMX_VIDEO_AVCLevel31},
   {-1,-1}};
-
 /*--------function prototypes ------------------------------------------------*/
 
 /*******************************************************************************
@@ -323,6 +323,23 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
     pHandle->ComponentRoleEnum              = ComponentRoleEnum;
 #endif
 
+    /*mutex protection*/
+    if (pthread_mutex_init(&(pComponentPrivate->mutexInputBFromApp), NULL) != 0) {
+        eError = OMX_ErrorUndefined;
+        return eError;
+    }
+    if (pthread_mutex_init(&(pComponentPrivate->mutexOutputBFromApp), NULL) != 0) {
+        eError = OMX_ErrorUndefined;
+        return eError;
+    }
+    if (pthread_mutex_init(&(pComponentPrivate->mutexInputBFromDSP), NULL) != 0) {
+        eError = OMX_ErrorUndefined;
+        return eError;
+    }
+    if (pthread_mutex_init(&(pComponentPrivate->mutexOutputBFromDSP), NULL) != 0) {
+        eError = OMX_ErrorUndefined;
+        return eError;
+    }
     OMX_MALLOC_STRUCT(pComponentPrivate->pPortParamType, OMX_PORT_PARAM_TYPE,pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel0]);
 #ifdef __STD_COMPONENT__
     OMX_MALLOC_STRUCT(pComponentPrivate->pPortParamTypeAudio, OMX_PORT_PARAM_TYPE,pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel0]);
@@ -614,12 +631,10 @@ static OMX_ERRORTYPE VIDDEC_SendCommand (OMX_HANDLETYPE hComponent,
 
     switch (Cmd) {
         case OMX_CommandStateSet:
-
             /* Add a pending transition */
             if(AddStateTransition(pComponentPrivate) != OMX_ErrorNone) {
                 return OMX_ErrorUndefined;
             }
-
             pComponentPrivate->eIdleToLoad = nParam1;
             pComponentPrivate->eExecuteToIdle = nParam1;
             nRet = write(pComponentPrivate->cmdPipe[VIDDEC_PIPE_WRITE], &Cmd, sizeof(Cmd));
@@ -826,72 +841,74 @@ static OMX_ERRORTYPE VIDDEC_GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
         }
         case OMX_IndexParamVideoProfileLevelQuerySupported:
             {
-			        VIDEO_PROFILE_LEVEL_TYPE* pProfileLevel = NULL;
-                                OMX_U32 nNumberOfProfiles = 0;
-                                OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
-			        pParamProfileLevel->nPortIndex = pComponentPrivate->pInPortDef->nPortIndex;
+                VIDEO_PROFILE_LEVEL_TYPE* pProfileLevel = NULL;
+                OMX_U32 nNumberOfProfiles = 0;
+                OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
+                pParamProfileLevel->nPortIndex = pComponentPrivate->pInPortDef->nPortIndex;
 
-				/* Choose table based on compression format */
-				switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat)
-				{
-				case OMX_VIDEO_CodingH263:
-				    pProfileLevel = SupportedH263ProfileLevels;
-                                    nNumberOfProfiles = sizeof(SupportedH263ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
-				    break;
-				case OMX_VIDEO_CodingMPEG4:
-				    pProfileLevel = SupportedMPEG4ProfileLevels;
-                                    nNumberOfProfiles = sizeof(SupportedMPEG4ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
-				    break;
-				case OMX_VIDEO_CodingAVC:
-				    pProfileLevel = SupportedAVCProfileLevels;
-                                    nNumberOfProfiles = sizeof(SupportedAVCProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
-				    break;
-                                default:
-                                    return OMX_ErrorBadParameter;
-				}
+                /* Choose table based on compression format */
+                switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat)
+                {
+                   case OMX_VIDEO_CodingH263:
+					    pProfileLevel = SupportedH263ProfileLevels;
+	                    nNumberOfProfiles = sizeof(SupportedH263ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
+                      break;
+                   case OMX_VIDEO_CodingMPEG4:
+					    pProfileLevel = SupportedMPEG4ProfileLevels;
+	                    nNumberOfProfiles = sizeof(SupportedMPEG4ProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
+                      break;
+                   case OMX_VIDEO_CodingAVC:
+					    pProfileLevel = SupportedAVCProfileLevels;
+                        nNumberOfProfiles = sizeof(SupportedAVCProfileLevels) / sizeof (VIDEO_PROFILE_LEVEL_TYPE);
+                      break;
+                    default:
+                        return OMX_ErrorBadParameter;
+                  }
 
-                                if((pParamProfileLevel->nProfileIndex < 0) || (pParamProfileLevel->nProfileIndex >= (nNumberOfProfiles - 1)))
-                                    return OMX_ErrorBadParameter;
+                if((pParamProfileLevel->nProfileIndex < 0) || (pParamProfileLevel->nProfileIndex >= (nNumberOfProfiles - 1)))
+                    return OMX_ErrorBadParameter;
+                  /* Point to table entry based on index */
+                  pProfileLevel += pParamProfileLevel->nProfileIndex;
 
-				/* Point to table entry based on index */
-				pProfileLevel += pParamProfileLevel->nProfileIndex;
-
-				/* -1 indicates end of table */
-				if(pProfileLevel->nProfile != -1) {
-				    pParamProfileLevel->eProfile = pProfileLevel->nProfile;
-				    pParamProfileLevel->eLevel = pProfileLevel->nLevel;
-					eError = OMX_ErrorNone;
-				}
-				else {
-				    eError = OMX_ErrorNoMore;
-				}
-				break;
-	   }
+                  /* -1 indicates end of table */
+                  if(pProfileLevel->nProfile != -1) {
+                     pParamProfileLevel->eProfile = pProfileLevel->nProfile;
+                     pParamProfileLevel->eLevel = pProfileLevel->nLevel;
+                     eError = OMX_ErrorNone;
+                  }
+                  else {
+                     eError = OMX_ErrorNoMore;
+                  }
+                  break;
+                  }
         case OMX_IndexParamVideoProfileLevelCurrent:
-	   {
-			OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
-			if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
-				pParamProfileLevel->eProfile = pComponentPrivate->pH264->eProfile;
-				pParamProfileLevel->eLevel = pComponentPrivate->pH264->eLevel;
-			}
-			else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4) {
-				pParamProfileLevel->eProfile = pComponentPrivate->pMpeg4->eProfile;
-				pParamProfileLevel->eLevel = pComponentPrivate->pMpeg4->eLevel;
-			}
-			else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
-				pParamProfileLevel->eProfile = pComponentPrivate->pH263->eProfile;
-				pParamProfileLevel->eLevel = pComponentPrivate->pH263->eLevel;
-			}
-			else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG2) {
-				pParamProfileLevel->eProfile = pComponentPrivate->pMpeg2->eProfile;
-				pParamProfileLevel->eLevel = pComponentPrivate->pMpeg2->eLevel;
-			}
-			else {
-                                OMX_ERROR4(pComponentPrivate->dbg, "Error in Getparameter OMX_IndexParamVideoProfileLevelCurrent \n");
-				eError = OMX_ErrorBadParameter;
-			}
-		}
-		     break;
+        {
+           OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
+           if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
+           LOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent AVC");
+           pParamProfileLevel->eProfile = pComponentPrivate->pH264->eProfile;
+           pParamProfileLevel->eLevel = pComponentPrivate->pH264->eLevel;
+        }
+        else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4) {
+           LOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent MPEG4");
+           pParamProfileLevel->eProfile = pComponentPrivate->pMpeg4->eProfile;
+           pParamProfileLevel->eLevel = pComponentPrivate->pMpeg4->eLevel;
+        }
+        else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
+           LOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent H.263");
+           pParamProfileLevel->eProfile = pComponentPrivate->pH263->eProfile;
+           pParamProfileLevel->eLevel = pComponentPrivate->pH263->eLevel;
+        }
+        else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG2) {
+           pParamProfileLevel->eProfile = pComponentPrivate->pMpeg2->eProfile;
+           pParamProfileLevel->eLevel = pComponentPrivate->pMpeg2->eLevel;
+        }
+        else {
+           LOGD("Error in Getparameter OMX_IndexParamVideoProfileLevelCurrent");
+           eError = OMX_ErrorBadParameter;
+         }
+      }
+      break;
         case OMX_IndexParamStandardComponentRole:
             if (ComponentParameterStructure != NULL) {
                 pRole = (OMX_PARAM_COMPONENTROLETYPE *)ComponentParameterStructure;
@@ -1463,11 +1480,16 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
                 if(eError != OMX_ErrorNone) {
                     goto EXIT;
                 }
-
+#ifdef ANDROID
                 /* Set format according with hw accelerated rendering */
                 if( pComponentPrivate->pOutPortFormat->eColorFormat != VIDDEC_COLORFORMAT422) {
                     eError = VIDDEC_Load_Defaults(pComponentPrivate, VIDDEC_INIT_INTERLEAVED422);
                 }
+#else
+                if( pComponentPrivate->pOutPortFormat->eColorFormat != VIDDEC_COLORFORMAT420) {
+                    eError = VIDDEC_Load_Defaults(pComponentPrivate, VIDDEC_INIT_PLANAR420);
+                }
+#endif
                 memcpy( (void *)&pComponentPrivate->componentRole, (void *)pRole, sizeof(OMX_PARAM_COMPONENTROLETYPE));
             } 
             else {
@@ -1511,9 +1533,11 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
             if (mDebugFps == OMX_FALSE) {
                 if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4 ||
                         pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263){
-                        pComponentPrivate->pDeblockingParamType->bDeblocking = 
-                            ((OMX_PARAM_DEBLOCKINGTYPE*)pCompParam)->bDeblocking;
-			 LOGD("Deblocking Enable");
+                        /*pComponentPrivate->pDeblockingParamType->bDeblocking = 
+                            ((OMX_PARAM_DEBLOCKINGTYPE*)pCompParam)->bDeblocking;*/
+                        /*codec is not supporting deblocking by now*/
+                        pComponentPrivate->pDeblockingParamType->bDeblocking = OMX_FALSE;
+                        eError = OMX_ErrorUnsupportedIndex;
                     break;
                 }
             }
@@ -1552,60 +1576,59 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
         case OMX_IndexConfigAudioChannelVolume:
         case OMX_IndexConfigFlashControl:
         case OMX_IndexParamVideoProfileLevelQuerySupported:
-		     break;
+           break;
         case OMX_IndexParamVideoProfileLevelCurrent:
-                     {
-                         VIDEO_PROFILE_LEVEL_TYPE* pProfileLevel = NULL;
-                         OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)pCompParam;
+        {
+           VIDEO_PROFILE_LEVEL_TYPE* pProfileLevel = NULL;
+           OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)pCompParam;
 
-                         /* Choose table based on compression format */
-                         switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat)
-                         {
-                             case OMX_VIDEO_CodingH263:
-                                 pProfileLevel = SupportedH263ProfileLevels;
-                                 break;
-                             case OMX_VIDEO_CodingMPEG4:
-                                 pProfileLevel = SupportedMPEG4ProfileLevels;
-                                 break;
-                             case OMX_VIDEO_CodingAVC:
-                                 pProfileLevel = SupportedAVCProfileLevels;
-                                 break;
-                             default:
-                                 return OMX_ErrorBadParameter;
-                         }
+           /* Choose table based on compression format */
+           switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat)
+           {
+              case OMX_VIDEO_CodingH263:
+                 pProfileLevel = SupportedH263ProfileLevels;
+                 break;
+              case OMX_VIDEO_CodingMPEG4:
+                 pProfileLevel = SupportedMPEG4ProfileLevels;
+                 break;
+              case OMX_VIDEO_CodingAVC:
+                 pProfileLevel = SupportedAVCProfileLevels;
+                 break;
+             default:
+                 return OMX_ErrorBadParameter;
+            }
 
-                         /* Check validity of profile & level parameters */
-                         while((pProfileLevel->nProfile != (OMX_S32)pParamProfileLevel->eProfile) ||
-                                 (pProfileLevel->nLevel != (OMX_S32)pParamProfileLevel->eLevel)) {
-                             pProfileLevel++;
-                             if(pProfileLevel->nProfile == -1) break;
-                         }
+            /* Check validity of profile & level parameters */
+            while((pProfileLevel->nProfile != (OMX_S32)pParamProfileLevel->eProfile) ||
+                 (pProfileLevel->nLevel != (OMX_S32)pParamProfileLevel->eLevel)) {
+               pProfileLevel++;
+               if(pProfileLevel->nProfile == -1) break;
+             }
 
-                         if(pProfileLevel->nProfile != -1) {
-                             /* Update profile & level values in the compression format specific structure */
-                             switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat) {
-                                 case OMX_VIDEO_CodingH263:
-                                     pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
-                                     pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
-                                     break;
-                                 case OMX_VIDEO_CodingMPEG4:
-                                     pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
-                                     pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
-                                     break;
-                                 case OMX_VIDEO_CodingAVC:
-                                     pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
-                                     pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
-                                 default:
-                                     return OMX_ErrorBadParameter;
-                             }
-
-                             eError = OMX_ErrorNone;
-                         }
-                         else {
-                             eError = OMX_ErrorBadParameter;
-                         }
-                         break;
-                     }
+            if(pProfileLevel->nProfile != -1) {
+            /* Update profile & level values in the compression format specific structure */
+               switch(pComponentPrivate->pInPortDef->format.video.eCompressionFormat) {
+                  case OMX_VIDEO_CodingH263:
+                     pComponentPrivate->pH263->eProfile = pParamProfileLevel->eProfile;
+                     pComponentPrivate->pH263->eLevel = pParamProfileLevel->eLevel;
+                     break;
+                  case OMX_VIDEO_CodingMPEG4:
+                     pComponentPrivate->pMpeg4->eProfile = pParamProfileLevel->eProfile;
+                     pComponentPrivate->pMpeg4->eLevel = pParamProfileLevel->eLevel;
+                     break;
+                  case OMX_VIDEO_CodingAVC:
+                     pComponentPrivate->pH264->eProfile = pParamProfileLevel->eProfile;
+                     pComponentPrivate->pH264->eLevel = pParamProfileLevel->eLevel;
+                 default:
+                     return OMX_ErrorBadParameter;
+               }
+               eError = OMX_ErrorNone;
+            }
+            else {
+               eError = OMX_ErrorBadParameter;
+            }
+            break;
+            }
 
         case OMX_IndexConfigVideoBitrate:
         case OMX_IndexConfigVideoFramerate:
@@ -2248,11 +2271,12 @@ EXIT:
   **/
 /*----------------------------------------------------------------------------*/
 
-static OMX_ERRORTYPE VIDDEC_GetState (OMX_HANDLETYPE hComponent,
+static OMX_ERRORTYPE VIDDEC_GetState (OMX_HANDLETYPE hComponent, 
                                       OMX_STATETYPE* pState)
 {
     OMX_ERRORTYPE eError                        = OMX_ErrorNone;
     OMX_COMPONENTTYPE* pHandle = NULL;
+
     VIDDEC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
     struct timespec abs_time = {0,0};
     int nPendingStateChangeRequests = 0;
@@ -2280,20 +2304,20 @@ static OMX_ERRORTYPE VIDDEC_GetState (OMX_HANDLETYPE hComponent,
            }
 
            /* No pending state transitions */
-	   *pState = ((VIDDEC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->eState;
+          *pState = ((VIDDEC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->eState;
             eError = OMX_ErrorNone;
         }
         else {
-           /* Wait for component to complete state transition */
+                  /* Wait for component to complete state transition */
            clock_gettime(CLOCK_REALTIME, &abs_time);
            abs_time.tv_sec += mutex_timeout;
            abs_time.tv_nsec = 0;
-           ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time);
+          ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time);
            if (!ret) {
               /* Component has completed state transitions*/
               *pState = ((VIDDEC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->eState;
               if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
-                 return OMX_ErrorUndefined;
+                  return OMX_ErrorUndefined;
               }
               eError = OMX_ErrorNone;
            }
@@ -2307,7 +2331,7 @@ static OMX_ERRORTYPE VIDDEC_GetState (OMX_HANDLETYPE hComponent,
      else {
         eError = OMX_ErrorInvalidComponent;
         *pState = OMX_StateInvalid;
-    }
+     }
 
     return eError;
 }
@@ -2342,8 +2366,8 @@ static OMX_ERRORTYPE VIDDEC_EmptyThisBuffer (OMX_HANDLETYPE pComponent,
     pHandle = (OMX_COMPONENTTYPE *)pComponent;
     pComponentPrivate = (VIDDEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 
-    OMX_PRBUFFER1(pComponentPrivate->dbg, "+++Entering pHandle 0x%p pBuffer 0x%p Index %lu\n",pComponent,
-            pBuffHead, pBuffHead->nInputPortIndex);
+    OMX_PRBUFFER1(pComponentPrivate->dbg, "+++Entering pHandle 0x%p pBuffer 0x%p Index %lu  state %x  nflags  %x  isfirst %x\n",pComponent,
+            pBuffHead, pBuffHead->nInputPortIndex,pComponentPrivate->eState,pBuffHead->nFlags,pComponentPrivate->bFirstHeader);
 
 #ifdef __PERF_INSTRUMENTATION__
     PERF_ReceivedFrame(pComponentPrivate->pPERF,
@@ -2376,20 +2400,27 @@ static OMX_ERRORTYPE VIDDEC_EmptyThisBuffer (OMX_HANDLETYPE pComponent,
     pBufferPrivate = (VIDDEC_BUFFER_PRIVATE* )pBuffHead->pInputPortPrivate;
     ret = pBufferPrivate->eBufferOwner;
     pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_COMPONENT;
-    android_atomic_inc(&pComponentPrivate->nInputBCountApp);
+    eError = IncrementCount (&(pComponentPrivate->nCountInputBFromApp), &(pComponentPrivate->mutexInputBFromApp));
+    if (eError != OMX_ErrorNone) {
+        return eError;
+    }
 
     OMX_PRBUFFER1(pComponentPrivate->dbg, "Writing pBuffer 0x%p OldeBufferOwner %ld nAllocLen %lu nFilledLen %lu eBufferOwner %d\n",
         pBuffHead, ret,pBuffHead->nAllocLen,pBuffHead->nFilledLen,pBufferPrivate->eBufferOwner);
 
     ret = write (pComponentPrivate->filled_inpBuf_Q[VIDDEC_PIPE_WRITE], &(pBuffHead), sizeof(pBuffHead));
     if (ret == -1) {
+        /*like function returns error buffer still with Client IL*/
+        pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_CLIENT;
         OMX_PRCOMM4(pComponentPrivate->dbg, "Error in Writing to the Data pipe\n");
+        DecrementCount (&(pComponentPrivate->nCountInputBFromApp), &(pComponentPrivate->mutexInputBFromApp));
         eError = OMX_ErrorHardware;
         goto EXIT;
     }
 
 EXIT:
-    OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting 0x%x\n",eError);
+    if (pComponentPrivate)
+        OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting 0x%x\n", eError);
     return eError;
 }
 
@@ -2458,20 +2489,27 @@ static OMX_ERRORTYPE VIDDEC_FillThisBuffer (OMX_HANDLETYPE pComponent,
     pBufferPrivate = (VIDDEC_BUFFER_PRIVATE* )pBuffHead->pOutputPortPrivate;
     ret = pBufferPrivate->eBufferOwner;
     pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_COMPONENT;
-    android_atomic_inc(&pComponentPrivate->nOutputBCountApp);
+    eError = IncrementCount (&(pComponentPrivate->nCountOutputBFromApp), &(pComponentPrivate->mutexOutputBFromApp));
+    if (eError != OMX_ErrorNone) {
+        return eError;
+    }
     pBuffHead->nFilledLen = 0;
-    pBuffHead->nFlags = 0;  // Clear flags
+    pBuffHead->nFlags = 0;
     OMX_PRBUFFER1(pComponentPrivate->dbg, "Writing pBuffer 0x%p OldeBufferOwner %d eBufferOwner %d nFilledLen %lu\n",
         pBuffHead, ret,pBufferPrivate->eBufferOwner,pBuffHead->nFilledLen);
     ret = write (pComponentPrivate->free_outBuf_Q[1], &(pBuffHead), sizeof (pBuffHead));
     if (ret == -1) {
+        /*like function returns error buffer still with Client IL*/
+        pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_CLIENT;
         OMX_PRCOMM4(pComponentPrivate->dbg, "Error in Writing to the Data pipe\n");
+        DecrementCount (&(pComponentPrivate->nCountOutputBFromApp), &(pComponentPrivate->mutexOutputBFromApp));
         eError = OMX_ErrorHardware;
         goto EXIT;
     }
 
 EXIT:
-    OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting 0x%x\n",eError);
+    if (pComponentPrivate)
+        OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting 0x%x\n", eError);
     return eError;
 }
 
@@ -2548,7 +2586,6 @@ static OMX_ERRORTYPE VIDDEC_ComponentDeInit(OMX_HANDLETYPE hComponent)
 
     if (pComponentPrivate->pInternalConfigBufferAVC != NULL)
       free(pComponentPrivate->pInternalConfigBufferAVC);
-
     for (iCount = 0; iCount < MAX_PRIVATE_BUFFERS; iCount++) {
         if(pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr != NULL) {
             OMX_BUFFERHEADERTYPE* pBuffHead = NULL;
@@ -2564,16 +2601,14 @@ static OMX_ERRORTYPE VIDDEC_ComponentDeInit(OMX_HANDLETYPE hComponent)
         }
     }
 
-
     for (iCount = 0; iCount < MAX_PRIVATE_BUFFERS; iCount++) {
         if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr != NULL) {
             OMX_BUFFERHEADERTYPE* pBuffHead = NULL;
-            OMX_U8* pTemp = NULL;
             pBuffHead = pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr;
             if(pBuffHead != NULL){
-                if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->bAllocByComponent == OMX_TRUE){
+	         if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->bAllocByComponent == OMX_TRUE){
                     OMX_MEMFREE_STRUCT_DSPALIGN(pBuffHead->pBuffer,OMX_U8);
-                }
+	         }
                 free(pBuffHead);
                 pBuffHead = NULL;
                 pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->pBufferPrivate[iCount]->pBufferHdr = NULL;
@@ -2783,6 +2818,10 @@ static OMX_ERRORTYPE VIDDEC_ComponentDeInit(OMX_HANDLETYPE hComponent)
     VIDDEC_PTHREAD_SEMAPHORE_DESTROY(pComponentPrivate->sInSemaphore);
     VIDDEC_PTHREAD_SEMAPHORE_DESTROY(pComponentPrivate->sOutSemaphore);
 #endif
+    pthread_mutex_destroy(&(pComponentPrivate->mutexInputBFromApp));
+    pthread_mutex_destroy(&(pComponentPrivate->mutexOutputBFromApp));
+    pthread_mutex_destroy(&(pComponentPrivate->mutexInputBFromDSP));
+    pthread_mutex_destroy(&(pComponentPrivate->mutexOutputBFromDSP));
 
     pthread_mutex_destroy(&pComponentPrivate->mutexStateChangeRequest);
     pthread_cond_destroy(&pComponentPrivate->StateChangeCondition);
@@ -2975,7 +3014,9 @@ static OMX_ERRORTYPE VIDDEC_UseBuffer(OMX_IN OMX_HANDLETYPE hComponent,
 #endif
     }
 EXIT:
-    OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting eError 0x%x\n", eError);
+    if (pComponentPrivate)
+        OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting eError 0x%x\n", \
+                                                         eError);
     return eError;  
 }
 
@@ -3142,8 +3183,14 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
                              PERF_ModuleMemory);
 #endif
 
-           OMX_FREE_BUFFER_VIDDEC(pBuffHead, pCompPort);
-
+      /* Freeing the original buffer position were data buffer was allocated */
+           if(pBufferPrivate->pOriginalBuffer != NULL){
+              pBuffHead->pBuffer = pBufferPrivate->pOriginalBuffer;
+              pBufferPrivate->pOriginalBuffer = NULL;
+              OMX_FREE_VIDDEC(pBuffHead->pBuffer);
+           } else{
+               OMX_FREE_BUFFER_VIDDEC(pBuffHead, pCompPort);
+           }
         }
     }
 
@@ -3242,7 +3289,9 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     }
 
 EXIT:
-    OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting eError 0x%x\n", eError);
+    if (pComponentPrivate)
+        OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting eError 0x%x\n", \
+                                                        eError);
     return eError;
 }
 
@@ -3283,6 +3332,7 @@ static OMX_ERRORTYPE VIDDEC_AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     OMX_PRBUFFER1(pComponentPrivate->dbg, "+++Entering pHandle 0x%p pBuffHead 0x%p nPortIndex 0x%lx nSizeBytes 0x%lx\n",
         hComponent, *pBuffHead, nPortIndex, nSizeBytes);
 
+
     if (nPortIndex == pComponentPrivate->pInPortFormat->nPortIndex) {
         pCompPort = pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT];
         pBufferCnt = pCompPort->nBufferCnt;
@@ -3314,10 +3364,8 @@ static OMX_ERRORTYPE VIDDEC_AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     memset(*pBuffHead, 0, sizeof(OMX_BUFFERHEADERTYPE));
     OMX_CONF_INIT_STRUCT(pCompPort->pBufferPrivate[pBufferCnt]->pBufferHdr, OMX_BUFFERHEADERTYPE, pComponentPrivate->dbg);
     /* Allocate Video Decoder buffer */
-    OMX_MALLOC_BUFFER_VIDDEC(pCompPort->pBufferPrivate[pBufferCnt]->pBufferHdr->pBuffer,
-			nSizeBytes,
-			pCompPort->pBufferPrivate[pBufferCnt]->pOriginalBuffer);
-    if (!pCompPort->pBufferPrivate[pBufferCnt]->pBufferHdr->pBuffer) {
+    OMX_MALLOC_STRUCT_SIZED((*pBuffHead)->pBuffer, OMX_U8, OMX_GET_DATABUFF_SIZE(nSizeBytes), NULL);
+    if (!((*pBuffHead)->pBuffer)) {
         eError = OMX_ErrorInsufficientResources;
         pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                pComponentPrivate->pHandle->pApplicationPrivate,
@@ -3327,8 +3375,12 @@ static OMX_ERRORTYPE VIDDEC_AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
                                                NULL);
         goto EXIT;
     }
+    /* Align and add padding for data buffer */
+    pCompPort->pBufferPrivate[pBufferCnt]->pOriginalBuffer = (*pBuffHead)->pBuffer;
+    (*pBuffHead)->pBuffer += VIDDEC_PADDING_HALF;
+    OMX_ALIGN_BUFFER((*pBuffHead)->pBuffer, VIDDEC_ALIGNMENT);
 #ifdef VIDDEC_WMVPOINTERFIXED
-    pCompPort->pBufferPrivate[pBufferCnt]->pTempBuffer = (pCompPort->pBufferPrivate[pBufferCnt]->pBufferHdr->pBuffer);
+    pCompPort->pBufferPrivate[pBufferCnt]->pTempBuffer = (*pBuffHead)->pBuffer;
     (*pBuffHead)->nOffset = 0;
 #endif
 
@@ -3424,7 +3476,9 @@ static OMX_ERRORTYPE VIDDEC_AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     }
 
 EXIT:
-    OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting eError 0x%x\n", eError);
+    if (pComponentPrivate)
+        OMX_PRBUFFER1(pComponentPrivate->dbg, "---Exiting eError 0x%x\n", \
+                                                         eError);
     return eError;
 }
 

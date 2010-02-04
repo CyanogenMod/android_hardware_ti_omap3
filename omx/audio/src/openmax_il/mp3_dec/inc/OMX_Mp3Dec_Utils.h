@@ -56,10 +56,9 @@
 #endif
 
 #ifndef UNDER_CE
-#define MP3D_RM_MANAGER /* Enable to use Resource Manager functionality */
-/* #include <ResourceManagerProxyAPI.h> */
-#else
-#undef MP3D_RM_MANAGER /* Enable to use Resource Manager functionality */
+
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
 #endif
 
 
@@ -82,7 +81,7 @@
     #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
 #endif
 
-
+#endif
 
 #define MP3DEC_MAJOR_VER 0x1/* Major number of the component */
 #define MP3DEC_MINOR_VER 0x1 /* Mnor number of the component */
@@ -118,9 +117,6 @@
 #define MP3D_MONO_STREAM  1 /* Mono stream index */
 #define MP3D_STEREO_INTERLEAVED_STREAM  2 /* Stereo Interleaved stream index */
 #define MP3D_STEREO_NONINTERLEAVED_STREAM  3 /* Stereo Non-Interleaved stream index */
-
-#define EXTRA_BYTES 128 /* For Cache alignment*/
-#define DSP_CACHE_ALIGNMENT 256 /* For Cache alignment*/
 
 #define MP3D_STEREO_STREAM  2
 
@@ -237,32 +233,6 @@
 
 #endif
 
-#define MP3D_OMX_MALLOC(_pStruct_, _sName_)   \
-    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));      \
-    if(_pStruct_ == NULL){      \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");	\
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__); \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
-        eError = OMX_ErrorInsufficientResources; \
-        goto EXIT;      \
-    } \
-    memset(_pStruct_,0,sizeof(_sName_));\
-    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
-
-
-
-#define MP3D_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)   \
-    _ptr_ = (_name_ *)newmalloc(_size_);      \
-    if(_ptr_ == NULL){      \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__); \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n"); \
-        eError = OMX_ErrorInsufficientResources; \
-        goto EXIT;      \
-    } \
-    memset(_ptr_,0,_size_); \
-    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_ptr_);
-
 #define MP3D_OMX_ERROR_EXIT(_e_, _c_, _s_)\
     _e_ = _c_;\
     OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n**************** OMX ERROR ************************\n");\
@@ -278,14 +248,6 @@
         goto EXIT;                 \
     }                                           \
 }
-
-#define MP3D_OMX_FREE(ptr) \
-    if(NULL != ptr) { \
-        OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Freeing Address = %p\n",__LINE__,ptr); \
-        newfree(ptr); \
-        ptr = NULL; \
-    }
-
 
 #define OMX_CONF_INIT_STRUCT(_s_, _name_)       \
     memset((_s_), 0x0, sizeof(_name_)); \
@@ -323,13 +285,14 @@ typedef enum MP3D_COMP_PORT_TYPE {
     MP3D_INPUT_PORT = 0,
     MP3D_OUTPUT_PORT
 }MP3D_COMP_PORT_TYPE;
+
 /* ======================================================================= */
 /**
- * pthread variable to indicate OMX returned all buffers to app
+ * pthread variable to indicate OMX returned all buffers to app 
  */
 /* ======================================================================= */
-    pthread_mutex_t bufferReturned_mutex;
-    pthread_cond_t bufferReturned_condition;
+    pthread_mutex_t bufferReturned_mutex; 
+    pthread_cond_t bufferReturned_condition; 
 
 /* ======================================================================= */
 /** OMX_INDEXAUDIOTYPE: This enum is used by the TI OMX Component.
@@ -682,10 +645,12 @@ typedef struct MP3DEC_COMPONENT_PRIVATE
     OMX_PORT_PARAM_TYPE* pPortParamType;
     /** Pointer to port priority management structure */
     OMX_PRIORITYMGMTTYPE* pPriorityMgmt;
-	
-/*  RMPROXY_CALLBACKTYPE rmproxyCallback; */
-	OMX_BOOL bPreempted;
-	
+
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
+    OMX_BOOL bPreempted;
+    
     /** Contains the port related info of both the ports */
     MP3D_AUDIODEC_PORT_TYPE *pCompPort[NUM_OF_PORTS];
     /* Checks whether or not buffer were allocated by appliction */
@@ -736,9 +701,7 @@ typedef struct MP3DEC_COMPONENT_PRIVATE
     OMX_U32 bEnableCommandPending;
     OMX_U32 bEnableCommandParam;
 
-    /*Counts number of invalid buffers from DSP */
     OMX_U32 nInvalidFrameCount;
-    /* Count number of pending output buffrs */
     OMX_U32 numPendingBuffers;
     OMX_U32 bNoIdleOnStop;
     OMX_U32 bDspStoppedWhileExecuting;
@@ -1083,6 +1046,7 @@ void MP3DEC_CleanupInitParams(OMX_HANDLETYPE pComponent);
 /* ================================================================================ * */
 void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
 
+#ifdef RESOURCE_MANAGER_ENABLED
 /* =================================================================================== */
 /**
 *  MP3_ResourceManagerCallback() Callback from Resource Manager
@@ -1092,7 +1056,8 @@ void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
 *  @return None
 */
 /* =================================================================================== */
-/* void MP3_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData); */
+void MP3_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
 
 OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
 void MP3DEC_SetPending(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir, OMX_U32 lineNumber);
@@ -1110,16 +1075,26 @@ void* MP3DEC_ComponentThread (void* pThreadData);
 OMX_U32 MP3DEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BOOL bIcreasePosition);
 
 /*=======================================================================*/
-/*! @fn SignalIfAllBuffersAreReturned
+/*! @fn SignalIfAllBuffersAreReturned 
 
- * @brief Sends pthread signal to indicate OMX has returned all buffers to app
+ * @brief Sends pthread signal to indicate OMX has returned all buffers to app 
 
- * @param  none
+ * @param  none 
 
- * @Return void
+ * @Return void 
 
  */
 /*=======================================================================*/
 void SignalIfAllBuffersAreReturned(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate);
+
+/*  =========================================================================*/
+/*  func    MP3DEC_HandleUSNError
+/*
+/*  desc    Handles error messages returned by the dsp
+/*
+/*@return n/a
+/*
+/*  =========================================================================*/
+void MP3DEC_HandleUSNError (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
 #endif

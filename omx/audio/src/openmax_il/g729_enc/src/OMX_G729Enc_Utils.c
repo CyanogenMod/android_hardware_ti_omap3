@@ -432,6 +432,8 @@ OMX_ERRORTYPE G729ENC_FreeCompResources(OMX_HANDLETYPE pComponent)
     OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pComponent;
     G729ENC_COMPONENT_PRIVATE *pComponentPrivate = (G729ENC_COMPONENT_PRIVATE *)
         pHandle->pComponentPrivate;
+    OMX_U8* pAlgParmTemp = (OMX_U8*)pComponentPrivate->pAlgParam;
+    OMX_U8* pParmsTemp = (OMX_U8*)pComponentPrivate->pParams;
     
     G729ENC_DPRINT("Entering\n");
     if (pComponentPrivate->bPortDefsAllocated)
@@ -450,6 +452,17 @@ OMX_ERRORTYPE G729ENC_FreeCompResources(OMX_HANDLETYPE pComponent)
         OMX_G729CLOSE_PIPE(pComponentPrivate->cmdDataPipe[1],err);
 
     }
+
+    if (pAlgParmTemp != NULL)
+        pAlgParmTemp -= 128;
+    pComponentPrivate->pAlgParam = (G729ENC_TALGCtrl*)pAlgParmTemp;
+    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pAlgParam);
+
+    if (pParmsTemp != NULL)
+        pParmsTemp -= 128;
+    pComponentPrivate->pParams = (G729ENC_AudioCodecParams*)pParmsTemp;
+    OMX_G729MEMFREE_STRUCT(pComponentPrivate->pParams);
+
     if (pComponentPrivate->bPortDefsAllocated)
     {
         OMX_G729MEMFREE_STRUCT(pComponentPrivate->pPortDef[G729ENC_INPUT_PORT]);
@@ -881,8 +894,8 @@ OMX_U32 G729ENC_HandleCommand (G729ENC_COMPONENT_PRIVATE *pComponentPrivate)
                         goto EXIT;      
                     }
                     memset(pAlgParmTemp, 0x0, sizeof(G729ENC_TALGCtrl) + 256);
+                    G729ENC_MEMPRINT("%d :: [ALLOC] %p\n",__LINE__,pAlgParmTemp);
                     pComponentPrivate->pAlgParam = (G729ENC_TALGCtrl*)(pAlgParmTemp + 128);
-                    G729ENC_MEMPRINT("%d :: [ALLOC] %p\n",__LINE__,pComponentPrivate->pAlgParam);
                     pComponentPrivate->pAlgParam->vadFlag = pComponentPrivate->g729Params->bDTX;
                     pComponentPrivate->pAlgParam->size = sizeof( G729ENC_TALGCtrl );
                     pComponentPrivate->pAlgParam->frameSize = 0;
@@ -1989,9 +2002,17 @@ OMX_ERRORTYPE G729ENC_LCMLCallback (TUsnCodecEvent event,void * args[10])
                         /* Remove the copied data from pHoldBuffer. */
 
                         /*OMAPS00101094*/
-                        memcpy(pComponentPrivate->pHoldBuffer, 
-                               pComponentPrivate->pHoldBuffer + frameLength,
-                               pComponentPrivate->nHoldLength - frameLength);
+			if (pComponentPrivate->nHoldLength - frameLength < frameLength) {
+                            memcpy(pComponentPrivate->pHoldBuffer, 
+                                   pComponentPrivate->pHoldBuffer + frameLength,
+                                   pComponentPrivate->nHoldLength - frameLength);
+			}
+			else {
+                            memmove(pComponentPrivate->pHoldBuffer, 
+                                   pComponentPrivate->pHoldBuffer + frameLength,
+                                   pComponentPrivate->nHoldLength - frameLength);
+			}
+			
                         /*OMAPS00101094*/
                         pComponentPrivate->nHoldLength = pComponentPrivate->nHoldLength - frameLength;
                         G729ENC_DPRINT("pComponentPrivate->nHoldLength = %d\n",
@@ -2688,3 +2709,34 @@ OMX_ERRORTYPE G729ENC_FillLCMLInitParamsEx(OMX_HANDLETYPE pComponent)
     return eError;
 }
 
+#ifdef RESOURCE_MANAGER_ENABLED
+/***********************************
+ *  Callback to the RM                                       *
+ ***********************************/
+void G729ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
+{
+    OMX_COMMANDTYPE Cmd = OMX_CommandStateSet;
+    OMX_STATETYPE state = OMX_StateIdle;
+    OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)cbData.hComponent;
+    G729ENC_COMPONENT_PRIVATE *pCompPrivate = NULL;
+
+    pCompPrivate = (G729ENC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+
+    if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesPreempted){
+        if (pCompPrivate->curState == OMX_StateExecuting || 
+            pCompPrivate->curState == OMX_StatePause) {
+
+            write (pCompPrivate->cmdPipe[1], &Cmd, sizeof(Cmd));
+            write (pCompPrivate->cmdDataPipe[1], &state ,sizeof(OMX_U32));
+
+            pCompPrivate->bPreempted = 1;
+        }
+    }
+    else if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesAcquired){
+        pCompPrivate->cbInfo.EventHandler ( pHandle, 
+                                            pHandle->pApplicationPrivate,
+                                            OMX_EventResourcesAcquired, 
+                                            0, 0, NULL);
+    }
+}
+#endif

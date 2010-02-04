@@ -46,7 +46,10 @@
 #include <OMX_Component.h>
 #include <pthread.h>
 #include <OMX_TI_Debug.h>
-/* #include <ResourceManagerProxyAPI.h> */
+
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
 
 #ifdef __PERF_INSTRUMENTATION__
     #include "perf.h"
@@ -56,9 +59,6 @@
 #include <AudioManagerAPI.h>
 #endif
 
-#ifndef UNDER_CE
-/*#include <ResourceManagerProxyAPI.h> */
-#endif
 
 #ifndef ANDROID
     #define ANDROID
@@ -205,6 +205,18 @@
  */
 /* ======================================================================= */
 #define IP_BUFFERSIZE 4096
+/* ======================================================================= */
+/**
+ * @def    NUM_MIME_BYTES_ARRAY               amrMimeBytes array size
+ */
+/* ======================================================================= */
+#define NUM_MIME_BYTES_ARRAY 16
+/* ======================================================================= */
+/**
+ * @def    NUM_IF2_BYTES_ARRAY                amrIF2Bytes array size
+ */
+/* ======================================================================= */
+#define NUM_IF2_BYTES_ARRAY 16
 
 /* ======================================================================= */
 /**
@@ -298,6 +310,13 @@
 /* ======================================================================= */
 #define _ERROR_PROPAGATION__
 
+/* ======================================================================= */
+/**
+* pthread variable to indicate OMX returned all buffers to app 
+*/
+/* ======================================================================= */
+pthread_mutex_t bufferReturned_mutex; 
+pthread_cond_t bufferReturned_condition; 
 
 /* ======================================================================= */
 /** NBAMRDEC_COMP_PORT_TYPE  Port Type
@@ -584,9 +603,6 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
     /** The pipes for sending buffers to the thread */
     int cmdDataPipe[2];
 
-    /** The pipes for sending buffers to the thread */
-    /* int lcml_Pipe[2]; */
-
     /** Set to indicate component is stopping */
     OMX_U32 bIsStopping;
 
@@ -678,10 +694,10 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
    OMX_U32 bPlayCompleteFlag;
 
    /** NBAMR Mime Bytes */
-   OMX_U32 amrMimeBytes[16];
+   OMX_U32 amrMimeBytes[NUM_MIME_BYTES_ARRAY];
    
    /**NBAMR IF2 Bytes**/
-   OMX_U32 amrIF2Bytes[16];
+   OMX_U32 amrIF2Bytes[NUM_IF2_BYTES_ARRAY];
 
    /** Number of Bytes holding to be sent*/
    OMX_U32 nHoldLength;
@@ -805,6 +821,14 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
     /** Flag to flush SN after EOS in order to process more buffers after EOS**/
     OMX_U8 SendAfterEOS;    
 
+    /** Flag to mark the first sent buffer**/
+    OMX_U8 first_buff;
+    /** First Time Stamp sent **/
+    OMX_TICKS first_TS;
+
+    /** Temporal time stamp **/
+    OMX_TICKS temp_TS;
+
     OMX_BOOL bLoadedCommandPending;
     
     OMX_PARAM_COMPONENTROLETYPE componentRole;
@@ -812,7 +836,9 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
     /** Pointer to port priority management structure */
     OMX_PRIORITYMGMTTYPE* pPriorityMgmt;
 
-/*  RMPROXY_CALLBACKTYPE rmproxyCallback; */
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
 
     OMX_BOOL bPreempted;
     OMX_BOOL bFrameLost;
@@ -838,5 +864,18 @@ typedef enum OMX_NBAMRDEC_INDEXAUDIOTYPE {
         OMX_IndexCustomNbAmrDecNextFrameLost,
         OMX_IndexCustomDebug
 }OMX_NBAMRDEC_INDEXAUDIOTYPE;
+
+/*=======================================================================*/
+/*! @fn SignalIfAllBuffersAreReturned 
+
+ * @brief Sends pthread signal to indicate OMX has returned all buffers to app 
+
+ * @param  none 
+
+ * @Return void 
+
+ */
+/*=======================================================================*/
+void SignalIfAllBuffersAreReturned(AMRDEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 #endif /* OMX_AMRDECODER_H */

@@ -46,6 +46,10 @@
 #include <OMX_Component.h>
 #include <pthread.h>
 
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
+
 
 /* ======================================================================= */
 /**
@@ -336,8 +340,8 @@ void* ComponentThread (void* pThreadData);
     G711DEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_ptr_);
 
 #define OMX_G711DECMEMFREE_STRUCT(_pStruct_)                    \
-    G711DEC_MEMPRINT("%d :: [FREE] %p\n",__LINE__,_pStruct_);   \
     if(_pStruct_ != NULL){                                      \
+    G711DEC_MEMPRINT("%d :: [FREE] %p\n",__LINE__,_pStruct_);   \
         newfree(_pStruct_);                                     \
         _pStruct_ = NULL;                                       \
     }
@@ -782,6 +786,9 @@ typedef struct G711DEC_COMPONENT_PRIVATE
     
     /** Index to arrBufIndex[], used for output buffer timestamps */
     OMX_U8 OpBufindex;
+
+    /** Number of input buffers at runtime **/
+    OMX_U32 nRuntimeInputBuffers;
 
     /** Pointer to RM callback **/
 #ifdef RESOURCE_MANAGER_ENABLED

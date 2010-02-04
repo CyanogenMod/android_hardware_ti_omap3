@@ -44,15 +44,17 @@
 #define OMX_WMADECODER_H
 #include <pthread.h>
 
-#include <OMX_Component.h>
-#include <TIDspOmx.h>
 #include <OMX_TI_Common.h>
-#include <OMX_TI_Debug.h>
+#include <TIDspOmx.h>
 #include "LCML_DspCodec.h"
 #define _ERROR_PROPAGATION__ 
 
 #ifdef __PERF_INSTRUMENTATION__
 #include "perf.h"
+#endif
+
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
 #endif
 
 #include <OMX_Component.h> 
@@ -336,18 +338,6 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #define WMADEC_DEFAULT_SAMPLEPERBLOCK 8704
-/* ======================================================================= */
-
-/**
- * @def    WMA_CACHE_ALIGN   Number of bytes for cache alignment
- */
-/* ======================================================================= */
-#define WMA_CACHE_ALIGN 128
-/**
- * @def    WMA_CACHE_ALIGN   Number of bytes for cache alignment
- */
-/* ======================================================================= */
-#define WMA_EXTRA_BYTES 256
 /**
  * @def    WMADEC_DEBUG   Turns debug messaging on and off
  */
@@ -359,12 +349,6 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #undef WMADEC_MEMCHECK
-/* ======================================================================= */
-/**
- * @def    WMADEC_MEMDEBUG   Enable memory leaks debuf info
- */
-/* ======================================================================= */
-#undef WMADEC_MEMDEBUG 
 /* ======================================================================= */
 /**
  * @def    WMADEC_USN_DLL_NAME   USN DLL name
@@ -444,50 +428,6 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #define WMADEC_NUM_OF_PORTS 2
-/* ======================================================================= */
-/**
- *  M A C R O FOR ALLOCATE MEMORY 
- */
-/* ======================================================================= */
-#define WMAD_OMX_MALLOC(_pStruct_, _sName_)                             \
-    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));                   \
-    if(_pStruct_ == NULL){                                              \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");                \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__);                       \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");                \
-        eError = OMX_ErrorInsufficientResources;                        \
-        goto EXIT;                                                      \
-    }                                                                   \
-    memset(_pStruct_,0,sizeof(_sName_));                                \
-    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_pStruct_);
-
-
-#define WMAD_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)              \
-    _ptr_ = (_name_ *)newmalloc(_size_);                        \
-    if(_ptr_ == NULL){                                          \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");        \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d :: Malloc Failed\n",__LINE__);               \
-        OMXDBG_PRINT(stderr, ERROR, 4, 0, "***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_ptr_,0,_size_);                                     \
-    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: Malloced = %p\n",__LINE__,_ptr_);
-
-
-/* ======================================================================= */
-/**
- *  M A C R O FOR MEMORY FREE 
- */
-/* ======================================================================= */
-
-#define OMX_WMADECMEMFREE_STRUCT(_pStruct_)                     \
-    OMXDBG_PRINT(stderr, BUFFER, 2, OMX_DBG_BASEMASK, "%d :: [FREE] %p\n",__LINE__,_pStruct_);    \
-    if(_pStruct_ != NULL){                                      \
-    	newfree(_pStruct_);                                     \
-        _pStruct_ = NULL;                                       \
-    }
-
 /* ======================================================================= */
 /**
  *  W M A       T Y P E S
@@ -588,6 +528,7 @@ typedef struct
 typedef struct {
     /* Number of frames in a buffer */
     unsigned long ulFrameCount;
+    bool ulIsLastBuffer;
 }WMADEC_UAlgOutBufParamStruct;
 /* =================================================================================== */
 /**
@@ -613,6 +554,7 @@ struct _BUFFERLIST{
     OMX_BUFFERHEADERTYPE *pBufHdr[MAX_NUM_OF_BUFS]; /* records buffer header send by client */ 
     OMX_U32 bufferOwner[MAX_NUM_OF_BUFS];
     OMX_U32 bBufferPending[MAX_NUM_OF_BUFS];
+    OMX_U8 EosFlagSent;
 };
 
 
@@ -860,8 +802,14 @@ typedef struct WMADEC_COMPONENT_PRIVATE
 
     /** Flag to flush SN after EOS in order to process more buffers after EOS**/
     OMX_U8 SendAfterEOS;		
- 
+
+    OMX_U8 InputEosSet;
+
     OMX_BOOL bPreempted;
+
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
 	
     /* Removing sleep() calls. Definition. */
 #ifndef UNDER_CE
@@ -926,6 +874,8 @@ typedef struct WMADEC_COMPONENT_PRIVATE
     RCA_HEADER *rcaheader;
 
     struct OMX_TI_Debug dbg;        
+
+    OMX_BUFFERHEADERTYPE *lastout;
 
 } WMADEC_COMPONENT_PRIVATE;
 /* ===========================================================  */
@@ -1291,7 +1241,7 @@ OMX_U32 WMADEC_IsValid(WMADEC_COMPONENT_PRIVATE *pComponentPrivate,
 OMX_ERRORTYPE WMADEC_TransitionToIdle(WMADEC_COMPONENT_PRIVATE *pComponentPrivate);
 /* ===========================================================  */
 /**
- *  ComponentThread()  Component thread
+ *  WMADEC_ComponentThread()  Component thread
  *
  *  @param pThreadData		Thread data
  *
@@ -1300,7 +1250,7 @@ OMX_ERRORTYPE WMADEC_TransitionToIdle(WMADEC_COMPONENT_PRIVATE *pComponentPrivat
  *
  */
 /*================================================================== */
-void* ComponentThread (void* pThreadData);
+void* WMADEC_ComponentThread (void* pThreadData);
  
 
 /* ======================================================================= */
@@ -1340,7 +1290,19 @@ OMX_U32 WMADEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BO
 /*  =========================================================================*/
 OMX_ERRORTYPE WMADEC_Parser(OMX_U8* pBuffer, RCA_HEADER *pStreamData, struct OMX_TI_Debug dbg);
 
+/*  =========================================================================*/
+/*  func    WMADEC_HandleUSNError                                                                                    */
+/*                                                                                                                                              */
+/*  desc    Handles error messages returned by the dsp                                                        */
+/*                                                                                                                                              */
+/*@return n/a                                                                                                                           */
+/*                                                                                                                                              */
+/*  =========================================================================*/
+void WMADEC_HandleUSNError (WMADEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
+#ifdef RESOURCE_MANAGER_ENABLED
+void WMAD_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
 
 #endif
 

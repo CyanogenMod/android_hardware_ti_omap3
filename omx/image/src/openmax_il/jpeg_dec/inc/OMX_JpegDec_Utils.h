@@ -48,8 +48,11 @@
 #include <sys/time.h>
 #include <stdio.h>
 #include <errno.h>
-#include "OMX_TI_Common.h"
-#include "OMX_TI_Debug.h"
+#include <OMX_TI_Common.h>
+#include <OMX_TI_Debug.h>
+
+#include <utils/Log.h>
+#define LOG_TAG "OMX_JPGDEC"
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
@@ -237,7 +240,7 @@ do {					       \
 
 
 #define OMX_DPRINT_ADDRESS(_s_, _ptr_)  \
-    OMX_PRINT2((_pComponentPrivate_)->dbg, "%s = %p\n", _s_, _ptr_);
+    OMX_PRINT2(pComponentPrivate->dbg, "%s = %p\n", _s_, _ptr_);
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #define OMX_GET_RM_VALUE(_Res_, _RM_) \
@@ -258,7 +261,7 @@ do {					       \
         _RM_ = 90;  \
         }   \
         \
-    OMX_PRMGR2((_pComponentPrivate_)->dbg, "Value in MHz requested to RM = %d\n",_RM_); \
+    OMX_PRMGR2(pComponentPrivate->dbg, "Value in MHz requested to RM = %d\n",_RM_); \
 }
 #endif
 
@@ -399,7 +402,7 @@ typedef struct JPEGDEC_COMPONENT_PRIVATE
     OMX_PORT_PARAM_TYPE* pOtherPortType;
     /* Handle for use with async callbacks */
     OMX_CALLBACKTYPE cbInfo;
-    /*Component name OMX.TI.JPEG.decode*/
+    /*Component name OMX.TI.JPEG.decoder*/
     OMX_STRING      cComponentName;
     OMX_VERSIONTYPE ComponentVersion;
     OMX_VERSIONTYPE SpecVersion;
@@ -481,7 +484,7 @@ typedef struct
     OMX_U32 ulInFrameSize;      /*same as buffer size*/
     OMX_U32 ulInDisplayWidth;   /*Width of the buffer into which the image is to be decoded*/
     OMX_U32 ulInReserved0;      /*could be like thumbnail decode only*/
-    OMX_U32 ulInReserved1;      /*could be output format – later. Let’s fix it to 422 always now*/
+    OMX_U32 ulInReserved1;      /*could be output format ï¿½ later. Letï¿½s fix it to 422 always now*/
     OMX_U32 ulInReserved2;      /*could be post processing flag*/
     OMX_U32 ulInReserved3;
     OMX_U32 ulInResizeOption;   /*Rescale factor */
@@ -518,7 +521,7 @@ typedef struct
     OMX_U32 ulOutReserved0;
     OMX_U32 ulOutReserved1;
     OMX_U32 ulOutReserved2;
-    OMX_U32 lastMCU;            /* 1-Decoded all MCU’s0 - Decoding not completed*/
+    OMX_U32 lastMCU;            /* 1-Decoded all MCUï¿½s0 - Decoding not completed*/
     OMX_U32 stride[3];          /*Stride values for Y, U, and V components*/
     OMX_U32 ulOutputHeight;     /* Output Height */
     OMX_U32 ulOutputWidth;      /* Output Width*/

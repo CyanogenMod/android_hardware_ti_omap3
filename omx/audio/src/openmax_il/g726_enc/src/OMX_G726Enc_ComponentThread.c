@@ -128,7 +128,7 @@ void* G726ENC_CompThread(void* pThreadData)
                              						 OMX_ErrorInsufficientResources,
                              						 0,
                              						 "Error from CompThread in select");
-            exit(1);
+            eError = OMX_ErrorInsufficientResources;
 
         } else if(FD_ISSET (pComponentPrivate->cmdPipe[0], &rfds)) {
             /* Do not accept any command when the component is stopping */
@@ -175,5 +175,5 @@ void* G726ENC_CompThread(void* pThreadData)
 EXIT:
     G726ENC_DPRINT("%d :: Exiting G726ENC_CompThread\n", __LINE__);
     G726ENC_DPRINT("%d :: Returning = 0x%x\n",__LINE__,eError);
-    return (void*)OMX_ErrorNone;
+    return (void*)eError;
 }

@@ -139,6 +139,7 @@ OMX_ERRORTYPE G711DECFill_LCMLInitParams(OMX_HANDLETYPE pComponent,
 
     nIpBuf = (OMX_U16)pComponentPrivate->pInputBufferList->numBuffers;
     nIpBufSize = pComponentPrivate->pPortDef[G711DEC_INPUT_PORT]->nBufferSize;
+    pComponentPrivate->nRuntimeInputBuffers = nIpBuf;
     nOpBuf = pComponentPrivate->pOutputBufferList->numBuffers;
     nOpBufSize = pComponentPrivate->pPortDef[G711DEC_OUTPUT_PORT]->nBufferSize;
 
@@ -327,7 +328,9 @@ OMX_ERRORTYPE G711DECFill_LCMLInitParams(OMX_HANDLETYPE pComponent,
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->strmAttr);
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[G711DEC_INPUT_PORT]);
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[G711DEC_OUTPUT_PORT]);
-        OMX_G711DECMEMFREE_STRUCT(pTemp_lcml->pIpParam);
+	if (pTemp_lcml != NULL) {
+	    OMX_G711DECMEMFREE_STRUCT(pTemp_lcml->pIpParam);
+	}
     }
         
     return eError;
@@ -486,6 +489,9 @@ OMX_ERRORTYPE G711DEC_FreeCompResources(OMX_HANDLETYPE pComponent)
 
 
     }
+
+    OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pHoldBuffer);
+
     if (pComponentPrivate->bPortDefsAllocated) {
         G711DEC_DPRINT("%d:::[G711DEC_FreeCompResources] \n", __LINE__);
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pPortDef[G711DEC_INPUT_PORT]);
@@ -498,6 +504,7 @@ OMX_ERRORTYPE G711DEC_FreeCompResources(OMX_HANDLETYPE pComponent)
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_OUTPUT_PORT] );
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pInputBufferList);
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pOutputBufferList);
+        OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pParams);
     }
     
     pComponentPrivate->bPortDefsAllocated = 0;
@@ -530,6 +537,7 @@ OMX_ERRORTYPE G711DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
         pHandle->pComponentPrivate;
 
     LCML_G711DEC_BUFHEADERTYPE *pTemp_lcml = NULL;
+    OMX_U8 *pBufParmsTemp = NULL;
 
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 nIpBuf = 0;
@@ -537,16 +545,21 @@ OMX_ERRORTYPE G711DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
 
     G711DEC_DPRINT ("%d :: G711DEC_CleanupInitParams()\n", __LINE__);
     
-    nIpBuf = (OMX_U16)pComponentPrivate->pInputBufferList->numBuffers;
+    nIpBuf = pComponentPrivate->nRuntimeInputBuffers;
     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->strmAttr);
 
     pTemp_lcml = pComponentPrivate->pLcmlBufHeader[G711DEC_INPUT_PORT];
     
     for(i=0; i<nIpBuf; i++) {
         OMX_G711DECMEMFREE_STRUCT(pTemp_lcml->pIpParam);
+        OMX_G711DECMEMFREE_STRUCT(pTemp_lcml->pBufferParam);
+        OMX_G711DECMEMFREE_STRUCT(pTemp_lcml->pDmmBuf);
+        pBufParmsTemp = (OMX_U8*)pTemp_lcml->pFrameParam;
+        pBufParmsTemp -= 128;
+        OMX_G711DECMEMFREE_STRUCT(pBufParmsTemp);
         pTemp_lcml++;
     }
-    
+
     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[G711DEC_INPUT_PORT]);
     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[G711DEC_OUTPUT_PORT]);
 
@@ -790,7 +803,7 @@ OMX_U32 G711DECHandleCommand (G711DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 pComponentPrivate->rmproxyCallback.RMPROXY_Callback = 
                     (void *) G711DEC_ResourceManagerCallback;
                     
-                if (pComponentPrivate->curState != OMX_StateWaitForResources){                
+                if (pComponentPrivate->curState != OMX_StateWaitForResources){
                     rm_error = RMProxy_NewSendCommand(pHandle, RMProxy_RequestResource, 
                                                       OMX_PCM_Decoder_COMPONENT, 
                                                       OMX_G711DEC_CPU,
@@ -1588,8 +1601,11 @@ OMX_ERRORTYPE G711DECHandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                     
                     /* Shift the remaining bytes to the beginning of the pHoldBuffer */
                     pExtraData = pComponentPrivate->pHoldBuffer + frameLength;
+                    if (frameLength >= pComponentPrivate->nHoldLength)
+                        memcpy(pComponentPrivate->pHoldBuffer,pExtraData, pComponentPrivate->nHoldLength);
+                    else
+                        memmove(pComponentPrivate->pHoldBuffer,pExtraData, pComponentPrivate->nHoldLength);
 
-                    memcpy(pComponentPrivate->pHoldBuffer,pExtraData, pComponentPrivate->nHoldLength);
 
                     /* Clear the rest of the data from the pHoldBuffer */
                     pExtraData = pComponentPrivate->pHoldBuffer + pComponentPrivate->nHoldLength;
@@ -1956,6 +1972,12 @@ OMX_ERRORTYPE G711DECHandleDataBuf_FromLCML(G711DEC_COMPONENT_PRIVATE* pComponen
 
                     if ( pComponentPrivate->nHoldLength >= frameLength ) {
                         /* Copy the data from iHoldBuffer to dataPtr */
+                        if ((msgBuffer->buffer->pBuffer == NULL) ||
+                           (pComponentPrivate->pHoldBuffer == NULL)) {
+                           eError = OMX_ErrorBadParameter;
+			   goto EXIT;
+			}
+
                         memcpy(msgBuffer->buffer->pBuffer,
                                pComponentPrivate->pHoldBuffer,
                                frameLength);
@@ -2198,7 +2220,7 @@ OMX_ERRORTYPE G711DECLCML_Callback (TUsnCodecEvent event,void * args [10])
             }
         }
     } else if (event == EMMCodecStrmCtrlAck) {
-        LCML_DPRINT("%d :: GOT MESSAGE USN_DSPACK_STRMCTRL ----\n",__LINE__);
+        G711DEC_DPRINT("%d :: GOT MESSAGE USN_DSPACK_STRMCTRL ----\n",__LINE__);
     }
     else if(event == EMMCodecProcessingStoped) {
         G711DEC_DPRINT("pComponentPrivate_CC->bNoIdleOnStop = %d\n",(int)pComponentPrivate_CC->bNoIdleOnStop);
@@ -2656,7 +2678,9 @@ OMX_ERRORTYPE  G711DECFill_LCMLInitParamsEx (OMX_HANDLETYPE  pComponent )
     {
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[G711DEC_INPUT_PORT]);
         OMX_G711DECMEMFREE_STRUCT(strmAttr);
-        OMX_G711DECMEMFREE_STRUCT(pTemp_lcml->pIpParam);
+	if (pTemp_lcml != NULL) {
+	    OMX_G711DECMEMFREE_STRUCT(pTemp_lcml->pIpParam);
+	}
         OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[G711DEC_OUTPUT_PORT]);
     }
     return eError;

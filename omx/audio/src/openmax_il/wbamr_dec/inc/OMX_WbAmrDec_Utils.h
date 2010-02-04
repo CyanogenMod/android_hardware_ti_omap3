@@ -24,8 +24,9 @@
 #include <OMX_Component.h>
 #include "OMX_TI_Common.h"
 #include "OMX_WbAmrDecoder.h"
-/* #include <ResourceManagerProxyAPI.h> */
-
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
 
 
 /* ======================================================================= */
@@ -137,7 +138,6 @@ enum WBAMRDEC_MimeMode {
 #else
 #define WBAMR_DEC_DLL_NAME "wbamrdec_sn.dll64P"
 #endif
-
 
 /* ===========================================================  */
 /**
@@ -367,11 +367,15 @@ OMX_ERRORTYPE WBAMR_DEC_Fill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent);
 /*================================================================== */
 OMX_U32 WBAMR_DEC_IsValid(WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
 
-/* void WBAMRDEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData); */
+#ifdef RESOURCE_MANAGER_ENABLED
+void WBAMRDEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
 
 OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf, struct OMX_TI_Debug dbg);
 
 OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr, struct OMX_TI_Debug dbg);
+
+void WBAMRDEC_HandleUSNError (WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
 #ifdef UNDER_CE
 	#ifndef _OMX_EVENT_

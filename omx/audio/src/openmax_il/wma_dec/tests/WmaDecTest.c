@@ -67,7 +67,7 @@
     #include "OMX_GetTime.h"     /*Headers for Performance & measuremet    */
 #endif
   
-#define INPUT_WMADEC_BUFFER_SIZE 4096 * 2
+#define INPUT_WMADEC_BUFFER_SIZE 4096 * 4
 #define OUTPUT_WMADEC_BUFFER_SIZE 4096 * 10
 #define NUM_WMADEC_INPUT_BUFFERS 1
 #define NUM_WMADEC_OUTPUT_BUFFERS 1
@@ -79,7 +79,7 @@
 #define OMX_WMADEC_NonMIME 1
 #define MIME_HEADER_LEN 6
 #define WINDOW_PLAY_OFFSET 2
-#define APP_DEBUG
+#undef APP_DEBUG
 #undef APP_MEMCHECK
 #undef TWOINPUTBUFFERS
 #undef USE_BUFFER 
@@ -229,7 +229,7 @@ int maxint(int a, int b);
 
 int fill_data (OMX_BUFFERHEADERTYPE *pBuf, FILE *fIn);
 int fill_data_tc7 (OMX_BUFFERHEADERTYPE *pBuf, FILE *fIn);
-
+int unParse_Header (OMX_U8* pBuffer, FILE *fIn, int * payload);
 void ConfigureAudio();
 
 OMX_STRING strWmaEncoder = "OMX.TI.WMA.decode";
@@ -1578,7 +1578,9 @@ OMX_ERRORTYPE send_input_buffer(OMX_HANDLETYPE pHandle, OMX_BUFFERHEADERTYPE* pB
     else {
         APP_DPRINT("Send input buffer nRead = %d\n",nRead);
         pBuffer->nFilledLen = nRead;
-        pBuffer->nFlags = 0;
+        if(!(pBuffer->nFlags & OMX_BUFFERFLAG_CODECCONFIG)){
+          pBuffer->nFlags = 0;
+        }
         pComponent->EmptyThisBuffer(pHandle, pBuffer);
     }
     return error;
@@ -1627,14 +1629,18 @@ int fill_data (OMX_BUFFERHEADERTYPE *pBuf,FILE *fIn)
     int nRead;
     OMX_U32 packetSize;
     OMX_U8 byteOffset;
+    static OMX_U8 first_cap = 0;
+    static OMX_U8 first_buff = 0;
     static int totalRead = 0;
     static int fileHdrReadFlag = 0;
     static int ccnt = 1;
-    
+    static int payload=0;
+    OMX_U8 temp = 0;
     nRead = 0;
     byteOffset = 0;
     if(frameMode)
     {
+      /* TODO: Update framemode TC to match component */
         if (!fileHdrReadFlag) {
             /*The first input buffer readed have the .rca header information*/
             nRead = fread(pBuf->pBuffer, 1, 70, fIn);
@@ -1651,7 +1657,22 @@ int fill_data (OMX_BUFFERHEADERTYPE *pBuf,FILE *fIn)
     }
     else
     {
-        nRead = fread(pBuf->pBuffer, 1, INPUT_WMADEC_BUFFER_SIZE, fIn);
+      if(first_buff){
+        if (first_cap){
+          fread(&temp,5,1,fIn); // moving file 5 bytes
+        }
+        first_cap =1;
+        nRead = fread(pBuf->pBuffer, 1, payload, fIn);
+        if(pBuf->nFlags & OMX_BUFFERFLAG_CODECCONFIG)
+        {
+          pBuf->nFlags = 0;
+        }
+      }
+      else{
+        nRead = unParse_Header(pBuf->pBuffer,fIn, &payload);
+        pBuf->nFlags = OMX_BUFFERFLAG_CODECCONFIG;
+        first_buff=1;
+      }
     }
     totalRead += nRead;
     pBuf->nFilledLen = nRead;
@@ -1741,7 +1762,6 @@ float calc_buff_size(FILE *fIn)
 
 void fill_init_params(OMX_HANDLETYPE pHandle,const char * filename,int dasfmode, TI_OMX_DATAPATH * dataPath)
 {
-    APP_DPRINT("Here\n");
     OMX_ERRORTYPE error = OMX_ErrorNone;
     WMA_HeadInfo* pHeaderInfo;
 	OMX_INDEXTYPE index;
@@ -2026,4 +2046,34 @@ int freeAllUseResources(OMX_HANDLETYPE pHandle,
 }
 
 #endif
+/* ================================================================================= */
+/**
+* @fn unParse_Header
+* To match Android OMX Component, wee need to extract the info from the rca pattern
+* to build the config buffer.
+*/
+/* ================================================================================ */
+int unParse_Header (OMX_U8* pBuffer, FILE *fIn, int * payload){
 
+  OMX_U8* tempBuffer= malloc(75);
+  memset(pBuffer,0x00,75);
+  memset(tempBuffer,0x00,75);
+  fread(tempBuffer,75,1,fIn);
+  tempBuffer+=42;
+  memcpy(pBuffer,tempBuffer,sizeof(OMX_U16));
+  tempBuffer+=2;
+  memcpy(pBuffer+2,tempBuffer,sizeof(OMX_U16));
+  tempBuffer+=2;
+  memcpy(pBuffer+4,tempBuffer,sizeof(OMX_U32));
+  tempBuffer+=4;
+  memcpy(pBuffer+8,tempBuffer,sizeof(OMX_U32));
+  tempBuffer+=4;
+  memcpy(pBuffer+12,tempBuffer,sizeof(OMX_U16));
+  tempBuffer+=2;
+  memcpy(pBuffer+14,tempBuffer,sizeof(OMX_U16));
+  tempBuffer+=8;
+  memcpy(pBuffer+22,tempBuffer,sizeof(OMX_U16));
+  tempBuffer += 7;
+  *payload = *((OMX_U16*)tempBuffer);
+  return 28;
+}

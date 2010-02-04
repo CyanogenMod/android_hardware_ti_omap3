@@ -76,7 +76,7 @@ typedef struct IMAGE_INFO {
 #ifdef UNDER_CE
 OMX_STRING StrJpegDecoder= "OMX.TI.IMAGE.JPEG.DEC";
 #else
-OMX_STRING StrJpegDecoder= "OMX.TI.JPEG.Decoder";
+OMX_STRING StrJpegDecoder= "OMX.TI.JPEG.decoder";
 #endif	
 
 

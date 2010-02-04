@@ -83,7 +83,7 @@ extern char file[500][50] = {""};
 #define newmalloc(x) mymalloc(__LINE__,__FILE__,x)
 void * mymalloc(int line, char *s, int size);
 #define newfree(z) myfree(z,__LINE__,__FILE__)
-int myfree(void *dp, int line, char *s);
+void myfree(void *dp, int line, char *s);
 #else
 #define newmalloc(x) malloc(x)
 #define newfree(z) free(z)
@@ -299,6 +299,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->bIdleCommandPending = 0;
     pComponentPrivate->bDisableCommandParam = 0;
     pComponentPrivate->bEnableCommandParam = 0;
+    pComponentPrivate->nRuntimeInputBuffers = 0;
     
     for (i=0; i < MAX_NUM_OF_BUFS; i++) {
         pComponentPrivate->pInputBufHdrPending[i] = NULL;
@@ -449,16 +450,18 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
  EXIT:
     if(eError == OMX_ErrorInsufficientResources)
     {
-        OMX_G711DECMEMFREE_STRUCT(pHandle->pComponentPrivate);
         OMX_G711DECMEMFREE_STRUCT(g711_ip);
         OMX_G711DECMEMFREE_STRUCT(g711_op);
-        OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pInputBufferList);
-        OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pOutputBufferList);
-        OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_INPUT_PORT]->pPortFormat);
-        OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_OUTPUT_PORT]->pPortFormat);        
-        OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_INPUT_PORT]);
-        OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_OUTPUT_PORT]);
-        OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->sDeviceString);
+	 if (pComponentPrivate != NULL) {
+	     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pInputBufferList);
+	     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pOutputBufferList);
+	     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_INPUT_PORT]->pPortFormat);
+	     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_OUTPUT_PORT]->pPortFormat);
+	     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_INPUT_PORT]);
+	     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->pCompPort[G711DEC_OUTPUT_PORT]);
+	     OMX_G711DECMEMFREE_STRUCT(pComponentPrivate->sDeviceString);
+	 }
+	 OMX_G711DECMEMFREE_STRUCT(pHandle->pComponentPrivate);
         OMX_G711DECMEMFREE_STRUCT(pPortDef_ip);
         OMX_G711DECMEMFREE_STRUCT(pPortDef_op);
 
@@ -1049,8 +1052,8 @@ static OMX_ERRORTYPE GetConfig (OMX_HANDLETYPE hComp,
 
     pComponentPrivate = (G711DEC_COMPONENT_PRIVATE *)
         (((OMX_COMPONENTTYPE*)hComp)->pComponentPrivate);
-
-    memcpy(ComponentConfigStructure,pComponentPrivate,sizeof(G711DEC_COMPONENT_PRIVATE));
+    if ((pComponentPrivate != NULL) && (ComponentConfigStructure != NULL))
+        memcpy(ComponentConfigStructure,pComponentPrivate,sizeof(G711DEC_COMPONENT_PRIVATE));
 
     return eError;
 }
@@ -1075,8 +1078,7 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
     OMX_S16* deviceString = NULL;
     TI_OMX_DATAPATH dataPath;
     OMX_COMPONENTTYPE* pHandle = (OMX_COMPONENTTYPE*)hComp;
-    G711DEC_COMPONENT_PRIVATE *pComponentPrivate =
-        (G711DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+    G711DEC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
     
     int *customFlag = NULL;
     TI_OMX_DSP_DEFINITION *configData = NULL; 
@@ -1092,6 +1094,7 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
         goto EXIT;
     }
 
+    pComponentPrivate = (G711DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     switch (nConfigIndex) {
     case  OMX_IndexCustomG711DecHeaderInfoConfig:
         {
@@ -2020,7 +2023,7 @@ void * mymalloc(int line, char *s, int size)
     }
 }
 
-int myfree(void *dp, int line, char *s){
+void myfree(void *dp, int line, char *s){
     int q = 0;
     for(q=0;q<500;q++){
         if(arr[q]==dp){

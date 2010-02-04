@@ -24,6 +24,6 @@
 #define EXIT_COMPONENT_THRD  10
 
 
-void* ComponentThread (void* pThreadData);
+void* AACENC_ComponentThread (void* pThreadData);
 
 #endif

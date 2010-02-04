@@ -13,6 +13,7 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_SHARED_LIBRARIES := \
 	libdl \
+	libVendor_ti_omx_config_parser \
 	liblog
 	
 LOCAL_CFLAGS := $(TI_OMX_CFLAGS)
@@ -23,7 +24,6 @@ LOCAL_SHARED_LIBRARIES += \
 else
 LOCAL_CFLAGS += -DNO_OPENCORE
 endif
-
 LOCAL_MODULE:= libOMX_Core
 
 include $(BUILD_SHARED_LIBRARY)

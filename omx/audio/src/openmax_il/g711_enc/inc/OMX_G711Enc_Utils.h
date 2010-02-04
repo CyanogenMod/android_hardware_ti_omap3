@@ -51,13 +51,13 @@
 #include "LCML_DspCodec.h"
 #include <TIDspOmx.h>
 
-/*#ifdef DSP_RENDERING_ON
+#ifdef DSP_RENDERING_ON
 #include <AudioManagerAPI.h>
-#endif*/
+#endif
 
-/*#ifndef UNDER_CE
-  #include <ResourceManagerProxyAPI.h>
-  #endif*/
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
 
 #ifdef UNDER_CE
 #define sleep Sleep
@@ -167,8 +167,8 @@
     (_s_)->nVersion.s.nStep = 0x0
 
 #define OMX_G711ENC_MEMFREE_STRUCT(_pStruct_)                   \
-    G711ENC_MEMPRINT("%d :: [FREE] %p\n",__LINE__,_pStruct_);   \
     if(_pStruct_ != NULL){                                      \
+    G711ENC_MEMPRINT("%d :: [FREE] %p\n",__LINE__,_pStruct_);   \
         free(_pStruct_);                                        \
         _pStruct_ = NULL;                                       \
     }
@@ -238,16 +238,20 @@
 #define G711ENC_OUTPUT_BUFFER_SIZE 80
 /* ======================================================================= */
 /**
- * @def G711ENC_INPUT_FRAME_SIZE   Default output buffer size
+ * @def G711ENC_INPUT_FRAME_SIZE   Default input buffer size
  */
 /* ======================================================================= */
 #define G711ENC_INPUT_FRAME_SIZE 160
+#define G711ENC_INPUT_FRAME_SIZE_20MS 320
+#define G711ENC_INPUT_FRAME_SIZE_30MS 480
 /* ======================================================================= */
 /**
  * @def G711ENC_OUTPUT_FRAME_SIZE   Default output buffer size
  */
 /* ======================================================================= */
 #define G711ENC_OUTPUT_FRAME_SIZE 80
+#define G711ENC_OUTPUT_FRAME_SIZE_20MS 160
+#define G711ENC_OUTPUT_FRAME_SIZE_30MS 240
 /* ======================================================================= */
 /**
  * @def G711ENC_APP_ID  App ID Value setting
@@ -824,7 +828,12 @@ typedef struct G711ENC_COMPONENT_PRIVATE
     OMX_U8 InLoaded_readytoidle;
 #endif
 
-    OMX_BOOL bPreempted;    
+    OMX_BOOL bPreempted;
+
+    /** Pointer to RM callback **/
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
 
 } G711ENC_COMPONENT_PRIVATE;
 
@@ -1130,5 +1139,12 @@ typedef enum OMX_G711ENC_INDEXAUDIOTYPE {
  */
 /*================================================================== */
 void* G711ENC_CompThread(void* pThreadData);
+
+#ifdef RESOURCE_MANAGER_ENABLED
+/***********************************
+ *  Callback to the RM                                       *
+ ***********************************/
+void G711ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
 
 #endif  /* OMX_G711ENC_UTILS__H */

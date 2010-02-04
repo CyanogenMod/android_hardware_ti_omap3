@@ -52,7 +52,7 @@ char compName[60][200];
 
 char *tComponentName[MAXCOMP][2] = {
     /*video and image components */
-    //{"OMX.TI.JPEG.decode", "image_decoder.jpeg" },
+    //{"OMX.TI.JPEG.decoder", "image_decoder.jpeg" },
     {"OMX.TI.JPEG.Encoder", "image_encoder.jpeg"},
     //{"OMX.TI.Video.Decoder", "video_decoder.h263"},
     {"OMX.TI.Video.Decoder", "video_decoder.avc"},
@@ -79,30 +79,25 @@ char *tComponentName[MAXCOMP][2] = {
     {"OMX.TI.GSMFR.encode", NULL},
     {"OMX.TI.GSMFR.decode", NULL},
 */
-    {"OMX.TI.AMR.encode", "audio_encoder.amrnb"},
-    //{"OMX.TI.AMR.decode", "audio_decoder.amrnb"},
-    {"OMX.TI.WBAMR.encode", "audio_encoder.amrwb"},
-    //{"OMX.TI.WBAMR.decode", "audio_decoder.amrwb"},
 
     /* Audio components */
 #ifdef BUILD_WITH_TI_AUDIO
     {"OMX.TI.MP3.decode", "audio_decoder.mp3"},
-#endif
     {"OMX.TI.AAC.encode", "audio_encoder.aac"},
-#ifdef BUILD_WITH_TI_AUDIO
     {"OMX.TI.AAC.decode", "audio_decoder.aac"},
+    {"OMX.TI.WMA.decode", "audio_decoder.wma"},
+    {"OMX.TI.WBAMR.decode", "audio_decoder.amrwb"},
+    {"OMX.TI.AMR.decode", "audio_decoder.amrnb"},
+    {"OMX.TI.AMR.encode", "audio_encoder.amrnb"},
+    {"OMX.TI.WBAMR.encode", "audio_encoder.amrwb"},
 #endif
 /*  {"OMX.TI.PCM.encode", NULL},
-    {"OMX.TI.PCM.decode", NULL},
-*/
-#ifdef BUILD_WITH_TI_AUDIO
-    {"OMX.TI.WMA.decode", "audio_decoder.wma"},
-#endif
-/*
+    {"OMX.TI.PCM.decode", NULL},     
     {"OMX.TI.RAG.decode", "audio_decoder.ra"},
     {"OMX.TI.IMAADPCM.decode", NULL},
     {"OMX.TI.IMAADPCM.encode", NULL},
 */
+
     /* terminate the table */
     {NULL, NULL},
 };
@@ -177,6 +172,7 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
     OMX_ERRORTYPE (*pComponentInit)(OMX_HANDLETYPE*);
     OMX_ERRORTYPE err = OMX_ErrorNone;
     OMX_COMPONENTTYPE *componentType;
+    const char* pErr = dlerror();
 
     if(pthread_mutex_lock(&mutex) != 0)
     {
@@ -209,10 +205,7 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
     }
 
     int refIndex = 0;
-    *pHandle = NULL;
-    pComponents[i] = NULL;
-
-    for (refIndex=0; refIndex < tableCount; refIndex++) {
+    for (refIndex=0; refIndex < MAX_TABLE_SIZE; refIndex++) {
         //get the index for the component in the table
         if (strcmp(componentTable[refIndex].name, cComponentName) == 0) {
             LOGD("Found component %s with refCount %d\n",
@@ -255,7 +248,8 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
                 /* Get a function pointer to the "OMX_ComponentInit" function.  If
                  * there is an error, we can't go on, so set the error code and exit */
                 pComponentInit = dlsym(pModules[i], "OMX_ComponentInit");
-                if( pComponentInit == NULL ) {
+                pErr = dlerror();
+                if( (pErr != NULL) || (pComponentInit == NULL) ) {
                     LOGE("%d:: dlsym failed for module %p\n", __LINE__, pModules[i]);
                     err = OMX_ErrorInvalidComponent;
                     goto CLEAN_UP;
@@ -288,6 +282,10 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
                     componentTable[refIndex].refCount += 1;
                     goto UNLOCK_MUTEX;  // Component is found, and thus we are done
                 }
+                else if (err == OMX_ErrorInsufficientResources) {
+                        LOGE("%d :: Core: Insufficient Resources for Component %d\n",__LINE__, err);
+                        goto CLEAN_UP;
+                }
             }
         }
     }
@@ -296,8 +294,12 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
     err = OMX_ErrorComponentNotFound;
     goto UNLOCK_MUTEX;
 CLEAN_UP:
-    free(*pHandle);
-    *pHandle = NULL;
+    if(*pHandle != NULL)
+    /* cover the case where we error out before malloc'd */
+    {
+        free(*pHandle);
+        *pHandle = NULL;
+    }
     pComponents[i] = NULL;
     dlclose(pModules[i]);
     pModules[i] = NULL;
@@ -358,7 +360,7 @@ OMX_ERRORTYPE TIOMX_FreeHandle (OMX_HANDLETYPE hComponent)
     }
 
     int refIndex = 0, handleIndex = 0;
-    for (refIndex=0; refIndex < tableCount; refIndex++) {
+    for (refIndex=0; refIndex < MAX_TABLE_SIZE; refIndex++) {
         for (handleIndex=0; handleIndex < componentTable[refIndex].refCount; handleIndex++){
             /* get the position for the component in the table */
             if (componentTable[refIndex].pHandle[handleIndex] == hComponent){
@@ -553,7 +555,7 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
             LOGE("pNumRoles is NULL\n");
         }
         eError = OMX_ErrorBadParameter;
-        goto EXIT;
+        goto EXIT;       
     }
     while (i < tableCount)
     {
@@ -569,9 +571,9 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
         eError = OMX_ErrorComponentNotFound;
         LOGE("component %s not found\n", cComponentName);
         goto EXIT;
-    }
+    } 
     if (roles == NULL)
-    {
+    { 
         *pNumRoles = componentTable[i].nRoles;
     }
     else
@@ -582,7 +584,7 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
            than we return an error */
         if (*pNumRoles >= componentTable[i].nRoles)
         {
-            for (j = 0; j<componentTable[i].nRoles; j++)
+            for (j = 0; j<componentTable[i].nRoles; j++) 
             {
                 strcpy((OMX_STRING)roles[j], componentTable[i].pRoleArray[j]);
             }
@@ -614,7 +616,7 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
 * Note
 *
 **************************************************************************/
-OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
+OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole ( 
     OMX_IN      OMX_STRING role,
     OMX_INOUT   OMX_U32 *pNumComps,
     OMX_INOUT   OMX_U8  **compNames)
@@ -648,15 +650,15 @@ OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
     }
 
     /* no matter, we always want to know number of matching components
-       so this will always run */
+       so this will always run */ 
     for (i = 0; i < tableCount; i++)
     {
-        for (j = 0; j < componentTable[i].nRoles; j++)
-        {
+        for (j = 0; j < componentTable[i].nRoles; j++) 
+        { 
             if (strcmp(componentTable[i].pRoleArray[j], role) == 0)
             {
                 /* the first call to this function should only count the number
-                   of roles
+                   of roles 
                 */
                 compOfRoleCount++;
             }
@@ -690,8 +692,8 @@ OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
             k = 0;
             for (i = 0; i < tableCount; i++)
             {
-                for (j = 0; j < componentTable[i].nRoles; j++)
-                {
+                for (j = 0; j < componentTable[i].nRoles; j++) 
+                { 
                     if (strcmp(componentTable[i].pRoleArray[j], role) == 0)
                     {
                         /*  the second call compNames can be allocated
@@ -705,11 +707,11 @@ OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
                                so we can exit here */
                             *pNumComps = k;
                             goto EXIT;
-                        }
+                        } 
                     }
                 }
             }
-        }
+        }        
     }
 
     EXIT:
@@ -729,27 +731,29 @@ OMX_ERRORTYPE TIOMX_BuildComponentTable()
         if (tComponentName[i][0] == NULL) {
             break;
         }
-        for (j = 0; j < numFiles; j ++) {
-            if (!strcmp(componentTable[j].name, tComponentName[i][0])) {
-                /* insert the role */
-                if (tComponentName[i][1] != NULL)
-                {
-                    componentTable[j].pRoleArray[componentTable[j].nRoles] = tComponentName[i][1];
-                    componentTable[j].pHandle[componentTable[j].nRoles] = NULL; //initilize the pHandle element
-                    componentTable[j].nRoles ++;
+        if (numFiles <= MAX_TABLE_SIZE){
+            for (j = 0; j < numFiles; j ++) {
+                if (!strcmp(componentTable[j].name, tComponentName[i][0])) {
+                    /* insert the role */
+                    if (tComponentName[i][1] != NULL)
+                    {
+                        componentTable[j].pRoleArray[componentTable[j].nRoles] = tComponentName[i][1];
+                        componentTable[j].pHandle[componentTable[j].nRoles] = NULL; //initilize the pHandle element
+                        componentTable[j].nRoles ++;
+                    }
+                    break;
                 }
-                break;
             }
-        }
-        if (j == numFiles) { /* new component */
-            if (tComponentName[i][1] != NULL){
-                componentTable[numFiles].pRoleArray[0] = tComponentName[i][1];
-                componentTable[numFiles].nRoles = 1;
+            if (j == numFiles) { /* new component */
+                if (tComponentName[i][1] != NULL){
+                    componentTable[numFiles].pRoleArray[0] = tComponentName[i][1];
+                    componentTable[numFiles].nRoles = 1;
+                }
+                strcpy(compName[numFiles], tComponentName[i][0]);
+                componentTable[numFiles].name = compName[numFiles];
+                componentTable[numFiles].refCount = 0; //initialize reference counter.
+                numFiles ++;
             }
-            strcpy(compName[numFiles], tComponentName[i][0]);
-            componentTable[numFiles].name = compName[numFiles];
-            componentTable[numFiles].refCount = 0; //initialize reference counter.
-            numFiles ++;
         }
     }
     tableCount = numFiles;

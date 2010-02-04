@@ -129,8 +129,7 @@ void* OMX_JpegDec_Thread (void* pThreadData)
                                                    OMX_ErrorInsufficientResources,
                                                    OMX_TI_ErrorSevere,
                                                    "Error from COmponent Thread in select");
-            eError = OMX_ErrorInsufficientResources;
-            goto EXIT;
+	     eError = OMX_ErrorInsufficientResources;
         }
         else {
             if ((FD_ISSET(pComponentPrivate->nCmdPipe[0], &rfds)) ||
@@ -255,7 +254,7 @@ EXIT:
 #ifdef __PERF_INSTRUMENTATION__
     PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
-    return(void*)eError;
+    return (void *)eError;
 
 }
 

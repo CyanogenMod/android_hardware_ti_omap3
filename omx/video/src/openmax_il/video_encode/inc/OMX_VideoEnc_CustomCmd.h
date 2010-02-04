@@ -28,13 +28,13 @@
 /**
 * @file OMX_VideoEnc_CustomCmd.h
 *
-* This is an header file for an video Mpeg4 encoder that is fully 
+* This is an header file for an video Mpeg4 encoder that is fully
 * compliant with the OMX Video specification.
-* This the file that the application that uses OMX would include 
+* This the file that the application that uses OMX would include
 * in its code.
 *
 * @path $(CSLPATH)\
-* 
+*
 * @rev 0.1
 */
 /* -------------------------------------------------------------------------- */
@@ -42,13 +42,13 @@
 #ifndef OMX_VIDEOENC_CUSTOMCMD_H
 #define OMX_VIDEOENC_CUSTOMCMD_H
 
-#define VIDENC_PARAM_VBVSIZE               "OMX.TI.VideoEncode.Param.VBVSize"; 
-#define VIDENC_PARAM_DEBLOCK_FILTER        "OMX.TI.VideoEncode.Param.DeblockFilter"; 
-#define VIDENC_CONFIG_FORCE_I_FRAME        "OMX.TI.VideoEncode.Config.ForceIFrame"; 
-#define VIDENC_CONFIG_INTRA_FRAME_INTERVAL "OMX.TI.VideoEncode.Config.IntraFrameInterval"; 
-#define VIDENC_CONFIG_TARGET_FRAMERATE     "OMX.TI.VideoEncode.Config.TargetFrameRate"; 
-#define VIDENC_CONFIG_QPI                  "OMX.TI.VideoEncode.Config.QPI"; 
-#define VIDENC_CONFIG_AIRRATE              "OMX.TI.VideoEncode.Config.AIRRate"; 
+#define VIDENC_PARAM_VBVSIZE               "OMX.TI.VideoEncode.Param.VBVSize";
+#define VIDENC_PARAM_DEBLOCK_FILTER        "OMX.TI.VideoEncode.Param.DeblockFilter";
+#define VIDENC_CONFIG_FORCE_I_FRAME        "OMX.TI.VideoEncode.Config.ForceIFrame";
+#define VIDENC_CONFIG_INTRA_FRAME_INTERVAL "OMX.TI.VideoEncode.Config.IntraFrameInterval";
+#define VIDENC_CONFIG_TARGET_FRAMERATE     "OMX.TI.VideoEncode.Config.TargetFrameRate";
+#define VIDENC_CONFIG_QPI                  "OMX.TI.VideoEncode.Config.QPI";
+#define VIDENC_CONFIG_AIRRATE              "OMX.TI.VideoEncode.Config.AIRRate";
 #define VIDENC_CONFIG_TARGET_BITRATE       "OMX.TI.VideoEncode.Config.TargetBitRate";
 
 #endif /* OMX_VIDEOENC_CUSTOMCMD_H */

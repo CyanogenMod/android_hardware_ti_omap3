@@ -72,7 +72,7 @@
 #include "OMX_AacEnc_CompThread.h"
 
 
-void* ComponentThread (void* pThreadData)
+void* AACENC_ComponentThread (void* pThreadData)
 {
     int status;
     struct timespec tv;
@@ -125,9 +125,9 @@ void* ComponentThread (void* pThreadData)
         if (status == 0) 
         {
 
-            OMX_ERROR2(pComponentPrivate->dbg, "%d : bIsStopping = %ld\n",__LINE__, pComponentPrivate->bIsStopping);
-            OMX_ERROR2(pComponentPrivate->dbg, "%d : lcml_nOpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nOpBuf);
-            OMX_ERROR2(pComponentPrivate->dbg, "%d : lcml_nIpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nIpBuf);
+            OMX_PRINT1(pComponentPrivate->dbg, "%d : bIsStopping = %ld\n",__LINE__, pComponentPrivate->bIsStopping);
+            OMX_PRINT1(pComponentPrivate->dbg, "%d : lcml_nOpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nOpBuf);
+            OMX_PRINT1(pComponentPrivate->dbg, "%d : lcml_nIpBuf = %ld\n",__LINE__, pComponentPrivate->lcml_nIpBuf);
 
             if (pComponentPrivate->bIsThreadstop == 1)  
             {
@@ -148,20 +148,18 @@ void* ComponentThread (void* pThreadData)
                     goto EXIT;
                 }
              }
-             OMX_ERROR2(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
+             OMX_PRINT2(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
         } 
         else if(status == -1) 
         {
             OMX_ERROR2(pComponentPrivate->dbg, "%d :: Error in Select\n", __LINE__);
             pComponentPrivate->cbInfo.EventHandler (pHandle, pHandle->pApplicationPrivate, 
                                                     OMX_EventError,
-                                                    OMX_ErrorHardware,
+                                                    OMX_ErrorInsufficientResources,
                                                     OMX_TI_ErrorSevere,
                                                     "Error from Component Thread in select");
-            eError = OMX_ErrorHardware;
-            break;
-
-        } 
+            eError = OMX_ErrorInsufficientResources;
+        }
 
         else if ((FD_ISSET (pComponentPrivate->dataPipe[0], &rfds)) && (pComponentPrivate->curState != OMX_StatePause)) 
         {

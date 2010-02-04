@@ -36,6 +36,14 @@
  * @rev  0.1
  */
 /* ----------------------------------------------------------------------------
+ *!
+ *! Revision History
+ *! ===================================
+ *! 12-Sept-2005 mf:  Initial Version. Change required per OMAPSWxxxxxxxxx
+ *! to provide _________________.
+ *!
+ * ============================================================================= */
+
 
 /* ------compilation control switches -------------------------*/
 /****************************************************************
@@ -74,27 +82,10 @@
 /*-------program files ----------------------------------------*/
 #include <OMX_Component.h>
 #include <TIDspOmx.h>
-#include <OMX_TI_Common.h>
 
 #include "OMX_WbAmrDecoder.h"
 #include "OMX_WbAmrDec_Utils.h"
 
-#ifdef WBAMRDEC_DEBUGMEM
-
-void *arr[500];
-int lines[500];
-int bytes[500];
-char file[500][50];
-
-void * mymalloc(int line, char *s, int size);
-int myfree(void *dp, int line, char *s);
-#define newmalloc(x) mymalloc(__LINE__,__FILE__,x)
-#define newfree(z) myfree(z,__LINE__,__FILE__)
-
-#else
-#define newmalloc(x) malloc(x)
-#define newfree(z) free(z)
-#endif
 #define AMRWB_DEC_ROLE "audio_decoder.amrwb"
 
 
@@ -203,7 +194,7 @@ AM_COMMANDDATATYPE cmd_data;
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
 {
     OMX_PARAM_PORTDEFINITIONTYPE *pPortDef_ip, *pPortDef_op;
-    WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate;
+    WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
     OMX_AUDIO_PARAM_AMRTYPE *amr_ip;
     OMX_AUDIO_PARAM_PCMMODETYPE *amr_op;
     OMX_ERRORTYPE error = OMX_ErrorNone;
@@ -235,6 +226,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     /*Allocate the memory for Component private data area */
     OMX_MALLOC_GENERIC(pHandle->pComponentPrivate, WBAMR_DEC_COMPONENT_PRIVATE);
 
+
     ((WBAMR_DEC_COMPONENT_PRIVATE *)
      pHandle->pComponentPrivate)->pHandle = pHandle;
 
@@ -263,7 +255,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
                                            PERF_ModuleAudioDecode);
 #endif
 
-#if ANDROID /* currently using default values until more is understood */
+#ifdef ANDROID /* currently using default values until more is understood */
     pComponentPrivate->iPVCapabilityFlags.iIsOMXComponentMultiThreaded = OMX_TRUE; /* this should be true always for TI components */
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsExternalOutputBufferAlloc = OMX_FALSE;
     pComponentPrivate->iPVCapabilityFlags.iOMXComponentSupportsExternalInputBufferAlloc = OMX_FALSE;
@@ -421,7 +413,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
 #endif
     OMX_MALLOC_GENERIC(pPortDef_ip, OMX_PARAM_PORTDEFINITIONTYPE);
 
-    OMX_PRBUFFER2(pComponentPrivate->dbg, "[ALLOC] %p\n",pPortDef_ip);
     OMX_MALLOC_GENERIC(pPortDef_op, OMX_PARAM_PORTDEFINITIONTYPE);
 
     OMX_PRBUFFER2(pComponentPrivate->dbg, "[ALLOC] %p\n",pPortDef_op);
@@ -437,7 +428,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pPortDef_ip->nPortIndex = 0x0;
     pPortDef_ip->nBufferCountActual = NUM_WBAMRDEC_INPUT_BUFFERS;
     pPortDef_ip->nBufferCountMin = NUM_WBAMRDEC_INPUT_BUFFERS;
-    pPortDef_ip->nBufferAlignment = EXTRA_BYTES;
+    pPortDef_ip->nBufferAlignment = DSP_CACHE_ALIGNMENT;
     pPortDef_ip->eDir = OMX_DirInput;
     pPortDef_ip->bEnabled = OMX_TRUE;
     /* Use bigger IN buffer size for PV-Android */
@@ -449,7 +440,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pPortDef_op->nPortIndex = 0x1;
     pPortDef_op->nBufferCountActual = NUM_WBAMRDEC_OUTPUT_BUFFERS;
     pPortDef_op->nBufferCountMin = NUM_WBAMRDEC_OUTPUT_BUFFERS;
-    pPortDef_op->nBufferAlignment = EXTRA_BYTES;
+    pPortDef_op->nBufferAlignment = DSP_CACHE_ALIGNMENT;
     pPortDef_op->eDir = OMX_DirOutput;
     pPortDef_op->bEnabled = OMX_TRUE;
     pPortDef_op->nBufferSize = OUTPUT_WBAMRDEC_BUFFER_SIZE;
@@ -491,7 +482,9 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
                        PERF_FOURCC('W','B','D','T'));
 #endif
  EXIT:
-    OMX_PRINT1(pComponentPrivate->dbg, "Exiting - returning %d\n",error);
+    if (pComponentPrivate != NULL) {
+	 OMX_PRINT1(pComponentPrivate->dbg, "Exiting - returning %d\n", error);
+    }
     return error;
 }
 
@@ -891,6 +884,10 @@ static OMX_ERRORTYPE GetParameter (OMX_HANDLETYPE hComp,
         }
         break;
     case OMX_IndexParamPriorityMgmt:
+        if (pComponentPrivate->pPriorityMgmt == NULL) {
+	    eError = OMX_ErrorBadPortIndex;
+	    break;
+	}
         memcpy(ComponentParameterStructure, pComponentPrivate->pPriorityMgmt, sizeof(OMX_PRIORITYMGMTTYPE));
         break;
 
@@ -1074,6 +1071,10 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
         if (pComponentPrivate->curState != OMX_StateLoaded) {
             eError = OMX_ErrorIncorrectStateOperation;
         }
+	if (pComponentPrivate->pPriorityMgmt == NULL) {
+	    eError = OMX_ErrorBadParameter;
+	    break;
+	}
         memcpy(pComponentPrivate->pPriorityMgmt, (OMX_PRIORITYMGMTTYPE*)pCompParam, sizeof(OMX_PRIORITYMGMTTYPE));
         break;
 
@@ -1161,8 +1162,8 @@ static OMX_ERRORTYPE GetConfig (OMX_HANDLETYPE hComp,
         OMX_DBG_GETCONFIG(pComponentPrivate->dbg, ComponentConfigStructure);
     }
 
-    OMX_MEMFREE_STRUCT(streamInfo);
  EXIT:
+    OMX_MEMFREE_STRUCT(streamInfo);
     OMX_PRINT1(pComponentPrivate->dbg, "Exiting GetConfig. Returning = 0x%x\n",eError);
     return eError;
 }
@@ -1185,8 +1186,7 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_COMPONENTTYPE* pHandle = (OMX_COMPONENTTYPE*)hComp;
-    WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate =
-        (WBAMR_DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+    WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
     OMX_S16 *customFlag = NULL;
     TI_OMX_DSP_DEFINITION *configData;
     TI_OMX_DATAPATH dataPath;
@@ -1201,6 +1201,7 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
         goto EXIT;
     }
 
+    pComponentPrivate = (WBAMR_DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 #ifdef _ERROR_PROPAGATION__
     if (pComponentPrivate->curState == OMX_StateInvalid){
         eError = OMX_ErrorInvalidState;
@@ -1642,17 +1643,9 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
     eError = WBAMR_DEC_StopComponentThread(pHandle);
     /* Wait for thread to exit so we can get the status into "error" */
 
+    OMX_MEMFREE_STRUCT(pComponentPrivate->pInputBufferList);
 
-    if(pComponentPrivate->pInputBufferList!=NULL){
-        OMX_PRBUFFER2(dbg, "[FREE] %p\n",pComponentPrivate->pInputBufferList);
-        OMX_MEMFREE_STRUCT(pComponentPrivate->pInputBufferList);
-    }
-
-    if(pComponentPrivate->pOutputBufferList!=NULL){
-        OMX_PRBUFFER2(dbg, "[FREE] %p\n",pComponentPrivate->pOutputBufferList);
-        OMX_MEMFREE_STRUCT(pComponentPrivate->pOutputBufferList);
-    }
-
+    OMX_MEMFREE_STRUCT(pComponentPrivate->pOutputBufferList);
 
     /* close the pipe handles */
     WBAMR_DEC_FreeCompResources(pHandle);
@@ -1662,13 +1655,10 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
                   PERF_BoundaryComplete | PERF_BoundaryCleanup);
     PERF_Done(pComponentPrivate->pPERF);
 #endif
-    if (pComponentPrivate->sDeviceString != NULL) {
-        OMX_MEMFREE_STRUCT(pComponentPrivate->sDeviceString);
-    }
+    OMX_MEMFREE_STRUCT(pComponentPrivate->sDeviceString);
     OMX_PRINT2(dbg, "After WBAMR_DEC_FreeCompResources\n");
 
     OMX_MEMFREE_STRUCT(pComponentPrivate);
-    OMX_PRINT1(dbg, "After newfree(pComponentPrivate)\n");
     OMX_DBG_CLOSE(dbg);
     return eError;
 }
@@ -1752,7 +1742,7 @@ static OMX_ERRORTYPE AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     }
 
     OMX_MALLOC_GENERIC(pBufferHeader, OMX_BUFFERHEADERTYPE);
-    OMX_MALLOC_SIZE_DSPALIGN(pBufferHeader->pBuffer,nSizeBytes,OMX_U8);
+    OMX_MALLOC_SIZE_DSPALIGN(pBufferHeader->pBuffer, nSizeBytes,OMX_U8);
 
     if (nPortIndex == WBAMR_DEC_INPUT_PORT) {
         pBufferHeader->nInputPortIndex = nPortIndex;
@@ -1772,7 +1762,6 @@ static OMX_ERRORTYPE AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     else if (nPortIndex == WBAMR_DEC_OUTPUT_PORT) {
         pBufferHeader->nInputPortIndex = -1;
         pBufferHeader->nOutputPortIndex = nPortIndex;
-        //pBufferHeader->pOutputPortPrivate = (WBAMRDEC_BUFDATA*) malloc(sizeof(WBAMRDEC_BUFDATA));
         OMX_MALLOC_GENERIC(pBufferHeader->pOutputPortPrivate, WBAMRDEC_BUFDATA);
         pComponentPrivate->pOutputBufferList->pBufHdr[pComponentPrivate->pOutputBufferList->numBuffers] = pBufferHeader;
         pComponentPrivate->pOutputBufferList->bBufferPending[pComponentPrivate->pOutputBufferList->numBuffers] = 0;
@@ -1843,7 +1832,6 @@ static OMX_ERRORTYPE FreeBuffer(OMX_IN  OMX_HANDLETYPE hComponent,
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     WBAMR_DEC_COMPONENT_PRIVATE * pComponentPrivate = NULL;
     OMX_BUFFERHEADERTYPE* buff;
-    OMX_U8* tempBuff;
     int i;
     int inputIndex = -1;
     int outputIndex = -1;
@@ -1894,12 +1882,10 @@ static OMX_ERRORTYPE FreeBuffer(OMX_IN  OMX_HANDLETYPE hComponent,
                            PERF_ModuleMemory);
 #endif
         if (pComponentPrivate->pInputBufferList->bufferOwner[inputIndex] == 1) {
-            OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pBuffer);
-            OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pBuffer,OMX_U8);
-         }
-        OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->pBufHeader[WBAMR_DEC_INPUT_PORT]);
+            OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pBuffer, OMX_U8);
+        }
         OMX_MEMFREE_STRUCT(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]);
-       pComponentPrivate->pInputBufferList->numBuffers--;
+        pComponentPrivate->pInputBufferList->numBuffers--;
         if (pComponentPrivate->pInputBufferList->numBuffers <
             pComponentPrivate->pPortDef[WBAMR_DEC_INPUT_PORT]->nBufferCountMin) {
 
@@ -1923,9 +1909,8 @@ static OMX_ERRORTYPE FreeBuffer(OMX_IN  OMX_HANDLETYPE hComponent,
                            PERF_ModuleMemory);
 #endif
         if (pComponentPrivate->pOutputBufferList->bufferOwner[outputIndex] == 1) {
-            OMX_PRBUFFER2(pComponentPrivate->dbg, "[FREE] %p\n",pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pBuffer);
-            OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pBuffer,OMX_U8);
-         }
+        OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pBuffer, OMX_U8);
+        }
         OMX_MEMFREE_STRUCT(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pOutputPortPrivate);
         OMX_MEMFREE_STRUCT(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]);
         pComponentPrivate->pOutputBufferList->numBuffers--;
@@ -2129,8 +2114,13 @@ static OMX_ERRORTYPE ComponentRoleEnum(OMX_IN OMX_HANDLETYPE hComponent,
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     pComponentPrivate = (WBAMR_DEC_COMPONENT_PRIVATE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
     if(nIndex == 0){
-        memcpy(cRole, &pComponentPrivate->componentRole.cRole, sizeof(OMX_U8) * OMX_MAX_STRINGNAME_SIZE);
-        OMX_PRINT1(pComponentPrivate->dbg, "In ComponenetRoleEnum: cRole is set to %s\n",cRole);
+        if (cRole == NULL) {
+            eError = OMX_ErrorBadParameter;
+	}
+	else {
+            memcpy(cRole, &pComponentPrivate->componentRole.cRole, sizeof(OMX_U8) * OMX_MAX_STRINGNAME_SIZE);
+            OMX_PRINT1(pComponentPrivate->dbg, "In ComponenetRoleEnum: cRole is set to %s\n",cRole);
+	}
     }
     else {
         eError = OMX_ErrorNoMore;
@@ -2146,6 +2136,7 @@ void * mymalloc(int line, char *s, int size)
     p = malloc(size);
     if(p==NULL){
         OMXDBG_PRINT(stderr, ERROR, 4, 0, "Memory not available\n");
+        /* exit(1); */
     }
     else{
         while((lines[e]!=0)&& (e<500) ){

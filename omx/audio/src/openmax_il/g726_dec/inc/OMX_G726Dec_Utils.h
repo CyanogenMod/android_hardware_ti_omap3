@@ -53,7 +53,11 @@
 #include <stdlib.h>
 #else
 #include <pthread.h>
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
 #endif
+#endif
+
 
 #undef G726DEC_DEBUG           /* See all debug statement of the component */
 #undef G726DEC_MEMDETAILS      /* See memory details of the component */
@@ -685,6 +689,11 @@ typedef struct G726DEC_COMPONENT_PRIVATE
     /* flag if the component is preempted for resource or policy reasons */
     OMX_BOOL bPreempted;
 
+    /** Pointer to RM callback **/
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
+
 
 } G726DEC_COMPONENT_PRIVATE;
 
@@ -968,6 +977,13 @@ OMX_U32 G726DEC_IsValid(G726DEC_COMPONENT_PRIVATE *pComponentPrivate,
                         OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
 
 OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf);
-OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr);            
+OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr);
+
+#ifdef RESOURCE_MANAGER_ENABLED
+/***********************************
+ *  Callback to the RM                                       *
+ ***********************************/
+void G726DEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
 
 #endif

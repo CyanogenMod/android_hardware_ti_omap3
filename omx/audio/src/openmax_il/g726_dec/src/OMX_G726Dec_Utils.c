@@ -342,7 +342,6 @@ OMX_ERRORTYPE G726DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,
  EXIT:
     if(eError == OMX_ErrorInsufficientResources || eError == OMX_ErrorBadParameter){
         G726D_OMX_FREE(strmAttr);
-        G726D_OMX_FREE(arr);
         G726D_OMX_FREE(pTemp_lcml);
     }
     G726DEC_DPRINT("Exiting G726DEC_Fill_LCMLInitParams\n");
@@ -2551,3 +2550,34 @@ OMX_ERRORTYPE G726DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent)
     return eError;
 }
 
+#ifdef RESOURCE_MANAGER_ENABLED
+/***********************************
+ *  Callback to the RM                                       *
+ ***********************************/
+void G726DEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
+{
+    OMX_COMMANDTYPE Cmd = OMX_CommandStateSet;
+    OMX_STATETYPE state = OMX_StateIdle;
+    OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)cbData.hComponent;
+    G726DEC_COMPONENT_PRIVATE *pCompPrivate = NULL;
+
+    pCompPrivate = (G726DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
+
+    if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesPreempted){
+        if (pCompPrivate->curState == OMX_StateExecuting || 
+            pCompPrivate->curState == OMX_StatePause) {
+
+            write (pCompPrivate->cmdPipe[1], &Cmd, sizeof(Cmd));
+            write (pCompPrivate->cmdDataPipe[1], &state ,sizeof(OMX_U32));
+
+            pCompPrivate->bPreempted = 1;
+        }
+    }
+    else if (*(cbData.RM_Error) == OMX_RmProxyCallback_ResourcesAcquired){
+        pCompPrivate->cbInfo.EventHandler ( pHandle, 
+                                            pHandle->pApplicationPrivate,
+                                            OMX_EventResourcesAcquired, 
+                                            0, 0, NULL);
+    }
+}
+#endif

@@ -61,9 +61,7 @@ OSCL_EXPORT_REF OMX_BOOL TIOMXConfigParser(
 
 {
     OMXConfigParserInputs* pInputs;
-
     pInputs = (OMXConfigParserInputs*) aInputParameters;
-
 
     if (NULL != pInputs->cComponentRole)
     {

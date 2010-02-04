@@ -69,12 +69,12 @@
 #include "OMX_WmaDec_Utils.h" 
 /* ================================================================================= */
 /**
-* @fn ComponentThread() Component thread
+* @fn WMADEC_ComponentThread() Component thread
 *
 *  @see         OMX_ComponentThread.h
 */
 /* ================================================================================ */
-void* ComponentThread (void* pThreadData)
+void* WMADEC_ComponentThread (void* pThreadData)
 {
     int status;
     struct timespec tv;
@@ -155,8 +155,6 @@ OMX_PRDSP2(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__
                                                      0,
                                                      "Error from Component Thread in select");
             eError = OMX_ErrorInsufficientResources;
-            break;
-
         } 
         else if (FD_ISSET (pComponentPrivate->dataPipe[0], &rfds)) {
             OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: DATA pipe is set in Component Thread\n",__LINE__);
