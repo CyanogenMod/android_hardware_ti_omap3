@@ -1077,12 +1077,21 @@ int CameraHal::CameraStart()
         goto fail_loop;
     }
 
+    if( ioctl(camera_device, VIDIOC_G_CROP, &mInitialCrop) < 0 ){
+        LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
+        return -1;
+    }
+
+    LOGE("Initial Crop: crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d", mInitialCrop.c.top, mInitialCrop.c.left, mInitialCrop.c.width, mInitialCrop.c.height);
+
     if ( mZoomTargetIdx != mZoomCurrentIdx ) {
         
-        if( ZoomPerform(zoom_step[mZoomCurrentIdx]) < 0 )
+        if( ZoomPerform(zoom_step[mZoomTargetIdx]) < 0 )
             LOGE("Error while applying zoom");   
         
-        mZoomTargetIdx = mZoomCurrentIdx;
+        mZoomCurrentIdx = mZoomTargetIdx;
+        mParameters.set("zoom", ((int) zoom_step[mZoomCurrentIdx]));
+        mNotifyCb(CAMERA_MSG_ZOOM, ((int) zoom_step[mZoomCurrentIdx] - 1), 1, mCallbackCookie);
     }
 
     LOG_FUNCTION_NAME_EXIT
@@ -1359,6 +1368,10 @@ int  CameraHal::ICapturePerform()
     iobj->cfg.cb_write_lsc  = NULL;//onSaveLSC;
     iobj->cfg.cb_write_raw  = NULL;//onSaveRAW;
     iobj->cfg.cb_picture_done = onSnapshot;
+    iobj->cfg.preview_rect.top = fobj->status_2a.preview.top;
+    iobj->cfg.preview_rect.left = fobj->status_2a.preview.left;
+    iobj->cfg.preview_rect.width = fobj->status_2a.preview.width;
+    iobj->cfg.preview_rect.height = fobj->status_2a.preview.height;
     manual_config.pre_flash = 0;
 
     if(mcapture_mode == 1)
@@ -1474,6 +1487,10 @@ int  CameraHal::ICapturePerform()
         procMessage[19] = (unsigned int) mDataCb;
         procMessage[20] = 0;
         procMessage[21] = (unsigned int) mCallbackCookie;
+        procMessage[22] = iobj->proc.aspect_rect.top;
+        procMessage[23] = iobj->proc.aspect_rect.left;
+        procMessage[24] = iobj->proc.aspect_rect.width;
+        procMessage[25] = iobj->proc.aspect_rect.height;
 
         write(procPipe[1], &procMessage, sizeof(procMessage));
 
@@ -1542,8 +1559,9 @@ void CameraHal::snapshotThread()
     fd_set descriptorSet;
     int max_fd;
     int err, status;
-    unsigned int snapshotMessage[5], snapshotReadyMessage;
+    unsigned int snapshotMessage[9], snapshotReadyMessage;
     int image_width, image_height, pixelFormat, preview_width, preview_height;
+    int crop_top, crop_left, crop_width, crop_height;
     overlay_buffer_t overlaybuffer;
     void *yuv_buffer, *snapshot_buffer;
     double ZoomTarget;
@@ -1585,6 +1603,10 @@ void CameraHal::snapshotThread()
                 image_width = snapshotMessage[2];
                 image_height = snapshotMessage[3];
                 ZoomTarget = zoom_step[snapshotMessage[4]];
+                crop_top = snapshotMessage[5];
+                crop_left = snapshotMessage[6];
+                crop_width = snapshotMessage[7];
+                crop_height = snapshotMessage[8];
 
                 mParameters.getPreviewSize(&preview_width, &preview_height);
 
@@ -1604,7 +1626,7 @@ void CameraHal::snapshotThread()
                 scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
 
                 status = scale_process(yuv_buffer, image_width, image_height,
-                         snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, ZoomTarget);
+                         snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, 1, crop_top, crop_left, crop_width, crop_height);
 
 #ifdef DEBUG_LOG
 
@@ -1795,6 +1817,7 @@ void CameraHal::procThread()
     int pixelFormat;
     unsigned int procMessage [PROC_THREAD_NUM_ARGS];
     unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_offset, yuv_len, image_rotation, ippMode;
+    unsigned int crop_top, crop_left, crop_width, crop_height;
     double image_zoom;
     bool ipp_to_enable;
     sp<MemoryHeapBase> JPEGPictureHeap;
@@ -1881,6 +1904,10 @@ void CameraHal::procThread()
                 JpegPictureCallback = (data_callback) procMessage[19];
                 RawPictureCallback = (data_callback) procMessage[20];
                 PictureCallbackCookie = (void *) procMessage[21];
+                crop_top = procMessage[22];
+                crop_left = procMessage[23];
+                crop_width = procMessage[24];
+                crop_height = procMessage[25];
 
                 jpegSize = mJPEGLength;
                 JPEGPictureHeap = mJPEGPictureHeap;
@@ -1888,14 +1915,12 @@ void CameraHal::procThread()
                 offset = mJPEGOffset;
                 thumb_width = THUMB_WIDTH;
                 thumb_height = THUMB_HEIGHT;
+                pixelFormat = PIX_YUV422I;
 
 #if RESIZER
-
-                if( (image_width != capture_width) || (image_height != capture_height) || (image_rotation != 0) || (image_zoom != 1) ) {
-
 #ifdef DEBUG_LOG
 
-                    LOGI("Process VPP ( %d x %d -> %d x %d ) - rotation = %d, zoom = %5.2f, starting", capture_width, capture_height, (int) image_width, (int) image_height, image_rotation, image_zoom);
+                    LOGI("Process VPP ( %d x %d -> %d x %d ) - rotation = %d, zoom = %5.2f, crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d starting", capture_width, capture_height, (int) image_width, (int) image_height, image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height);
 
 #endif
 
@@ -1904,7 +1929,7 @@ void CameraHal::procThread()
 
                     scale_init(capture_width, capture_height, image_width, image_height, PIX_YUV422I, pixelFormat);
 
-                    err = scale_process(yuv_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom);
+                    err = scale_process(yuv_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom, crop_top, crop_left, crop_width, crop_height);
 
 #ifdef DEBUG_LOG
 
@@ -1929,7 +1954,6 @@ void CameraHal::procThread()
 
                     scale_deinit();
 
-                }
 #else
                 image_width = capture_width;
                 image_height = capture_height;
@@ -2976,9 +3000,9 @@ void CameraHal::release()
 {
 }
 
-int CameraHal::onSnapshot(void *priv, void *buf, int width, int height)
+int CameraHal::onSnapshot(void *priv, void *buf, int width, int height, capture_rect_t snapshot_rect, capture_rect_t aspect_rect)
 {
-    unsigned int snapshotMessage[5];
+    unsigned int snapshotMessage[9];
 
     CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
 
@@ -2989,6 +3013,10 @@ int CameraHal::onSnapshot(void *priv, void *buf, int width, int height)
     snapshotMessage[2] = width;
     snapshotMessage[3] = height;
     snapshotMessage[4] = camHal->mZoomTargetIdx;
+    snapshotMessage[5] = snapshot_rect.top;
+    snapshotMessage[6] = snapshot_rect.left;
+    snapshotMessage[7] = snapshot_rect.width;
+    snapshotMessage[8] = snapshot_rect.height;
 
     write(camHal->snapshotPipe[1], &snapshotMessage, sizeof(snapshotMessage));
 

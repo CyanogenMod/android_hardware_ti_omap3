@@ -157,7 +157,7 @@ typedef struct OMX_IPP
 
 #define PROC_THREAD_PROCESS     0x5
 #define PROC_THREAD_EXIT        0x6
-#define PROC_THREAD_NUM_ARGS    22
+#define PROC_THREAD_NUM_ARGS    26
 #define SHUTTER_THREAD_CALL     0x1
 #define SHUTTER_THREAD_EXIT     0x2
 #define SHUTTER_THREAD_NUM_ARGS 3
@@ -342,7 +342,7 @@ public:
     static int onSaveH3A(void *priv, void *buf, int size);
     static int onSaveLSC(void *priv, void *buf, int size);
     static int onSaveRAW(void *priv, void *buf, int size);
-    static int onSnapshot(void *priv, void *buf, int width, int height);
+    static int onSnapshot(void *priv, void *buf, int width, int height, capture_rect_t snapshot_rect, capture_rect_t aspect_rect);
 
     CameraHal();
     virtual ~CameraHal();
@@ -420,6 +420,7 @@ public:
     int FW3A_AF_TimeOut;
 	    
     mutable Mutex mLock;
+    struct v4l2_crop mInitialCrop;
     gps_data *gpsLocation;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
@@ -561,7 +562,7 @@ public:
 extern "C" {
     int scale_init(int inWidth, int inHeight, int outWidth, int outHeight, int inFmt, int outFmt);
     int scale_deinit();
-    int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight, int rotation, int fmt, float zoom);
+    int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight, int rotation, int fmt, float zoom, int crop_top, int crop_left, int crop_width, int crop_height);
 }
 
 #endif

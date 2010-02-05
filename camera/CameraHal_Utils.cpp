@@ -778,35 +778,39 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt,
 int CameraHal::ZoomPerform(float zoom)
 {
     struct v4l2_crop crop;
-    int fwidth, fheight;
-    int zoom_left,zoom_top,zoom_width, zoom_height, w, h;
+    int delta_x, delta_y;
     int ret;
 
-    mParameters.getPreviewSize(&w, &h);
+    LOG_FUNCTION_NAME
 
-    fwidth = w/zoom;
-    fheight = h/zoom;
-    zoom_width = ((int) fwidth) & (~3);
-    zoom_height = ((int) fheight) & (~3);
-    zoom_left = w/2 - (zoom_width/2);
-    zoom_top = h/2 - (zoom_height/2);
+    memcpy( &crop, &mInitialCrop, sizeof(struct v4l2_crop));
 
-    LOGE("Perform ZOOM: zoom_width = %d, zoom_height = %d, zoom_left = %d, zoom_top = %d", zoom_width, zoom_height, zoom_left, zoom_top); 
+    delta_x = crop.c.width - (crop.c.width /zoom);
+    delta_y = crop.c.height - (crop.c.height/zoom);
+ 
+    crop.c.width -= delta_x;
+    crop.c.height -= delta_y;
+    crop.c.left += delta_x >> 1;
+    crop.c.top += delta_y >> 1;
 
-    memset(&crop, 0, sizeof(crop));
-    crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    crop.c.left   = zoom_left; 
-    crop.c.top    = zoom_top;
-    crop.c.width  = zoom_width;
-    crop.c.height = zoom_height;
+    LOGE("Perform ZOOM: zoom_top = %d, zoom_left = %d, zoom_width = %d, zoom_height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
 
-#if 1
     ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
     if (ret < 0) {
       LOGE("[%s]: ERROR VIDIOC_S_CROP failed", strerror(errno));
       return -1;
     }
-#endif
+
+    ret = ioctl(camera_device, VIDIOC_G_CROP, &crop);
+    if (ret < 0) {
+      LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
+      return -1;
+    }
+
+    LOGE("Perform ZOOM G_GROP: crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
+
+    LOG_FUNCTION_NAME_EXIT
+
     return 0;
 }
 
@@ -972,7 +976,7 @@ int CameraHal::CapturePicture(){
     snapshot_buffer = mOverlay->getBufferAddress( (void*)0 );
     LOGD("VPP scale_process() \n");
     err = scale_process(yuv_buffer, image_width, image_height,
-                         snapshot_buffer, preview_width, preview_height, 0, jpegFormat, zoom_step[mZoomTargetIdx]);
+                         snapshot_buffer, preview_width, preview_height, 0, jpegFormat, zoom_step[mZoomTargetIdx], 0 , 0, image_width, image_height);
     if( err ) LOGE("scale_process() failed");
     else LOGD("scale_process() OK");
 

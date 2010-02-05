@@ -291,7 +291,7 @@ EXIT:
     return eError;
 }
 
-int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight, int rotation, int fmt, float zoom)
+int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight, int rotation, int fmt, float zoom, int crop_top, int crop_left, int crop_width, int crop_height)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 w,h,zfactor;
@@ -309,10 +309,10 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
                                                     * buffer (equal to zero if there *
                                                     * is no C frame)                 */
     /* crop */
-    pPrevIpFrameStatus->ulInXstart            = 0;
-    pPrevIpFrameStatus->ulInXsize             = inWidth;
-    pPrevIpFrameStatus->ulInYstart            = 0;
-    pPrevIpFrameStatus->ulInYsize             = inHeight;
+    pPrevIpFrameStatus->ulInXstart            = crop_left;
+    pPrevIpFrameStatus->ulInXsize             = crop_width;
+    pPrevIpFrameStatus->ulInYstart            = crop_top;
+    pPrevIpFrameStatus->ulInYsize             = crop_height;
 
     /* zoom*/
     pPrevIpFrameStatus->ulZoomFactor          = zoom*1024; //(outWidth * 1024) / inWidth;
