@@ -1692,7 +1692,11 @@ void* MessagingThread(void* arg)
     unsigned int index=0;
     LCML_MESSAGINGTHREAD_STATE threadState = EMessagingThreadCodecStopped;
     int waitForEventsTimeout = 1000;
-    int getMessageTimeout = 10;
+
+    // There is no need to set a timeout value for message retrieval.
+    // Just in case that we need to change it to a different value
+    // such as 10 ms?
+    const int getMessageTimeout = 0;
 
     OMX_PRINT1 (((LCML_CODEC_INTERFACE *)((LCML_DSP_INTERFACE *)arg)->pCodecinterfacehandle)->dbg, "Inside the Messaging thread\n");
 #ifdef __PERF_INSTRUMENTATION__
@@ -1719,12 +1723,10 @@ void* MessagingThread(void* arg)
 
         if (threadState == EMessagingThreadCodecRunning) {
             waitForEventsTimeout = 10000;
-            getMessageTimeout = 1000;
         }
         /* set the timeouts lower when the codec is stopped so that thread deletion response will be faster */
         else if (threadState == EMessagingThreadCodecStopped) {
             waitForEventsTimeout = 10;
-            getMessageTimeout = 10;
         }
 
 #ifdef __ERROR_PROPAGATION__
