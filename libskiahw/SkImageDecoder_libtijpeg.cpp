@@ -589,6 +589,12 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     iLastState = STATE_LOADED;
     iState = STATE_LOADED;
 
+    PortType.nSize = sizeof(OMX_PORT_PARAM_TYPE);
+    PortType.nVersion.s.nVersionMajor = 0x1;
+    PortType.nVersion.s.nVersionMinor = 0x0;
+    PortType.nVersion.s.nRevision = 0x0;
+    PortType.nVersion.s.nStep = 0x0;
+
     eError = OMX_GetParameter(pOMXHandle, OMX_IndexParamImageInit, &PortType);
     if ( eError != OMX_ErrorNone ) {
         goto EXIT;
@@ -602,17 +608,18 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     /**********************************************************************/
 
     InPortDef.nPortIndex = PortType.nStartPortNumber;
+    InPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
+    InPortDef.nVersion.s.nVersionMajor = 0x1;
+    InPortDef.nVersion.s.nVersionMinor = 0x0;
+    InPortDef.nVersion.s.nRevision = 0x0;
+    InPortDef.nVersion.s.nStep = 0x0;
+
     eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
 
-    InPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
-    InPortDef.nVersion.s.nVersionMajor = 0x1;
-    InPortDef.nVersion.s.nVersionMinor = 0x0;
-    InPortDef.nVersion.s.nRevision = 0x0;
-    InPortDef.nVersion.s.nStep = 0x0;
     InPortDef.eDir = OMX_DirInput;
     InPortDef.nBufferCountActual =1;
     InPortDef.nBufferCountMin = 1;
@@ -657,17 +664,18 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     /***********************************************************************/
 
     OutPortDef.nPortIndex = PortType.nStartPortNumber;
+    OutPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
+    OutPortDef.nVersion.s.nVersionMajor = 0x1;
+    OutPortDef.nVersion.s.nVersionMinor = 0x0;
+    OutPortDef.nVersion.s.nRevision = 0x0;
+    OutPortDef.nVersion.s.nStep = 0x0;
+
     eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
 
-    OutPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
-    OutPortDef.nVersion.s.nVersionMajor = 0x1;
-    OutPortDef.nVersion.s.nVersionMinor = 0x0;
-    OutPortDef.nVersion.s.nRevision = 0x0;
-    OutPortDef.nVersion.s.nStep = 0x0;
     OutPortDef.eDir = OMX_DirOutput;
     OutPortDef.nBufferCountActual = 1;
     OutPortDef.nBufferCountMin = 1;
