@@ -98,14 +98,20 @@ static void setDefaultControls(uint32_t devices, int mode);
 
 typedef void (*AlsaControlSet)(uint32_t devices, int mode);
 
+/*  Eclair 2.1 has removed board specific device outputs 
+    since omap3 has FM support, we add it back in here. 
+    be sure this stays in sync with hardware/alsa_sound */
+#define DEVICE_OUT_FM_HEADPHONE 0x800
+#define DEVICE_OUT_FM_SPEAKER 0x1000
+
 #define OMAP3_OUT_SCO      (\
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO |\
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |\
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
 #define OMAP3_OUT_FM        (\
-        AudioSystem::DEVICE_OUT_FM_HEADPHONE |\
-        AudioSystem::DEVICE_OUT_FM_SPEAKER)
+        DEVICE_OUT_FM_HEADPHONE |\
+        DEVICE_OUT_FM_SPEAKER)
 
 #define OMAP3_OUT_DEFAULT   (\
         AudioSystem::DEVICE_OUT_ALL &\
