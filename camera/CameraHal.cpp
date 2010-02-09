@@ -424,13 +424,15 @@ CameraHal::~CameraHal()
 
 
 #ifdef IMAGE_PROCESSING_PIPELINE
+
     if(pIPP.hIPP != NULL){
-        err = DeInitIPP();
+        err = DeInitIPP(mippMode);
         if( err )
             LOGE("ERROR DeInitIPP() failed");
 
         pIPP.hIPP = NULL;
     }
+
 #endif
 
     if ( mOverlay.get() != NULL )
@@ -1966,10 +1968,6 @@ void CameraHal::procThread()
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
-                if(ippMode == -1 ){
-                    ippMode = IPP_EdgeEnhancement_Mode;
-                }
-
 #ifdef DEBUG_LOG
 
                 LOGD("IPPmode=%d",ippMode);
@@ -1985,10 +1983,7 @@ void CameraHal::procThread()
 
 #endif
 
-	        if(ippMode){
-
-                    if(ippMode != IPP_CromaSupression_Mode && ippMode != IPP_EdgeEnhancement_Mode)
-                         LOGE("ERROR ippMode unsupported");
+	        if( (ippMode == IPP_CromaSupression_Mode) || (ippMode == IPP_EdgeEnhancement_Mode) ){
 
                     if(ipp_to_enable) {
 
@@ -1998,7 +1993,7 @@ void CameraHal::procThread()
 
 #endif
 
-                         err = InitIPP(image_width, image_height, pixelFormat);
+                         err = InitIPP(image_width, image_height, pixelFormat, ippMode);
                          if( err )
                              LOGE("ERROR InitIPP() failed");
 
@@ -2010,7 +2005,7 @@ void CameraHal::procThread()
 
                          }
 
-                        err = PopulateArgsIPP(image_width, image_height, pixelFormat);
+                        err = PopulateArgsIPP(image_width, image_height, pixelFormat, ippMode);
                         if( err )
                              LOGE("ERROR PopulateArgsIPP() failed");
 
@@ -2024,6 +2019,7 @@ void CameraHal::procThread()
                         if( switchBuffer) {
                              err = ProcessBufferIPP(tmpBuffer, tmpLength,
                                                     pixelFormat,
+                                                    ippMode,
                                                     ipp_ee_q,
                                                     ipp_ew_ts,
                                                     ipp_es_ts,
@@ -2032,6 +2028,7 @@ void CameraHal::procThread()
                         } else {
                              err = ProcessBufferIPP(yuv_buffer, yuv_len,
                                                     pixelFormat,
+                                                    ippMode,
                                                     ipp_ee_q,
                                                     ipp_ew_ts,
                                                     ipp_es_ts,
@@ -2686,20 +2683,23 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     mParameters = params;
 
-#ifdef IMAGE_PROCESSING_PIPELINE	
+#ifdef IMAGE_PROCESSING_PIPELINE
+
     if((mippMode != mParameters.getInt("ippMode")) || (w != w_orig) || (h != h_orig) )
     {
-        mippMode=mParameters.getInt("ippMode");
-        LOGD("mippMode=%d",mippMode);
-
         if(pIPP.hIPP != NULL){
             LOGD("pIPP.hIPP=%p", pIPP.hIPP);
-            if(DeInitIPP()) // deinit here to save time
+            if(DeInitIPP(mippMode)) // deinit here to save time
                 LOGE("ERROR DeInitIPP() failed");
             pIPP.hIPP = NULL;
         }
+
+        mippMode = mParameters.getInt("ippMode");
+        LOGD("mippMode=%d", mippMode);
+
         mIPPToEnable = true;
     }
+
 #endif
 
 	mParameters.getPictureSize(&w, &h);

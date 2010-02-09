@@ -386,10 +386,10 @@ public:
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-    int DeInitIPP();
-    int InitIPP(int w, int h, int fmt);
-    int PopulateArgsIPP(int w, int h, int fmt);
-    int ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt,
+    int DeInitIPP(int ippMode);
+    int InitIPP(int w, int h, int fmt, int ippMode);
+    int PopulateArgsIPP(int w, int h, int fmt, int ippMode);
+    int ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int ippMode,
                          int EdgeEnhancementStrength, int WeakEdgeThreshold,
                          int StrongEdgeThreshold, int LumaNoiseFilterStrength,
                          int ChromaNoiseFilterStrength);
