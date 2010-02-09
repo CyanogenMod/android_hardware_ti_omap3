@@ -175,11 +175,16 @@ typedef struct {
     /* shared library handle */
     void *lib_handle;
 
+    int (*Create2A) (Camera2AInterface **cam_face);
+
     /* Init 2A library */
-    int (*Init2A) (Camera2AInterface **cam_face, int dev_cam,
+    int (*Init2A) (Camera2AInterface *cam_face, int dev_cam,
            uint8 enable3PTuningAlg);
+
     /* Release 2A library */
-    int (*Release2A) (Camera2AInterface **cam_face);
+    int (*Release2A) (Camera2AInterface *cam_face);
+
+    int (*Destroy2A) (Camera2AInterface **cam_face);
 } lib3a_interface;
 
 typedef struct {

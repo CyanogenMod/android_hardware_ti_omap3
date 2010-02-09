@@ -61,9 +61,23 @@ int CameraHal::FW3A_Create()
         goto exit;
     }
 
+    /* get Create2A symbol */
+    fobj->lib.Create2A = (int (*)(Camera2AInterface**)) dlsym(fobj->lib.lib_handle, "Create2A");
+    if (NULL == fobj->lib.Create2A) {
+        LOGE("ERROR - can't get dlsym \"Create2A\"");
+        goto exit;
+    }
+ 
+    /* get Destroy2A symbol */
+    fobj->lib.Destroy2A = (int (*)(Camera2AInterface**)) dlsym(fobj->lib.lib_handle, "Destroy2A");
+    if (NULL == fobj->lib.Destroy2A) {
+        LOGE("ERROR - can't get dlsym \"Destroy2A\"");
+        goto exit;
+    }
+
     /* get Init2A symbol */
     LOGE("dlsym MMS 3a Init2A Enter");
-    fobj->lib.Init2A = (int (*)(Camera2AInterface**, int, uint8)) dlsym(fobj->lib.lib_handle, "Init2A");
+    fobj->lib.Init2A = (int (*)(Camera2AInterface*, int, uint8)) dlsym(fobj->lib.lib_handle, "Init2A");
     LOGE("dlsym MMS 3a Init2A Exit");
     if (NULL == fobj->lib.Init2A) {
         LOGE("ERROR - can't get dlsym \"Init2A\"");
@@ -72,18 +86,36 @@ int CameraHal::FW3A_Create()
 
     /* get Release2A symbol */
     LOGE("dlsym MMS 3a Release2A Enter");
-    fobj->lib.Release2A = (int (*)(Camera2AInterface**)) dlsym(fobj->lib.lib_handle, "Release2A");
+    fobj->lib.Release2A = (int (*)(Camera2AInterface*)) dlsym(fobj->lib.lib_handle, "Release2A");
     LOGE("dlsym MMS 3a Release2A Exit");
     if (NULL == fobj->lib.Release2A) {
        LOGE( "ERROR - can't get dlsym \"Release2A\"");
        goto exit;
     }
 
-    //TODO:
     fobj->cam_dev = 0;
-	LOGE("Init2A Enter");    
-    fobj->lib.Init2A(&fobj->cam_iface_2a, fobj->cam_dev, 0);
-    LOGE("Init2A Exit");
+    /* Create 2A framework */
+    err = fobj->lib.Create2A(&fobj->cam_iface_2a);
+    if (err < 0) {
+        LOGE("Can't Create2A");
+        goto exit;
+    }
+
+    /* Init 2A framework */
+    err = fobj->lib.Init2A(fobj->cam_iface_2a, fobj->cam_dev, 0);
+    if (err < 0) {
+        LOGE("Can't Init2A, will try to release first");
+        err = fobj->lib.Release2A(fobj->cam_iface_2a);
+        if (!err) {
+            err = fobj->lib.Init2A(fobj->cam_iface_2a, fobj->cam_dev, 0);
+            if (err < 0) {
+                LOGE("Can't Init2A");
+
+                err = fobj->lib.Destroy2A(&fobj->cam_iface_2a);
+                goto exit;
+            }
+        }
+    }
 
     LOGD("FW3A Create - %d   fobj=%p", err, fobj);
 
@@ -102,11 +134,18 @@ int CameraHal::FW3A_Destroy()
 
     LOG_FUNCTION_NAME_EXIT
 
-    ret = fobj->lib.Release2A(&fobj->cam_iface_2a);
+    ret = fobj->lib.Release2A(fobj->cam_iface_2a);
     if (ret < 0) {
         LOGE("Cannot Release2A");
     } else {
         LOGD("2A released");
+    }
+
+    ret = fobj->lib.Destroy2A(&fobj->cam_iface_2a);
+    if (ret < 0) {
+        LOGE("Cannot Destroy2A");
+    } else {
+        LOGD("2A destroyed");
     }
 
    	dlclose(fobj->lib.lib_handle);

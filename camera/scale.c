@@ -291,6 +291,16 @@ EXIT:
     return eError;
 }
 
+int correct_range(int val, int range)
+{
+    if( val < 0 )
+        return 0;
+    else if( val > range)
+        return range;
+
+    return val;
+}
+
 int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight, int rotation, int fmt, float zoom, int crop_top, int crop_left, int crop_width, int crop_height)
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
@@ -308,6 +318,11 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
     pPrevIpFrameStatus->ulCInOffset           = 0; /* offset of the C frame in the   *
                                                     * buffer (equal to zero if there *
                                                     * is no C frame)                 */
+    crop_top = correct_range(crop_top, inHeight);
+    crop_left = correct_range(crop_left, inWidth);
+    crop_width = correct_range(crop_width, inWidth);
+    crop_height = correct_range(crop_height, inHeight);
+
     /* crop */
     pPrevIpFrameStatus->ulInXstart            = crop_left;
     pPrevIpFrameStatus->ulInXsize             = crop_width;

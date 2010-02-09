@@ -1372,6 +1372,7 @@ int  CameraHal::ICapturePerform()
     iobj->cfg.preview_rect.left = fobj->status_2a.preview.left;
     iobj->cfg.preview_rect.width = fobj->status_2a.preview.width;
     iobj->cfg.preview_rect.height = fobj->status_2a.preview.height;
+    iobj->cfg.capture_format = CAPTURE_FORMAT_UYVY;
     manual_config.pre_flash = 0;
 
     if(mcapture_mode == 1)
@@ -2325,7 +2326,7 @@ int CameraHal::ICaptureDestroy(void)
 
     iobj->lib_private = NULL;
 
-//    dlclose(iobj->lib.lib_handle);
+    dlclose(iobj->lib.lib_handle);
     free(iobj);
     iobj = NULL;
 #endif
