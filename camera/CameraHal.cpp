@@ -238,6 +238,10 @@ void CameraHal::initDefaultParameters()
     strncat((char*) tmpBuffer, (const char*) CameraParameters::EFFECT_SOLARIZE,  PARAM_BUFFER);
     strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER);
     strncat((char*) tmpBuffer, (const char*) CameraParameters::EFFECT_SEPIA, PARAM_BUFFER);
+    strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER);
+    strncat((char*) tmpBuffer, (const char*) CameraParameters::EFFECT_WHITEBOARD,  PARAM_BUFFER);
+    strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER);
+    strncat((char*) tmpBuffer, (const char*) CameraParameters::EFFECT_BLACKBOARD, PARAM_BUFFER);
     p.set(CameraParameters::KEY_SUPPORTED_EFFECTS, tmpBuffer);
     p.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_NONE);
 
@@ -2837,6 +2841,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_SEPIA) == 0) {
 
                 fobj->settings_2a.general.effects = CONFIG_EFFECT_SEPIA;
+
+            } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_WHITEBOARD) == 0) {
+
+                fobj->settings_2a.general.effects = CONFIG_EFFECT_WHITEBOARD;
+
+            } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_BLACKBOARD) == 0) {
+
+                fobj->settings_2a.general.effects = CONFIG_EFFECT_BLACKBOARD;
 
             }
         }
