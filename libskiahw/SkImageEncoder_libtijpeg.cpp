@@ -37,7 +37,7 @@
 #define PRINTF SkDebugf
 //#define PRINTF printf
 
-#define MULTIPLE 16 //image width must be a multiple of this number
+#define MULTIPLE 2 //image width must be a multiple of this number
 
 #define JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT 0
 
