@@ -34,18 +34,26 @@ namespace android {
 TIHardwareRenderer::TIHardwareRenderer(
         const sp<ISurface> &surface,
         size_t displayWidth, size_t displayHeight,
-        size_t decodedWidth, size_t decodedHeight)
+        size_t decodedWidth, size_t decodedHeight,
+        OMX_COLOR_FORMATTYPE colorFormat)
     : mISurface(surface),
       mDisplayWidth(displayWidth),
       mDisplayHeight(displayHeight),
       mDecodedWidth(decodedWidth),
       mDecodedHeight(decodedHeight),
+      mColorFormat(colorFormat),
+      mInitCheck(NO_INIT),
       mFrameSize(mDecodedWidth * mDecodedHeight * 2),
       mIsFirstFrame(true),
       mIndex(0) {
     CHECK(mISurface.get() != NULL);
     CHECK(mDecodedWidth > 0);
     CHECK(mDecodedHeight > 0);
+
+    if (colorFormat != OMX_COLOR_FormatCbYCrY
+            && colorFormat != OMX_COLOR_FormatYUV420Planar) {
+        return;
+    }
 
     sp<OverlayRef> ref = mISurface->createOverlay(
             mDecodedWidth, mDecodedHeight, OVERLAY_FORMAT_CbYCrY_422_I, 0);
@@ -64,6 +72,8 @@ TIHardwareRenderer::TIHardwareRenderer(
 
         mOverlayAddresses.push(data->ptr);
     }
+
+    mInitCheck = OK;
 }
 
 TIHardwareRenderer::~TIHardwareRenderer() {
@@ -73,6 +83,62 @@ TIHardwareRenderer::~TIHardwareRenderer() {
 
         // XXX apparently destroying an overlay is an asynchronous process...
         sleep(1);
+    }
+}
+
+// return a byte offset from any pointer
+static inline const void *byteOffset(const void* p, size_t offset) {
+    return ((uint8_t*)p + offset);
+}
+
+static void convertYuv420ToYuv422(
+        int width, int height, const void *src, void *dst) {
+    // calculate total number of pixels, and offsets to U and V planes
+    int pixelCount = height * width;
+    int srcLineLength = width / 4;
+    int destLineLength = width / 2;
+    uint32_t* ySrc = (uint32_t*) src;
+    const uint16_t* uSrc = (const uint16_t*) byteOffset(src, pixelCount);
+    const uint16_t* vSrc = (const uint16_t*) byteOffset(uSrc, pixelCount >> 2);
+    uint32_t *p = (uint32_t*) dst;
+
+    // convert lines
+    for (int i = 0; i < height; i += 2) {
+
+        // upsample by repeating the UV values on adjacent lines
+        // to save memory accesses, we handle 2 adjacent lines at a time
+        // convert 4 pixels in 2 adjacent lines at a time
+        for (int j = 0; j < srcLineLength; j++) {
+
+            // fetch 4 Y values for each line
+            uint32_t y0 = ySrc[0];
+            uint32_t y1 = ySrc[srcLineLength];
+            ySrc++;
+
+            // fetch 2 U/V values
+            uint32_t u = *uSrc++;
+            uint32_t v = *vSrc++;
+
+            // assemble first U/V pair, leave holes for Y's
+            uint32_t uv = (u | (v << 16)) & 0x00ff00ff;
+
+            // OR y values and write to memory
+            p[0] = ((y0 & 0xff) << 8) | ((y0 & 0xff00) << 16) | uv;
+            p[destLineLength] = ((y1 & 0xff) << 8) | ((y1 & 0xff00) << 16) | uv;
+            p++;
+
+            // assemble second U/V pair, leave holes for Y's
+            uv = ((u >> 8) | (v << 8)) & 0x00ff00ff;
+
+            // OR y values and write to memory
+            p[0] = ((y0 >> 8) & 0xff00) | (y0 & 0xff000000) | uv;
+            p[destLineLength] = ((y1 >> 8) & 0xff00) | (y1 & 0xff000000) | uv;
+            p++;
+        }
+
+        // skip the next y line, we already converted it
+        ySrc += srcLineLength;
+        p += destLineLength;
     }
 }
 
@@ -110,7 +176,14 @@ void TIHardwareRenderer::render(
         mIsFirstFrame = false;
     }
 #else
-    memcpy(mOverlayAddresses[mIndex], data, size);
+    if (mColorFormat == OMX_COLOR_FormatYUV420Planar) {
+        convertYuv420ToYuv422(
+                mDecodedWidth, mDecodedHeight, data, mOverlayAddresses[mIndex]);
+    } else {
+        CHECK_EQ(mColorFormat, OMX_COLOR_FormatCbYCrY);
+
+        memcpy(mOverlayAddresses[mIndex], data, size);
+    }
 
     mOverlay->queueBuffer((void *)mIndex);
 

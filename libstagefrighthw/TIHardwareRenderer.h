@@ -22,6 +22,8 @@
 #include <utils/RefBase.h>
 #include <utils/Vector.h>
 
+#include <OMX_Component.h>
+
 namespace android {
 
 class ISurface;
@@ -32,9 +34,12 @@ public:
     TIHardwareRenderer(
             const sp<ISurface> &surface,
             size_t displayWidth, size_t displayHeight,
-            size_t decodedWidth, size_t decodedHeight);
+            size_t decodedWidth, size_t decodedHeight,
+            OMX_COLOR_FORMATTYPE colorFormat);
 
     virtual ~TIHardwareRenderer();
+
+    status_t initCheck() const { return mInitCheck; }
 
     virtual void render(
             const void *data, size_t size, void *platformPrivate);
@@ -43,6 +48,8 @@ private:
     sp<ISurface> mISurface;
     size_t mDisplayWidth, mDisplayHeight;
     size_t mDecodedWidth, mDecodedHeight;
+    OMX_COLOR_FORMATTYPE mColorFormat;
+    status_t mInitCheck;
     size_t mFrameSize;
     sp<Overlay> mOverlay;
     Vector<void *> mOverlayAddresses;

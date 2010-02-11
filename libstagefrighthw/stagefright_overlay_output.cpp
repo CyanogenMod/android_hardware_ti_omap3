@@ -1,6 +1,6 @@
-#include <media/stagefright/HardwareAPI.h>
-
 #include "TIHardwareRenderer.h"
+
+#include <media/stagefright/HardwareAPI.h>
 
 using android::sp;
 using android::ISurface;
@@ -14,13 +14,17 @@ VideoRenderer *createRenderer(
         size_t decodedWidth, size_t decodedHeight) {
     using android::TIHardwareRenderer;
 
-    if (colorFormat == OMX_COLOR_FormatCbYCrY
-            && !strcmp(componentName, "OMX.TI.Video.Decoder")) {
-        return new TIHardwareRenderer(
+    TIHardwareRenderer *renderer =
+        new TIHardwareRenderer(
                 surface, displayWidth, displayHeight,
-                decodedWidth, decodedHeight);
+                decodedWidth, decodedHeight,
+                colorFormat);
+
+    if (renderer->initCheck() != android::OK) {
+        delete renderer;
+        renderer = NULL;
     }
 
-    return NULL;
+    return renderer;
 }
 
