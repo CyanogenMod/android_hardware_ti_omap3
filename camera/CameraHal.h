@@ -344,11 +344,6 @@ public:
         }
     };
 
-    static int onSaveH3A(void *priv, void *buf, int size);
-    static int onSaveLSC(void *priv, void *buf, int size);
-    static int onSaveRAW(void *priv, void *buf, int size);
-    static int onSnapshot(void *priv, void *buf, int width, int height, capture_rect_t snapshot_rect, capture_rect_t aspect_rect);
-
     CameraHal();
     virtual ~CameraHal();
     void previewThread();
@@ -359,6 +354,11 @@ public:
     void snapshotThread();
     
 #ifdef FW3A
+    static int onSaveH3A(void *priv, void *buf, int size);
+    static int onSaveLSC(void *priv, void *buf, int size);
+    static int onSaveRAW(void *priv, void *buf, int size);
+    static int onSnapshot(void *priv, void *buf, int width, int height, capture_rect_t snapshot_rect, capture_rect_t aspect_rect);
+
     int FW3A_Create();
     int FW3A_Destroy();
     int FW3A_Start();

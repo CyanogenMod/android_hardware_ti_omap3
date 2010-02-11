@@ -3013,6 +3013,8 @@ void CameraHal::release()
 {
 }
 
+#ifdef FW3A
+
 int CameraHal::onSnapshot(void *priv, void *buf, int width, int height, capture_rect_t snapshot_rect, capture_rect_t aspect_rect)
 {
     unsigned int snapshotMessage[9];
@@ -3068,6 +3070,7 @@ int CameraHal::onSaveRAW(void *priv, void *buf, int size)
     return 0;
 }
 
+#endif
 
 int CameraHal::SaveFile(char *filename, char *ext, void *buffer, int size)
 {
