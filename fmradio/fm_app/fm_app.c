@@ -48,6 +48,9 @@
 #include "fmc_core.h"
 #include "fmc_defs.h"
 
+#ifdef FM_CHR_DEV_ST
+#include "fm_chrlib.h"
+#endif
 #ifdef ANDROID
 /* lib_alsa ALSA Include */
 #include "asoundlib.h"
@@ -100,8 +103,8 @@ static FmTxRdsTransmittedGroupsMask g_fmapp_tx_rds_transmitted_groups_mask;
 static FmcRdsMusicSpeechFlag g_fmapp_tx_music_speech_flag;
 static FmRxCmdType	g_fmapp_audio;
 
-fm_status set_fmapp_audio_routing(fm_rx_context_s *);
-fm_status unset_fmapp_audio_routing(fm_rx_context_s *);
+fm_status set_fmapp_audio_routing(fm_rx_context_s **);
+fm_status unset_fmapp_audio_routing(fm_rx_context_s **);
 extern int gMcpLogEnabled;
 extern int gMcpLogToStdout;
 extern char gMcpLogFileName[];
@@ -3517,7 +3520,7 @@ fm_status parse_options(int argc, char **argv, char **script, int *startup_len)
 	return ret;
 }
 
-static int get_rfkill_path(char **rfkill_state_path)
+static int get_rfkill_id(void)
 {
 	char path[64];
 	char buf[16];
@@ -3539,22 +3542,28 @@ static int get_rfkill_path(char **rfkill_state_path)
 			break;
 		}
 	}
-	asprintf(rfkill_state_path, "/sys/class/rfkill/rfkill%d/state", id);
-	return 0;
+	return id;
 }
 
 int set_fm_chip_enable(int enable)
 {
+	char buffer='0';
+	int ret,id;
 	/*
 	 * const char enable_path[]="/sys/wl127x/fm_enable";
 	 * change for donut branch [2.6.29 kernel only
 	 */
 	char *enable_path = NULL;
+	id = get_rfkill_id();
+	if (id < 0)
+	{
+	   	FMAPP_ERROR("Unable to find FM rfkill id");
+		return -1;
+	}
 	/* set /sys/class/rfkill/rfkill1/state to enable FM chip */
-	get_rfkill_path(&enable_path);
-
-	char buffer='0';
-	int ret;
+	asprintf(&enable_path,"/sys/class/rfkill/rfkill%d/state", id);
+	if (!enable_path)
+            return -1;
 	/* set /sys/wl127x/fm_enable=0 to enable FM chip */
 	ret = open(enable_path, O_RDWR);
 	if (ret < 0)
@@ -3612,7 +3621,11 @@ int main(int argc, char **argv)
 		goto out;
 
 	FMAPP_MSG(FMAPP_WELCOME_STR);
+#ifndef FM_CHR_DEV_ST
 	FMAPP_MSG("attaching FM to hci%d", g_fmapp_hci_dev);
+#else
+	FMAPP_MSG("attaching FM to %s",TI_FMRADIO);
+#endif
 
 	/* register signal handlers */
 	ret = register_sig_handlers();
@@ -3623,7 +3636,11 @@ int main(int argc, char **argv)
 
 	ret = fm_open_cmd_socket(g_fmapp_hci_dev);
 	if (ret) {
+#ifndef	FM_CHR_DEV_ST
 		FMAPP_ERROR("failed to open cmd socket");
+#else
+		FMAPP_ERROR("failed to open device");
+#endif
 		goto out;
 	}
 
@@ -3640,6 +3657,7 @@ int main(int argc, char **argv)
 	while (g_keep_running) {
 		fgets(buffer, sizeof(buffer), stdin);
 		fmapp_execute_command(buffer, 0, &fm_context, FMAPP_INTERACTIVE);
+		memset(&buffer,0,sizeof(buffer));
 	}
 
 disable:
@@ -3773,7 +3791,7 @@ int configure_T2_AUXR(snd_ctl_t *ctl,char on_off_status)
      return(snd_ctl_elem_write(ctl, value));
 }
 
-fm_status set_fmapp_audio_routing(fm_rx_context_s *fm_context)
+fm_status set_fmapp_audio_routing(fm_rx_context_s **fm_context)
 {
      int error_code;
      snd_ctl_t *ctl;
@@ -3810,7 +3828,7 @@ fm_status set_fmapp_audio_routing(fm_rx_context_s *fm_context)
      return FMC_STATUS_SUCCESS;
 }
 
-fm_status unset_fmapp_audio_routing(fm_rx_context_s *fm_context)
+fm_status unset_fmapp_audio_routing(fm_rx_context_s **fm_context)
 {
      int error_code;
      snd_ctl_t *ctl;

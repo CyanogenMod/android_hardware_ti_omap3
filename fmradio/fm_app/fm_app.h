@@ -48,9 +48,5 @@
  * set the FM-Enable GPIO to Low[0]
  */
 int set_fm_chip_enable(int enable);
-/*
- * The FM Enable GPIO is accessed as a rfkill switch
- */
-static int get_rfkill_path(char **rfkill_state_path);
 
 #endif
