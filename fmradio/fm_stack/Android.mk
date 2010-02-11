@@ -30,6 +30,10 @@ LOCAL_C_INCLUDES:=\
 
 LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE -DANDROID
 
+ifdef FM_CHR_DEV_ST
+LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../fm_chrlib
+LOCAL_CFLAGS+= -DFM_CHR_DEV_ST
+endif
 
 LOCAL_SRC_FILES:= \
 	MCP_Common/Platform/hw/LINUX/OMAP2430/mcp_hal_pm.c 	\
@@ -75,8 +79,13 @@ LOCAL_SRC_FILES:= \
 	MCP_Common/ccm/vac/ccm_vaci_configuration_engine.c \
 	MCP_Common/ccm/vac/ccm_vaci_debug.c 
 
+ifdef FM_CHR_DEV_ST
+LOCAL_SHARED_LIBRARIES := \
+	libfmchr libcutils
+else
 LOCAL_SHARED_LIBRARIES := \
 	libbluetooth libcutils
+endif
 
 LOCAL_STATIC_LIBRARIES := 
 

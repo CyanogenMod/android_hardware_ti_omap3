@@ -35,9 +35,13 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#ifndef FM_CHR_DEV_ST
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
+#else
+#include "fm_chrlib.h"
+#endif
 
 #include "fmc_os.h"
 #include "mcp_hal_string.h"
@@ -51,6 +55,9 @@ FMC_LOG_SET_MODULE(FMC_LOG_MODULE_FMOS);
 
 #if FMC_CONFIG_FM_STACK == FMC_CONFIG_ENABLED
 
+#ifdef FM_CHR_DEV_ST
+int intr_arrived = 0;
+#endif
 
 /* Stack task */
 #define Fmc_OS_TASK_HANDLE_STACK								(0x00)
@@ -747,6 +754,14 @@ static void * FmStackThread(void* param)
 	return 0;
 }
 
+#ifdef FM_CHR_DEV_ST
+/* Signal handler - For handling interrupt packets at the FM character driver*/
+void fm_sig_handler()
+{
+	FMC_LOG_INFO((" -------------- Received SIGIO signal ------------\n"));
+	intr_arrived = 1;
+}
+#endif
 /*
  * FM Stack's second thread.
  * This thread waits for fm interrupts.
@@ -755,11 +770,14 @@ static void * FmStackThread(void* param)
  */
 static void *fm_wait_for_interrupt_thread(void *dev)
 {
+	int dd, ret = FMC_STATUS_SUCCESS;
+
 	#define HCI_FM_EVENT 0xF0
 
-	int dd, ret = FMC_STATUS_SUCCESS, len;
+#ifndef FM_CHR_DEV_ST
 	struct hci_filter nf;
 	hci_event_hdr *hdr;
+	int len;
 	unsigned char buf[HCI_MAX_EVENT_SIZE];
 
 	/* Identify ! */
@@ -834,6 +852,44 @@ static void *fm_wait_for_interrupt_thread(void *dev)
 		if (fmParams2.taskCallback)
 			fmParams2.taskCallback(0);/* the param is ignored */
 	}
+#else
+	/* SIgnal SIGIO is received from the FM character driver when an
+	 * interrupt packet received by the driver
+	 */
+
+	struct sigaction sa = {0}; 
+
+	FMC_FUNC_START(("fm_wait_for_interrupt_thread"));
+
+	dd = hci_open_dev((int)dev);
+	if (dd < 0) {
+		FMC_LOG_ERROR(("can't open device hci%d", dev));
+		ret = FMC_STATUS_FAILED;
+		goto out;
+	}
+
+	/* Register for  signal SIGIO*/
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_flags = SA_NOCLDSTOP;
+	sa.sa_handler = (void *)fm_sig_handler;
+	sigaction(SIGIO, &sa, NULL);
+
+	/* Wait for the signal from the FM character driver*/
+	while (fmParams2.taskRunning) {
+		usleep(500*1000);
+		if(intr_arrived) {
+			FMC_LOG_INFO(("fm_wait_for_interrupt_thread: interrupt received!"));
+
+			/* Clear the interrupt flag*/
+			intr_arrived = 0;
+
+			/* notify FM stack that an interrupt has arrived */
+			if (fmParams2.taskCallback) {
+				fmParams2.taskCallback(0);
+			}
+		}
+	}
+#endif
 
 close:
 	hci_close_dev(dd);
