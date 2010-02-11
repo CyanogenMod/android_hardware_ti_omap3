@@ -20,7 +20,7 @@
 #include "TIHardwareRenderer.h"
 
 #include <media/stagefright/MediaDebug.h>
-#include <ui/ISurface.h>
+#include <surfaceflinger/ISurface.h>
 #include <ui/Overlay.h>
 
 #include "v4l2_utils.h"
