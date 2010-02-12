@@ -2266,7 +2266,7 @@ OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPriv
         }
         OMX_VidDec_Return(pComponentPrivate);
         OMX_VidDec_Return(pComponentPrivate);
-        VIDDEC_ReturnBuffers(pComponentPrivate, VIDDEC_OUTPUT_PORT, OMX_TRUE);
+        // VIDDEC_ReturnBuffers(pComponentPrivate, VIDDEC_OUTPUT_PORT, OMX_TRUE);
         if(bPass) {
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                 pComponentPrivate->pHandle->pApplicationPrivate,
