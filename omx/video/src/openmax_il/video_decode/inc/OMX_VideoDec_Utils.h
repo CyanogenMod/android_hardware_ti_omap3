@@ -973,6 +973,10 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     pthread_mutex_t mutexOutputBFromApp;
     pthread_mutex_t mutexInputBFromDSP;
     pthread_mutex_t mutexOutputBFromDSP;
+    VIDDEC_MUTEX inputFlushCompletionMutex;
+    VIDDEC_MUTEX outputFlushCompletionMutex;
+    OMX_BOOL bIsInputFlushPending;
+    OMX_BOOL bIsOutputFlushPending;
     VIDDEC_MUTEX sDynConfigMutex;
     VIDDEC_SEMAPHORE sInSemaphore;
     VIDDEC_SEMAPHORE sOutSemaphore;

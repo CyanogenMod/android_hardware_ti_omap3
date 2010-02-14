@@ -1869,9 +1869,21 @@ OMX_ERRORTYPE VIDDEC_EmptyBufferDone(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate
 
     // No buffer flag EOS event needs to be sent for INPUT port
 
-    return pComponentPrivate->cbInfo.EmptyBufferDone(pComponentPrivate->pHandle,
+    OMX_ERRORTYPE ret = pComponentPrivate->cbInfo.EmptyBufferDone(pComponentPrivate->pHandle,
                                                      pComponentPrivate->pHandle->pApplicationPrivate,
                                                      pBufferHeader);
+
+    VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->inputFlushCompletionMutex);
+    OMX_U32 nCountInputBFromDsp = 0;
+    pthread_mutex_lock(&pComponentPrivate->mutexInputBFromDSP);
+    nCountInputBFromDsp = pComponentPrivate->nCountInputBFromDsp;
+    pthread_mutex_unlock(&pComponentPrivate->mutexInputBFromDSP);
+    if (pComponentPrivate->bIsInputFlushPending && nCountInputBFromDsp == 0) {
+        VIDDEC_PTHREAD_MUTEX_SIGNAL(pComponentPrivate->inputFlushCompletionMutex);
+    }
+    VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->inputFlushCompletionMutex);
+
+    return ret;
 }
 
 OMX_ERRORTYPE VIDDEC_FillBufferDone(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BUFFERHEADERTYPE* pBufferHeader)
@@ -1890,9 +1902,21 @@ OMX_ERRORTYPE VIDDEC_FillBufferDone(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate,
                                                NULL);
     }
 
-    return pComponentPrivate->cbInfo.FillBufferDone(pComponentPrivate->pHandle,
+    OMX_ERRORTYPE ret = pComponentPrivate->cbInfo.FillBufferDone(pComponentPrivate->pHandle,
                                                      pComponentPrivate->pHandle->pApplicationPrivate,
                                                      pBufferHeader);
+
+    VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->outputFlushCompletionMutex);
+    OMX_U32 nCountOutputBFromDsp = 0;
+    pthread_mutex_lock(&pComponentPrivate->mutexOutputBFromDSP);
+    nCountOutputBFromDsp = pComponentPrivate->nCountOutputBFromDsp;
+    pthread_mutex_unlock(&pComponentPrivate->mutexOutputBFromDSP);
+    if (pComponentPrivate->bIsOutputFlushPending && nCountOutputBFromDsp == 0) {
+        VIDDEC_PTHREAD_MUTEX_SIGNAL(pComponentPrivate->outputFlushCompletionMutex);
+    }
+    VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->outputFlushCompletionMutex);
+
+    return ret;
 }
 /* ========================================================================== */
 /**
@@ -2230,8 +2254,18 @@ OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPriv
         VIDDEC_CircBuf_Flush(pComponentPrivate, VIDDEC_CBUFFER_TIMESTAMP, VIDDEC_INPUT_PORT);
         OMX_VidDec_Return(pComponentPrivate);
         OMX_VidDec_Return(pComponentPrivate);
-        VIDDEC_ReturnBuffers(pComponentPrivate, VIDDEC_INPUT_PORT, OMX_TRUE);
         if(bPass) {
+            VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->inputFlushCompletionMutex);
+            pComponentPrivate->bIsInputFlushPending = OMX_TRUE;
+            OMX_U32 nCountInputBFromDsp = 0;
+            pthread_mutex_lock(&pComponentPrivate->mutexInputBFromDSP);
+            nCountInputBFromDsp = pComponentPrivate->nCountInputBFromDsp;
+            pthread_mutex_unlock(&pComponentPrivate->mutexInputBFromDSP);
+            if (nCountInputBFromDsp > 0) {
+                VIDDEC_PTHREAD_MUTEX_WAIT(pComponentPrivate->inputFlushCompletionMutex);
+            }
+            pComponentPrivate->bIsInputFlushPending = OMX_FALSE;
+            VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->inputFlushCompletionMutex);
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                 pComponentPrivate->pHandle->pApplicationPrivate,
                                                 OMX_EventCmdComplete,
@@ -2266,8 +2300,18 @@ OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPriv
         }
         OMX_VidDec_Return(pComponentPrivate);
         OMX_VidDec_Return(pComponentPrivate);
-        // VIDDEC_ReturnBuffers(pComponentPrivate, VIDDEC_OUTPUT_PORT, OMX_TRUE);
         if(bPass) {
+            VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->outputFlushCompletionMutex);
+            pComponentPrivate->bIsOutputFlushPending = OMX_TRUE;
+            OMX_U32 nCountOutputBFromDsp = 0;
+            pthread_mutex_lock(&pComponentPrivate->mutexOutputBFromDSP);
+            nCountOutputBFromDsp = pComponentPrivate->nCountOutputBFromDsp;
+            pthread_mutex_unlock(&pComponentPrivate->mutexOutputBFromDSP);
+            if (nCountOutputBFromDsp > 0) {
+                VIDDEC_PTHREAD_MUTEX_WAIT(pComponentPrivate->outputFlushCompletionMutex);
+            }
+            pComponentPrivate->bIsOutputFlushPending = OMX_FALSE;
+            VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->outputFlushCompletionMutex);
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                 pComponentPrivate->pHandle->pApplicationPrivate,
                                                 OMX_EventCmdComplete,
@@ -3816,12 +3860,12 @@ OMX_ERRORTYPE VIDDEC_HandleFreeOutputBufferFromApp(VIDDEC_COMPONENT_PRIVATE *pCo
         eError = OMX_ErrorHardware;
         goto EXIT;
     }
+
     eError = DecrementCount (&(pComponentPrivate->nCountOutputBFromApp), &(pComponentPrivate->mutexOutputBFromApp));
     if (eError != OMX_ErrorNone) {
         return eError;
     }
     OMX_PRBUFFER1(pComponentPrivate->dbg, "pBuffHead 0x%p eExecuteToIdle 0x%x\n", pBuffHead, pComponentPrivate->eExecuteToIdle);
-
     if(pBuffHead->pOutputPortPrivate != NULL) {
         pBufferPrivate = (VIDDEC_BUFFER_PRIVATE* )pBuffHead->pOutputPortPrivate;
         if(pComponentPrivate->eLCMLState != VidDec_LCML_State_Unload &&
@@ -6706,7 +6750,7 @@ OMX_ERRORTYPE VIDDEC_HandleFreeDataBuf( VIDDEC_COMPONENT_PRIVATE *pComponentPriv
         eError = OMX_ErrorHardware;
         goto EXIT;
     }
-    eError = IncrementCount (&(pComponentPrivate->nCountInputBFromDsp), &(pComponentPrivate->mutexInputBFromDSP));
+    eError = DecrementCount (&(pComponentPrivate->nCountInputBFromDsp), &(pComponentPrivate->mutexInputBFromDSP));
     if (eError != OMX_ErrorNone) {
         return eError;
     }

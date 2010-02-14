@@ -340,6 +340,10 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
         eError = OMX_ErrorUndefined;
         return eError;
     }
+    VIDDEC_PTHREAD_MUTEX_INIT(pComponentPrivate->outputFlushCompletionMutex);
+    pComponentPrivate->bIsOutputFlushPending = OMX_FALSE;
+    VIDDEC_PTHREAD_MUTEX_INIT(pComponentPrivate->inputFlushCompletionMutex);
+    pComponentPrivate->bIsInputFlushPending = OMX_FALSE;
     OMX_MALLOC_STRUCT(pComponentPrivate->pPortParamType, OMX_PORT_PARAM_TYPE,pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel0]);
 #ifdef __STD_COMPONENT__
     OMX_MALLOC_STRUCT(pComponentPrivate->pPortParamTypeAudio, OMX_PORT_PARAM_TYPE,pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel0]);
@@ -2369,6 +2373,14 @@ static OMX_ERRORTYPE VIDDEC_EmptyThisBuffer (OMX_HANDLETYPE pComponent,
     OMX_PRBUFFER1(pComponentPrivate->dbg, "+++Entering pHandle 0x%p pBuffer 0x%p Index %lu  state %x  nflags  %x  isfirst %x\n",pComponent,
             pBuffHead, pBuffHead->nInputPortIndex,pComponentPrivate->eState,pBuffHead->nFlags,pComponentPrivate->bFirstHeader);
 
+    OMX_BOOL bIsInputFlushPending = OMX_FALSE;
+    VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->inputFlushCompletionMutex);
+    bIsInputFlushPending = pComponentPrivate->bIsInputFlushPending;
+    VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->inputFlushCompletionMutex);
+    if (bIsInputFlushPending) {
+        LOGE("Unable to process any OMX_EmptyThisBuffer requsts with input flush pending");
+        return OMX_ErrorIncorrectStateOperation;
+    }
 #ifdef __PERF_INSTRUMENTATION__
     PERF_ReceivedFrame(pComponentPrivate->pPERF,
                        pBuffHead->pBuffer,
@@ -2449,12 +2461,20 @@ static OMX_ERRORTYPE VIDDEC_FillThisBuffer (OMX_HANDLETYPE pComponent,
     VIDDEC_BUFFER_PRIVATE* pBufferPrivate = NULL;
     int ret = 0;
     OMX_CONF_CHECK_CMD(pComponent, pBuffHead, OMX_TRUE);
-
     pHandle = (OMX_COMPONENTTYPE *)pComponent;
     pComponentPrivate = (VIDDEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
 
     OMX_PRBUFFER1(pComponentPrivate->dbg, "+++Entering pHandle 0x%p pBuffer 0x%p Index %lu\n",pComponent,
             pBuffHead, pBuffHead->nOutputPortIndex);
+
+    OMX_BOOL bIsOutputFlushPending = OMX_FALSE;
+    VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->outputFlushCompletionMutex);
+    bIsOutputFlushPending = pComponentPrivate->bIsOutputFlushPending;
+    VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->outputFlushCompletionMutex);
+    if (bIsOutputFlushPending) {
+        LOGE("Unable to process any OMX_FillThisBuffer requsts with flush pending");
+        return OMX_ErrorIncorrectStateOperation;
+    }
 
 #ifdef __PERF_INSTRUMENTATION__
     PERF_ReceivedFrame(pComponentPrivate->pPERF,
@@ -2817,6 +2837,8 @@ static OMX_ERRORTYPE VIDDEC_ComponentDeInit(OMX_HANDLETYPE hComponent)
     VIDDEC_PTHREAD_MUTEX_DESTROY(pComponentPrivate->sMutex);
     VIDDEC_PTHREAD_SEMAPHORE_DESTROY(pComponentPrivate->sInSemaphore);
     VIDDEC_PTHREAD_SEMAPHORE_DESTROY(pComponentPrivate->sOutSemaphore);
+    VIDDEC_PTHREAD_MUTEX_DESTROY(pComponentPrivate->inputFlushCompletionMutex);
+    VIDDEC_PTHREAD_MUTEX_DESTROY(pComponentPrivate->outputFlushCompletionMutex);
 #endif
     pthread_mutex_destroy(&(pComponentPrivate->mutexInputBFromApp));
     pthread_mutex_destroy(&(pComponentPrivate->mutexOutputBFromApp));
