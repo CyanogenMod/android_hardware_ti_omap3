@@ -227,7 +227,6 @@ void* OMX_VidDec_Thread (void* pThreadData)
                     }
                     else if ((OMX_S32)nParam1 == -2) {
                         OMX_VidDec_Return(pComponentPrivate);
-                        OMX_VidDec_Return(pComponentPrivate);
                         VIDDEC_Handle_InvalidState( pComponentPrivate);
                         break;
                     }

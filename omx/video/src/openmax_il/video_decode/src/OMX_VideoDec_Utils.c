@@ -1939,7 +1939,6 @@ OMX_ERRORTYPE VIDDEC_ReturnBuffers (VIDDEC_COMPONENT_PRIVATE* pComponentPrivate,
     OMX_PRBUFFER1(pComponentPrivate->dbg, "+++ENTERING\n");
     OMX_PRBUFFER1(pComponentPrivate->dbg, "pComponentPrivate 0x%p nParam1 0x%lx bRetDSP 0x%x\n",pComponentPrivate,nParam1,bRetDSP);
     OMX_VidDec_Return(pComponentPrivate);
-    OMX_VidDec_Return(pComponentPrivate);
     if (nParam1 == pComponentPrivate->pInPortFormat->nPortIndex || nParam1 == OMX_ALL) {
             for (i = 0; i < pComponentPrivate->pInPortDef->nBufferCountActual; i++) {
                     if((pComponentPrivate->pCompPort[VIDDEC_INPUT_PORT]->pBufferPrivate[i]->eBufferOwner == VIDDEC_BUFFER_WITH_DSP) && bRetDSP){
@@ -2229,8 +2228,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPriv
     if ( nParam1 == VIDDEC_INPUT_PORT || nParam1 == OMX_ALL){
         if(bPass) {
             OMX_VidDec_Return(pComponentPrivate);
-            OMX_VidDec_Return(pComponentPrivate);
-            OMX_VidDec_Return(pComponentPrivate);
         }
 
         if(pComponentPrivate->eLCMLState != VidDec_LCML_State_Unload &&
@@ -2252,7 +2249,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPriv
 
         }
         VIDDEC_CircBuf_Flush(pComponentPrivate, VIDDEC_CBUFFER_TIMESTAMP, VIDDEC_INPUT_PORT);
-        OMX_VidDec_Return(pComponentPrivate);
         OMX_VidDec_Return(pComponentPrivate);
         if(bPass) {
             VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->inputFlushCompletionMutex);
@@ -2278,8 +2274,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPriv
     if ( nParam1 == VIDDEC_OUTPUT_PORT || nParam1 == OMX_ALL){
         if(bPass){
             OMX_VidDec_Return(pComponentPrivate);
-            OMX_VidDec_Return(pComponentPrivate);
-            OMX_VidDec_Return(pComponentPrivate);
         }
         if(pComponentPrivate->eLCMLState != VidDec_LCML_State_Unload &&
             pComponentPrivate->eLCMLState != VidDec_LCML_State_Destroy &&
@@ -2298,7 +2292,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPriv
             VIDDEC_PTHREAD_MUTEX_WAIT(pComponentPrivate->sMutex);
             VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->sMutex);
         }
-        OMX_VidDec_Return(pComponentPrivate);
         OMX_VidDec_Return(pComponentPrivate);
         if(bPass) {
             VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->outputFlushCompletionMutex);
@@ -2751,7 +2744,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
                 OMX_PRSTATE1(pComponentPrivate->dbg, "bIsStopping 0x%lx\n",pComponentPrivate->bIsStopping);
                 OMX_PRSTATE1(pComponentPrivate->dbg, "eExecuteToIdle 0x%x\n",pComponentPrivate->eExecuteToIdle);
                 OMX_VidDec_Return(pComponentPrivate);
-                OMX_VidDec_Return(pComponentPrivate);
 
 #ifdef __PERF_INSTRUMENTATION__
                 PERF_Boundary(pComponentPrivate->pPERFcomp,
@@ -3197,7 +3189,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
                               PERF_BoundaryStart | PERF_BoundaryCleanup);
 #endif
                 OMX_VidDec_Return(pComponentPrivate);
-                OMX_VidDec_Return(pComponentPrivate);
                 pComponentPrivate->eIdleToLoad = OMX_StateLoaded;
                 if(pComponentPrivate->eFirstBuffer.pFirstBufferSaved){
                     free(pComponentPrivate->eFirstBuffer.pFirstBufferSaved);
@@ -3464,8 +3455,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
             break;
         case OMX_StatePause:
             OMX_VidDec_Return(pComponentPrivate);
-                OMX_VidDec_Return(pComponentPrivate);
-
             OMX_PRSTATE2(pComponentPrivate->dbg, "Transitioning to OMX_StatePause C 0x%x N 0x%lx\n",pComponentPrivate->eState, nParam1);
             if (pComponentPrivate->eState == OMX_StatePause) {
                 eError = OMX_ErrorSameState;
@@ -3487,7 +3476,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
 
                 VIDDEC_PTHREAD_MUTEX_LOCK(pComponentPrivate->sMutex);
                 pComponentPrivate->bIsPaused = 1;
-                OMX_VidDec_Return(pComponentPrivate);
                 OMX_VidDec_Return(pComponentPrivate);
                 if(pComponentPrivate->eLCMLState != VidDec_LCML_State_Unload &&
                     pComponentPrivate->eLCMLState != VidDec_LCML_State_Destroy &&
@@ -3513,7 +3501,6 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
                     VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->sMutex);
                 }
                 pComponentPrivate->eLCMLState = VidDec_LCML_State_Pause;
-                OMX_VidDec_Return(pComponentPrivate);
                 OMX_VidDec_Return(pComponentPrivate);
                 pComponentPrivate->eLCMLState = VidDec_LCML_State_Pause;
                 eError = OMX_ErrorNone;
