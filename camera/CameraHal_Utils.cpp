@@ -421,11 +421,6 @@ int CameraHal::FW3A_SetSettings()
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
-static IPP_EENFAlgoDynamicParams IPPEENFAlgoDynamicParamsArray [MAXIPPDynamicParams] = {
- {sizeof(IPP_EENFAlgoDynamicParams), 0, 180, 18, 120, 8, 40}//2
-};
-
-
 int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 {
     int eError = 0;
@@ -691,11 +686,40 @@ int CameraHal::PopulateArgsIPP(int w, int h, int fmt, int ippMode)
 }
 
 int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int ippMode,
-                                int EdgeEnhancementStrength, int WeakEdgeThreshold,
-                                int StrongEdgeThreshold, int LumaNoiseFilterStrength,
-                                int ChromaNoiseFilterStrength)
+                               int EdgeEnhancementStrength, int WeakEdgeThreshold, int StrongEdgeThreshold,
+                                int LowFreqLumaNoiseFilterStrength, int MidFreqLumaNoiseFilterStrength, int HighFreqLumaNoiseFilterStrength,
+                                int LowFreqCbNoiseFilterStrength, int MidFreqCbNoiseFilterStrength, int HighFreqCbNoiseFilterStrength,
+                                int LowFreqCrNoiseFilterStrength, int MidFreqCrNoiseFilterStrength, int HighFreqCrNoiseFilterStrength,
+                                int shadingVertParam1, int shadingVertParam2, int shadingHorzParam1, int shadingHorzParam2,
+                                int shadingGainScale, int shadingGainOffset, int shadingGainMaxValue,
+                                int ratioDownsampleCbCr)
 {
     int eError = 0;
+    IPP_EENFAlgoDynamicParams IPPEENFAlgoDynamicParamsCfg =
+    {
+        sizeof(IPP_EENFAlgoDynamicParams),
+        0,//  inPlace
+        150,//  EdgeEnhancementStrength;
+        100,//  WeakEdgeThreshold;
+        300,//  StrongEdgeThreshold;
+        30,//  LowFreqLumaNoiseFilterStrength;
+        80,//  MidFreqLumaNoiseFilterStrength;
+        20,//  HighFreqLumaNoiseFilterStrength;
+        60,//  LowFreqCbNoiseFilterStrength;
+        40,//  MidFreqCbNoiseFilterStrength;
+        30,//  HighFreqCbNoiseFilterStrength;
+        50,//  LowFreqCrNoiseFilterStrength;
+        30,//  MidFreqCrNoiseFilterStrength;
+        20,//  HighFreqCrNoiseFilterStrength;
+        1,//  shadingVertParam1;
+        800,//  shadingVertParam2;
+        1,//  shadingHorzParam1;
+        800,//  shadingHorzParam2;
+        128,//  shadingGainScale;
+        4096,//  shadingGainOffset;
+        24576,//  shadingGainMaxValue;
+        1//  ratioDownsampleCbCr;
+    };//2
 
     LOGD("IPP_StartProcessing");
     eError = IPP_StartProcessing(pIPP.hIPP);
@@ -704,25 +728,56 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
     }
 
 	if(ippMode == IPP_EdgeEnhancement_Mode){
-		IPPEENFAlgoDynamicParamsArray[0].inPlace                    = 0;
-		IPPEENFAlgoDynamicParamsArray[0].EdgeEnhancementStrength    = EdgeEnhancementStrength;
-		IPPEENFAlgoDynamicParamsArray[0].WeakEdgeThreshold          = WeakEdgeThreshold;
-		IPPEENFAlgoDynamicParamsArray[0].StrongEdgeThreshold        = StrongEdgeThreshold;
-		IPPEENFAlgoDynamicParamsArray[0].LumaNoiseFilterStrength    = LumaNoiseFilterStrength;
-		IPPEENFAlgoDynamicParamsArray[0].ChromaNoiseFilterStrength  = ChromaNoiseFilterStrength;
+       IPPEENFAlgoDynamicParamsCfg.inPlace = 0;
+        NONNEG_ASSIGN(EdgeEnhancementStrength, IPPEENFAlgoDynamicParamsCfg.EdgeEnhancementStrength);
+        NONNEG_ASSIGN(WeakEdgeThreshold, IPPEENFAlgoDynamicParamsCfg.WeakEdgeThreshold);
+        NONNEG_ASSIGN(StrongEdgeThreshold, IPPEENFAlgoDynamicParamsCfg.StrongEdgeThreshold);
+        NONNEG_ASSIGN(LowFreqLumaNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.LowFreqLumaNoiseFilterStrength);
+        NONNEG_ASSIGN(MidFreqLumaNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.MidFreqLumaNoiseFilterStrength);
+        NONNEG_ASSIGN(HighFreqLumaNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.HighFreqLumaNoiseFilterStrength);
+        NONNEG_ASSIGN(LowFreqCbNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.LowFreqCbNoiseFilterStrength);
+        NONNEG_ASSIGN(MidFreqCbNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.MidFreqCbNoiseFilterStrength);
+        NONNEG_ASSIGN(HighFreqCbNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.HighFreqCbNoiseFilterStrength);
+        NONNEG_ASSIGN(LowFreqCrNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.LowFreqCrNoiseFilterStrength);
+        NONNEG_ASSIGN(MidFreqCrNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.MidFreqCrNoiseFilterStrength);
+        NONNEG_ASSIGN(HighFreqCrNoiseFilterStrength, IPPEENFAlgoDynamicParamsCfg.HighFreqCrNoiseFilterStrength);
+        NONNEG_ASSIGN(shadingVertParam1, IPPEENFAlgoDynamicParamsCfg.shadingVertParam1);
+        NONNEG_ASSIGN(shadingVertParam2, IPPEENFAlgoDynamicParamsCfg.shadingVertParam2);
+        NONNEG_ASSIGN(shadingHorzParam1, IPPEENFAlgoDynamicParamsCfg.shadingHorzParam1);
+        NONNEG_ASSIGN(shadingHorzParam2, IPPEENFAlgoDynamicParamsCfg.shadingHorzParam2);
+        NONNEG_ASSIGN(shadingGainScale, IPPEENFAlgoDynamicParamsCfg.shadingGainScale);
+        NONNEG_ASSIGN(shadingGainOffset, IPPEENFAlgoDynamicParamsCfg.shadingGainOffset);
+        NONNEG_ASSIGN(shadingGainMaxValue, IPPEENFAlgoDynamicParamsCfg.shadingGainMaxValue);
+        NONNEG_ASSIGN(ratioDownsampleCbCr, IPPEENFAlgoDynamicParamsCfg.ratioDownsampleCbCr);
 
-		LOGD("Set EENF Dynamics Params:");
-		LOGD("\tInPlace                      = %d", (int)IPPEENFAlgoDynamicParamsArray[0].inPlace);
-		LOGD("\tEdge Enhancement Strength    = %d", (int)IPPEENFAlgoDynamicParamsArray[0].EdgeEnhancementStrength);
-		LOGD("\tWeak Edge Threshold          = %d", (int)IPPEENFAlgoDynamicParamsArray[0].WeakEdgeThreshold);
-		LOGD("\tStrong Edge Threshold        = %d", (int)IPPEENFAlgoDynamicParamsArray[0].StrongEdgeThreshold);
-		LOGD("\tLuma Noise Filter Strength   = %d", (int)IPPEENFAlgoDynamicParamsArray[0].LumaNoiseFilterStrength );
-		LOGD("\tChroma Noise Filter Strength = %d", (int)IPPEENFAlgoDynamicParamsArray[0].ChromaNoiseFilterStrength );
+        LOGD("Set EENF Dynamics Params:");
+        LOGD("\tInPlace                      = %d", (int)IPPEENFAlgoDynamicParamsCfg.inPlace);
+        LOGD("\tEdge Enhancement Strength    = %d", (int)IPPEENFAlgoDynamicParamsCfg.EdgeEnhancementStrength);
+        LOGD("\tWeak Edge Threshold          = %d", (int)IPPEENFAlgoDynamicParamsCfg.WeakEdgeThreshold);
+        LOGD("\tStrong Edge Threshold        = %d", (int)IPPEENFAlgoDynamicParamsCfg.StrongEdgeThreshold);
+        LOGD("\tLuma Noise Filter Low Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqLumaNoiseFilterStrength );
+        LOGD("\tLuma Noise Filter Mid Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqLumaNoiseFilterStrength );
+        LOGD("\tLuma Noise Filter High Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqLumaNoiseFilterStrength );
+        LOGD("\tChroma Noise Filter Low Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqCbNoiseFilterStrength);
+        LOGD("\tChroma Noise Filter Mid Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqCbNoiseFilterStrength);
+        LOGD("\tChroma Noise Filter High Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqCbNoiseFilterStrength);
+        LOGD("\tChroma Noise Filter Low Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqCrNoiseFilterStrength);
+        LOGD("\tChroma Noise Filter Mid Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqCrNoiseFilterStrength);
+        LOGD("\tChroma Noise Filter High Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqCrNoiseFilterStrength);
+        LOGD("\tShading Vert 1 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingVertParam1);
+        LOGD("\tShading Vert 2 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingVertParam2);
+        LOGD("\tShading Horz 1 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingHorzParam1);
+        LOGD("\tShading Horz 2 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingHorzParam2);
+        LOGD("\tShading Gain Scale = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainScale);
+        LOGD("\tShading Gain Offset = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainOffset);
+        LOGD("\tShading Gain Max Val = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainMaxValue);
+        LOGD("\tRatio Downsample CbCr = %d", (int)IPPEENFAlgoDynamicParamsCfg.ratioDownsampleCbCr);
+
 		    
 		/*Set Dynamic Parameter*/
 		memcpy(pIPP.dynEENF,
-		       (void*)&IPPEENFAlgoDynamicParamsArray[0],
-		       sizeof(IPPEENFAlgoDynamicParamsArray[0]));
+		       (void*)&IPPEENFAlgoDynamicParamsCfg,
+		       sizeof(IPPEENFAlgoDynamicParamsCfg));
 
 	
 		LOGD("IPP_SetAlgoConfig");
@@ -873,7 +928,6 @@ int CameraHal::CapturePicture(){
     sp<MemoryHeapBase>  mJPEGPictureHeap;
     sp<MemoryBase>          mJPEGPictureMemBase;
 	unsigned int vppMessage[3];
-	unsigned short ipp_ee_q, ipp_ew_ts, ipp_es_ts, ipp_luma_nf, ipp_chroma_nf; 
     int err, i;
     overlay_buffer_t overlaybuffer;
     int snapshot_buffer_index; 
@@ -1064,14 +1118,6 @@ int CameraHal::CapturePicture(){
 		}		
 		PPM("Before init IPP");
 
-        if(mippMode == IPP_EdgeEnhancement_Mode){
-            ipp_ee_q = 199;
-            ipp_ew_ts = 20;
-            ipp_es_ts = 240;
-            ipp_luma_nf = 2;
-            ipp_chroma_nf = 2;
-        }
-
         if(mIPPToEnable)
         {
             err = InitIPP(image_width,image_height, jpegFormat, mippMode);
@@ -1091,12 +1137,29 @@ int CameraHal::CapturePicture(){
 		PPM("BEFORE IPP Process Buffer");
 		
 		LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
-		err = ProcessBufferIPP(yuv_buffer, yuv_len, jpegFormat, mippMode
-				        ipp_ee_q,
-				        ipp_ew_ts,
-				        ipp_es_ts, 
-				        ipp_luma_nf,
-				        ipp_chroma_nf);
+	err = ProcessBufferIPP(yuv_buffer, yuv_len,
+                    jpegFormat,
+                    mippMode,
+                    -1, // EdgeEnhancementStrength
+                    -1, // WeakEdgeThreshold
+                    -1, // StrongEdgeThreshold
+                    -1, // LowFreqLumaNoiseFilterStrength
+                    -1, // MidFreqLumaNoiseFilterStrength
+                    -1, // HighFreqLumaNoiseFilterStrength
+                    -1, // LowFreqCbNoiseFilterStrength
+                    -1, // MidFreqCbNoiseFilterStrength
+                    -1, // HighFreqCbNoiseFilterStrength
+                    -1, // LowFreqCrNoiseFilterStrength
+                    -1, // MidFreqCrNoiseFilterStrength
+                    -1, // HighFreqCrNoiseFilterStrength
+                    -1, // shadingVertParam1
+                    -1, // shadingVertParam2
+                    -1, // shadingHorzParam1
+                    -1, // shadingHorzParam2
+                    -1, // shadingGainScale
+                    -1, // shadingGainOffset
+                    -1, // shadingGainMaxValue
+                    -1); // ratioDownsampleCbCr
 		if( err ) {
 			LOGE("ERROR ProcessBufferIPP() failed");		   
 			return -1;
