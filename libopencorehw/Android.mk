@@ -9,6 +9,9 @@ LOCAL_SRC_FILES := \
 	android_surface_output_omap34xx.cpp \
 	buffer_alloc_omap34xx.cpp \
 
+LOCAL_C_INCLUDES := $(PV_INCLUDES) \
+        hardware/ti/omap3/liboverlay
+
 LOCAL_CFLAGS := $(PV_CFLAGS)
 
 LOCAL_SHARED_LIBRARIES := \
