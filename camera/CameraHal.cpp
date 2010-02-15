@@ -1924,6 +1924,8 @@ void CameraHal::procThread()
                 thumb_height = THUMB_HEIGHT;
                 pixelFormat = PIX_YUV422I;
 
+	        // reset yuv_len so that we pass actual size of valid data
+                yuv_len = image_width * image_height * 2;
 #if RESIZER
 #ifdef DEBUG_LOG
 
@@ -1949,6 +1951,11 @@ void CameraHal::procThread()
 #endif
 
                     switchBuffer = true;
+
+                    if( pixelFormat == PIX_YUV420P)
+                        tmpLength = image_width * image_height * 3 / 2;
+                    else
+                        tmpLength = image_width * image_height * 2;
 
                     if( (rotation == 90) || (rotation == 270) ) {
                         int tmp = image_width;
@@ -2073,9 +2080,9 @@ void CameraHal::procThread()
                     pixelFormat = PIX_YUV420P;
 
                     if( switchBuffer)
-                        tmpLength = image_width * image_height * 1.5;
+                        tmpLength = image_width * image_height * 3 / 2;
                     else
-                        yuv_len = image_width * image_height * 1.5;
+                        yuv_len = image_width * image_height * 3 / 2;
 
                }
 #endif
