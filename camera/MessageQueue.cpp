@@ -52,6 +52,11 @@ int MessageQueue::get(Message* msg)
     return 0;
 }
 
+int MessageQueue::getInFd()
+{
+    return this->fd_read;
+}
+
 int MessageQueue::put(Message* msg)
 {
     char* p = (char*) msg;

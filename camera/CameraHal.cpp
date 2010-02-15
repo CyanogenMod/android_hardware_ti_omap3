@@ -27,6 +27,7 @@
 #define LOG_TAG "CameraHal"
 
 #include "CameraHal.h"
+#include <poll.h>
 #include "zoom_step.inc"
 
 #include <math.h>
@@ -453,6 +454,7 @@ void CameraHal::previewThread()
     bool  shouldLive = true;
     bool has_message;
     int err; 
+    struct pollfd pfd[2];
 
     LOG_FUNCTION_NAME
     
@@ -462,8 +464,24 @@ void CameraHal::previewThread()
 
         if( mPreviewRunning )
         {
-            //process 1 preview frame
-            nextPreview();
+
+            pfd[0].fd = previewThreadCommandQ.getInFd();
+            pfd[0].events = POLLIN;
+            pfd[1].fd = camera_device;
+            pfd[1].events = POLLIN;
+
+            if (poll(pfd, 2, 1000) == 0) {
+                continue;
+            }
+
+            if (pfd[0].revents & POLLIN) {
+                previewThreadCommandQ.get(&msg);
+                has_message = true;
+            }
+
+            if (pfd[1].revents & POLLIN) {
+                nextPreview();
+            }
 
 #ifdef FW3A
             if (isStart_FW3A_AF) {
@@ -493,10 +511,6 @@ void CameraHal::previewThread()
             }
 #endif
 
-            if( !previewThreadCommandQ.isEmpty() ) {
-                previewThreadCommandQ.get(&msg);
-                has_message = true;
-            }
         }
         else
         {

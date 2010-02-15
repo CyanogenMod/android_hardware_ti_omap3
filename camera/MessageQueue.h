@@ -16,6 +16,7 @@ public:
     MessageQueue();
     ~MessageQueue();
     int get(Message*);
+    int getInFd();
     int put(Message*);
     bool isEmpty();    
 private:
