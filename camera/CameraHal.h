@@ -23,6 +23,7 @@
 #define ANDROID_HARDWARE_CAMERA_HARDWARE_H
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -48,6 +49,7 @@
 #define VPP 1
 
 #define PPM_INSTRUMENTATION 1
+
 //#undef FW3A
 //#undef ICAP
 //#undef IMAGE_PROCESSING_PIPELINE
@@ -382,7 +384,7 @@ public:
     int ICaptureCreate(void);
     int ICaptureDestroy(void);
 	void PPM(const char *);
-	void PPM(const char *,struct timeval*);
+	void PPM(const char *, struct timeval*, ...);
     status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
 
 #ifndef ICAP
@@ -476,6 +478,7 @@ public:
     struct timeval ppm;
 	struct timeval ppm_start;
 	struct timeval ppm_receiveCmdToTakePicture;
+	struct timeval ppm_restartPreview;
     struct timeval focus_before, focus_after;
     struct timeval ppm_before, ppm_after;
     struct timeval ipp_before, ipp_after;

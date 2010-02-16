@@ -1263,13 +1263,18 @@ void CameraHal::PPM(const char* str){
 #endif
 }
 
-void CameraHal::PPM(const char* str, struct timeval* ppm_first){
+void CameraHal::PPM(const char* str, struct timeval* ppm_first, ...){
 #if PPM_INSTRUMENTATION
+    char temp_str[256];
+    va_list args;
+    va_start(args, ppm_first);
+    vsprintf(temp_str, str, args);
 	gettimeofday(&ppm, NULL); 
 	ppm.tv_sec = ppm.tv_sec - ppm_first->tv_sec; 
 	ppm.tv_sec = ppm.tv_sec * 1000000; 
 	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_first->tv_usec; 
-	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); 
+	LOGD("PPM: %s :%ld.%ld ms",temp_str, ppm.tv_sec/1000, ppm.tv_sec%1000 );
+    va_end(args);
 #endif
 }
 

@@ -816,6 +816,9 @@ void CameraHal::previewThread()
                    LOGE("Capture failed.");
 
                //restart the preview
+#if PPM_INSTRUMENTATION
+                gettimeofday(&ppm_restartPreview, NULL);
+#endif
 
 #ifdef DEBUG_LOG
 
@@ -840,6 +843,7 @@ void CameraHal::previewThread()
 
 #if PPM_INSTRUMENTATION
 
+               PPM("Capture mode switch", &ppm_restartPreview);
                PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
 
 #endif
@@ -2135,14 +2139,17 @@ void CameraHal::procThread()
 
 #endif
 
+#if PPM_INSTRUMENTATION
+                if ( 0 != image_rotation )
+                    PPM("Shot to JPEG with %d deg rotation", &ppm_receiveCmdToTakePicture, image_rotation);
+                else
+                    PPM("Shot to JPEG", &ppm_receiveCmdToTakePicture);
+
+#endif
+
                 JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, offset, jpegEncoder->jpegSize);
 #endif
 
-#if PPM_INSTRUMENTATION
-
-                PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
-
-#endif
                 if(JpegPictureCallback) {
 
 #if JPEG
