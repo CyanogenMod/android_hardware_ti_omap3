@@ -193,7 +193,13 @@ void TIHardwareRenderer::render(
 
     overlay_buffer_t overlay_buffer;
     if (!mIsFirstFrame) {
-        CHECK_EQ(mOverlay->dequeueBuffer(&overlay_buffer), OK);
+        status_t err = mOverlay->dequeueBuffer(&overlay_buffer);
+
+        if (err == ALL_BUFFERS_FLUSHED) {
+            mIsFirstFrame = true;
+        } else {
+            return;
+        }
     } else {
         mIsFirstFrame = false;
     }
