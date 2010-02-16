@@ -438,7 +438,7 @@ typedef union {
 
 } Trapped_Args;
 
-#define CMD_BASE                    1
+#define CMD_BASE                    100
 
 /* MGR module offsets */
 #define CMD_MGR_BASE_OFFSET             CMD_BASE
