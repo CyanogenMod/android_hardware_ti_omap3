@@ -439,6 +439,14 @@ int st_sig_handler(int signo)
 
 int remove_modules()
 {
+	UIM_VER(" Removing fm_drv ");
+
+	if (rmmod("fm_drv") != 0) {
+		UIM_ERR(" Error removing fm_drv module");
+		return -1;
+	}
+	UIM_DBG(" Removed fm_drv module");
+
 	UIM_VER(" Removing bt_drv ");
 
 	if (rmmod("bt_drv") != 0) {
@@ -463,7 +471,7 @@ int remove_modules()
 int main(int argc, char *argv[])
 {
 	int st_fd,err;
-	char buf[10] = { 0 };
+	char buf[20] = { 0 };
 	char sysfs_entry[20];
 	struct sigaction sa;
 
@@ -527,6 +535,12 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	UIM_DBG(" Inserted bt_drv module");
+
+	if (insmod("/fm_drv.ko", "") < 0) {
+		UIM_ERR(" Error inserting fm_drv module");
+		return -1;
+	}
+	UIM_DBG(" Inserted fm_drv module");
 
 	/* Open the sysfs entry created by KIM.
 	 * And share the pid with the KIM
