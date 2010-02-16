@@ -88,7 +88,9 @@ char *tComponentName[MAXCOMP][2] = {
     {"OMX.TI.WMA.decode", "audio_decoder.wma"},
     {"OMX.TI.WBAMR.decode", "audio_decoder.amrwb"},
     {"OMX.TI.AMR.decode", "audio_decoder.amrnb"},
+#if 0
     {"OMX.TI.AMR.encode", "audio_encoder.amrnb"},
+#endif
     {"OMX.TI.WBAMR.encode", "audio_encoder.amrwb"},
 #endif
 /*  {"OMX.TI.PCM.encode", NULL},
