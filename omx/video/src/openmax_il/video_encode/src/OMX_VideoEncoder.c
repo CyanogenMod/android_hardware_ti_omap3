@@ -941,6 +941,10 @@ sDynamicFormat = getenv("FORMAT");
     pComponentPrivate->pCapabilityFlags->iOMXComponentSupportsPartialFrames=OMX_FALSE;
     pComponentPrivate->pCapabilityFlags->iOMXComponentUsesFullAVCFrames=OMX_FALSE;
     pComponentPrivate->pCapabilityFlags->iOMXComponentUsesNALStartCode=OMX_FALSE;
+    pComponentPrivate->nLastUpdateTime = 0;
+    pComponentPrivate->nFrameRateUpdateInterval = 60;
+    pComponentPrivate->nFrameCount = 0;
+    pComponentPrivate->nVideoTime = 0;
 
 #ifndef UNDER_CE
     /* Initialize Mutex for Buffer Tracking */
@@ -2831,6 +2835,37 @@ static OMX_ERRORTYPE EmptyThisBuffer (OMX_IN OMX_HANDLETYPE hComponent,
 
     pBufferPrivate->eBufferOwner = VIDENC_BUFFER_WITH_COMPONENT;
     pBufferPrivate->bReadFromPipe = OMX_FALSE;
+    /* Check if frame rate needs to be updated */
+    pComponentPrivate->nFrameCount++;
+    pComponentPrivate->nVideoTime = pBufHead->nTimeStamp - pComponentPrivate->nLastUpdateTime;
+
+    if (pComponentPrivate->nFrameCount == pComponentPrivate->nFrameRateUpdateInterval) {
+
+         if(pComponentPrivate->nVideoTime <= 0) {
+            /* Incorrect time stamps */
+            return OMX_ErrorBadParameter;
+         }
+
+        /* Timestamps are in micro seconds  */
+        pComponentPrivate->nTargetFrameRate = pComponentPrivate->nFrameCount * 1000000 / pComponentPrivate->nVideoTime;
+
+        if(pComponentPrivate->pCompPort[VIDENC_OUTPUT_PORT]->pPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
+             /* H.264 Socket Node expects frame rate to be multiplied by 1000 */
+             pComponentPrivate->nTargetFrameRate *= 1000;
+
+             if((pComponentPrivate->nPrevTargetFrameRate) &&
+                (pComponentPrivate->nTargetFrameRate ==  pComponentPrivate->nPrevTargetFrameRate)) {
+                  pComponentPrivate->bForceIFrame = OMX_TRUE;
+             }
+             else {
+                  pComponentPrivate->nPrevTargetFrameRate = pComponentPrivate->nTargetFrameRate;
+                  pComponentPrivate->bForceIFrame = OMX_FALSE;
+             }
+        }
+        pComponentPrivate->nLastUpdateTime = pBufHead->nTimeStamp;
+        pComponentPrivate->nFrameCount = 0;
+    }
+
     nRet = write(pComponentPrivate->nFilled_iPipe[1],
                  &(pBufHead),
                  sizeof(pBufHead));
