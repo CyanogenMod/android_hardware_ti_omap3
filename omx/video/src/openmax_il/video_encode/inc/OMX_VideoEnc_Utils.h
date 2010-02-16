@@ -105,6 +105,7 @@
     #define OMX_BUFFERFLAG_SYNCFRAME 0x00000040
 #endif
 #define OMX_LFRAMETYPE_H264 1
+#define OMX_LFRAMETYPE_IDR_H264 4
 #define OMX_CFRAMETYPE_MPEG4 1
 /*Select Timeout */
 #define  VIDENC_TIMEOUT_SEC 120;
@@ -595,15 +596,16 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     OMX_PTR pMarkData;
     OMX_HANDLETYPE hMarkTargetComponent;
     OMX_U32 nFlags;
-    OMX_U32 nCounter;
     /* these are duplicates */
     unsigned int nIntraFrameInterval;  /* should be OMX_VIDEO_CONFIG_AVCINTRAPERIOD */
     unsigned int nTargetFrameRate;  /* should be OMX_CONFIG_FRAMERATETYPE */
+    unsigned int nPrevTargetFrameRate;
     unsigned int nQPI;              /* same as OMX_VIDEO_PARAM_QUANTIZATIONTYPE */
     unsigned int nAIRRate;          /* same as OMX_VIDEO_PARAM_INTRAREFRESHTYPE */
     unsigned int nTargetBitRate;    /* should be OMX_VIDEO_CONFIG_BITRATETYPE */
     OMX_U32 nMIRRate;
     OMX_U8  ucUnrestrictedMV;
+    OMX_BOOL bSentFirstSpsPps;
 
     OMX_U32 nInBufferSize;
     OMX_U32 nOutBufferSize;
@@ -684,6 +686,11 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     pthread_mutex_t mutexStateChangeRequest;
     pthread_cond_t StateChangeCondition;
 
+    /* Variable related to variabe frame rate settings */
+    OMX_TICKS nLastUpdateTime;          /* Timstamp of last framerate update */
+    OMX_U32   nFrameRateUpdateInterval; /* Unit is number of frames */
+    OMX_U32   nFrameCount;              /* Number of input frames received since last framerate update */
+    OMX_TICKS nVideoTime;               /* Video duration since last framerate update */
 } VIDENC_COMPONENT_PRIVATE;
 
 typedef OMX_ERRORTYPE (*fpo)(OMX_HANDLETYPE);

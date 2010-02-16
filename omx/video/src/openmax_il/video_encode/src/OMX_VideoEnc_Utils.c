@@ -86,6 +86,10 @@
 // opencore to request the correct level based on resolution/bitrate/etc
 #define VIDEO_ENCODER_MHZ (400 - 45 + 2) 
 
+/* H264 Specific */
+#define SPS_CODE_PREFIX 0x07
+#define PPS_CODE_PREFIX 0x08
+
 #ifdef UNDER_CE
     HINSTANCE g_hLcmlDllHandle = NULL;
 #endif
@@ -2872,9 +2876,23 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledOutBuf(VIDENC_COMPONENT_PRIVATE* pCompone
         }
 
             /* Set lFrameType*/
-            if (((H264VE_GPP_SN_UALGOutputParams*)pBufferPrivate->pUalgParam)->lFrameType == OMX_LFRAMETYPE_H264)
+            if (((H264VE_GPP_SN_UALGOutputParams*)pBufferPrivate->pUalgParam)->lFrameType == OMX_LFRAMETYPE_H264 ||
+                 ((H264VE_GPP_SN_UALGOutputParams*)pBufferPrivate->pUalgParam)->lFrameType == OMX_LFRAMETYPE_IDR_H264)
             {
                 /* IDR Frame */
+                OMX_S32 nalType = pBufHead->pBuffer[0] & 0x1F;
+                if (nalType == SPS_CODE_PREFIX || nalType == PPS_CODE_PREFIX) {
+                    /* Need to drop subsequent SPS or PPS NAL unit since opencore does not
+                     * correctly handle storage */
+                    if (!pComponentPrivate->bSentFirstSpsPps) {
+                        /* we can assume here that PPS always comes second */
+                        if (nalType == PPS_CODE_PREFIX)
+                            pComponentPrivate->bSentFirstSpsPps = OMX_TRUE;
+                    } else {
+                        pBufHead->nFilledLen = 0;
+                    }
+                }
+
                 pBufHead->nFlags |= OMX_BUFFERFLAG_SYNCFRAME;
             }
 
@@ -3254,7 +3272,8 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
 
     /* set run-time frame and bit rates to create-time values */
     pComponentPrivate->nTargetFrameRate       = pCreatePhaseArgs->ulFrameRate;
-
+    pComponentPrivate->nPrevTargetFrameRate   = 0;
+    pComponentPrivate->bSentFirstSpsPps       = OMX_FALSE;
 
     if (pPortDefIn->format.video.eColorFormat == OMX_COLOR_FormatYUV420Planar)
     {
@@ -3383,7 +3402,8 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
         pCreatePhaseArgs->ucDeblockingEnable  = 0;
         pCreatePhaseArgs->ucLevel = 30;
     }
-
+    /* Ensure frame rate update interval, which forces IDR frames, is same as I-Slice interval */
+    pComponentPrivate->nFrameRateUpdateInterval = pComponentPrivate->nIntraFrameInterval;
     pCreatePhaseArgs->usNalCallback = pComponentPrivate->AVCNALFormat;
     pCreatePhaseArgs->ulEncodingPreset = pComponentPrivate->nEncodingPreset;
     pCreatePhaseArgs->ulRcAlgo = 0;
@@ -3616,6 +3636,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
 
    /* set run-time frame and bit rates to create-time values */
     pComponentPrivate->nTargetFrameRate       = pCreatePhaseArgs->ucFrameRate;
+    pComponentPrivate->nPrevTargetFrameRate   = 0;
     pComponentPrivate->nTargetBitRate         = pCreatePhaseArgs->ulTargetBitRate; 
 
      if (pVidParamBitrate->eControlRate == OMX_Video_ControlRateConstant)
