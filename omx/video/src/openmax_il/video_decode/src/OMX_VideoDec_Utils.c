@@ -6255,18 +6255,20 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
             if (pComponentPrivate->ProcessMode == 0) {
                 OMX_U8 ucIndex = 0;
                 OMX_PTR pBufferFlags = NULL;
-                ucIndex = VIDDEC_CircBuf_GetHead(pComponentPrivate,
+		if ((pBuffHead->nFlags & OMX_BUFFERFLAG_CODECCONFIG) == 0 ) {	//tag if not equal to OMX_BUFFERFLAG_CODECCONFIG
+                    ucIndex = VIDDEC_CircBuf_GetHead(pComponentPrivate,
                                                  VIDDEC_CBUFFER_TIMESTAMP,
                                                  VIDDEC_INPUT_PORT);
-                pComponentPrivate->aBufferFlags[ucIndex].nTimeStamp = pBuffHead->nTimeStamp;
-                pBuffHead->nFlags &= ~OMX_BUFFERFLAG_EOS;
-                pComponentPrivate->aBufferFlags[ucIndex].nFlags = pBuffHead->nFlags;
-                pComponentPrivate->aBufferFlags[ucIndex].nTickCount = pBuffHead->nTickCount;
-                pBufferFlags = &pComponentPrivate->aBufferFlags[ucIndex];
-                VIDDEC_CircBuf_Add(pComponentPrivate,
+                    pComponentPrivate->aBufferFlags[ucIndex].nTimeStamp = pBuffHead->nTimeStamp;
+                    pBuffHead->nFlags &= ~OMX_BUFFERFLAG_EOS;
+                    pComponentPrivate->aBufferFlags[ucIndex].nFlags = pBuffHead->nFlags;
+                    pComponentPrivate->aBufferFlags[ucIndex].nTickCount = pBuffHead->nTickCount;
+                    pBufferFlags = &pComponentPrivate->aBufferFlags[ucIndex];
+                    VIDDEC_CircBuf_Add(pComponentPrivate,
                                    VIDDEC_CBUFFER_TIMESTAMP,
                                    VIDDEC_INPUT_PORT,
                                    pBufferFlags);
+                }
             }
             else {
                 pComponentPrivate->arrBufIndex[pComponentPrivate->nInBufIndex] = pBuffHead->nTimeStamp;
