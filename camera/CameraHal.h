@@ -104,6 +104,10 @@ extern "C" {
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
 
+#define NONNEG_ASSIGN(x,y) \
+    if(x > -1) \
+        y = x
+
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -344,7 +348,7 @@ public:
         }
     };
 
-    CameraHal();
+   CameraHal();
     virtual ~CameraHal();
     void previewThread();
     int validateSize(int w, int h);
@@ -390,11 +394,14 @@ public:
     int InitIPP(int w, int h, int fmt, int ippMode);
     int PopulateArgsIPP(int w, int h, int fmt, int ippMode);
     int ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int ippMode,
-                         int EdgeEnhancementStrength, int WeakEdgeThreshold,
-                         int StrongEdgeThreshold, int LumaNoiseFilterStrength,
-                         int ChromaNoiseFilterStrength);
-
-    OMX_IPP pIPP;	
+                       int EdgeEnhancementStrength, int WeakEdgeThreshold, int StrongEdgeThreshold,
+                        int LowFreqLumaNoiseFilterStrength, int MidFreqLumaNoiseFilterStrength, int HighFreqLumaNoiseFilterStrength,
+                        int LowFreqCbNoiseFilterStrength, int MidFreqCbNoiseFilterStrength, int HighFreqCbNoiseFilterStrength,
+                        int LowFreqCrNoiseFilterStrength, int MidFreqCrNoiseFilterStrength, int HighFreqCrNoiseFilterStrength,
+                        int shadingVertParam1, int shadingVertParam2, int shadingHorzParam1, int shadingHorzParam2,
+                        int shadingGainScale, int shadingGainOffset, int shadingGainMaxValue,
+                        int ratioDownsampleCbCr);
+    OMX_IPP pIPP;
 #endif   
 
     int CameraCreate();

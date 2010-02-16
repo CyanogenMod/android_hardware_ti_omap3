@@ -1988,9 +1988,7 @@ void CameraHal::procThread()
                     if(ipp_to_enable) {
 
 #ifdef DEBUG_LOG
-
                          PPM("Before init IPP");
-
 #endif
 
                          err = InitIPP(image_width, image_height, pixelFormat, ippMode);
@@ -1998,65 +1996,88 @@ void CameraHal::procThread()
                              LOGE("ERROR InitIPP() failed");
 
 #ifdef DEBUG_LOG
-
                              PPM("After IPP Init");
-
 #endif
 
-                         }
+                     }
 
-                        err = PopulateArgsIPP(image_width, image_height, pixelFormat, ippMode);
-                        if( err )
-                             LOGE("ERROR PopulateArgsIPP() failed");
+                   err = PopulateArgsIPP(image_width, image_height, pixelFormat, ippMode);
+                    if( err )
+                         LOGE("ERROR PopulateArgsIPP() failed");
 
 #ifdef DEBUG_LOG
-
-                             PPM("BEFORE IPP Process Buffer");
-                             LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
-
+                     PPM("BEFORE IPP Process Buffer");
+                     LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
 #endif
-
-                        if( switchBuffer) {
-                             err = ProcessBufferIPP(tmpBuffer, tmpLength,
-                                                    pixelFormat,
-                                                    ippMode,
-                                                    ipp_ee_q,
-                                                    ipp_ew_ts,
-                                                    ipp_es_ts,
-                                                    ipp_luma_nf,
-                                                    ipp_chroma_nf);
-                        } else {
-                             err = ProcessBufferIPP(yuv_buffer, yuv_len,
-                                                    pixelFormat,
-                                                    ippMode,
-                                                    ipp_ee_q,
-                                                    ipp_ew_ts,
-                                                    ipp_es_ts,
-                                                    ipp_luma_nf,
-                                                    ipp_chroma_nf);
-                        }
-                        if( err )
-                             LOGE("ERROR ProcessBufferIPP() failed");
+                    // TODO: Need to add support for new EENF 1.9 parameters from proc messages
+                    if( switchBuffer) {
+                        err = ProcessBufferIPP(tmpBuffer, tmpLength,
+                                pixelFormat,
+                                ippMode,
+                                ipp_ee_q,
+                                ipp_ew_ts,
+                                ipp_es_ts,
+                                ipp_luma_nf,
+                                ipp_luma_nf,
+                                ipp_luma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1);
+                    } else {
+                         err = ProcessBufferIPP(yuv_buffer, yuv_len,
+                                pixelFormat,
+                                ippMode,
+                                ipp_ee_q,
+                                ipp_ew_ts,
+                                ipp_es_ts,
+                                ipp_luma_nf,
+                                ipp_luma_nf,
+                                ipp_luma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                ipp_chroma_nf,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1);
+                    }
+                    if( err )
+                         LOGE("ERROR ProcessBufferIPP() failed");
 
 #ifdef DEBUG_LOG
-
-                        PPM("AFTER IPP Process Buffer");
-
+                    PPM("AFTER IPP Process Buffer");
 #endif
 
-                        if(!(pIPP.ippconfig.isINPLACE)){
-                            yuv_buffer = pIPP.pIppOutputBuffer;
-                        }
+                    if(!(pIPP.ippconfig.isINPLACE)){
+                        yuv_buffer = pIPP.pIppOutputBuffer;
+                    }
 
-                        pixelFormat = PIX_YUV420P;
+                    pixelFormat = PIX_YUV420P;
 
-                        if( switchBuffer)
-                            tmpLength = image_width * image_height * 1.5;
-                        else
-                            yuv_len = image_width * image_height * 1.5;
+                    if( switchBuffer)
+                        tmpLength = image_width * image_height * 1.5;
+                    else
+                        yuv_len = image_width * image_height * 1.5;
 
-                   }
-
+               }
 #endif
 
 #if JPEG
