@@ -366,6 +366,8 @@ public:
     static int onSnapshot(void *priv, void *buf, int width, int height, capture_rect_t snapshot_rect, capture_rect_t aspect_rect);
 
     int FW3A_Create();
+    int FW3A_Init();
+    int FW3A_Release();
     int FW3A_Destroy();
     int FW3A_Start();
     int FW3A_Stop();
@@ -386,10 +388,6 @@ public:
 	void PPM(const char *);
 	void PPM(const char *, struct timeval*, ...);
     status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
-
-#ifndef ICAP
-	int CapturePicture();
-#endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE
     int DeInitIPP(int ippMode);

@@ -101,7 +101,23 @@ int CameraHal::FW3A_Create()
         goto exit;
     }
 
-    /* Init 2A framework */
+    LOGD("FW3A Create - %d   fobj=%p", err, fobj);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return 0;
+
+exit:
+    LOGD("Can't create 3A FW");
+    return -1;
+}
+
+int CameraHal::FW3A_Init()
+{
+    int err = 0;
+
+    LOG_FUNCTION_NAME
+
     err = fobj->lib.Init2A(fobj->cam_iface_2a, fobj->cam_dev, 0);
     if (err < 0) {
         LOGE("Can't Init2A, will try to release first");
@@ -117,14 +133,35 @@ int CameraHal::FW3A_Create()
         }
     }
 
-    LOGD("FW3A Create - %d   fobj=%p", err, fobj);
-
     LOG_FUNCTION_NAME_EXIT
-	
+
     return 0;
 
 exit:
-    LOGD("Can't create 3A FW");
+
+    return -1;
+}
+
+int CameraHal::FW3A_Release()
+{
+    int ret;
+
+    LOG_FUNCTION_NAME
+
+    ret = fobj->lib.Release2A(fobj->cam_iface_2a);
+    if (ret < 0) {
+        LOGE("Cannot Release2A");
+        goto exit;
+    } else {
+        LOGD("2A released");
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return 0;
+
+exit:
+
     return -1;
 }
 
@@ -132,14 +169,7 @@ int CameraHal::FW3A_Destroy()
 {
     int ret;
 
-    LOG_FUNCTION_NAME_EXIT
-
-    ret = fobj->lib.Release2A(fobj->cam_iface_2a);
-    if (ret < 0) {
-        LOGE("Cannot Release2A");
-    } else {
-        LOGD("2A released");
-    }
+    LOG_FUNCTION_NAME
 
     ret = fobj->lib.Destroy2A(&fobj->cam_iface_2a);
     if (ret < 0) {
@@ -912,7 +942,7 @@ int CameraHal::ZoomPerform(float zoom)
 #ifndef ICAP
 
 //TODO: Update the normal in according the PPM Changes
-int CameraHal::CapturePicture(){
+int CameraHal::ICapturePerform(){
 
     int image_width, image_height;
 	int preview_width, preview_height;

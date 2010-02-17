@@ -138,6 +138,7 @@ CameraHal::CameraHal()
 
 #ifdef FW3A
     FW3A_Create();
+    FW3A_Init();
 #endif
 
     ICaptureCreate();
@@ -418,6 +419,7 @@ CameraHal::~CameraHal()
     ICaptureDestroy();
 
 #ifdef FW3A
+    FW3A_Release();
     FW3A_Destroy();
 #endif
 
@@ -801,17 +803,11 @@ void CameraHal::previewThread()
 
 #endif
 
-#ifdef ICAP
                if( ICapturePerform() < 0){
                    LOGE("ERROR ICapturePerform()");
                    err = -1;
                }
-#else
-               if( CapturePicture() < 0){
-                   LOGE("ERROR CapturePicture()");
-                   err = -1;
-               }
-#endif
+
                if( err )
                    LOGE("Capture failed.");
 
