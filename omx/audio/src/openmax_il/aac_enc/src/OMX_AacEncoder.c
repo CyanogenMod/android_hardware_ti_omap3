@@ -1359,9 +1359,7 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp, OMX_INDEXTYPE nConfigIndex
                 eError = OMX_ErrorBadParameter;
                 goto EXIT;
             }
-/*
             dataPath = *customFlag;
-*/
             switch(dataPath) 
             {
                 case DATAPATH_APPLICATION:
