@@ -3390,7 +3390,7 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
         pCreatePhaseArgs->ulFrameRate > 15000)
     {
         pComponentPrivate->maxMVperMB = 1;
-        pComponentPrivate->intra4x4EnableIdc = INTRA4x4_NONE;
+        pComponentPrivate->intra4x4EnableIdc = INTRA4x4_ISLICES;
         pComponentPrivate->nIntraFrameInterval = 30;
         pComponentPrivate->nAIRRate = 0;
         /* Encoding preset = 4 enables DSP side optimizations for high resolutions */
@@ -3398,8 +3398,6 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
         pCreatePhaseArgs->ulIntraFramePeriod = 0;
         /* Constant bit rate control enabled */
         pCreatePhaseArgs->ucRateControlAlgorithm = 1;
-        /* Disable deblocking */
-        pCreatePhaseArgs->ucDeblockingEnable  = 0;
         pCreatePhaseArgs->ucLevel = 30;
     }
     /* Ensure frame rate update interval, which forces IDR frames, is same as I-Slice interval */
