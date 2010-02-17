@@ -193,27 +193,15 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
     int fd;
 
     switch (fmt) {
-        case OVERLAY_FORMAT_RGBA_8888:
-            return -1;
         case OVERLAY_FORMAT_RGB_565:
             pix->pixelformat = V4L2_PIX_FMT_RGB565;
             break;
-        case OVERLAY_FORMAT_BGRA_8888:
-            return -1;
-        case OVERLAY_FORMAT_YCbCr_422_SP:
-            break;
-        case OVERLAY_FORMAT_YCbCr_420_SP:
-            return -1;
         case OVERLAY_FORMAT_YCbYCr_422_I:
             pix->pixelformat = V4L2_PIX_FMT_YUYV;
             break;
         case OVERLAY_FORMAT_CbYCrY_422_I:
             pix->pixelformat = V4L2_PIX_FMT_UYVY;
             break;
-        case OVERLAY_FORMAT_YCbYCr_420_I:
-            return -1;
-        case OVERLAY_FORMAT_CbYCrY_420_I:
-            return -1;
         default:
             return -1;
     }
