@@ -422,13 +422,6 @@ int st_sig_handler(int signo)
 
 	else {			/* UNINSTALL_N_SHARED - When the Signal is received from KIM */
 
-		ldisc = N_TTY;
-		/* restore line discipline to N_TTY */
-		if (ioctl(dev_fd, TIOCSETD, &ldisc) < 0) {
-			UIM_ERR(" Can't set line discipline");
-			return -1;
-		}
-		UIM_DBG(" Un-Installed N_SHARED Line displine");
 		/* closing UART fd */
 		close(dev_fd);
 		st_state = INSTALL_N_SHARED;
