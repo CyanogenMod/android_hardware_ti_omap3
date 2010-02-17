@@ -1336,8 +1336,11 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
                     OMX_PARAM_PORTDEFINITIONTYPE *pPortDefParam = (OMX_PARAM_PORTDEFINITIONTYPE *)pComponentParam;
                     OMX_PARAM_PORTDEFINITIONTYPE *pPortDef = pComponentPrivate->pInPortDef;
                     memcpy(pPortDef, pPortDefParam, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-                    pPortDef->nBufferSize = pPortDef->format.video.nFrameWidth *
-                                            pPortDef->format.video.nFrameHeight;
+                    if ( pPortDef->nBufferSize == 0 )
+                    {
+                        pPortDef->nBufferSize = pPortDef->format.video.nFrameWidth *
+                                                pPortDef->format.video.nFrameHeight;
+                    }
 
                     OMX_PRINT1(pComponentPrivate->dbg, "Set i/p size: %dx%d", pPortDefParam->format.video.nFrameWidth, pPortDefParam->format.video.nFrameHeight);
                 }
