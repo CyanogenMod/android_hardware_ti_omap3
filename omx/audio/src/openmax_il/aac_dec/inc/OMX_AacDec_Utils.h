@@ -939,6 +939,9 @@ typedef struct AACDEC_COMPONENT_PRIVATE
 
     struct OMX_TI_Debug dbg;
 
+    /** Indicate when first output buffer received from DSP **/
+    OMX_U32 first_output_buf_rcv;
+
 } AACDEC_COMPONENT_PRIVATE;
 
 /* ================================================================================= * */

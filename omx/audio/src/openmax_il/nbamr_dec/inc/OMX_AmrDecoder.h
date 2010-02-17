@@ -850,6 +850,9 @@ typedef struct AMRDEC_COMPONENT_PRIVATE
 
     struct OMX_TI_Debug dbg;
 
+    /** Indicate when first output buffer received from DSP **/
+    OMX_U32 first_output_buf_rcv;
+
 } AMRDEC_COMPONENT_PRIVATE;
 
 typedef enum OMX_NBAMRDEC_INDEXAUDIOTYPE {

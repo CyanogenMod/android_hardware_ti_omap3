@@ -383,6 +383,7 @@ OMX_ERRORTYPE AacDec_StartCompThread(OMX_HANDLETYPE pComponent)
     pComponentPrivate->num_Sent_Ip_Buff = 0;
     pComponentPrivate->num_Reclaimed_Op_Buff = 0;
     pComponentPrivate->bIsEOFSent = 0;
+    pComponentPrivate->first_output_buf_rcv = 0;
 
     nRet = pipe (pComponentPrivate->dataPipe);
     if (0 != nRet) {
@@ -1788,7 +1789,10 @@ OMX_U32 AACDEC_HandleCommand (AACDEC_COMPONENT_PRIVATE *pComponentPrivate)
             OMX_ERROR2(pComponentPrivate->dbg, "Flushing output port:: unhandled FTB's = %ld, handled FTB's = %ld\n", pComponentPrivate->nUnhandledFillThisBuffers, pComponentPrivate->nHandledFillThisBuffers);
             if (pComponentPrivate->nUnhandledFillThisBuffers == pComponentPrivate->nHandledFillThisBuffers) {
                 pComponentPrivate->bFlushOutputPortCommandPending = OMX_FALSE;
-                pComponentPrivate->first_buff = 0;
+                if (pComponentPrivate->first_output_buf_rcv != 0) {
+                    pComponentPrivate->first_buff = 0;
+                    pComponentPrivate->first_output_buf_rcv = 0;
+                }
                 OMX_ERROR2(pComponentPrivate->dbg, "About to be Flushing output port\n");
                 if(pComponentPrivate->num_Op_Issued && !pComponentPrivate->reconfigOutputPort ){ //no buffers sent to DSP yet
                     aParam[0] = USN_STRMCMD_FLUSH;
@@ -2662,6 +2666,7 @@ OMX_ERRORTYPE AACDEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                 OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: Output: Filled Len = %ld\n",__LINE__, pLcmlHdr->pBufHdr->nFilledLen);
                 OMX_PRCOMM2(pComponentPrivate->dbg, "%d :: Output: pLcmlHeader->pBufHdr = %p\n",__LINE__, pLcmlHdr->pBufHdr);
                 pComponentPrivate->lcml_nCntOpReceived++;
+                pComponentPrivate->first_output_buf_rcv = 1;
 #ifdef __PERF_INSTRUMENTATION__
                 PERF_ReceivedFrame(pComponentPrivate->pPERFcomp,
                                    PREF(pLcmlHdr->pBufHdr,pBuffer),

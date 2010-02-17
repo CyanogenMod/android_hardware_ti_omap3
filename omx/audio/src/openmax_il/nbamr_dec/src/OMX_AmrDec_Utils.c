@@ -411,6 +411,7 @@ OMX_ERRORTYPE NBAMRDEC_StartComponentThread(OMX_HANDLETYPE pComponent)
     pComponentPrivate->lcml_nIpBuf = 0;
     pComponentPrivate->app_nBuf = 0;
     pComponentPrivate->num_Reclaimed_Op_Buff = 0;
+    pComponentPrivate->first_output_buf_rcv = 0;
 
     /* create the pipe used to send buffers to the thread */
     eError = pipe (pComponentPrivate->cmdDataPipe);
@@ -1648,7 +1649,10 @@ OMX_U32 NBAMRDECHandleCommand (AMRDEC_COMPONENT_PRIVATE *pComponentPrivate)
             OMX_PRCOMM1(pComponentPrivate->dbg, "Flushing out port %d\n",pComponentPrivate->nUnhandledFillThisBuffers);
             if (pComponentPrivate->nUnhandledFillThisBuffers == 0)  {
                 pComponentPrivate->bFlushOutputPortCommandPending = OMX_FALSE;
-                pComponentPrivate->first_buff = 0;
+                if (pComponentPrivate->first_output_buf_rcv != 0) {
+                    pComponentPrivate->first_buff = 0;
+                    pComponentPrivate->first_output_buf_rcv = 0;
+                }
 
                 aParam[0] = USN_STRMCMD_FLUSH; 
                 aParam[1] = 0x1; 
@@ -2669,6 +2673,7 @@ pLcmlHdr->buffer->nFilledLen = %ld\n",__LINE__,pLcmlHdr->buffer->nFilledLen);
 
             NBAMRDEC_ClearPending(pComponentPrivate,pLcmlHdr->buffer,OMX_DirOutput);
             pComponentPrivate->nOutStandingFillDones++;
+            pComponentPrivate->first_output_buf_rcv = 1;
 
             for(i=0;i<pLcmlHdr->pBufferParam->usNbFrames;i++){
                  if ( (pLcmlHdr->pFrameParam+i)->usLastFrame & OMX_BUFFERFLAG_EOS){ 
