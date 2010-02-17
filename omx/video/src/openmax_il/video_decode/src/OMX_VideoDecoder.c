@@ -2330,8 +2330,10 @@ static OMX_ERRORTYPE VIDDEC_GetState (OMX_HANDLETYPE hComponent,
            }
            else if(ret == ETIMEDOUT) {
               /* Unlock mutex in case of timeout */
+              OMX_ERROR4(pComponentPrivate->dbg, "VIDDEC_GetState timed out\n");
               pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
-              return OMX_ErrorTimeout;
+              *pState = OMX_StateInvalid;
+              return OMX_ErrorNone;
            }
         }
      }
