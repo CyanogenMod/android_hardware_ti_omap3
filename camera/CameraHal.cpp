@@ -1205,7 +1205,7 @@ void CameraHal::nextPreview()
         }
 
         ZoomPerform(zoom_step[mZoomCurrentIdx]);
-        mParameters.set("zoom", ((int) zoom_step[mZoomCurrentIdx]));
+        mParameters.set("zoom", ((int) zoom_step[mZoomCurrentIdx] - 1));
 
         if( mZoomCurrentIdx == mZoomTargetIdx )
             mNotifyCb(CAMERA_MSG_ZOOM, ((int) zoom_step[mZoomCurrentIdx] - 1), 1, mCallbackCookie);
@@ -2764,6 +2764,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     } else {
         mZoomTargetIdx = zoom_idx[0];
     }
+    LOGD("Zoom by App %d", zoom);
 
     if ( ( params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL )) {
 
