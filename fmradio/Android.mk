@@ -16,6 +16,9 @@
 ifeq ($(BUILD_FM_RADIO),true)
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 #  include $(all-subdir-makefiles)
+ifeq ($(FM_CHR_DEV_ST),true)
+include hardware/ti/omap3/fmradio/fm_chrlib/Android.mk
+endif
 include hardware/ti/omap3/fmradio/fm_stack/Android.mk
 include hardware/ti/omap3/fmradio/fm_app/Android.mk
 #include hardware/ti/omap3/fmradio/sleep_world/Android.mk

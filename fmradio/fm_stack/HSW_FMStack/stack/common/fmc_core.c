@@ -17,9 +17,13 @@
  */
 
 #include <string.h>
+#ifndef FM_CHR_DEV_ST
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
+#else
+#include "fm_chrlib.h"
+#endif
 
 #include "fmc_types.h"
 
@@ -807,7 +811,11 @@ FmcStatus fm_open_cmd_socket(int hci_dev)
 	 */
 	g_fm_cmd_socket = hci_open_dev(hci_dev);
 	if (g_fm_cmd_socket < 0) {
+#ifndef FM_CHR_DEV_ST
 		FMC_LOG_ERROR(("failed to open device hci%d", hci_dev));
+#else
+		FMC_LOG_ERROR(("failed to open device /dev/tifm"));
+#endif
 		ret = FMC_STATUS_FAILED;
 	}
 
