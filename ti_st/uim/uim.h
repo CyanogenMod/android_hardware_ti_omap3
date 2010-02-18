@@ -124,8 +124,11 @@ typedef struct {
  * the next signal received from KIM will un-install the 
  * line discipline*/
 enum {
-	INSTALL_N_SHARED,	/* expecting signal from KIM to install n_shared */
-	UNINSTALL_N_SHARED,	/* expecting signal from KIM to restore n_tty */
+	/* expecting signal from KIM to setup uart fd for ST */
+	INSTALL_N_SHARED,
+
+	/* expecting signal from KIM to close uart fd */
+	UNINSTALL_N_SHARED,
 };
 
 /* Functions to insert and remove the kernel modules from the system*/
