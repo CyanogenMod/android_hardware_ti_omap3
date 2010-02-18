@@ -491,7 +491,13 @@ void setDefaultControls(uint32_t devices, int mode)
         } else {
             control.set("Analog Left Capture Route Main mic", (unsigned int)0); // off
             control.set("Analog Right Capture Route Sub mic", (unsigned int)0); // off
-       }
+        }
+
+        if (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) {
+            control.set("Analog Left Capture Route Headset mic", 1); // on
+        } else {
+            control.set("Analog Left Capture Route Headset mic", (unsigned int)0); // off
+        }
     }
 }
 
