@@ -33,6 +33,11 @@ LOCAL_C_INCLUDES:=\
 
 LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE 
 
+ifdef FM_CHR_DEV_ST
+LOCAL_C_INCLUDES+= $(FM_STACK_PATH)/../fm_chrlib
+LOCAL_CFLAGS+= -DFM_CHR_DEV_ST
+endif
+
 LOCAL_SRC_FILES:= \
 fm_app.c fm_trace.c						
 
