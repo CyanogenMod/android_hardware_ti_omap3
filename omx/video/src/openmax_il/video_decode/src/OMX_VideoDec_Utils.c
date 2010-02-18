@@ -5837,6 +5837,8 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
             ret = write(pComponentPrivate->free_inpBuf_Q[1], &pBuffHead, sizeof(pBuffHead));
             if(ret == -1){
                 OMX_PRCOMM4(pComponentPrivate->dbg, "writing to the input pipe %x (%d)\n", OMX_ErrorInsufficientResources,ret);
+                pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_DSP;
+                DecrementCount (&(pComponentPrivate->nCountInputBFromDsp), &(pComponentPrivate->mutexInputBFromDSP));
                 pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
                                                        OMX_EventError,
@@ -6412,13 +6414,14 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
             ret = write(pComponentPrivate->free_inpBuf_Q[1], &pBuffHead, sizeof(pBuffHead));
             if(ret == -1){
                 OMX_PRCOMM4(pComponentPrivate->dbg, "writing to the input pipe %x (%d)\n", OMX_ErrorInsufficientResources,ret);
+                pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_DSP;
+                DecrementCount (&(pComponentPrivate->nCountInputBFromDsp), &(pComponentPrivate->mutexInputBFromDSP));
                 pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
                                                        OMX_EventError,
                                                        OMX_ErrorInsufficientResources,
                                                        OMX_TI_ErrorSevere,
                                                        "Error writing to the output pipe");
-                DecrementCount (&(pComponentPrivate->nCountInputBFromDsp), &(pComponentPrivate->mutexInputBFromDSP));
             }
         }
     }
