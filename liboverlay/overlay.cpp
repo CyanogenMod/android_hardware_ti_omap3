@@ -1051,6 +1051,8 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
     int rc;
     int i = -1;
 
+    pthread_mutex_lock(&ctx->shared->lock);
+
     if ( ctx->shared->qd_buf_count <= 1 ) { //dss2 require at least 2 buf queue to perform a dequeue to avoid hang
         LOGE("Not enough buffers to dequeue");
         rc = -EINVAL;
@@ -1075,6 +1077,9 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
     }
 
     LOGV("qd_buf_count = %d", ctx->shared->qd_buf_count);
+
+    pthread_mutex_unlock(&ctx->shared->lock);
+
     return ( rc );
 }
 
