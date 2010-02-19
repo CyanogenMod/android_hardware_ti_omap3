@@ -1066,7 +1066,7 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
     else if ( i < 0 || i > ctx->num_buffers )
     {
         LOGE("dqbuffer i=%d",i);
-        rc = -EINVAL;
+        rc = -EPERM;
     }
     else
     {
