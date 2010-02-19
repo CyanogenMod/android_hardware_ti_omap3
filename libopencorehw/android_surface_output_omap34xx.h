@@ -28,9 +28,12 @@
 
 #include "android_surface_output.h"
 #include "buffer_alloc_omap34xx.h"
+#include "overlay_common.h"
 
 // support for shared contiguous physical memory
 #include <ui/Overlay.h>
+
+using namespace android;
 
 
 class AndroidSurfaceOutputOmap34xx : public AndroidSurfaceOutput
@@ -49,15 +52,15 @@ public:
     virtual void closeFrameBuf();
     virtual void postLastFrame();
     OSCL_IMPORT_REF ~AndroidSurfaceOutputOmap34xx();
+
+    BufferAllocOmap34xx			mbufferAlloc;
+    
 private:
     bool						mUseOverlay;
     sp<Overlay> 				mOverlay; 
     int 						bufEnc;
-    
     int32 iNumberOfBuffers;
     int32 iBufferSize;
-public:
-	BufferAllocOmap34xx			mbufferAlloc;
 
 };
 
