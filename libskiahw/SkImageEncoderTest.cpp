@@ -1,6 +1,6 @@
 #include "SkImageEncoder_libtijpeg.h"
 
-#define MULTIPLE 16 //image width must be a multiple of this number
+#define MULTIPLE 2 //image width must be a multiple of this number
 
 
 int main(int argc, char **argv)
