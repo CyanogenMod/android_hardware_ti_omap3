@@ -138,12 +138,16 @@ LCML_DSP_INTERFACE* GetLCMLHandle()
 
 #endif
 
-    eError = (*fpGetHandle)(&pHandle);
-    if(eError != OMX_ErrorNone) {
-        eError = OMX_ErrorUndefined;
-        LOGV("eError != OMX_ErrorNone...\n");
-        pHandle = NULL;
-        goto EXIT;
+    if (fpGetHandle) {
+        eError = (*fpGetHandle)(&pHandle);
+        if(eError != OMX_ErrorNone) {
+            eError = OMX_ErrorUndefined;
+            LOGV("eError != OMX_ErrorNone...\n");
+            pHandle = NULL;
+            goto EXIT;
+        }
+    } else {
+       fprintf(stderr,"ERROR: fpGetHandle is NULL.\n");
     }
 
 EXIT:
