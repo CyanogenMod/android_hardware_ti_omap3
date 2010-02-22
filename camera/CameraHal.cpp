@@ -1377,8 +1377,6 @@ int  CameraHal::ICapturePerform()
 
 #endif
 
-    iobj->cfg.image_width   = image_width;
-    iobj->cfg.image_height  = image_height;
     iobj->cfg.lsc_type      = LSC_UPSAMPLED_BY_SOFTWARE;
     iobj->cfg.cam_dev       = camera_device;
     iobj->cfg.mknote        = ancillary_buffer;
@@ -1396,9 +1394,16 @@ int  CameraHal::ICapturePerform()
     manual_config.pre_flash = 0;
 
     if(mcapture_mode == 1)
+    {
         iobj->cfg.capture_mode  =  CAPTURE_MODE_HI_PERFORMANCE;
-    else
+        iobj->cfg.image_width   = image_width;
+        iobj->cfg.image_height  = image_height;
+    }else
+    {
         iobj->cfg.capture_mode  =  CAPTURE_MODE_HI_QUALITY;
+        iobj->cfg.image_width   = PICTURE_WIDTH;
+        iobj->cfg.image_height  = PICTURE_HEIGHT;
+    }
 #if DEBUG_LOG
 
 	PPM("Before ICapture Config");
