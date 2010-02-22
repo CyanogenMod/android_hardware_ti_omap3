@@ -1,3 +1,4 @@
+ifneq ($(BUILD_WITHOUT_PV),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 $(call add-prebuilt-files, ETC)
@@ -54,3 +55,4 @@ LOCAL_C_INCLUDES := \
 LOCAL_SHARED_LIBRARIES += libopencore_common
 
 include $(BUILD_SHARED_LIBRARY)
+endif

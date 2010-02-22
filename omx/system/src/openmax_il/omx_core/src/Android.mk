@@ -13,7 +13,6 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_SHARED_LIBRARIES := \
 	libdl \
-	libVendor_ti_omx_config_parser \
 	liblog
 	
 LOCAL_CFLAGS := $(TI_OMX_CFLAGS)
