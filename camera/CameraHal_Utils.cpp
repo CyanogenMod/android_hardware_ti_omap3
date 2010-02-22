@@ -1247,8 +1247,10 @@ int CameraHal::ICapturePerform(){
         exif_buffer *exif_buf = get_exif_buffer(gpsLocation);
 
 		PPM("BEFORE JPEG Encode Image");
-		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);	  
-        jpegEncoder->encodeImage(outBuffer, jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality, exif_buf, jpegFormat, THUMB_WIDTH, THUMB_HEIGHT);
+		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
+		jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
+				image_width, image_height, quality, exif_buf, jpegFormat, THUMB_WIDTH, THUMB_HEIGHT, image_width, image_height,
+				0, 1.0, 0, 0, image_width, image_height);
 		PPM("AFTER JPEG Encode Image");
 
 		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
