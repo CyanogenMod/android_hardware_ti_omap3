@@ -236,7 +236,7 @@ OMX_ERRORTYPE JpegEncoder::SetPPLibDynamicParams()
         }
 
         pPPLibDynParams.nSize = sizeof(JPGE_PPLIB_DynamicParams);
-        eError = OMX_GetParameter (pOMXHandle, nCustomIndex, &pPPLibDynParams);
+        eError = OMX_GetConfig (pOMXHandle, nCustomIndex, &pPPLibDynParams);
         if ( eError != OMX_ErrorNone ) {
             PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
             goto EXIT;
@@ -287,7 +287,7 @@ OMX_ERRORTYPE JpegEncoder::SetPPLibDynamicParams()
 #endif
             pPPLibDynParams.ulPPLIBYUVRotation = 0;
 
-        eError = OMX_SetParameter (pOMXHandle, nCustomIndex, &pPPLibDynParams);
+        eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &pPPLibDynParams);
         if ( eError != OMX_ErrorNone ) {
             PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
             goto EXIT;
