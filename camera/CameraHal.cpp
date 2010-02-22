@@ -1399,7 +1399,6 @@ int  CameraHal::ICapturePerform()
         iobj->cfg.capture_mode  =  CAPTURE_MODE_HI_PERFORMANCE;
     else
         iobj->cfg.capture_mode  =  CAPTURE_MODE_HI_QUALITY;
-
 #if DEBUG_LOG
 
 	PPM("Before ICapture Config");
@@ -1938,15 +1937,13 @@ void CameraHal::procThread()
                 thumb_height = THUMB_HEIGHT;
                 pixelFormat = PIX_YUV422I;
 
-	        // reset yuv_len so that we pass actual size of valid data
-                yuv_len = image_width * image_height * 2;
-#if RESIZER
+                // only use VPP if image rotation is 180, for all else we can use a combination of PPLIB and conversion in JPEG Enc
+                // TODO: is there a way to achieve 180 degree rotation without VGPOP??
+                if(image_rotation == 180)
+                {
 #ifdef DEBUG_LOG
-
                     LOGI("Process VPP ( %d x %d -> %d x %d ) - rotation = %d, zoom = %5.2f, crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d starting", capture_width, capture_height, (int) image_width, (int) image_height, image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height);
-
 #endif
-
                     if ( 0 != image_rotation ) //VPP rotation is only supported when the output pixeformat 420P
                         pixelFormat = PIX_YUV420P;
 
@@ -1955,13 +1952,11 @@ void CameraHal::procThread()
                     err = scale_process(yuv_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom, crop_top, crop_left, crop_width, crop_height);
 
 #ifdef DEBUG_LOG
-
                     if( err) {
                         LOGE("Process Resizer VPP - failed");
                     } else {
                         LOGE("Process Resizer VPP - OK");
                     }
-
 #endif
 
                     switchBuffer = true;
@@ -1979,13 +1974,10 @@ void CameraHal::procThread()
                         thumb_width = thumb_height;
                         thumb_height = tmp;
                     }
-
+                    capture_width = image_width;
+                    capture_height = image_height;
                     scale_deinit();
-
-#else
-                image_width = capture_width;
-                image_height = capture_height;
-#endif //RESIZER
+                }
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -2012,7 +2004,7 @@ void CameraHal::procThread()
                          PPM("Before init IPP");
 #endif
 
-                         err = InitIPP(image_width, image_height, pixelFormat, ippMode);
+                         err = InitIPP(capture_width, capture_height, pixelFormat, ippMode);
                          if( err )
                              LOGE("ERROR InitIPP() failed");
 
@@ -2022,7 +2014,7 @@ void CameraHal::procThread()
 
                      }
 
-                   err = PopulateArgsIPP(image_width, image_height, pixelFormat, ippMode);
+                   err = PopulateArgsIPP(capture_width, capture_height, pixelFormat, ippMode);
                     if( err )
                          LOGE("ERROR PopulateArgsIPP() failed");
 
@@ -2090,14 +2082,6 @@ void CameraHal::procThread()
                     if(!(pIPP.ippconfig.isINPLACE)){
                         yuv_buffer = pIPP.pIppOutputBuffer;
                     }
-
-                    pixelFormat = PIX_YUV420P;
-
-                    if( switchBuffer)
-                        tmpLength = image_width * image_height * 3 / 2;
-                    else
-                        yuv_len = image_width * image_height * 3 / 2;
-
                }
 #endif
 
@@ -2105,42 +2089,38 @@ void CameraHal::procThread()
                 err = 0;
 
 #ifdef DEBUG_LOG
-
-                PPM("BEFORE JPEG Encode Image");
-
                 LOGD(" outbuffer = %p, jpegSize = %d, yuv_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, tmpBuffer/*yuv_buffer*/, mJPEGLength/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
+#endif
 
+#if PPM_INSTRUMENTATION
+                PPM("BEFORE JPEG Encode Image");
 #endif
 
                 exif_buffer *exif_buf = get_exif_buffer(gpsLocation);
 
                 if( switchBuffer ) {
                     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, tmpBuffer, tmpLength,
-                                                 image_width, image_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height)))
+                                                 capture_width, capture_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height, image_width, image_height,
+                                                 image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height)))
                     {
                         err = -1;
                         LOGE("JPEG Encoding failed");
                     }
                 } else {
                     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
-                                                 image_width, image_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height)))
+                                                 capture_width, capture_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height, image_width, image_height,
+                                                 image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height)))
                     {
                         err = -1;
                         LOGE("JPEG Encoding failed");
                     }
                 }
-#ifdef DEBUG_LOG
-
-                PPM("AFTER JPEG Encode Image");
-
-#endif
-
 #if PPM_INSTRUMENTATION
+                PPM("AFTER JPEG Encode Image");
                 if ( 0 != image_rotation )
                     PPM("Shot to JPEG with %d deg rotation", &ppm_receiveCmdToTakePicture, image_rotation);
                 else
                     PPM("Shot to JPEG", &ppm_receiveCmdToTakePicture);
-
 #endif
 
                 JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, offset, jpegEncoder->jpegSize);

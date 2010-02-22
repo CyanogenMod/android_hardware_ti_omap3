@@ -39,7 +39,7 @@
 #define PRINTF LOGD
 
 #define JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT 0
-#define OPTIMIZE 0
+#define OPTIMIZE 1
 
 #if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
 	int eOutputCount = 0;
@@ -185,6 +185,120 @@ void JpegEncoder::EventHandler(OMX_HANDLETYPE hComponent,
 
 }
 
+OMX_ERRORTYPE JpegEncoder::SetExifBuffer()
+{
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
+
+    /** Exif */
+    JPEG_APPTHUMB_MARKER jpeg_marker;
+    OMX_BOOL bAPP1 = OMX_TRUE;
+    char indexCustom[] = "OMX.TI.JPEG.encoder.Config.APP1";
+
+    //TODO: OMX JPEG ENC doesn't current support a way to reset the APP1 marker if no longer needed
+    if( pOMXHandle != NULL && mexif_buf != NULL){
+        jpeg_marker.nThumbnailWidth = thumb_width;
+        jpeg_marker.nThumbnailHeight = thumb_height;
+        jpeg_marker.bMarkerEnabled = bAPP1;
+        jpeg_marker.nMarkerSize = mexif_buf->size + 4;
+        jpeg_marker.pMarkerBuffer = (OMX_U8 *) calloc (1, jpeg_marker.nMarkerSize); /* FIXME */
+        memcpy (jpeg_marker.pMarkerBuffer + 4, mexif_buf->data, mexif_buf->size);
+        PRINTF("%d::OMX_GetExtensionIndex \n", __LINE__);
+        eError = OMX_GetExtensionIndex(pOMXHandle, indexCustom, (OMX_INDEXTYPE*)&nCustomIndex);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+            goto EXIT;
+        }
+        PRINTF("%d::OMX_SetConfig \n", __LINE__);
+        eError = OMX_SetConfig(pOMXHandle, nCustomIndex, &jpeg_marker);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+            goto EXIT;
+        }
+        free(jpeg_marker.pMarkerBuffer);
+    }
+EXIT:
+    return eError;
+}
+OMX_ERRORTYPE JpegEncoder::SetPPLibDynamicParams()
+{
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
+    JPGE_PPLIB_DynamicParams pPPLibDynParams;
+    char strPPLibDynParams[] = "OMX.TI.JPEG.encoder.Config.PPLibDynParams";
+
+    if(pOMXHandle) //handle to JPEG encoder must be established before doing anything
+    {
+        eError = OMX_GetExtensionIndex(pOMXHandle, strPPLibDynParams, (OMX_INDEXTYPE*)&nCustomIndex);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+            goto EXIT;
+        }
+
+        pPPLibDynParams.nSize = sizeof(JPGE_PPLIB_DynamicParams);
+        eError = OMX_GetParameter (pOMXHandle, nCustomIndex, &pPPLibDynParams);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+            goto EXIT;
+        }
+
+        if(mCrop_top || mCrop_left || (mCrop_width < mOutWidth) || (mCrop_height < mOutHeight))
+        {
+            pPPLibDynParams.ulPPLIBEnableCropping = 1;
+            pPPLibDynParams.ulPPLIBXstart = mCrop_top;
+            pPPLibDynParams.ulPPLIBYstart = mCrop_left;
+            pPPLibDynParams.ulPPLIBXsize = mCrop_width;
+            pPPLibDynParams.ulPPLIBYsize = mCrop_height;
+        }else
+        {
+            pPPLibDynParams.ulPPLIBEnableCropping = 0;
+            pPPLibDynParams.ulPPLIBXstart = 0;
+            pPPLibDynParams.ulPPLIBYstart = 0;
+            pPPLibDynParams.ulPPLIBXsize = 0;
+            pPPLibDynParams.ulPPLIBYsize = 0;
+        }
+
+        pPPLibDynParams.ulPPLIBEnableZoom = 1;
+        pPPLibDynParams.ulPPLIBZoomFactor = mZoom * 1024;
+        pPPLibDynParams.ulPPLIBZoomLimit =  mZoom * 1024;
+        pPPLibDynParams.ulPPLIBZoomSpeed = 0;
+
+        pPPLibDynParams.ulPPLIBVideoGain = 64;
+        pPPLibDynParams.ulOutPitch = 0;
+        pPPLibDynParams.ulPPLIBLightChroma = 0;
+        pPPLibDynParams.ulPPLIBLockedRatio = 0;
+        pPPLibDynParams.ulPPLIBMirroring = 0;
+        pPPLibDynParams.ulPPLIBRGBrotation = 0;
+        pPPLibDynParams.ulPPLIBIORange = 1;
+        pPPLibDynParams.ulPPLIBDithering = 0;
+
+        pPPLibDynParams.ulPPLIBInWidth = mInWidth;
+        pPPLibDynParams.ulPPLIBInHeight = mInHeight;
+
+// rotation in pplib cannot be supported in our case since we need output of pplib to be 422i
+// rotation in pplib (vgpop) only works when output is in 420p
+#if 0
+        if((mRotation == 180) || (mIsPixelFmt420p && mRotation))
+        {
+            // TODO: will need to reset input widths and heights if this can set dynamically in the future
+            pPPLibDynParams.ulPPLIBYUVRotation = mRotation;
+        }
+        else
+#endif
+            pPPLibDynParams.ulPPLIBYUVRotation = 0;
+
+        eError = OMX_SetParameter (pOMXHandle, nCustomIndex, &pPPLibDynParams);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+            goto EXIT;
+        }
+    }else{
+        PRINTF("pOMXHandle not set before calling SetPPLibDynamicParams");
+        eError = OMX_ErrorNotReady;
+    }
+EXIT:
+    return eError;
+}
 
 bool JpegEncoder::StartFromLoadedState()
 {
@@ -197,19 +311,14 @@ bool JpegEncoder::StartFromLoadedState()
     int nHeightNew, nWidthNew;
     char strTIJpegEnc[] = "OMX.TI.JPEG.encoder";
     char strQFactor[] = "OMX.TI.JPEG.encoder.Config.QFactor";
-	char strColorFormat[] = "OMX.TI.JPEG.encoder.Config.ColorFormatConvertion_420pTo422i";
+	char strConversionFlag[] = "OMX.TI.JPEG.encoder.Config.ConversionFlag";
 	char strPPLibEnable[] = "OMX.TI.JPEG.encoder.Config.PPLibEnable";
-
-    char indexCustom[] = "OMX.TI.JPEG.encoder.Config.APP1";
-    /** Exif */
-    JPEG_APPTHUMB_MARKER jpeg_marker;
-    OMX_BOOL bAPP1 = OMX_TRUE;
 
     OMX_S32 nCompId = 300;
     OMX_PORT_PARAM_TYPE PortType;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_IMAGE_PARAM_QFACTORTYPE QfactorType;
-	OMX_BOOL b420pTo422i;
+	JPE_CONVERSION_FLAG_TYPE nConversionFlag = JPE_CONV_NONE;
 	OMX_BOOL bPPLibEnable;
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
     OMX_CALLBACKTYPE JPEGCallBack ={OMX_JPEGE_EventHandler, OMX_JPEGE_EmptyBufferDone, OMX_JPEGE_FillBufferDone};
@@ -266,15 +375,15 @@ bool JpegEncoder::StartFromLoadedState()
     InPortDef.eDomain = OMX_PortDomainImage;
 //	InPortDef.format.image.cMIMEType = "JPEGENC"
     InPortDef.format.image.pNativeRender = NULL;
-    InPortDef.format.image.nFrameWidth = mWidth;
-    InPortDef.format.image.nFrameHeight = mHeight;
+    InPortDef.format.image.nFrameWidth = mOutWidth;
+    InPortDef.format.image.nFrameHeight = mOutHeight;
     InPortDef.format.image.nStride = -1;
     InPortDef.format.image.nSliceHeight = -1;
     InPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
     InPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingUnused;
     InPortDef.nBufferSize = mInBuffSize;
 	if(mIsPixelFmt420p){
-		InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;	
+		InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
 	}
 	else{
 		InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
@@ -318,14 +427,14 @@ bool JpegEncoder::StartFromLoadedState()
     OutPortDef.bPopulated = OMX_FALSE;
     OutPortDef.eDomain = OMX_PortDomainImage;
     OutPortDef.format.image.pNativeRender = NULL;
-    OutPortDef.format.image.nFrameWidth = mWidth;
-    OutPortDef.format.image.nFrameHeight = mHeight;
+    OutPortDef.format.image.nFrameWidth = mOutWidth;
+    OutPortDef.format.image.nFrameHeight = mOutHeight;
     OutPortDef.format.image.nStride = -1;
     OutPortDef.format.image.nSliceHeight = -1;
     OutPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
     OutPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
 	if(mIsPixelFmt420p){
-		OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;	
+		OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
 	}
 	else{
 		OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
@@ -367,58 +476,37 @@ bool JpegEncoder::StartFromLoadedState()
     }
 
 	if(mIsPixelFmt420p){
-		b420pTo422i = OMX_TRUE;
+		nConversionFlag = JPE_CONV_YUV420P_YUV422ILE;
 
-		eError = OMX_GetExtensionIndex(pOMXHandle, strColorFormat, (OMX_INDEXTYPE*)&nCustomIndex);
+		eError = OMX_GetExtensionIndex(pOMXHandle, strConversionFlag, (OMX_INDEXTYPE*)&nCustomIndex);
 		if ( eError != OMX_ErrorNone ) {
 		    PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
 		    goto EXIT;
 		}
-
-		eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &b420pTo422i);
-		if ( eError != OMX_ErrorNone ) {
-		    PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
-		    goto EXIT;
-		}
-	}
-
-/*
-    bPPLibEnable = OMX_FALSE;
-    eError = OMX_GetExtensionIndex(pOMXHandle, strPPLibEnable, (OMX_INDEXTYPE*)&nCustomIndex);
+	}else if(mRotation != 0 && mRotation != 180){
+        if(mRotation == 90)
+            nConversionFlag = JPE_CONV_YUV422I_90ROT_YUV422I;
+        else if(mRotation == 270)
+            nConversionFlag = JPE_CONV_YUV422I_270ROT_YUV422I;
+        else{
+            eError = OMX_ErrorBadParameter;
+            PRINTF("Invalid rotation value of %d. Must be 0, 90, 180, or 270 \n", mRotation);
+            goto EXIT;
+        }
+    }
+    eError = OMX_GetExtensionIndex(pOMXHandle, strConversionFlag, (OMX_INDEXTYPE*)&nCustomIndex);
+    if ( eError != OMX_ErrorNone ) {
+        PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+        goto EXIT;
+    }
+    eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &nConversionFlag);
     if ( eError != OMX_ErrorNone ) {
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
         goto EXIT;
     }
 
-    eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &bPPLibEnable);
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
-        goto EXIT;
-    }
-*/
-
-    if( NULL != mexif_buf){
-        jpeg_marker.nThumbnailWidth = thumb_width;
-        jpeg_marker.nThumbnailHeight = thumb_height;
-        jpeg_marker.bMarkerEnabled = bAPP1;
-        jpeg_marker.nMarkerSize = mexif_buf->size + 4;
-        jpeg_marker.pMarkerBuffer = (OMX_U8 *) calloc (1, jpeg_marker.nMarkerSize); /* FIXME */
-        memcpy (jpeg_marker.pMarkerBuffer + 4, mexif_buf->data, mexif_buf->size);
-        PRINTF("%d::OMX_GetExtensionIndex \n", __LINE__);
-        eError = OMX_GetExtensionIndex(pOMXHandle, indexCustom, (OMX_INDEXTYPE*)&nCustomIndex);
-        if ( eError != OMX_ErrorNone ) {
-            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
-            goto EXIT;
-        }
-        PRINTF("%d::OMX_SetConfig \n", __LINE__);
-        eError = OMX_SetConfig(pOMXHandle, nCustomIndex, &jpeg_marker);
-        if ( eError != OMX_ErrorNone ) {
-            PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
-            goto EXIT;
-        }
-    	
-        free(jpeg_marker.pMarkerBuffer);
-    }
+    SetPPLibDynamicParams();
+    SetExifBuffer();
 
     eError = OMX_UseBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize, (OMX_U8*)mInputBuffer);
     if ( eError != OMX_ErrorNone ) {
@@ -451,7 +539,9 @@ EXIT:
 
 }
 
-bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, exif_buffer *exif_buf, int isPixelFmt420p, int th_width, int th_height)
+bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality,
+        exif_buffer *exif_buf, int isPixelFmt420p, int th_width, int th_height, int outWidth, int outHeight,
+        int rotation, float zoom, int crop_top, int crop_left, int crop_width, int crop_height)
 {
 
     bool ret = true;
@@ -482,13 +572,32 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
 #endif
 #if OPTIMIZE
     if (
-        (mWidth == width) &&
-        (mHeight == height) &&
+        (mOutWidth == outWidth) &&
+        (mOutHeight == outHeight) &&
+        (mInWidth == width) &&
+        (mInHeight == height) &&
         (mQuality == quality) &&
-        (iState == STATE_EMPTY_BUFFER_DONE_CALLED)
+        (iState == STATE_EMPTY_BUFFER_DONE_CALLED) &&
+        (mIsPixelFmt420p == isPixelFmt420p) &&
+        (thumb_width == th_width) &&
+        (thumb_height == th_height) &&
+        (mRotation == rotation) //TODO: could optimize by setting the rotation dynamically, but it complicates the code
     )
     {
         PRINTF("\nI am already in EXECUTE state and all input params are same as before.");
+
+        //update these parameters since they can updated dynamically
+        mInWidth = width;
+        mInHeight = height;
+        mZoom = zoom;
+        mCrop_top = crop_top;
+        mCrop_left = crop_left;
+        mCrop_width = crop_width;
+        mCrop_height = crop_height;
+        SetPPLibDynamicParams();
+
+        mexif_buf = exif_buf;
+        SetExifBuffer();
 
         iState = STATE_EXECUTING;
         pInBuffHead->pBuffer = (OMX_U8*)inputBuffer;
@@ -506,8 +615,8 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
         mOutBuffSize = outBuffSize;
         mInputBuffer = inputBuffer;
         mInBuffSize = inBuffSize;
-        mWidth = width;
-        mHeight = height;
+        mInWidth = width;
+        mInHeight = height;
         mQuality = quality;
 		mIsPixelFmt420p = isPixelFmt420p;
 		mexif_buf = exif_buf;
@@ -515,6 +624,14 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
         iState = STATE_LOADED;
         thumb_width = th_width;
         thumb_height = th_height;
+        mOutWidth = outWidth;
+        mOutHeight = outHeight;
+        mRotation = rotation;
+        mZoom = zoom;
+        mCrop_top = crop_top;
+        mCrop_left = crop_left;
+        mCrop_width = crop_width;
+        mCrop_height = crop_height;
     
         ret = StartFromLoadedState();
         if (ret == false)

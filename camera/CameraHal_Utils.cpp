@@ -469,9 +469,9 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 	}
 
     if( fmt == PIX_YUV420P)
-	    pIPP.ippconfig.numberOfAlgos = 2;
-	else
 	    pIPP.ippconfig.numberOfAlgos = 3;
+	else
+	    pIPP.ippconfig.numberOfAlgos = 4;
 
     pIPP.ippconfig.orderOfAlgos[0]=IPP_START_ID;
 
@@ -484,6 +484,8 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 	    else if(ippMode == IPP_EdgeEnhancement_Mode){
 		    pIPP.ippconfig.orderOfAlgos[2]=IPP_EENF_ID;
 	    }
+
+        pIPP.ippconfig.orderOfAlgos[3]=IPP_YUVC_422pTO422i_ID;
 	} else {
 	    if(ippMode == IPP_CromaSupression_Mode ){
 		    pIPP.ippconfig.orderOfAlgos[1]=IPP_CRCBS_ID;
@@ -491,10 +493,12 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 	    else if(ippMode == IPP_EdgeEnhancement_Mode){
 		    pIPP.ippconfig.orderOfAlgos[1]=IPP_EENF_ID;
 	    }
+
+        pIPP.ippconfig.orderOfAlgos[3]=IPP_YUVC_422pTO422i_ID;
 	}
 
-    pIPP.ippconfig.isINPLACE=INPLACE_ON;   
-	pIPP.outputBufferSize= (w*h*3)/2;	
+    pIPP.ippconfig.isINPLACE=INPLACE_ON;
+	pIPP.outputBufferSize= (w*h*2);
 
     LOGD("IPP_SetProcessingConfiguration");
     eError = IPP_SetProcessingConfiguration(pIPP.hIPP, pIPP.ippconfig);
@@ -523,13 +527,19 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 	}
     
     if ( fmt != PIX_YUV420P ) {
-        LOGD("IPP_SetAlgoConfig");
+        LOGD("IPP_SetAlgoConfig: IPP_YUVC_422TO420_CREATEPRMS_CFGID");
         eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_YUVC_422TO420_CREATEPRMS_CFGID, &(pIPP.YUVCcreate));
 	    if(eError != 0){
-		    LOGE("ERROR IPP_SetAlgoConfig");
+		    LOGE("ERROR IPP_SetAlgoConfig: IPP_YUVC_422TO420_CREATEPRMS_CFGID");
 	    }
 	}
-    
+
+    LOGD("IPP_SetAlgoConfig: IPP_YUVC_420TO422_CREATEPRMS_CFGID");
+    eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_YUVC_420TO422_CREATEPRMS_CFGID, &(pIPP.YUVCcreate));
+    if(eError != 0){
+        LOGE("ERROR IPP_SetAlgoConfig: IPP_YUVC_420TO422_CREATEPRMS_CFGID");
+    }
+
     LOGD("IPP_InitializeImagePipe");
     eError = IPP_InitializeImagePipe(pIPP.hIPP);
 	if(eError != 0){
@@ -681,8 +691,14 @@ int CameraHal::PopulateArgsIPP(int w, int h, int fmt, int ippMode)
         pIPP.iYuvcInArgs1->inputWidth = w;
     }
 
+    pIPP.iYuvcInArgs2->inputChromaFormat = IPP_YUV_420P;
+    pIPP.iYuvcInArgs2->outputChromaFormat = IPP_YUV_422ILE;
+    pIPP.iYuvcInArgs2->inputHeight = h;
+    pIPP.iYuvcInArgs2->inputWidth = w;
+
 	pIPP.iStarOutArgs->extendedError= 0;
 	pIPP.iYuvcOutArgs1->extendedError = 0;
+	pIPP.iYuvcOutArgs2->extendedError = 0;
 	if(ippMode == IPP_EdgeEnhancement_Mode)
 		pIPP.iEenfOutArgs->extendedError = 0;
 	if(ippMode == IPP_CromaSupression_Mode )
@@ -834,8 +850,8 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
 	}
 
     if ( fmt == PIX_YUV422I){
-	    pIPP.iInputArgs.numArgs = 3;
-	    pIPP.iOutputArgs.numArgs = 3;
+	    pIPP.iInputArgs.numArgs = 4;
+	    pIPP.iOutputArgs.numArgs = 4;
 
         pIPP.iInputArgs.argsArray[0] = pIPP.iStarInArgs;
         pIPP.iInputArgs.argsArray[1] = pIPP.iYuvcInArgs1;
@@ -845,6 +861,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
 	    if(ippMode == IPP_EdgeEnhancement_Mode){
 		    pIPP.iInputArgs.argsArray[2] = pIPP.iEenfInArgs;
 	    }
+        pIPP.iInputArgs.argsArray[3] = pIPP.iYuvcInArgs2;
 
         pIPP.iOutputArgs.argsArray[0] = pIPP.iStarOutArgs;
         pIPP.iOutputArgs.argsArray[1] = pIPP.iYuvcOutArgs1;
@@ -854,9 +871,10 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
         if(ippMode == IPP_EdgeEnhancement_Mode){
             pIPP.iOutputArgs.argsArray[2] = pIPP.iEenfOutArgs;
         }
+        pIPP.iOutputArgs.argsArray[3] = pIPP.iYuvcOutArgs2;
 	 } else {
-        pIPP.iInputArgs.numArgs = 2;
-        pIPP.iOutputArgs.numArgs = 2;
+        pIPP.iInputArgs.numArgs = 3;
+        pIPP.iOutputArgs.numArgs = 3;
 
         pIPP.iInputArgs.argsArray[0] = pIPP.iStarInArgs;
         if(ippMode == IPP_CromaSupression_Mode ){
@@ -865,6 +883,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
         if(ippMode == IPP_EdgeEnhancement_Mode){
             pIPP.iInputArgs.argsArray[1] = pIPP.iEenfInArgs;
         }
+        pIPP.iInputArgs.argsArray[2] = pIPP.iYuvcInArgs2;
 
         pIPP.iOutputArgs.argsArray[0] = pIPP.iStarOutArgs;
         if(ippMode == IPP_CromaSupression_Mode ){
@@ -873,6 +892,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
         if(ippMode == IPP_EdgeEnhancement_Mode){
             pIPP.iOutputArgs.argsArray[1] = pIPP.iEenfOutArgs;
         }
+        pIPP.iOutputArgs.argsArray[2] = pIPP.iYuvcOutArgs2;
     }
    
     LOGD("IPP_ProcessImage");

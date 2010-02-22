@@ -89,7 +89,9 @@ public:
 
     ~JpegEncoder();
     JpegEncoder();
-    bool encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, exif_buffer *exif_buf, int mIsPixelFmt420p, int thumb_width, int thumb_height);    
+    bool encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height,
+            int quality, exif_buffer *exif_buf, int mIsPixelFmt420p, int thumb_width, int thumb_height, int outWidth, int outHeight,
+            int rotation, float zoom, int crop_top, int crop_left, int crop_width, int crop_height);
     bool SetJpegEncodeParameters(JpegEncoderParams * jep) {memcpy(&jpegEncParams, jep, sizeof(JpegEncoderParams)); return true;}
     void Run();
     void PrintState();
@@ -113,10 +115,20 @@ private:
     int mOutBuffSize;
     void *mInputBuffer;
     int mInBuffSize;
-    int mWidth;
-    int mHeight;
+    int mInWidth;
+    int mInHeight;
     int mQuality;
 	int mIsPixelFmt420p;
+    int mOutWidth;
+    int mOutHeight;
+    int mRotation;
+    float mZoom;
+    int mCrop_top;
+    int mCrop_left;
+    int mCrop_width;
+    int mCrop_height;
+    OMX_ERRORTYPE SetPPLibDynamicParams(void);
+    OMX_ERRORTYPE SetExifBuffer(void);
 };
 
 OMX_ERRORTYPE OMX_JPEGE_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffHead);
