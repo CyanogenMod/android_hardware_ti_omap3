@@ -323,6 +323,18 @@ bool JpegEncoder::StartFromLoadedState()
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
     OMX_CALLBACKTYPE JPEGCallBack ={OMX_JPEGE_EventHandler, OMX_JPEGE_EmptyBufferDone, OMX_JPEGE_FillBufferDone};
 
+    if (pOMXHandle) { // we should not have more than one instance of JPEG encoder open
+
+        eError = TIOMX_Deinit();
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("\nError returned by TIOMX_Deinit()\n");
+        }
+        eError = TIOMX_FreeHandle(pOMXHandle);
+        if ( (eError != OMX_ErrorNone) )    {
+            PRINTF("\nError in Free Handle function\n");
+        }
+    }
+
     eError = TIOMX_Init();
     if ( eError != OMX_ErrorNone ) {
         PRINTF("\n%d :: Error returned by OMX_Init()\n",__LINE__);
