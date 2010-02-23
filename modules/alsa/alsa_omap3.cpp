@@ -451,27 +451,36 @@ void setDefaultControls(uint32_t devices, int mode)
 {
     ALSAControl control("hw:00");
 
-    // Zoom2 board doesn't have earpiece device
-    // speaker device is used instead
-    if (devices & (AudioSystem::DEVICE_OUT_SPEAKER |
-                   AudioSystem::DEVICE_OUT_EARPIECE)) {
-        control.set("HandsfreeR Switch", 1); // on
-        control.set("HandsfreeL Switch", 1); // on
-        control.set("HandsfreeR Mux", "AudioR2");
-        control.set("HandsfreeL Mux", "AudioL2");
-    } else {
-        control.set("HandsfreeR Switch", (unsigned int)0); // off
-        control.set("HandsfreeL Switch", (unsigned int)0); // off
-    }
+    /* check whether the devices is input or not */
+    /* for output devices */
+    if (devices & 0x0000FFFF){
+        if (devices & AudioSystem::DEVICE_OUT_EARPIECE) {
+            control.set("Earpiece Mixer AudioL2", 1); // on
+            control.set("HandsfreeR Mux", "AudioR1"); // # hack for zoom2. N.C.
+            control.set("HandsfreeL Mux", "AudioL1"); // # hack for zoom2. N.C.
+        } else {
+           control.set("Earpiece Mixer AudioL2", (unsigned int)0); // off
+        }
 
-    if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
-        control.set("HeadsetR Mixer AudioR2", 1); // on
-        control.set("HeadsetL Mixer AudioL2", 1); // on
-        control.set("HandsfreeR Mux", "AudioR2");
-        control.set("HandsfreeL Mux", "AudioL2");
-    } else {
-        control.set("HeadsetR Mixer AudioR2", (unsigned int)0); // off
-        control.set("HeadsetL Mixer AudioL2", (unsigned int)0); // off
+        if (devices & AudioSystem::DEVICE_OUT_SPEAKER) {
+            control.set("HandsfreeR Switch", 1); // on
+            control.set("HandsfreeL Switch", 1); // on
+            control.set("HandsfreeR Mux", "AudioR2");
+            control.set("HandsfreeL Mux", "AudioL2");
+        } else {
+            control.set("HandsfreeR Switch", (unsigned int)0); // off
+            control.set("HandsfreeL Switch", (unsigned int)0); // off
+        }
+
+        if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
+            control.set("HeadsetR Mixer AudioR2", 1); // on
+            control.set("HeadsetL Mixer AudioL2", 1); // on
+            control.set("HandsfreeR Mux", "AudioR2");
+            control.set("HandsfreeL Mux", "AudioL2");
+        } else {
+            control.set("HeadsetR Mixer AudioR2", (unsigned int)0); // off
+            control.set("HeadsetL Mixer AudioL2", (unsigned int)0); // off
+        }
     }
 
     /* for input devices */
