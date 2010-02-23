@@ -2755,7 +2755,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
         double gpsCoord;
 
-        gpsLocation = (gps_data *) malloc( sizeof(gps_data));
+        if( NULL != gpsLocation )
+            gpsLocation = (gps_data *) malloc( sizeof(gps_data));
         
         if( NULL != gpsLocation ) {
             LOGE("initializing gps_data structure");
