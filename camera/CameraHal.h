@@ -169,7 +169,7 @@ typedef struct OMX_IPP
 
 #define PROC_THREAD_PROCESS     0x5
 #define PROC_THREAD_EXIT        0x6
-#define PROC_THREAD_NUM_ARGS    26
+#define PROC_THREAD_NUM_ARGS    27
 #define SHUTTER_THREAD_CALL     0x1
 #define SHUTTER_THREAD_EXIT     0x2
 #define SHUTTER_THREAD_NUM_ARGS 3
@@ -240,15 +240,6 @@ typedef struct {
 	libiCaptureInterface lib;
 } libtest_obj;
 #endif
-
-typedef struct {
-    int longDeg, longMin, longSec;
-    int latDeg, latMin, latSec;
-    int altitude, altitudeRef;
-    char *longRef, *latRef;
-    char *mapdatum, *versionId;
-    unsigned long timestamp;
-} gps_data;
 
 class CameraHal : public CameraHardwareInterface {
 public:
@@ -442,6 +433,7 @@ public:
     mutable Mutex mLock;
     struct v4l2_crop mInitialCrop;
     gps_data *gpsLocation;
+    exif_params mExifParams;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
     int mPictureOffset, mJPEGOffset, mJPEGLength, mPictureLength;

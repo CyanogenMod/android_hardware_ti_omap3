@@ -8,11 +8,31 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define EXIF_CENTER     0x0
+#define EXIF_AVERAGE    0x1
+
+#define EXIF_WB_AUTO    0xA
+
+#define EXIF_ISO_AUTO   0x0
+#define EXIF_ISO_100    0x1
+#define EXIF_ISO_200    0x2
+#define EXIF_ISO_400    0x3
+
 typedef struct _exif_buffer
 {
   unsigned char *data;
   unsigned int size;
 } exif_buffer;
+
+typedef struct {
+    int width, height;
+    int rotation;
+    int metering_mode;
+    int iso;
+    int zoom;
+    int wb;
+    int exposure;
+} exif_params;
 
 typedef struct {
     int longDeg, longMin, longSec;
@@ -50,6 +70,6 @@ void exif_entry_set_slong (ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
 void exif_entry_set_srational (ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
     ExifSRational r);
 
-exif_buffer * get_exif_buffer(void *gpsLocation);
+exif_buffer * get_exif_buffer(void *exif_params, void *gpsLocation);
 
 #endif
