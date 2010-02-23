@@ -106,6 +106,12 @@ extern "C" {
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
 
+#define KEY_GPS_LATITUDE_REF    "gps-latitude-ref"
+#define KEY_GPS_LONGITUDE_REF   "gps-longitude-ref"
+#define KEY_GPS_ALTITUDE_REF    "gps-altitude-ref"
+#define KEY_GPS_VERSION         "gps-version"
+#define KEY_GPS_MAPDATUM        "gps-mapdatum"
+
 #define NONNEG_ASSIGN(x,y) \
     if(x > -1) \
         y = x
@@ -238,7 +244,9 @@ typedef struct {
 typedef struct {
     int longDeg, longMin, longSec;
     int latDeg, latMin, latSec;
-    int altitude;
+    int altitude, altitudeRef;
+    char *longRef, *latRef;
+    char *mapdatum, *versionId;
     unsigned long timestamp;
 } gps_data;
 
