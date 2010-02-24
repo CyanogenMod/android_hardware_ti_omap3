@@ -125,5 +125,12 @@ extern "C"
     {
         return TIOMXInterface::Instance();
     }
+
+    OSCL_EXPORT_REF void PVReleaseInterface(OsclSharedLibraryInterface* aInstance)
+    {
+        TIOMXInterface* instance = (TIOMXInterface*)aInstance;
+        if (instance)
+            OSCL_DELETE(instance);
+    }
 }
 
