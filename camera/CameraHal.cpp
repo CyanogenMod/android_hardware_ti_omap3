@@ -566,6 +566,10 @@ void CameraHal::previewThread()
                     }
                     
 #endif
+
+                    if ( CorrectPreview() < 0 )
+                        LOGE("Error during CorrectPreview()");
+
                     if (CameraStart() < 0){
                         LOGE("ERROR CameraStart()");
                         err = -1;
@@ -846,6 +850,10 @@ void CameraHal::previewThread()
                    LOGE("ERROR FW3A_SetSettings()");
 
 #endif
+
+               if ( CorrectPreview() < 0 )
+                   LOGE("Error during CorrectPreview()");
+
                if (CameraStart() < 0)
                    LOGE("ERROR CameraStart()");
 
@@ -1248,7 +1256,7 @@ void CameraHal::nextPreview()
         nCameraBuffersQueued--;
     }
 
-    //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, 640*480*2);
+    //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, mPreviewFrameSize);
 
     queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
     if (queue_to_dss_failed)
