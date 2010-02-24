@@ -1501,6 +1501,14 @@ int  CameraHal::ICapturePerform()
         PPM("SENDING MESSAGE TO PROCESSING THREAD");
 
 #endif
+        mExifParams.exposure = fobj->status_2a.ae.shutter_cap;
+        mExifParams.zoom = zoom_step[mZoomTargetIdx];
+        exif_buffer *exif_buf = get_exif_buffer(&mExifParams, gpsLocation);
+
+        if( NULL != gpsLocation ) {
+            free(gpsLocation);
+            gpsLocation = NULL;
+        }
 
         procMessage[0] = PROC_THREAD_PROCESS;
         procMessage[1] = iobj->proc.out_img_w;
@@ -1528,6 +1536,7 @@ int  CameraHal::ICapturePerform()
         procMessage[23] = iobj->proc.aspect_rect.left;
         procMessage[24] = iobj->proc.aspect_rect.width;
         procMessage[25] = iobj->proc.aspect_rect.height;
+        procMessage[26] = (unsigned int) exif_buf;
 
         write(procPipe[1], &procMessage, sizeof(procMessage));
 
@@ -1864,6 +1873,7 @@ void CameraHal::procThread()
     void *yuv_buffer, *outBuffer, *PictureCallbackCookie;
     bool switchBuffer = false;
     int thumb_width, thumb_height;
+    exif_buffer *exif_buf;
 
     sp<MemoryHeapBase> tmpHeap;
     unsigned int tmpLength, tmpOffset;
@@ -1945,6 +1955,7 @@ void CameraHal::procThread()
                 crop_left = procMessage[23];
                 crop_width = procMessage[24];
                 crop_height = procMessage[25];
+                exif_buf = (exif_buffer *) procMessage[26];
 
                 jpegSize = mJPEGLength;
                 JPEGPictureHeap = mJPEGPictureHeap;
@@ -2113,8 +2124,6 @@ void CameraHal::procThread()
                 PPM("BEFORE JPEG Encode Image");
 #endif
 
-                exif_buffer *exif_buf = get_exif_buffer(gpsLocation);
-
                 if( switchBuffer ) {
                     if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, tmpBuffer, tmpLength,
                                                  capture_width, capture_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height, image_width, image_height,
@@ -2163,10 +2172,7 @@ void CameraHal::procThread()
 
 #endif
                 exif_buf_free(exif_buf);
-                if( NULL != gpsLocation ) {
-                    free(gpsLocation);
-                    gpsLocation = NULL;
-                }
+
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
 
@@ -2718,6 +2724,9 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     }
     LOGD("Picture Size by App %d x %d", w, h);
 
+    mExifParams.width = w;
+    mExifParams.height = h;
+
     framerate = params.getPreviewFrameRate();
     LOGD("FRAMERATE %d", framerate);
 
@@ -2762,6 +2771,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mZoomTargetIdx = zoom_idx[0];
     }
     LOGD("Zoom by App %d", zoom);
+    mExifParams.zoom = zoom;
 
     if ( ( params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL )) {
 
@@ -2807,9 +2817,11 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             if (strcmp(params.get("meter-mode"), (const char *) "center") == 0) {
                     fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_SINGLE_CENTER;
                     fobj->settings_2a.ae.spot_weighting = EXPOSURE_SPOT_CENTER;
+                    mExifParams.metering_mode = EXIF_CENTER;
             } else if (strcmp(params.get("meter-mode"), (const char *) "average") == 0) {
                 fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_MULTI_AVERAGE;
                 fobj->settings_2a.ae.spot_weighting = EXPOSURE_SPOT_WIDE;
+                 mExifParams.metering_mode = EXIF_AVERAGE;
             }
         } 
 
@@ -2858,6 +2870,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) CameraParameters::WHITE_BALANCE_AUTO ) == 0) {
 
                 fobj->settings_2a.awb.mode = WHITE_BALANCE_MODE_WB_AUTO;
+                 mExifParams.wb = EXIF_WB_AUTO;
             } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) CameraParameters::WHITE_BALANCE_INCANDESCENT) == 0) {
 
                  fobj->settings_2a.awb.mode = WHITE_BALANCE_MODE_WB_INCANDESCENT;
@@ -2977,6 +2990,22 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 
         iso = mParameters.getInt("iso");
+
+        switch ( iso ) {
+            case EXPOSURE_ISO_AUTO:
+                mExifParams.iso = EXIF_ISO_AUTO;
+                break;
+            case EXPOSURE_ISO_100:
+                mExifParams.iso = EXIF_ISO_100;
+                break;
+            case EXPOSURE_ISO_200:
+                mExifParams.iso = EXIF_ISO_200;
+                break;
+            case EXPOSURE_ISO_400:
+                mExifParams.iso = EXIF_ISO_400;
+                break;
+        };
+
         mcapture_mode = mParameters.getInt("mode");        
         exposure = mParameters.getInt("exposure");
         compensation = mParameters.getInt("compensation");
@@ -3009,11 +3038,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             fobj->settings_2a.ae.compensation = compensation;
 
         fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_AUTO;
-        fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_MULTI_NORMAL;
 
         FW3A_SetSettings();
         LOGD("mcapture_mode = %d", mcapture_mode);
-        
+
+        mExifParams.rotation = rotation;
+
         if(mcaf != caf){
             mcaf = caf;
             Message msg;

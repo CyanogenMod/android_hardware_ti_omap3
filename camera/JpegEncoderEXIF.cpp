@@ -299,7 +299,7 @@ void exif_entry_set_gps_version(ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
     exif_entry_unref (pE);
 }
 
-exif_buffer *get_exif_buffer(void *gpsLocation)
+exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
 {
     ExifData *pEd;
     exif_buffer *sEb;
@@ -308,10 +308,76 @@ exif_buffer *get_exif_buffer(void *gpsLocation)
     struct tm *sTime;
     char *TimeStr;
     int res;
+    exif_params *par;
+
+    if ( NULL == params)
+        return NULL;
+
+    par = (exif_params *) params;
 
     sEb = (exif_buffer *) malloc (sizeof (exif_buffer));
 
     pEd = exif_data_new ();
+
+    exif_entry_set_string (pEd, EXIF_IFD_0, EXIF_TAG_MAKE, "Zoom");
+    exif_entry_set_string (pEd, EXIF_IFD_0, EXIF_TAG_MODEL, "SONY IU046");
+
+    exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_IMAGE_LENGTH, par->width);
+    exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_IMAGE_WIDTH, par->height);
+
+    switch( par->rotation ) {
+        case 0:
+            exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 1);
+            break;
+        case 90:
+            exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 8);
+            break;
+        case 180:
+            exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 3);
+            break;
+        case 270:
+            exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 6);
+            break;
+    };
+
+    exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_FLASH, 0);
+
+    switch( par->metering_mode ) {
+        case EXIF_CENTER:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_METERING_MODE, 2);
+            break;
+        case EXIF_AVERAGE:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_METERING_MODE, 1);
+            break;
+    };
+
+    switch( par->iso ) {
+        case EXIF_ISO_AUTO:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 0);
+            break;
+        case EXIF_ISO_100:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 100);
+            break;
+        case EXIF_ISO_200:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 200);
+            break;
+        case EXIF_ISO_400:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 400);
+            break;
+    };
+
+    sR.numerator = par->zoom;
+    sR.denominator = 1;
+    exif_entry_set_rational (pEd, EXIF_IFD_EXIF, EXIF_TAG_DIGITAL_ZOOM_RATIO, sR);
+
+    if ( EXIF_WB_AUTO == par->wb )
+        exif_entry_set_short (pEd, EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, 0);
+    else
+        exif_entry_set_short (pEd, EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, 1);
+
+    sR.numerator = par->exposure;
+    sR.denominator = 1000;
+    exif_entry_set_rational (pEd, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME, sR);
 
     /* resolution */
     sR.numerator = 72;
