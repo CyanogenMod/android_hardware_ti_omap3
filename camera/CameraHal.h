@@ -111,6 +111,7 @@ extern "C" {
 #define KEY_GPS_ALTITUDE_REF    "gps-altitude-ref"
 #define KEY_GPS_VERSION         "gps-version"
 #define KEY_GPS_MAPDATUM        "gps-mapdatum"
+#define KEY_SHUTTER_ENABLE      "shutter-enable"
 
 #define NONNEG_ASSIGN(x,y) \
     if(x > -1) \
@@ -435,6 +436,7 @@ public:
     struct v4l2_crop mInitialCrop;
     gps_data *gpsLocation;
     exif_params mExifParams;
+    bool mShutterEnable;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
     int mPictureOffset, mJPEGOffset, mJPEGLength, mPictureLength;

@@ -1066,7 +1066,7 @@ int CameraHal::ICapturePerform(){
 
     LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
 
-	if(mMsgEnabled & CAMERA_MSG_SHUTTER)
+	if( (mMsgEnabled & CAMERA_MSG_SHUTTER) && mShutterEnable)
 		mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
 
     mParameters.getPictureSize(&image_width, &image_height);

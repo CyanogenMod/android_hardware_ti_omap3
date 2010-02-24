@@ -114,6 +114,7 @@ CameraHal::CameraHal()
     mZoomCurrentIdx = 0;
     rotation = 0;
     gpsLocation = NULL;
+    mShutterEnable = true;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -1557,7 +1558,7 @@ int  CameraHal::ICapturePerform()
 
 #endif
 
-    if(mMsgEnabled & CAMERA_MSG_SHUTTER) {
+    if( (mMsgEnabled & CAMERA_MSG_SHUTTER) && (mShutterEnable) ) {
 
 #ifdef DEBUG_LOG
 
@@ -2815,6 +2816,13 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             LOGE("Not enough memory to allocate gps_data structure");
         }
 
+    }
+
+    if ( params.get(KEY_SHUTTER_ENABLE) != NULL ) {
+        if ( strcmp(params.get(KEY_SHUTTER_ENABLE), (const char *) "true") == 0 )
+            mShutterEnable = true;
+        else if ( strcmp(params.get(KEY_SHUTTER_ENABLE), (const char *) "false") == 0 )
+            mShutterEnable = false;
     }
 
 #ifdef FW3A
