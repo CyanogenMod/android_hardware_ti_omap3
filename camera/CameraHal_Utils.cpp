@@ -29,6 +29,16 @@
 #include "CameraHal.h"
 #include "zoom_step.inc"
 
+#define ASPECT_RATIO_FLAG_KEEP_ASPECT_RATIO     (1<<0)  // By default is enabled
+#define ASPECT_RATIO_FLAG_SHRINK_WHOLE_SRC      (1<<1)
+#define ASPECT_RATIO_FLAG_CROP_BY_PHYSICAL      (1<<2)
+#define ASPECT_RATIO_FLAG_CROP_BY_SOURCE        (1<<3)
+#define ASPECT_RATIO_FLAG_CROP_BY_DESTINATION   (1<<4)
+
+#define ASPECT_RATIO_FLAG_CROP_BY_ALL           (ASPECT_RATIO_FLAG_CROP_BY_PHYSICAL| \
+                                                ASPECT_RATIO_FLAG_CROP_BY_SOURCE| \
+                                                ASPECT_RATIO_FLAG_CROP_BY_DESTINATION)
+
 namespace android {
 
 #ifdef FW3A
@@ -919,6 +929,72 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
 
 #endif
 
+int CameraHal::CorrectPreview()
+{
+    int dst_width, dst_height;
+    struct v4l2_crop crop;
+    struct v4l2_cropcap cropcap;
+    int ret;
+    int pos_l, pos_t, pos_w, pos_h;
+
+#ifdef DEBUG_LOG
+
+    LOG_FUNCTION_NAME
+
+#endif
+
+    mParameters.getPreviewSize(&dst_width, &dst_height);
+
+    ret = ioctl(camera_device, VIDIOC_CROPCAP, &cropcap);
+    if ( ret < 0) {
+        LOGE("Error while retrieving crop capabilities");
+
+        return EINVAL;
+    }
+
+    if (aspect_ratio_calc(cropcap.bounds.width - 8, cropcap.bounds.height - 8,
+                         cropcap.pixelaspect.numerator, cropcap.pixelaspect.denominator,
+                         cropcap.bounds.width - 8, cropcap.bounds.height - 8,
+                         dst_width, dst_height,
+                         2, 2, 1, 1,
+                         (int *) &crop.c.left, (int *) &crop.c.top,
+                         (int *) &crop.c.width, (int *) &crop.c.height,
+                         &pos_l, &pos_t, &pos_w, &pos_h,
+                         ASPECT_RATIO_FLAG_KEEP_ASPECT_RATIO|ASPECT_RATIO_FLAG_CROP_BY_SOURCE)) {
+
+        LOGE("Error while calculating crop");
+
+        return -1;
+    }
+
+    ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
+    if (ret < 0) {
+      LOGE("[%s]: ERROR VIDIOC_S_CROP failed", strerror(errno));
+      return -1;
+    }
+
+    ret = ioctl(camera_device, VIDIOC_G_CROP, &crop);
+    if (ret < 0) {
+      LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
+      return -1;
+    }
+
+    mInitialCrop.c.top = crop.c.top;
+    mInitialCrop.c.left = crop.c.left;
+    mInitialCrop.c.width = crop.c.width;
+    mInitialCrop.c.height = crop.c.height;
+
+#ifdef DEBUG_LOG
+
+    LOGE("VIDIOC_G_CROP: top = %d, left = %d, width = %d, height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
+
+    LOG_FUNCTION_NAME_EXIT
+
+#endif
+
+    return NO_ERROR;
+}
+
 int CameraHal::ZoomPerform(float zoom)
 {
     struct v4l2_crop crop;
@@ -1244,7 +1320,7 @@ int CameraHal::ICapturePerform(){
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
 
-        exif_buffer *exif_buf = get_exif_buffer(gpsLocation);
+        exif_buffer *exif_buf = get_exif_buffer(&mExifParams, gpsLocation);
 
 		PPM("BEFORE JPEG Encode Image");
 		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);

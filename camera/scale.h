@@ -23,6 +23,15 @@
 #ifndef VPPSOCKET_TI_H
 #define VPPSOCKET_TI_H
 
+#define ASPECT_RATIO_FLAG_KEEP_ASPECT_RATIO     (1<<0)  // By default is enabled
+#define ASPECT_RATIO_FLAG_SHRINK_WHOLE_SRC      (1<<1)
+#define ASPECT_RATIO_FLAG_CROP_BY_PHYSICAL      (1<<2)
+#define ASPECT_RATIO_FLAG_CROP_BY_SOURCE        (1<<3)
+#define ASPECT_RATIO_FLAG_CROP_BY_DESTINATION   (1<<4)
+
+#define ASPECT_RATIO_FLAG_CROP_BY_ALL           (ASPECT_RATIO_FLAG_CROP_BY_PHYSICAL| \
+                                                ASPECT_RATIO_FLAG_CROP_BY_SOURCE| \
+                                                ASPECT_RATIO_FLAG_CROP_BY_DESTINATION)
 
 struct DSP_UUID VPPNODE_TI_UUID = {
     0xfbb1c6fc, 0x8d9d, 0x4ac3, 0x80, 0x3f, {

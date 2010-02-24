@@ -379,6 +379,7 @@ public:
     int FW3A_SetSettings();
 #endif
 
+    int CorrectPreview();
     int ZoomPerform(float zoom);
     void nextPreview();
     int ICapturePerform();
@@ -573,6 +574,20 @@ public:
 }; // namespace android
 
 extern "C" {
+
+    int aspect_ratio_calc(
+        unsigned int sens_width,  unsigned int sens_height,
+        unsigned int pix_width,   unsigned int pix_height,
+        unsigned int src_width,   unsigned int src_height,
+        unsigned int dst_width,   unsigned int dst_height,
+        unsigned int align_crop_width, unsigned int align_crop_height,
+        unsigned int align_pos_width,  unsigned int align_pos_height,
+        int *crop_src_left,  int *crop_src_top,
+        int *crop_src_width, int *crop_src_height,
+        int *pos_dst_left,   int *pos_dst_top,
+        int *pos_dst_width,  int *pos_dst_height,
+        unsigned int flags);
+
     int scale_init(int inWidth, int inHeight, int outWidth, int outHeight, int inFmt, int outFmt);
     int scale_deinit();
     int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, int outWidth, int outHeight, int rotation, int fmt, float zoom, int crop_top, int crop_left, int crop_width, int crop_height);
