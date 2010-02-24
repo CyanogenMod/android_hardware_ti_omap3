@@ -257,7 +257,6 @@ void exif_entry_set_gps_coord(ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
         printf ("ERROR: unallocated e->data Tag %d\n", eEtag);
     }
     exif_entry_fix (pE);
-    /* exif_entry_dump (pE, 2); */
     exif_entry_unref (pE);
 }
 
@@ -276,7 +275,27 @@ void exif_entry_set_gps_altitude(ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag
         printf ("ERROR: unallocated e->data Tag %d\n", eEtag);
     }
     exif_entry_fix (pE);
-    /* exif_entry_dump (pE, 2); */
+    exif_entry_unref (pE);
+}
+
+void exif_entry_set_gps_version(ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag, ExifByte r1, ExifByte r2, ExifByte r3, ExifByte r4)
+{
+    ExifEntry *pE;
+    ExifByteOrder eO;
+
+    pE = exif_entry_new ();
+    exif_content_add_entry (pEdata->ifd[eEifd], pE);
+    exif_entry_gps_initialize(pE, eEtag);
+    eO = exif_data_get_byte_order (pE->parent->parent);
+    if (pE->data) {
+        pE->data[0] = r1;
+        pE->data[1] = r2;
+        pE->data[2] = r3;
+        pE->data[3] = r4;
+    } else {
+        printf ("ERROR: unallocated e->data Tag %d\n", eEtag);
+    }
+    exif_entry_fix (pE);
     exif_entry_unref (pE);
 }
 
@@ -287,7 +306,7 @@ exif_buffer *get_exif_buffer(void *gpsLocation)
     ExifRational sR;
     struct timeval sTv;
     struct tm *sTime;
-   char *TimeStr;
+    char *TimeStr;
     int res;
 
     sEb = (exif_buffer *) malloc (sizeof (exif_buffer));
@@ -385,6 +404,28 @@ exif_buffer *get_exif_buffer(void *gpsLocation)
         r1.numerator = gps->altitude;
         exif_entry_set_gps_altitude(pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_ALTITUDE, r1);
 
+        sTime = localtime ((const time_t*) &gps->timestamp);
+        if ( NULL != sTime ) {
+            r1.numerator = sTime->tm_hour;
+            r2.numerator = sTime->tm_min;
+            r3.numerator = sTime->tm_sec;
+
+            exif_entry_set_gps_coord(pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_TIME_STAMP, r1, r2, r3);
+        }
+
+        exif_entry_set_byte(pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_ALTITUDE_REF, (ExifByte) gps->altitudeRef);
+
+        if( NULL != gps->latRef )
+            exif_entry_set_string (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_LATITUDE_REF, gps->latRef);
+
+        if( NULL != gps->longRef )
+            exif_entry_set_string (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_LONGITUDE_REF, gps->longRef);
+
+        if( NULL != gps->mapdatum )
+            exif_entry_set_string (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_MAP_DATUM, gps->mapdatum);
+
+        if( NULL != gps->versionId )
+            exif_entry_set_gps_version(pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_VERSION_ID, gps->versionId[0], gps->versionId[1], gps->versionId[2], gps->versionId[3]);
     }
 
     /* copy data to our buffer */

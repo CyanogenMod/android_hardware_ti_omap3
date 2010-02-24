@@ -207,6 +207,18 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_JPEG_QUALITY, 100);
 
     //Eclair extended parameters
+
+    p.set(CameraParameters::KEY_GPS_LATITUDE, "42.6976246");
+    p.set(CameraParameters::KEY_GPS_LONGITUDE, "23.3222924");
+    p.set(CameraParameters::KEY_GPS_ALTITUDE, "500");
+
+    p.set(KEY_GPS_LATITUDE_REF, "N");
+    p.set(KEY_GPS_LONGITUDE_REF, "E");
+    p.set(KEY_GPS_ALTITUDE_REF, "0");
+    p.set(KEY_GPS_VERSION, "2200");
+    p.set(KEY_GPS_MAPDATUM, "WGS-84");
+    p.set(CameraParameters::KEY_GPS_TIMESTAMP, "834720834");
+
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, CameraHal::supportedPictureSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
@@ -2755,11 +2767,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
         double gpsCoord;
 
-        if( NULL != gpsLocation )
+        if( NULL == gpsLocation )
             gpsLocation = (gps_data *) malloc( sizeof(gps_data));
         
         if( NULL != gpsLocation ) {
             LOGE("initializing gps_data structure");
+
+            memset(gpsLocation, 0, sizeof(gps_data));
+
             gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_LATITUDE), NULL);
             convertGPSCoord(gpsCoord, &gpsLocation->latDeg, &gpsLocation->latMin, &gpsLocation->latSec);
             
@@ -2768,6 +2783,15 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
             gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_ALTITUDE), NULL);
             gpsLocation->altitude = gpsCoord;
+
+            if ( NULL != params.get(CameraParameters::KEY_GPS_TIMESTAMP) )
+                gpsLocation->timestamp = strtol( params.get(CameraParameters::KEY_GPS_TIMESTAMP), NULL, 10);
+
+            gpsLocation->altitudeRef = params.getInt(KEY_GPS_ALTITUDE_REF);
+            gpsLocation->latRef = (char *) params.get(KEY_GPS_LATITUDE_REF);
+            gpsLocation->longRef = (char *) params.get(KEY_GPS_LONGITUDE_REF);
+            gpsLocation->mapdatum = (char *) params.get(KEY_GPS_MAPDATUM);
+            gpsLocation->versionId = (char *) params.get(KEY_GPS_VERSION);
 
         } else {
             LOGE("Not enough memory to allocate gps_data structure");

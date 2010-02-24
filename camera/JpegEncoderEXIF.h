@@ -17,7 +17,9 @@ typedef struct _exif_buffer
 typedef struct {
     int longDeg, longMin, longSec;
     int latDeg, latMin, latSec;
-    int altitude;
+    int altitude, altitudeRef;
+    char *longRef, *latRef;
+    char *mapdatum, *versionId;
     unsigned long timestamp;
 } gps_data;
 
