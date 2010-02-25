@@ -84,7 +84,7 @@
  *  located including the last delimiter
  */
 #if defined(ANDROID)
-  #define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER                                  ("/system/lib/firmware/")
+  #define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER                                  ("/system/etc/firmware/")
 #else
   #define MCP_HAL_CONFIG_FS_SCRIPT_FOLDER                                  ("/lib/firmware/")
 #endif
