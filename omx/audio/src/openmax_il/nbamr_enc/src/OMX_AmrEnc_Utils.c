@@ -964,12 +964,17 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
                 OMX_MALLOC_SIZE_DSPALIGN(pComponentPrivate->pAlgParamDTX, sizeof(NBAMRENC_TALGCtrlDTX),OMX_U8);
                 
                 pComponentPrivate->pAlgParam->iBitrate = pComponentPrivate->amrParams->eAMRBandMode;
+
+#ifdef NBAMR_DTX_VAD_MODE_SUPPORT_ENABLED
                 if (pComponentPrivate->amrParams->eAMRDTXMode == OMX_AUDIO_AMRDTXModeOnAuto) {
                     pComponentPrivate->pAlgParamDTX->iVADFlag = OMX_TRUE;
                 }
                 else {
                     pComponentPrivate->pAlgParamDTX->iVADFlag = OMX_FALSE;
                 }
+#else
+                pComponentPrivate->pAlgParamDTX->iVADFlag = OMX_FALSE;
+#endif
                 pComponentPrivate->pAlgParam->iSize = sizeof (NBAMRENC_TALGCtrl);
                 pComponentPrivate->pAlgParamDTX->iSize = sizeof (NBAMRENC_TALGCtrlDTX);
                 OMX_PRINT2(pComponentPrivate->dbg, "%d :: pAlgParam->iBitrate = %d\n",__LINE__,pComponentPrivate->pAlgParam->iBitrate);
