@@ -3569,6 +3569,7 @@ int set_fm_chip_enable(int enable)
 	if (ret < 0)
 	{
 		FMAPP_ERROR("Unable to open %s\n", enable_path);
+		free(enable_path);
 		return -1;
 	}
 	/* FIXME: why does this require a pulse, and
@@ -3586,6 +3587,7 @@ int set_fm_chip_enable(int enable)
 		buffer='1';
 		write(ret,&buffer,1);
 	}
+	free(enable_path);
 	close(ret);
 	/* end of change for Zoom2+pg-2.0 */
 	return ret;
