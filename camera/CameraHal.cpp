@@ -577,11 +577,13 @@ void CameraHal::previewThread()
                         err = -1;
                     }
 
+#ifdef FW3A
                     if ( mCAFafterPreview ) {
                         mCAFafterPreview = false;
                         if( FW3A_Start_CAF() < 0 )
                             LOGE("Error while starting CAF");
                     }
+#endif
 
                     if(!mfirstTime){
                         PPM("Standby to first shot");
