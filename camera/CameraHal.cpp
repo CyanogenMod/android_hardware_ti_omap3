@@ -32,6 +32,10 @@
 
 #include <math.h>
 
+#include <cutils/properties.h>
+#define UNLIKELY( exp ) (__builtin_expect( (exp) != 0, false ))
+static int mDebugFps = 0;
+
 #define RES_720P    1280
 
 namespace android {
@@ -190,6 +194,12 @@ CameraHal::CameraHal()
         FW3A_DefaultSettings();
     }
 #endif
+
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.image.showfps", value, "0");
+    mDebugFps = atoi(value);
+    LOGD_IF(mDebugFps, "showfps enabled");
+
 
 }
 
@@ -1204,6 +1214,23 @@ fail_streamoff:
     return -1;
 }
 
+static void debugShowFPS()
+{
+    static int mFrameCount = 0;
+    static int mLastFrameCount = 0;
+    static nsecs_t mLastFpsTime = 0;
+    static float mFps = 0;
+    mFrameCount++;
+    if (!(mFrameCount & 0x1F)) {
+        nsecs_t now = systemTime();
+        nsecs_t diff = now - mLastFpsTime;
+        mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        mLastFpsTime = now;
+        mLastFrameCount = mFrameCount;
+        LOGD("####### [%d] Frames, %f FPS", mFrameCount, mFps);
+    }
+ }
+
 void CameraHal::nextPreview()
 {
     struct v4l2_buffer cfilledbuffer;
@@ -1327,6 +1354,11 @@ void CameraHal::nextPreview()
     }
 
     mRecordingLock.unlock();
+
+
+    if (UNLIKELY(mDebugFps)) {
+        debugShowFPS();
+    }
 
 EXIT:
 
@@ -2570,24 +2602,6 @@ bool CameraHal::recordingEnabled()
     LOG_FUNCTION_NAME
     return (mRecordEnabled);
 }
-
-static void debugShowFPS()
-{
-    static int mFrameCount = 0;
-    static int mLastFrameCount = 0;
-    static nsecs_t mLastFpsTime = 0;
-    static float mFps = 0;
-    mFrameCount++;
-    if (!(mFrameCount & 0x1F)) {
-        nsecs_t now = systemTime();
-        nsecs_t diff = now - mLastFpsTime;
-        mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
-        mLastFpsTime = now;
-        mLastFrameCount = mFrameCount;
-        LOGD("####### [%d] Frames, %f FPS", mFrameCount, mFps);
-    }
- }
-
 void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 {
     int index;
