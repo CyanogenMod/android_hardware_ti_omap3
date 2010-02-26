@@ -115,6 +115,7 @@ CameraHal::CameraHal()
     rotation = 0;
     gpsLocation = NULL;
     mShutterEnable = true;
+    mCAFafterPreview = false;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -576,6 +577,12 @@ void CameraHal::previewThread()
                         err = -1;
                     }
 
+                    if ( mCAFafterPreview ) {
+                        mCAFafterPreview = false;
+                        if( FW3A_Start_CAF() < 0 )
+                            LOGE("Error while starting CAF");
+                    }
+
                     if(!mfirstTime){
                         PPM("Standby to first shot");
                         mfirstTime++;
@@ -715,8 +722,10 @@ void CameraHal::previewThread()
                 LOGD("Receive Command: PREVIEW_CAF_START");
                 err=0;
 
-                if( !mPreviewRunning )
-                    msg.command = PREVIEW_NACK;
+                if( !mPreviewRunning ) {
+                    msg.command = PREVIEW_ACK;
+                    mCAFafterPreview = true;
+                }
                 else
                 {
 #ifdef FW3A    

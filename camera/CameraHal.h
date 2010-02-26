@@ -437,6 +437,7 @@ public:
     gps_data *gpsLocation;
     exif_params mExifParams;
     bool mShutterEnable;
+    bool mCAFafterPreview;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
     int mPictureOffset, mJPEGOffset, mJPEGLength, mPictureLength;
