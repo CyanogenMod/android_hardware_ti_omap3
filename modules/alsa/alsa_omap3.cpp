@@ -21,6 +21,11 @@
 #include "AudioHardwareALSA.h"
 #include <media/AudioRecord.h>
 
+#ifdef AUDIO_MODEM_TI
+#include "audio_modem_interface.h"
+#include "alsa_omap3_modem.h"
+#endif
+
 #define BLUETOOTH_SCO_DEVICE "hw:0,1"
 #define FM_TRANSMIT_DEVICE "hw:0,2"
 
@@ -39,6 +44,10 @@ static status_t s_init(alsa_device_t *, ALSAHandleList &);
 static status_t s_open(alsa_handle_t *, uint32_t, int);
 static status_t s_close(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
+
+#ifdef AUDIO_MODEM_TI
+    AudioModemAlsa *audioModem;
+#endif
 
 static hw_module_methods_t s_module_methods = {
     open            : s_device_open
@@ -451,6 +460,9 @@ void setDefaultControls(uint32_t devices, int mode)
 {
     ALSAControl control("hw:00");
 
+#ifdef AUDIO_MODEM_TI
+    audioModem->voiceCallControls(devices, mode, &control);
+#endif
     /* check whether the devices is input or not */
     /* for output devices */
     if (devices & 0x0000FFFF){
@@ -529,6 +541,10 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 
         list.push_back(_defaults[i]);
     }
+
+#ifdef AUDIO_MODEM_TI
+    audioModem = new AudioModemAlsa();
+#endif
 
     return NO_ERROR;
 }
