@@ -137,8 +137,9 @@ CameraHal::CameraHal()
     CameraCreate();
 
     initDefaultParameters();
-
-    CameraConfigure();
+     
+    /* Avoiding duplicate call of cameraconfigure(). It is now called in previewstart() */     
+    //CameraConfigure();
 
     allocatePictureBuffer(PICTURE_WIDTH, PICTURE_HEIGHT);
 
