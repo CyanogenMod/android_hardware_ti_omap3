@@ -94,6 +94,8 @@ extern "C" {
 #define PICTURE_HEIGHT  2464 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
 #define PREVIEW_WIDTH 176
 #define PREVIEW_HEIGHT 144
+#define CAPTURE_8MP_WIDTH        3280
+#define CAPTURE_8MP_HEIGHT       2464
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
