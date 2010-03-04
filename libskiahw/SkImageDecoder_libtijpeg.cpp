@@ -114,9 +114,11 @@ OMX_ERRORTYPE OMX_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BU
 
 SkTIJPEGImageDecoder::~SkTIJPEGImageDecoder()
 {
-	sem_destroy(semaphore);
-    free(semaphore) ;
-    semaphore=NULL;
+    sem_destroy(semaphore);
+    if (semaphore != NULL) {
+        free(semaphore) ;
+        semaphore = NULL;
+    }
 }
 
 SkTIJPEGImageDecoder::SkTIJPEGImageDecoder()
