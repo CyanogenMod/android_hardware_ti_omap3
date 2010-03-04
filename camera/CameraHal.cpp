@@ -1239,6 +1239,7 @@ void CameraHal::nextPreview()
     int w, h, ret, queue_to_dss_failed;
     static int frame_count = 0;
     int zoom_inc, err;
+    struct timeval lowLightTime;
 
     overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
     int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
@@ -1274,7 +1275,14 @@ void CameraHal::nextPreview()
 #ifdef FW3A
 
     //Low light notification
-    if( ( frame_count % 10) == 0) {
+    if( ( 0 == fobj->settings_2a.ae.framerate ) && ( ( frame_count % 10) == 0 ) ) {
+
+#if PPM_INSTRUMENTATION && DEBUG_LOG
+
+        gettimeofday(&lowLightTime, NULL);
+
+#endif
+
         err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
         if (err == 0) {
             if (fobj->status_2a.ae.camera_shake == SHAKE_HIGH_RISK) {
@@ -1283,6 +1291,13 @@ void CameraHal::nextPreview()
                 mParameters.set("low-light", "0");
             }
          }
+
+#if PPM_INSTRUMENTATION && DEBUG_LOG
+
+        PPM("Low-light delay", &lowLightTime);
+
+#endif
+
     }
 
 #endif
