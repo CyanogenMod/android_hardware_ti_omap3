@@ -26,6 +26,9 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <sys/types.h>
+#ifdef ANDROID
+#include <private/android_filesystem_config.h>
+#endif
 
 #include "uim.h"
 
@@ -460,6 +463,47 @@ int remove_modules()
 	return 0;
 }
 
+int change_rfkill_perms(void)
+{
+#ifdef ANDROID
+	int fd, id, sz;
+	char path[64];
+	char buf[16];
+	for (id = 0; id < 50; id++) {
+		snprintf(path, sizeof(path), "/sys/class/rfkill/rfkill%d/type", id);
+		fd = open(path, O_RDONLY);
+		if (fd < 0) {
+			UIM_DBG("open(%s) failed: %s (%d)\n", path, strerror(errno), errno);
+			continue;
+		}
+		sz = read(fd, &buf, sizeof(buf));
+		close(fd);
+		if (sz >= 9 && memcmp(buf, "bluetooth", 9) == 0) {
+			UIM_DBG("found bluetooth rfkill entry @ %d\n", id);
+			break;
+		}
+	}
+	if (id == 50) {
+		return -1;
+	}
+	sprintf(path, "/sys/class/rfkill/rfkill%d/state", id);
+	sz = chown(path, AID_BLUETOOTH, AID_BLUETOOTH);
+	if (sz < 0) {
+		UIM_ERR("change owner failed for %s (%d)\n", path, errno);
+		return -1;
+	}
+	sz = chmod(path, 0660);
+	if (sz < 0) {
+		UIM_ERR("change mode failed for %s (%d)\n", path, errno);
+		return -1;
+	}
+	UIM_DBG("changed permissions for %s(%d) \n", path, sz);
+	/* end of change_perms */
+#endif
+	return 0;
+}
+
+
 /*****************************************************************************/
 int main(int argc, char *argv[])
 {
@@ -522,6 +566,11 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	UIM_DBG(" Inserted st_drv module");
+
+	if (change_rfkill_perms() < 0) {
+		/* possible error condition */
+		UIM_ERR("rfkill not enabled in st_drv - BT on from UI might fail\n");
+	}
 
 	if (insmod("/bt_drv.ko", "") < 0) {
 		UIM_ERR(" Error inserting bt_drv module");
