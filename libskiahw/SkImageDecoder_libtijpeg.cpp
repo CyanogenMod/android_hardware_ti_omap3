@@ -273,6 +273,10 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
 
         if ( got != itemlen-2 ) {
             PRINTF("Premature end of file?");
+            if ( Data != NULL ) {
+                free(Data);
+                Data=NULL;
+            }
             return 0;           
         }
 
