@@ -269,6 +269,10 @@ void CameraHal::initDefaultParameters()
     strncat((char*) tmpBuffer, (const char*) CameraParameters::EFFECT_WHITEBOARD,  PARAM_BUFFER);
     strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER);
     strncat((char*) tmpBuffer, (const char*) CameraParameters::EFFECT_BLACKBOARD, PARAM_BUFFER);
+    strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER);
+    strncat((char*) tmpBuffer, (const char*) EFFECT_COOL, PARAM_BUFFER);
+    strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER);
+    strncat((char*) tmpBuffer, (const char*) EFFECT_EMBOSS, PARAM_BUFFER);
     p.set(CameraParameters::KEY_SUPPORTED_EFFECTS, tmpBuffer);
     p.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_NONE);
 
@@ -518,7 +522,7 @@ void CameraHal::previewThread()
                     PPM("AF Completed in ",&focus_before);
 #endif
 				
-                    fobj->cam_iface_2a->ReadMakerNote(fobj->cam_iface_2a->pPrivateHandle, ancillary_buffer, (uint32 *) &ancillary_len);
+                    fobj->cam_iface_2a->ReadMakerNote(fobj->cam_iface_2a->pPrivateHandle, ancillary_buffer, (u_int32_t *) &ancillary_len);
                     if (FW3A_Stop_AF() < 0){
                         LOGE("ERROR FW3A_Stop_AF()");
                     }
@@ -1458,7 +1462,6 @@ int  CameraHal::ICapturePerform()
 #endif
 
     iobj->cfg.lsc_type      = LSC_UPSAMPLED_BY_SOFTWARE;
-    iobj->cfg.cam_dev       = camera_device;
     iobj->cfg.mknote        = ancillary_buffer;
     iobj->cfg.manual        = &manual_config;
     iobj->cfg.priv          = this;
@@ -3377,6 +3380,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_BLACKBOARD) == 0) {
 
                 fobj->settings_2a.general.effects = CONFIG_EFFECT_BLACKBOARD;
+
+            } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) EFFECT_COOL) == 0) {
+
+                fobj->settings_2a.general.effects = CONFIG_EFFECT_COOL;
+
+            } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) EFFECT_EMBOSS) == 0) {
+
+                fobj->settings_2a.general.effects = CONFIG_EFFECT_EMBOSS;
 
             }
         }

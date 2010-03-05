@@ -57,9 +57,8 @@
 #ifdef FW3A
 #include "osal/osal_stdtypes.h"
 #include "osal/osal_sysdep.h"
-#include "fw/icapture/linux/camera_2A/icapture_interface.h"
-#include "../modules/fw/include/mk_note/maker_note_mms_priv.h"
-#include "fw/vfinder/linux/camera_2A/camera_alg.h"
+#include "fw/api/linux/camera_2A/camera_alg.h"
+#include "fw/api/linux/camera_2A/icapture_interface.h"
 #endif
 
 #ifdef HARDWARE_OMX
@@ -114,6 +113,8 @@ extern "C" {
 #define KEY_GPS_VERSION         "gps-version"
 #define KEY_GPS_MAPDATUM        "gps-mapdatum"
 #define KEY_SHUTTER_ENABLE      "shutter-enable"
+#define EFFECT_COOL             "cool"
+#define EFFECT_EMBOSS           "emboss"
 
 #define NONNEG_ASSIGN(x,y) \
     if(x > -1) \
