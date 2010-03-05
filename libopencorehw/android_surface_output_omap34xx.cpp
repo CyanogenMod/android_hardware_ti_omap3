@@ -71,11 +71,6 @@ OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     mIsFirstFrame = true;
     mbufferAlloc.buffer_address = NULL;
     mConvert = false;
-
-    // Holding more than one video frames can sometimes starve the
-    // overlay-based decoder video sink; thus we overwrite the
-    // default value in the base class.
-    mNumberOfFramesToHold = 1;
 }
 
 OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
