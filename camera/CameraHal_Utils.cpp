@@ -496,6 +496,7 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 	    }
 
         pIPP.ippconfig.orderOfAlgos[3]=IPP_YUVC_422pTO422i_ID;
+        pIPP.ippconfig.isINPLACE=INPLACE_ON;
 	} else {
 	    if(ippMode == IPP_CromaSupression_Mode ){
 		    pIPP.ippconfig.orderOfAlgos[1]=IPP_CRCBS_ID;
@@ -504,11 +505,11 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 		    pIPP.ippconfig.orderOfAlgos[1]=IPP_EENF_ID;
 	    }
 
-        pIPP.ippconfig.orderOfAlgos[3]=IPP_YUVC_422pTO422i_ID;
+        pIPP.ippconfig.orderOfAlgos[2]=IPP_YUVC_422pTO422i_ID;
+        pIPP.ippconfig.isINPLACE=INPLACE_OFF;
 	}
 
-    pIPP.ippconfig.isINPLACE=INPLACE_ON;
-	pIPP.outputBufferSize= (w*h*2);
+	pIPP.outputBufferSize = (w*h*2);
 
     LOGD("IPP_SetProcessingConfiguration");
     eError = IPP_SetProcessingConfiguration(pIPP.hIPP, pIPP.ippconfig);
@@ -581,7 +582,7 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 	}
 
 	if( !(pIPP.ippconfig.isINPLACE) ){
-		pIPP.pIppOutputBuffer= (unsigned char*)malloc(pIPP.outputBufferSize + BUFF_MAP_PADDING_TEST) + PADDING_OFFSET_TEST ; // TODO make it dependent on the output format
+		pIPP.pIppOutputBuffer= (unsigned char*)memalign(DSP_CACHE_ALIGNMENT, pIPP.outputBufferSize + BUFF_MAP_PADDING_TEST) ; // TODO make it dependent on the output format
 	}
     
     return eError;
@@ -638,7 +639,7 @@ int CameraHal::DeInitIPP(int ippMode)
 	}
 
 	if(!(pIPP.ippconfig.isINPLACE)){
-		free(pIPP.pIppOutputBuffer - PADDING_OFFSET_TEST);
+		free(pIPP.pIppOutputBuffer);
 	}
 
     LOGD("Terminating IPP");
@@ -842,7 +843,6 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
 			LOGE("ERROR IPP_SetAlgoConfig");
 		}
 	}
-
     pIPP.iInputBufferDesc.numBuffers = 1;
     pIPP.iInputBufferDesc.bufPtr[0] = pBuffer;
     pIPP.iInputBufferDesc.bufSize[0] = nAllocLen;

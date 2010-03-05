@@ -82,8 +82,10 @@ extern "C" {
 #endif
 
 #define BUFF_MAP_PADDING_TEST 256*2
+#define DSP_CACHE_ALIGNMENT 128
 #define PADDING_OFFSET_TEST 256
 #define MAXIPPDynamicParams 10
+
 #endif
 
 #define VIDEO_DEVICE        "/dev/video5"

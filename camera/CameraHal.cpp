@@ -2345,9 +2345,11 @@ void CameraHal::procThread()
     data_callback RawPictureCallback;
     data_callback JpegPictureCallback;
     void *yuv_buffer, *outBuffer, *PictureCallbackCookie;
-    bool switchBuffer = false;
     int thumb_width, thumb_height;
     exif_buffer *exif_buf;
+
+    void* input_buffer;
+    unsigned int input_length;
 
     sp<MemoryHeapBase> tmpHeap;
     unsigned int tmpLength, tmpOffset;
@@ -2439,6 +2441,8 @@ void CameraHal::procThread()
                 thumb_height = THUMB_HEIGHT;
                 pixelFormat = PIX_YUV422I;
 
+                input_buffer = yuv_buffer;
+                input_length = yuv_len;
                 // only use VPP if image rotation is 180, for all else we can use a combination of PPLIB and conversion in JPEG Enc
                 // TODO: is there a way to achieve 180 degree rotation without VGPOP??
                 if(image_rotation == 180)
@@ -2446,12 +2450,11 @@ void CameraHal::procThread()
 #ifdef DEBUG_LOG
                     LOGI("Process VPP ( %d x %d -> %d x %d ) - rotation = %d, zoom = %5.2f, crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d starting", capture_width, capture_height, (int) image_width, (int) image_height, image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height);
 #endif
-                    if ( 0 != image_rotation ) //VPP rotation is only supported when the output pixeformat 420P
-                        pixelFormat = PIX_YUV420P;
+                    pixelFormat = PIX_YUV420P;
 
                     scale_init(capture_width, capture_height, image_width, image_height, PIX_YUV422I, pixelFormat);
 
-                    err = scale_process(yuv_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom, crop_top, crop_left, crop_width, crop_height);
+                    err = scale_process(input_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom, crop_top, crop_left, crop_width, crop_height);
 
 #ifdef DEBUG_LOG
                     if( err) {
@@ -2461,23 +2464,18 @@ void CameraHal::procThread()
                     }
 #endif
 
-                    switchBuffer = true;
+                    input_buffer = tmpBuffer;
+                    input_length = image_width * image_height * 3 / 2;
 
-                    if( pixelFormat == PIX_YUV420P)
-                        tmpLength = image_width * image_height * 3 / 2;
-                    else
-                        tmpLength = image_width * image_height * 2;
-
-                    if( (rotation == 90) || (rotation == 270) ) {
-                        int tmp = image_width;
-                        image_width = image_height;
-                        image_height = tmp;
-                        tmp = thumb_width;
-                        thumb_width = thumb_height;
-                        thumb_height = tmp;
-                    }
+                     // since cropping, zoom, and scaling are already done:
                     capture_width = image_width;
                     capture_height = image_height;
+                    crop_top = 0;
+                    crop_left = 0;
+                    crop_width = image_width;
+                    crop_height = image_height;
+                    image_zoom = 1.0;
+
                     scale_deinit();
                 }
 
@@ -2525,64 +2523,38 @@ void CameraHal::procThread()
                      LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
 #endif
                     // TODO: Need to add support for new EENF 1.9 parameters from proc messages
-                    if( switchBuffer) {
-                        err = ProcessBufferIPP(tmpBuffer, tmpLength,
-                                pixelFormat,
-                                ippMode,
-                                ipp_ee_q,
-                                ipp_ew_ts,
-                                ipp_es_ts,
-                                ipp_luma_nf,
-                                ipp_luma_nf,
-                                ipp_luma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                                -1);
-                    } else {
-                         err = ProcessBufferIPP(yuv_buffer, yuv_len,
-                                pixelFormat,
-                                ippMode,
-                                ipp_ee_q,
-                                ipp_ew_ts,
-                                ipp_es_ts,
-                                ipp_luma_nf,
-                                ipp_luma_nf,
-                                ipp_luma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                ipp_chroma_nf,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                                -1,
-                                -1);
-                    }
+                     err = ProcessBufferIPP(input_buffer, input_length,
+                            pixelFormat,
+                            ippMode,
+                            ipp_ee_q,
+                            ipp_ew_ts,
+                            ipp_es_ts,
+                            ipp_luma_nf,
+                            ipp_luma_nf,
+                            ipp_luma_nf,
+                            ipp_chroma_nf,
+                            ipp_chroma_nf,
+                            ipp_chroma_nf,
+                            ipp_chroma_nf,
+                            ipp_chroma_nf,
+                            ipp_chroma_nf,
+                            -1,
+                            -1,
+                            -1,
+                            -1,
+                            -1,
+                            -1,
+                            -1,
+                            -1);
                     if( err )
                          LOGE("ERROR ProcessBufferIPP() failed");
 
 #ifdef DEBUG_LOG
                     PPM("AFTER IPP Process Buffer");
 #endif
-
                     if(!(pIPP.ippconfig.isINPLACE)){
-                        yuv_buffer = pIPP.pIppOutputBuffer;
+                        input_buffer = pIPP.pIppOutputBuffer;
+                        input_length = pIPP.outputBufferSize;
                     }
                }
 #endif
@@ -2591,29 +2563,18 @@ void CameraHal::procThread()
                 err = 0;
 
 #ifdef DEBUG_LOG
-                LOGD(" outbuffer = %p, jpegSize = %d, yuv_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, tmpBuffer/*yuv_buffer*/, mJPEGLength/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
+                LOGD(" outbuffer = %p, jpegSize = %d, input_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, input_buffer/*yuv_buffer*/, input_length/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
 #endif
 
 #if PPM_INSTRUMENTATION
                 PPM("BEFORE JPEG Encode Image");
 #endif
-
-                if( switchBuffer ) {
-                    if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, tmpBuffer, tmpLength,
-                                                 capture_width, capture_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height, image_width, image_height,
-                                                 image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height)))
-                    {
-                        err = -1;
-                        LOGE("JPEG Encoding failed");
-                    }
-                } else {
-                    if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
-                                                 capture_width, capture_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height, image_width, image_height,
-                                                 image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height)))
-                    {
-                        err = -1;
-                        LOGE("JPEG Encoding failed");
-                    }
+                if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, input_buffer, input_length,
+                                             capture_width, capture_height, jpegQuality, exif_buf, pixelFormat, thumb_width, thumb_height, image_width, image_height,
+                                             image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height)))
+                {
+                    err = -1;
+                    LOGE("JPEG Encoding failed");
                 }
 #if PPM_INSTRUMENTATION
                 PPM("AFTER JPEG Encode Image");
@@ -2649,8 +2610,6 @@ void CameraHal::procThread()
 
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
-
-                switchBuffer = false;
 
 #ifdef OPP_OPTIMIZATION
 
@@ -3136,7 +3095,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     LOG_FUNCTION_NAME
 
     int w, h;
-    int w_orig, h_orig;
+    int w_orig, h_orig, rot_orig;
     int framerate;
     int iso, af, mode, zoom, wb, exposure, scene;
     int effects, compensation, saturation, sharpness;
@@ -3186,13 +3145,18 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     framerate = params.getPreviewFrameRate();
     LOGD("FRAMERATE %d", framerate);
 
+    rot_orig = rotation;
+    rotation = params.getInt("picture-rotation");
+
     mParameters.getPictureSize(&w_orig, &h_orig);
 
     mParameters = params;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
-    if((mippMode != mParameters.getInt("ippMode")) || (w != w_orig) || (h != h_orig) )
+    if((mippMode != mParameters.getInt("ippMode")) || (w != w_orig) || (h != h_orig) ||
+            ((rot_orig != 180) && (rotation == 180)) ||
+            ((rot_orig == 180) && (rotation != 180))) // in the current setup, IPP uses a different setup when rotation is 180 degrees
     {
         if(pIPP.hIPP != NULL){
             LOGD("pIPP.hIPP=%p", pIPP.hIPP);
@@ -3485,7 +3449,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         contrast = mParameters.getInt("contrast");
         brightness = mParameters.getInt("brightness");
         caf = mParameters.getInt("caf");
-        rotation = mParameters.getInt("picture-rotation");
 
         if(contrast != -1)
             fobj->settings_2a.general.contrast = contrast;
