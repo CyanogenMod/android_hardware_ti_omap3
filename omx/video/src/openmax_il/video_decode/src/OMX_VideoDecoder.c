@@ -635,6 +635,7 @@ static OMX_ERRORTYPE VIDDEC_SendCommand (OMX_HANDLETYPE hComponent,
 
     switch (Cmd) {
         case OMX_CommandStateSet:
+            LOGD("VIDDEC_SendCommand: Received request from omx client to change state to %d", nParam1);
             /* Add a pending transition */
             if(AddStateTransition(pComponentPrivate) != OMX_ErrorNone) {
                 return OMX_ErrorUndefined;

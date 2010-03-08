@@ -2385,7 +2385,7 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
 
     switch (nParam1) {
         case OMX_StateIdle:
-        OMX_PRSTATE2(pComponentPrivate->dbg, "Transitioning to OMX_StateIdle C 0x%x N 0x%lx\n",pComponentPrivate->eState, nParam1);
+        LOGD("Handle request for state transition: %d => OMX_StateIdle", pComponentPrivate->eState);
         if (pComponentPrivate->eState == OMX_StateIdle) {
             eError = OMX_ErrorSameState;
             OMX_PRSTATE4(pComponentPrivate->dbg, "Same State 0x%x\n", eError);
@@ -2731,7 +2731,7 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
                                                        OMX_CommandStateSet,
                                                        pComponentPrivate->eState,
                                                        NULL);
-               OMX_PRSTATE2(pComponentPrivate->dbg, "Transition to OMX_StateIdle\n");
+               LOGD("OMX_StateIdle state reached");
                break;
             }
             else if (pComponentPrivate->eState == OMX_StateExecuting || pComponentPrivate->eState == OMX_StatePause) {
@@ -2814,6 +2814,7 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
                                                        OMX_CommandStateSet,
                                                        pComponentPrivate->eState,
                                                        NULL);
+                LOGD("OMX_StateIdle state reached");
                 eError = OMX_ErrorNone;
                 pComponentPrivate->bTransPause = 0;
                 pComponentPrivate->bIsPaused = 0;
