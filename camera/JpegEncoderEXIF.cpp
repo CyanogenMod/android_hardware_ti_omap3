@@ -330,13 +330,13 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
             exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 1);
             break;
         case 90:
-            exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 8);
+            exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 6);
             break;
         case 180:
             exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 3);
             break;
         case 270:
-            exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 6);
+            exif_entry_set_short(pEd, EXIF_IFD_0, EXIF_TAG_ORIENTATION, 8);
             break;
     };
 
