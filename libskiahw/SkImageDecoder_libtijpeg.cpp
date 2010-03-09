@@ -34,7 +34,7 @@
 
 #include "SkImageDecoder_libtijpeg.h"
 
-#define USE_OMX_UseBuffer 1
+//#define USE_OMX_UseBuffer 1
 #define PRINTF SkDebugf
 //#define PRINTF printf
 #define TIME_DECODE
