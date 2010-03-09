@@ -784,6 +784,7 @@ while(1){
         case STATE_EMPTY_BUFFER_DONE_CALLED:
 #if OPTIMIZE        
             // do nothing
+            sem_post(semaphore) ;
 #else
             eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
             if ( eError != OMX_ErrorNone ) {
@@ -812,6 +813,7 @@ while(1){
             }
 
             iState = STATE_EXIT;
+            sem_post(semaphore) ;
 
             break;
 
@@ -819,7 +821,6 @@ while(1){
             break;
     }
 
-    if (iState == STATE_ERROR) sem_post(semaphore) ;
     if (iState == STATE_EXIT) break;
 #if OPTIMIZE
     if (iState == STATE_EMPTY_BUFFER_DONE_CALLED) break ;    
