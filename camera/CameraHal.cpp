@@ -318,6 +318,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
     //
+    p.set(KEY_ROTATION_TYPE, ROTATION_PHYSICAL);
 
     if (setParameters(p) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
@@ -3512,7 +3513,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         FW3A_SetSettings();
         LOGD("mcapture_mode = %d", mcapture_mode);
 
-        mExifParams.rotation = rotation;
+        if(mParameters.getInt(KEY_ROTATION_TYPE) == ROTATION_EXIF) {
+            mExifParams.rotation = rotation;
+            rotation = 0; // reset rotation so encoder doesn't not perform any rotation
+        } else {
+            mExifParams.rotation = -1;
+        }
 
         if(mcaf != caf){
             mcaf = caf;
