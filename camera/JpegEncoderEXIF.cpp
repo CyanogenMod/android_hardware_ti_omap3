@@ -306,7 +306,7 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
     ExifRational sR;
     struct timeval sTv;
     struct tm *sTime;
-    char *TimeStr;
+    char *TimeStr = NULL;
     int res;
     exif_params *par;
 
@@ -421,8 +421,9 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
     sTime = localtime (&sTv.tv_sec);
     if (res == 0 && sTime != NULL) {
         TimeStr = (char *) malloc(20);/* No data for secondary sensor */
-    
-        snprintf(TimeStr, 20, "%04d:%02d:%02d %02d:%02d:%02d",
+
+        if (TimeStr != NULL) {
+            snprintf(TimeStr, 20, "%04d:%02d:%02d %02d:%02d:%02d",
                  sTime->tm_year + 1900,
                  sTime->tm_mon + 1,
                  sTime->tm_mday,
@@ -430,14 +431,18 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
                  sTime->tm_min,
                  sTime->tm_sec
                 );
-        exif_entry_set_string (pEd, EXIF_IFD_0, EXIF_TAG_DATE_TIME, TimeStr);
-        exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_ORIGINAL, TimeStr);
-        exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_DIGITIZED, TimeStr);
-        snprintf(TimeStr, 20, "%06d", (int) sTv.tv_usec);
-        exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME, TimeStr);
-        exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME_ORIGINAL, TimeStr);
-        exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME_DIGITIZED, TimeStr);
-        free (TimeStr);
+            exif_entry_set_string (pEd, EXIF_IFD_0, EXIF_TAG_DATE_TIME, TimeStr);
+            exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_ORIGINAL, TimeStr);
+            exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_DIGITIZED, TimeStr);
+            snprintf(TimeStr, 20, "%06d", (int) sTv.tv_usec);
+            exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME, TimeStr);
+            exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME_ORIGINAL, TimeStr);
+            exif_entry_set_string (pEd, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME_DIGITIZED, TimeStr);
+            free (TimeStr);
+            TimeStr = NULL;
+        } else {
+            printf ("%s():%d:!!!!!ERROR:  malloc Failed.\n",__FUNCTION__,__LINE__);
+        }
     } else {
         printf ("Error in time recognition. res: %d sTime: %p\n%s\n", res, sTime, strerror(errno));
     }
