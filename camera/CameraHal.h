@@ -115,6 +115,9 @@ extern "C" {
 #define KEY_SHUTTER_ENABLE      "shutter-enable"
 #define EFFECT_COOL             "cool"
 #define EFFECT_EMBOSS           "emboss"
+#define KEY_ROTATION_TYPE       "rotation-type"
+#define ROTATION_PHYSICAL       0
+#define ROTATION_EXIF           1
 
 #define NONNEG_ASSIGN(x,y) \
     if(x > -1) \
