@@ -197,6 +197,8 @@ OMX_ERRORTYPE JpegEncoder::SetExifBuffer()
     OMX_BOOL bAPP1 = OMX_TRUE;
     char indexCustom[] = "OMX.TI.JPEG.encoder.Config.APP1";
 
+    jpeg_marker.pMarkerBuffer = NULL;
+
     //TODO: OMX JPEG ENC doesn't current support a way to reset the APP1 marker if no longer needed
     if( pOMXHandle != NULL && mexif_buf != NULL){
         jpeg_marker.nThumbnailWidth = thumb_width;
@@ -217,9 +219,12 @@ OMX_ERRORTYPE JpegEncoder::SetExifBuffer()
             PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
             goto EXIT;
         }
-        free(jpeg_marker.pMarkerBuffer);
     }
 EXIT:
+    if (jpeg_marker.pMarkerBuffer != NULL) {
+        free(jpeg_marker.pMarkerBuffer);
+        jpeg_marker.pMarkerBuffer = NULL;
+    }
     return eError;
 }
 OMX_ERRORTYPE JpegEncoder::SetPPLibDynamicParams()
