@@ -1000,6 +1000,7 @@ while(1){
             }
 
             iState = STATE_EXIT;
+            sem_post(semaphore);
 
             break;
 
@@ -1007,7 +1008,6 @@ while(1){
             break;
     }
 
-    if (iState == STATE_ERROR) sem_post(semaphore) ;
     if (iState == STATE_EXIT) break;
     }
 }
