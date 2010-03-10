@@ -140,6 +140,7 @@ typedef struct OMX_IPP
     IPP_Handle hIPP;
     IPP_ConfigurationTypes ippconfig;
     IPP_CRCBSAlgoCreateParams CRCBptr;
+    IPP_EENFAlgoCreateParams EENFcreate;
     IPP_YUVCAlgoCreateParams YUVCcreate;
     void* dynStar;
     void* dynCRCB;

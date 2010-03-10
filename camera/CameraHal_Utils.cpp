@@ -516,27 +516,38 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 	if(eError != 0){
 		LOGE("ERROR IPP_SetProcessingConfiguration");
 	}	
-    
+
 	if(ippMode == IPP_CromaSupression_Mode ){
 		pIPP.CRCBptr.size = sizeof(IPP_CRCBSAlgoCreateParams);
 		pIPP.CRCBptr.maxWidth = w;
 		pIPP.CRCBptr.maxHeight = h;
 		pIPP.CRCBptr.errorCode = 0;
+
+		LOGD("IPP_SetAlgoConfig CRBS");
+		eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_CRCBS_CREATEPRMS_CFGID, &(pIPP.CRCBptr));
+		if(eError != 0){
+			LOGE("ERROR IPP_SetAlgoConfig");
+		}
+	}else if(ippMode == IPP_EdgeEnhancement_Mode ){
+		pIPP.EENFcreate.size = sizeof(IPP_EENFAlgoCreateParams);
+		pIPP.EENFcreate.maxImageSizeH = w;
+		pIPP.EENFcreate.maxImageSizeV = h;
+		pIPP.EENFcreate.errorCode = 0;
+		pIPP.EENFcreate.inPlace = 0;
+		pIPP.EENFcreate.inputBufferSizeForInPlace = 0;
+
+		LOGD("IPP_SetAlgoConfig EENF");
+		eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_EENF_CREATEPRMS_CFGID, &(pIPP.EENFcreate));
+		if(eError != 0){
+			LOGE("ERROR IPP_SetAlgoConfig");
+		}
 	}
-  
+
     pIPP.YUVCcreate.size = sizeof(IPP_YUVCAlgoCreateParams);
     pIPP.YUVCcreate.maxWidth = w;
     pIPP.YUVCcreate.maxHeight = h;
     pIPP.YUVCcreate.errorCode = 0;
 
-	if(ippMode == IPP_CromaSupression_Mode ){
-	    LOGD("IPP_SetAlgoConfig");
-	    eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_CRCBS_CREATEPRMS_CFGID, &(pIPP.CRCBptr));
-		if(eError != 0){
-			LOGE("ERROR IPP_SetAlgoConfig");
-		}	
-	}
-    
     if ( fmt != PIX_YUV420P ) {
         LOGD("IPP_SetAlgoConfig: IPP_YUVC_422TO420_CREATEPRMS_CFGID");
         eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_YUVC_422TO420_CREATEPRMS_CFGID, &(pIPP.YUVCcreate));
