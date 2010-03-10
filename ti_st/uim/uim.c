@@ -13,7 +13,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program;if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <stdio.h>
 #include <errno.h>
@@ -41,6 +41,7 @@ int cust_baud_rate;
 char uart_dev_name[15];
 unsigned int uart_baud_rate;
 struct termios ti;
+int line_discipline;
 
 /* File descriptor for the UART device*/
 int dev_fd;
@@ -183,7 +184,7 @@ int read_hci_event(int fd, unsigned char *buf, int size)
 
 /* Function to read the Command complete event
  *
- * This will read the response for the change speed 
+ * This will read the response for the change speed
  * command that was sent to configure the UART speed
  * with the custom baud rate
  */
@@ -233,10 +234,10 @@ static int read_command_complete(int fd, unsigned short opcode)
 	return resp.status == 0 ? 0 : -1;
 }
 
-/* Function to set the default baud rate 
- * 
- * The default baud rate of 115200 is set to the UART from the host side 
- * by making a call to this function.This function is also called before 
+/* Function to set the default baud rate
+ *
+ * The default baud rate of 115200 is set to the UART from the host side
+ * by making a call to this function.This function is also called before
  * making a call to set the custom baud rate
  */
 static int set_baud_rate()
@@ -274,7 +275,7 @@ static int set_baud_rate()
 	return 0;
 }
 
-/* Function to set the UART custom baud rate. 
+/* Function to set the UART custom baud rate.
  *
  * The UART baud rate has already been
  * set to default value 115200 before calling this function.
@@ -288,7 +289,7 @@ static int set_custom_baud_rate()
 	UIM_VER(" Changing baud rate to %u, flow control to %u",
 			cust_baud_rate, uart_flow_control);
 
-	/* Flush non-transmitted output data, 
+	/* Flush non-transmitted output data,
 	 * non-read input data or both*/
 	tcflush(dev_fd, TCIOFLUSH);
 
@@ -323,7 +324,7 @@ static int set_custom_baud_rate()
 /*
  * Handling the Signals sent from the Kernel Init Manager.
  * After receiving the signals, configure the baud rate, flow
- * control and Install the N_SHARED line discipline 
+ * control and Install the N_SHARED line discipline
  */
 int st_sig_handler(int signo)
 {
@@ -333,7 +334,7 @@ int st_sig_handler(int signo)
 	UIM_START_FUNC();
 
 	/* Raise a signal after when UIM is killed.
-	 * This will exit UIM, and remove the inserted kernel 
+	 * This will exit UIM, and remove the inserted kernel
 	 * modules
 	 */
 	if (signo == SIGINT) {
@@ -342,12 +343,12 @@ int st_sig_handler(int signo)
 		return -1;
 	}
 
-	/* Install the line discipline when the signal is received by UIM. 
-	 * Whenever the first protocol tries to register with the ST core, the 
-	 * ST KIM will send a signal SIGUSR2 to the UIM to install the N_SHARED 
+	/* Install the line discipline when the signal is received by UIM.
+	 * Whenever the first protocol tries to register with the ST core, the
+	 * ST KIM will send a signal SIGUSR2 to the UIM to install the N_SHARED
 	 * line discipline and do the host side UART configurations.
 	 *
-	 * On failure, ST KIM's line discipline installation times out, and the 
+	 * On failure, ST KIM's line discipline installation times out, and the
 	 * relevant protocol register fails
 	 */
 	if (st_state == INSTALL_N_SHARED) {
@@ -357,7 +358,7 @@ int st_sig_handler(int signo)
 			UIM_ERR(" Can't open %s", uart_dev_name);
 			return -1;
 		}
-		/* 
+		/*
 		 * Set only the default baud rate.
 		 * This will set the baud rate to default 115200
 		 */
@@ -412,7 +413,7 @@ int st_sig_handler(int signo)
 		/* After the UART speed has been changed, the IOCTL is
 		 * is called to set the line discipline to N_SHARED
 		 */
-		ldisc = N_SHARED;
+		ldisc = line_discipline;
 		if (ioctl(dev_fd, TIOCSETD, &ldisc) < 0) {
 			UIM_ERR(" Can't set line discipline");
 			close(dev_fd);
@@ -516,11 +517,12 @@ int main(int argc, char *argv[])
 	err = 0;
 
 	/* Parse the user input */
-	if (argc == 5) {
+	if (argc == 6) {
 		strcpy(uart_dev_name, argv[1]);
 		uart_baud_rate = atoi(argv[2]);
 		uart_flow_control = atoi(argv[3]);
 		strcpy(sysfs_entry, argv[4]);
+		line_discipline = atoi(argv[5]);
 
 		/* Depending upon the baud rate value, differentiate
 		 * the custom baud rate and default baud rate
@@ -557,7 +559,7 @@ int main(int argc, char *argv[])
 	} else {
 		UIM_ERR(" Invalid arguements");
 		UIM_ERR
-			(" Usage: uim [Uart device] [Baud rate] [Flow control] [Sysfs entry]");
+			(" Usage: uim [Uart device] [Baud rate] [Flow control] [Sysfs entry] [line discipline]");
 		return -1;
 	}
 
@@ -607,7 +609,7 @@ int main(int argc, char *argv[])
 	 * Register SIGUSR2 for receiving signal from KIM
 	 * to install and un-install line discipline alternatively
 	 * Register SIGINT to handle the exit routine whenever
-	 * the UIM is killed 
+	 * the UIM is killed
 	 */
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_flags = SA_NOCLDSTOP;
@@ -615,7 +617,7 @@ int main(int argc, char *argv[])
 	sigaction(SIGUSR2, &sa, NULL);
 	sigaction(SIGINT, &sa, NULL);
 
-	while (!exiting) 
+	while (!exiting)
 		sleep(100);
 
 	if(remove_modules() < 0) {
