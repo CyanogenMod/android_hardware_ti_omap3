@@ -19,9 +19,6 @@
 #ifndef UIM_H
 #define UIM_H
 
-/* Line discipline for shared transport */
-#define N_SHARED	19
-
 /* Paramaters to set the baud rate*/
 #define  FLOW_CTL	0x0001
 #define  BOTHER		0x00001000
