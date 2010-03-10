@@ -1843,6 +1843,14 @@ void* MessagingThread(void* arg)
                         {
                             char *tmp2 = NULL;
 
+                            status = DSPProcessor_InvalidateMemory(hDSPInterface->dspCodec->hProc, tmpDspStructAddress, sizeof(TArmDspCommunicationStruct));
+                            if(DSP_FAILED(status))
+                                LOGE("Invalidate for communication structure failed. status = 0x%x\n", status);
+
+                            status = DSPProcessor_InvalidateMemory(hDSPInterface->dspCodec->hProc, tmpDspStructAddress->iArmParamArg, tmpDspStructAddress->iParamSize);
+                            if(DSP_FAILED(status))
+                                LOGE("Invalidate for arm parameter arguments failed. status = 0x%x\n", status);
+
                             event = EMMCodecBufferProcessed;
                             args[0] = (void *) bufType;
                             args[1] = (void *) tmpDspStructAddress->iArmbufferArg; /* arm address fpr buffer */

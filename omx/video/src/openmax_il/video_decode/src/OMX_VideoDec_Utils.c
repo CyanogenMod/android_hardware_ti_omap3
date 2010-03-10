@@ -5888,7 +5888,7 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                     pComponentPrivate->pUalgParams = (OMX_PTR*)pTemp;
                 }
                 size_dsp = sizeof(MP4VD_GPP_SN_UALGInputParams);
-                ((MP4VD_GPP_SN_UALGInputParams*)pComponentPrivate->pUalgParams)->nBuffCount = ++pComponentPrivate->frameCounter;
+                ((MP4VD_GPP_SN_UALGInputParams*)pComponentPrivate->pUalgParams)->nBuffCount = -1;
                 ((MP4VD_GPP_SN_UALGInputParams*)pComponentPrivate->pUalgParams)->uRingIOBlocksize = 0;
                 /* If EOS is sent, set nPerformMode to 0 (this handle thumbnail case)*/
                 ((MP4VD_GPP_SN_UALGInputParams*)pComponentPrivate->pUalgParams)->nPerformMode = 0;
@@ -5944,7 +5944,7 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                 pComponentPrivate->eLCMLState != VidDec_LCML_State_Destroy &&
                 pComponentPrivate->pLCML != NULL){
                 pComponentPrivate->pTempBuffHead.nFlags = 0;
-                pComponentPrivate->pTempBuffHead.nFlags |= OMX_BUFFERFLAG_EOS;
+                //pComponentPrivate->pTempBuffHead.nFlags |= OMX_BUFFERFLAG_EOS;
                 pComponentPrivate->pTempBuffHead.nFilledLen = 0;
                 pComponentPrivate->pTempBuffHead.pBuffer = NULL;
                 
@@ -6698,14 +6698,6 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromDsp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                 VIDDEC_Propagate_Mark(pComponentPrivate, pBuffHead);
                 pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_CLIENT;
                 OMX_PRBUFFER1(pComponentPrivate->dbg, "standalone buffer eBufferOwner 0x%x  --  %lx\n", pBufferPrivate->eBufferOwner,pBuffHead->nFlags);
-                if((pBuffHead->nFlags & OMX_BUFFERFLAG_EOS)){
-                    pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                                        pComponentPrivate->pHandle->pApplicationPrivate,
-                                                        OMX_EventBufferFlag,
-                                                        VIDDEC_OUTPUT_PORT,
-                                                        OMX_BUFFERFLAG_EOS,
-                                                        NULL);
-                }
                 VIDDEC_FillBufferDone(pComponentPrivate, pBuffHead);
             }
         }
