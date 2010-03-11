@@ -77,8 +77,14 @@ TISkMallocPixelRef::TISkMallocPixelRef(void* storage, size_t size,
 }
 
 TISkMallocPixelRef::~TISkMallocPixelRef() {
-    fCTable->safeUnref();
-    tisk_free(fStorage);
+    if (fCTable != NULL) {
+        fCTable->safeUnref();
+        fCTable = NULL;
+    }
+    if (fStorage != NULL) {
+        tisk_free(fStorage);
+        fStorage = NULL;
+    }
 }
 
 void* TISkMallocPixelRef::onLockPixels(SkColorTable** ct) {
