@@ -102,9 +102,11 @@ JpegEncoder::~JpegEncoder()
         Run();
     }
 #endif    
-	sem_destroy(semaphore);
-	free(semaphore) ;	
-    semaphore=NULL;
+    sem_destroy(semaphore);
+    if (semaphore != NULL) {
+        free(semaphore);
+        semaphore = NULL;
+    }
 }
 
 void JpegEncoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 size)
