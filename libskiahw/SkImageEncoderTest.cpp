@@ -1,7 +1,7 @@
 #include "SkImageEncoder_libtijpeg.h"
 
 #define MULTIPLE 2 //image width must be a multiple of this number
-
+#define ALIGN_128_BYTE 128
 
 int main(int argc, char **argv)
 {
@@ -69,8 +69,12 @@ int main(int argc, char **argv)
     if (inBuffSize < 1600)
         inBuffSize = 1600;
 	
-    void* inBuffer = malloc(inBuffSize + 256);
-    void *inputBuffer = (void*)((int)inBuffer + 128);
+    inBuffSize = (OMX_U32)((inBuffSize + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
+    void *inputBuffer = memalign(ALIGN_128_BYTE, inBuffSize);
+    if (inputBuffer == NULL) {
+        printf("\n %s():%d::ERROR:: inputBuffer memory allocation failed. \n",__FUNCTION__,__LINE__);
+        return 0;
+    }
 
     int pad_width = w%MULTIPLE;
     int pad_height = h%2;
@@ -134,9 +138,12 @@ int main(int argc, char **argv)
     }
 
     outbufferlen =  (w * h) + 12288;
-    void *oBuffer = malloc(outbufferlen + 256);
-    void *outBuffer = (void *)((int)oBuffer + 128);
-
+    outbufferlen = (OMX_U32)((outbufferlen + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
+    void *outBuffer = memalign(ALIGN_128_BYTE, outbufferlen);
+    if (inputBuffer == NULL) {
+        printf("\n %s():%d::ERROR:: outputBuffer memory allocation failed. \n",__FUNCTION__,__LINE__);
+        return 0;
+    }
 
     printf("\n\n before calling encodeImage \n\n");
     
@@ -158,8 +165,8 @@ int main(int argc, char **argv)
     }
     else printf("Test UnSuccessful\n");
     
-    free(inBuffer);
-    free(oBuffer);
+    free(inputBuffer);
+    free(outBuffer);
     free(tempBuffer);
 
     return 0;

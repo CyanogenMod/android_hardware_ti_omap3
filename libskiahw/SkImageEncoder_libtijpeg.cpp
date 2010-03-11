@@ -46,6 +46,8 @@
 	int eInputCount = 0;
 #endif
 
+#define ALIGN_128_BYTE 128
+
 OMX_ERRORTYPE OMX_JPEGE_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffHead)
 {
     //PRINTF("OMX_FillBufferDone: pBuffHead = %p, pBuffer = %p, n    FilledLen = %ld \n", pBuffHead, pBuffHead->pBuffer, pBuffHead->nFilledLen);
@@ -213,8 +215,12 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
     if (inBuffSize < 1600)
         inBuffSize = 1600;
 	
-    void* inBuffer = malloc(inBuffSize + 256);
-    void *inputBuffer = (void*)((OMX_U32)inBuffer + 128);
+    inBuffSize = (OMX_U32)((inBuffSize + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
+    void *inputBuffer = memalign(ALIGN_128_BYTE, inBuffSize);
+    if ( inputBuffer == NULL) {
+        PRINTF("\n %s():%d:: ERROR:: inputBuffer Allocation Failed. \n", __FUNCTION__,__LINE__);
+        return false;
+    }
     
 #if OLD_WAY
     memcpy(inputBuffer, bm.getPixels(), bm.getSize());
@@ -294,19 +300,23 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
     /*Adding memory to include Thumbnail, comments & markers information and header (depends on the app)*/
     outBuffSize += 12288;
 
-    void* outBuffer = malloc(outBuffSize + 256);
-    void *outputBuffer = (void*)((OMX_U32)outBuffer + 128);
+    outBuffSize = (OMX_U32)((outBuffSize + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
+    void *outputBuffer = memalign(ALIGN_128_BYTE, outBuffSize);
+    if ( outputBuffer == NULL) {
+        PRINTF("\n %s():%d:: ERROR:: outputBuffer Allocation Failed. \n", __FUNCTION__,__LINE__);
+        return false;
+    }
 
     PRINTF("\nOriginal: w = %d, h = %d", bm.width(), bm.height());
     if (encodeImage(outputBuffer, outBuffSize, inputBuffer, inBuffSize, w, h, quality, bm.config())){
         stream->write(pEncodedOutputBuffer, nEncodedOutputFilledLen);
-        free(inBuffer);
-        free(outBuffer);
+        free(inputBuffer);
+        free(outputBuffer);
         return true;        
     }            
 
-    free(inBuffer);
-    free(outBuffer);
+    free(inputBuffer);
+    free(outputBuffer);
     return false;
 }
 
