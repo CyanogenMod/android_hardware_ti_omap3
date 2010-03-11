@@ -559,30 +559,30 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
         mIPPInitAlgoState = true;
     }
 
-    pIPP.iStarInArgs = (IPP_StarAlgoInArgs*)((char*)malloc(sizeof(IPP_StarAlgoInArgs) + BUFF_MAP_PADDING_TEST) + PADDING_OFFSET_TEST);
-    pIPP.iStarOutArgs = (IPP_StarAlgoOutArgs*)((char*)(malloc(sizeof(IPP_StarAlgoOutArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
+    pIPP.iStarInArgs = (IPP_StarAlgoInArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_StarAlgoInArgs)));
+    pIPP.iStarOutArgs = (IPP_StarAlgoOutArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_StarAlgoOutArgs)));
 
 	if(ippMode == IPP_CromaSupression_Mode ){
-    	pIPP.iCrcbsInArgs = (IPP_CRCBSAlgoInArgs*)((char*)(malloc(sizeof(IPP_CRCBSAlgoInArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
-    	pIPP.iCrcbsOutArgs = (IPP_CRCBSAlgoOutArgs*)((char*)(malloc(sizeof(IPP_CRCBSAlgoOutArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
+        pIPP.iCrcbsInArgs = (IPP_CRCBSAlgoInArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_CRCBSAlgoInArgs)));
+        pIPP.iCrcbsOutArgs = (IPP_CRCBSAlgoOutArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_CRCBSAlgoOutArgs)));
 	}
 
 	if(ippMode == IPP_EdgeEnhancement_Mode){
-    	pIPP.iEenfInArgs = (IPP_EENFAlgoInArgs*)((char*)(malloc(sizeof(IPP_EENFAlgoInArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
-	    pIPP.iEenfOutArgs = (IPP_EENFAlgoOutArgs*)((char*)(malloc(sizeof(IPP_EENFAlgoOutArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
+        pIPP.iEenfInArgs = (IPP_EENFAlgoInArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_EENFAlgoInArgs)));
+        pIPP.iEenfOutArgs = (IPP_EENFAlgoOutArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_EENFAlgoOutArgs)));
 	}
 
-    pIPP.iYuvcInArgs1 = (IPP_YUVCAlgoInArgs*)((char*)(malloc(sizeof(IPP_YUVCAlgoInArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
-    pIPP.iYuvcOutArgs1 = (IPP_YUVCAlgoOutArgs*)((char*)(malloc(sizeof(IPP_YUVCAlgoOutArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
-    pIPP.iYuvcInArgs2 = (IPP_YUVCAlgoInArgs*)((char*)(malloc(sizeof(IPP_YUVCAlgoInArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
-    pIPP.iYuvcOutArgs2 = (IPP_YUVCAlgoOutArgs*)((char*)(malloc(sizeof(IPP_YUVCAlgoOutArgs) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
+    pIPP.iYuvcInArgs1 = (IPP_YUVCAlgoInArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_YUVCAlgoInArgs)));
+    pIPP.iYuvcOutArgs1 = (IPP_YUVCAlgoOutArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_YUVCAlgoOutArgs)));
+    pIPP.iYuvcInArgs2 = (IPP_YUVCAlgoInArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_YUVCAlgoInArgs)));
+    pIPP.iYuvcOutArgs2 = (IPP_YUVCAlgoOutArgs*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_YUVCAlgoOutArgs)));
 
 	if(ippMode == IPP_EdgeEnhancement_Mode){
-    	pIPP.dynEENF = (IPP_EENFAlgoDynamicParams*)((char*)(malloc(sizeof(IPP_EENFAlgoDynamicParams) + BUFF_MAP_PADDING_TEST)) + PADDING_OFFSET_TEST);
+        pIPP.dynEENF = (IPP_EENFAlgoDynamicParams*)((char*)DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(IPP_EENFAlgoDynamicParams)));
 	}
 
 	if( !(pIPP.ippconfig.isINPLACE) ){
-		pIPP.pIppOutputBuffer= (unsigned char*)memalign(DSP_CACHE_ALIGNMENT, pIPP.outputBufferSize + BUFF_MAP_PADDING_TEST) ; // TODO make it dependent on the output format
+		pIPP.pIppOutputBuffer= (unsigned char*)DSP_CACHE_ALIGN_MEM_ALLOC(pIPP.outputBufferSize); // TODO make it dependent on the output format
 	}
     
     return eError;
@@ -616,26 +616,26 @@ int CameraHal::DeInitIPP(int ippMode)
     LOGD("IPP_Delete");
     IPP_Delete(&(pIPP.hIPP));
 
-    free(((char*)pIPP.iStarInArgs - PADDING_OFFSET_TEST));
-    free(((char*)pIPP.iStarOutArgs - PADDING_OFFSET_TEST));
+    free(((char*)pIPP.iStarInArgs));
+    free(((char*)pIPP.iStarOutArgs));
 	
 	if(ippMode == IPP_CromaSupression_Mode ){
-    	free(((char*)pIPP.iCrcbsInArgs - PADDING_OFFSET_TEST));
-	    free(((char*)pIPP.iCrcbsOutArgs - PADDING_OFFSET_TEST));
+        free(((char*)pIPP.iCrcbsInArgs));
+        free(((char*)pIPP.iCrcbsOutArgs));
 	}
 
 	if(ippMode == IPP_EdgeEnhancement_Mode){
-	    free(((char*)pIPP.iEenfInArgs - PADDING_OFFSET_TEST));
-    	free(((char*)pIPP.iEenfOutArgs - PADDING_OFFSET_TEST));
+        free(((char*)pIPP.iEenfInArgs));
+        free(((char*)pIPP.iEenfOutArgs));
 	}
 
-    free(((char*)pIPP.iYuvcInArgs1 - PADDING_OFFSET_TEST));
-    free(((char*)pIPP.iYuvcOutArgs1 - PADDING_OFFSET_TEST));
-    free(((char*)pIPP.iYuvcInArgs2 - PADDING_OFFSET_TEST));
-    free(((char*)pIPP.iYuvcOutArgs2 - PADDING_OFFSET_TEST));
+    free(((char*)pIPP.iYuvcInArgs1));
+    free(((char*)pIPP.iYuvcOutArgs1));
+    free(((char*)pIPP.iYuvcInArgs2));
+    free(((char*)pIPP.iYuvcOutArgs2));
 	
 	if(ippMode == IPP_EdgeEnhancement_Mode){
-	    free(((char*)pIPP.dynEENF - PADDING_OFFSET_TEST));
+        free(((char*)pIPP.dynEENF));
 	}
 
 	if(!(pIPP.ippconfig.isINPLACE)){
@@ -843,6 +843,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
 			LOGE("ERROR IPP_SetAlgoConfig");
 		}
 	}
+
     pIPP.iInputBufferDesc.numBuffers = 1;
     pIPP.iInputBufferDesc.bufPtr[0] = pBuffer;
     pIPP.iInputBufferDesc.bufSize[0] = nAllocLen;

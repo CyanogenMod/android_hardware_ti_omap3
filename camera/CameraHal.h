@@ -81,12 +81,14 @@ extern "C" {
 
 #endif
 
-#define BUFF_MAP_PADDING_TEST 256*2
-#define DSP_CACHE_ALIGNMENT 128
-#define PADDING_OFFSET_TEST 256
 #define MAXIPPDynamicParams 10
 
 #endif
+
+#define DSP_CACHE_ALIGNMENT 128
+#define BUFF_MAP_PADDING_TEST 256
+#define DSP_CACHE_ALIGN_MEM_ALLOC(__size__) \
+    memalign(DSP_CACHE_ALIGNMENT, __size__ + BUFF_MAP_PADDING_TEST)
 
 #define VIDEO_DEVICE        "/dev/video5"
 #define MIN_WIDTH           128
