@@ -2139,9 +2139,12 @@ void CameraHal::snapshotThread()
                 mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
                 if ( data == NULL ) {
                     LOGE(" getBufferAddress returned NULL");
+		    snapshot_buffer = NULL;	
                 }
-
+		else
+		{
                 snapshot_buffer = data->ptr;
+		}		
 
                 scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
 
