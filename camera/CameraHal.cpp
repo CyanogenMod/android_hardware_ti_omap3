@@ -207,7 +207,7 @@ CameraHal::CameraHal()
 void CameraHal::initDefaultParameters()
 {
     CameraParameters p;
-    char tmpBuffer[PARAM_BUFFER];
+    char tmpBuffer[PARAM_BUFFER + 1];
  
     LOG_FUNCTION_NAME
 
