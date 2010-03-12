@@ -14,8 +14,10 @@
 #define VPP_NODE_DLL "vpp_sn.dll64P"
 #define NUM_OF_VPP_BUFFERS (1)
 
-#define ALIGNMENT 4096
-#define ALIGN(p)  ((void*)((((unsigned long) p + ALIGNMENT - 1) / ALIGNMENT) * ALIGNMENT))
+#define DSP_CACHE_ALIGNMENT 128
+#define BUFF_MAP_PADDING_TEST 256
+#define DSP_CACHE_ALIGN_MEM_ALLOC(__size__) \
+    memalign(DSP_CACHE_ALIGNMENT, __size__ + BUFF_MAP_PADDING_TEST)
 
 static const struct DSP_UUID COMMON_TI_UUID = {
         0x79A3C8B3, 0x95F2, 0x403F, 0x9A, 0x4B, {
@@ -596,11 +598,8 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
     OMX_U32 w,h,zfactor;
     double aspect_ratio;
 
-    GPPToVPPInputFrameStatus    PrevIpFrameStatus;
-    GPPToVPPOutputFrameStatus   PrevOpYUVFrameStatus;
-
-    GPPToVPPInputFrameStatus*   pPrevIpFrameStatus = &PrevIpFrameStatus;
-    GPPToVPPOutputFrameStatus*  pPrevOpYUVFrameStatus = &PrevOpYUVFrameStatus;
+    GPPToVPPInputFrameStatus*   pPrevIpFrameStatus = DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(GPPToVPPInputFrameStatus));
+    GPPToVPPOutputFrameStatus*  pPrevOpYUVFrameStatus = DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(GPPToVPPOutputFrameStatus));
 
     pPrevIpFrameStatus->ulInWidth             = inWidth;
     pPrevIpFrameStatus->ulInHeight            = inHeight;
@@ -681,10 +680,14 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
     read(pipeResized[READ_END], &ch, 1);
 
 	LOGV("444444444444444444444444444444444444444444444444444444\n");
+    free(pPrevIpFrameStatus);
+    free(pPrevOpYUVFrameStatus);
     return 0;
 
     
 OMX_CAMERA_BAIL_CMD:
+    free(pPrevIpFrameStatus);
+    free(pPrevOpYUVFrameStatus);
     return -1;
 }
 
