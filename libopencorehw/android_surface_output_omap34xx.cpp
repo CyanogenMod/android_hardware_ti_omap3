@@ -72,9 +72,9 @@ AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
     mUseOverlay = false;
     mInitialized = false;
     
-    if(mOverlay != NULL){
+    if(mOverlay != (Overlay *) NULL){
         mOverlay->destroy();
-        mOverlay = NULL;
+        mOverlay = (Overlay *)NULL;
     }
 }
 
