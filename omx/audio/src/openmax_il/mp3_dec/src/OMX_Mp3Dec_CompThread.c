@@ -75,6 +75,11 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef ANDROID
+#include <utils/threads.h>
+#include <linux/prctl.h>
+#endif
+
 #include "OMX_Mp3Dec_Utils.h"
 
 /* ================================================================================= * */
@@ -103,6 +108,11 @@ void* MP3DEC_ComponentThread (void* pThreadData)
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     MP3DEC_COMPONENT_PRIVATE* pComponentPrivate = (MP3DEC_COMPONENT_PRIVATE*)pThreadData;
     OMX_COMPONENTTYPE *pHandle = pComponentPrivate->pHandle;
+
+#ifdef ANDROID
+    setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_AUDIO);
+    prctl(PR_SET_NAME, (unsigned long)"MP3Component", 0, 0, 0);
+#endif
 
     OMX_PRINT1(pComponentPrivate->dbg, ":: Entering ComponentThread \n");
 

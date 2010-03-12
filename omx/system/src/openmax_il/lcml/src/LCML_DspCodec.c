@@ -48,6 +48,10 @@
     #include <errno.h>
 #endif
 
+#ifdef ANDROID
+#include <linux/prctl.h>
+#endif
+
 #include <pthread.h>
 
 /* Common WinCE and Linux Headers */
@@ -463,6 +467,7 @@ static OMX_ERRORTYPE InitMMCodecEx(OMX_HANDLETYPE hInt,
                                 NULL,
                                 MessagingThread,
                                 (void*)phandle);
+
         if (tmperr || !phandle->g_tidMessageThread)
         {
             OMX_ERROR4 (((LCML_CODEC_INTERFACE *)hInt)->dbg, "Thread creation failed: 0x%x",tmperr);
@@ -771,6 +776,7 @@ static OMX_ERRORTYPE InitMMCodec(OMX_HANDLETYPE hInt,
                             NULL,
                             MessagingThread,
                             (void*)phandle);
+
     if(tmperr || !phandle->g_tidMessageThread)
     {
         OMX_ERROR4 (((LCML_CODEC_INTERFACE *)hInt)->dbg, "Thread creation failed: 0x%x",tmperr);
@@ -1697,6 +1703,10 @@ void* MessagingThread(void* arg)
     // Just in case that we need to change it to a different value
     // such as 10 ms?
     const int getMessageTimeout = 0;
+
+#ifdef ANDROID
+    prctl(PR_SET_NAME, (unsigned long)"Messaging", 0, 0, 0);
+#endif
 
     OMX_PRINT1 (((LCML_CODEC_INTERFACE *)((LCML_DSP_INTERFACE *)arg)->pCodecinterfacehandle)->dbg, "Inside the Messaging thread\n");
 #ifdef __PERF_INSTRUMENTATION__

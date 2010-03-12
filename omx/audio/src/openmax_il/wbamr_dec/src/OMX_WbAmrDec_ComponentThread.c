@@ -64,6 +64,11 @@
 #include <sys/time.h>
 #include <signal.h>
 #endif
+#ifdef ANDROID
+#include <sys/resource.h>
+#include <utils/threads.h>
+#include <linux/prctl.h>
+#endif
 #include "OMX_WbAmrDec_Utils.h"
 #include "OMX_WbAmrDecoder.h"
 #include "OMX_WbAmrDec_ComponentThread.h"
@@ -88,6 +93,11 @@ void* WBAMR_DEC_ComponentThread (void* pThreadData)
     OMX_COMPONENTTYPE *pHandle = pComponentPrivate->pHandle;
     OMX_BUFFERHEADERTYPE *pBufHeader = NULL;
     ssize_t ret;
+
+#ifdef ANDROID
+    setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_AUDIO);
+    prctl(PR_SET_NAME, (unsigned long)"WBAMRComponent", 0, 0, 0);
+#endif
 
     OMX_PRINT1(pComponentPrivate->dbg, "Entering\n");
 
