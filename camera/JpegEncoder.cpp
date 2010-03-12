@@ -789,7 +789,6 @@ while(1){
         case STATE_EMPTY_BUFFER_DONE_CALLED:
 #if OPTIMIZE        
             // do nothing
-            sem_post(semaphore) ;
 #else
             eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
             if ( eError != OMX_ErrorNone ) {
