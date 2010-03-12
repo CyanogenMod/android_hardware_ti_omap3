@@ -55,12 +55,12 @@ int CameraHal::FW3A_Create()
         goto exit;
     }
 
-    ancillary_buffer = (uint8_t *) malloc(4096);
+    ancillary_buffer = (uint8_t *) malloc(ancillary_len);
     if (!ancillary_buffer) {
         LOGE("cannot alloc ancillary_buffer");
         goto exit;
     }
-    memset(ancillary_buffer, 0, 4096);
+    memset(ancillary_buffer, 0, ancillary_len);
 
     LOGE("dlopen MMS 3a Library Enter");
   	fobj->lib.lib_handle = dlopen(LIB3AFW, RTLD_LAZY);
@@ -397,31 +397,6 @@ int CameraHal::FW3A_Stop_AF()
     LOG_FUNCTION_NAME_EXIT
 #endif
     return prev;
-}
-
-int CameraHal::FW3A_DefaultSettings()
-{
-    CameraParameters p;
-
-    LOG_FUNCTION_NAME
-
-    p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
-    p.setPreviewFrameRate(15);
-    p.setPreviewFormat("yuv422i");
-
-    p.setPictureSize(MIN_WIDTH, MIN_HEIGHT);
-    p.setPictureFormat("jpeg");
-
-    if (setParameters(p) != NO_ERROR) {
-        LOGE("Failed to set default parameters?!");
-        return -1;
-    }
-   
-    FW3A_GetSettings();
-
-    LOG_FUNCTION_NAME_EXIT
-
-    return 0;
 }
 
 int CameraHal::FW3A_GetSettings()

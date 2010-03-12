@@ -386,7 +386,6 @@ public:
     int FW3A_Stop_CAF();
     int FW3A_Start_AF();
     int FW3A_Stop_AF();
-    int FW3A_DefaultSettings();
     int FW3A_GetSettings();
     int FW3A_SetSettings();
 #endif

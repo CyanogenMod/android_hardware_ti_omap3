@@ -120,6 +120,7 @@ CameraHal::CameraHal()
     gpsLocation = NULL;
     mShutterEnable = true;
     mCAFafterPreview = false;
+    ancillary_len = 8092;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -188,13 +189,6 @@ CameraHal::CameraHal()
     mSnapshotThread = new SnapshotThread(this);
     mSnapshotThread->run("CameraSnapshotThread", PRIORITY_URGENT_DISPLAY);
     LOGD("STARTING Snapshot THREAD \n");
-
-#ifdef FW3A
-    if (fobj!=NULL)
-    {
-        FW3A_DefaultSettings();
-    }
-#endif
 
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.image.showfps", value, "0");
@@ -318,6 +312,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
     //
+    p.set("picture-rotation", 0);
     p.set(KEY_ROTATION_TYPE, ROTATION_PHYSICAL);
 
     if (setParameters(p) != NO_ERROR) {
@@ -522,8 +517,7 @@ void CameraHal::previewThread()
 #if PPM_INSTRUMENTATION
                     PPM("AF Completed in ",&focus_before);
 #endif
-				
-                    fobj->cam_iface_2a->ReadMakerNote(fobj->cam_iface_2a->pPrivateHandle, ancillary_buffer, (u_int32_t *) &ancillary_len);
+
                     if (FW3A_Stop_AF() < 0){
                         LOGE("ERROR FW3A_Stop_AF()");
                     }
