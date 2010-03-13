@@ -505,6 +505,8 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
 {
     AlsaControlSet set = (AlsaControlSet) handle->modPrivate;
     set(devices, mode);
+    handle->curDev = devices;
+    handle->curMode = mode;
 }
 
 // ----------------------------------------------------------------------------
@@ -562,10 +564,6 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     setAlsaControls(handle, devices, mode);
 
     LOGI("Initialized ALSA %s device %s", stream, devName);
-
-    handle->curDev = devices;
-    handle->curMode = mode;
-
     return err;
 }
 
