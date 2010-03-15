@@ -617,6 +617,8 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
     pPrevIpFrameStatus->ulInYstart            = crop_top;
     pPrevIpFrameStatus->ulInYsize             = crop_height;
 
+    pPrevIpFrameStatus->eIORange = 1;
+
     /* zoom*/
     pPrevIpFrameStatus->ulZoomFactor          = zoom*1024; //(outWidth * 1024) / inWidth;
     pPrevIpFrameStatus->ulZoomLimit           = zoom*1024; //(outWidth * 1024) / inWidth;

@@ -486,7 +486,7 @@ public:
 	int mippMode;
 	int pictureNumber;
 	int rotation;
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     struct timeval ppm;
 	struct timeval ppm_start;
 	struct timeval ppm_receiveCmdToTakePicture;

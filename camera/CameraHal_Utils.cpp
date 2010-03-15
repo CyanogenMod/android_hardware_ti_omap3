@@ -1024,17 +1024,33 @@ int CameraHal::ZoomPerform(float zoom)
 /************/
 
 void CameraHal::PPM(const char* str){
+
 #if PPM_INSTRUMENTATION
-	gettimeofday(&ppm, NULL); 
-	ppm.tv_sec = ppm.tv_sec - ppm_start.tv_sec; 
-	ppm.tv_sec = ppm.tv_sec * 1000000; 
-	ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_start.tv_usec; 
-	LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 ); 
-#endif
+
+    gettimeofday(&ppm, NULL);
+    ppm.tv_sec = ppm.tv_sec - ppm_start.tv_sec;
+    ppm.tv_sec = ppm.tv_sec * 1000000;
+    ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_start.tv_usec;
+    LOGD("PPM: %s :%ld.%ld ms",str, ppm.tv_sec/1000, ppm.tv_sec%1000 );
+
+#elif PPM_INSTRUMENTATION_ABS
+
+    unsigned long long elapsed, absolute;
+    gettimeofday(&ppm, NULL);
+    elapsed = ppm.tv_sec - ppm_start.tv_sec;
+    elapsed *= 1000000;
+    elapsed += ppm.tv_usec - ppm_start.tv_usec;
+    absolute = ppm.tv_sec;
+    absolute *= 1000;
+    absolute += ppm.tv_usec/1000;
+	LOGD("PPM: %s :%llu.%llu ms : %llu ms",str, elapsed/1000, elapsed%1000, absolute);
+
+ #endif
+
 }
 
 void CameraHal::PPM(const char* str, struct timeval* ppm_first, ...){
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     char temp_str[256];
     va_list args;
     va_start(args, ppm_first);

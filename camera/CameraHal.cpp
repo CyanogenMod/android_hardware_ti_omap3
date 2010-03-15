@@ -93,7 +93,7 @@ CameraHal::CameraHal()
 			mcaf(0),
 			j(0)
 {
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     gettimeofday(&ppm_start, NULL);
 #endif
 
@@ -514,7 +514,7 @@ void CameraHal::previewThread()
             if (isStart_FW3A_AF) {
                 err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
                 if ((err == 0) && (AF_STATUS_RUNNING != fobj->status_2a.af.status)) {
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                     PPM("AF Completed in ",&focus_before);
 #endif
 
@@ -600,7 +600,7 @@ void CameraHal::previewThread()
                         mfirstTime++;
                     }
                     else{
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                         PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
 #endif
                     }
@@ -697,7 +697,7 @@ void CameraHal::previewThread()
                         }
                    }
 
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
                     gettimeofday(&focus_before, NULL);
 
@@ -789,7 +789,7 @@ void CameraHal::previewThread()
 
 #endif
 
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                 gettimeofday(&ppm_receiveCmdToTakePicture, NULL);
 #endif
 
@@ -850,7 +850,7 @@ void CameraHal::previewThread()
                    LOGE("Capture failed.");
 
                //restart the preview
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                 gettimeofday(&ppm_restartPreview, NULL);
 #endif
 
@@ -879,7 +879,7 @@ void CameraHal::previewThread()
                if (CameraStart() < 0)
                    LOGE("ERROR CameraStart()");
 
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
                PPM("Capture mode switch", &ppm_restartPreview);
                PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
@@ -1277,7 +1277,7 @@ void CameraHal::nextPreview()
     //Low light notification
     if( ( 0 == fobj->settings_2a.ae.framerate ) && ( ( frame_count % 10) == 0 ) ) {
 
-#if PPM_INSTRUMENTATION && DEBUG_LOG
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS && DEBUG_LOG
 
         gettimeofday(&lowLightTime, NULL);
 
@@ -1292,7 +1292,7 @@ void CameraHal::nextPreview()
             }
          }
 
-#if PPM_INSTRUMENTATION && DEBUG_LOG
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS && DEBUG_LOG
 
         PPM("Low-light delay", &lowLightTime);
 
@@ -1562,7 +1562,7 @@ int  CameraHal::ICapturePerform()
 //
     if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE) {
 
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
         PPM("SENDING MESSAGE TO PROCESSING THREAD");
 
@@ -1886,7 +1886,7 @@ int CameraHal::ICapturePerform(){
 
 #endif
 
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 
@@ -2143,7 +2143,7 @@ void CameraHal::snapshotThread()
 
                 mParameters.getPreviewSize(&preview_width, &preview_height);
 
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
                 PPM("Before vpp downscales:");
 
@@ -2175,7 +2175,7 @@ void CameraHal::snapshotThread()
 
 #endif
 
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
                PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 
@@ -2602,7 +2602,7 @@ void CameraHal::procThread()
                 LOGD(" outbuffer = %p, jpegSize = %d, input_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, input_buffer/*yuv_buffer*/, input_length/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
 #endif
 
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                 PPM("BEFORE JPEG Encode Image");
 #endif
                 if (!( jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, input_buffer, input_length,
@@ -2612,7 +2612,7 @@ void CameraHal::procThread()
                     err = -1;
                     LOGE("JPEG Encoding failed");
                 }
-#if PPM_INSTRUMENTATION
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                 PPM("AFTER JPEG Encode Image");
                 if ( 0 != image_rotation )
                     PPM("Shot to JPEG with %d deg rotation", &ppm_receiveCmdToTakePicture, image_rotation);
