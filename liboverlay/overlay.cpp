@@ -1207,52 +1207,62 @@ static int overlay_device_open(const struct hw_module_t* module,
     if (!strcmp(name, OVERLAY_HARDWARE_CONTROL)) {
         struct overlay_control_context_t *dev;
         dev = (overlay_control_context_t*)malloc(sizeof(*dev));
+        if (dev){
+           /* initialize our state here */
+           memset(dev, 0, sizeof(*dev));
 
-        /* initialize our state here */
-        memset(dev, 0, sizeof(*dev));
+           /* initialize the procs */
+           dev->device.common.tag = HARDWARE_DEVICE_TAG;
+           dev->device.common.version = 0;
+           dev->device.common.module = const_cast<hw_module_t*>(module);
+           dev->device.common.close = overlay_control_close;
 
-        /* initialize the procs */
-        dev->device.common.tag = HARDWARE_DEVICE_TAG;
-        dev->device.common.version = 0;
-        dev->device.common.module = const_cast<hw_module_t*>(module);
-        dev->device.common.close = overlay_control_close;
+           dev->device.get = overlay_get;
+           dev->device.createOverlay = overlay_createOverlay;
+           dev->device.destroyOverlay = overlay_destroyOverlay;
+           dev->device.setPosition = overlay_setPosition;
+           dev->device.getPosition = overlay_getPosition;
+           dev->device.setParameter = overlay_setParameter;
+           dev->device.stage = overlay_stage;
+           dev->device.commit = overlay_commit;
 
-        dev->device.get = overlay_get;
-        dev->device.createOverlay = overlay_createOverlay;
-        dev->device.destroyOverlay = overlay_destroyOverlay;
-        dev->device.setPosition = overlay_setPosition;
-        dev->device.getPosition = overlay_getPosition;
-        dev->device.setParameter = overlay_setParameter;
-        dev->device.stage = overlay_stage;
-        dev->device.commit = overlay_commit;
-
-        *device = &dev->device.common;
-        status = 0;
+           *device = &dev->device.common;
+           status = 0;
+        } else {
+           /* Error no memory available.
+            * */
+           status = -ENOMEM;
+        }
     } else if (!strcmp(name, OVERLAY_HARDWARE_DATA)) {
         struct overlay_data_context_t *dev;
         dev = (overlay_data_context_t*)malloc(sizeof(*dev));
+        if (dev){
+           /* initialize our state here */
+           memset(dev, 0, sizeof(*dev));
 
-        /* initialize our state here */
-        memset(dev, 0, sizeof(*dev));
+           /* initialize the procs */
+           dev->device.common.tag = HARDWARE_DEVICE_TAG;
+           dev->device.common.version = 0;
+           dev->device.common.module = const_cast<hw_module_t*>(module);
+           dev->device.common.close = overlay_data_close;
 
-        /* initialize the procs */
-        dev->device.common.tag = HARDWARE_DEVICE_TAG;
-        dev->device.common.version = 0;
-        dev->device.common.module = const_cast<hw_module_t*>(module);
-        dev->device.common.close = overlay_data_close;
+           dev->device.initialize = overlay_initialize;
+           dev->device.resizeInput = overlay_resizeInput;
+           dev->device.setCrop = overlay_setCrop;
+           dev->device.getCrop = overlay_getCrop;
+           dev->device.setParameter = overlay_data_setParameter;
+           dev->device.dequeueBuffer = overlay_dequeueBuffer;
+           dev->device.queueBuffer = overlay_queueBuffer;
+           dev->device.getBufferAddress = overlay_getBufferAddress;
+           dev->device.getBufferCount = overlay_getBufferCount;
 
-        dev->device.initialize = overlay_initialize;
-        dev->device.resizeInput = overlay_resizeInput;
-        dev->device.setCrop = overlay_setCrop;
-        dev->device.getCrop = overlay_getCrop;
-        dev->device.setParameter = overlay_data_setParameter;
-        dev->device.dequeueBuffer = overlay_dequeueBuffer;
-        dev->device.queueBuffer = overlay_queueBuffer;
-        dev->device.getBufferAddress = overlay_getBufferAddress;
-        dev->device.getBufferCount = overlay_getBufferCount;
-
-        *device = &dev->device.common;
-        status = 0;
+           *device = &dev->device.common;
+           status = 0;
+        } else {
+           /* Error no memory available.
+            * */
+           status = -ENOMEM;
+        }
     }
     return status;
 }
