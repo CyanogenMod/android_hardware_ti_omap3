@@ -868,9 +868,6 @@ void CameraHal::previewThread()
                if (FW3A_Start() < 0)
                    LOGE("ERROR FW3A_Start()");
 
-               if (FW3A_SetSettings() < 0)
-                   LOGE("ERROR FW3A_SetSettings()");
-
 #endif
 
                if ( CorrectPreview() < 0 )
@@ -1395,7 +1392,13 @@ int  CameraHal::ICapturePerform()
     unsigned int procMessage[PROC_THREAD_NUM_ARGS],
             shutterMessage[SHUTTER_THREAD_NUM_ARGS],
             rawMessage[RAW_THREAD_NUM_ARGS];
-	int pixelFormat;
+    int pixelFormat;
+    unsigned short EdgeEnhancementStrength, WeakEdgeThreshold, StrongEdgeThreshold,
+                   LowFreqLumaNoiseFilterStrength, MidFreqLumaNoiseFilterStrength, HighFreqLumaNoiseFilterStrength,
+                   LowFreqCbNoiseFilterStrength, MidFreqCbNoiseFilterStrength, HighFreqCbNoiseFilterStrength,
+                   LowFreqCrNoiseFilterStrength, MidFreqCrNoiseFilterStrength, HighFreqCrNoiseFilterStrength,
+                   shadingVertParam1, shadingVertParam2, shadingHorzParam1, shadingHorzParam2, shadingGainScale,
+                   shadingGainOffset, shadingGainMaxValue, ratioDownsampleCbCr;
 
 #ifdef DEBUG_LOG
 
@@ -1576,32 +1579,97 @@ int  CameraHal::ICapturePerform()
             gpsLocation = NULL;
         }
 
+        if (  iobj->proc.ipp.type == ICAP_IMAGEPOSTPROC_VER1_9 ) {
+            EdgeEnhancementStrength = iobj->proc.ipp.ipp19.EdgeEnhancementStrength;
+            WeakEdgeThreshold = iobj->proc.ipp.ipp19.WeakEdgeThreshold;
+            StrongEdgeThreshold = iobj->proc.ipp.ipp19.StrongEdgeThreshold;
+            LowFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqLumaNoiseFilterStrength;
+            MidFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqLumaNoiseFilterStrength;
+            HighFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqLumaNoiseFilterStrength;
+            LowFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqCbNoiseFilterStrength;
+            MidFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqCbNoiseFilterStrength;
+            HighFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqCbNoiseFilterStrength;
+            LowFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqCrNoiseFilterStrength;
+            MidFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqCrNoiseFilterStrength;
+            HighFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqCrNoiseFilterStrength;
+            shadingVertParam1 = iobj->proc.ipp.ipp19.shadingVertParam1;
+            shadingVertParam2 = iobj->proc.ipp.ipp19.shadingVertParam2;
+            shadingHorzParam1 = iobj->proc.ipp.ipp19.shadingHorzParam1;
+            shadingHorzParam2 = iobj->proc.ipp.ipp19.shadingHorzParam2;
+            shadingGainScale = iobj->proc.ipp.ipp19.shadingGainScale;
+            shadingGainOffset = iobj->proc.ipp.ipp19.shadingGainOffset;
+            shadingGainMaxValue = iobj->proc.ipp.ipp19.shadingGainMaxValue;
+            ratioDownsampleCbCr = iobj->proc.ipp.ipp19.ratioDownsampleCbCr;
+	} else if ( iobj->proc.ipp.type == ICAP_IMAGEPOSTPROC_VER1_8 ) {
+            EdgeEnhancementStrength = iobj->proc.ipp.ipp18.ee_q;
+            WeakEdgeThreshold = iobj->proc.ipp.ipp18.ew_ts;
+            StrongEdgeThreshold = iobj->proc.ipp.ipp18.es_ts;
+            LowFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp18.luma_nf;
+            MidFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp18.luma_nf;
+            HighFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp18.luma_nf;
+            LowFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
+            MidFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
+            HighFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
+            LowFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
+            MidFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
+            HighFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
+            shadingVertParam1 = -1;
+            shadingVertParam2 = -1;
+            shadingHorzParam1 = -1;
+            shadingHorzParam2 = -1;
+            shadingGainScale = -1;
+            shadingGainOffset = -1;
+            shadingGainMaxValue = -1;
+            ratioDownsampleCbCr = -1;
+	} else {
+            EdgeEnhancementStrength = 220;
+            WeakEdgeThreshold = 8;
+            StrongEdgeThreshold = 200;
+            LowFreqLumaNoiseFilterStrength = 5;
+            MidFreqLumaNoiseFilterStrength = 10;
+            HighFreqLumaNoiseFilterStrength = 15;
+            LowFreqCbNoiseFilterStrength = 20;
+            MidFreqCbNoiseFilterStrength = 30;
+            HighFreqCbNoiseFilterStrength = 10;
+            LowFreqCrNoiseFilterStrength = 10;
+            MidFreqCrNoiseFilterStrength = 25;
+            HighFreqCrNoiseFilterStrength = 15;
+            shadingVertParam1 = 10;
+            shadingVertParam2 = 400;
+            shadingHorzParam1 = 10;
+            shadingHorzParam2 = 400;
+            shadingGainScale = 128;
+            shadingGainOffset = 2048;
+            shadingGainMaxValue = 16384;
+            ratioDownsampleCbCr = 1;
+	}
+
         procMessage[0] = PROC_THREAD_PROCESS;
         procMessage[1] = iobj->proc.out_img_w;
         procMessage[2] = iobj->proc.out_img_h;
         procMessage[3] = image_width;
         procMessage[4] = image_height;
         procMessage[5] = pixelFormat;
-        procMessage[6]  = iobj->proc.ipp.ipp19.EdgeEnhancementStrength;
-        procMessage[7]  = iobj->proc.ipp.ipp19.WeakEdgeThreshold;
-        procMessage[8]  = iobj->proc.ipp.ipp19.StrongEdgeThreshold;
-        procMessage[9]  = iobj->proc.ipp.ipp19.LowFreqLumaNoiseFilterStrength;
-        procMessage[10] = iobj->proc.ipp.ipp19.MidFreqLumaNoiseFilterStrength;
-        procMessage[11] = iobj->proc.ipp.ipp19.HighFreqLumaNoiseFilterStrength;
-        procMessage[12] = iobj->proc.ipp.ipp19.LowFreqCbNoiseFilterStrength;
-        procMessage[13] = iobj->proc.ipp.ipp19.MidFreqCbNoiseFilterStrength;
-        procMessage[14] = iobj->proc.ipp.ipp19.HighFreqCbNoiseFilterStrength;
-        procMessage[15] = iobj->proc.ipp.ipp19.LowFreqCrNoiseFilterStrength;
-        procMessage[16] = iobj->proc.ipp.ipp19.MidFreqCrNoiseFilterStrength;
-        procMessage[17] = iobj->proc.ipp.ipp19.HighFreqCrNoiseFilterStrength;
-        procMessage[18] = iobj->proc.ipp.ipp19.shadingVertParam1;
-        procMessage[19] = iobj->proc.ipp.ipp19.shadingVertParam2;
-        procMessage[20] = iobj->proc.ipp.ipp19.shadingHorzParam1;
-        procMessage[21] = iobj->proc.ipp.ipp19.shadingHorzParam2;
-        procMessage[22] = iobj->proc.ipp.ipp19.shadingGainScale;
-        procMessage[23] = iobj->proc.ipp.ipp19.shadingGainOffset;
-        procMessage[24] = iobj->proc.ipp.ipp19.shadingGainMaxValue;
-        procMessage[25] = iobj->proc.ipp.ipp19.ratioDownsampleCbCr;
+        procMessage[6]  = EdgeEnhancementStrength;
+        procMessage[7]  = WeakEdgeThreshold;
+        procMessage[8]  = StrongEdgeThreshold;
+        procMessage[9]  = LowFreqLumaNoiseFilterStrength;
+        procMessage[10] = MidFreqLumaNoiseFilterStrength;
+        procMessage[11] = HighFreqLumaNoiseFilterStrength;
+        procMessage[12] = LowFreqCbNoiseFilterStrength;
+        procMessage[13] = MidFreqCbNoiseFilterStrength;
+        procMessage[14] = HighFreqCbNoiseFilterStrength;
+        procMessage[15] = LowFreqCrNoiseFilterStrength;
+        procMessage[16] = MidFreqCrNoiseFilterStrength;
+        procMessage[17] = HighFreqCrNoiseFilterStrength;
+        procMessage[18] = shadingVertParam1;
+        procMessage[19] = shadingVertParam2;
+        procMessage[20] = shadingHorzParam1;
+        procMessage[21] = shadingHorzParam2;
+        procMessage[22] = shadingGainScale;
+        procMessage[23] = shadingGainOffset;
+        procMessage[24] = shadingGainMaxValue;
+        procMessage[25] = ratioDownsampleCbCr;
         procMessage[26] = (unsigned int) yuv_buffer;
         procMessage[27] = offset;
         procMessage[28] = yuv_len;
@@ -1618,11 +1686,6 @@ int  CameraHal::ICapturePerform()
         procMessage[39] = iobj->proc.aspect_rect.width;
         procMessage[40] = iobj->proc.aspect_rect.height;
         procMessage[41] = (unsigned int) exif_buf;
-	LOGD("proc.eenf.EdgeEnhancementStrength = %d",iobj->proc.ipp.ipp19.EdgeEnhancementStrength);
-	LOGD("proc.eenf.WeakEdgeThreshold = %d",iobj->proc.ipp.ipp19.WeakEdgeThreshold);
-	LOGD("proc.eenf.StrongEdgeThreshold = %d",iobj->proc.ipp.ipp19.StrongEdgeThreshold);
-	LOGD("proc.eenf.shadingGainMaxValue = %d",iobj->proc.ipp.ipp19.shadingGainMaxValue);
-	LOGD("proc.eenf.ratioDownsampleCbCr = %d",iobj->proc.ipp.ipp19.ratioDownsampleCbCr);
         write(procPipe[1], &procMessage, sizeof(procMessage));
 
         mIPPToEnable = false; // reset ipp enable after sending to proc thread
