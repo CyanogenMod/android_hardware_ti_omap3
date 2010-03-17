@@ -87,6 +87,7 @@ static bool bridge_sem_initialized = false;
 #define DSP_HIB			0x9
 #define RETENTION		0x8
 #define MPU_HIB			0x7
+#define SLEEP_TRANSITION	0x6
 /*
  *  ======== DspManager_Open ========
  *  Purpose:
@@ -108,7 +109,7 @@ DBAPI DspManager_Open(UINT argc, PVOID argp)
 	fgets(line, 3, file);
 	sscanf(line, "%d", &drv_state);
 	fclose(file);
-	if (drv_state != RUNNING && (drv_state > DSP_HIB || drv_state < MPU_HIB )) {
+	if (drv_state != RUNNING && (drv_state > DSP_HIB || drv_state < SLEEP_TRANSITION )) {
 		printf("Driver is not ready, access denied!\n");
 		return DSP_EFAIL;
 	}
