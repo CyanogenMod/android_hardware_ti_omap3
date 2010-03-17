@@ -446,7 +446,7 @@ OMX_ERRORTYPE VIDDEC_Queue_Replace_Tail(VIDDEC_QUEUE_TYPE *queue, OMX_PTR pEleme
                         }
                         queue->CounterElements[queue->nTail]--;
                         queue->nTail--;
-                        if( (queue->nTail >= VIDDEC_MAX_QUEUE_SIZE) || (queue->nTail < 0) )
+                        if(queue->nTail >= VIDDEC_MAX_QUEUE_SIZE)
                         {
                             queue->nTail = VIDDEC_MAX_QUEUE_SIZE-1;
                         }
@@ -474,7 +474,7 @@ OMX_ERRORTYPE VIDDEC_Queue_Replace_Tail(VIDDEC_QUEUE_TYPE *queue, OMX_PTR pEleme
                         }
                         queue->CounterElements[queue->nTail]--;
                         queue->nTail--;
-                        if( (queue->nTail >= VIDDEC_MAX_QUEUE_SIZE) || (queue->nTail < 0) )
+                        if(queue->nTail >= VIDDEC_MAX_QUEUE_SIZE)
                         {
                             queue->nTail = VIDDEC_MAX_QUEUE_SIZE-1;
                         }

@@ -1695,7 +1695,7 @@ static OMX_ERRORTYPE GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
               eError = OMX_ErrorBadParameter;
               return eError;
         }
-        if((pParamProfileLevel->nProfileIndex < 0) || (pParamProfileLevel->nProfileIndex >= nNumberOfProfiles)) {
+        if(pParamProfileLevel->nProfileIndex >= nNumberOfProfiles) {
             return OMX_ErrorBadParameter;
         }
         /* Point to table entry based on index */

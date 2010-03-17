@@ -298,7 +298,7 @@ OMX_ERRORTYPE JPEGENC_UseBuffer(OMX_IN OMX_HANDLETYPE hComponent,
     OMX_CHECK_PARAM(ppBufferHdr);
     OMX_CHECK_PARAM(pBuffer);
     
-    if (nPortIndex < 0 || nPortIndex > 1) {
+    if (nPortIndex != 0 && nPortIndex != 1) {
         eError = OMX_ErrorBadParameter;
         goto EXIT;
     }
