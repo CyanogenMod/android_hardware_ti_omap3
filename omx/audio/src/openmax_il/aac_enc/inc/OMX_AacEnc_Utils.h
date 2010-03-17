@@ -314,6 +314,13 @@ struct _BUFFERLIST
     int OMX_DestroyEvent(OMX_Event *event);
 #endif
 
+/* ======================================================================= */
+/**
+ * pthread variable to indicate OMX returned all buffers to app
+ */
+/* ======================================================================= */
+pthread_mutex_t bufferReturned_mutex;
+pthread_cond_t bufferReturned_condition;
 
 
 typedef struct AACENC_COMPONENT_PRIVATE 
@@ -674,12 +681,12 @@ OMX_ERRORTYPE AddStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE RemoveStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
 
 /*  =========================================================================*/
-/*  func    AACENC_HandleUSNError
-/*
-/*  desc    Handles error messages returned by the dsp
-/*
-/*@return n/a
-/*
+/**  func    AACENC_HandleUSNError
+ *
+ *  desc    Handles error messages returned by the dsp
+ *
+ *@return n/a
+ */
 /*  =========================================================================*/
 void AACENC_HandleUSNError (AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
@@ -687,4 +694,28 @@ void AACENC_HandleUSNError (AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32
 #endif
 
 
+/*=======================================================================*/
+/** @fn SignalIfAllBuffersAreReturned
+ * @brief Sends pthread signal to indicate OMX has returned all buffers to app
+ *
+ * @param  none
+ *
+ * @Return none
+ *
+ */
+/*=======================================================================*/
+void SignalIfAllBuffersAreReturned(AACENC_COMPONENT_PRIVATE *pComponentPrivate);
 
+/* ====================================================================== */
+/*@AACENC_IncrementBufferCounterByOne() This function is used by the component
+ * to atomically increment some input or output buffer counter
+ *
+ * @param mutex pointer to mutex for synchronizing the value change on
+ *              the counter
+ * @param counter the buffer counter to be changed
+ *
+ * @post the buffer counter's value will be incremented by one.
+ * @return None
+ */
+/* ====================================================================== */
+void AACENC_IncrementBufferCounterByOne(pthread_mutex_t* mutex, OMX_U32 *counter);

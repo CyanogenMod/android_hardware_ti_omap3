@@ -372,6 +372,9 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pthread_mutex_init(&pComponentPrivate->InIdle_mutex, NULL);
     pthread_cond_init (&pComponentPrivate->InIdle_threshold, NULL);
     pComponentPrivate->InIdle_goingtoloaded = 0;
+
+    pthread_mutex_init(&bufferReturned_mutex, NULL);
+    pthread_cond_init (&bufferReturned_condition, NULL);
 #else
     OMX_CreateEvent(&(pComponentPrivate->AlloBuf_event));
     pComponentPrivate->AlloBuf_waitingsignal = 0;
@@ -1564,9 +1567,9 @@ static OMX_ERRORTYPE EmptyThisBuffer (OMX_HANDLETYPE pComponent,
         OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error in Writing to the Data pipe\n", __LINE__);
         eError = OMX_ErrorHardware;
         goto EXIT;
+    } else{
+        AACENC_IncrementBufferCounterByOne(&bufferReturned_mutex, pComponentPrivate->EmptythisbufferCount);
     }
-    pComponentPrivate->EmptythisbufferCount++;
-
 EXIT:
     if (pComponentPrivate != NULL) {
 	OMX_PRINT1(pComponentPrivate->dbg, "%d :: AACENC: Exiting EmptyThisBuffer\n", __LINE__);
@@ -1676,9 +1679,9 @@ static OMX_ERRORTYPE FillThisBuffer (OMX_HANDLETYPE pComponent,
         OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error in Writing to the Data pipe\n", __LINE__);
         eError = OMX_ErrorHardware;
         goto EXIT;
+    } else {
+        AACENC_IncrementBufferCounterByOne(&bufferReturned_mutex, pComponentPrivate->FillthisbufferCount);
     }
-    pComponentPrivate->FillthisbufferCount++;
-
 EXIT:
     if (pComponentPrivate != NULL) {
 	OMX_PRINT1(pComponentPrivate->dbg, "%d :: AACENC: Exiting FillThisBuffer error= %d \n", __LINE__, eError);
