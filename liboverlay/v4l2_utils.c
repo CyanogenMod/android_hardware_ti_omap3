@@ -29,6 +29,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include "v4l2_utils.h"
+#include <cutils/properties.h>
 
 #define LOG_FUNCTION_NAME    LOGV("%s: %s",  __FILE__, __FUNCTION__);
 
@@ -44,6 +45,7 @@
         while (0)
 #endif
 
+static int mRotateOverlay = 0;
 int v4l2_overlay_get(int name) {
     int result = -1;
     switch (name) {
@@ -252,6 +254,12 @@ int v4l2_overlay_init(int fd, uint32_t w, uint32_t h, uint32_t fmt)
     format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format, "get output format");
     LOGV("v4l2_overlay_init get:: w=%d h=%d fmt=%d", format.fmt.pix.width, format.fmt.pix.height, format.fmt.pix.pixelformat);
+
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.video.rotateoverlay", value, "0");
+    mRotateOverlay = atoi(value);
+    LOGD_IF(mRotateOverlay, "overlay rotation enabled");
+
     return ret;
 }
 
@@ -289,6 +297,10 @@ int v4l2_overlay_set_position(int fd, int32_t x, int32_t y, int32_t w, int32_t h
        return ret;
     LOGV("v4l2_overlay_set_position:: w=%d h=%d", format.fmt.win.w.width, format.fmt.win.w.height);
    
+    if (mRotateOverlay) {
+        w = 480;
+        h = 800;
+    }
     configure_window(&format.fmt.win, w, h, x, y);
 
     format.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
@@ -360,6 +372,9 @@ int v4l2_overlay_set_rotation(int fd, int degree, int step)
     memset(&ctrl, 0, sizeof(ctrl));
     ctrl.id = V4L2_CID_ROTATE;
     ctrl.value = degree;
+    if (mRotateOverlay) {
+        ctrl.value = 90;
+    }
     ret = v4l2_overlay_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "set rotation");
 
     return ret;
@@ -379,6 +394,9 @@ int v4l2_overlay_get_rotation(int fd, int* degree, int step)
         return ret;
     }
 
+    if (mRotateOverlay) {
+        control.value = 90;
+    }
     *degree = control.value;
     return ret;
 }
