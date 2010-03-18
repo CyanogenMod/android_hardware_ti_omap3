@@ -1568,7 +1568,7 @@ static OMX_ERRORTYPE EmptyThisBuffer (OMX_HANDLETYPE pComponent,
         eError = OMX_ErrorHardware;
         goto EXIT;
     } else{
-        AACENC_IncrementBufferCounterByOne(&bufferReturned_mutex, pComponentPrivate->EmptythisbufferCount);
+        AACENC_IncrementBufferCounterByOne(&bufferReturned_mutex, &pComponentPrivate->EmptythisbufferCount);
     }
 EXIT:
     if (pComponentPrivate != NULL) {
@@ -1680,7 +1680,7 @@ static OMX_ERRORTYPE FillThisBuffer (OMX_HANDLETYPE pComponent,
         eError = OMX_ErrorHardware;
         goto EXIT;
     } else {
-        AACENC_IncrementBufferCounterByOne(&bufferReturned_mutex, pComponentPrivate->FillthisbufferCount);
+        AACENC_IncrementBufferCounterByOne(&bufferReturned_mutex, &pComponentPrivate->FillthisbufferCount);
     }
 EXIT:
     if (pComponentPrivate != NULL) {
