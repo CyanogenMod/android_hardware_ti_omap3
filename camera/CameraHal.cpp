@@ -1274,7 +1274,7 @@ void CameraHal::nextPreview()
     //Low light notification
     if( ( 0 == fobj->settings_2a.ae.framerate ) && ( ( frame_count % 10) == 0 ) ) {
 
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS && DEBUG_LOG
+#if ( PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS ) && DEBUG_LOG
 
         gettimeofday(&lowLightTime, NULL);
 
@@ -1289,7 +1289,7 @@ void CameraHal::nextPreview()
             }
          }
 
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS && DEBUG_LOG
+#if ( PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS ) && DEBUG_LOG
 
         PPM("Low-light delay", &lowLightTime);
 
@@ -3555,20 +3555,24 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         if(brightness != -1) 
             fobj->settings_2a.general.brightness = brightness;
 
-        if(saturation!= -1)
+        if(saturation != -1)
             fobj->settings_2a.general.saturation = saturation;
         
         if(sharpness != -1)
             fobj->settings_2a.general.sharpness = sharpness;
 
-        if(iso!= -1)
+        if(iso != -1)
             fobj->settings_2a.ae.iso = (EXPOSURE_ISO_VALUES) iso;
 
-        if(exposure!= -1)
+        if(exposure != -1)
             fobj->settings_2a.ae.mode = (EXPOSURE_MODE_VALUES) exposure;
 
-        if(compensation!= -1)
+        if(compensation != -1) {
+
+            compensation -= COMPENSATION_OFFSET;
             fobj->settings_2a.ae.compensation = compensation;
+
+        }
 
         fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_AUTO;
 

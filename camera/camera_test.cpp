@@ -32,6 +32,9 @@
 #define KEY_ROTATION        "picture-rotation"
 #define KEY_IPP             "ippMode"
 
+#define COMPENSATION_OFFSET 20
+#define DELIMITER           "|"
+
 //todo
 //#define STRESS_TEST 1
 
@@ -140,11 +143,11 @@ const struct { int idx; const char *zoom_description; } zoom [] = {
     { 2, "3x"},
     { 3, "4x"},
 };
-const struct { int width, height; } previewSize[] = {
-    { 176, 144 },
-    { 320, 240 },
-    { 640, 480 },
-    { 800, 480 },
+const struct { int width, height; const char *desc; } previewSize[] = {
+    { 176, 144, "176x144" },
+    { 320, 240, "QVGA" },
+    { 640, 480, "VGA" },
+    { 800, 480, "WVGA" },
 };
 
 const struct { int width, height; const char *name; } captureSize[] = {
@@ -356,10 +359,10 @@ void my_notify_callback(int32_t msgType,
                int32_t ext2,
                void* user)
 {
-    /*
+
     printf("Notify cb: %d %d %d %p\n",
            msgType, ext1, ext2, user);
-    */
+
     if(msgType&CAMERA_MSG_FOCUS) {
         printf("AutoFocus %s in %llu us\n",
                (ext1)?"OK":"FAIL", timeval_delay(&autofocus_start));
@@ -397,8 +400,8 @@ void my_data_callback_timestamp(nsecs_t timestamp,
                const sp<IMemory>& dataPtr,
                void* user)
 {
-    printf("DataTime cb: %d %lld %p\n",
-           msgType, timestamp, user);
+    printf("DataTime cb: %d %lld %p %p\n",
+           msgType, timestamp, user, dataPtr.get());
 }
 
 #if STRESS_TEST
@@ -710,6 +713,71 @@ int closeCamera()
     return 0;
 }
 
+int startPreview()
+{
+    if ( reSizePreview && !hardwareActive ) {
+
+        if( openCamera() < 0 ) {
+            printf("Camera initialization failed\n");
+
+            return -1;
+        }
+
+        hardware->setParameters(params);
+        hardware->startPreview();
+
+        params = hardware->getParameters();
+        params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
+        params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
+
+        if ( createOverlay(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height) < 0 ) {
+            printf("Error encountered during Overlay initialization\n");
+
+            closeCamera();
+
+            return -1;
+        }
+
+        hardware->setOverlay(overlay);
+
+        reSizePreview = false;
+        hardwareActive = true;
+    } else if ( reSizePreview && hardwareActive ) {
+
+        params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
+        params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
+
+        if ( createOverlay(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height) < 0 ) {
+            printf("Error encountered during Overlay initialization\n");
+
+            closeCamera();
+
+            return -1;
+        }
+
+        hardware->setParameters(params);
+        hardware->startPreview();
+        hardware->setOverlay(overlay);
+
+        reSizePreview = false;
+        hardwareActive = true;
+    }
+
+    return 0;
+}
+
+void stopPreview()
+{
+    if ( hardwareActive ) {
+        hardware->stopPreview();
+        closeCamera();
+        destroyOverlay();
+
+        reSizePreview = true;
+        hardwareActive = false;
+    }
+}
+
 void initDefaults()
 {
 
@@ -817,64 +885,16 @@ int menu()
         break;
 
     case '1':
-        if ( reSizePreview && !hardwareActive ) {
+        if ( startPreview() < 0 ) {
+            printf("Error while starting preview\n");
 
-            if( openCamera() < 0 ) {
-                printf("Camera initialization failed\n");
-
-                return -1;
-            }
-
-            hardware->setParameters(params);
-            hardware->startPreview();
-
-            params = hardware->getParameters();
-            params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
-            params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
-
-            if ( createOverlay(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height) < 0 ) {
-                printf("Error encountered during Overlay initialization\n");
-
-                closeCamera();
-
-                return -1;
-            }
-
-            hardware->setOverlay(overlay);
-
-            reSizePreview = false;
-            hardwareActive = true;
-        } else if ( reSizePreview && hardwareActive ) {
-
-            params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
-            params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
-
-            if ( createOverlay(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height) < 0 ) {
-                printf("Error encountered during Overlay initialization\n");
-
-                closeCamera();
-
-                return -1;
-            }
-
-            hardware->setParameters(params);
-            hardware->startPreview();
-            hardware->setOverlay(overlay);
-
-            reSizePreview = false;
-            hardwareActive = true;
+            return -1;
         }
 
         break;
 
     case '2':
-        hardware->stopPreview();
-        closeCamera();
-        destroyOverlay();
-
-        reSizePreview = true;
-        hardwareActive = false;
-
+        stopPreview();
         break;
 
     case '3':
@@ -909,7 +929,7 @@ int menu()
         } else {
             compensation += 0.1;
         }
-        params.set(KEY_COMPENSATION, (int) (compensation * 10) );
+        params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
         if ( hardwareActive )
             hardware->setParameters(params);
         break;
@@ -1139,11 +1159,7 @@ int menu()
 
 #endif
 
-        if ( hardwareActive ) {
-            hardware->stopPreview();
-            closeCamera();
-            destroyOverlay();
-        }
+        stopPreview();
         return -1;
 
     default:
@@ -1154,8 +1170,288 @@ int menu()
     return 0;
 }
 
-int main()
+char *load_script(char *config)
 {
+    FILE *infile;
+    size_t fileSize;
+    char *script;
+    size_t nRead = 0;
+
+    infile = fopen(config, "r");
+
+    if( (NULL == infile)){
+
+        printf("Error while opening script file %s!\n", config);
+        return NULL;
+    }
+
+    fseek(infile, 0, SEEK_END);
+    fileSize = ftell(infile);
+    fseek(infile, 0, SEEK_SET);
+
+    script = (char *) malloc(fileSize);
+    if ( NULL == script ) {
+        printf("Unable to allocate buffer for the script\n");
+
+        return NULL;
+    }
+
+    if((nRead = fread(script, 1, fileSize, infile)) != fileSize){
+        printf("Error while reading script file!\n");
+
+        free(script);
+        return NULL;
+    }
+
+    return script;
+}
+
+int execute_script(char *script)
+{
+    char *cmd, *ctx;
+    char id;
+    unsigned int i;
+    int dly;
+
+    LOG_FUNCTION_NAME
+
+    cmd = strtok_r((char *) script, DELIMITER, &ctx);
+    while( NULL != cmd ){
+        id = cmd[0];
+        printf("%s \n", cmd);
+
+        switch(id){
+            case '1':
+                if ( startPreview() < 0 ) {
+                    printf("Error while starting preview\n");
+
+                    return -1;
+                }
+
+                break;
+
+            case '2':
+                hardware->stopPreview();
+                hardware->release();
+                break;
+
+            case '3':
+                rotation = atoi(cmd + 1);
+                params.set(KEY_ROTATION, rotation);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case '4':
+                for(i = 0; i < ARRAY_SIZE(previewSize); i++){
+                    if( strcmp((cmd + 1), previewSize[i].desc) == 0)
+                        break;
+                }
+
+                previewSizeIDX = i;
+                params.setPreviewSize(previewSize[i].width, previewSize[i].height);
+                reSizePreview = true;
+                break;
+
+            case '5':
+                for(i = 0; i < ARRAY_SIZE(captureSize); i++){
+                    if( strcmp((cmd + 1), captureSize[i].name) == 0)
+                        break;
+                }
+
+                params.setPictureSize(captureSize[i].width, captureSize[i].height);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case '7':
+                compensation = atof(cmd + 1);
+                params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case '8':
+                params.set(params.KEY_WHITE_BALANCE, (cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'o':
+            case 'O':
+                jpegQuality = atoi(cmd + 1);
+                params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'k':
+            case 'K':
+                params.set(KEY_IPP, (cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'u':
+            case 'U':
+                params.set(KEY_MODE, (cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'w':
+            case 'W':
+                params.set(params.KEY_SCENE_MODE, (cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'y':
+            case 'Y':
+                caf_mode = atoi(cmd + 1);
+                params.set(KEY_CAF, caf_mode);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'i':
+            case 'I':
+                iso_mode = atoi(cmd + 1);
+                params.set(KEY_ISO, iso_mode);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'h':
+            case 'H':
+                sharpness = atoi(cmd + 1);
+                params.set(KEY_SHARPNESS, sharpness);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'c':
+            case 'C':
+                contrast = atoi(cmd + 1);
+                params.set(KEY_CONTRAST, contrast);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'z':
+            case 'Z':
+                params.set(KEY_ZOOM, atoi(cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'j':
+            case 'J':
+                params.set(KEY_EXPOSURE, (cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'b':
+            case 'B':
+                brightness = atoi(cmd + 1);
+                params.set(KEY_BRIGHTNESS, brightness);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 's':
+            case 'S':
+                saturation = atoi(cmd + 1);
+                params.set(KEY_SATURATION, saturation);
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'e':
+            case 'E':
+                params.set(params.KEY_EFFECT, (cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'r':
+            case 'R':
+                params.setPreviewFrameRate(atoi(cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'X':
+            case 'x':
+                params.set(params.KEY_ANTIBANDING, (cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'g':
+            case 'G':
+                params.set(params.KEY_FOCUS_MODE, (cmd + 1));
+                if ( hardwareActive )
+                    hardware->setParameters(params);
+                break;
+
+            case 'F':
+            case 'f':
+                gettimeofday(&autofocus_start, 0);
+                if ( hardwareActive )
+                    hardware->autoFocus();
+                break;
+
+            case 'P':
+            case 'p':
+                hardware->setParameters(params);
+                gettimeofday(&picture_start, 0);
+                if ( hardwareActive )
+                    hardware->takePicture();
+                break;
+
+            case 'D':
+            case 'd':
+                dly = atoi(cmd + 1);
+
+                dly *= 1000000;
+                usleep(dly);
+                break;
+
+            case 'Q':
+            case 'q':
+
+#if STRESS_TEST
+
+                if (st_started) {
+                    ret = destroy_stress_test();
+                    if (ret < 0) {
+                        printf("Destroy stress test thread failed\n");
+                        return -1;
+                    }
+                }
+
+#endif
+
+                stopPreview();
+                goto exit;
+
+            default:
+                break;
+        }
+
+        cmd = strtok_r(NULL, DELIMITER, &ctx);
+    }
+
+exit:
+
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    char *cmd;
 
     if( openCamera() < 0 ) {
         printf("Camera initialization failed\n");
@@ -1163,16 +1459,30 @@ int main()
         return -1;
     }
 
-
     hardwareActive = true;
     params = hardware->getParameters();
     initDefaults();
 
-    print_menu = 1;
-    while (1) {
-        if ( menu() < 0)
-            break;
-    };
+    cmd = NULL;
+    if ( argc < 2 ) {
+
+        print_menu = 1;
+        while (1) {
+            if ( menu() < 0)
+                break;
+        };
+
+    } else {
+
+        cmd = load_script(argv[1]);
+
+        if( cmd != NULL) {
+
+            execute_script(cmd);
+
+            free(cmd);
+        }
+    }
 
     return 0;
 }
