@@ -185,7 +185,12 @@ void TIHardwareRenderer::render(
         memcpy(mOverlayAddresses[mIndex], data, size);
     }
 
-    mOverlay->queueBuffer((void *)mIndex);
+    if (mOverlay->queueBuffer((void *)mIndex) == ALL_BUFFERS_FLUSHED) {
+        mIsFirstFrame = true;
+        if (mOverlay->queueBuffer((void *)mIndex) != 0) {
+            return;
+        }
+    }
 
     if (++mIndex == mOverlayAddresses.size()) {
         mIndex = 0;
