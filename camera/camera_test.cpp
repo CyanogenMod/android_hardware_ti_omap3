@@ -76,6 +76,7 @@ int iso_mode = 0;
 int capture_mode = 0;
 int exposure_mode = 0;
 int ippIdx = 0;
+int jpegQuality = 85;
 timeval autofocus_start, picture_start;
 
 #if STRESS_TEST
@@ -732,6 +733,7 @@ void initDefaults()
     capture_mode = 0;
     exposure_mode = 0;
     ippIdx = 0;
+    jpegQuality = 85;
 
     params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
     params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
@@ -753,6 +755,7 @@ void initDefaults()
     params.set(params.KEY_ANTIBANDING, antibanding[antibanding_mode]);
     params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
     params.set(KEY_IPP, ippIdx);
+    params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
 }
 
 int menu()
@@ -787,6 +790,7 @@ int menu()
         printf("   i. ISO mode:       %s\n", iso[iso_mode]);
         printf("   u. Capture Mode:   %s\n", capture[capture_mode]);
         printf("   k. IPP Mode:       %s\n", ipp_mode[ippIdx]);
+        printf("   o. Jpeg Quality:   %d\n", jpegQuality);
         printf("   f. Auto Focus\n");
         printf("   p. Take picture\n");
 
@@ -914,6 +918,19 @@ int menu()
         awb_mode++;
         awb_mode %= ARRAY_SIZE(strawb_mode);
         params.set(params.KEY_WHITE_BALANCE, strawb_mode[awb_mode]);
+        if ( hardwareActive )
+            hardware->setParameters(params);
+        break;
+
+
+    case 'o':
+    case 'O':
+        if ( jpegQuality >= 100) {
+            jpegQuality = 0;
+        } else {
+            jpegQuality += 5;
+        }
+        params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
         if ( hardwareActive )
             hardware->setParameters(params);
         break;
