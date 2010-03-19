@@ -945,7 +945,10 @@ sDynamicFormat = getenv("FORMAT");
     pComponentPrivate->nFrameRateUpdateInterval = 60;
     pComponentPrivate->nFrameCount = 0;
     pComponentPrivate->nVideoTime = 0;
-
+    pComponentPrivate->EmptybufferdoneCount = 0;
+    pComponentPrivate->EmptythisbufferCount = 0;
+    pComponentPrivate->FillbufferdoneCount  = 0;
+    pComponentPrivate->FillthisbufferCount  = 0;
 #ifndef UNDER_CE
     /* Initialize Mutex for Buffer Tracking */
     pthread_mutex_init(&(pComponentPrivate->mVideoEncodeBufferMutex), NULL);
@@ -1025,6 +1028,8 @@ sDynamicFormat = getenv("FORMAT");
     pthread_cond_init (&pComponentPrivate->flush_cond, NULL);
     pthread_cond_init (&pComponentPrivate->stop_cond, NULL);
 
+    pthread_mutex_init(&bufferReturned_mutex, NULL);
+    pthread_cond_init (&bufferReturned_condition, NULL);
 #else
     OMX_CreateEvent(&(pComponentPrivate->InLoaded_event));
     OMX_CreateEvent(&(pComponentPrivate->InIdle_event));
@@ -2877,6 +2882,8 @@ static OMX_ERRORTYPE EmptyThisBuffer (OMX_IN OMX_HANDLETYPE hComponent,
         OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorHardware,
                                pComponentPrivate->dbg, OMX_PRBUFFER4,
                                "failed to write to nFilled_iPipe.\n");
+    } else {
+        OMX_VIDENC_IncrementBufferCountByOne(&pComponentPrivate->EmptythisbufferCount);
     }
     if (pthread_mutex_unlock(&(pComponentPrivate->mVideoEncodeBufferMutex)) != 0)
     {
@@ -3005,6 +3012,8 @@ static OMX_ERRORTYPE FillThisBuffer (OMX_IN OMX_HANDLETYPE hComponent,
         OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorHardware,
                                pComponentPrivate->dbg, OMX_PRBUFFER4,
                                "failed to write to nFree_oPipe.\n");
+    } else {
+        OMX_VIDENC_IncrementBufferCountByOne(&pComponentPrivate->FillthisbufferCount);
     }
     if (pthread_mutex_unlock(&(pComponentPrivate->mVideoEncodeBufferMutex)) != 0)
     {
@@ -3227,6 +3236,8 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_IN OMX_HANDLETYPE hComponent)
     pthread_cond_destroy(&pComponentPrivate->unpopulate_cond);
     pthread_cond_destroy(&pComponentPrivate->flush_cond);
     pthread_cond_destroy(&pComponentPrivate->stop_cond);
+    pthread_mutex_destroy(&bufferReturned_mutex);
+    pthread_cond_destroy(&bufferReturned_condition);
 #else
     OMX_DestroyEvent(&(pComponentPrivate->InLoaded_event));
     OMX_DestroyEvent(&(pComponentPrivate->InIdle_event));

@@ -549,6 +549,14 @@ typedef struct VIDEO_PROFILE_LEVEL
     OMX_S32  nLevel;
 } VIDEO_PROFILE_LEVEL_TYPE;
 
+/* ======================================================================= */
+/**
+ * pthread variable to indicate OMX returned all buffers to app
+ */
+/* ======================================================================= */
+pthread_mutex_t bufferReturned_mutex;
+pthread_cond_t bufferReturned_condition;
+
 /**
  * The VIDENC_COMPONENT_PRIVATE data structure is used to store component's
  *                              private data.
@@ -618,7 +626,6 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     OMX_BOOL bDSPStopAck;
     OMX_BOOL bForceIFrame;
     OMX_BOOL bFlushComplete;
-    OMX_BOOL bEmptyPipes;
     OMX_BOOL bHideEvents;
     OMX_BOOL bHandlingFatalError;
     OMX_BOOL bUnresponsiveDsp;
@@ -691,6 +698,12 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     OMX_U32   nFrameRateUpdateInterval; /* Unit is number of frames */
     OMX_U32   nFrameCount;              /* Number of input frames received since last framerate update */
     OMX_TICKS nVideoTime;               /* Video duration since last framerate update */
+
+    OMX_U32 EmptybufferdoneCount;
+    OMX_U32 EmptythisbufferCount;
+    OMX_U32 FillbufferdoneCount;
+    OMX_U32 FillthisbufferCount;
+
 } VIDENC_COMPONENT_PRIVATE;
 
 typedef OMX_ERRORTYPE (*fpo)(OMX_HANDLETYPE);
@@ -738,7 +751,7 @@ OMX_ERRORTYPE OMX_VIDENC_LCML_Callback(TUsnCodecEvent event, void* argsCb [10]);
 
 OMX_ERRORTYPE OMX_VIDENC_Allocate_DSPResources (OMX_IN VIDENC_COMPONENT_PRIVATE* pComponentPrivate,
                                                    OMX_IN OMX_U32 nPortIndex);
-OMX_ERRORTYPE OMX_VIDENC_EmptyDataPipes (void* pThreadData);
+void OMX_VIDENC_EmptyDataPipes (VIDENC_COMPONENT_PRIVATE *pComponentPrivate);
 
 OMX_ERRORTYPE OMX_VIDENC_ListCreate(struct OMX_TI_Debug *dbg, struct VIDENC_NODE** pListHead);
 
@@ -769,4 +782,6 @@ void printH264UAlgInParam(H264VE_GPP_SN_UALGInputParams* pUalgInpParams, int pri
 OMX_ERRORTYPE AddStateTransition(VIDENC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE RemoveStateTransition(VIDENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
 
+void OMX_VIDENC_IncrementBufferCountByOne(OMX_U32 *count);
+void OMX_VIDEC_SignalIfAllBuffersAreReturned(VIDENC_COMPONENT_PRIVATE *pComponentPrivate);
 #endif

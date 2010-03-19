@@ -289,48 +289,40 @@ void* OMX_VIDENC_Thread (void* pThreadData)
                 }
             }
 
-            if(pComponentPrivate->bEmptyPipes)
+            if ((FD_ISSET(pComponentPrivate->nFilled_iPipe[0], &rfds)) &&
+                (pComponentPrivate->eState != OMX_StatePause &&
+                pComponentPrivate->eState != OMX_StateIdle))
             {
-                    pComponentPrivate->bEmptyPipes = OMX_FALSE;
+                OMX_PRBUFFER1(pComponentPrivate->dbg, "Enters OMX_VIDENC_Process_FilledInBuf\n");
+                eError = OMX_VIDENC_Process_FilledInBuf(pComponentPrivate);
+                if (eError != OMX_ErrorNone)
+                {
+                    OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
+                                             OMX_EventError,
+                                             OMX_ErrorUndefined,
+                                             0,
+                                             NULL);
+                    OMX_VIDENC_BAIL_IF_ERROR(eError, pComponentPrivate);
+                }
+                OMX_PRBUFFER1(pComponentPrivate->dbg, "Exits OMX_VIDENC_Process_FilledInBuf\n");
             }
-            else
+
+            if (FD_ISSET(pComponentPrivate->nFree_oPipe[0], &rfds) &&
+                (pComponentPrivate->eState != OMX_StatePause &&
+                pComponentPrivate->eState != OMX_StateIdle))
             {
-
-                if ((FD_ISSET(pComponentPrivate->nFilled_iPipe[0], &rfds)) &&
-                    (pComponentPrivate->eState != OMX_StatePause &&
-                    pComponentPrivate->eState != OMX_StateIdle))
+                OMX_PRBUFFER1(pComponentPrivate->dbg, "Enters OMX_VIDENC_Process_FreeOutBuf\n");
+                eError = OMX_VIDENC_Process_FreeOutBuf(pComponentPrivate);
+                if (eError != OMX_ErrorNone)
                 {
-                    OMX_PRBUFFER1(pComponentPrivate->dbg, "Enters OMX_VIDENC_Process_FilledInBuf\n");
-                    eError = OMX_VIDENC_Process_FilledInBuf(pComponentPrivate);
-                    if (eError != OMX_ErrorNone)
-                    {
-                        OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
-                                                 OMX_EventError,
-                                                 OMX_ErrorUndefined,
-                                                 0,
-                                                 NULL);
-                        OMX_VIDENC_BAIL_IF_ERROR(eError, pComponentPrivate);
-                    }
-                    OMX_PRBUFFER1(pComponentPrivate->dbg, "Exits OMX_VIDENC_Process_FilledInBuf\n");
+                    OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
+                                             OMX_EventError,
+                                             OMX_ErrorUndefined,
+                                             0,
+                                             NULL);
+                    OMX_VIDENC_BAIL_IF_ERROR(eError, pComponentPrivate);
                 }
-
-                if (FD_ISSET(pComponentPrivate->nFree_oPipe[0], &rfds) &&
-                    (pComponentPrivate->eState != OMX_StatePause &&
-                    pComponentPrivate->eState != OMX_StateIdle))
-                {
-                    OMX_PRBUFFER1(pComponentPrivate->dbg, "Enters OMX_VIDENC_Process_FreeOutBuf\n");
-                    eError = OMX_VIDENC_Process_FreeOutBuf(pComponentPrivate);
-                    if (eError != OMX_ErrorNone)
-                    {
-                        OMX_VIDENC_EVENT_HANDLER(pComponentPrivate,
-                                                 OMX_EventError,
-                                                 OMX_ErrorUndefined,
-                                                 0,
-                                                 NULL);
-                        OMX_VIDENC_BAIL_IF_ERROR(eError, pComponentPrivate);
-                    }
-                    OMX_PRBUFFER1(pComponentPrivate->dbg, "Exits OMX_VIDENC_Process_FreeOutBuf\n");
-                }
+                OMX_PRBUFFER1(pComponentPrivate->dbg, "Exits OMX_VIDENC_Process_FreeOutBuf\n");
             }
         }
     }
