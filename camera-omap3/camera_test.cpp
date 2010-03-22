@@ -824,6 +824,9 @@ void initDefaults()
     params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
     params.set(KEY_IPP, ippIdx);
     params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
+
+    if ( hardwareActive )
+        hardware->setParameters(params);
 }
 
 int menu()
