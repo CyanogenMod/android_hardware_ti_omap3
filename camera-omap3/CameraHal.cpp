@@ -531,7 +531,7 @@ void CameraHal::previewThread()
                         LOGE("AF Fail");
                     }
 
-                    if(mMsgEnabled & CAMERA_MSG_FOCUS)
+                    if( msgTypeEnabled(CAMERA_MSG_FOCUS) )
                         mNotifyCb(CAMERA_MSG_FOCUS, focus_flag, 0, mCallbackCookie);
                 }
             }
@@ -716,7 +716,7 @@ void CameraHal::previewThread()
 
 #else
 
-                    if(mMsgEnabled & CAMERA_MSG_FOCUS)
+                    if( msgTypeEnabled(CAMERA_MSG_FOCUS) )
                         mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
 
                     msg.command = PREVIEW_ACK;
@@ -1413,6 +1413,7 @@ int  CameraHal::ICapturePerform()
                    LowFreqCrNoiseFilterStrength, MidFreqCrNoiseFilterStrength, HighFreqCrNoiseFilterStrength,
                    shadingVertParam1, shadingVertParam2, shadingHorzParam1, shadingHorzParam2, shadingGainScale,
                    shadingGainOffset, shadingGainMaxValue, ratioDownsampleCbCr;
+    exif_buffer *exif_buf;
 
 #ifdef DEBUG_LOG
 
@@ -1577,44 +1578,44 @@ int  CameraHal::ICapturePerform()
     if(FD_ISSET(snapshotReadyPipe[0], &descriptorSet))
         read(snapshotReadyPipe[0], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
 //
-    if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE) {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
         PPM("SENDING MESSAGE TO PROCESSING THREAD");
 
 #endif
-        mExifParams.exposure = fobj->status_2a.ae.shutter_cap;
-        mExifParams.zoom = zoom_step[mZoomTargetIdx];
-        exif_buffer *exif_buf = get_exif_buffer(&mExifParams, gpsLocation);
 
-        if( NULL != gpsLocation ) {
-            free(gpsLocation);
-            gpsLocation = NULL;
-        }
+    mExifParams.exposure = fobj->status_2a.ae.shutter_cap;
+    mExifParams.zoom = zoom_step[mZoomTargetIdx];
+    exif_buf = get_exif_buffer(&mExifParams, gpsLocation);
 
-        if (  iobj->proc.ipp.type == ICAP_IMAGEPOSTPROC_VER1_9 ) {
-            EdgeEnhancementStrength = iobj->proc.ipp.ipp19.EdgeEnhancementStrength;
-            WeakEdgeThreshold = iobj->proc.ipp.ipp19.WeakEdgeThreshold;
-            StrongEdgeThreshold = iobj->proc.ipp.ipp19.StrongEdgeThreshold;
-            LowFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqLumaNoiseFilterStrength;
-            MidFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqLumaNoiseFilterStrength;
-            HighFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqLumaNoiseFilterStrength;
-            LowFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqCbNoiseFilterStrength;
-            MidFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqCbNoiseFilterStrength;
-            HighFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqCbNoiseFilterStrength;
-            LowFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqCrNoiseFilterStrength;
-            MidFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqCrNoiseFilterStrength;
-            HighFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqCrNoiseFilterStrength;
-            shadingVertParam1 = iobj->proc.ipp.ipp19.shadingVertParam1;
-            shadingVertParam2 = iobj->proc.ipp.ipp19.shadingVertParam2;
-            shadingHorzParam1 = iobj->proc.ipp.ipp19.shadingHorzParam1;
-            shadingHorzParam2 = iobj->proc.ipp.ipp19.shadingHorzParam2;
-            shadingGainScale = iobj->proc.ipp.ipp19.shadingGainScale;
-            shadingGainOffset = iobj->proc.ipp.ipp19.shadingGainOffset;
-            shadingGainMaxValue = iobj->proc.ipp.ipp19.shadingGainMaxValue;
-            ratioDownsampleCbCr = iobj->proc.ipp.ipp19.ratioDownsampleCbCr;
-	} else if ( iobj->proc.ipp.type == ICAP_IMAGEPOSTPROC_VER1_8 ) {
+    if( NULL != gpsLocation ) {
+        free(gpsLocation);
+        gpsLocation = NULL;
+    }
+
+    if (  iobj->proc.ipp.type == ICAP_IMAGEPOSTPROC_VER1_9 ) {
+        EdgeEnhancementStrength = iobj->proc.ipp.ipp19.EdgeEnhancementStrength;
+        WeakEdgeThreshold = iobj->proc.ipp.ipp19.WeakEdgeThreshold;
+        StrongEdgeThreshold = iobj->proc.ipp.ipp19.StrongEdgeThreshold;
+        LowFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqLumaNoiseFilterStrength;
+        MidFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqLumaNoiseFilterStrength;
+        HighFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqLumaNoiseFilterStrength;
+        LowFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqCbNoiseFilterStrength;
+        MidFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqCbNoiseFilterStrength;
+        HighFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqCbNoiseFilterStrength;
+        LowFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqCrNoiseFilterStrength;
+        MidFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqCrNoiseFilterStrength;
+        HighFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqCrNoiseFilterStrength;
+        shadingVertParam1 = iobj->proc.ipp.ipp19.shadingVertParam1;
+        shadingVertParam2 = iobj->proc.ipp.ipp19.shadingVertParam2;
+        shadingHorzParam1 = iobj->proc.ipp.ipp19.shadingHorzParam1;
+        shadingHorzParam2 = iobj->proc.ipp.ipp19.shadingHorzParam2;
+        shadingGainScale = iobj->proc.ipp.ipp19.shadingGainScale;
+        shadingGainOffset = iobj->proc.ipp.ipp19.shadingGainOffset;
+        shadingGainMaxValue = iobj->proc.ipp.ipp19.shadingGainMaxValue;
+        ratioDownsampleCbCr = iobj->proc.ipp.ipp19.ratioDownsampleCbCr;
+    } else if ( iobj->proc.ipp.type == ICAP_IMAGEPOSTPROC_VER1_8 ) {
             EdgeEnhancementStrength = iobj->proc.ipp.ipp18.ee_q;
             WeakEdgeThreshold = iobj->proc.ipp.ipp18.ew_ts;
             StrongEdgeThreshold = iobj->proc.ipp.ipp18.es_ts;
@@ -1635,7 +1636,7 @@ int  CameraHal::ICapturePerform()
             shadingGainOffset = -1;
             shadingGainMaxValue = -1;
             ratioDownsampleCbCr = -1;
-	} else {
+    } else {
             EdgeEnhancementStrength = 220;
             WeakEdgeThreshold = 8;
             StrongEdgeThreshold = 200;
@@ -1656,54 +1657,54 @@ int  CameraHal::ICapturePerform()
             shadingGainOffset = 2048;
             shadingGainMaxValue = 16384;
             ratioDownsampleCbCr = 1;
-	}
-
-        procMessage[0] = PROC_THREAD_PROCESS;
-        procMessage[1] = iobj->proc.out_img_w;
-        procMessage[2] = iobj->proc.out_img_h;
-        procMessage[3] = image_width;
-        procMessage[4] = image_height;
-        procMessage[5] = pixelFormat;
-        procMessage[6]  = EdgeEnhancementStrength;
-        procMessage[7]  = WeakEdgeThreshold;
-        procMessage[8]  = StrongEdgeThreshold;
-        procMessage[9]  = LowFreqLumaNoiseFilterStrength;
-        procMessage[10] = MidFreqLumaNoiseFilterStrength;
-        procMessage[11] = HighFreqLumaNoiseFilterStrength;
-        procMessage[12] = LowFreqCbNoiseFilterStrength;
-        procMessage[13] = MidFreqCbNoiseFilterStrength;
-        procMessage[14] = HighFreqCbNoiseFilterStrength;
-        procMessage[15] = LowFreqCrNoiseFilterStrength;
-        procMessage[16] = MidFreqCrNoiseFilterStrength;
-        procMessage[17] = HighFreqCrNoiseFilterStrength;
-        procMessage[18] = shadingVertParam1;
-        procMessage[19] = shadingVertParam2;
-        procMessage[20] = shadingHorzParam1;
-        procMessage[21] = shadingHorzParam2;
-        procMessage[22] = shadingGainScale;
-        procMessage[23] = shadingGainOffset;
-        procMessage[24] = shadingGainMaxValue;
-        procMessage[25] = ratioDownsampleCbCr;
-        procMessage[26] = (unsigned int) yuv_buffer;
-        procMessage[27] = offset;
-        procMessage[28] = yuv_len;
-        procMessage[29] = rotation;
-        procMessage[30] = mZoomTargetIdx;
-        procMessage[31] = mippMode;
-        procMessage[32] = mIPPToEnable;
-        procMessage[33] = quality;
-        procMessage[34] = (unsigned int) mDataCb;
-        procMessage[35] = 0;
-        procMessage[36] = (unsigned int) mCallbackCookie;
-        procMessage[37] = iobj->proc.aspect_rect.top;
-        procMessage[38] = iobj->proc.aspect_rect.left;
-        procMessage[39] = iobj->proc.aspect_rect.width;
-        procMessage[40] = iobj->proc.aspect_rect.height;
-        procMessage[41] = (unsigned int) exif_buf;
-        write(procPipe[1], &procMessage, sizeof(procMessage));
-
-        mIPPToEnable = false; // reset ipp enable after sending to proc thread
     }
+
+    procMessage[0] = PROC_THREAD_PROCESS;
+    procMessage[1] = iobj->proc.out_img_w;
+    procMessage[2] = iobj->proc.out_img_h;
+    procMessage[3] = image_width;
+    procMessage[4] = image_height;
+    procMessage[5] = pixelFormat;
+    procMessage[6]  = EdgeEnhancementStrength;
+    procMessage[7]  = WeakEdgeThreshold;
+    procMessage[8]  = StrongEdgeThreshold;
+    procMessage[9]  = LowFreqLumaNoiseFilterStrength;
+    procMessage[10] = MidFreqLumaNoiseFilterStrength;
+    procMessage[11] = HighFreqLumaNoiseFilterStrength;
+    procMessage[12] = LowFreqCbNoiseFilterStrength;
+    procMessage[13] = MidFreqCbNoiseFilterStrength;
+    procMessage[14] = HighFreqCbNoiseFilterStrength;
+    procMessage[15] = LowFreqCrNoiseFilterStrength;
+    procMessage[16] = MidFreqCrNoiseFilterStrength;
+    procMessage[17] = HighFreqCrNoiseFilterStrength;
+    procMessage[18] = shadingVertParam1;
+    procMessage[19] = shadingVertParam2;
+    procMessage[20] = shadingHorzParam1;
+    procMessage[21] = shadingHorzParam2;
+    procMessage[22] = shadingGainScale;
+    procMessage[23] = shadingGainOffset;
+    procMessage[24] = shadingGainMaxValue;
+    procMessage[25] = ratioDownsampleCbCr;
+    procMessage[26] = (unsigned int) yuv_buffer;
+    procMessage[27] = offset;
+    procMessage[28] = yuv_len;
+    procMessage[29] = rotation;
+    procMessage[30] = mZoomTargetIdx;
+    procMessage[31] = mippMode;
+    procMessage[32] = mIPPToEnable;
+    procMessage[33] = quality;
+    procMessage[34] = (unsigned int) mDataCb;
+    procMessage[35] = 0;
+    procMessage[36] = (unsigned int) mCallbackCookie;
+    procMessage[37] = iobj->proc.aspect_rect.top;
+    procMessage[38] = iobj->proc.aspect_rect.left;
+    procMessage[39] = iobj->proc.aspect_rect.width;
+    procMessage[40] = iobj->proc.aspect_rect.height;
+    procMessage[41] = (unsigned int) exif_buf;
+
+    write(procPipe[1], &procMessage, sizeof(procMessage));
+
+    mIPPToEnable = false; // reset ipp enable after sending to proc thread
 
 #ifdef DEBUG_LOG
 
@@ -1711,7 +1712,7 @@ int  CameraHal::ICapturePerform()
 
 #endif
 
-    if( (mMsgEnabled & CAMERA_MSG_SHUTTER) && (mShutterEnable) ) {
+    if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && (mShutterEnable) ) {
 
 #ifdef DEBUG_LOG
 
@@ -1731,7 +1732,7 @@ int  CameraHal::ICapturePerform()
 
 #endif
 
-    if(mMsgEnabled & CAMERA_MSG_RAW_IMAGE){
+    if( msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ) {
 
 #ifdef DEBUG_LOG
 
@@ -1792,7 +1793,7 @@ int CameraHal::ICapturePerform(){
 
     LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
 
-	if( (mMsgEnabled & CAMERA_MSG_SHUTTER) && mShutterEnable)
+	if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && mShutterEnable)
 		mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
 
     mParameters.getPictureSize(&image_width, &image_height);
@@ -1919,7 +1920,7 @@ int CameraHal::ICapturePerform(){
         return -1;
     }
 
-	if(mMsgEnabled & CAMERA_MSG_RAW_IMAGE){
+	if( msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ){
 		mDataCb(CAMERA_MSG_RAW_IMAGE, mPictureBuffer,mCallbackCookie);
 	}
 
@@ -2097,7 +2098,7 @@ int CameraHal::ICapturePerform(){
 
 #endif
 
-	if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)
+	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
 	{
 
 #ifdef HARDWARE_OMX
@@ -2117,7 +2118,7 @@ int CameraHal::ICapturePerform(){
 
 		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
-	if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE){
+	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) ){
 		mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,mJPEGPictureMemBase,mCallbackCookie);
     }
 
@@ -2135,7 +2136,7 @@ int CameraHal::ICapturePerform(){
 
 #else
 
-	if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)
+	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
 		mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,NULL,mCallbackCookie);
 
 #endif
@@ -2699,8 +2700,8 @@ void CameraHal::procThread()
 
                 JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, offset, jpegEncoder->jpegSize);
 #endif
-
-                if(JpegPictureCallback) {
+                /* Disable the jpeg message enabled check for now */
+                if( /*msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) && */ JpegPictureCallback ) {
 
 #if JPEG
 
