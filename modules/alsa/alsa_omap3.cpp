@@ -450,14 +450,17 @@ status_t setSoftwareParams(alsa_handle_t *handle)
 
 void setScoControls(uint32_t devices, int mode)
 {
+LOGV("%s", __FUNCTION__);
 }
 
 void setFmControls(uint32_t devices, int mode)
 {
+LOGV("%s", __FUNCTION__);
 }
 
 void setDefaultControls(uint32_t devices, int mode)
 {
+LOGV("%s", __FUNCTION__);
     ALSAControl control("hw:00");
 
 #ifdef AUDIO_MODEM_TI
@@ -611,9 +614,12 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
     else {
         LOGE("Why are we routing to a device that isn't supported by this object?!?!?!?!");
         status = s_open(handle, devices, mode);
+        #ifdef AUDIO_MODEM_TI
+            ALSAControl control("hw:00");
+            status = audioModem->voiceCallControls(devices, mode, &control);
+        #endif
     }
 
     return status;
 }
-
 }

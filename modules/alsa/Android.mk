@@ -19,10 +19,17 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
     LOCAL_CFLAGS += -DAUDIO_MODEM_TI
   endif
+  ifeq ($(BOARD_HAVE_BLUETOOTH),true)
+      LOCAL_CFLAGS += -DAUDIO_BLUETOOTH
+  endif
 
   LOCAL_C_INCLUDES += hardware/alsa_sound external/alsa-lib/include
   ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
     LOCAL_C_INCLUDES += hardware/ti/omap3/modules/alsa
+    ifeq ($(BOARD_HAVE_BLUETOOTH),true)
+        LOCAL_C_INCLUDES += $(call include-path-for, bluez-libs) \
+                            external/bluetooth/bluez/include
+    endif
   endif
 
   LOCAL_SRC_FILES:= alsa_omap3.cpp
@@ -37,6 +44,16 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
     libcutils \
     libutils \
     libdl
+
+  ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
+    ifeq ($(strip $(BOARD_HAVE_BLUETOOTH)),true)
+        LOCAL_SHARED_LIBRARIES += \
+            libbluetooth
+
+        #LOCAL_STATIC_LIBRARIES := \
+         #   libbluez-common-static
+    endif
+  endif
 
   LOCAL_MODULE:= alsa.$(TARGET_PRODUCT)
 
