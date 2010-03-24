@@ -109,7 +109,7 @@ typedef struct LogBufInfo
 #define MAX_UPDATION_WAIT	20
 #define SUCCESS                 0
 #define FAILURE                 -1
-
+#define DSP_CACHE_LINE		128
 //******************************************//
 //		 		MACROS						//
 //******************************************//
@@ -441,7 +441,6 @@ static Status mapTimerAndBufferToDSPMem(DMMCOPY_TASK * copyTask)
 
     DSP_STATUS status = DSP_SOK;
     ULONG dspReserveSize = BUFFER_SIZE;
-
     callocBuffer =(Addr) (char *)calloc(mmBufSize + ((PAGE_ALIGN_UNMASK + 1) << 1),1);
 
     if (callocBuffer == (Addr) NULL)
@@ -497,7 +496,7 @@ static Status mapTimerAndBufferToDSPMem(DMMCOPY_TASK * copyTask)
     {
         fprintf(stderr,"DSPProcessor_ReserveMemory succeeded. dspResMemLSW = 0x%x \n", (UINT) dspResMemLSW);
 
-        status = DSPProcessor_Map(copyTask->hProcessor, (PVOID) gpTimerRegAddLSW, 4, (PVOID) dspResMemLSW, (PVOID *) & dspMappedLSW, DSP_MAPPHYSICALADDR|DSP_MAPELEMSIZE32);
+        status = DSPProcessor_Map(copyTask->hProcessor, (PVOID) gpTimerRegAddLSW, 4, (PVOID) dspResMemLSW, (PVOID *) & dspMappedLSW, 0x4000|DSP_MAPPHYSICALADDR|DSP_MAPELEMSIZE32);
         if (DSP_SUCCEEDED(status))
         {
             fprintf(stderr,"DSPProcessor_Map succeeded. dspMappedLSW = 0x%x \n", (UINT) dspMappedLSW);
@@ -521,7 +520,7 @@ static Status mapTimerAndBufferToDSPMem(DMMCOPY_TASK * copyTask)
     {
         fprintf(stderr,"DSPProcessor_ReserveMemory succeeded. dspResMemMSW = 0x%x \n", (UINT) dspResMemMSW);
 
-        status = DSPProcessor_Map(copyTask->hProcessor, (PVOID) gpTimerRegAddMSW, 4, (PVOID) dspResMemMSW, (PVOID *) & dspMappedMSW, DSP_MAPPHYSICALADDR|DSP_MAPELEMSIZE32);
+        status = DSPProcessor_Map(copyTask->hProcessor, (PVOID) gpTimerRegAddMSW, 4, (PVOID) dspResMemMSW, (PVOID *) & dspMappedMSW, 0x4000|DSP_MAPPHYSICALADDR|DSP_MAPELEMSIZE32);
         if (DSP_SUCCEEDED(status))
         {
             fprintf(stderr,"DSPProcessor_Map succeeded. dspMappedMSW = 0x%x \n", (UINT) dspMappedMSW);
@@ -819,18 +818,8 @@ Status initializeLogBufInfo(LogBufInfo ** logBufInfoArr)
 
 
         //This is done because now we are using ARM side allocated buffer, and we dont need to map it arm side again
-        if (bufCount==3)
-        {
-
-            logBufInfoArr[bufCount]->mappedLogBufAddr = (char *) mmBuffer;
-        }
-        else
-        {
-            logBufInfoArr[bufCount]->mappedLogBufAddr  = (char *) mapAddr(logBufInfoArr[bufCount]->logBufStartAddrARM,
-                                                                          logBufInfoArr[bufCount]->bufSize,
-                                                                          PROT_READ,MAP_SHARED);
-        }
-        if (logBufInfoArr[bufCount]->mappedLogObjAddr <0)
+         logBufInfoArr[bufCount]->mappedLogBufAddr = (char *) mmBuffer;
+	if (logBufInfoArr[bufCount]->mappedLogObjAddr <0)
         {
             fprintf(stderr,"GETLOG_ERR:initializeLogBufInfo:Failed to MapAddr = %ld",logBufInfoArr[bufCount]->logBufStartAddrARM);
             cleanUpLogBufInfo(logBufInfoArr,bufCount+1);
