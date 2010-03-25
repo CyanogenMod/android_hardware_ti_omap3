@@ -3580,7 +3580,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         caf = mParameters.getInt("caf");
 
         if(contrast != -1)
+        {
+            contrast -= CONTRAST_OFFSET;
             fobj->settings_2a.general.contrast = contrast;
+        }
 
         if(brightness != -1) 
             fobj->settings_2a.general.brightness = brightness;
