@@ -1169,6 +1169,7 @@ OMX_ERRORTYPE VIDDEC_Load_Defaults (VIDDEC_COMPONENT_PRIVATE* pComponentPrivate,
             pComponentPrivate->bDynamicConfigurationInProgress  = OMX_FALSE;
             pComponentPrivate->nInternalConfigBufferFilledAVC = 0;
             pComponentPrivate->eMBErrorReport.bEnabled            = OMX_FALSE;
+            pComponentPrivate->firstBufferEos                    = OMX_FALSE;
         break;
 
 case VIDDEC_INIT_IDLEEXECUTING:
@@ -5969,6 +5970,9 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                 /* Verify if first buffer as been stored. 
                  * Handle case were only one frame is decoded */
                 if(pComponentPrivate->eFirstBuffer.bSaveFirstBuffer){
+                    if (pBuffHead->nFlags & OMX_BUFFERFLAG_EOS){
+                        pComponentPrivate->firstBufferEos = OMX_TRUE;
+                    }
                     eError = VIDDEC_CopyBuffer(pComponentPrivate, pBuffHead);
                     if (eError != OMX_ErrorNone) {
                         OMX_PRDSP4(pComponentPrivate->dbg, "VIDDEC_HandleDataBuf_FromApp: VIDDEC_CopyBuffer()= 0x%x\n", eError);
@@ -6688,6 +6692,11 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromDsp(VIDDEC_COMPONENT_PRIVATE *pComponentP
         }
         else {
             if(pBuffHead != NULL) {
+                if (pComponentPrivate->firstBufferEos){
+                    pComponentPrivate->firstBufferEos = OMX_FALSE;
+                    pBuffHead->nFlags |= OMX_BUFFERFLAG_EOS;
+                    pBuffHead->nFilledLen = 0;
+                }
     #ifdef __PERF_INSTRUMENTATION__
                 PERF_SendingFrame(pComponentPrivate->pPERFcomp,
                                   pBuffHead->pBuffer,
