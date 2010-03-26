@@ -80,6 +80,7 @@ typedef struct
   uint32_t dataReady;    // Only updated by the data side
 
   pthread_mutex_t lock;
+  pthread_mutexattr_t attr;
 
   uint32_t streamEn;
   uint32_t streamingReset;
@@ -264,14 +265,21 @@ static int create_shared_data(overlay_shared_t **shared)
     p->marker = SHARED_DATA_MARKER;
     p->size   = size;
     p->refCnt = 1;
-
-    if (pthread_mutex_init(&p->lock, NULL) != 0) {
-        LOGE("Failed to Open Overlay Lock!\n");
+    int ret = 0;
+    if ((ret = pthread_mutexattr_init(&p->attr)) != 0) {
+        LOGE("Failed to initialize overlay mutex attr");
+    }
+    if (ret == 0 && (ret = pthread_mutexattr_setpshared(&p->attr, PTHREAD_PROCESS_SHARED)) != 0) {
+       LOGE("Failed to set the overlay mutex attr to be shared across-processes");
+    }
+    if (ret == 0 && (ret = pthread_mutex_init(&p->lock, &p->attr)) != 0) {
+        LOGE("Failed to initialize overlay mutex\n");
+    }
+    if (ret != 0) {
         munmap(p, size);
         close(fd);
         return -1;
     }
-
     *shared = p;
     return fd;
 }
@@ -285,9 +293,12 @@ static void destroy_shared_data( int shared_fd, overlay_shared_t *shared, bool c
     // side will deadlock trying to use an already released mutex
     if (android_atomic_dec(&shared->refCnt) == 1) {
         if (pthread_mutex_destroy(&shared->lock)) {
-            LOGE("Failed to Close Overlay Semaphore!\n");
+            LOGE("Failed to uninitialize overlay mutex!\n");
         }
 
+        if (pthread_mutexattr_destroy(&shared->attr)) {
+            LOGE("Failed to uninitialize the overlay mutex attr!\n");
+        }
         shared->marker = 0;
     }
 
