@@ -2666,6 +2666,7 @@ void CameraHal::procThread()
 #ifdef DEBUG_LOG
                     PPM("AFTER IPP Process Buffer");
 #endif
+                    pixelFormat = PIX_YUV422I; //output of IPP is always 422I
                     if(!(pIPP.ippconfig.isINPLACE)){
                         input_buffer = pIPP.pIppOutputBuffer;
                         input_length = pIPP.outputBufferSize;
