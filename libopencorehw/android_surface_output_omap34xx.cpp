@@ -127,6 +127,9 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
 
         mbufferAlloc.maxBuffers = 6;  // Hardcoded to work with OMX decoder component
         mbufferAlloc.bufferSize = iBufferSize;
+        if (mbufferAlloc.buffer_address) {
+            delete [] mbufferAlloc.buffer_address;
+        }
         mbufferAlloc.buffer_address = new uint8*[mbufferAlloc.maxBuffers];
         if (mbufferAlloc.buffer_address == NULL) {
             LOGE("unable to allocate mem for overlay addresses");
