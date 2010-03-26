@@ -1020,6 +1020,9 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     pthread_mutex_t mutexStateChangeRequest;
     pthread_cond_t StateChangeCondition;
 
+    // Signal first buffer after config data should have EOS flag
+    OMX_BOOL firstBufferEos;
+
 } VIDDEC_COMPONENT_PRIVATE;
 
 /*****************macro definitions*********************/
