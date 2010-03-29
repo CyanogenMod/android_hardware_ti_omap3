@@ -14,6 +14,5 @@
 # limitations under the License.
 #
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
-#  include $(all-subdir-makefiles)
-include hardware/ti/omap3/ti_st/uim/Android.mk
+include $(all-subdir-makefiles)
 endif
