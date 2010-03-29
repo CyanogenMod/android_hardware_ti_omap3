@@ -302,8 +302,17 @@ status_t setHardwareParams(alsa_handle_t *handle)
         LOGV("Set %s sample rate to %u HZ", streamName(handle), requestedRate);
 
     // Make sure we have at least the size we originally wanted
+
+#ifdef TARGET_OMAP4
+/* a little bit of a hack until we have a chance to test this change on both platforms;
+   the ideal will be to keep this src common between all OMAP platforms */
+    err = snd_pcm_hw_params_set_buffer_size_near(handle->handle, hardwareParams,
+            &bufferSize);
+#else
     err = snd_pcm_hw_params_set_buffer_size(handle->handle, hardwareParams,
             bufferSize);
+#endif
+
     if (err < 0) {
         LOGE("Unable to set buffer size to %d:  %s",
                 (int)bufferSize, snd_strerror(err));
