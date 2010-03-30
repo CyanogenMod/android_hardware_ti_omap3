@@ -1300,6 +1300,11 @@ void CameraHal::nextPreview()
 #endif
 
     /* De-queue the next avaliable buffer */
+    if (nCameraBuffersQueued == 0)
+    {
+        LOGD("Camera has 0 buffers at the moment.");
+    }
+    
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
         LOGE("VIDIOC_DQBUF Failed!!!");
         goto EXIT;
@@ -1312,14 +1317,19 @@ void CameraHal::nextPreview()
     queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
     if (queue_to_dss_failed)
     {
-    	LOGE("nextPreview(): mOverlay->queueBuffer() failed:[%d]",cfilledbuffer.index);
+        LOGE("nextPreview(): mOverlay->queueBuffer() failed:[%d]",cfilledbuffer.index);
+
+        if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
+            LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
+        }
+        else nCameraBuffersQueued++;
     }
     else
     {
         nOverlayBuffersQueued++;
         buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
     }
-
+    
     if (nOverlayBuffersQueued >= NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
     {
         if(mOverlay->dequeueBuffer(&overlaybuffer)){
@@ -1330,33 +1340,37 @@ void CameraHal::nextPreview()
             nOverlayBuffersQueued--;
             buffers_queued_to_dss[(int)overlaybuffer] = 0;
             lastOverlayBufferDQ = (int)overlaybuffer;	
+            //LOGD("AF OVLY DQ");
         }
-    }
-    else
-    {
-        //cfilledbuffer.index = whatever was in there before..
-        //That is, queue the same buffer that was dequeued
     }
 
     mRecordingLock.lock();
 
     if(mRecordEnabled)
     {
-        if(overlaybufferindex != -1)
+        if(overlaybufferindex != -1) // dequeued a valid buffer from overlay
         {
-            mCurrentTime = systemTime(SYSTEM_TIME_MONOTONIC);
-            mDataCbTimestamp(mCurrentTime, CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
-        }
-    } 
-    else {
-        if (queue_to_dss_failed) {			
-            if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-                LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
-            }else{
-                nCameraBuffersQueued++;
+            if (nCameraBuffersQueued == 0)
+            {
+                /* Drop the frame. Camera is starving. */
+                if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
+                    LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
+                }else{
+                    nCameraBuffersQueued++;
+                    LOGD("Didnt queue this buffer to VE");
+                }
+            }
+            else
+            {
+                mCurrentTime = systemTime(SYSTEM_TIME_MONOTONIC);
+                buffers_queued_to_ve[(int)overlaybuffer] = 1;
+                mDataCbTimestamp(mCurrentTime, CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
             }
         }
-        else if (overlaybufferindex != -1) {		
+    } 
+    else 
+    {
+        if (overlaybufferindex != -1) {	// dequeued a valid buffer from overlay	
             if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
                 LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
             }else{
@@ -3053,6 +3067,7 @@ status_t CameraHal::startRecording( )
     {
         mVideoHeaps[i].clear();
         mVideoBuffer[i].clear();
+        buffers_queued_to_ve[i] = 0;
     }
 
     for(i = 0; i < mVideoBufferCount; i++)
@@ -3074,6 +3089,20 @@ void CameraHal::stopRecording()
     LOG_FUNCTION_NAME
     mRecordingLock.lock();
     mRecordEnabled = false;
+
+    for(int i = 0; i < MAX_CAMERA_BUFFERS; i ++)
+    {
+        if (buffers_queued_to_ve[i] == 1)
+        {
+            if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[i]) < 0) {
+                LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
+            }
+            else nCameraBuffersQueued++;
+            buffers_queued_to_ve[i] = 0;
+            LOGD("Buffer #%d was not returned by VE. Reclaiming it !!!!!!!!!!!!!!!!!!!!!!!!", i);        
+        }
+    }
+
     mRecordingLock.unlock();
 }
 
