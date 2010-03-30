@@ -291,7 +291,8 @@ void* OMX_VIDENC_Thread (void* pThreadData)
 
             if ((FD_ISSET(pComponentPrivate->nFilled_iPipe[0], &rfds)) &&
                 (pComponentPrivate->eState != OMX_StatePause &&
-                pComponentPrivate->eState != OMX_StateIdle))
+                 pComponentPrivate->eState != OMX_StateIdle &&
+                 pComponentPrivate->eState != OMX_StateLoaded))
             {
                 OMX_PRBUFFER1(pComponentPrivate->dbg, "Enters OMX_VIDENC_Process_FilledInBuf\n");
                 eError = OMX_VIDENC_Process_FilledInBuf(pComponentPrivate);
@@ -309,8 +310,8 @@ void* OMX_VIDENC_Thread (void* pThreadData)
 
             if (FD_ISSET(pComponentPrivate->nFree_oPipe[0], &rfds) &&
                 (pComponentPrivate->eState!= OMX_StatePause &&
-                pComponentPrivate->eState != OMX_StateIdle &&
-                pComponentPrivate->eState != OMX_StateLoaded))
+                 pComponentPrivate->eState != OMX_StateIdle &&
+                 pComponentPrivate->eState != OMX_StateLoaded))
             {
                 OMX_PRBUFFER1(pComponentPrivate->dbg, "Enters OMX_VIDENC_Process_FreeOutBuf\n");
                 eError = OMX_VIDENC_Process_FreeOutBuf(pComponentPrivate);
