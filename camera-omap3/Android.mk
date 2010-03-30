@@ -1,4 +1,5 @@
 ifdef BOARD_USES_TI_CAMERA_HAL
+ifeq ($(TARGET_BOARD_PLATFORM),omap3)
 
 ################################################
 
@@ -149,5 +150,6 @@ endif
 ################################################
 
 
+endif
 endif
 
