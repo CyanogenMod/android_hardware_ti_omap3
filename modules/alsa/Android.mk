@@ -23,10 +23,6 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
       LOCAL_CFLAGS += -DAUDIO_BLUETOOTH
   endif
 
-  ifeq ($(TARGET_PRODUCT),nextgen)
-    LOCAL_CFLAGS += -DTARGET_OMAP4
-  endif
-
   LOCAL_C_INCLUDES += hardware/alsa_sound external/alsa-lib/include
   ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
     LOCAL_C_INCLUDES += hardware/ti/omap3/modules/alsa
