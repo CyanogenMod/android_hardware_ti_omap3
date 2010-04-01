@@ -1943,51 +1943,45 @@ int CameraHal::ICapturePerform(){
 
     mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
     if ( data == NULL ) {
-        LOGE(" getBufferAddress returned NULL");
-    }
+        LOGE(" getBufferAddress returned NULL skipping snapshot");
+    } else{
+        snapshot_buffer = data->ptr;
 
-    snapshot_buffer = data->ptr;
+        scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
 
-    scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
-
-    err = scale_process(yuv_buffer, image_width, image_height,
-                         snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[mZoomTargetIdx], 0, 0, image_width, image_height);
+        err = scale_process(yuv_buffer, image_width, image_height,
+                             snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[mZoomTargetIdx], 0, 0, image_width, image_height);
 
 #ifdef DEBUG_LOG
-
-   PPM("After vpp downscales:");
-
-   if( err )
-        LOGE("scale_process() failed");
-   else
-        LOGD("scale_process() OK");
-
+       PPM("After vpp downscales:");
+       if( err )
+            LOGE("scale_process() failed");
+       else
+            LOGD("scale_process() OK");
 #endif
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-    PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
-
+        PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 #endif
-    scale_deinit();
+        scale_deinit();
 
-    err = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
-    if (err) {
-        LOGE("mOverlay->queueBuffer() failed!!!!");
-    } else {
-        buffers_queued_to_dss[lastOverlayBufferDQ]=1;
-        nOverlayBuffersQueued++;
+        err = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
+        if (err) {
+            LOGE("mOverlay->queueBuffer() failed!!!!");
+        } else {
+            buffers_queued_to_dss[lastOverlayBufferDQ]=1;
+            nOverlayBuffersQueued++;
+        }
+
+        err = mOverlay->dequeueBuffer(&overlaybuffer);
+        if (err) {
+            LOGE("mOverlay->dequeueBuffer() failed!!!!");
+        } else {
+            nOverlayBuffersQueued--;
+            buffers_queued_to_dss[(int)overlaybuffer] = 0;
+            lastOverlayBufferDQ = (int)overlaybuffer;
+         }
     }
-
-    err = mOverlay->dequeueBuffer(&overlaybuffer);
-    if (err) {
-        LOGE("mOverlay->dequeueBuffer() failed!!!!");
-    } else {
-        nOverlayBuffersQueued--;
-        buffers_queued_to_dss[(int)overlaybuffer] = 0;
-        lastOverlayBufferDQ = (int)overlaybuffer;
-     }
-
 #endif
 #endif
 #endif
