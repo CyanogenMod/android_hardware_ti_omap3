@@ -2124,8 +2124,8 @@ int CameraHal::ICapturePerform(){
 
 
 		PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
-
-        exif_buf_free (exif_buf);
+        if((exif_buf != NULL) && (exif_buf->data != NULL))
+            exif_buf_free (exif_buf);
 
         if( NULL != gpsLocation ) {
             free(gpsLocation);
@@ -2721,7 +2721,8 @@ void CameraHal::procThread()
                 LOGD("jpegEncoder->jpegSize=%d jpegSize=%d", jpegEncoder->jpegSize, jpegSize);
 
 #endif
-                exif_buf_free(exif_buf);
+                if((exif_buf != NULL) && (exif_buf->data != NULL))
+                    exif_buf_free(exif_buf);
 
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
