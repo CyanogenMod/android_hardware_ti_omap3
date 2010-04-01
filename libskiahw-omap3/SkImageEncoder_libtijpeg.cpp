@@ -304,6 +304,7 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
     void *outputBuffer = memalign(ALIGN_128_BYTE, outBuffSize);
     if ( outputBuffer == NULL) {
         PRINTF("\n %s():%d:: ERROR:: outputBuffer Allocation Failed. \n", __FUNCTION__,__LINE__);
+        free(inputBuffer);
         return false;
     }
 
