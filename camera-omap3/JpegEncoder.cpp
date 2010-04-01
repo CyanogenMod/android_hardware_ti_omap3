@@ -281,6 +281,8 @@ OMX_ERRORTYPE JpegEncoder::SetPPLibDynamicParams()
 
         pPPLibDynParams.ulPPLIBInWidth = mInWidth;
         pPPLibDynParams.ulPPLIBInHeight = mInHeight;
+        pPPLibDynParams.ulPPLIBOutWidth = mOutWidth;
+        pPPLibDynParams.ulPPLIBOutHeight = mOutHeight;
 
 // rotation in pplib cannot be supported in our case since we need output of pplib to be 422i
 // rotation in pplib (vgpop) only works when output is in 420p
@@ -293,6 +295,17 @@ OMX_ERRORTYPE JpegEncoder::SetPPLibDynamicParams()
         else
 #endif
             pPPLibDynParams.ulPPLIBYUVRotation = 0;
+
+        // according to JPEG Encoder SN interface guide
+        // if using conversions library for rotation and enabling pplib functions
+        // we must take care of swapping dimensions for pplib
+        if((mRotation == 90) || (mRotation == 270))
+        {
+            pPPLibDynParams.ulPPLIBInWidth = mInHeight;
+            pPPLibDynParams.ulPPLIBInHeight = mInWidth;
+            pPPLibDynParams.ulPPLIBOutWidth = mOutHeight;
+            pPPLibDynParams.ulPPLIBOutHeight = mOutWidth;
+        }
 
         eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &pPPLibDynParams);
         if ( eError != OMX_ErrorNone ) {
@@ -502,9 +515,11 @@ bool JpegEncoder::StartFromLoadedState()
 		    PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
 		    goto EXIT;
 		}
-	}else if(mRotation != 0 && mRotation != 180){
+	}else if(mRotation != 0){
         if(mRotation == 90)
             nConversionFlag = JPE_CONV_YUV422I_90ROT_YUV422I;
+        else if(mRotation == 180)
+            nConversionFlag = JPE_CONV_YUV422I_180ROT_YUV422I;
         else if(mRotation == 270)
             nConversionFlag = JPE_CONV_YUV422I_270ROT_YUV422I;
         else{

@@ -2557,41 +2557,6 @@ void CameraHal::procThread()
 
                 input_buffer = yuv_buffer;
                 input_length = yuv_len;
-                // only use VPP if image rotation is 180, for all else we can use a combination of PPLIB and conversion in JPEG Enc
-                // TODO: is there a way to achieve 180 degree rotation without VGPOP??
-                if(image_rotation == 180)
-                {
-#ifdef DEBUG_LOG
-                    LOGI("Process VPP ( %d x %d -> %d x %d ) - rotation = %d, zoom = %5.2f, crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d starting", capture_width, capture_height, (int) image_width, (int) image_height, image_rotation, image_zoom, crop_top, crop_left, crop_width, crop_height);
-#endif
-                    pixelFormat = PIX_YUV420P;
-
-                    scale_init(capture_width, capture_height, image_width, image_height, PIX_YUV422I, pixelFormat);
-
-                    err = scale_process(input_buffer, capture_width, capture_height, tmpBuffer, image_width, image_height, image_rotation, pixelFormat, image_zoom, crop_top, crop_left, crop_width, crop_height);
-
-#ifdef DEBUG_LOG
-                    if( err) {
-                        LOGE("Process Resizer VPP - failed");
-                    } else {
-                        LOGE("Process Resizer VPP - OK");
-                    }
-#endif
-
-                    input_buffer = tmpBuffer;
-                    input_length = image_width * image_height * 3 / 2;
-
-                     // since cropping, zoom, and scaling are already done:
-                    capture_width = image_width;
-                    capture_height = image_height;
-                    crop_top = 0;
-                    crop_left = 0;
-                    crop_width = image_width;
-                    crop_height = image_height;
-                    image_zoom = 1.0;
-
-                    scale_deinit();
-                }
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
