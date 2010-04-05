@@ -225,7 +225,8 @@ public:
         this->w = w;
         this->h = h;
         this->format = format;
-
+        this->mShared = NULL;
+        
         memset( &mCtl, 0, sizeof( mCtl ) );
         memset( &mCtlStage, 0, sizeof( mCtlStage ) );
     }
