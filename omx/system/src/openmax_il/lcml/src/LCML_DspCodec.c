@@ -1853,13 +1853,21 @@ void* MessagingThread(void* arg)
                         {
                             char *tmp2 = NULL;
 
-                            status = DSPProcessor_InvalidateMemory(hDSPInterface->dspCodec->hProc, tmpDspStructAddress, sizeof(TArmDspCommunicationStruct));
-                            if(DSP_FAILED(status))
+                            status = DSPProcessor_InvalidateMemory(hDSPInterface->dspCodec->hProc,
+                                            tmpDspStructAddress, sizeof(TArmDspCommunicationStruct));
+                            if (DSP_FAILED(status)) {
                                 LOGE("Invalidate for communication structure failed. status = 0x%x\n", status);
+                            }
 
-                            status = DSPProcessor_InvalidateMemory(hDSPInterface->dspCodec->hProc, tmpDspStructAddress->iArmParamArg, tmpDspStructAddress->iParamSize);
-                            if(DSP_FAILED(status))
-                                LOGE("Invalidate for arm parameter arguments failed. status = 0x%x\n", status);
+                            // Only invalidate the memory when the pointer points to some valid memory region
+                            // otherwise, we will get logging spam
+                            if (tmpDspStructAddress->iArmParamArg != NULL && tmpDspStructAddress->iParamSize > 0) {
+                                status = DSPProcessor_InvalidateMemory(hDSPInterface->dspCodec->hProc,
+                                                tmpDspStructAddress->iArmParamArg, tmpDspStructAddress->iParamSize);
+                                if (DSP_FAILED(status)) {
+                                    LOGE("Invalidate for arm parameter arguments failed. status = 0x%x\n", status);
+                                }
+                            }
 
                             event = EMMCodecBufferProcessed;
                             args[0] = (void *) bufType;
