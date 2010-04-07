@@ -35,7 +35,7 @@
 //#define PRINTF printf
 
 //#define SK_TRACK_ALLOC
-#define SK_TAG_BLOCKS
+//#define SK_TAG_BLOCKS
 //#define SK_CHECK_TAGS
 
 // size this (as a multiple of 4) so that the total offset to the internal data
@@ -46,6 +46,7 @@ static const char kBlockTrailerTag[128] = {""};
 
 #define kByteFill 0xCD
 #define kDeleteFill 0xEF
+#define ALIGN_128_BYTE 128
 
 static SkMutex& get_block_mutex() {
     static SkMutex* gBlockMutex;
@@ -252,7 +253,8 @@ void* tisk_malloc_flags(size_t size, unsigned flags)
     size_t realSize = size;
     size += sizeof(SkBlockHeader);
 #endif
-    void* p = malloc(size);
+    size = (size_t)((size + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
+    void* p = memalign(ALIGN_128_BYTE, size);
     if (p == NULL)
     {
         if (flags & SK_MALLOC_THROW)
