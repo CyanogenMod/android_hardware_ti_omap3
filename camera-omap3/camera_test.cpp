@@ -829,12 +829,14 @@ void initDefaults()
         hardware->setParameters(params);
 }
 
-int menu()
+int functional_menu()
 {
     char ch;
 
     if (print_menu) {
-        printf("\n\n== MAIN MENU ===========================\n\n");
+
+		
+        printf("\n\n=========== FUNCTIONAL TEST MENU ===================\n\n");
         printf("   0. Reset to defaults\n");
         printf("   1. Start Preview\n");
         printf("   2. Stop Preview\n");
@@ -865,7 +867,7 @@ int menu()
         printf("   f. Auto Focus\n");
         printf("   p. Take picture\n");
 
-#if STRESS_TEST
+#if STRESS_TEST   /* In future, the STRESS_TEST menu will be provided by different menu */
 
         printf("   t. Start stress test\n");
 
@@ -1452,6 +1454,22 @@ exit:
     return 0;
 }
 
+void print_usage()
+{
+	printf(" USAGE: camera_test  <param>  <script>\n");
+	printf(" <param>\n-----------\n\n");
+	printf(" F or f -> Functional tests \n");
+	printf(" A or a -> API tests \n");
+	printf(" E or e -> Error scenario tests \n");
+	printf(" S or s -> Stress tests \n\n");
+	printf(" <script>\n----------\n");
+	printf("Script name (Only for stress tests)\n\n");
+	return;	
+}
+
+	
+
+
 int main(int argc, char *argv[])
 {
     char *cmd;
@@ -1468,25 +1486,68 @@ int main(int argc, char *argv[])
 
     cmd = NULL;
     if ( argc < 2 ) {
-
-        print_menu = 1;
-        while (1) {
-            if ( menu() < 0)
-                break;
-        };
-
-    } else {
-
-        cmd = load_script(argv[1]);
-
-        if( cmd != NULL) {
-
-            execute_script(cmd);
-
-            free(cmd);
+		printf(" Please enter atleast 1 argument \n");
+		print_usage();
+		return 0;
+        
         }
-    }
 
+    if ( argc < 3 ){ 
+
+	if(*argv[1] == 'S' || *argv[1] == 's'){
+		printf(" This is stress / regression tests \n");
+		printf("Provide script file as 2nd argument\n\n");
+    	       return 0;
+           }
+	
+      else {
+
+	switch (*argv[1])
+		{
+		   case 'F':
+		   case 'f':
+				   hardwareActive = true;
+                              params = hardware->getParameters();
+                              initDefaults();	
+				  print_menu = 1;
+			         while(1) {
+			         	   if(functional_menu()<0)
+							break;
+			         	};
+      			         break;
+						   
+		   case 'A':
+		   case 'a':
+		   		  printf("API level test cases coming soon ... \n");
+		   		  break;
+		   case 'E':
+		   case 'e':
+		   		  printf("Error scenario test cases coming soon ... \n");
+		   		  break;
+	          default:
+			  	  printf("INVALID OPTION USED\n");	
+				  print_usage();
+				  return 0;	
+		   }
+      	 	 }
+    	}
+
+     else if(argc == 3 && (*argv[1] == 'S' || *argv[1] == 's')) {
+
+	        cmd = load_script(argv[1]);
+ 
+               if( cmd != NULL) {
+ 
+                    execute_script(cmd);
+                    free(cmd);
+               }
+        }
+	else {
+	  	printf("INVALID OPTION USED\n");	
+		print_usage();
+		return 0;	
+	}
+    
     return 0;
 }
 
