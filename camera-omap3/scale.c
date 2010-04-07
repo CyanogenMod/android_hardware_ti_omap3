@@ -599,7 +599,16 @@ int scale_process(void* inBuffer, int inWidth, int inHeight, void* outBuffer, in
     double aspect_ratio;
 
     GPPToVPPInputFrameStatus*   pPrevIpFrameStatus = DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(GPPToVPPInputFrameStatus));
+    if (pPrevIpFrameStatus == NULL) {
+        LOGV("ERROR: !!!!! pPrevIpFrameStatus memory allocation failed. !!!!\n");
+        return -1;
+    }
     GPPToVPPOutputFrameStatus*  pPrevOpYUVFrameStatus = DSP_CACHE_ALIGN_MEM_ALLOC(sizeof(GPPToVPPOutputFrameStatus));
+    if (pPrevOpYUVFrameStatus == NULL) {
+        LOGV("ERROR: !!!!! pPrevOpYUVFrameStatus memory allocation failed. !!!!\n");
+        free(pPrevIpFrameStatus);
+        return -1;
+    }
 
     pPrevIpFrameStatus->ulInWidth             = inWidth;
     pPrevIpFrameStatus->ulInHeight            = inHeight;
