@@ -980,12 +980,21 @@ int CameraHal::CameraDestroy(bool destroyOverlay)
 
     if ((mOverlay != NULL) && (destroyOverlay)) {
         buffer_count = mOverlay->getBufferCount();
+
+        for ( int i = 0 ; i < buffer_count ; i++ )
+        {
+            // need to free buffers and heaps mapped using overlay fd before it is destroyed
+            // otherwise we could create a resource leak
+            // a segfault could occur if we try to free pointers after overlay is destroyed
+            mPreviewBuffers[i].clear();
+            mPreviewHeaps[i].clear();
+            mVideoBuffer[i].clear();
+            mVideoHeaps[i].clear();
+            buffers_queued_to_dss[i] = 0;
+        }
         mOverlay->destroy();
         mOverlay = NULL;
         nOverlayBuffersQueued = 0;
-
-	for ( int i = 0 ; i < buffer_count ; i++ )
-            buffers_queued_to_dss[i] = 0;
 
     }
 
@@ -1126,6 +1135,13 @@ int CameraHal::CameraStart()
             }
          }
          else LOGI("CameraStart::Could not queue buffer %d to Camera because it is being held by Overlay", i);
+
+        // ensure we release any stale ref's to sp
+        mPreviewBuffers[i].clear();
+        mPreviewHeaps[i].clear();
+
+        mPreviewHeaps[i] = new MemoryHeapBase(data->fd,mPreviewFrameSize, 0, data->offset);
+        mPreviewBuffers[i] = new MemoryBase(mPreviewHeaps[i], 0, mPreviewFrameSize);
          
     }
 
@@ -1313,6 +1329,9 @@ void CameraHal::nextPreview()
     }
 
     //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, mPreviewFrameSize);
+
+    if( msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME) )
+        mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewBuffers[cfilledbuffer.index], mCallbackCookie);
 
     queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
     if (queue_to_dss_failed)
@@ -2904,6 +2923,13 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
         
         int buffer_count = mOverlay->getBufferCount();
         for(int i =0; i < buffer_count ; i++){
+            // need to free buffers and heaps mapped using overlay fd before it is destroyed
+            // otherwise we could create a resource leak
+            // a segfault could occur if we try to free pointers after overlay is destroyed
+            mPreviewBuffers[i].clear();
+            mPreviewHeaps[i].clear();
+            mVideoBuffer[i].clear();
+            mVideoHeaps[i].clear();
             buffers_queued_to_dss[i] = 0;
         }
 

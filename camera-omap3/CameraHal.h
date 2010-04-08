@@ -477,6 +477,8 @@ public:
     struct v4l2_buffer v4l2_cam_buffer[MAX_CAMERA_BUFFERS];
     int buffers_queued_to_dss[MAX_CAMERA_BUFFERS];
     int buffers_queued_to_ve[MAX_CAMERA_BUFFERS];
+    sp<MemoryHeapBase> mPreviewHeaps[MAX_CAMERA_BUFFERS];
+    sp<MemoryBase> mPreviewBuffers[MAX_CAMERA_BUFFERS];
 	int mfirstTime;
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
