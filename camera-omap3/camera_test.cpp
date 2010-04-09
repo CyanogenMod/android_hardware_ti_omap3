@@ -13,8 +13,14 @@
 #include <ui/Overlay.h>
 #include <ui/SurfaceComposerClient.h>
 
-#include <CameraHal.h>
 #include <CameraHardwareInterface.h>
+#include <ui/Camera.h>
+#include <ui/ICamera.h>
+#include <media/mediarecorder.h>
+
+#include <binder/IPCThreadState.h>
+#include <binder/ProcessState.h>
+#include <binder/IServiceManager.h>
 
 #define PRINTOVER(arg...)     LOGD(#arg)
 #define LOG_FUNCTION_NAME         LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
@@ -35,28 +41,16 @@
 #define COMPENSATION_OFFSET 20
 #define DELIMITER           "|"
 
-//todo
-//#define STRESS_TEST 1
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 using namespace android;
 
-namespace android {
-    class Test {
-    public:
-        static const sp<ISurface>& getISurface(const sp<SurfaceControl>& s) {
-            return s->getISurface();
-        }
-    };
-};
-
 int print_menu;
-sp<CameraHardwareInterface> hardware;
+sp<Camera> camera;
+sp<MediaRecorder> recorder;
 sp<SurfaceComposerClient> client;
-sp<SurfaceControl> previewControl;
-sp<Surface> previewSurface;
 sp<SurfaceControl> overlayControl;
 sp<ISurface> overlaySurface;
-Overlay *overlay;
 CameraParameters params;
 float compensation = 0.0;
 double latitude = 0.0;
@@ -70,8 +64,10 @@ int caf_mode = 0;
 int rotation = 0;
 bool reSizePreview = true;
 bool hardwareActive = false;
+bool recordingMode = false;
 int saturation = 0;
 int zoomIdx = 0;
+int videoCodecIdx = 0;
 int contrast = 0;
 int brightness = 0;
 int sharpness = 0;
@@ -81,17 +77,6 @@ int exposure_mode = 0;
 int ippIdx = 0;
 int jpegQuality = 85;
 timeval autofocus_start, picture_start;
-
-#if STRESS_TEST
-
-static pthread_attr_t st_attr;
-static pthread_t st_hthread;
-static void *st_priv;
-static sem_t st_sem;
-static int st_started;
-static int st_thread_exit = 0;
-
-#endif
 
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
 const char *iso [] = { "auto", "100", "200", "400", "800"};
@@ -143,6 +128,13 @@ const struct { int idx; const char *zoom_description; } zoom [] = {
     { 2, "3x"},
     { 3, "4x"},
 };
+
+const struct { video_encoder type; const char *desc; } videoCodecs[] = {
+    { VIDEO_ENCODER_H263, "H263" },
+    { VIDEO_ENCODER_H264, "H264" },
+    { VIDEO_ENCODER_MPEG_4_SP, "MPEG4"}
+};
+
 const struct { int width, height; const char *desc; } previewSize[] = {
     { 176, 144, "176x144" },
     { 320, 240, "QVGA" },
@@ -174,13 +166,27 @@ int previewSizeIDX = ARRAY_SIZE(previewSize)-1;
 int captureSizeIDX = ARRAY_SIZE(captureSize)-1;
 int frameRateIDX = ARRAY_SIZE(frameRate)-1;
 
-#if STRESS_TEST
-
-static unsigned int capture_counter = 1;
-
-#endif
+static unsigned int recording_counter = 1;
 
 int dump_preview = 0;
+
+namespace android {
+
+class Test {
+    public:
+        static const sp<ISurface>& getISurface(const sp<SurfaceControl>& s) {
+            return s->getISurface();
+        }
+};
+
+};
+
+class CameraHandler: public CameraListener {
+    public:
+    virtual void notify(int32_t msgType, int32_t ext1, int32_t ext2);
+    virtual void postData(int32_t msgType, const sp<IMemory>& dataPtr);
+    virtual void postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr);
+};
 
 /** Calculate delay from a reference time */
 unsigned long long timeval_delay(const timeval *ref)
@@ -198,13 +204,7 @@ unsigned long long timeval_delay(const timeval *ref)
 }
 
 /** Callback for takePicture() */
-void my_shutter_callback(void* user)
-{
-    printf("shutter cb: user=0x%08X\n", (int)user);
-}
-
-/** Callback for takePicture() */
-void my_raw_callback(const sp<IMemory>& mem, void* user)
+void my_raw_callback(const sp<IMemory>& mem)
 {
 
     static int      counter = 1;
@@ -236,8 +236,8 @@ void my_raw_callback(const sp<IMemory>& mem, void* user)
         printf("Bad Write int a %s error (%d)%s\n", fn, errno, strerror(errno));
 
     counter++;
-    printf("%s: user=0x%08X, buffer=%08X, size=%d\n",
-            __FUNCTION__, (int)user, (int)buff, size);
+    printf("%s: buffer=%08X, size=%d\n",
+            __FUNCTION__, (int)buff, size);
 
     if (fd >= 0)
         close(fd);
@@ -246,7 +246,7 @@ out:
     LOG_FUNCTION_NAME_EXIT
 }
 
-void saveFile(const sp<IMemory>& mem, void* user)
+void saveFile(const sp<IMemory>& mem)
 {
     static int      counter = 1;
     unsigned char   *buff = NULL;
@@ -277,8 +277,8 @@ void saveFile(const sp<IMemory>& mem, void* user)
         printf("Bad Write int a %s error (%d)%s\n", fn, errno, strerror(errno));
 
     counter++;
-    printf("%s: user=0x%08X, buffer=%08X, size=%d\n",
-            __FUNCTION__, (int)user, (int)buff, size);
+    printf("%s: buffer=%08X, size=%d\n",
+            __FUNCTION__, (int)buff, size);
 
     if (fd >= 0)
         close(fd);
@@ -288,17 +288,17 @@ out:
 }
 
 /** Callback for startPreview() */
-void my_preview_callback(const sp<IMemory>& mem, void* user)
+void my_preview_callback(const sp<IMemory>& mem)
 {
     if(dump_preview){
-        saveFile(mem, user);
+        saveFile(mem);
         dump_preview = 0;
     }
     printf(".");fflush(stdout);
 }
 
 /** Callback for takePicture() */
-void my_jpeg_callback(const sp<IMemory>& mem, void* user)
+void my_jpeg_callback(const sp<IMemory>& mem)
 {
     static int	counter = 1;
     unsigned char	*buff = NULL;
@@ -329,262 +329,58 @@ void my_jpeg_callback(const sp<IMemory>& mem, void* user)
         printf("Bad Write int a %s error (%d)%s\n", fn, errno, strerror(errno));
 
     counter++;
-    printf("%s: user=0x%08X, buffer=%08X, size=%d stored at %s\n",
-        __FUNCTION__, (int)user, (int)buff, size, fn);
+    printf("%s: buffer=%08X, size=%d stored at %s\n",
+        __FUNCTION__, (int)buff, size, fn);
 out:
     if (fd >= 0)
         close(fd);
 
-#if STRESS_TEST
-
-    if (st_started)
-        sem_post(&st_sem);
-
-#endif
-
     LOG_FUNCTION_NAME_EXIT
 }
 
-/** Callback for autoFocus() */
-void my_autofocus_callback(bool focused, void* user)
+void CameraHandler::notify(int32_t msgType, int32_t ext1, int32_t ext2)
 {
 
-    printf("AutoFocus cb: focused=%s user=0x%08X time=%lld\n",
-            (focused)?"OK":"FAIL", (int)user,
-             timeval_delay(&autofocus_start));
+    printf("Notify cb: %d %d %d\n", msgType, ext1, ext2);
+
+    if ( msgType & CAMERA_MSG_FOCUS )
+        printf("AutoFocus %s in %llu us\n", (ext1)?"OK":"FAIL", timeval_delay(&autofocus_start));
+
+    if ( msgType & CAMERA_MSG_SHUTTER )
+        printf("Shutter done in %llu us\n", timeval_delay(&picture_start));
+
 }
 
-void my_notify_callback(int32_t msgType,
-               int32_t ext1,
-               int32_t ext2,
-               void* user)
+void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr)
 {
+    printf("Data cb: %d\n", msgType);
 
-    printf("Notify cb: %d %d %d %p\n",
-           msgType, ext1, ext2, user);
+    if ( msgType & CAMERA_MSG_PREVIEW_FRAME )
+        my_preview_callback(dataPtr);
 
-    if(msgType&CAMERA_MSG_FOCUS) {
-        printf("AutoFocus %s in %llu us\n",
-               (ext1)?"OK":"FAIL", timeval_delay(&autofocus_start));
+    if ( msgType & CAMERA_MSG_RAW_IMAGE ) {
+        printf("RAW done in %llu us\n", timeval_delay(&picture_start));
+        my_raw_callback(dataPtr);
     }
-    if(msgType&CAMERA_MSG_SHUTTER) {
-        printf("Shutter done in %llu us\n",
-               timeval_delay(&picture_start));
-    }
-}
 
-void my_data_callback(int32_t msgType,
-               const sp<IMemory>& dataPtr,
-               void* user)
-{
-    printf("Data   cb: %d %p\n",
-           msgType, user);
-
-    if(msgType&CAMERA_MSG_PREVIEW_FRAME) {
-        my_preview_callback(dataPtr, user);
-    }
-    if(msgType&CAMERA_MSG_RAW_IMAGE) {
-        printf("RAW done in %llu us\n",
-               timeval_delay(&picture_start));
-        my_raw_callback(dataPtr, user);
-    }
-    if(msgType&CAMERA_MSG_COMPRESSED_IMAGE) {
-        printf("JPEG done in %llu us\n",
-               timeval_delay(&picture_start));
-        my_jpeg_callback(dataPtr, user);
+    if (msgType & CAMERA_MSG_COMPRESSED_IMAGE ) {
+        printf("JPEG done in %llu us\n", timeval_delay(&picture_start));
+        my_jpeg_callback(dataPtr);
     }
 }
 
-void my_data_callback_timestamp(nsecs_t timestamp,
-               int32_t msgType,
-               const sp<IMemory>& dataPtr,
-               void* user)
+void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr)
 {
-    printf("DataTime cb: %d %lld %p %p\n",
-           msgType, timestamp, user, dataPtr.get());
+    printf("DataTime cb: %d %lld %p\n", msgType, timestamp, dataPtr.get());
 }
 
-#if STRESS_TEST
-
-void rand_delay()
+int createPreviewSurface(unsigned int width, unsigned int height)
 {
-    int dly = 1;
-    int min = 100000;       // 100ms
-    int max = 1000000 - 1;  // ~1s
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-
-    srand(tv.tv_usec);
-
-    do {
-        dly = rand();
-    } while ((dly < min) || (dly > max));
-
-    usleep(dly);
-}
-
-void *st_thread_func(void *arg)
-{
-    static int first_time_started = 1;
-
-    st_started = 1;
-
-    while (1) {
-
-        if (first_time_started)
-            first_time_started = 0;
-        else
-            sem_wait(&st_sem);
-
-        if (st_thread_exit)
-            break;
-
-        if (reSizePreview) {
-            if (overlay != NULL) {
-                hardware->stopPreview();
-                overlay->destroy();
-            }
-            overlay = new OverlayMMS(640, 480, 0);
-            ((CameraHal *)hardware.get())->setOverlay(overlay);
-        }
-        hardware->setParameters(params);
-        hardware->startPreview();
-
-        rand_delay();
-
-        hardware->setParameters(params);
-        gettimeofday(&picture_start, 0);
-        hardware->takePicture();
-        hardware->stopPreview();
-    }
-
-    printf("Stress test thread exit\n");
-
-    return NULL;
-}
-
-int create_stress_test()
-{
-    size_t stacksize = 512 * 1024;
-    int ret = 0;
-
-    sem_init(&st_sem, 0, 0);
-
-    pthread_attr_init(&st_attr);
-
-    pthread_attr_setstacksize(&st_attr, stacksize);
-
-    ret = pthread_create(&st_hthread, &st_attr, st_thread_func, st_priv);
-
-    if (0 > ret) {
-        pthread_attr_destroy(&st_attr);
-        printf("Create stress test thread failed\n");
-        return -1;
-    }
-
-    printf("Stress test created\n");
-
-    return 0;
-}
-
-int destroy_stress_test()
-{
-    st_thread_exit = 1;
-
-    sem_post(&st_sem);
-
-    if (0 > pthread_join(st_hthread, NULL)) {
-        printf("Error while join stress test thread\n");
-    }
-
-    pthread_attr_destroy(&st_attr);
-
-    sem_destroy(&st_sem);
-
-    printf("Stress test destroyed\n");
-
-    return 0;
-}
-
-#endif
-
-int menu_gps()
-{
-    char ch;
-    char coord_str[100];
-
-    if (print_menu) {
-        printf("\n\n== GPS MENU ============================\n\n");
-        printf("   0. Get Parameters\n");
-        printf("   e. Latitude:       %.20lf\n", latitude);
-        printf("   d. Longitude:      %.20lf\n", longitude);
-        printf("   c. Altitude:       %.20lf\n", altitude);
-        printf("\n");
-        printf("   q. Return to main menu\n");
-        printf("\n");
-        printf("   Choice: ");
-    }
-
-    ch = getchar();
-    printf("%c", ch);
-
-    print_menu = 1;
-    switch (ch) {
-        case '0':
-            hardware->getParameters();
-            break;
-
-        case 'e':
-            latitude += degree_by_step;
-            if (latitude > 90.0) {
-                latitude -= 180.0;
-            }
-            snprintf(coord_str, 100, "%.20lf", latitude);
-            params.set(params.KEY_GPS_LATITUDE, coord_str);
-            hardware->setParameters(params);
-            break;
-
-        case 'd':
-            longitude += degree_by_step;
-            if (longitude > 180.0) {
-                longitude -= 360.0;
-            }
-            snprintf(coord_str, 100, "%.20lf", longitude);
-            params.set(params.KEY_GPS_LONGITUDE, coord_str);
-            hardware->setParameters(params);
-            break;
-
-        case 'c':
-            altitude += 12345.67890123456789;
-            if (altitude > 100000.0) {
-                altitude -= 200000.0;
-            }
-            snprintf(coord_str, 100, "%.20lf", altitude);
-            params.set(params.KEY_GPS_ALTITUDE, coord_str);
-            hardware->setParameters(params);
-            break;
-
-        case 'Q':
-        case 'q':
-            return -1;
-
-        default:
-            print_menu = 0;
-            break;
-    }
-
-    return 0;
-}
-
-int createOverlay(unsigned int width, unsigned int height)
-{
-
     client = new SurfaceComposerClient();
 
     if ( NULL == client.get() ) {
         printf("Unable to establish connection to Surface Composer \n");
-        
+
         return -1;
     }
 
@@ -600,61 +396,24 @@ int createOverlay(unsigned int width, unsigned int height)
     overlaySurface = Test::getISurface(overlayControl);
 
     if ( NULL == overlaySurface.get() ) {
-        printf("Unable to get overlay ISurface interface\n"); 
-
-        return -1;
-    }
-
-    sp<OverlayRef> overlayRef = overlaySurface->createOverlay(width, height, OVERLAY_FORMAT_DEFAULT);
-
-    if( NULL == overlayRef.get() ) {
-        printf("Unable to initialize Overlay device\n");
-    }
-
-    overlay = new Overlay(overlayRef);
-
-    if ( NULL == overlay ) {
-        printf("Unable to instantiate Overlay object\n");
-
-        return -1;
-    }
-
-    previewControl = client->createSurface(getpid(), 0, width, height, PIXEL_FORMAT_RGB_565);
-
-    if ( NULL == previewControl.get() ) {
-        printf("Unable to create preview control surface\n");
-
-        return -1;
-    }
-
-    previewSurface = previewControl->getSurface();
-
-    if ( NULL == previewSurface.get() ) {
-        printf("Unable to create preview surface\n");
+        printf("Unable to get overlay ISurface interface\n");
 
         return -1;
     }
 
     client->openTransaction();
-    previewControl->setLayer(100000);
+    overlayControl->setLayer(100000);
     client->closeTransaction();
 
-    Surface::SurfaceInfo info;
-
-    previewSurface->lock(&info);
-    ssize_t bpr = info.s * bytesPerPixel(info.format);
-    memset((void *) info.bits, 0, bpr*info.h);
-    previewSurface->unlockAndPost();
-
     client->openTransaction();
-    previewControl->setPosition(0, 0);
-    previewControl->setSize(width, height);
+    overlayControl->setPosition(0, 0);
+    overlayControl->setSize(width, height);
     client->closeTransaction();
 
     return 0;
 }
 
-int destroyOverlay()
+int destroyPreviewSurface()
 {
 
     if ( NULL != overlaySurface.get() ) {
@@ -666,15 +425,6 @@ int destroyOverlay()
         overlayControl.clear();
     }
 
-    if ( NULL != previewSurface.get() ) {
-        previewSurface.clear();
-    }
-
-    if ( NULL != previewControl.get() ) {
-        previewControl->clear();
-        previewControl.clear();
-    }
-
     if ( NULL != client.get() ) {
         client.clear();
     }
@@ -682,33 +432,182 @@ int destroyOverlay()
     return 0;
 }
 
-int openCamera()
+int openRecorder()
 {
-    hardware = openCameraHardware();
-
-    if ( NULL == hardware.get() ) {
-        printf("Unable to CameraHAL \n");
+    recorder = new MediaRecorder();
+    if( NULL == recorder.get() ) {
+        printf("Error while creating MediaRecorder\n");
 
         return -1;
     }
 
-    hardware->setCallbacks(my_notify_callback, my_data_callback,
-                   my_data_callback_timestamp, NULL);
-    hardware->enableMsgType(CAMERA_MSG_ALL_MSGS);
+    return 0;
+}
+
+int closeRecorder()
+{
+    if ( NULL == recorder.get() ) {
+        printf("invalid recorder reference\n");
+
+        return -1;
+    }
+
+    if ( recorder->init() < 0 ) {
+        printf("recorder failed to initialize\n");
+
+        return -1;
+    }
+
+    if ( recorder->close() < 0 ) {
+        printf("recorder failed to close\n");
+
+        return -1;
+    }
+
+    if ( recorder->release() < 0 ) {
+        printf("error while releasing recorder\n");
+
+        return -1;
+    }
+
+    recorder.clear();
+
+    return 0;
+}
+
+int configureRecorder()
+{
+    char videoFile[80];
+
+    if ( ( NULL == recorder.get() ) || ( NULL == camera.get() ) ) {
+        printf("invalid recorder and/or camera references\n");
+
+        return -1;
+    }
+
+    camera->unlock();
+
+    if ( recorder->setCamera(camera->remote()) < 0 ) {
+        printf("error while setting the camera\n");
+
+        return -1;
+    }
+
+    if ( recorder->setVideoSource(VIDEO_SOURCE_CAMERA) < 0 ) {
+        printf("error while configuring camera source\n");
+
+        return -1;
+    }
+
+    if ( recorder->setOutputFormat(OUTPUT_FORMAT_THREE_GPP) < 0 ) {
+        printf("error while configuring output format\n");
+
+        return -1;
+    }
+
+    sprintf(videoFile, "/sdcard/video%d.3gp", recording_counter);
+    if ( recorder->setOutputFile(videoFile) < 0 ) {
+        printf("error while configuring video filename\n");
+
+        return -1;
+    }
+    recording_counter++;
+
+    if ( recorder->setVideoFrameRate(frameRate[frameRateIDX].fps) < 0 ) {
+        printf("error while configuring video framerate\n");
+
+        return -1;
+    }
+
+    if ( recorder->setVideoSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height) < 0 ) {
+        printf("error while configuring vide size\n");
+
+        return -1;
+    }
+
+    if ( recorder->setVideoEncoder(videoCodecs[videoCodecIdx].type) < 0 ) {
+        printf("error while configuring video codec\n");
+
+        return -1;
+    }
+
+    if ( recorder->setPreviewSurface( overlayControl->getSurface() ) < 0 ) {
+        printf("error while configuring preview surface\n");
+
+        return -1;
+    }
+
+    return 0;
+}
+
+int startRecording()
+{
+    if ( ( NULL == recorder.get() ) || ( NULL == camera.get() ) ) {
+        printf("invalid recorder and/or camera references\n");
+
+        return -1;
+    }
+
+    camera->unlock();
+
+    if ( recorder->prepare() < 0 ) {
+        printf("recorder prepare failed\n");
+
+        return -1;
+    }
+
+    if ( recorder->start() < 0 ) {
+        printf("recorder start failed\n");
+
+        return -1;
+    }
+
+    return 0;
+}
+
+int stopRecording()
+{
+    if ( NULL == recorder.get() ) {
+        printf("invalid recorder reference\n");
+
+        return -1;
+    }
+
+    if ( recorder->stop() < 0 ) {
+        printf("recorder failed to stop\n");
+
+        return -1;
+    }
+
+    return 0;
+}
+
+int openCamera()
+{
+
+    camera = Camera::connect();
+
+    if ( NULL == camera.get() ) {
+        printf("Unable to connect to CameraService\n");
+
+       return -1;
+    }
+
+    camera->setListener(new CameraHandler());
 
     return 0;
 }
 
 int closeCamera()
 {
-    if( NULL == hardware.get() ) {
-        printf("CameraHAL not initialized\n");
+    if( NULL == camera.get() ) {
+        printf("invalid camera reference\n");
 
         return -1;
     }
 
-    hardware->release();
-    hardware.clear();
+    camera->disconnect();
+    camera.clear();
 
     return 0;
 }
@@ -722,23 +621,20 @@ int startPreview()
 
             return -1;
         }
-
-        hardware->setParameters(params);
-        hardware->startPreview();
-
-        params = hardware->getParameters();
+        params.unflatten(camera->getParameters());
         params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
         params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
 
-        if ( createOverlay(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height) < 0 ) {
-            printf("Error encountered during Overlay initialization\n");
+        camera->setParameters(params.flatten());
 
-            closeCamera();
+        if ( createPreviewSurface(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height ) < 0 ) {
+            printf("Error while creating preview surface\n");
 
             return -1;
         }
+        camera->setPreviewDisplay(overlaySurface);
 
-        hardware->setOverlay(overlay);
+        camera->startPreview();
 
         reSizePreview = false;
         hardwareActive = true;
@@ -747,17 +643,16 @@ int startPreview()
         params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
         params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
 
-        if ( createOverlay(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height) < 0 ) {
-            printf("Error encountered during Overlay initialization\n");
+        camera->setParameters(params.flatten());
 
-            closeCamera();
+        if ( createPreviewSurface(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height ) < 0 ) {
+            printf("Error while creating preview surface\n");
 
             return -1;
         }
+        camera->setPreviewDisplay(overlaySurface);
 
-        hardware->setParameters(params);
-        hardware->startPreview();
-        hardware->setOverlay(overlay);
+        camera->startPreview();
 
         reSizePreview = false;
         hardwareActive = true;
@@ -769,9 +664,9 @@ int startPreview()
 void stopPreview()
 {
     if ( hardwareActive ) {
-        hardware->stopPreview();
+        camera->stopPreview();
         closeCamera();
-        destroyOverlay();
+        destroyPreviewSurface();
 
         reSizePreview = true;
         hardwareActive = false;
@@ -780,7 +675,6 @@ void stopPreview()
 
 void initDefaults()
 {
-
     antibanding_mode = 0;
     focus_mode = 0;
     previewSizeIDX = ARRAY_SIZE(previewSize)-1;
@@ -794,6 +688,7 @@ void initDefaults()
     rotation = 0;
     saturation = 0;
     zoomIdx = 0;
+    videoCodecIdx = 0;
     contrast = 0;
     brightness = 0;
     sharpness = 0;
@@ -824,9 +719,73 @@ void initDefaults()
     params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
     params.set(KEY_IPP, ippIdx);
     params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
+}
 
-    if ( hardwareActive )
-        hardware->setParameters(params);
+int menu_gps()
+{
+    char ch;
+    char coord_str[100];
+
+    if (print_menu) {
+        printf("\n\n== GPS MENU ============================\n\n");
+        printf("   e. Latitude:       %.20lf\n", latitude);
+        printf("   d. Longitude:      %.20lf\n", longitude);
+        printf("   c. Altitude:       %.20lf\n", altitude);
+        printf("\n");
+        printf("   q. Return to main menu\n");
+        printf("\n");
+        printf("   Choice: ");
+    }
+
+    ch = getchar();
+    printf("%c", ch);
+
+    print_menu = 1;
+    switch (ch) {
+
+        case 'e':
+            latitude += degree_by_step;
+            if (latitude > 90.0) {
+                latitude -= 180.0;
+            }
+            snprintf(coord_str, 100, "%.20lf", latitude);
+            params.set(params.KEY_GPS_LATITUDE, coord_str);
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+            break;
+
+        case 'd':
+            longitude += degree_by_step;
+            if (longitude > 180.0) {
+                longitude -= 360.0;
+            }
+            snprintf(coord_str, 100, "%.20lf", longitude);
+            params.set(params.KEY_GPS_LONGITUDE, coord_str);
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+            break;
+
+        case 'c':
+            altitude += 12345.67890123456789;
+            if (altitude > 100000.0) {
+                altitude -= 200000.0;
+            }
+            snprintf(coord_str, 100, "%.20lf", altitude);
+            params.set(params.KEY_GPS_ALTITUDE, coord_str);
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+            break;
+
+        case 'Q':
+        case 'q':
+            return -1;
+
+        default:
+            print_menu = 0;
+            break;
+    }
+
+    return 0;
 }
 
 int functional_menu()
@@ -839,15 +798,17 @@ int functional_menu()
         printf("\n\n=========== FUNCTIONAL TEST MENU ===================\n\n");
         printf("   0. Reset to defaults\n");
         printf("   1. Start Preview\n");
-        printf("   2. Stop Preview\n");
+        printf("   2. Stop Preview/Recording\n");
         printf("   3. Picture Rotation:       %3d degree\n", rotation );
         printf("   4. Preview size:   %4d x %4d\n",
             previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
         printf("   5. Picture size:   %4d x %4d - %s\n",
             captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height,
             captureSize[captureSizeIDX].name);
+        printf("   6. Start Video Recording\n");
         printf("   7. EV offset:      %4.1f\n", compensation);
         printf("   8. AWB mode:       %s\n", strawb_mode[awb_mode]);
+        printf("   9. Video Codec:    %s\n", videoCodecs[videoCodecIdx].desc);
         printf("   z. Zoom            %s\n", zoom[zoomIdx].zoom_description);
         printf("   j. Exposure        %s\n", exposure[exposure_mode]);
         printf("   e. Effect:         %s\n", effects[effects_mode]);
@@ -866,13 +827,6 @@ int functional_menu()
         printf("   o. Jpeg Quality:   %d\n", jpegQuality);
         printf("   f. Auto Focus\n");
         printf("   p. Take picture\n");
-
-#if STRESS_TEST   /* In future, the STRESS_TEST menu will be provided by different menu */
-
-        printf("   t. Start stress test\n");
-
-#endif
-
         printf("   a. GEO tagging settings menu\n");
         printf("\n");
         printf("   q. Quit\n");
@@ -900,6 +854,13 @@ int functional_menu()
 
     case '2':
         stopPreview();
+        if ( recordingMode ) {
+            stopRecording();
+            closeRecorder();
+
+            recordingMode = false;
+        }
+
         break;
 
     case '3':
@@ -907,7 +868,7 @@ int functional_menu()
         rotation %= 360;
         params.set(KEY_ROTATION, rotation);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
 
         break;
 
@@ -917,7 +878,7 @@ int functional_menu()
         params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
         reSizePreview = true;
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case '5':
@@ -925,7 +886,39 @@ int functional_menu()
         captureSizeIDX %= ARRAY_SIZE(captureSize);
         params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
+        break;
+
+    case '6':
+        if ( !recordingMode ) {
+
+            if ( startPreview() < 0 ) {
+                printf("Error while starting preview\n");
+
+                return -1;
+            }
+
+            if ( openRecorder() < 0 ) {
+                printf("Error while openning video recorder\n");
+
+                return -1;
+            }
+
+            if ( configureRecorder() < 0 ) {
+                printf("Error while configuring video recorder\n");
+
+                return -1;
+            }
+
+            if ( startRecording() < 0 ) {
+                printf("Error while starting video recording\n");
+
+                return -1;
+            }
+
+            recordingMode = true;
+        }
+
         break;
 
     case '7':
@@ -936,7 +929,7 @@ int functional_menu()
         }
         params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case '8':
@@ -944,9 +937,13 @@ int functional_menu()
         awb_mode %= ARRAY_SIZE(strawb_mode);
         params.set(params.KEY_WHITE_BALANCE, strawb_mode[awb_mode]);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
+    case '9':
+        videoCodecIdx++;
+        videoCodecIdx %= ARRAY_SIZE(videoCodecs);
+        break;
 
     case 'o':
     case 'O':
@@ -957,7 +954,7 @@ int functional_menu()
         }
         params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'k':
@@ -966,7 +963,7 @@ int functional_menu()
         ippIdx %= ARRAY_SIZE(ipp_mode);
         params.set(KEY_IPP, ippIdx);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
 
@@ -976,7 +973,7 @@ int functional_menu()
         capture_mode %= ARRAY_SIZE(capture);
         params.set(KEY_MODE, (capture_mode + 1));
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'w':
@@ -985,7 +982,7 @@ int functional_menu()
         scene_mode %= ARRAY_SIZE(scene);
         params.set(params.KEY_SCENE_MODE, scene[scene_mode]);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'y':
@@ -994,7 +991,7 @@ int functional_menu()
         caf_mode %= ARRAY_SIZE(caf);
         params.set(KEY_CAF, caf_mode);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'i':
@@ -1003,7 +1000,7 @@ int functional_menu()
         iso_mode %= ARRAY_SIZE(iso);
         params.set(KEY_ISO, iso_mode);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'h':
@@ -1015,7 +1012,7 @@ int functional_menu()
         }
         params.set(KEY_SHARPNESS, sharpness);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'c':
@@ -1027,7 +1024,7 @@ int functional_menu()
         }
         params.set(KEY_CONTRAST, contrast);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'z':
@@ -1036,7 +1033,7 @@ int functional_menu()
         zoomIdx %= ARRAY_SIZE(zoom);
         params.set(KEY_ZOOM, zoom[zoomIdx].idx);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'j':
@@ -1045,7 +1042,7 @@ int functional_menu()
         exposure_mode %= ARRAY_SIZE(exposure);
         params.set(KEY_EXPOSURE, exposure_mode);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'b':
@@ -1057,7 +1054,7 @@ int functional_menu()
         }
         params.set(KEY_BRIGHTNESS, brightness);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
         
     case 's':
@@ -1069,7 +1066,7 @@ int functional_menu()
         }
         params.set(KEY_SATURATION, saturation);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'e':
@@ -1078,7 +1075,7 @@ int functional_menu()
         effects_mode %= ARRAY_SIZE(effects);
         params.set(params.KEY_EFFECT, effects[effects_mode]);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'r':
@@ -1087,7 +1084,7 @@ int functional_menu()
         frameRateIDX %= ARRAY_SIZE(frameRate);
         params.setPreviewFrameRate(frameRate[frameRateIDX].fps);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'X':
@@ -1096,7 +1093,7 @@ int functional_menu()
         antibanding_mode %= ARRAY_SIZE(antibanding);
         params.set(params.KEY_ANTIBANDING, antibanding[antibanding_mode]);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'g':
@@ -1105,43 +1102,29 @@ int functional_menu()
         focus_mode %= ARRAY_SIZE(focus);
         params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
         if ( hardwareActive )
-            hardware->setParameters(params);
+            camera->setParameters(params.flatten());
         break;
 
     case 'F':
     case 'f':
         gettimeofday(&autofocus_start, 0);
         if ( hardwareActive )
-            hardware->autoFocus();
+            camera->autoFocus();
         break;
 
     case 'P':
     case 'p':
-        hardware->setParameters(params);
+        camera->setParameters(params.flatten());
         gettimeofday(&picture_start, 0);
         if ( hardwareActive )
-            hardware->takePicture();
+            camera->takePicture();
         break;
-
-
-
-#if STRESS_TEST
-
-    case 'T':
-    case 't':
-        ret = create_stress_test();
-        if (ret < 0)
-            return -1;
-        break;
-
-#endif
 
     case 'N':
     case 'n':
         dump_preview = 1;
         break;
 
-    // GPS menu
     case 'a':
         while (1) {
             if ( menu_gps() < 0)
@@ -1151,18 +1134,6 @@ int functional_menu()
 
     case 'Q':
     case 'q':
-
-#if STRESS_TEST
-
-        if (st_started) {
-            ret = destroy_stress_test();
-            if (ret < 0) {
-                printf("Destroy stress test thread failed\n");
-                return -1;
-            }
-        }
-
-#endif
 
         stopPreview();
         return -1;
@@ -1236,15 +1207,14 @@ int execute_script(char *script)
                 break;
 
             case '2':
-                hardware->stopPreview();
-                hardware->release();
+                stopPreview();
                 break;
 
             case '3':
                 rotation = atoi(cmd + 1);
                 params.set(KEY_ROTATION, rotation);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case '4':
@@ -1266,20 +1236,57 @@ int execute_script(char *script)
 
                 params.setPictureSize(captureSize[i].width, captureSize[i].height);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
+                break;
+
+            case '6':
+                if ( !recordingMode ) {
+
+                    if ( startPreview() < 0 ) {
+                        printf("Error while starting preview\n");
+
+                        return -1;
+                    }
+
+                    if ( openRecorder() < 0 ) {
+                        printf("Error while openning video recorder\n");
+
+                        return -1;
+                    }
+
+                    if ( configureRecorder() < 0 ) {
+                        printf("Error while configuring video recorder\n");
+
+                        return -1;
+                    }
+
+                    if ( startRecording() < 0 ) {
+                        printf("Error while starting video recording\n");
+
+                        return -1;
+                    }
+
+                    recordingMode = true;
+                }
+
                 break;
 
             case '7':
                 compensation = atof(cmd + 1);
                 params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case '8':
                 params.set(params.KEY_WHITE_BALANCE, (cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
+                break;
+
+            case '9':
+                videoCodecIdx++;
+                videoCodecIdx %= ARRAY_SIZE(videoCodecs);
                 break;
 
             case 'o':
@@ -1287,28 +1294,28 @@ int execute_script(char *script)
                 jpegQuality = atoi(cmd + 1);
                 params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'k':
             case 'K':
                 params.set(KEY_IPP, (cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'u':
             case 'U':
                 params.set(KEY_MODE, (cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'w':
             case 'W':
                 params.set(params.KEY_SCENE_MODE, (cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'y':
@@ -1316,7 +1323,7 @@ int execute_script(char *script)
                 caf_mode = atoi(cmd + 1);
                 params.set(KEY_CAF, caf_mode);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'i':
@@ -1324,7 +1331,7 @@ int execute_script(char *script)
                 iso_mode = atoi(cmd + 1);
                 params.set(KEY_ISO, iso_mode);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'h':
@@ -1332,7 +1339,7 @@ int execute_script(char *script)
                 sharpness = atoi(cmd + 1);
                 params.set(KEY_SHARPNESS, sharpness);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'c':
@@ -1340,21 +1347,21 @@ int execute_script(char *script)
                 contrast = atoi(cmd + 1);
                 params.set(KEY_CONTRAST, contrast);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'z':
             case 'Z':
                 params.set(KEY_ZOOM, atoi(cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'j':
             case 'J':
                 params.set(KEY_EXPOSURE, (cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'b':
@@ -1362,7 +1369,7 @@ int execute_script(char *script)
                 brightness = atoi(cmd + 1);
                 params.set(KEY_BRIGHTNESS, brightness);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 's':
@@ -1370,50 +1377,50 @@ int execute_script(char *script)
                 saturation = atoi(cmd + 1);
                 params.set(KEY_SATURATION, saturation);
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'e':
             case 'E':
                 params.set(params.KEY_EFFECT, (cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'r':
             case 'R':
                 params.setPreviewFrameRate(atoi(cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'X':
             case 'x':
                 params.set(params.KEY_ANTIBANDING, (cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'g':
             case 'G':
                 params.set(params.KEY_FOCUS_MODE, (cmd + 1));
                 if ( hardwareActive )
-                    hardware->setParameters(params);
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'F':
             case 'f':
                 gettimeofday(&autofocus_start, 0);
                 if ( hardwareActive )
-                    hardware->autoFocus();
+                    camera->autoFocus();
                 break;
 
             case 'P':
             case 'p':
-                hardware->setParameters(params);
+                camera->setParameters(params.flatten());
                 gettimeofday(&picture_start, 0);
                 if ( hardwareActive )
-                    hardware->takePicture();
+                    camera->takePicture();
                 break;
 
             case 'D':
@@ -1426,19 +1433,6 @@ int execute_script(char *script)
 
             case 'Q':
             case 'q':
-
-#if STRESS_TEST
-
-                if (st_started) {
-                    ret = destroy_stress_test();
-                    if (ret < 0) {
-                        printf("Destroy stress test thread failed\n");
-                        return -1;
-                    }
-                }
-
-#endif
-
                 stopPreview();
                 goto exit;
 
@@ -1473,80 +1467,85 @@ void print_usage()
 int main(int argc, char *argv[])
 {
     char *cmd;
-
-    if( openCamera() < 0 ) {
-        printf("Camera initialization failed\n");
-
-        return -1;
-    }
-
-    hardwareActive = true;
-    params = hardware->getParameters();
-    initDefaults();
+    sp<ProcessState> proc(ProcessState::self());
 
     cmd = NULL;
     if ( argc < 2 ) {
-		printf(" Please enter atleast 1 argument \n");
-		print_usage();
-		return 0;
-        
+        printf(" Please enter atleast 1 argument\n");
+        print_usage();
+
+        return 0;
+    }
+
+    if ( argc < 3 ) {
+        switch (*argv[1]) {
+            case 'S':
+            case 's':
+                printf("This is stress / regression tests \n");
+                printf("Provide script file as 2nd argument\n");
+
+                break;
+
+            case 'F':
+            case 'f':
+                ProcessState::self()->startThreadPool();
+
+                if ( openCamera() < 0 ) {
+                     printf("Camera initialization failed\n");
+
+                     return -1;
+                }
+
+                hardwareActive = true;
+                params.unflatten(camera->getParameters());
+                initDefaults();
+                print_menu = 1;
+
+                while ( 1 ) {
+                    if ( functional_menu() < 0 )
+                        break;
+                };
+
+                break;
+
+            case 'A':
+            case 'a':
+                printf("API level test cases coming soon ... \n");
+
+                break;
+
+            case 'E':
+            case 'e':
+                printf("Error scenario test cases coming soon ... \n");
+
+                break;
+
+            default:
+                printf("INVALID OPTION USED\n");
+                print_usage();
+
+                break;
+        }
+    } else if ( ( argc == 3) && ( ( *argv[1] == 'S' ) || ( *argv[1] == 's') ) ) {
+
+        ProcessState::self()->startThreadPool();
+
+        if ( openCamera() < 0 ) {
+            printf("Camera initialization failed\n");
+
+            return -1;
         }
 
-    if ( argc < 3 ){ 
+        cmd = load_script(argv[2]);
 
-	if(*argv[1] == 'S' || *argv[1] == 's'){
-		printf(" This is stress / regression tests \n");
-		printf("Provide script file as 2nd argument\n\n");
-    	       return 0;
-           }
-	
-      else {
-
-	switch (*argv[1])
-		{
-		   case 'F':
-		   case 'f':
-				   hardwareActive = true;
-                              params = hardware->getParameters();
-                              initDefaults();	
-				  print_menu = 1;
-			         while(1) {
-			         	   if(functional_menu()<0)
-							break;
-			         	};
-      			         break;
-						   
-		   case 'A':
-		   case 'a':
-		   		  printf("API level test cases coming soon ... \n");
-		   		  break;
-		   case 'E':
-		   case 'e':
-		   		  printf("Error scenario test cases coming soon ... \n");
-		   		  break;
-	          default:
-			  	  printf("INVALID OPTION USED\n");	
-				  print_usage();
-				  return 0;	
-		   }
-      	 	 }
-    	}
-
-     else if(argc == 3 && (*argv[1] == 'S' || *argv[1] == 's')) {
-
-	        cmd = load_script(argv[1]);
- 
-               if( cmd != NULL) {
- 
-                    execute_script(cmd);
-                    free(cmd);
-               }
+        if ( cmd != NULL) {
+            execute_script(cmd);
+            free(cmd);
         }
-	else {
-	  	printf("INVALID OPTION USED\n");	
-		print_usage();
-		return 0;	
-	}
+    } else {
+        printf("INVALID OPTION USED\n");	
+        print_usage();
+    }
     
     return 0;
 }

@@ -22,6 +22,7 @@ LOCAL_SHARED_LIBRARIES:= \
 LOCAL_C_INCLUDES += \
 	kernel/android-2.6.29/include \
 	frameworks/base/include/ui \
+        frameworks/base/include/binder \
 	hardware/ti/omap3/liboverlay
 
 LOCAL_CFLAGS += -fno-short-enums 
@@ -124,6 +125,8 @@ LOCAL_SHARED_LIBRARIES:= \
 	libui \
 	libutils \
 	libcutils \
+    libbinder \
+    libmedia \
 	libcamera
 
 LOCAL_C_INCLUDES += \
@@ -137,6 +140,8 @@ LOCAL_C_INCLUDES += \
 	external/libexif \
 	hardware/ti/omap3/liboverlay \
 	frameworks/base/include/ui \
+    frameworks/base/include/media \
+    $(PV_INCLUDES)
 
 LOCAL_MODULE:= camera_test
 
