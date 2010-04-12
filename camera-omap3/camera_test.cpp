@@ -1536,6 +1536,7 @@ int main(int argc, char *argv[])
             return -1;
         }
 
+        hardwareActive = true;
         cmd = load_script(argv[2]);
 
         if ( cmd != NULL) {
