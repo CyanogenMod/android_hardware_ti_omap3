@@ -70,5 +70,26 @@ LOCAL_C_INCLUDES += \
 
 include $(BUILD_EXECUTABLE)
 
+################################################
+
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := \
+        ../test/libskiahw/SkLibTiJpeg_Test.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+	libskiahw
+
+LOCAL_MODULE := SkLibTiJpeg_Test
+
+LOCAL_C_INCLUDES += \
+	external/skia/include/images \
+	external/skia/include/ports \
+	external/skia/include/core \
+	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
+
+include $(BUILD_EXECUTABLE)
+
+################################################
 endif
 
