@@ -40,17 +40,11 @@ static int mDebugFps = 0;
 #include "pv_mime_string_utils.h"
 #include "pvmf_video.h"
 #include <media/PVPlayer.h>
+#include "v4l2_utils.h"
 
 using namespace android;
-/* Defined in liboverlay */
-typedef struct {
-    int fd;
-    size_t length;
-    uint32_t offset;
-    void *ptr;
-} mapping_data_t;
 
- typedef struct WriteResponseData{
+typedef struct WriteResponseData{
      PvmiCapabilityContext aContext;
      PVMFTimestamp aTimestamp;
      PVMFCommandId cmdid;
@@ -60,11 +54,16 @@ typedef struct {
  static WriteResponseData sWriteRespData[NUM_OVERLAY_BUFFERS_REQUESTED];
  int iDequeueIndex;
 
+
+static void convertYuv420pToYuv422i(int width, int height, void* src, void* dst);
+
+
 AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     AndroidSurfaceOutput()
 {
     mUseOverlay = true;
     mOverlay = NULL;
+    mConvert = false;
 }
 
 AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
@@ -72,7 +71,7 @@ AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
     mUseOverlay = false;
     mInitialized = false;
     
-    if(mOverlay != (Overlay *) NULL){
+    if(mOverlay != (Overlay *)NULL){
         mOverlay->destroy();
         mOverlay = (Overlay *)NULL;
     }
@@ -81,7 +80,7 @@ AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
 bool AndroidSurfaceOutputOmap34xx::initCheck()
 {
     LOGD("Calling Vendor(34xx) Specific initCheck");
-
+     mInitialized = false;
     // reset flags in case display format changes in the middle of a stream
     resetVideoParameterFlags();
     bufEnc = 0;
@@ -93,17 +92,47 @@ bool AndroidSurfaceOutputOmap34xx::initCheck()
     int frameHeight = iVideoHeight;
     int frameSize;
     int videoFormat = OVERLAY_FORMAT_CbYCrY_422_I;
-    mapping_data_t *data;
-    
-    LOGD("Use Overlays");
 
+#ifdef TARGET_OMAP4
+    //as the sub format is a string, switch case logic cant be used here
+    if ((iVideoSubFormat == PVMF_MIME_YUV420_SEMIPLANAR)||(iVideoSubFormat == PVMF_MIME_YUV420_PACKEDSEMIPLANAR))
+	{
+	videoFormat = OVERLAY_FORMAT_YCbCr_420_SP;
+	}
+    else if(iVideoSubFormat == PVMF_MIME_YUV422_INTERLEAVED_UYVY)
+	{
+	videoFormat =  OVERLAY_FORMAT_CbYCrY_422_I;
+	}
+    else if (iVideoSubFormat == PVMF_MIME_YUV422_INTERLEAVED_YUYV)
+	{
+	videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
+	}
+    else if (iVideoSubFormat == PVMF_MIME_YUV420_PLANAR)
+	{
+	videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
+	LOGI("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter or RGB565 converter needed");
+	mConvert = true;
+	}
+    else
+	{
+	LOGI("Not Supported format, and no coverter available");
+	return mInitialized;
+	}
+#endif
+    mapping_data_t *data;
     if (mUseOverlay) {
         if(mOverlay == NULL){
             LOGV("using Vendor Speicifc(34xx) codec");
             sp<OverlayRef> ref = mSurface->createOverlay(displayWidth, displayHeight,videoFormat);
             if(ref != NULL)LOGV("Vendor Speicifc(34xx)MIO: overlay created ");
             else LOGV("Vendor Speicifc(34xx)MIO: Creating overlay failed");
+            if ( ref.get() == NULL )
+            {
+                LOGE("Overlay Creation Failed!");
+                return mInitialized;
+            }
             mOverlay = new Overlay(ref);
+
             mOverlay->setParameter(CACHEABLE_BUFFERS, 0);
         }
         else
@@ -122,6 +151,11 @@ bool AndroidSurfaceOutputOmap34xx::initCheck()
         mbufferAlloc.maxBuffers = mOverlay->getBufferCount();
         mbufferAlloc.bufferSize = iBufferSize;
         LOGD("number of buffers = %d\n", mbufferAlloc.maxBuffers);
+        if (mbufferAlloc.maxBuffers < 0)
+        {
+            LOGE("problem with bufferallocations\n");
+             return mInitialized;
+		}
         for (int i = 0; i < mbufferAlloc.maxBuffers; i++) {
             data = (mapping_data_t *)mOverlay->getBufferAddress((void*)i);
             mbufferAlloc.buffer_address[i] = data->ptr;
@@ -137,7 +171,7 @@ bool AndroidSurfaceOutputOmap34xx::initCheck()
     mInitialized = true;
     LOGV("sendEvent(MEDIA_SET_VIDEO_SIZE, %d, %d)", iVideoDisplayWidth, iVideoDisplayHeight);
     mPvPlayer->sendEvent(MEDIA_SET_VIDEO_SIZE, iVideoDisplayWidth, iVideoDisplayHeight);
-    
+
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.video.showfps", value, "0");
     mDebugFps = atoi(value);
@@ -246,44 +280,50 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
                  LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - Invalid state");
                  status=PVMFErrInvalidState;
              }
-             else
-             {
-                 int i=0;
-                 //printf("V WriteAsync { seq=%d, ts=%d }\n", data_header_info.seq_num, data_header_info.timestamp);
- 
-                 // Call playback to send data to IVA for Color Convert
-                 if(mUseOverlay)
-                 { 
-                     for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
-                         if (mbufferAlloc.buffer_address[i] == aData) {
-                             break;
-                         }
-                     }
-                     if (i == mbufferAlloc.maxBuffers) {
-                         LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: aData does not match any v4l buffer address\n");
-                         status = PVMFFailure;
-                         WriteResponse resp(status, cmdid, aContext, aTimestamp);
-                         iWriteResponseQueue.push_back(resp);
-                         RunIfNotReady();
-                         return cmdid;
-                     }
-                     LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", i);
- 
-                     sWriteRespData[i].aContext = aContext;
-                     sWriteRespData[i].aTimestamp  = aTimestamp;
-                     sWriteRespData[i].cmdid = cmdid;
-                     sWriteRespData[i].bInDSSQueue = true;
-                 }
-                bDequeueFail = false;
+			else
+			{
+				//printf("V WriteAsync { seq=%d, ts=%d }\n", data_header_info.seq_num, data_header_info.timestamp);
+
+				// Call playback to send data to IVA for Color Convert
+				if(mUseOverlay)
+				{
+					// Convert from YUV420 to YUV422 for software codec
+					if (mConvert) {
+						convertYuv420pToYuv422i(iVideoWidth, iVideoHeight, aData, mbufferAlloc.buffer_address[bufEnc]);
+					} else {
+						int i;
+						for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
+						if (mbufferAlloc.buffer_address[i] == aData) {
+							break;
+							}
+						}
+						LOGI("queueBuffer %d\n", i);
+						bufEnc = i;
+					}
+					if (bufEnc == mbufferAlloc.maxBuffers) {
+						LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: aData does not match any v4l buffer address\n");
+						status = PVMFFailure;
+						WriteResponse resp(status, cmdid, aContext, aTimestamp);
+						iWriteResponseQueue.push_back(resp);
+						RunIfNotReady();
+						return cmdid;
+					}
+					LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", i);
+					sWriteRespData[bufEnc].aContext = aContext;
+					sWriteRespData[bufEnc].aTimestamp  = aTimestamp;
+					sWriteRespData[bufEnc].cmdid = cmdid;
+					sWriteRespData[bufEnc].bInDSSQueue = true;
+				}
+				bDequeueFail = false;
                 bQueueFail = false;
-                 status = writeFrameBuf(aData, aDataLen, data_header_info);
-                 switch (status)
-                 {
+				status = writeFrameBuf((uint8*)mbufferAlloc.buffer_address[bufEnc], aDataLen, data_header_info);
+				switch (status)
+				{
                      case PVMFSuccess:
                          LOGV("writeFrameBuf Success");
                      break;
                      case PVMFErrArgument:
-                         sWriteRespData[i].bInDSSQueue = false;
+                         sWriteRespData[bufEnc].bInDSSQueue = false;
                          bQueueFail = true;
                          LOGW("Queue FAIL from writeFrameBuf");
                      break;
@@ -292,7 +332,7 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
                          LOGI("Dequeue FAIL from writeFrameBuf");
                      break;
                      case PVMFFailure:
-                         sWriteRespData[i].bInDSSQueue = false;
+                         sWriteRespData[bufEnc].bInDSSQueue = false;
                          bDequeueFail = true;
                          bQueueFail = true;
                          LOGW("Queue & Dequeue FAIL");
@@ -404,6 +444,12 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
                 return eStatus;
             }
         }
+        // advance the overlay index if using color conversion
+        if (mConvert) {
+            if (++bufEnc == mbufferAlloc.maxBuffers) {
+                bufEnc = 0;
+            }
+        }
 
         //The driver will not be able to dequeue if only have
         //one buffer queue. We'll wait for two buffers been queue before
@@ -505,7 +551,7 @@ void AndroidSurfaceOutputOmap34xx::setParametersSync(PvmiMIOSession aSession,
             iBufferSize = (int32)yuvInfo->buffer_size;
             LOGD("AndroidSurfaceOutputOmap34xx::setParametersSync() Buffer Size, Value %d", iBufferSize);
             /* we're not being passed the subformat info */
-            iVideoSubFormat = "X-YUV-420";
+            iVideoSubFormat = yuvInfo->video_format.getMIMEStrPtr();
             iVideoParameterFlags |= VIDEO_SUBFORMAT_VALID;
         }
         else
@@ -547,6 +593,14 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::getParametersSync(PvmiMIOSession aSessi
 
     if (strcmp(aIdentifier, PVMF_BUFFER_ALLOCATOR_KEY) == 0)
     {
+        if((iVideoSubFormat != PVMF_MIME_YUV422_INTERLEAVED_UYVY) && (iVideoSubFormat != PVMF_MIME_YUV422_INTERLEAVED_YUYV) \
+	   && (iVideoSubFormat != PVMF_MIME_YUV420_SEMIPLANAR) && (iVideoSubFormat != PVMF_MIME_YUV420_PACKEDSEMIPLANAR))
+	 {
+            LOGI("Ln %d iVideoSubFormat %s. do NOT allocate decoder buffer from overlay", __LINE__, iVideoSubFormat.getMIMEStrPtr() );
+            OSCL_LEAVE(OsclErrNotSupported);
+            return PVMFErrNotSupported;
+        }
+
         int32 err;
         aParameters = (PvmiKvp*)oscl_malloc(sizeof(PvmiKvp));
         if (!aParameters)
@@ -578,7 +632,45 @@ void AndroidSurfaceOutputOmap34xx::closeFrameBuf()
     if (UNLIKELY(mDebugFps)) {
         debugShowFPS();
     }
-    
+ }
+
+
+static void convertYuv420pToYuv422i (int width, int height, void* src, void* dst)
+{
+    // calculate total number of pixels, and offsets to U and V planes
+    uint32_t pixelCount =  height * width;
+
+    uint8_t* ySrc = (uint8_t*) src;
+    uint8_t* uSrc = (uint8_t*) ((uint8_t*)src + pixelCount);
+    uint8_t* vSrc = (uint8_t*) ((uint8_t*)src + pixelCount + pixelCount/4);
+    uint8_t *p = (uint8_t*) dst;
+    uint32_t page_width = (width * 2   + 4096 -1) & ~(4096 -1);  // width rounded to the 4096 bytes
+
+   //LOGI("Coverting YUV420 to YUV422 - Height %d and Width %d", height, width);
+
+     // convert lines
+    for (int i = 0; i < height  ; i += 2) {
+        for (int j = 0; j < width; j+= 2) {
+
+         //  These Y have the same CR and CRB....
+         //  Y0 Y01......
+         //  Y1 Y11......
+
+         // SRC buffer from the algorithm might be giving YVU420 as well
+         *(uint32_t *)(p) = (   ((uint32_t)(ySrc[1] << 16)   | (uint32_t)(ySrc[0]))  & 0x00ff00ff ) |
+                                    (  ((uint32_t)(*uSrc << 8) | (uint32_t)(*vSrc << 24))  & 0xff00ff00 ) ;
+
+         *(uint32_t *)(p + page_width) = (   ((uint32_t)(ySrc[width +1] << 16)   | (uint32_t)(ySrc[width]))    & 0x00ff00ff ) |
+                                                            (  ((uint32_t)(*uSrc++ << 8) | (uint32_t)(*vSrc++ << 24))   & 0xff00ff00 );
+
+            p += 4;
+            ySrc += 2;
+         }
+
+        // skip the next y line, we already converted it
+        ySrc += width;     // skip the next row as it was already filled above
+        p    += 2* page_width - width * 2; //go to the beginning of the next row
+    }
 }
 
 

@@ -5,6 +5,10 @@ include $(CLEAR_VARS)
 #include external/opencore/Config.mk
 LOCAL_C_INCLUDES := $(PV_INCLUDES)
 
+ifeq ($(TARGET_BOARD_PLATFORM),omap4)
+LOCAL_CFLAGS := -DTARGET_OMAP4
+endif
+
 LOCAL_SRC_FILES := \
 	android_surface_output_omap34xx.cpp \
 	buffer_alloc_omap34xx.cpp \

@@ -61,6 +61,7 @@ private:
     int 						bufEnc;
     int32 iNumberOfBuffers;
     int32 iBufferSize;
+    bool                    mConvert;
 
 };
 
