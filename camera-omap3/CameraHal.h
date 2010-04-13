@@ -511,7 +511,7 @@ public:
 
 	int32_t             mMsgEnabled;
 	bool                mRecordEnabled;
-	nsecs_t             mCurrentTime;
+	nsecs_t             mCurrentTime[MAX_CAMERA_BUFFERS];
 	bool mFalsePreview;
 
 

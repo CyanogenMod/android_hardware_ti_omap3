@@ -1327,6 +1327,7 @@ void CameraHal::nextPreview()
     }else{
         nCameraBuffersQueued--;
     }
+    mCurrentTime[cfilledbuffer.index] = s2ns(cfilledbuffer.timestamp.tv_sec) + us2ns(cfilledbuffer.timestamp.tv_usec);
 
     //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, mPreviewFrameSize);
 
@@ -1381,9 +1382,8 @@ void CameraHal::nextPreview()
             }
             else
             {
-                mCurrentTime = systemTime(SYSTEM_TIME_MONOTONIC);
                 buffers_queued_to_ve[(int)overlaybuffer] = 1;
-                mDataCbTimestamp(mCurrentTime, CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
+                mDataCbTimestamp(mCurrentTime[(int)overlaybuffer], CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
             }
         }
     } 
