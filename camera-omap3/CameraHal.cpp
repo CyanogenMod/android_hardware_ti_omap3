@@ -3374,7 +3374,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
                 fobj->settings_2a.ae.framerate = 0;
             } else if (strcmp(params.get("capture"), (const char *) "video") == 0) {
                 //Set 3A config to disable variable fps
-                fobj->settings_2a.ae.framerate = 30;
+                fobj->settings_2a.ae.framerate = framerate;
             }
         }
 
@@ -3593,8 +3593,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             fobj->settings_2a.ae.compensation = compensation;
 
         }
-
-        fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_AUTO;
 
         FW3A_SetSettings();
         LOGD("mcapture_mode = %d", mcapture_mode);
