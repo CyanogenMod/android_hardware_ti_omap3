@@ -300,6 +300,8 @@ int v4l2_overlay_set_position(int fd, int32_t x, int32_t y, int32_t w, int32_t h
     if (mRotateOverlay) {
         w = 480;
         h = 800;
+        x = 0;
+        y = 0;
     }
     configure_window(&format.fmt.win, w, h, x, y);
 
