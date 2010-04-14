@@ -1056,7 +1056,7 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
 
     if ( ctx->shared->qd_buf_count <= 1 ) { //dss2 require at least 2 buf queue to perform a dequeue to avoid hang
         LOGE("Not enough buffers to dequeue");
-        rc = -EINVAL;
+        rc = -EPERM;
     }
 
     else if ( (rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0 )

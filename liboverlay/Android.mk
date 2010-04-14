@@ -8,7 +8,12 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_SRC_FILES := v4l2_utils.c overlay.cpp
-LOCAL_MODULE := overlay.zoom2
+
+ifeq ($(TARGET_BOARD_PLATFORM),omap4)
+LOCAL_CFLAGS := -DTARGET_OMAP4
+endif
+LOCAL_MODULE := overlay.$(TARGET_BOARD_PLATFORM)
+
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -17,4 +22,5 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_SRC_FILES := v4l2_utils.c v4l2_test.c
 LOCAL_MODULE := v4l2_test
 include $(BUILD_EXECUTABLE)
+
 

@@ -22,8 +22,13 @@
 #define OVERLAY_COMMON_H_
 
 #define NUM_OVERLAY_BUFFERS_REQUESTED  (6)
+#ifdef TARGET_OMAP4
+//This is required to support arm based codecs. once ducati codecs are integrated, this constant can
+//be inscreased to acheive the optimal performance.
+#define NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE    2
+#else
 #define NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE    3
-
+#endif
 /* Used in setAttributes */
 #define CACHEABLE_BUFFERS 0x1
 #define MAINTAIN_COHERENCY 0x2
