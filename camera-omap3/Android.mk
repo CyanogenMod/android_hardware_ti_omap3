@@ -110,50 +110,6 @@ endif
 
 ################################################
 
-################################################
-
-ifdef HARDWARE_OMX
-ifdef FW3A
-
-include $(CLEAR_VARS)
-
-LOCAL_SRC_FILES:= \
-	camera_test.cpp
-
-LOCAL_SHARED_LIBRARIES:= \
-	libdl \
-	libui \
-	libutils \
-	libcutils \
-    libbinder \
-    libmedia \
-	libcamera
-
-LOCAL_C_INCLUDES += \
-    hardware/ti/omap3/fw3A/include \
-	hardware/ti/omx/system/src/openmax_il/lcml/inc \
-	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
-	hardware/ti/omx/system/src/openmax_il/common/inc \
-	hardware/ti/omx/system/src/openmax_il/resource_manager_proxy/inc \
-	hardware/ti/omx/system/src/openmax_il/resource_manager/resource_activity_monitor/inc \
-	hardware/ti/omx/image/src/openmax_il/jpeg_enc/inc \
-	external/libexif \
-	hardware/ti/omap3/liboverlay \
-	frameworks/base/include/ui \
-    frameworks/base/include/media \
-    $(PV_INCLUDES)
-
-LOCAL_MODULE:= camera_test
-
-LOCAL_CFLAGS += -Wall -fno-short-enums -O0 -g -D___ANDROID___ -DMMS_CAMERA_TEST -DFW3A -DICAP -DIPP_LINUX -DHARDWARE_OMX -DIPP_LINUX
-
-include $(BUILD_EXECUTABLE)
-
-endif
-endif
-
-################################################
-
 
 endif
 endif

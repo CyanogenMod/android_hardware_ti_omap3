@@ -384,7 +384,7 @@ int createPreviewSurface(unsigned int width, unsigned int height)
         return -1;
     }
 
-    overlayControl = client->createSurface(getpid(), 0, width, height, 
+    overlayControl = client->createSurface(getpid(), 0, width, height,
                     PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers);
 
     if ( NULL == overlayControl.get() ) {
@@ -794,7 +794,6 @@ int functional_menu()
 
     if (print_menu) {
 
-		
         printf("\n\n=========== FUNCTIONAL TEST MENU ===================\n\n");
         printf("   0. Reset to defaults\n");
         printf("   1. Start Preview\n");
@@ -1056,7 +1055,7 @@ int functional_menu()
         if ( hardwareActive )
             camera->setParameters(params.flatten());
         break;
-        
+
     case 's':
     case 'S':
         if ( saturation >= 100) {
@@ -1458,11 +1457,8 @@ void print_usage()
 	printf(" S or s -> Stress tests \n\n");
 	printf(" <script>\n----------\n");
 	printf("Script name (Only for stress tests)\n\n");
-	return;	
+	return;
 }
-
-	
-
 
 int main(int argc, char *argv[])
 {
@@ -1544,10 +1540,10 @@ int main(int argc, char *argv[])
             free(cmd);
         }
     } else {
-        printf("INVALID OPTION USED\n");	
+        printf("INVALID OPTION USED\n");
         print_usage();
     }
-    
+
     return 0;
 }
 
