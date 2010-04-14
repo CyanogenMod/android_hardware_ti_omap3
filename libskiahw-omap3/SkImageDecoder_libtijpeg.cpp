@@ -114,6 +114,7 @@ OMX_ERRORTYPE OMX_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BU
 
 SkTIJPEGImageDecoder::~SkTIJPEGImageDecoder()
 {
+
     sem_destroy(semaphore);
     if (semaphore != NULL) {
         free(semaphore) ;
@@ -589,6 +590,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = TIOMX_GetHandle(&pOMXHandle, strTIJpegDec, (void *)this, &JPEGCallBack);
     if ( (eError != OMX_ErrorNone) ||  (pOMXHandle == NULL) ) {
         PRINTF ("Error in Get Handle function\n");
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -603,6 +605,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     eError = OMX_GetParameter(pOMXHandle, OMX_IndexParamImageInit, &PortType);
     if ( eError != OMX_ErrorNone ) {
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -623,6 +626,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -662,6 +666,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -679,6 +684,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -731,6 +737,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -754,29 +761,34 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_SetConfig (pOMXHandle, OMX_IndexConfigCommonScale, &ScaleFactor);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
     eError = OMX_GetExtensionIndex(pOMXHandle, strProgressive, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
     eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &(JpegHeaderInfo.nProgressive));
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
     eError = OMX_GetExtensionIndex(pOMXHandle, strColorFormat, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
     eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &(OutPortDef.format.image.eColorFormat));
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -784,6 +796,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_GetExtensionIndex(pOMXHandle, strMaxResolution, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -793,6 +806,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_SetParameter (pOMXHandle, nCustomIndex, &MaxResolution);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -800,11 +814,13 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     if (!bm->allocPixels(&allocator, NULL)) {
         PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+        iState = STATE_ERROR;
         goto EXIT;
     }
 #else
     if (!bm->allocPixels()) {
         SkDebugf("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+        iState = STATE_ERROR;
         goto EXIT;
     }
 #endif
@@ -813,6 +829,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_AllocateBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -821,6 +838,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_UseBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize, (OMX_U8*)bm->getPixels());
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -831,6 +849,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_AllocateBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -840,6 +859,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     eError = OMX_SendCommand(pOMXHandle, OMX_CommandStateSet, OMX_StateIdle ,NULL);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("Error from SendCommand-Idle(Init) State function\n");
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
@@ -850,6 +870,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     return true;
 
 EXIT:
+    if (iState == STATE_ERROR) {
+        sem_post(semaphore);
+        Run();
+    }
 
     android::gTIJpegDecMutex.unlock();
     SkDebugf("Leaving Critical Section 3 \n");    
@@ -986,6 +1010,22 @@ while(1){
             /*### Assume that the Bitmap object/file need not be closed. */
             /*### More needs to be done here */
             /*### Do different things based on iLastState */
+
+            if ( iState == STATE_ERROR ) {
+                if (pInBuffHead != NULL) {
+                    /* Free buffers if it got allocated */
+                    eError = OMX_FreeBuffer(pOMXHandle, InPortDef.nPortIndex, pInBuffHead);
+                    if ( eError != OMX_ErrorNone ) {
+                        PRINTF("Error from OMX_FreeBuffer. Input port.\n");
+                    }
+                }
+                if (pOutBuffHead != NULL) {
+                    eError = OMX_FreeBuffer(pOMXHandle, OutPortDef.nPortIndex, pOutBuffHead);
+                    if ( eError != OMX_ErrorNone ) {
+                        PRINTF("Error from OMX_FreeBuffer. Output port.\n");
+                    }
+                }
+            }
 
             if (pOMXHandle) {
                 eError = TIOMX_FreeHandle(pOMXHandle);
