@@ -3834,6 +3834,9 @@ void AACDEC_HandleUSNError (AACDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32
             }
 #endif
             break;
+        case IAAC_WARN_DATA_CORRUPT:
+            OMX_ERROR4(pComponentPrivate->dbg,  "LCML_Callback: Algorithm error, stream corrupt\n");
+            break;
         case IUALG_WARN_CONCEALED:
         case IUALG_WARN_UNDERFLOW:
         case IUALG_WARN_OVERFLOW:

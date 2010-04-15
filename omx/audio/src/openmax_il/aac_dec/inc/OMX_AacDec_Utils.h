@@ -537,6 +537,10 @@ typedef enum {
     IUALG_CMD_USERCMDSTART_AACDEC  = 100
 }IUALG_Cmd_AAC_DEC;
 
+typedef enum{
+  IAAC_WARN_DATA_CORRUPT = 0x0804
+}IAAC_WARN_MSG;
+
 #ifdef UNDER_CE
 #ifndef _OMX_EVENT_
 #define _OMX_EVENT_
