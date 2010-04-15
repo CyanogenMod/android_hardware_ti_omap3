@@ -1385,8 +1385,10 @@ void CameraHal::nextPreview()
                 buffers_queued_to_ve[(int)overlaybuffer] = 1;
                 if (mPrevTime > mCurrentTime[(int)overlaybuffer])
                 {
-                    LOGD("Had to adjust the timestamp. Clock went back in time: \n\t mCurrentTime = %lld, mPrevTime = %lld", mCurrentTime[(int)overlaybuffer], mPrevTime);
-                    mCurrentTime[(int)overlaybuffer] = mPrevTime + 33000000;
+                    int framerate = mParameters.getPreviewFrameRate();
+                    nsecs_t frameInterval = 1000000000LL / framerate ;
+                    LOGD("Had to adjust the timestamp. Clock went back in time: \n\t mCurrentTime = %lld, mPrevTime = %llu, frameInterval = %llu", mCurrentTime[(int)overlaybuffer], mPrevTime, frameInterval);
+                    mCurrentTime[(int)overlaybuffer] = mPrevTime + frameInterval;
                 }
                 mDataCbTimestamp(mCurrentTime[(int)overlaybuffer], CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
                 mPrevTime = mCurrentTime[(int)overlaybuffer];
