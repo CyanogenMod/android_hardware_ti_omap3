@@ -1383,7 +1383,13 @@ void CameraHal::nextPreview()
             else
             {
                 buffers_queued_to_ve[(int)overlaybuffer] = 1;
+                if (mPrevTime > mCurrentTime[(int)overlaybuffer])
+                {
+                    LOGD("Had to adjust the timestamp. Clock went back in time: \n\t mCurrentTime = %lld, mPrevTime = %lld", mCurrentTime[(int)overlaybuffer], mPrevTime);
+                    mCurrentTime[(int)overlaybuffer] = mPrevTime + 33000000;
+                }
                 mDataCbTimestamp(mCurrentTime[(int)overlaybuffer], CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
+                mPrevTime = mCurrentTime[(int)overlaybuffer];
             }
         }
     } 
@@ -3028,6 +3034,7 @@ status_t CameraHal::startRecording( )
     int w,h;
     int i = 0;
 
+    mPrevTime = 0;
     mParameters.getPreviewSize(&w, &h);
     mRecordingFrameSize = w * h * 2;
     overlay_handle_t overlayhandle = mOverlay->getHandleRef();
