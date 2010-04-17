@@ -23,4 +23,11 @@ LOCAL_SRC_FILES := v4l2_utils.c v4l2_test.c
 LOCAL_MODULE := v4l2_test
 include $(BUILD_EXECUTABLE)
 
-
+include $(CLEAR_VARS)
+ifeq ($(TARGET_BOARD_PLATFORM),omap4)
+LOCAL_CFLAGS := -DTARGET_OMAP4
+endif
+LOCAL_SHARED_LIBRARIES := liblog libcutils libhardware libutils libui
+LOCAL_SRC_FILES := overlay_test.cpp
+LOCAL_MODULE := overlay_test
+include $(BUILD_EXECUTABLE)
