@@ -28,14 +28,12 @@
 * @file SkLibTiJpeg_Test.cpp
 *
 * This test program will be used to test the JPEG decoder and encoder
-* from libskiahw level.
+* from libskia level.
 *
 */
 
-#include "SkBitmap.h"
-#include "SkStream.h"
-#include "SkLibTiJpeg_Test.h"
 #include <stdio.h>
+#include "SkLibTiJpeg_Test.h"
 
 #define LIBSKIAHWTEST "[SkLibTiJpeg_Test_Script]"
 #define PASS 0
@@ -54,22 +52,10 @@
 #endif
 
 //-----------------------------------------------------------------------------
-bool SkTIJPEGDecoderTestClass::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, Mode mode) {
-
-    return (SkTIJPEGImageDecoder::onDecode(stream, bm, pref, mode));
-}
-
-//-----------------------------------------------------------------------------
- bool SkTIJPEGEncoderTestClass::onEncode(SkWStream* stream, const SkBitmap& bm, int quality) {
-
-    return( SkTIJPEGImageEncoder::onEncode(stream, bm, quality) );
-}
-
-//-----------------------------------------------------------------------------
 void printDecoderTestUsage() {
 
     PRINT("\nDecoder Test parameters:\n");
-    PRINT("SkLibTiJpeg_Test <D> <Input_File_Name> <Output_File_Name> <nOutformat> <nResizeMode> <nRepeat> <nSections> <nXOrigin> <nYOrigin> <nXLenght> <nYLenght>\n\n ");
+    PRINT("SkLibTiJpeg_Test <D> <Input_File_Name> <Output_File_Name> <nOutformat> <nResizeMode> <nSections> <nXOrigin> <nYOrigin> <nXLenght> <nYLenght>\n\n ");
     PRINT("<D>               = D-Decoder test\n");
     PRINT("<Input_File_Name> = .jpg file name\n");
     PRINT("<Output_File_Name>= .raw file name\n");
@@ -129,7 +115,7 @@ void printUsage() {
 //-----------------------------------------------------------------------------
 int runJPEGDecoderTest(int argc, char** argv) {
 
-    SkTIJPEGDecoderTestClass skJpegDec;
+    SkImageDecoder* skJpegDec = NULL;
     SkBitmap    skBM;
     SkBitmap::Config prefConfig = SkBitmap::kRGB_565_Config;
     int reSize = 1;
@@ -161,8 +147,9 @@ int runJPEGDecoderTest(int argc, char** argv) {
               above two color format among the android color formats.
               TI DSP SN supports more formats in YUV too, but android does not support YUV o/p formats.*/
             PRINT("%s():%d::!!!!Invalid output color format option..\n",__FUNCTION__,__LINE__);
-            PRINT("%s():%d::Setting default to kRGB_565_Config color format option..\n",__FUNCTION__,__LINE__);
-            prefConfig = SkBitmap::kRGB_565_Config;
+
+            /* Allow the wrong color format to test the error handling */
+            //prefConfig = SkBitmap::kRGB_565_Config;
         }
     }
 
@@ -195,8 +182,7 @@ int runJPEGDecoderTest(int argc, char** argv) {
 
         DBGPRINT("%s():%d:: Scale factor=%d. (1-100,2-50,4-25,8-12 percent resize)\n",__FUNCTION__,__LINE__,reSize);
     }
-    skJpegDec.setSampleSize(reSize);
-    
+
     /*Section Decode - Slice output mode*/
     if (argc >= 7) {
     }
@@ -209,22 +195,33 @@ int runJPEGDecoderTest(int argc, char** argv) {
     else{
     }
 
+    /* Get the Decoder handle */
+    skJpegDec = SkImageDecoder::Factory(&inStream);
+
+    /*set the scale factor */
+    skJpegDec->setSampleSize(reSize);
+    
     /*call decode*/
-    if (skJpegDec.onDecode(&inStream, &skBM, prefConfig, SkImageDecoder::kDecodePixels_Mode) == false) {
+    if (skJpegDec->decode(&inStream, &skBM, prefConfig, SkImageDecoder::kDecodePixels_Mode) == false) {
+        DBGPRINT("%s():%d:: !!!! skJpegDec->decode returned false..\n",__FUNCTION__,__LINE__);
         DBGPRINT("%s():%d:: !!!! Test Failed..\n",__FUNCTION__,__LINE__);
+        delete skJpegDec;
         return FAIL;
     }
 
     outStream.write(skBM.getPixels(), skBM.getSize());
     DBGPRINT("%s():%d:: Wrote %d bytes to output file<%s>.\n",__FUNCTION__,__LINE__,skBM.getSize(),argv[3]);
+    delete skJpegDec;
+
     return PASS;
 
 } //End of runJPEGDecoderTest()
 
 //-----------------------------------------------------------------------------
+
 int runJPEGEncoderTest(int argc, char** argv) {
 
-    SkTIJPEGEncoderTestClass skJpegEnc;
+    SkImageEncoder* skJpegEnc = NULL;
     SkBitmap skBM;
     SkBitmap::Config inConfig = SkBitmap::kRGB_565_Config;
     void *tempInBuff = NULL;
@@ -286,17 +283,24 @@ int runJPEGEncoderTest(int argc, char** argv) {
     skBM.setConfig(inConfig, nWidth, nHeight); 
     skBM.setPixels(tempInBuff);
 
+    /* get the JPEG Encoder Handle */
+    skJpegEnc = SkImageEncoder::Create(SkImageEncoder::kJPEG_Type);
+
     /* call onEncode */
-    if (skJpegEnc.onEncode( &outStream, skBM, nQFactor) == false) {
+    if (skJpegEnc->encodeStream( &outStream, skBM, nQFactor) == false) {
         DBGPRINT("%s():%d::!!!onEncode failed....\n",__FUNCTION__,__LINE__);
         free(tempInBuff);
+        delete skJpegEnc;
         return FAIL;
     }
 
     DBGPRINT("%s():%d:: Encoded image written in to output file<%s>.\n",__FUNCTION__,__LINE__,argv[3]);
     free(tempInBuff);
+    delete skJpegEnc;
+
     return PASS;
 }//End of runJPEGEncoderTest()
+
 
 //-----------------------------------------------------------------------------
 int runFromCmdArgs(int argc, char** argv) {

@@ -25,30 +25,9 @@
 *  in the license agreement under which this software has been supplied.
 * ============================================================================ */
 
-#include "SkImageDecoder_libtijpeg.h"
-#include "SkImageEncoder_libtijpeg.h"
-
-class SkTIJPEGDecoderTestClass : public SkTIJPEGImageDecoder
-{
-protected:
-
-private: 
-
-public:
-virtual bool onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, Mode mode);
-
-};
-
-
-class SkTIJPEGEncoderTestClass : public SkTIJPEGImageEncoder
-{
-protected:
-
-private: 
-
-public:
-virtual bool onEncode(SkWStream* stream, const SkBitmap& bm, int quality);
-
-};
+#include "SkBitmap.h"
+#include "SkStream.h"
+#include "SkImageDecoder.h"
+#include "SkImageEncoder.h"
 
 
