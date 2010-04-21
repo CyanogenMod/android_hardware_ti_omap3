@@ -1821,7 +1821,24 @@ static OMX_ERRORTYPE ComponentTunnelRequest (OMX_HANDLETYPE hComp,
     return eError;
 }
 
-
+static void waitForAlloBufThreshold(
+        MP3DEC_COMPONENT_PRIVATE *pComponentPrivate) {
+#ifndef UNDER_CE
+    pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex);
+    pComponentPrivate->AlloBuf_waitingsignal = 1;
+    while (pComponentPrivate->AlloBuf_waitingsignal) {
+        pthread_cond_wait(
+                &pComponentPrivate->AlloBuf_threshold,
+                &pComponentPrivate->AlloBuf_mutex);
+    }
+    pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);
+#else
+    // I am fairly sure this will suffer from similar issues without
+    // proper mutex protection and a loop under WinCE...
+    pComponentPrivate->AlloBuf_waitingsignal = 1;
+    OMX_WaitForEvent(&(pComponentPrivate->AlloBuf_event));
+#endif
+}
 
 /* ================================================================================= * */
 /**
@@ -1875,14 +1892,7 @@ static OMX_ERRORTYPE AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     MP3D_OMX_CONF_CHECK_CMD(pPortDef, 1, 1);
 
     if(!pPortDef->bEnabled){
-        pComponentPrivate->AlloBuf_waitingsignal = 1;  
-#ifndef UNDER_CE        
-        pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex); 
-        pthread_cond_wait(&pComponentPrivate->AlloBuf_threshold, &pComponentPrivate->AlloBuf_mutex);
-        pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);
-#else
-        OMX_WaitForEvent(&(pComponentPrivate->AlloBuf_event));
-#endif
+        waitForAlloBufThreshold(pComponentPrivate);
     }
 
     OMX_MALLOC_GENERIC(pBufferHeader, OMX_BUFFERHEADERTYPE);
@@ -2273,11 +2283,8 @@ static OMX_ERRORTYPE UseBuffer (
                 pComponentPrivate)->pPortDef[nPortIndex];
 
     MP3D_OMX_CONF_CHECK_CMD(pPortDef, 1, 1);
-    if(!pPortDef->bEnabled){
-        pComponentPrivate->AlloBuf_waitingsignal = 1;   
-        pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex); 
-        pthread_cond_wait(&pComponentPrivate->AlloBuf_threshold, &pComponentPrivate->AlloBuf_mutex);
-        pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);
+    if(!pPortDef->bEnabled) {
+        waitForAlloBufThreshold(pComponentPrivate);
     }
     OMX_PRCOMM2(pComponentPrivate->dbg, ":: pPortDef = %p\n",pPortDef);
     OMX_PRCOMM2(pComponentPrivate->dbg, ":: pPortDef->bEnabled = %d\n",pPortDef->bEnabled);

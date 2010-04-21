@@ -551,6 +551,25 @@ OMX_ERRORTYPE MP3DEC_FreeCompResources(OMX_HANDLETYPE pComponent)
     return eError;
 }
 
+static void signalAlloBufThresholdIfNecessary(
+        MP3DEC_COMPONENT_PRIVATE *pComponentPrivate) {
+#ifndef UNDER_CE
+    pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex);
+    if (pComponentPrivate->AlloBuf_waitingsignal) {
+        pComponentPrivate->AlloBuf_waitingsignal = 0;
+        pthread_cond_signal(&pComponentPrivate->AlloBuf_threshold);
+    }
+    pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);
+#else
+    if (pComponentPrivate->AlloBuf_waitingsignal) {
+        // I am fairly sure this will suffer from similar issues without
+        // proper mutex protection and a loop under WinCE...
+        pComponentPrivate->AlloBuf_waitingsignal = 0;
+        OMX_SignalEvent(&(pComponentPrivate->AlloBuf_event));
+    }
+#endif
+}
+
 
 /* ================================================================================= * */
 /**
@@ -1469,17 +1488,8 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled = OMX_TRUE;
                 OMX_PRCOMM2(pComponentPrivate->dbg, "pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled = %d\n",
                               pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled);
-                
-                if(pComponentPrivate->AlloBuf_waitingsignal){
-                    pComponentPrivate->AlloBuf_waitingsignal = 0;
-#ifndef UNDER_CE             
-                    pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex); 
-                    pthread_cond_signal(&pComponentPrivate->AlloBuf_threshold);
-                    pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);    
-#else
-                    OMX_SignalEvent(&(pComponentPrivate->AlloBuf_event));
-#endif            
-                }
+
+                signalAlloBufThresholdIfNecessary(pComponentPrivate);
                 OMX_PRCOMM2(pComponentPrivate->dbg, "setting output port to enabled\n");
             }
         }
@@ -1493,13 +1503,8 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                        MP3D_INPUT_PORT,
                                                        NULL);
                 
-                if(pComponentPrivate->AlloBuf_waitingsignal){
-                    pComponentPrivate->AlloBuf_waitingsignal = 0;           
-                    pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex); 
-                    pthread_cond_signal(&pComponentPrivate->AlloBuf_threshold);
-                    pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);    
-                }
-                
+                signalAlloBufThresholdIfNecessary(pComponentPrivate);
+
                 //MP3DECFill_LCMLInitParamsEx(pHandle, 0);
                 // queue the pending buffers received while doing the config
                 for (i=0; i < pComponentPrivate->nNumInputBufPending; i++) {
@@ -1540,12 +1545,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                         MP3D_OUTPUT_PORT, 
                                                         NULL);
 
-                if(pComponentPrivate->AlloBuf_waitingsignal){
-                    pComponentPrivate->AlloBuf_waitingsignal = 0;           
-                    pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex); 
-                    pthread_cond_signal(&pComponentPrivate->AlloBuf_threshold);
-                    pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);    
-                }
+                signalAlloBufThresholdIfNecessary(pComponentPrivate);
                 OMX_PRINT2(pComponentPrivate->dbg, "reconfigOut = %d!, but should be true!\n",pComponentPrivate->reconfigOutputPort);
                 if(pComponentPrivate->reconfigOutputPort){
                     //make sure new VA's are used
@@ -1625,12 +1625,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                        MP3D_OUTPUT_PORT, 
                                                        NULL);
 
-                if(pComponentPrivate->AlloBuf_waitingsignal){
-                    pComponentPrivate->AlloBuf_waitingsignal = 0;           
-                    pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex); 
-                    pthread_cond_signal(&pComponentPrivate->AlloBuf_threshold);
-                    pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);    
-                }
+                signalAlloBufThresholdIfNecessary(pComponentPrivate);
                 MP3DEC_CleanupInitParamsEx(pHandle,commandData);
                 MP3DECFill_LCMLInitParamsEx(pHandle, -1);
 
