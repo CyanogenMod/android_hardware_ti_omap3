@@ -33,9 +33,11 @@
 */
 
 #include "SkImageEncoder_libtijpeg.h"
+#include "SkTime.h"
 
-#define PRINTF SkDebugf
+#define PRINTF // SkDebugf
 //#define PRINTF printf
+#define TIME_ENCODE
 
 #define MULTIPLE 2 //image width must be a multiple of this number
 
@@ -195,7 +197,12 @@ bool SkTIJPEGImageEncoder::onEncode(SkWStream* stream, const SkBitmap& bm, int q
 
     w = bm.width();
     h = bm.height();
-    
+
+#ifdef TIME_ENCODE
+    AutoTimeMicros atm("TI JPEG Encode");
+    atm.setResolution(w , h);
+#endif
+
     nMultFactor = (w + 16 - 1)/16;
     nWidthNew = (int)(nMultFactor) * 16;
 
@@ -327,7 +334,7 @@ bool SkTIJPEGImageEncoder::encodeImage(void* outputBuffer, int outBuffSize, void
 
     android::gTIJpegEncMutex.lock();
     /* Critical section */
-    SkDebugf("Entering Critical Section \n");
+    PRINTF("Entering Critical Section \n");
 
     int nRetval;
     int nIndex1;
@@ -546,14 +553,14 @@ bool SkTIJPEGImageEncoder::encodeImage(void* outputBuffer, int outBuffSize, void
     Run();
 
     android::gTIJpegEncMutex.unlock();
-    SkDebugf("Leaving Critical Section 2 \n");    
+    PRINTF("Leaving Critical Section 2 \n");
 
     return true;
 
 EXIT:
 
     android::gTIJpegEncMutex.unlock();
-    SkDebugf("Leaving Critical Section 3 \n");    
+    PRINTF("Leaving Critical Section 3 \n");
 
     return false;
 

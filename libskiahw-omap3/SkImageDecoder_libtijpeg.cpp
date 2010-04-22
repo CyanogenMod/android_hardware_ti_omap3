@@ -35,7 +35,7 @@
 #include "SkImageDecoder_libtijpeg.h"
 
 #define USE_OMX_UseBuffer 1
-#define PRINTF SkDebugf
+#define PRINTF // SkDebugf
 //#define PRINTF printf
 #define TIME_DECODE
 #define JPEG_DECODER_DUMP_INPUT_AND_OUTPUT 0 // set directory persmissions for /temp as 777
@@ -501,10 +501,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     android::gTIJpegDecMutex.lock();
     /* Critical section */
-    SkDebugf("Entering Critical Section \n");
+    PRINTF("Entering Critical Section \n");
 
 #ifdef TIME_DECODE
-    AutoTimeMillis atm("TI JPEG Decode");
+    AutoTimeMicros atm("TI JPEG Decode");
 #endif
 
     int nRetval;
@@ -572,7 +572,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     if (SkImageDecoder::kDecodeBounds_Mode == mode) {
         android::gTIJpegDecMutex.unlock();
- 	 SkDebugf("Leaving Critical Section 1 \n");    
+        PRINTF("Leaving Critical Section 1 \n");
         return true;
     }
 
@@ -819,7 +819,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     }
 #else
     if (!bm->allocPixels()) {
-        SkDebugf("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+        PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
         iState = STATE_ERROR;
         goto EXIT;
     }
@@ -866,7 +866,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     Run();
 
     android::gTIJpegDecMutex.unlock();
-    SkDebugf("Leaving Critical Section 2 \n");    
+    PRINTF("Leaving Critical Section 2 \n");
     return true;
 
 EXIT:
@@ -876,7 +876,7 @@ EXIT:
     }
 
     android::gTIJpegDecMutex.unlock();
-    SkDebugf("Leaving Critical Section 3 \n");    
+    PRINTF("Leaving Critical Section 3 \n");
     return false;
 }
 
