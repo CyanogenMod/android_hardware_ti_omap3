@@ -1,9 +1,5 @@
 ifdef BOARD_USES_TI_CAMERA_HAL
 
-ifdef HARDWARE_OMX
-
-ifdef FW3A
-
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -29,10 +25,6 @@ LOCAL_MODULE:= camera_test
 LOCAL_CFLAGS += -Wall -fno-short-enums -O0 -g -D___ANDROID___
 
 include $(BUILD_EXECUTABLE)
-
-endif # FW3A
-
-endif # HARDWARE_OMX
 
 endif # BOARD_USES_TI_CAMERA_HAL
 
