@@ -1,0 +1,648 @@
+/*
+ * Copyright (C) Texas Instruments - http://www.ti.com/
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+/**
+* @file CameraProperties.cpp
+*
+* This file maps the CameraHardwareInterface to the Camera interfaces on OMAP4 (mainly OMX).
+*
+*/
+
+#include "CameraHal.h"
+#include "CameraProperties.h"
+#include "CameraParameters.h"
+
+namespace android {
+
+
+const char CameraProperties::PROP_KEY_INVALID[]="invalid-key";
+const char CameraProperties::PROP_KEY_CAMERA_NAME[]="camera-name";
+const char CameraProperties::PROP_KEY_ADAPTER_DLL_NAME[]="camera-adapter-dll-name";
+const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_SIZES[] = "preview-size-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FORMATS[] = "preview-format-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FRAME_RATES[] = "preview-frame-rate-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_PICTURE_SIZES[] = "picture-size-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_PICTURE_FORMATS[] = "picture-format-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_THUMBNAIL_SIZES[] = "jpeg-thumbnail-size-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_WHITE_BALANCE[] = "whitebalance-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_EFFECTS[] = "effect-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_ANTIBANDING[] = "antibanding-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_SCENE_MODES[] = "scene-mode-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_FLASH_MODES[] = "flash-mode-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_FOCUS_MODES[] = "focus-mode-values";
+const char CameraProperties::PROP_KEY_REQUIRED_PREVIEW_BUFS[] = "required-preview-bufs";
+const char CameraProperties::PROP_KEY_REQUIRED_IMAGE_BUFS[] = "required-image-bufs";
+const char CameraProperties::PARAMS_DELIMITER []= ",";
+
+
+const char CameraProperties::TICAMERA_FILE_PREFIX[] = "TICamera";
+const char CameraProperties::TICAMERA_FILE_EXTN[] = ".xml";
+
+
+CameraProperties::CameraProperties() : mCamerasSupported(0)
+{
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+CameraProperties::~CameraProperties()
+{
+    ///Deallocate memory for the properties array
+    LOG_FUNCTION_NAME
+
+    ///Delete the properties from the end to avoid copies within freeCameraProperties()
+    for(int i=mCamerasSupported-1;i>=0;i--)
+        {
+        CAMHAL_LOGDB("Freeing property array for Camera Index %d",i);
+        freeCameraProps(i);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+
+///Initializes the CameraProperties class
+status_t CameraProperties::initialize()
+{
+    ///No initializations to do for now
+    LOG_FUNCTION_NAME
+
+    status_t ret;
+
+    ret = loadProperties();
+
+    return ret;
+}
+
+
+///Loads the properties XML files present inside /system/etc and loads all the Camera related properties
+status_t CameraProperties::loadProperties()
+{
+    LOG_FUNCTION_NAME
+
+    status_t ret = NO_ERROR;
+    ///Open /system/etc directory and read all the xml file with prefix as TICamera<CameraName>
+    DIR *dirp;
+    struct dirent *dp;
+
+    CAMHAL_LOGDA("Opening /system/etc directory");
+    if ((dirp = opendir("/system/etc")) == NULL) {
+        CAMHAL_LOGEA("Couldn't open directory /system/etc");
+        LOG_FUNCTION_NAME_EXIT
+        return UNKNOWN_ERROR;
+    }
+
+    CAMHAL_LOGDA("Opened /system/etc directory successfully");
+
+    CAMHAL_LOGDA("Processing all directory entries to find Camera property files");
+    do {
+        errno = 0;
+        if ((dp = readdir(dirp)) != NULL)
+            {
+            CAMHAL_LOGDB("File name %s", dp->d_name);
+            char* found = strstr(dp->d_name, TICAMERA_FILE_PREFIX);
+            if((int32_t)found == (int32_t)dp->d_name)
+                {
+                ///Prefix matches
+                ///Now check if it is an XML file
+                if(strstr(dp->d_name, TICAMERA_FILE_EXTN))
+                    {
+                    ///Confirmed it is an XML file, now open it and parse it
+                    CAMHAL_LOGDB("Found Camera Properties file %s", dp->d_name);
+                    char fullPath[100];
+                    sprintf(fullPath, "/system/etc/%s",dp->d_name);
+                    ret = parseAndLoadProps((const char*)fullPath);
+                    if(ret!=NO_ERROR)
+                        {
+                        CAMHAL_LOGEB("Error when parsing the config file :%s Err[%d]",fullPath, ret);
+                        LOG_FUNCTION_NAME_EXIT
+                        return ret;
+                        }
+                    CAMHAL_LOGDA("Parsed configuration file and loaded properties");
+                    }
+                }
+            }
+        } while (dp != NULL);
+
+    CAMHAL_LOGDA("Closing the directory handle");
+    (void) closedir(dirp);
+
+    LOG_FUNCTION_NAME_EXIT
+    return ret;
+}
+
+status_t CameraProperties::parseAndLoadProps(const char* file)
+{
+    LOG_FUNCTION_NAME
+
+    xmlTextReaderPtr reader;
+    const xmlChar *name=NULL, *value = NULL;
+    status_t ret;
+
+#if _DEBUG_XML_FILE
+        reader = xmlNewTextReaderFilename(file);
+        if (reader != NULL) {
+            ret = xmlTextReaderRead(reader);
+            while (ret == 1) {
+                name = xmlTextReaderConstName(reader);
+                value = xmlTextReaderConstValue(reader);
+                CAMHAL_LOGEB("Tag %s value %s",name, value);
+                ret = xmlTextReaderRead(reader);
+            }
+            xmlFreeTextReader(reader);
+            }
+        return NO_ERROR;
+#endif
+
+    reader = xmlNewTextReaderFilename(file);
+    if (reader != NULL) {
+        ret = xmlTextReaderRead(reader);
+        if (ret != 1) {
+            CAMHAL_LOGEB("%s : failed to parse\n", file);
+        }
+
+
+        ret = parseCameraElements(reader);
+    } else {
+        CAMHAL_LOGEB("Unable to open %s\n", file);
+    }
+
+    CAMHAL_LOGDA("Freeing the XML Reader");
+    xmlFreeTextReader(reader);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+
+
+
+status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
+{
+    LOG_FUNCTION_NAME
+
+    status_t ret = NO_ERROR;
+
+    const xmlChar *name=NULL, *value = NULL;
+    char val[256];
+    const xmlChar *nextName = NULL;
+    ///xmlNode passed to this function is a cameraElement
+    ///It's child nodes are the properties
+    ///XML structure looks like this
+    /**
+      * <CameraInstance>
+      * <CameraProperty1>Value</CameraProperty1>
+      * ....
+      * <CameraPropertyN>Value</CameraPropertyN>
+      * </CameraInstance>
+      * CameraPropertyX Tags are the constant property keys defined in CameraProperties.h
+      */
+    name = xmlTextReaderConstName(reader);
+    ///Read the #text tag
+    ret = xmlTextReaderRead(reader);
+    while(!strcmp((const char *)name,"CameraInstance"))
+        {
+        CAMHAL_LOGDB("Camera Element Name:%s", name);
+        ///Increment the number of cameras supported
+        mCamerasSupported++;
+        CAMHAL_LOGDB("Incrementing the number of cameras supported %d",mCamerasSupported);
+
+        ///Current camera index
+        int curCameraIndex = mCamerasSupported-1;
+
+        ///Create the properties array and populate all keys
+        CameraProperties::CameraProperty** t = (CameraProperties::CameraProperty**)mCameraProps[curCameraIndex];
+        ret = createPropertiesArray(t);
+        if(ret!=NO_ERROR)
+            {
+            CAMHAL_LOGEA("Allocation failed for properties array");
+            freeCameraProps(curCameraIndex);
+            LOG_FUNCTION_NAME_EXIT
+            return ret;
+            }
+
+        while(1)
+            {
+            int propertyIndex = 0;
+            if(!nextName)
+                {
+                ret = xmlTextReaderRead(reader);
+                if(ret!=1)
+                    {
+                    CAMHAL_LOGEA("XML File Reached end prematurely or parsing error");
+                    break;
+                    }
+                ///Get the tag name
+                name = xmlTextReaderConstName(reader);
+                CAMHAL_LOGDB("Found tag:%s", name);
+                }
+            else
+                {
+                name = nextName;
+                }
+
+            ///Check if the tag is CameraInstance, if so we are done with properties for current camera
+            ///Move on to next one if present
+            if(!strcmp((const char *)name,"CameraInstance"))
+                {
+                ///End of camera element
+                if(xmlTextReaderNodeType(reader)==XML_READER_TYPE_END_ELEMENT)
+                    {
+                    CAMHAL_LOGDA("CameraInstance close tag found");
+                    }
+                else
+                    {
+                    CAMHAL_LOGDA("CameraInstance close tag not found. Please check properties XML file");
+                    }
+                break;
+                }
+
+
+            ///The next tag should be #text and should containt the value, else process it next time around as regular tag
+            ret = xmlTextReaderRead(reader);
+            if(ret!=1)
+                {
+                CAMHAL_LOGDA("XML File Reached end prematurely or parsing error");
+                break;
+                }
+            ///Get the next tag name
+            nextName = xmlTextReaderConstName(reader);
+            CAMHAL_LOGDB("Found next tag:%s", name);
+            if(!strcmp((const char *)nextName,"#text"))
+                {
+                nextName = NULL;
+                value = xmlTextReaderConstValue(reader);
+                strcpy(val, (const char*)value);
+                value = (const xmlChar *)val;
+                CAMHAL_LOGDB("Found next tag value:%s", value);
+
+                }
+
+            ///Read the closing tag
+            ret = xmlTextReaderRead(reader);
+            if(xmlTextReaderNodeType(reader)==XML_READER_TYPE_END_ELEMENT)
+                {
+                CAMHAL_LOGDA("Found matching ending tag");
+                }
+            else
+                {
+                CAMHAL_LOGDA("Couldn't find matching ending tag");
+                }
+            ///Read the #text tag for closing tag
+            ret = xmlTextReaderRead(reader);
+
+
+            CAMHAL_LOGDB("Tag Name %s Tag Value %s", name, value);
+            if(propertyIndex=getCameraPropertyIndex((const char*)name))
+                {
+                ///If the property already exists, update it with the new value
+                CAMHAL_LOGDB("Found matching property, updating property entry for %s=%s",name
+                                                                                            ,value);
+                CAMHAL_LOGDB("mCameraProps[curCameraIndex][propertyIndex] = 0x%x", mCameraProps[curCameraIndex][propertyIndex]);
+                ret = mCameraProps[curCameraIndex][propertyIndex]->setValue((const char *)value);
+                if(ret!=NO_ERROR)
+                    {
+                    CAMHAL_LOGEB("Cannot set value for key %s value %s",name
+                                                                        ,value );
+                    LOG_FUNCTION_NAME_EXIT
+                    return ret;
+                    }
+                CAMHAL_LOGDA("Updated property..");
+                }
+
+            }
+
+        ret = xmlTextReaderRead(reader);
+        if(ret!=1)
+            {
+            CAMHAL_LOGDA("Completed parsing the XML file");
+            break;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+    return ret;
+
+}
+
+status_t CameraProperties::createPropertiesArray(CameraProperties::CameraProperty** &cameraProps)
+{
+    LOG_FUNCTION_NAME
+    for(int i=0;i<CameraProperties::PROP_INDEX_MAX;i++)
+        {
+        ///Creating key with NULL value
+        cameraProps[i] = new CameraProperties::CameraProperty((const char*)getCameraPropertyKey((CameraProperties::CameraPropertyIndex)i),"");
+        if(!cameraProps[i])
+            {
+            CAMHAL_LOGEB("Allocation failed for camera property class for key %s"
+                                , getCameraPropertyKey((CameraProperties::CameraPropertyIndex)i));
+            LOG_FUNCTION_NAME_EXIT
+            return NO_MEMORY;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+    return NO_ERROR;
+}
+
+status_t CameraProperties::freeCameraProps(int cameraIndex)
+{
+    LOG_FUNCTION_NAME
+
+    CAMHAL_LOGDB("Freeing properties for camera index %d", cameraIndex);
+    ///Free the property array for the given camera
+    for(int i=0;i<CameraProperties::PROP_INDEX_MAX;i++)
+        {
+        if(mCameraProps[cameraIndex][i])
+            {
+            delete mCameraProps[cameraIndex][i];
+            mCameraProps[cameraIndex][i] = NULL;
+            }
+        }
+
+    CAMHAL_LOGDA("Freed properties");
+
+    ///Move the camera properties for the other cameras ahead
+    int j=cameraIndex;
+    for(int i=cameraIndex+1;i<mCamerasSupported;i--,j++)
+        {
+            for(int k=0;k<CameraProperties::PROP_INDEX_MAX;k++)
+            {
+                mCameraProps[j][k] = mCameraProps[i][k];
+            }
+        }
+    CAMHAL_LOGDA("Rearranged Property array");
+
+    ///Decrement the number of Cameras supported by 1
+    mCamerasSupported--;
+
+    CAMHAL_LOGDB("Number of cameras supported is now %d", mCamerasSupported);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return NO_ERROR;
+}
+
+CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(const char* propName)
+{
+    LOG_FUNCTION_NAME
+
+    CAMHAL_LOGDB("Property name = %s", propName);
+
+    ///Do a string comparison on the property name passed with the supported property keys
+    ///and return the corresponding property index
+    if(!strcmp(propName,CameraProperties::PROP_KEY_CAMERA_NAME))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_CAMERA_NAME");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_CAMERA_NAME;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_ADAPTER_DLL_NAME))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_CAMERA_ADAPTER_DLL_NAME");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_SIZES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_PREVIEW_SIZES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FORMATS))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_PREVIEW_FORMATS");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FRAME_RATES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_PICTURE_SIZES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_PICTURE_SIZES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_PICTURE_FORMATS))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_PICTURE_FORMATS");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_THUMBNAIL_SIZES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_THUMBNAIL_SIZES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_THUMBNAIL_SIZES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_WHITE_BALANCE))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_WHITE_BALANCE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EFFECTS))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EFFECTS");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_ANTIBANDING))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_ANTIBANDING");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_SCENE_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_SCENE_MODES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_FLASH_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_FLASH_MODES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_FOCUS_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_FOCUS_MODES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_REQUIRED_PREVIEW_BUFS))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_REQUIRED_PREVIEW_BUFS");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_REQUIRED_IMAGE_BUFS))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_REQUIRED_IMAGE_BUFS");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_REQUIRED_IMAGE_BUFS;
+        }
+
+    CAMHAL_LOGDA("Returning PROP_INDEX_INVALID");
+    LOG_FUNCTION_NAME_EXIT
+    return CameraProperties::PROP_INDEX_INVALID;
+
+}
+
+const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPropertyIndex index)
+{
+    LOG_FUNCTION_NAME
+
+    CAMHAL_LOGDB("Property index = %d", index);
+
+    switch(index)
+        {
+        case CameraProperties::PROP_INDEX_INVALID:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_INVALID );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_INVALID;
+        case CameraProperties::PROP_INDEX_CAMERA_NAME:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_CAMERA_NAME );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_CAMERA_NAME;
+        case CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_ADAPTER_DLL_NAME );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_ADAPTER_DLL_NAME;
+        case CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_ADAPTER_DLL_NAME );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_SIZES;
+        case CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_SIZES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FORMATS;
+        case CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FORMATS );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FRAME_RATES;
+        case CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_PICTURE_SIZES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_PICTURE_SIZES;
+        case CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_PICTURE_FORMATS );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_PICTURE_FORMATS;
+        case CameraProperties::PROP_INDEX_SUPPORTED_THUMBNAIL_SIZES:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_THUMBNAIL_SIZES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_THUMBNAIL_SIZES;
+        case CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_WHITE_BALANCE );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_WHITE_BALANCE;
+        case CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_EFFECTS );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_EFFECTS;
+        case CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_ANTIBANDING );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_ANTIBANDING;
+        case CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_SCENE_MODES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_SCENE_MODES;
+        case CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_FLASH_MODES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_FLASH_MODES;
+        case CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_FOCUS_MODES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_FOCUS_MODES;
+        case CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_REQUIRED_PREVIEW_BUFS );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_REQUIRED_PREVIEW_BUFS;
+        case CameraProperties::PROP_INDEX_REQUIRED_IMAGE_BUFS:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_REQUIRED_IMAGE_BUFS );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_REQUIRED_IMAGE_BUFS;
+        default:
+            CAMHAL_LOGDB("Returning key: %s ","none" );
+            LOG_FUNCTION_NAME_EXIT
+            return "none";
+        }
+
+        return "none";
+}
+
+
+///Returns the number of Cameras found
+int CameraProperties::camerasSupported()
+{
+    LOG_FUNCTION_NAME
+    return mCamerasSupported;
+}
+
+
+///Returns the properties array for a specific Camera
+///Each value is indexed by the CameraProperties::CameraPropertyIndex enum
+CameraProperties::CameraProperty** CameraProperties::getProperties(int cameraIndex)
+{
+    LOG_FUNCTION_NAME
+    CAMHAL_LOGDA("Refreshing properties files");
+    ///Refresh the properties file - reload property files if changed from last time
+    refreshProperties();
+
+    CAMHAL_LOGDA("Refreshed properties file");
+
+    if(cameraIndex>=mCamerasSupported)
+        {
+        LOG_FUNCTION_NAME_EXIT
+        return NULL;
+        }
+
+    ///Return the Camera properties for the requested camera index
+    LOG_FUNCTION_NAME_EXIT
+    return (CameraProperties::CameraProperty**)mCameraProps[cameraIndex];
+}
+
+void CameraProperties::refreshProperties()
+{
+    LOG_FUNCTION_NAME
+    ///@todo Implement this function
+    return;
+}
+
+status_t CameraProperties::CameraProperty::setValue(const char * value)
+{
+    CAMHAL_LOGDB("setValue = %s", value);
+    strcpy(mPropValue, value);
+    CAMHAL_LOGDB("mPropValue = %s", mPropValue);
+    return NO_ERROR;
+}
+
+
+};
+
