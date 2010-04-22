@@ -126,8 +126,6 @@ int MessageQueue::put(Message* msg)
 
 bool MessageQueue::isEmpty()
 {
-	if(mHasMsg) return false;
-	
     struct pollfd pfd;
 
     pfd.fd = this->fd_read;
@@ -135,18 +133,13 @@ bool MessageQueue::isEmpty()
     pfd.revents = 0;
 
     if( -1 == poll(&pfd,1,0) )
-    {
         LOGE("poll() error: %s", strerror(errno));
-    }
 
-	if(pfd.revents & POLLIN)
-		{
-		mHasMsg = true;
-		}
-	else
-		{
-		mHasMsg = false;
-		}
+    if(pfd.revents & POLLIN)
+        mHasMsg = false;
+    else
+        mHasMsg = true;
+
     return mHasMsg;
 }
 
