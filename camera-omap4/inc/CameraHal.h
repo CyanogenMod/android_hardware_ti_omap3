@@ -52,8 +52,7 @@
 #define PREVIEW_WIDTH 176
 #define PREVIEW_HEIGHT 144
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
-#define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
-#define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
+
 #define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_ZOOM        3
@@ -62,9 +61,24 @@
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
 
+#define DEBUG_LOG 1
 ///Camera HAL Logging Functions
+#ifndef DEBUG_LOG
+
+#define CAMHAL_LOGDA(str)
+#define CAMHAL_LOGDB(str, ...)
+#define LOG_FUNCTION_NAME
+#define LOG_FUNCTION_NAME_EXIT
+
+#else
+
 #define CAMHAL_LOGDA(str) LOGD("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
 #define CAMHAL_LOGDB(str, ...) LOGD("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
+#define LOG_FUNCTION_NAME    LOGE("%d: %s() ENTER", __LINE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME_EXIT    LOGE("%d: %s() EXIT", __LINE__, __FUNCTION__);
+
+#endif
+
 #define CAMHAL_LOGEA(str) LOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__);
 #define CAMHAL_LOGEB(str, ...) LOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__, __VA_ARGS__);
 
@@ -220,26 +234,24 @@ public:
     virtual ~BufferProvider() {}
 };
 
-
-class CameraFrame   {
-
-public:
-    enum FrameTypes
+struct CameraFrame
     {
-    PREVIEW_FRAME_SYNC=0x1, ///SYNC implies that the frame needs to be explicitly returned after consuming in order to be filled by camera again
-    PREVIEW_FRAME=0x2   , ///Preview frame includes viewfinder and snapshot frames
-    IMAGE_FRAME_SYNC=0x4, ///Image Frame is the image capture output frame
-    IMAGE_FRAME=0x8,
-    VIDEO_FRAME_SYNC=0x10, ///Timestamp will be updated for these frames
-    VIDEO_FRAME=0x20,
-    FRAME_DATA_SYNC=0x40, ///Any extra data assosicated with the frame. Always synced with the frame
-    FRAME_DATA=0x80,
-    ALL_FRAMES=0xFFFF   ///Maximum of 16 frame types supported
+    enum FrameType
+    {
+        PREVIEW_FRAME_SYNC=0x1, ///SYNC implies that the frame needs to be explicitly returned after consuming in order to be filled by camera again
+        PREVIEW_FRAME=0x2   , ///Preview frame includes viewfinder and snapshot frames
+        IMAGE_FRAME_SYNC=0x4, ///Image Frame is the image capture output frame
+        IMAGE_FRAME=0x8,
+        VIDEO_FRAME_SYNC=0x10, ///Timestamp will be updated for these frames
+        VIDEO_FRAME=0x20,
+        FRAME_DATA_SYNC=0x40, ///Any extra data assosicated with the frame. Always synced with the frame
+        FRAME_DATA=0x80,
+        ALL_FRAMES=0xFFFF   ///Maximum of 16 frame types supported
     };
 
-public:
-    void* mCookie;
-    void* mBuffer;
+    void *mCookie;
+    void *mBuffer;
+
     unsigned int mTimestamp;
     ///@todo add other member vars like offset, stride, width, height, etc
     };
@@ -486,7 +498,7 @@ public:
     virtual int setErrorHandler(ErrorNotifier *errorNotifier) = 0;
     virtual int enableDisplay() = 0;
     virtual int disableDisplay() = 0;
-    virtual int useBuffers(void* bufArr, int num) = 0;
+        virtual int useBuffers(void *bufArr, int num) = 0;
     virtual bool supportsExternalBuffering() = 0;
 
 };
@@ -713,11 +725,11 @@ public:
     data_callback_timestamp mDataCbTimestamp;
     void                 *mCallbackCookie;
 
-    int32_t             mMsgEnabled;
-    bool                mRecordEnabled;
-    nsecs_t             mCurrentTime;
-    bool                mFalsePreview;
-    bool                mPreviewEnabled;
+    int32_t mMsgEnabled;
+    bool mRecordEnabled;
+    nsecs_t mCurrentTime;
+    bool mFalsePreview;
+    bool mPreviewEnabled;
 
     sp<CameraAdapter> mCameraAdapter;
     sp<AppCallbackNotifier> mAppCallbackNotifier;
@@ -728,20 +740,13 @@ public:
 
     sp<IMemoryHeap> mPictureHeap;
     static wp<CameraHardwareInterface> singleton;
-    static const char supportedPictureSizes[];
-    static const char supportedPreviewSizes[];
-    static const char supportedFPS[];
-    static const char supprotedThumbnailSizes[];
-    static const char PARAMS_DELIMITER[];
 
-
-    ///static member vars
+///static member vars
 
 
 /*----------Member variables - Private ---------------------*/
 private:
     mutable Mutex mLock;
-    struct v4l2_crop mInitialCrop;
 
     void* mCameraAdapterHandle;
 
@@ -758,7 +763,6 @@ private:
     bool mPreviewBufsAllocatedUsingOverlay;
 
     CameraProperties::CameraProperty **mCameraPropertiesArr;
-
 };
 
 

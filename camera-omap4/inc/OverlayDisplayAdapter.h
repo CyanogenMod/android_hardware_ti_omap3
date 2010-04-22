@@ -31,7 +31,25 @@ class OverlayDisplayAdapter : public DisplayAdapter
 {
 public:
 
-    class DisplayFrame;
+    typedef struct 
+        {
+        void *mBuffer;
+        void *mUser;
+        int mOffset;
+        int mWidth;
+        int mHeight;
+        int mWidthStride;
+        int mHeightStride;
+        } DisplayFrame;
+
+    enum DisplayStates
+        {
+        DISPLAY_INIT = 0,
+        DISPLAY_STARTED,
+        DISPLAY_STOPPED,
+        DISPLAY_EXITED
+        };
+
 public:
 
     OverlayDisplayAdapter();
@@ -52,15 +70,13 @@ public:
     virtual void* allocateBuffer(int width, int height, const char* format, int bytes, int numBufs);
     virtual int freeBuffer(void* buf);
 
-
     ///Class specific functions
     static void frameCallbackRelay(CameraFrame* caFrame);
     void frameCallback(CameraFrame* caFrame);
 
+    void displayThread();
 
-    void    displayThread();
-
-private:
+    private:
     void destroy();
     bool processHalMsg();
     status_t PostFrame(OverlayDisplayAdapter::DisplayFrame &dispFrame);
@@ -70,56 +86,35 @@ public:
 
     static const int DISPLAY_TIMEOUT;
 
-    ///Internal class and struct definitions
-
-    class DisplayFrame
+    class DisplayThread : public Thread 
         {
-        public:
-            void* mBuffer;
-            int mOffset;
-            int mWidth;
-            int mHeight;
-            int mWidthStride;
-            int mHeightStride;
-        };
-
-    enum DisplayStates
-        {
-        DISPLAY_INIT,
-        DISPLAY_STARTED,
-        DISPLAY_STOPPED,
-        DISPLAY_EXITED
-        };
-
-
-    class DisplayThread : public Thread {
         OverlayDisplayAdapter* mDisplayAdapter;
         MessageQueue mDisplayThreadQ;
 
-    public:
-        enum DisplayThreadCommands
-        {
-        DISPLAY_START,
-        DISPLAY_STOP,
-        DISPLAY_FRAME,
-        DISPLAY_EXIT
-        };
-
-    public:
-        DisplayThread(OverlayDisplayAdapter* da)
+        public:
+            DisplayThread(OverlayDisplayAdapter* da)
             : Thread(false), mDisplayAdapter(da) { }
 
         ///Returns a reference to the display message Q for display adapter to post messages
-        MessageQueue& msgQ()
-            {
-            return mDisplayThreadQ;
-            }
+            MessageQueue& msgQ()
+                {
+                return mDisplayThreadQ;
+                }
 
-        virtual bool threadLoop() {
-            mDisplayAdapter->displayThread();
-            return false;
-        }
-    };
+            virtual bool threadLoop()
+                {
+                mDisplayAdapter->displayThread();
+                return false;
+                }
+
+            enum DisplayThreadCommands 
+                {
+                DISPLAY_START,
+                DISPLAY_STOP,
+                DISPLAY_FRAME,
+                DISPLAY_EXIT
+                };
+        };
 
     //friend declarations
 friend class DisplayThread;
@@ -138,6 +133,7 @@ private:
     ///@todo Have a common class for these members
     mutable Mutex mLock;
     bool mDisplayEnabled;
+    KeyedVector<int, int> mPreviewBufferMap;
 
 };
 

@@ -45,24 +45,21 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
 
 {
     LOG_FUNCTION_NAME
-
-
     LOG_FUNCTION_NAME_EXIT
-    }
+}
 
 OverlayDisplayAdapter::~OverlayDisplayAdapter()
-    {
+{
+    Semaphore sem;
+    Message msg;
+
     LOG_FUNCTION_NAME
-    ///The overlay object will get destroyed here
-    destroy();
 
     //Unregister with the frame provider
     mFrameProvider->disableFrameNotification(CameraFrame::ALL_FRAMES);
 
     ///Kill the display thread
-    Semaphore sem;
     sem.Create();
-    Message msg;
     msg.command = DisplayThread::DISPLAY_EXIT;
 
     //Send the semaphore to signal once the command is completed
@@ -80,6 +77,9 @@ OverlayDisplayAdapter::~OverlayDisplayAdapter()
     //Delete the display thread
     mDisplayThread.clear();
 
+    ///The overlay object will get destroyed here
+    destroy();
+
     LOG_FUNCTION_NAME_EXIT
 
 }
@@ -90,7 +90,7 @@ status_t OverlayDisplayAdapter::initialize()
 
     ///Create the display thread
     mDisplayThread = new DisplayThread(this);
-    if(!mDisplayThread.get())
+    if ( !mDisplayThread.get() )
         {
         CAMHAL_LOGEA("Couldn't create display thread");
         LOG_FUNCTION_NAME_EXIT
@@ -99,11 +99,10 @@ status_t OverlayDisplayAdapter::initialize()
 
     ///Start the display thread
     status_t ret = mDisplayThread->run("DisplayThread", PRIORITY_URGENT_DISPLAY);
-    if(ret!=NO_ERROR)
+    if ( ret != NO_ERROR )
         {
         CAMHAL_LOGEA("Couldn't run display thread");
         LOG_FUNCTION_NAME_EXIT
-
         return ret;
         }
 
@@ -117,11 +116,10 @@ int OverlayDisplayAdapter::setOverlay(const sp<Overlay> &overlay)
 {
     LOG_FUNCTION_NAME
     ///Note that Display Adapter cannot work without a valid overlay object
-    if(!overlay.get())
+    if ( !overlay.get() )
         {
         CAMHAL_LOGEA("NULL overlay object passed to DisplayAdapter");
         LOG_FUNCTION_NAME_EXIT
-
         return BAD_VALUE;
         }
 
@@ -134,12 +132,12 @@ int OverlayDisplayAdapter::setOverlay(const sp<Overlay> &overlay)
     ///Set the display queue file descriptor
     overlay_handle_t overlayhandle = mOverlay->getHandleRef();
     overlay_true_handle_t true_handle;
-    if ( overlayhandle == NULL ) {
+    if ( overlayhandle == NULL )
+        {
         CAMHAL_LOGEA("Overlay handle is NULL");
         LOG_FUNCTION_NAME_EXIT
-
         return UNKNOWN_ERROR;
-    }
+        }
 
     memcpy(&true_handle,overlayhandle,sizeof(overlay_true_handle_t));
     int overlayfd = true_handle.ctl_fd;
@@ -149,23 +147,22 @@ int OverlayDisplayAdapter::setOverlay(const sp<Overlay> &overlay)
     LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
-    }
+}
 
 int OverlayDisplayAdapter::setFrameProvider(FrameNotifier *frameProvider)
 {
     LOG_FUNCTION_NAME
 
     //Check for NULL pointer
-    if(!frameProvider)
+    if ( !frameProvider )
         {
         CAMHAL_LOGEA("NULL passed for frame provider");
         LOG_FUNCTION_NAME_EXIT
-
         return BAD_VALUE;
         }
 
     /** Dont do anything here, Just save the pointer for use when display is
-        actually enabled or disabled
+         actually enabled or disabled
     */
     mFrameProvider = new FrameProvider(frameProvider, this, frameCallbackRelay);
 
@@ -179,7 +176,7 @@ int OverlayDisplayAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
     LOG_FUNCTION_NAME
 
     //Check for NULL pointer
-    if(!mErrorNotifier)
+    if ( !mErrorNotifier )
         {
         CAMHAL_LOGEA("NULL passed for error handler");
         LOG_FUNCTION_NAME_EXIT
@@ -197,9 +194,12 @@ int OverlayDisplayAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
 
 int OverlayDisplayAdapter::enableDisplay()
 {
+    Semaphore sem;
+    Message msg;
+
     LOG_FUNCTION_NAME
 
-    if(mDisplayEnabled)
+    if ( mDisplayEnabled )
         {
         CAMHAL_LOGDA("Display is already enabled");
         LOG_FUNCTION_NAME_EXIT
@@ -208,9 +208,7 @@ int OverlayDisplayAdapter::enableDisplay()
         }
 
     //Send START_DISPLAY COMMAND to display thread. Display thread will start and then wait for a message
-    Semaphore sem;
     sem.Create();
-    Message msg;
     msg.command = DisplayThread::DISPLAY_START;
 
     //Send the semaphore to signal once the command is completed
@@ -276,14 +274,16 @@ void OverlayDisplayAdapter::destroy()
     LOG_FUNCTION_NAME
 
     ///Check if the display is disabled, if not disable it
-    if(mDisplayEnabled)
+    if ( mDisplayEnabled )
         {
+
         CAMHAL_LOGDA("WARNING: Calling destroy of Display adapter when display enabled. Disabling display..");
         disableDisplay();
+
         }
 
     ///Destroy the overlay object here
-    if(mOverlay!=NULL)
+    if ( mOverlay != NULL )
         {
         mOverlay->destroy();
         }
@@ -301,35 +301,40 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
     ///re-allocate buffers using overlay and then get them
     ///@todo - Re-allocate buffers for vnf and vstab using the width, height, format, numBufs etc
     const int lnumBufs = (int)mOverlay->getBufferCount();
-    int *buffers = new int[lnumBufs];
-    if(!buffers)
+    int32_t *buffers = new int32_t[lnumBufs];
+    if ( NULL == buffers )
         {
         CAMHAL_LOGEA("Couldn't create array for overlay buffers");
         LOG_FUNCTION_NAME_EXIT
 
         return NULL;
         }
-    for(int i=0;i<lnumBufs;i++)
+
+    for ( int i=0; i < lnumBufs; i++ )
         {
         mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress((void*)i);
-        if ( data == NULL ) {
+        if ( data == NULL )
+            {
             CAMHAL_LOGEA(" getBufferAddress returned NULL");
             goto fail_loop;
-        }
+            }
 
-        buffers[i] = (int) data->ptr;
+            buffers[i] = (int) data->ptr;
+            mPreviewBufferMap.add(buffers[i], i);
         }
 
     return buffers;
 
-    fail_loop:
-        CAMHAL_LOGEA("Error occurred, performing cleanup");
-        if(buffers)
-            {
-            delete [] buffers;
-            }
-        LOG_FUNCTION_NAME_EXIT
-        return NULL;
+fail_loop:
+
+    CAMHAL_LOGEA("Error occurred, performing cleanup");
+    if ( buffers )
+        {
+        delete [] buffers;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+    return NULL;
 
 }
 
@@ -338,9 +343,13 @@ int OverlayDisplayAdapter::freeBuffer(void* buf)
     LOG_FUNCTION_NAME
 
     ///@todo check whether below way of deleting is correct, else try to use malloc
-    int *buffers = (int *)buf;
+    int *buffers = (int *) buf;
+    if ( NULL != buf )
+        {
+        delete [] buffers;
+        }
 
-    delete [] buffers;
+    mPreviewBufferMap.clear();
 
     //We don't have to do anything for free buffer since the buffers are managed by overlay
     return NO_ERROR;
@@ -353,7 +362,7 @@ bool OverlayDisplayAdapter::supportsExternalBuffering()
     return false;
 }
 
-int OverlayDisplayAdapter::useBuffers(void* bufArr, int num)
+int OverlayDisplayAdapter::useBuffers(void *bufArr, int num)
 {
     ///@todo implement logic to register the buffers with overlay, when external buffering support is added
     return NO_ERROR;
@@ -361,52 +370,47 @@ int OverlayDisplayAdapter::useBuffers(void* bufArr, int num)
 
 void OverlayDisplayAdapter::displayThread()
 {
-    bool shouldLive = true;
+    bool shouldLive = true, noFramesLeft = false;
+    int timeout = 0;
     status_t ret;
 
     LOG_FUNCTION_NAME
 
     while(shouldLive)
         {
-        CAMHAL_LOGDA("Display thread waiting for message from Camera HAL or frame event from V4L2");
         ret = MessageQueue::waitForMsg(&mDisplayThread->msgQ()
-                                                            , &mDisplayQ
-                                                            , NULL
-                                                            , OverlayDisplayAdapter::DISPLAY_TIMEOUT);
+                                                                ,  &mDisplayQ
+                                                                , NULL
+                                                                , OverlayDisplayAdapter::DISPLAY_TIMEOUT);
 
-        CAMHAL_LOGDA("Display thread received a message or event");
-        if(!mDisplayThread->msgQ().isEmpty())
+        if ( !mDisplayThread->msgQ().isEmpty() )
             {
             ///Received a message from CameraHal, process it
-            CAMHAL_LOGDA("Display thread received a message from Camera HAL");
             shouldLive = processHalMsg();
+
             }
-        else if(!mDisplayQ.isEmpty())
+        else  if( !mDisplayQ.isEmpty() )
             {
-            ///Received a frame back from Display overlay, return it back to Camera adapter
-            CAMHAL_LOGDA("Display thread received a frame event from V4L2 driver after frame display");
-            if(mDisplayState==OverlayDisplayAdapter::DISPLAY_INIT)
+            if ( mDisplayState== OverlayDisplayAdapter::DISPLAY_INIT )
                 {
+
                 ///If display adapter is not started, continue
                 continue;
-                }
-            bool noFramesLeft = handleFrameReturn();
-            ///we exit the thread only after all the frames have been returned from display
-            if((mDisplayState==OverlayDisplayAdapter::DISPLAY_EXITED) && noFramesLeft)
-                {
-                shouldLive = false;
-                }
-            }
-        else
-            {
-            ///Timeout case
-            ///@todo: May have to signal an error
-            continue;
-            }
 
+                }
+            else
+                {
+                noFramesLeft = handleFrameReturn();
+
+                if ( ( mDisplayState == OverlayDisplayAdapter::DISPLAY_EXITED ) && noFramesLeft)
+                    {
+                    ///we exit the thread only after all the frames have been returned from display
+                    shouldLive = false;
+                    }
+                }
+            }
         }
 
-    CAMHAL_LOGDA("Display thread exited");
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -418,18 +422,20 @@ bool OverlayDisplayAdapter::processHalMsg()
     LOG_FUNCTION_NAME
 
     mDisplayThread->msgQ().get(&msg);
-    bool ret = true;
+    bool ret = true, invalidCommand = false;
 
-    switch(msg.command)
+    switch ( msg.command )
         {
+
         case DisplayThread::DISPLAY_START:
-            {
+
             CAMHAL_LOGDA("Display thread received DISPLAY_START command from Camera HAL");
             mDisplayState = OverlayDisplayAdapter::DISPLAY_STARTED;
+
             break;
-            }
+
         case DisplayThread::DISPLAY_STOP:
-            {
+
             ///@bug There is no API to disable overlay without destroying it
             ///@bug Buffers might still be w/ display and will get displayed
             ///@remarks Ideal seqyence should be something like this
@@ -439,25 +445,30 @@ bool OverlayDisplayAdapter::processHalMsg()
             mDisplayState = OverlayDisplayAdapter::DISPLAY_STOPPED;
 
             break;
-            }
+
         case DisplayThread::DISPLAY_EXIT:
-            {
+
             CAMHAL_LOGDA("Display thread received DISPLAY_EXIT command from Camera HAL.");
             CAMHAL_LOGDA("Stopping display thread...");
             mDisplayState = OverlayDisplayAdapter::DISPLAY_EXITED;
             ///If no frames are with display, it is time to exit
-            if(!mFramesWithDisplay)
+            if ( !mFramesWithDisplay )
                 {
                 ret = false;
                 }
 
             break;
-            }
-        }
 
+        default:
+
+            CAMHAL_LOGEB("Invalid Display Thread Command 0x%x.", msg.command);
+            invalidCommand = true;
+
+            break;
+   }
 
     ///Signal the semaphore if it is sent as part of the message
-    if(msg.arg1)
+    if ( ( msg.arg1 ) && ( !invalidCommand ) )
         {
         CAMHAL_LOGDA("+Signalling display semaphore");
         Semaphore &sem = *((Semaphore*)msg.arg1);
@@ -470,24 +481,23 @@ bool OverlayDisplayAdapter::processHalMsg()
 }
 
 
-status_t OverlayDisplayAdapter::PostFrame(DisplayFrame &dispFrame)
+status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &dispFrame)
 {
     status_t ret = NO_ERROR;
-
-    LOG_FUNCTION_NAME
 
     ///@todo Do cropping based on the stabilized frame coordinates
     ///@todo Insert logic to drop frames here based on refresh rate of
     ///display or rendering rate whichever is lower
     ///Queue the buffer to overlay
-    overlay_buffer_t * buf = (overlay_buffer_t *)dispFrame.mBuffer;
-    if(mDisplayState==OverlayDisplayAdapter::DISPLAY_STARTED)
+    overlay_buffer_t buf = (overlay_buffer_t) mPreviewBufferMap.valueFor((int) dispFrame.mBuffer);
+    if ( mDisplayState == OverlayDisplayAdapter::DISPLAY_STARTED )
         {
         //Post it to display via Overlay
         ret = mOverlay->queueBuffer(buf);
-        if(ret!=NO_ERROR)
+        if ( ret != NO_ERROR )
             {
             CAMHAL_LOGEA("Posting error");
+
             }
         else
             { // scope for the lock
@@ -499,10 +509,8 @@ status_t OverlayDisplayAdapter::PostFrame(DisplayFrame &dispFrame)
     else
         {
         ///Drop the frame, return it back to the provider (Camera Adapter)
-        mFrameProvider->returnFrame((void*)buf);
+        mFrameProvider->returnFrame(dispFrame.mBuffer);
         }
-
-    LOG_FUNCTION_NAME_EXIT
 
     return ret;
 }
@@ -510,47 +518,68 @@ status_t OverlayDisplayAdapter::PostFrame(DisplayFrame &dispFrame)
 
 bool OverlayDisplayAdapter::handleFrameReturn()
 {
-    overlay_buffer_t * buf = NULL;
-    LOG_FUNCTION_NAME
+    overlay_buffer_t buf = NULL;
 
-    mOverlay->dequeueBuffer(buf);
-
-    ///Return the frame back to the provider (Camera Adapter)
-    mFrameProvider->returnFrame((void*)buf);
-
-    //Decrement the frames with display count
-    {
-    Mutex::Autolock lock(mLock);
-    if(!(--mFramesWithDisplay))
         {
-        CAMHAL_LOGDA("Received all frames back from Display");
-        LOG_FUNCTION_NAME_EXIT
+        Mutex::Autolock lock(mLock);
+
+        if ( 0 == mFramesWithDisplay )
+            {
+            return true;
+            }
+        }
+
+    if ( mOverlay->dequeueBuffer(&buf) < 0 )
+        {
         return true;
         }
-    }
 
-    LOG_FUNCTION_NAME_EXIT
+    ///Return the frame back to the provider (Camera Adapter)
+    mFrameProvider->returnFrame( (void *) mPreviewBufferMap.keyAt((int) buf));
+
+    //Decrement the frames with display count
+        {
+        Mutex::Autolock lock(mLock);
+
+        mFramesWithDisplay--;
+        if ( 0 == mFramesWithDisplay )
+            {
+            CAMHAL_LOGDA("Received all frames back from Display");
+            return true;
+            }
+        }
+
     return false;
 }
 
 void OverlayDisplayAdapter::frameCallbackRelay(CameraFrame* caFrame)
 {
 
-    LOG_FUNCTION_NAME
-    OverlayDisplayAdapter *da = (OverlayDisplayAdapter*) caFrame->mCookie;
-    da->frameCallback(caFrame);
+    if ( NULL != caFrame )
+        {
+        if ( NULL != caFrame->mCookie )
+            {
+            OverlayDisplayAdapter *da = (OverlayDisplayAdapter*) caFrame->mCookie;
+            da->frameCallback(caFrame);
+            }
+        else
+            {
+            CAMHAL_LOGEB("Invalid Cookie in Camera Frame = %p, Cookie = %p", caFrame, caFrame->mCookie);
+            }
+        }
+    else
+        {
+        CAMHAL_LOGEB("Invalid Camera Frame = %p", caFrame);
+        }
 
-    LOG_FUNCTION_NAME_EXIT
 }
 
 void OverlayDisplayAdapter::frameCallback(CameraFrame* caFrame)
 {
-    LOG_FUNCTION_NAME
     ///Call queueBuffer of overlay in the context of the callback thread
     DisplayFrame df;
     df.mBuffer = caFrame->mBuffer;
     PostFrame(df);
-    LOG_FUNCTION_NAME_EXIT
 }
 
 

@@ -406,7 +406,6 @@ status_t AppCallbackNotifier::start()
     LOG_FUNCTION_NAME
     if(mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED)
         {
-
         CAMHAL_LOGEA("AppCallbackNotifier already running");
         LOG_FUNCTION_NAME_EXIT
         return ALREADY_EXISTS;
@@ -416,7 +415,6 @@ status_t AppCallbackNotifier::start()
     ///A frame provider should be available, if not return error
     if(!mFrameProvider)
         {
-
         ///AppCallbackNotifier not properly initialized
         CAMHAL_LOGEA("AppCallbackNotifier not properly initialized - Frame provider is NULL");
         LOG_FUNCTION_NAME_EXIT

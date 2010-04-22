@@ -22,42 +22,92 @@
 #ifndef FAKE_CAMERA_ADAPTER_H
 #define FAKE_CAMERA_ADAPTER_H
 
-#include "CameraHal.h"
+#include "BaseCameraAdapter.h"
 
 namespace android {
 
 
-class FakeCameraAdapter : public CameraAdapter
+class FakeCameraAdapter : public BaseCameraAdapter
 {
+
 public:
-        ///Initialzes the camera adapter creates any resources required
-        virtual status_t initialize();
 
-        virtual int setErrorHandler(ErrorNotifier *errorNotifier);
+    FakeCameraAdapter();
+    ~FakeCameraAdapter();
 
-        //Message/Frame notification APIs
-        virtual void enableMsgType(int32_t msgs, frame_callback callback=NULL, event_callback eventCb=NULL, void* cookie=NULL);
-        virtual void disableMsgType(int32_t msgs, void* cookie);
-        virtual void returnFrame(void* frameBuf);
+    ///Initialzes the camera adapter creates any resources required
+    virtual status_t initialize();
 
-        //APIs to configure Camera adapter and get the current parameter set
-        virtual status_t setParameters(const CameraParameters& params);
-        virtual CameraParameters getParameters() const;
+    virtual int setErrorHandler(ErrorNotifier *errorNotifier);
 
-        //API to get the caps
-        virtual status_t getCaps();
+    //APIs to configure Camera adapter and get the current parameter set
+    virtual status_t setParameters(const CameraParameters& params);
+    virtual CameraParameters getParameters() const;
 
-        //API to send a command to the camera
-        virtual status_t sendCommand(int operation, int value1=0, int value2=0, int value3=0);
+    //API to get the caps
+    virtual status_t getCaps();
 
-        //API to cancel a currently executing command
-        virtual status_t cancelCommand(int operation);
+    //API to send a command to the camera
+    virtual status_t sendCommand(int operation, int value1=0, int value2=0, int value3=0);
 
-        //API to get the frame size required to be allocated. This size is used to override the size passed
-        //by camera service when VSTAB/VNF is turned ON for example
-        virtual void getFrameSize(int &width, int &height);
-private:
-        CameraParameters mParameters;
+    //API to cancel a currently executing command
+    virtual status_t cancelCommand(int operation);
+
+    //API to get the frame size required to be allocated. This size is used to override the size passed
+    //by camera service when VSTAB/VNF is turned ON for example
+    virtual void getFrameSize(int &width, int &height);
+
+protected:
+
+    virtual void frameThread();
+    virtual void frameCallbackThread();
+    virtual void sendNextFrame();
+
+//Internal class definitions
+
+class FrameCallback : public Thread {
+    FakeCameraAdapter* mCameraAdapter;
+    public:
+        FrameCallback(FakeCameraAdapter* ca)
+            : Thread(false), mCameraAdapter(ca) { }
+
+        virtual bool threadLoop() {
+            mCameraAdapter->frameCallbackThread();
+            return false;
+        }
+};
+
+class FramePreview : public Thread {
+    FakeCameraAdapter* mCameraAdapter;
+    public:
+        FramePreview(FakeCameraAdapter* ca)
+            : Thread(false), mCameraAdapter(ca) { }
+
+        virtual bool threadLoop() {
+            mCameraAdapter->frameThread();
+            return false;
+        }
+};
+
+    //friend declarations
+    friend class FramePreview;
+    friend class FrameCallback;
+
+    enum FrameCallbackCommands {
+        CALL_CALLBACK = 0,
+        CALLBACK_EXIT
+    };
+
+    sp<FramePreview> mFrameThread;
+    sp<FrameCallback> mCallbackThread;
+    int mPreviewBufferCount;
+    int *mPreviewBuffers;
+    KeyedVector<int, bool> mPreviewBuffersAvailable;
+    int mPreviewWidth, mPreviewHeight, mPreviewFormat;
+    int mFrameRate;
+    CameraParameters mParameters;
+    MessageQueue mCallbackQ;
+    mutable Mutex mPreviewBufferLock;
 
 };
 

@@ -103,11 +103,12 @@ status_t CameraProperties::loadProperties()
     struct dirent *dp;
 
     CAMHAL_LOGDA("Opening /system/etc directory");
-    if ((dirp = opendir("/system/etc")) == NULL) {
+    if ((dirp = opendir("/system/etc")) == NULL)
+        {
         CAMHAL_LOGEA("Couldn't open directory /system/etc");
         LOG_FUNCTION_NAME_EXIT
         return UNKNOWN_ERROR;
-    }
+        }
 
     CAMHAL_LOGDA("Opened /system/etc directory successfully");
 
@@ -158,31 +159,36 @@ status_t CameraProperties::parseAndLoadProps(const char* file)
 
 #if _DEBUG_XML_FILE
         reader = xmlNewTextReaderFilename(file);
-        if (reader != NULL) {
+        if (reader != NULL)
+            {
             ret = xmlTextReaderRead(reader);
-            while (ret == 1) {
+            while (ret == 1)
+                {
                 name = xmlTextReaderConstName(reader);
                 value = xmlTextReaderConstValue(reader);
                 CAMHAL_LOGEB("Tag %s value %s",name, value);
                 ret = xmlTextReaderRead(reader);
-            }
+                }
             xmlFreeTextReader(reader);
             }
         return NO_ERROR;
 #endif
 
     reader = xmlNewTextReaderFilename(file);
-    if (reader != NULL) {
+    if (reader != NULL)
+        {
         ret = xmlTextReaderRead(reader);
-        if (ret != 1) {
+        if (ret != 1)
+            {
             CAMHAL_LOGEB("%s : failed to parse\n", file);
-        }
-
+            }
 
         ret = parseCameraElements(reader);
-    } else {
+        }
+    else
+        {
         CAMHAL_LOGEB("Unable to open %s\n", file);
-    }
+        }
 
     CAMHAL_LOGDA("Freeing the XML Reader");
     xmlFreeTextReader(reader);
@@ -384,9 +390,9 @@ status_t CameraProperties::freeCameraProps(int cameraIndex)
     int j=cameraIndex;
     for(int i=cameraIndex+1;i<mCamerasSupported;i--,j++)
         {
-            for(int k=0;k<CameraProperties::PROP_INDEX_MAX;k++)
+        for(int k=0;k<CameraProperties::PROP_INDEX_MAX;k++)
             {
-                mCameraProps[j][k] = mCameraProps[i][k];
+            mCameraProps[j][k] = mCameraProps[i][k];
             }
         }
     CAMHAL_LOGDA("Rearranged Property array");

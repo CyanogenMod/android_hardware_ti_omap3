@@ -4,7 +4,7 @@ ifeq ($(TARGET_BOARD_PLATFORM),omap4)
 
 ################################################
 
-#Camera HAL 
+#Camera HAL
 
 LOCAL_PATH:= $(call my-dir)
 
@@ -27,7 +27,7 @@ LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../../../tiler/memmgr \
     $(LOCAL_PATH)/../../../../../external/libxml2/include \
 
-    
+
 LOCAL_SHARED_LIBRARIES:= \
     libdl \
     libui \
@@ -49,7 +49,7 @@ LOCAL_C_INCLUDES += \
 	frameworks/base/include/utils \
 
 
-LOCAL_CFLAGS += -fno-short-enums 
+LOCAL_CFLAGS += -fno-short-enums
 
 LOCAL_MODULE:= libcamera
 
@@ -58,19 +58,20 @@ include $(BUILD_SHARED_LIBRARY)
 
 ################################################
 
-#Fake Camera Adapter 
+#Fake Camera Adapter
 
 include $(CLEAR_VARS)
 
 LOCAL_PRELINK_MODULE := false
 
 LOCAL_SRC_FILES:= \
+	BaseCameraAdapter.cpp \
 	FakeCameraAdapter.cpp \
 
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../inc \
-    
+
 LOCAL_SHARED_LIBRARIES:= \
     libdl \
     libui \
@@ -90,7 +91,7 @@ LOCAL_C_INCLUDES += \
 
 
 
-LOCAL_CFLAGS += -fno-short-enums 
+LOCAL_CFLAGS += -fno-short-enums
 
 LOCAL_MODULE:= libfakecameraadapter
 

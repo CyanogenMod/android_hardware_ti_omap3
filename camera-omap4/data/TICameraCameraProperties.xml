@@ -8,11 +8,12 @@
 <picture-size-values>3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240</picture-size-values>
 <picture-format-values>jpeg</picture-format-values>
 <jpeg-thumbnail-size-values>80x60</jpeg-thumbnail-size-values>
-<whitebalance-values>incandescent</whitebalance-values>
-<effect-values>sepia</effect-values>
-<antibanding-values>50Hz</antibanding-values>
-<scene-mode-values>cine</scene-mode-values>
-<flash-mode-values>auto</flash-mode-values>
+<whitebalance-values>auto</whitebalance-values>
+<effect-values>none</effect-values>
+<antibanding-values>auto</antibanding-values>
+<focus-mode-values>auto</focus-mode-values>
+<scene-mode-values>auto</scene-mode-values>
+<flash-mode-values>off</flash-mode-values>
 <required-preview-bufs>6</required-preview-bufs>
 <required-image-bufs>1</required-image-bufs>
 </CameraInstance>

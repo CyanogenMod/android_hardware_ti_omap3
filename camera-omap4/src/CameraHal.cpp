@@ -31,13 +31,10 @@
 #include "TICameraParameters.h"
 #include "CameraProperties.h"
 
-
 #include <poll.h>
 #include <math.h>
 
-
 ///@remarks added for testing purposes
-
 
 namespace android {
 /*****************************************************************************/
@@ -48,14 +45,8 @@ wp<CameraHardwareInterface> CameraHal::singleton;
 ////@todo Have a CameraProperties class to store these parameters as constants for every camera
 ////       Currently, they are hard-coded
 
-const char CameraHal::supportedPictureSizes [] = "4032x3024,3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240";
-const char CameraHal::supportedPreviewSizes [] = "1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96";
-const char CameraHal::supportedFPS [] = "60,33,30,25,24,20,15,10";
-const char CameraHal::supprotedThumbnailSizes []= "80x60";
 const int CameraHal::NO_BUFFERS_PREVIEW = 6;
 const int CameraHal::NO_BUFFERS_IMAGE_CAPTURE = 1;
-
-const char CameraHal::PARAMS_DELIMITER []= ",";
 
 const uint32_t MessageNotifier::EVENT_BIT_FIELD_POSITION = 16;
 const uint32_t MessageNotifier::FRAME_BIT_FIELD_POSITION = 0;
@@ -200,29 +191,35 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("PreviewFormat %s", params.getPreviewFormat());
 
-    if ( params.getPreviewFormat() != NULL ) {
-        if (strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) != 0) {
+    if ( params.getPreviewFormat() != NULL )
+        {
+        if (strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) != 0)
+            {
             CAMHAL_LOGEA("Only yuv422i preview is supported");
             LOG_FUNCTION_NAME_EXIT
             return -1;
-        }
+            }
     }
 
     CAMHAL_LOGDB("PictureFormat %s", params.getPictureFormat());
-    if ( params.getPictureFormat() != NULL ) {
-        if (strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_JPEG) != 0) {
+    if ( params.getPictureFormat() != NULL )
+        {
+        if (strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_JPEG) != 0)
+            {
             CAMHAL_LOGEA("Only jpeg still pictures are supported");
             LOG_FUNCTION_NAME_EXIT
             return -1;
+            }
         }
-    }
 
     params.getPreviewSize(&w, &h);
-    if (!validateSize(w, h)) {
+    if (!validateSize(w, h))
+        {
         CAMHAL_LOGEA("Preview size not supported");
         LOG_FUNCTION_NAME_EXIT
         return -1;
-    }
+        }
+
     CAMHAL_LOGDB("PreviewResolution by App %d x %d", w, h);
 
     mParameters.getPreviewSize(&w_orig, &h_orig);
@@ -234,11 +231,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
     params.getPictureSize(&w, &h);
-    if (!validateSize(w, h)) {
+    if (!validateSize(w, h))
+        {
         CAMHAL_LOGEA("Picture size not supported");
         LOG_FUNCTION_NAME_EXIT
         return -1;
-    }
+        }
     CAMHAL_LOGDB("Picture Size by App %d x %d", w, h);
 
     framerate = params.getPreviewFrameRate();
@@ -269,13 +267,15 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     return ret;
 
-}
+    }
 
 int CameraHal::validateSize(int w, int h)
 {
-    if ((w < MIN_WIDTH) || (h < MIN_HEIGHT)){
+    if ((w < MIN_WIDTH) || (h < MIN_HEIGHT))
+        {
         return false;
-    }
+        }
+
     return true;
 }
 
@@ -339,7 +339,7 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
 }
 
 status_t CameraHal::allocImageBufs(int width, int height, const char* previewFormat)
-{
+    {
 
     LOG_FUNCTION_NAME
 
@@ -362,17 +362,16 @@ status_t CameraHal::allocImageBufs(int width, int height, const char* previewFor
     LOG_FUNCTION_NAME
 
     return NO_ERROR;
-}
+    }
 
 status_t CameraHal::freePreviewBufs()
-{
+    {
     status_t ret = NO_ERROR;
     LOG_FUNCTION_NAME
 
     CAMHAL_LOGDB("mPreviewBufs = 0x%x", (unsigned int)mPreviewBufs);
     if(mPreviewBufs)
         {
-
         ///@todo Pluralise the name of this method to freeBuffers
         ret = mBufProvider->freeBuffer(mPreviewBufs);
         mPreviewBufs = NULL;
@@ -381,10 +380,10 @@ status_t CameraHal::freePreviewBufs()
         }
     LOG_FUNCTION_NAME_EXIT;
     return ret;
-}
+    }
 
 status_t CameraHal::freeImageBufs()
-{
+    {
     LOG_FUNCTION_NAME
     status_t ret = NO_ERROR;
     if(mImageBufs)
@@ -457,7 +456,6 @@ status_t CameraHal::startPreview()
             CAMHAL_LOGEA("Couldn't enable display");
             goto error;
             }
-
         }
 
     ///Send START_PREVIEW command to adapter
@@ -615,7 +613,6 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
  */
 void CameraHal::stopPreview()
 {
-
     LOG_FUNCTION_NAME
 
     if(!previewEnabled())
@@ -1016,21 +1013,17 @@ status_t CameraHal::initialize()
 
 void CameraHal::dumpProperties(CameraProperties::CameraProperty** cameraProps)
 {
-    for(int i=0;i<CameraProperties::PROP_INDEX_MAX;i++)
-        {
+    for ( int i = 0 ; i < CameraProperties::PROP_INDEX_MAX; i++)
         CAMHAL_LOGDB("%s = %s", cameraProps[i]->mPropName, cameraProps[i]->mPropValue);
-        }
 }
 
 void CameraHal::initDefaultParameters()
 {
-    ///Purpose of this function is to initialize the default current and supported parameters for the currently
-    ///selected camera.
-    ///@todo Should query from a CameraProperties class which is maintained per camera supported on the
-    ///       platform
-
+    //Purpose of this function is to initialize the default current and supported parameters for the currently
+    //selected camera.
+    //@todo Should query from a CameraProperties class which is maintained per camera supported on the
+    //        platform
     CameraParameters p;
-    char tmpBuffer[PARAM_BUFFER];
 
     LOG_FUNCTION_NAME
 
@@ -1044,55 +1037,30 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_JPEG_QUALITY, 100);
 
     //Eclair extended parameters
-    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, CameraHal::supportedPictureSizes);
-    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
-    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
-    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
-    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, CameraHal::supportedFPS);
-    p.set(CameraParameters::KEY_SUPPORTED_THUMBNAIL_SIZES, CameraHal::supprotedThumbnailSizes);
+    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_THUMBNAIL_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_THUMBNAIL_SIZES]->mPropValue);
+    p.set(CameraParameters::KEY_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE]->mPropValue);
+    p.set(CameraParameters::KEY_EFFECT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue);
+    p.set(CameraParameters::KEY_SCENE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES]->mPropValue);
+    p.set(CameraParameters::KEY_FOCUS_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES]->mPropValue);
+    p.set(CameraParameters::KEY_ANTIBANDING, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING]->mPropValue);
+    p.set(CameraParameters::KEY_FLASH_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue);
+    //
 
-    ///@todo Define constants for these custom parameters instead of hard-coding them
+    //@todo Define constants for these custom parameters instead of hard-coding them
     //p.set("max-zoom" , MAX_ZOOM);
     //p.set("zoom", 0);
 
-    memset(tmpBuffer, '\0', PARAM_BUFFER);
-    strncat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_AUTO, PARAM_BUFFER);
-    p.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE, tmpBuffer);
-    p.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_AUTO);
-
-    memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
-    strncat((char*) tmpBuffer, (const char*) CameraParameters::EFFECT_NONE, PARAM_BUFFER);
-    p.set(CameraParameters::KEY_SUPPORTED_EFFECTS, tmpBuffer);
-    p.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_NONE);
-
-    memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
-    strncat((char*) tmpBuffer, (const char*) CameraParameters::SCENE_MODE_AUTO, PARAM_BUFFER);
-    p.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES, tmpBuffer);
-    p.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_AUTO);
-
-    memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
-    strncat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_FIXED, PARAM_BUFFER);
-    p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, tmpBuffer);
-    p.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_AUTO);
-
-    memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
-    strncat((char*) tmpBuffer, (const char*) CameraParameters::ANTIBANDING_OFF, PARAM_BUFFER);
-    p.set(CameraParameters::KEY_SUPPORTED_ANTIBANDING, tmpBuffer);
-    p.set(CameraParameters::KEY_ANTIBANDING, CameraParameters::ANTIBANDING_OFF);
-
-    memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
-    strncat( (char*) tmpBuffer, (const char*) CameraParameters::FLASH_MODE_OFF, PARAM_BUFFER);
-    p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
-    p.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
-    //
-
-    if (setParameters(p) != NO_ERROR)
+    if ( setParameters(p) != NO_ERROR )
         {
         CAMHAL_LOGEA("Failed to set default parameters?!");
         }
 
     LOG_FUNCTION_NAME_EXIT
-
 }
 
 
@@ -1138,13 +1106,15 @@ sp<CameraHardwareInterface> CameraHal::createInstance()
     LOG_FUNCTION_NAME
 
     sp<CameraHardwareInterface> hardware(NULL);
-    if (singleton != 0) {
+    if (singleton != 0)
+        {
         hardware = singleton.promote();
-        if (hardware != 0) {
+        if (hardware != 0)
+            {
             CAMHAL_LOGDA("Duplicate instance of Camera");
             return hardware;
+            }
         }
-    }
 
     CameraHal *ptr = new CameraHal();
 
