@@ -471,15 +471,10 @@ LOGV("%s", __FUNCTION__);
     /* check whether the devices is input or not */
     /* for output devices */
     if (devices & 0x0000FFFF){
-        if (devices & AudioSystem::DEVICE_OUT_EARPIECE) {
-            control.set("Earpiece Mixer AudioL2", 1); // on
-            control.set("HandsfreeR Mux", "AudioR1"); // # hack for zoom2. N.C.
-            control.set("HandsfreeL Mux", "AudioL1"); // # hack for zoom2. N.C.
-        } else {
-           control.set("Earpiece Mixer AudioL2", (unsigned int)0); // off
-        }
-
-        if (devices & AudioSystem::DEVICE_OUT_SPEAKER) {
+        // Zoom2 board doesn't have earpiece device
+        // speaker device is used instead
+        if (devices & (AudioSystem::DEVICE_OUT_SPEAKER |
+                   AudioSystem::DEVICE_OUT_EARPIECE)) {
             control.set("HandsfreeR Switch", 1); // on
             control.set("HandsfreeL Switch", 1); // on
             control.set("HandsfreeR Mux", "AudioR2");
