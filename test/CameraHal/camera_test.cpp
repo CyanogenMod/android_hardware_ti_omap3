@@ -37,6 +37,7 @@
 #define KEY_COMPENSATION    "compensation"
 #define KEY_ROTATION        "picture-rotation"
 #define KEY_IPP             "ippMode"
+#define KEY_BUFF_STARV      "buff-starvation"
 
 #define COMPENSATION_OFFSET 20
 #define DELIMITER           "|"
@@ -106,6 +107,8 @@ const char *strawb_mode[] = {
     "incandescent",
     "fluorescent",
     "daylight",
+    "horizon",
+    "shadow",
 };
 const char *antibanding[] = {
     "off",
@@ -122,75 +125,94 @@ const char *focus[] = {
 int focus_mode = 0;
 const char *exposure[] = {"Auto", "Macro", "Portrait", "Landscape", "Sports", "Night", "Night Portrait", "Backlighting", "Manual"};
 const char *capture[] = { "High Performance", "High Quality" };
-const struct { int idx; const char *zoom_description; } zoom [] = {
+const struct {
+    int idx;
+    const char *zoom_description;
+} zoom [] = {
     { 0, "1x"},
     { 1, "2x"},
     { 2, "3x"},
     { 3, "4x"},
 };
 
-const struct { video_encoder type; const char *desc; } videoCodecs[] = {
+const struct {
+    video_encoder type;
+    const char *desc;
+} videoCodecs[] = {
     { VIDEO_ENCODER_H263, "H263" },
     { VIDEO_ENCODER_H264, "H264" },
     { VIDEO_ENCODER_MPEG_4_SP, "MPEG4"}
 };
 
-const struct { int width, height; const char *desc; } previewSize[] = {
+const struct {
+    int width, height;
+    const char *desc;
+} previewSize[] = {
     { 176, 144, "176x144" },
     { 320, 240, "QVGA" },
     { 640, 480, "VGA" },
+    { 720, 486, "NTSC" },
+    { 720, 576, "PAL" },
     { 800, 480, "WVGA" },
+    { 1280, 720, "HD" },
 };
 
-const struct { int width, height; const char *name; } captureSize[] = {
+const struct {
+    int width, height;
+    const char *name;
+} captureSize[] = {
     {  320, 240,  "QVGA" },
     {  640, 480,  "VGA" },
     {  800, 600,  "SVGA" },
     { 1280, 960,  "1MP" },
-    { 1600,1200,  "2MP" },
-    { 2048,1536,  "3MP" },
-    { 2560,2048,  "5MP" },
-    { 3280,2464,  "8MP" },
+    { 1280, 1024, "1.3MP" },
+    { 1600, 1200,  "2MP" },
+    { 2048, 1536,  "3MP" },
+    { 2560, 2048,  "5MP" },
+    { 3280, 2464,  "8MP" },
 };
 
-const struct { int fps; } frameRate[] = {
+const struct {
+    int fps;
+} frameRate[] = {
     {0},
     {5},
     {10},
     {15},
     {20},
+    {25},
     {30}
 };
 
-int previewSizeIDX = ARRAY_SIZE(previewSize)-1;
-int captureSizeIDX = ARRAY_SIZE(captureSize)-1;
-int frameRateIDX = ARRAY_SIZE(frameRate)-1;
+int previewSizeIDX = ARRAY_SIZE(previewSize) - 1;
+int captureSizeIDX = ARRAY_SIZE(captureSize) - 1;
+int frameRateIDX = ARRAY_SIZE(frameRate) - 1;
 
 static unsigned int recording_counter = 1;
 
 int dump_preview = 0;
+int bufferStarvationTest = 0;
 
 namespace android {
 
-class Test {
-    public:
-        static const sp<ISurface>& getISurface(const sp<SurfaceControl>& s) {
-            return s->getISurface();
-        }
-};
+    class Test {
+        public:
+            static const sp<ISurface>& getISurface(const sp<SurfaceControl>& s) {
+                return s->getISurface();
+            }
+    };
 
 };
 
 class CameraHandler: public CameraListener {
     public:
-    virtual void notify(int32_t msgType, int32_t ext1, int32_t ext2);
-    virtual void postData(int32_t msgType, const sp<IMemory>& dataPtr);
-    virtual void postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr);
+        virtual void notify(int32_t msgType, int32_t ext1, int32_t ext2);
+        virtual void postData(int32_t msgType, const sp<IMemory>& dataPtr);
+        virtual void postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr);
 };
 
 /** Calculate delay from a reference time */
-unsigned long long timeval_delay(const timeval *ref)
-{
+unsigned long long timeval_delay(const timeval *ref) {
     unsigned long long st, end, delay;
     timeval current_time;
 
@@ -204,8 +226,7 @@ unsigned long long timeval_delay(const timeval *ref)
 }
 
 /** Callback for takePicture() */
-void my_raw_callback(const sp<IMemory>& mem)
-{
+void my_raw_callback(const sp<IMemory>& mem) {
 
     static int      counter = 1;
     unsigned char   *buff = NULL;
@@ -221,14 +242,17 @@ void my_raw_callback(const sp<IMemory>& mem)
     fn[0] = 0;
     sprintf(fn, "/img%03d.yuv", counter);
     fd = open(fn, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
-    if(fd < 0)
+
+    if (fd < 0)
         goto out;
 
     size = mem->size();
+
     if (size <= 0)
         goto out;
 
     buff = (unsigned char *)mem->pointer();
+
     if (!buff)
         goto out;
 
@@ -237,7 +261,7 @@ void my_raw_callback(const sp<IMemory>& mem)
 
     counter++;
     printf("%s: buffer=%08X, size=%d\n",
-            __FUNCTION__, (int)buff, size);
+           __FUNCTION__, (int)buff, size);
 
 out:
 
@@ -247,8 +271,7 @@ out:
     LOG_FUNCTION_NAME_EXIT
 }
 
-void saveFile(const sp<IMemory>& mem)
-{
+void saveFile(const sp<IMemory>& mem) {
     static int      counter = 1;
     unsigned char   *buff = NULL;
     int             size;
@@ -263,14 +286,17 @@ void saveFile(const sp<IMemory>& mem)
     fn[0] = 0;
     sprintf(fn, "/preview%03d.yuv", counter);
     fd = open(fn, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
-    if(fd < 0)
+
+    if (fd < 0)
         goto out;
 
     size = mem->size();
+
     if (size <= 0)
         goto out;
 
     buff = (unsigned char *)mem->pointer();
+
     if (!buff)
         goto out;
 
@@ -279,7 +305,7 @@ void saveFile(const sp<IMemory>& mem)
 
     counter++;
     printf("%s: buffer=%08X, size=%d\n",
-            __FUNCTION__, (int)buff, size);
+           __FUNCTION__, (int)buff, size);
 
 out:
 
@@ -290,23 +316,23 @@ out:
 }
 
 /** Callback for startPreview() */
-void my_preview_callback(const sp<IMemory>& mem)
-{
-    if(dump_preview){
+void my_preview_callback(const sp<IMemory>& mem) {
+    if (dump_preview) {
         saveFile(mem);
         dump_preview = 0;
     }
-    printf(".");fflush(stdout);
+
+    printf(".");
+    fflush(stdout);
 }
 
 /** Callback for takePicture() */
-void my_jpeg_callback(const sp<IMemory>& mem)
-{
-    static int	counter = 1;
-    unsigned char	*buff = NULL;
-    int		size;
-    int		fd = -1;
-    char		fn[256];
+void my_jpeg_callback(const sp<IMemory>& mem) {
+    static int  counter = 1;
+    unsigned char   *buff = NULL;
+    int     size;
+    int     fd = -1;
+    char        fn[256];
 
     LOG_FUNCTION_NAME
 
@@ -316,14 +342,17 @@ void my_jpeg_callback(const sp<IMemory>& mem)
     fn[0] = 0;
     sprintf(fn, "/sdcard/img%03d.jpg", counter);
     fd = open(fn, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
-    if(fd < 0)
+
+    if (fd < 0)
         goto out;
 
     size = mem->size();
+
     if (size <= 0)
         goto out;
 
     buff = (unsigned char *)mem->pointer();
+
     if (!buff)
         goto out;
 
@@ -332,7 +361,7 @@ void my_jpeg_callback(const sp<IMemory>& mem)
 
     counter++;
     printf("%s: buffer=%08X, size=%d stored at %s\n",
-        __FUNCTION__, (int)buff, size, fn);
+           __FUNCTION__, (int)buff, size, fn);
 
 out:
 
@@ -342,21 +371,19 @@ out:
     LOG_FUNCTION_NAME_EXIT
 }
 
-void CameraHandler::notify(int32_t msgType, int32_t ext1, int32_t ext2)
-{
+void CameraHandler::notify(int32_t msgType, int32_t ext1, int32_t ext2) {
 
     printf("Notify cb: %d %d %d\n", msgType, ext1, ext2);
 
     if ( msgType & CAMERA_MSG_FOCUS )
-        printf("AutoFocus %s in %llu us\n", (ext1)?"OK":"FAIL", timeval_delay(&autofocus_start));
+        printf("AutoFocus %s in %llu us\n", (ext1) ? "OK" : "FAIL", timeval_delay(&autofocus_start));
 
     if ( msgType & CAMERA_MSG_SHUTTER )
         printf("Shutter done in %llu us\n", timeval_delay(&picture_start));
 
 }
 
-void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr)
-{
+void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr) {
     printf("Data cb: %d\n", msgType);
 
     if ( msgType & CAMERA_MSG_PREVIEW_FRAME )
@@ -373,13 +400,11 @@ void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr)
     }
 }
 
-void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr)
-{
+void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr) {
     printf("DataTime cb: %d %lld %p\n", msgType, timestamp, dataPtr.get());
 }
 
-int createPreviewSurface(unsigned int width, unsigned int height)
-{
+int createPreviewSurface(unsigned int width, unsigned int height) {
     client = new SurfaceComposerClient();
 
     if ( NULL == client.get() ) {
@@ -389,7 +414,7 @@ int createPreviewSurface(unsigned int width, unsigned int height)
     }
 
     overlayControl = client->createSurface(getpid(), 0, width, height,
-                    PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers);
+                                           PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers);
 
     if ( NULL == overlayControl.get() ) {
         printf("Unable to create Overlay control surface\n");
@@ -417,8 +442,7 @@ int createPreviewSurface(unsigned int width, unsigned int height)
     return 0;
 }
 
-int destroyPreviewSurface()
-{
+int destroyPreviewSurface() {
 
     if ( NULL != overlaySurface.get() ) {
         overlaySurface.clear();
@@ -436,10 +460,10 @@ int destroyPreviewSurface()
     return 0;
 }
 
-int openRecorder()
-{
+int openRecorder() {
     recorder = new MediaRecorder();
-    if( NULL == recorder.get() ) {
+
+    if ( NULL == recorder.get() ) {
         printf("Error while creating MediaRecorder\n");
 
         return -1;
@@ -448,8 +472,7 @@ int openRecorder()
     return 0;
 }
 
-int closeRecorder()
-{
+int closeRecorder() {
     if ( NULL == recorder.get() ) {
         printf("invalid recorder reference\n");
 
@@ -479,8 +502,7 @@ int closeRecorder()
     return 0;
 }
 
-int configureRecorder()
-{
+int configureRecorder() {
     char videoFile[80];
 
     if ( ( NULL == recorder.get() ) || ( NULL == camera.get() ) ) {
@@ -510,11 +532,13 @@ int configureRecorder()
     }
 
     sprintf(videoFile, "/sdcard/video%d.3gp", recording_counter);
+
     if ( recorder->setOutputFile(videoFile) < 0 ) {
         printf("error while configuring video filename\n");
 
         return -1;
     }
+
     recording_counter++;
 
     if ( recorder->setVideoFrameRate(frameRate[frameRateIDX].fps) < 0 ) {
@@ -544,8 +568,7 @@ int configureRecorder()
     return 0;
 }
 
-int startRecording()
-{
+int startRecording() {
     if ( ( NULL == recorder.get() ) || ( NULL == camera.get() ) ) {
         printf("invalid recorder and/or camera references\n");
 
@@ -569,8 +592,7 @@ int startRecording()
     return 0;
 }
 
-int stopRecording()
-{
+int stopRecording() {
     if ( NULL == recorder.get() ) {
         printf("invalid recorder reference\n");
 
@@ -586,15 +608,14 @@ int stopRecording()
     return 0;
 }
 
-int openCamera()
-{
+int openCamera() {
 
     camera = Camera::connect();
 
     if ( NULL == camera.get() ) {
         printf("Unable to connect to CameraService\n");
 
-       return -1;
+        return -1;
     }
 
     camera->setListener(new CameraHandler());
@@ -602,9 +623,8 @@ int openCamera()
     return 0;
 }
 
-int closeCamera()
-{
-    if( NULL == camera.get() ) {
+int closeCamera() {
+    if ( NULL == camera.get() ) {
         printf("invalid camera reference\n");
 
         return -1;
@@ -616,15 +636,15 @@ int closeCamera()
     return 0;
 }
 
-int startPreview()
-{
+int startPreview() {
     if ( reSizePreview && !hardwareActive ) {
 
-        if( openCamera() < 0 ) {
+        if ( openCamera() < 0 ) {
             printf("Camera initialization failed\n");
 
             return -1;
         }
+
         params.unflatten(camera->getParameters());
         params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
         params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
@@ -636,6 +656,7 @@ int startPreview()
 
             return -1;
         }
+
         camera->setPreviewDisplay(overlaySurface);
 
         camera->startPreview();
@@ -654,6 +675,7 @@ int startPreview()
 
             return -1;
         }
+
         camera->setPreviewDisplay(overlaySurface);
 
         camera->startPreview();
@@ -665,8 +687,7 @@ int startPreview()
     return 0;
 }
 
-void stopPreview()
-{
+void stopPreview() {
     if ( hardwareActive ) {
         camera->stopPreview();
         closeCamera();
@@ -677,13 +698,12 @@ void stopPreview()
     }
 }
 
-void initDefaults()
-{
+void initDefaults() {
     antibanding_mode = 0;
     focus_mode = 0;
-    previewSizeIDX = ARRAY_SIZE(previewSize)-1;
-    captureSizeIDX = ARRAY_SIZE(captureSize)-1;
-    frameRateIDX = ARRAY_SIZE(frameRate)-1;
+    previewSizeIDX = ARRAY_SIZE(previewSize) - 1;
+    captureSizeIDX = ARRAY_SIZE(captureSize) - 1;
+    frameRateIDX = ARRAY_SIZE(frameRate) - 1;
     compensation = 0.0;
     awb_mode = 0;
     effects_mode = 0;
@@ -701,6 +721,7 @@ void initDefaults()
     exposure_mode = 0;
     ippIdx = 0;
     jpegQuality = 85;
+    bufferStarvationTest = 0;
 
     params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
     params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
@@ -723,10 +744,10 @@ void initDefaults()
     params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
     params.set(KEY_IPP, ippIdx);
     params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
+    params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
 }
 
-int menu_gps()
-{
+int menu_gps() {
     char ch;
     char coord_str[100];
 
@@ -745,39 +766,52 @@ int menu_gps()
     printf("%c", ch);
 
     print_menu = 1;
+
     switch (ch) {
 
         case 'e':
             latitude += degree_by_step;
+
             if (latitude > 90.0) {
                 latitude -= 180.0;
             }
+
             snprintf(coord_str, 100, "%.20lf", latitude);
             params.set(params.KEY_GPS_LATITUDE, coord_str);
+
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
+
             break;
 
         case 'd':
             longitude += degree_by_step;
+
             if (longitude > 180.0) {
                 longitude -= 360.0;
             }
+
             snprintf(coord_str, 100, "%.20lf", longitude);
             params.set(params.KEY_GPS_LONGITUDE, coord_str);
+
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
+
             break;
 
         case 'c':
             altitude += 12345.67890123456789;
+
             if (altitude > 100000.0) {
                 altitude -= 200000.0;
             }
+
             snprintf(coord_str, 100, "%.20lf", altitude);
             params.set(params.KEY_GPS_ALTITUDE, coord_str);
+
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
+
             break;
 
         case 'Q':
@@ -792,8 +826,7 @@ int menu_gps()
     return 0;
 }
 
-int functional_menu()
-{
+int functional_menu() {
     char ch;
 
     if (print_menu) {
@@ -803,11 +836,11 @@ int functional_menu()
         printf("   1. Start Preview\n");
         printf("   2. Stop Preview/Recording\n");
         printf("   3. Picture Rotation:       %3d degree\n", rotation );
-        printf("   4. Preview size:   %4d x %4d\n",
-            previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
+        printf("   4. Preview size:   %4d x %4d - %s\n",
+               previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
         printf("   5. Picture size:   %4d x %4d - %s\n",
-            captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height,
-            captureSize[captureSizeIDX].name);
+               captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height,
+               captureSize[captureSizeIDX].name);
         printf("   6. Start Video Recording\n");
         printf("   7. EV offset:      %4.1f\n", compensation);
         printf("   8. AWB mode:       %s\n", strawb_mode[awb_mode]);
@@ -841,59 +874,13 @@ int functional_menu()
     printf("%c", ch);
 
     print_menu = 1;
+
     switch (ch) {
-    case '0':
-        initDefaults();
-        break;
+        case '0':
+            initDefaults();
+            break;
 
-    case '1':
-        if ( startPreview() < 0 ) {
-            printf("Error while starting preview\n");
-
-            return -1;
-        }
-
-        break;
-
-    case '2':
-        stopPreview();
-        if ( recordingMode ) {
-            stopRecording();
-            closeRecorder();
-
-            recordingMode = false;
-        }
-
-        break;
-
-    case '3':
-        rotation += 90;
-        rotation %= 360;
-        params.set(KEY_ROTATION, rotation);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-
-        break;
-
-    case '4':
-        previewSizeIDX += 1;
-        previewSizeIDX %= ARRAY_SIZE(previewSize);
-        params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
-        reSizePreview = true;
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case '5':
-        captureSizeIDX += 1;
-        captureSizeIDX %= ARRAY_SIZE(captureSize);
-        params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case '6':
-        if ( !recordingMode ) {
+        case '1':
 
             if ( startPreview() < 0 ) {
                 printf("Error while starting preview\n");
@@ -901,256 +888,367 @@ int functional_menu()
                 return -1;
             }
 
-            if ( openRecorder() < 0 ) {
-                printf("Error while openning video recorder\n");
+            break;
 
-                return -1;
+        case '2':
+            stopPreview();
+
+            if ( recordingMode ) {
+                stopRecording();
+                closeRecorder();
+
+                recordingMode = false;
             }
 
-            if ( configureRecorder() < 0 ) {
-                printf("Error while configuring video recorder\n");
+            break;
 
-                return -1;
+        case '3':
+            rotation += 90;
+            rotation %= 360;
+            params.set(KEY_ROTATION, rotation);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case '4':
+            previewSizeIDX += 1;
+            previewSizeIDX %= ARRAY_SIZE(previewSize);
+            params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
+            reSizePreview = true;
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case '5':
+            captureSizeIDX += 1;
+            captureSizeIDX %= ARRAY_SIZE(captureSize);
+            params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case '6':
+
+            if ( !recordingMode ) {
+
+                if ( startPreview() < 0 ) {
+                    printf("Error while starting preview\n");
+
+                    return -1;
+                }
+
+                if ( openRecorder() < 0 ) {
+                    printf("Error while openning video recorder\n");
+
+                    return -1;
+                }
+
+                if ( configureRecorder() < 0 ) {
+                    printf("Error while configuring video recorder\n");
+
+                    return -1;
+                }
+
+                if ( startRecording() < 0 ) {
+                    printf("Error while starting video recording\n");
+
+                    return -1;
+                }
+
+                recordingMode = true;
             }
 
-            if ( startRecording() < 0 ) {
-                printf("Error while starting video recording\n");
+            break;
 
-                return -1;
+        case '7':
+
+            if ( compensation > 2.0) {
+                compensation = -2.0;
+            } else {
+                compensation += 0.1;
             }
 
-            recordingMode = true;
-        }
+            params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
 
-        break;
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
 
-    case '7':
-        if( compensation > 2.0){
-            compensation = -2.0;
-        } else {
-            compensation += 0.1;
-        }
-        params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
-        if ( hardwareActive )
+            break;
+
+        case '8':
+            awb_mode++;
+            awb_mode %= ARRAY_SIZE(strawb_mode);
+            params.set(params.KEY_WHITE_BALANCE, strawb_mode[awb_mode]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case '9':
+            videoCodecIdx++;
+            videoCodecIdx %= ARRAY_SIZE(videoCodecs);
+            break;
+
+        case 'o':
+        case 'O':
+
+            if ( jpegQuality >= 100) {
+                jpegQuality = 0;
+            } else {
+                jpegQuality += 5;
+            }
+
+            params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'k':
+        case 'K':
+            ippIdx += 1;
+            ippIdx %= ARRAY_SIZE(ipp_mode);
+            params.set(KEY_IPP, ippIdx);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+
+        case 'u':
+        case 'U':
+            capture_mode++;
+            capture_mode %= ARRAY_SIZE(capture);
+            params.set(KEY_MODE, (capture_mode + 1));
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'w':
+        case 'W':
+            scene_mode++;
+            scene_mode %= ARRAY_SIZE(scene);
+            params.set(params.KEY_SCENE_MODE, scene[scene_mode]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'y':
+        case 'Y':
+            caf_mode++;
+            caf_mode %= ARRAY_SIZE(caf);
+            params.set(KEY_CAF, caf_mode);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'i':
+        case 'I':
+            iso_mode++;
+            iso_mode %= ARRAY_SIZE(iso);
+            params.set(KEY_ISO, iso_mode);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'h':
+        case 'H':
+
+            if ( sharpness >= 100) {
+                sharpness = 0;
+            } else {
+                sharpness += 10;
+            }
+
+            params.set(KEY_SHARPNESS, sharpness);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'c':
+        case 'C':
+
+            if ( contrast >= 100) {
+                contrast = -100;
+            } else {
+                contrast += 10;
+            }
+
+            params.set(KEY_CONTRAST, contrast);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'z':
+        case 'Z':
+            zoomIdx++;
+            zoomIdx %= ARRAY_SIZE(zoom);
+            params.set(KEY_ZOOM, zoom[zoomIdx].idx);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'j':
+        case 'J':
+            exposure_mode++;
+            exposure_mode %= ARRAY_SIZE(exposure);
+            params.set(KEY_EXPOSURE, exposure_mode);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'b':
+        case 'B':
+
+            if ( brightness >= 100) {
+                brightness = -100;
+            } else {
+                brightness += 10;
+            }
+
+            params.set(KEY_BRIGHTNESS, brightness);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 's':
+        case 'S':
+
+            if ( saturation >= 100) {
+                saturation = -100;
+            } else {
+                saturation += 10;
+            }
+
+            params.set(KEY_SATURATION, saturation);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'e':
+        case 'E':
+            effects_mode++;
+            effects_mode %= ARRAY_SIZE(effects);
+            params.set(params.KEY_EFFECT, effects[effects_mode]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'r':
+        case 'R':
+            frameRateIDX += 1;
+            frameRateIDX %= ARRAY_SIZE(frameRate);
+            params.setPreviewFrameRate(frameRate[frameRateIDX].fps);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'X':
+        case 'x':
+            antibanding_mode++;
+            antibanding_mode %= ARRAY_SIZE(antibanding);
+            params.set(params.KEY_ANTIBANDING, antibanding[antibanding_mode]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'g':
+        case 'G':
+            focus_mode++;
+            focus_mode %= ARRAY_SIZE(focus);
+            params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'F':
+        case 'f':
+            gettimeofday(&autofocus_start, 0);
+
+            if ( hardwareActive )
+                camera->autoFocus();
+
+            break;
+
+        case 'P':
+        case 'p':
+
             camera->setParameters(params.flatten());
-        break;
+            gettimeofday(&picture_start, 0);
 
-    case '8':
-        awb_mode++;
-        awb_mode %= ARRAY_SIZE(strawb_mode);
-        params.set(params.KEY_WHITE_BALANCE, strawb_mode[awb_mode]);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
+            if ( hardwareActive )
+                camera->takePicture();
 
-    case '9':
-        videoCodecIdx++;
-        videoCodecIdx %= ARRAY_SIZE(videoCodecs);
-        break;
+            break;
 
-    case 'o':
-    case 'O':
-        if ( jpegQuality >= 100) {
-            jpegQuality = 0;
-        } else {
-            jpegQuality += 5;
-        }
-        params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
+        case 'N':
+        case 'n':
+            dump_preview = 1;
+            break;
 
-    case 'k':
-    case 'K':
-        ippIdx += 1;
-        ippIdx %= ARRAY_SIZE(ipp_mode);
-        params.set(KEY_IPP, ippIdx);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
+        case 'a':
 
+            while (1) {
+                if ( menu_gps() < 0)
+                    break;
+            };
 
-    case 'u':
-    case 'U':
-        capture_mode++;
-        capture_mode %= ARRAY_SIZE(capture);
-        params.set(KEY_MODE, (capture_mode + 1));
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
+            break;
 
-    case 'w':
-    case 'W':
-        scene_mode++;
-        scene_mode %= ARRAY_SIZE(scene);
-        params.set(params.KEY_SCENE_MODE, scene[scene_mode]);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
+        case 'Q':
+        case 'q':
 
-    case 'y':
-    case 'Y':
-        caf_mode++;
-        caf_mode %= ARRAY_SIZE(caf);
-        params.set(KEY_CAF, caf_mode);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
+            stopPreview();
 
-    case 'i':
-    case 'I':
-        iso_mode++;
-        iso_mode %= ARRAY_SIZE(iso);
-        params.set(KEY_ISO, iso_mode);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
+            return -1;
 
-    case 'h':
-    case 'H':
-        if( sharpness >= 100){
-            sharpness = 0;
-        } else {
-            sharpness += 10;
-        }
-        params.set(KEY_SHARPNESS, sharpness);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
+        default:
+            print_menu = 0;
 
-    case 'c':
-    case 'C':
-        if( contrast >= 100){
-            contrast = -100;
-        } else {
-            contrast += 10;
-        }
-        params.set(KEY_CONTRAST, contrast);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 'z':
-    case 'Z':
-        zoomIdx++;
-        zoomIdx %= ARRAY_SIZE(zoom);
-        params.set(KEY_ZOOM, zoom[zoomIdx].idx);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 'j':
-    case 'J':
-        exposure_mode++;
-        exposure_mode %= ARRAY_SIZE(exposure);
-        params.set(KEY_EXPOSURE, exposure_mode);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 'b':
-    case 'B':
-        if ( brightness >= 100) {
-            brightness = -100;
-        } else {
-            brightness += 10;
-        }
-        params.set(KEY_BRIGHTNESS, brightness);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 's':
-    case 'S':
-        if ( saturation >= 100) {
-            saturation = -100;
-        } else {
-            saturation += 10;
-        }
-        params.set(KEY_SATURATION, saturation);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 'e':
-    case 'E':
-        effects_mode++;
-        effects_mode %= ARRAY_SIZE(effects);
-        params.set(params.KEY_EFFECT, effects[effects_mode]);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 'r':
-    case 'R':
-	    frameRateIDX += 1;
-        frameRateIDX %= ARRAY_SIZE(frameRate);
-        params.setPreviewFrameRate(frameRate[frameRateIDX].fps);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 'X':
-    case 'x':
-        antibanding_mode++;
-        antibanding_mode %= ARRAY_SIZE(antibanding);
-        params.set(params.KEY_ANTIBANDING, antibanding[antibanding_mode]);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 'g':
-    case 'G':
-        focus_mode++;
-        focus_mode %= ARRAY_SIZE(focus);
-        params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
-        break;
-
-    case 'F':
-    case 'f':
-        gettimeofday(&autofocus_start, 0);
-        if ( hardwareActive )
-            camera->autoFocus();
-        break;
-
-    case 'P':
-    case 'p':
-        camera->setParameters(params.flatten());
-        gettimeofday(&picture_start, 0);
-        if ( hardwareActive )
-            camera->takePicture();
-        break;
-
-    case 'N':
-    case 'n':
-        dump_preview = 1;
-        break;
-
-    case 'a':
-        while (1) {
-            if ( menu_gps() < 0)
-                break;
-        };
-        break;
-
-    case 'Q':
-    case 'q':
-
-        stopPreview();
-        return -1;
-
-    default:
-        print_menu = 0;
-        break;
+            break;
     }
 
     return 0;
 }
 
-char *load_script(char *config)
-{
+char *load_script(char *config) {
     FILE *infile;
     size_t fileSize;
     char *script;
@@ -1158,7 +1256,7 @@ char *load_script(char *config)
 
     infile = fopen(config, "r");
 
-    if( (NULL == infile)){
+    if ( (NULL == infile)) {
 
         printf("Error while opening script file %s!\n", config);
         return NULL;
@@ -1169,13 +1267,14 @@ char *load_script(char *config)
     fseek(infile, 0, SEEK_SET);
 
     script = (char *) malloc(fileSize);
+
     if ( NULL == script ) {
         printf("Unable to allocate buffer for the script\n");
 
         return NULL;
     }
 
-    if((nRead = fread(script, 1, fileSize, infile)) != fileSize){
+    if ((nRead = fread(script, 1, fileSize, infile)) != fileSize) {
         printf("Error while reading script file!\n");
 
         free(script);
@@ -1188,22 +1287,95 @@ char *load_script(char *config)
     return script;
 }
 
-int execute_script(char *script)
-{
-    char *cmd, *ctx;
+unsigned get_str_len(const char *aSrc) {
+    unsigned ind = 0;
+
+    while (*aSrc != '\0') {
+        ind++;
+        aSrc++;
+    }
+
+    return ind;
+}
+
+char * get_cycle_cmd(const char *aSrc) {
+    unsigned ind = 0;
+    char *cycle_cmd = new char[256];
+
+    while ((*aSrc != '+') && (*aSrc != '\0')) {
+        cycle_cmd[ind++] = *aSrc++;
+    }
+
+    cycle_cmd[ind] = '\0';
+
+    return cycle_cmd;
+}
+
+int execute_script(char *script) {
+    char *cmd, *ctx, *cycle_cmd, *temp_cmd;
     char id;
     unsigned int i;
     int dly;
+    int cycleCounter = 1;
+    int tLen = 0;
 
     LOG_FUNCTION_NAME
 
     cmd = strtok_r((char *) script, DELIMITER, &ctx);
-    while( NULL != cmd ){
-        id = cmd[0];
-        printf("%s \n", cmd);
 
-        switch(id){
+    while ( NULL != cmd ) {
+        id = cmd[0];
+        printf("Full Command: !%s!\n", cmd);
+        printf("Command: !%c!\n", cmd[0]);
+
+        switch (id) {
+            case '+': {
+                cycleCounter = atoi(cmd + 1);
+                cycle_cmd = get_cycle_cmd(ctx);
+                tLen = get_str_len(cycle_cmd);
+                temp_cmd = new char[tLen+1];
+
+                for (unsigned ind = 0; ind < cycleCounter; ind++) {
+                    strcpy(temp_cmd, cycle_cmd);
+                    execute_script(temp_cmd);
+                    temp_cmd[0] = '\0';
+
+                    //patch for image capture
+                    //[
+                    if (ind < cycleCounter - 1) {
+                        if (hardwareActive == false) {
+                            hardwareActive = true;
+
+                            if ( openCamera() < 0 ) {
+                                printf("Camera initialization failed\n");
+
+                                return -1;
+                            }
+
+                            params.unflatten(camera->getParameters());
+                            initDefaults();
+                        }
+                    }
+
+                    //]
+                }
+
+                ctx += tLen + 1;
+
+                if (temp_cmd) {
+                    delete temp_cmd;
+                    temp_cmd = NULL;
+                }
+
+                if (cycle_cmd) {
+                    delete cycle_cmd;
+                    cycle_cmd = NULL;
+                }
+
+                break;
+            }
             case '1':
+
                 if ( startPreview() < 0 ) {
                     printf("Error while starting preview\n");
 
@@ -1214,18 +1386,29 @@ int execute_script(char *script)
 
             case '2':
                 stopPreview();
+
+                if ( recordingMode ) {
+                    stopRecording();
+                    closeRecorder();
+
+                    recordingMode = false;
+                }
+
                 break;
 
             case '3':
                 rotation = atoi(cmd + 1);
                 params.set(KEY_ROTATION, rotation);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case '4':
-                for(i = 0; i < ARRAY_SIZE(previewSize); i++){
-                    if( strcmp((cmd + 1), previewSize[i].desc) == 0)
+
+                for (i = 0; i < ARRAY_SIZE(previewSize); i++) {
+                    if ( strcmp((cmd + 1), previewSize[i].desc) == 0)
                         break;
                 }
 
@@ -1235,11 +1418,16 @@ int execute_script(char *script)
                     params.setPreviewSize(previewSize[i].width, previewSize[i].height);
 
                 reSizePreview = true;
+
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
                 break;
 
             case '5':
-                for(i = 0; i < ARRAY_SIZE(captureSize); i++){
-                    if( strcmp((cmd + 1), captureSize[i].name) == 0)
+
+                for (i = 0; i < ARRAY_SIZE(captureSize); i++) {
+                    if ( strcmp((cmd + 1), captureSize[i].name) == 0)
                         break;
                 }
 
@@ -1252,6 +1440,7 @@ int execute_script(char *script)
                 break;
 
             case '6':
+
                 if ( !recordingMode ) {
 
                     if ( startPreview() < 0 ) {
@@ -1286,14 +1475,18 @@ int execute_script(char *script)
             case '7':
                 compensation = atof(cmd + 1);
                 params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case '8':
                 params.set(params.KEY_WHITE_BALANCE, (cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case '9':
@@ -1305,140 +1498,176 @@ int execute_script(char *script)
             case 'O':
                 jpegQuality = atoi(cmd + 1);
                 params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'k':
             case 'K':
                 params.set(KEY_IPP, (cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'u':
             case 'U':
                 params.set(KEY_MODE, (cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'w':
             case 'W':
                 params.set(params.KEY_SCENE_MODE, (cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'y':
             case 'Y':
                 caf_mode = atoi(cmd + 1);
                 params.set(KEY_CAF, caf_mode);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'i':
             case 'I':
                 iso_mode = atoi(cmd + 1);
                 params.set(KEY_ISO, iso_mode);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'h':
             case 'H':
                 sharpness = atoi(cmd + 1);
                 params.set(KEY_SHARPNESS, sharpness);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'c':
             case 'C':
                 contrast = atoi(cmd + 1);
                 params.set(KEY_CONTRAST, contrast);
-                if ( hardwareActive )
+
+                if ( hardwareActive ) {
                     camera->setParameters(params.flatten());
+                }
+
                 break;
 
             case 'z':
             case 'Z':
-                params.set(KEY_ZOOM, atoi(cmd + 1));
+                params.set(KEY_ZOOM, atoi(cmd + 1) - 1);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'j':
             case 'J':
                 params.set(KEY_EXPOSURE, (cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'b':
             case 'B':
                 brightness = atoi(cmd + 1);
                 params.set(KEY_BRIGHTNESS, brightness);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 's':
             case 'S':
                 saturation = atoi(cmd + 1);
                 params.set(KEY_SATURATION, saturation);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'e':
             case 'E':
                 params.set(params.KEY_EFFECT, (cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'r':
             case 'R':
                 params.setPreviewFrameRate(atoi(cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'X':
             case 'x':
                 params.set(params.KEY_ANTIBANDING, (cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'g':
             case 'G':
                 params.set(params.KEY_FOCUS_MODE, (cmd + 1));
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case 'F':
             case 'f':
                 gettimeofday(&autofocus_start, 0);
+
                 if ( hardwareActive )
                     camera->autoFocus();
+
                 break;
 
             case 'P':
             case 'p':
                 camera->setParameters(params.flatten());
                 gettimeofday(&picture_start, 0);
+
                 if ( hardwareActive )
                     camera->takePicture();
+
                 break;
 
             case 'D':
             case 'd':
                 dly = atoi(cmd + 1);
-
                 dly *= 1000000;
                 usleep(dly);
                 break;
@@ -1446,9 +1675,18 @@ int execute_script(char *script)
             case 'Q':
             case 'q':
                 stopPreview();
+
+                if ( recordingMode ) {
+                    stopRecording();
+                    closeRecorder();
+
+                    recordingMode = false;
+                }
+
                 goto exit;
 
             default:
+                printf("Unrecognized command!\n");
                 break;
         }
 
@@ -1460,25 +1698,163 @@ exit:
     return 0;
 }
 
-void print_usage()
-{
-	printf(" USAGE: camera_test  <param>  <script>\n");
-	printf(" <param>\n-----------\n\n");
-	printf(" F or f -> Functional tests \n");
-	printf(" A or a -> API tests \n");
-	printf(" E or e -> Error scenario tests \n");
-	printf(" S or s -> Stress tests \n\n");
-	printf(" <script>\n----------\n");
-	printf("Script name (Only for stress tests)\n\n");
-	return;
+void print_usage() {
+    printf(" USAGE: camera_test  <param>  <script>\n");
+    printf(" <param>\n-----------\n\n");
+    printf(" F or f -> Functional tests \n");
+    printf(" A or a -> API tests \n");
+    printf(" E or e -> Error scenario tests \n");
+    printf(" S or s -> Stress tests \n\n");
+    printf(" <script>\n----------\n");
+    printf("Script name (Only for stress tests)\n\n");
+    return;
 }
 
-int main(int argc, char *argv[])
-{
+int error_scenario() {
+    char ch;
+
+    if (print_menu) {
+        printf("   0. Buffer need\n");
+        printf("\n");
+        printf("   1. Not enough memory\n");
+        printf("\n");
+        printf("   2. Media server crash\n");
+        printf("\n");
+        printf("   3. Overlay object request\n");
+        printf("\n");
+        printf("   4. Other\n");
+        printf("\n");
+        printf("   q. Quit\n");
+        printf("\n");
+        printf("   Choice: ");
+    }
+
+    print_menu = 1;
+    ch = getchar();
+    printf("%c\n", ch);
+
+    switch (ch) {
+        case '0': {
+            printf("Case0:Buffer need\n");
+            bufferStarvationTest = 1;
+            params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
+
+            if ( !recordingMode ) {
+
+                if ( startPreview() < 0 ) {
+                    printf("Error while starting preview\n");
+
+                    return -1;
+                }
+
+                if ( openRecorder() < 0 ) {
+                    printf("Error while openning video recorder\n");
+
+                    return -1;
+                }
+
+                if ( configureRecorder() < 0 ) {
+                    printf("Error while configuring video recorder\n");
+
+                    return -1;
+                }
+
+                if ( startRecording() < 0 ) {
+                    printf("Error while starting video recording\n");
+
+                    return -1;
+                }
+
+                recordingMode = true;
+            }
+
+            usleep(1000000);//1s
+
+            stopPreview();
+
+            if ( recordingMode ) {
+                stopRecording();
+                closeRecorder();
+
+                recordingMode = false;
+            }
+
+            break;
+        }
+        case '1': {
+            printf("Case1:Not enough memory\n");
+            int* tMemoryEater = new int[999999999];
+
+            if (!tMemoryEater) {
+                printf("Not enough memory\n");
+                return -1;
+            } else {
+                delete tMemoryEater;
+            }
+
+            break;
+        }
+        case '2': {
+            printf("Case2:Media server crash\n");
+            //camera = Camera::connect();
+
+            if ( NULL == camera.get() ) {
+                printf("Unable to connect to CameraService\n");
+                return -1;
+            }
+
+            break;
+        }
+        case '3': {
+            printf("Case3:Overlay object request\n");
+            int err = 0;
+
+            err = open("/dev/video5", O_RDWR);
+
+            if (err < 0) {
+                printf("Could not open the camera device5: %d\n",  err );
+                return err;
+            }
+
+            if ( startPreview() < 0 ) {
+                printf("Error while starting preview\n");
+                return -1;
+            }
+
+            usleep(1000000);//1s
+
+            stopPreview();
+
+            close(err);
+            break;
+        }
+
+        case 'q': {
+            return -1;
+        }
+
+        default: {
+            print_menu = 0;
+            break;
+        }
+    }
+
+    return 0;
+}
+
+int main(int argc, char *argv[]) {
     char *cmd;
     sp<ProcessState> proc(ProcessState::self());
 
+    unsigned long long st, end, delay;
+    timeval current_time;
+
+    gettimeofday(&current_time, 0);
+
+    st = current_time.tv_sec * 1000000 + current_time.tv_usec;
+
     cmd = NULL;
+
     if ( argc < 2 ) {
         printf(" Please enter atleast 1 argument\n");
         print_usage();
@@ -1500,9 +1876,9 @@ int main(int argc, char *argv[])
                 ProcessState::self()->startThreadPool();
 
                 if ( openCamera() < 0 ) {
-                     printf("Camera initialization failed\n");
+                    printf("Camera initialization failed\n");
 
-                     return -1;
+                    return -1;
                 }
 
                 hardwareActive = true;
@@ -1524,10 +1900,17 @@ int main(int argc, char *argv[])
                 break;
 
             case 'E':
-            case 'e':
-                printf("Error scenario test cases coming soon ... \n");
+            case 'e': {
+                print_menu = 1;
+
+                while (1) {
+                    if (error_scenario() < 0) {
+                        break;
+                    }
+                }
 
                 break;
+            }
 
             default:
                 printf("INVALID OPTION USED\n");
@@ -1546,6 +1929,10 @@ int main(int argc, char *argv[])
         }
 
         hardwareActive = true;
+
+        params.unflatten(camera->getParameters());
+        initDefaults();
+
         cmd = load_script(argv[2]);
 
         if ( cmd != NULL) {
@@ -1557,6 +1944,10 @@ int main(int argc, char *argv[])
         print_usage();
     }
 
+    gettimeofday(&current_time, 0);
+    end = current_time.tv_sec * 1000000 + current_time.tv_usec;
+    delay = end - st;
+    printf("Application clossed after: %llu ms\n", delay);
+
     return 0;
 }
-
