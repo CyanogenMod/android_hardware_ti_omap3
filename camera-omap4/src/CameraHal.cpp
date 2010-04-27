@@ -1068,7 +1068,7 @@ status_t CameraHal::initialize()
     /// @todo Incorporate dynamic loading based on cfg file. For now using a constant definition for the adapter dll name
     mCameraAdapterHandle = ::dlopen((const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue, RTLD_NOW);
     if( mCameraAdapterHandle == NULL ) {
-       CAMHAL_LOGEA("Unable to open CameraAdapter Library for default camera");
+       CAMHAL_LOGEB("Unable to open CameraAdapter Library %s for default camera", (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue);
        LOG_FUNCTION_NAME_EXIT
        goto fail_loop;
     }
