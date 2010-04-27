@@ -77,6 +77,12 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
         ///MemAllocBlock is the structure that describes the buffer alloc request to MemMgr
         tMemBlock = (MemAllocBlock*)malloc(sizeof(MemAllocBlock));
 
+        if(!tMemBlock)
+            {
+            delete [] bufsArr;
+            return NULL;
+            }
+
         ZERO_OUT_STRUCT(tMemBlock, MemAllocBlock );
 
         ///1D buffers
@@ -105,6 +111,12 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
         ///2D buffers
         ///MemAllocBlock is the structure that describes the buffer alloc request to MemMgr
         tMemBlock = (MemAllocBlock*)malloc(sizeof(MemAllocBlock)*2);
+
+        if(!tMemBlock)
+            {
+            delete [] bufsArr;
+            return NULL;
+            }
 
         for(int i=0;i<2;i++)
             {
@@ -139,6 +151,16 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
                 pixelFormat[0] = PIXEL_FMT_16BIT;
                 stride[0] = STRIDE_16BIT;
                 numAllocs = 1;
+                }
+            else
+                {
+                ///By default assume YUV420 NV12 format
+                ///YUV420 NV12 format
+                pixelFormat[0] = PIXEL_FMT_8BIT;
+                pixelFormat[1] = PIXEL_FMT_16BIT;
+                stride[0] = STRIDE_8BIT;
+                stride[1] = STRIDE_16BIT;
+                numAllocs = 2;
                 }
 
             for(int index=0;index<numAllocs;index++)

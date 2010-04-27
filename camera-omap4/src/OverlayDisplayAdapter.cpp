@@ -55,27 +55,35 @@ OverlayDisplayAdapter::~OverlayDisplayAdapter()
 
     LOG_FUNCTION_NAME
 
-    //Unregister with the frame provider
-    mFrameProvider->disableFrameNotification(CameraFrame::ALL_FRAMES);
+    ///If Frame provider exists
+    if(mFrameProvider)
+        {
+        //Unregister with the frame provider
+        mFrameProvider->disableFrameNotification(CameraFrame::ALL_FRAMES);
+        }
 
-    ///Kill the display thread
-    sem.Create();
-    msg.command = DisplayThread::DISPLAY_EXIT;
+    ///If Display thread exists
+    if(mDisplayThread.get())
+        {
+        ///Kill the display thread
+        sem.Create();
+        msg.command = DisplayThread::DISPLAY_EXIT;
 
-    //Send the semaphore to signal once the command is completed
-    msg.arg1 = &sem;
+        //Send the semaphore to signal once the command is completed
+        msg.arg1 = &sem;
 
-    ///Post the message to display thread
-    mDisplayThread->msgQ().put(&msg);
+        ///Post the message to display thread
+        mDisplayThread->msgQ().put(&msg);
 
-    ///Wait for the ACK - implies that the thread is now started and waiting for frames
-    sem.Wait();
+        ///Wait for the ACK - implies that the thread is now started and waiting for frames
+        sem.Wait();
 
-    //Exit and cleanup the thread
-    mDisplayThread->requestExitAndWait();
+        //Exit and cleanup the thread
+        mDisplayThread->requestExitAndWait();
 
-    //Delete the display thread
-    mDisplayThread.clear();
+        //Delete the display thread
+        mDisplayThread.clear();
+        }
 
     ///The overlay object will get destroyed here
     destroy();

@@ -127,7 +127,8 @@ status_t CameraProperties::loadProperties()
                     {
                     ///Confirmed it is an XML file, now open it and parse it
                     CAMHAL_LOGDB("Found Camera Properties file %s", dp->d_name);
-                    char fullPath[100];
+                    ////Choosing 268 because "system/etc/"+ dir_name(0...255) can be max 268 chars
+                    char fullPath[268];
                     sprintf(fullPath, "/system/etc/%s",dp->d_name);
                     ret = parseAndLoadProps((const char*)fullPath);
                     if(ret!=NO_ERROR)
@@ -155,7 +156,7 @@ status_t CameraProperties::parseAndLoadProps(const char* file)
 
     xmlTextReaderPtr reader;
     const xmlChar *name=NULL, *value = NULL;
-    status_t ret;
+    status_t ret = NO_ERROR;
 
 #if _DEBUG_XML_FILE
         reader = xmlNewTextReaderFilename(file);
@@ -372,6 +373,11 @@ status_t CameraProperties::createPropertiesArray(CameraProperties::CameraPropert
 status_t CameraProperties::freeCameraProps(int cameraIndex)
 {
     LOG_FUNCTION_NAME
+
+    if(cameraIndex>=mCamerasSupported)
+        {
+        return BAD_VALUE;
+        }
 
     CAMHAL_LOGDB("Freeing properties for camera index %d", cameraIndex);
     ///Free the property array for the given camera
@@ -644,6 +650,10 @@ void CameraProperties::refreshProperties()
 status_t CameraProperties::CameraProperty::setValue(const char * value)
 {
     CAMHAL_LOGDB("setValue = %s", value);
+    if(!value)
+        {
+        return BAD_VALUE;
+        }
     strcpy(mPropValue, value);
     CAMHAL_LOGDB("mPropValue = %s", mPropValue);
     return NO_ERROR;

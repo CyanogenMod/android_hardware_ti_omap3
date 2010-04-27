@@ -933,6 +933,11 @@ status_t CameraHal::initialize()
     ///Get the default Camera, which is Camera 0
     mCameraPropertiesArr = (CameraProperties::CameraProperty**)mCameraProperties->getProperties(0);
 
+    if(!mCameraPropertiesArr)
+        {
+        goto fail_loop;
+        }
+
     ///Dump the properties of this Camera
     dumpProperties(mCameraPropertiesArr);
 
@@ -953,7 +958,20 @@ status_t CameraHal::initialize()
     }
 
     f = (CameraAdapterFactory) ::dlsym(mCameraAdapterHandle, "CameraAdapter_Factory");
+    if(!f)
+        {
+        CAMHAL_LOGEB("%s does not export required factory method CameraAdapter_Factory"
+            ,mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]
+            );
+        goto fail_loop;
+        }
+
     mCameraAdapter = f();
+    if(!mCameraAdapter.get())
+        {
+        CAMHAL_LOGEA("Unable to create or initialize CameraAdapter");
+        goto fail_loop;
+        }
 
     /// Create the callback notifier
     mAppCallbackNotifier = new AppCallbackNotifier();
