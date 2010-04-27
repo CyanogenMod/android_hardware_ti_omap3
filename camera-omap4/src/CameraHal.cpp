@@ -55,7 +55,14 @@ const uint32_t MessageNotifier::FRAME_BIT_FIELD_POSITION = 0;
 
 /******************************************************************************/
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
+struct timeval CameraHal::ppm_start;
+struct timeval CameraHal::mStartPreview;
+struct timeval CameraHal::mStartFocus;
+struct timeval CameraHal::mStartCapture;
+
+#endif
 
 /*-------------Camera Hal Interface Method definitions STARTS here--------------------*/
 
@@ -417,12 +424,22 @@ status_t CameraHal::startPreview()
 {
     int ret = NO_ERROR;
     int w, h;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+        gettimeofday(&mStartPreview, NULL);
+
+#endif
+
+
     LOG_FUNCTION_NAME
 
     if(previewEnabled())
         {
         CAMHAL_LOGEA("Preview already running");
+
         LOG_FUNCTION_NAME_EXIT
+
         return ALREADY_EXISTS;
         }
 
@@ -465,7 +482,18 @@ status_t CameraHal::startPreview()
 
     ///Send START_PREVIEW command to adapter
     CAMHAL_LOGDA("Starting CameraAdapter preview mode");
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //pass the startPreview timestamp along with the camera adapter command
+    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW, ( int ) &mStartPreview);
+
+#else
+
     ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW);
+
+#endif
+
     if(ret!=NO_ERROR)
         {
         CAMHAL_LOGEA("Couldn't start preview w/ CameraAdapter");
@@ -477,13 +505,17 @@ status_t CameraHal::startPreview()
     return ret;
 
     error:
+
         CAMHAL_LOGEA("Performing cleanup after error");
+
         //Do all the cleanup
         freePreviewBufs();
         mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
         mDisplayAdapter->disableDisplay();
         mAppCallbackNotifier->stop();
+
         LOG_FUNCTION_NAME_EXIT
+
         return ret;
 }
 
@@ -501,7 +533,9 @@ status_t CameraHal::startPreview()
 status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
 {
     status_t ret = NO_ERROR;
+
     LOG_FUNCTION_NAME
+
     ///If the Camera service passes a null overlay, we destroy existing overlay and free the DisplayAdapter
     if(!overlay.get())
         {
@@ -526,14 +560,19 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
             if(ret!=NO_ERROR)
                 {
                 mDisplayAdapter.clear();
+
                 CAMHAL_LOGEA("DisplayAdapter initialize failed")
+
                 LOG_FUNCTION_NAME_EXIT
+
                 return ret;
                 }
             else
                 {
                 CAMHAL_LOGEA("Couldn't create DisplayAdapter");
+
                 LOG_FUNCTION_NAME_EXIT
+
                 return NO_MEMORY;
                 }
             }
@@ -731,11 +770,29 @@ status_t CameraHal::autoFocus()
 {
     status_t ret = NO_ERROR;
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    gettimeofday(&mStartFocus, NULL);
+
+#endif
+
+
     LOG_FUNCTION_NAME
 
     if ( NULL != mCameraAdapter.get() )
         {
-            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_PERFORM_AUTOFOCUS);
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //pass the autoFocus timestamp along with the command to camera adapter
+    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_PERFORM_AUTOFOCUS, ( int ) &mStartFocus);
+
+#else
+
+    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_PERFORM_AUTOFOCUS);
+
+#endif
+
         }
     else
         {
@@ -779,12 +836,28 @@ status_t CameraHal::takePicture( )
 {
     status_t ret = NO_ERROR;
 
-    LOG_FUNCTION_NAME
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
+    gettimeofday(&mStartCapture, NULL);
+
+#endif
+
+    LOG_FUNCTION_NAME
 
     if ( NULL != mCameraAdapter.get() )
         {
-            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) mImageBufs);
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+        //pass capture timestamp along with the camera adapter command
+        ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) mImageBufs, (int) &mStartCapture);
+
+#else
+
+        ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) mImageBufs);
+
+#endif
+
         }
     else
         {
@@ -893,11 +966,21 @@ status_t  CameraHal::dump(int fd, const Vector<String16>& args) const
 CameraHal::CameraHal()
 {
     LOG_FUNCTION_NAME
+
     ///Initialize all the member variables to their defaults
     mPreviewBufsAllocatedUsingOverlay = false;
     mPreviewEnabled = false;
     mPreviewBufs = NULL;
     mImageBufs = NULL;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //Initialize the CameraHAL constructor timestamp, which is used in the
+    // PPM() method as time reference if the user does not supply one.
+    gettimeofday(&ppm_start, NULL);
+
+#endif
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -910,8 +993,10 @@ CameraHal::CameraHal()
 CameraHal::~CameraHal()
 {
     LOG_FUNCTION_NAME
+
     ///Call de-initialize here once more - it is the last chance for us to relinquish all the h/w and s/w resources
     deinitialize();
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -1112,6 +1197,91 @@ void CameraHal::initDefaultParameters()
     LOG_FUNCTION_NAME_EXIT
 }
 
+#if PPM_INSTRUMENTATION
+
+/**
+   @brief PPM instrumentation
+
+   Dumps the current time offset. The time reference point
+   lies within the CameraHAL constructor.
+
+   @param str - log message
+   @return none
+
+ */
+void CameraHal::PPM(const char* str){
+    struct timeval ppm;
+
+    gettimeofday(&ppm, NULL);
+    ppm.tv_sec = ppm.tv_sec - ppm_start.tv_sec;
+    ppm.tv_sec = ppm.tv_sec * 1000000;
+    ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_start.tv_usec;
+
+    LOGD("PPM: %s :%ld.%ld ms", str, ( ppm.tv_sec /1000 ), ( ppm.tv_sec % 1000 ));
+}
+
+#elif PPM_INSTRUMENTATION_ABS
+
+/**
+   @brief PPM instrumentation
+
+   Dumps the current time offset. The time reference point
+   lies within the CameraHAL constructor. This implemetation
+   will also dump the abosolute timestamp, which is useful when
+   post calculation is done with data coming from the upper
+   layers (Camera application etc.)
+
+   @param str - log message
+   @return none
+
+ */
+void CameraHal::PPM(const char* str){
+    struct timeval ppm;
+
+    unsigned long long elapsed, absolute;
+    gettimeofday(&ppm, NULL);
+    elapsed = ppm.tv_sec - ppm_start.tv_sec;
+    elapsed *= 1000000;
+    elapsed += ppm.tv_usec - ppm_start.tv_usec;
+    absolute = ppm.tv_sec;
+    absolute *= 1000;
+    absolute += ppm.tv_usec /1000;
+
+    LOGD("PPM: %s :%llu.%llu ms : %llu ms", str, ( elapsed /1000 ), ( elapsed % 1000 ), absolute);
+}
+
+#endif
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+/**
+   @brief PPM instrumentation
+
+   Calculates and dumps the elapsed time using 'ppm_first' as
+   reference.
+
+   @param str - log message
+   @return none
+
+ */
+void CameraHal::PPM(const char* str, struct timeval* ppm_first, ...){
+    char temp_str[256];
+    struct timeval ppm;
+    va_list args;
+
+    va_start(args, ppm_first);
+    vsprintf(temp_str, str, args);
+    gettimeofday(&ppm, NULL);
+    ppm.tv_sec = ppm.tv_sec - ppm_first->tv_sec;
+    ppm.tv_sec = ppm.tv_sec * 1000000;
+    ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_first->tv_usec;
+
+    LOGD("PPM: %s :%ld.%ld ms", temp_str, ( ppm.tv_sec /1000 ), ( ppm.tv_sec % 1000 ));
+
+    va_end(args);
+}
+
+#endif
 
 /**
    @brief Deallocates memory for all the resources held by Camera HAL.

@@ -105,6 +105,23 @@ class FramePreview : public Thread {
         CALLBACK_EXIT
     };
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //First initialization of the Camera Adapter
+    bool mFirstInit;
+    //Shot to Shot should be dumped
+    bool mShotToShot;
+    //Shot to Snapshot should be dumped
+    bool mShotToSnapshot;
+    //startPreview timestamp from CameraHAL
+    struct timeval *mStartPreview;
+    //autoFocus timestamp from CameraHAL
+    struct timeval *mStartFocus;
+    //takePicture timestamp from CameraHAL
+    struct timeval *mStartCapture;
+
+#endif
+
     sp<FramePreview> mFrameThread;
     sp<FrameCallback> mCallbackThread;
     int mPreviewBufferCount;

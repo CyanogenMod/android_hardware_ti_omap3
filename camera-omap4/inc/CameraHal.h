@@ -61,6 +61,9 @@
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
 
+//Enables Absolute PPM measurements in logcat
+#define PPM_INSTRUMENTATION_ABS 1
+
 #define DEBUG_LOG 1
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG
@@ -690,6 +693,17 @@ public:
         /** Creates singleton instance of CameraHal */
         static sp<CameraHardwareInterface> createInstance();
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+        //Uses the constructor timestamp as a reference to calcluate the
+        // elapsed time
+        static void PPM(const char *);
+        //Uses a user provided timestamp as a reference to calcluate the
+        // elapsed time
+        static void PPM(const char *, struct timeval*, ...);
+
+#endif
+
      //@}
 
 /*--------------------Internal Member functions - Private---------------------------------*/
@@ -753,6 +767,18 @@ public:
 
 ///static member vars
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //Timestamp from the CameraHal constructor
+    static struct timeval ppm_start;
+    //Timestamp of the autoFocus command
+    static struct timeval mStartFocus;
+    //Timestamp of the startPreview command
+    static struct timeval mStartPreview;
+    //Timestamp of the takePicture command
+    static struct timeval mStartCapture;
+
+#endif
 
 /*----------Member variables - Private ---------------------*/
 private:

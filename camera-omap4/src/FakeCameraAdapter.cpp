@@ -30,6 +30,19 @@ namespace android {
 
 FakeCameraAdapter::FakeCameraAdapter()
 {
+    LOG_FUNCTION_NAME
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //Initialize to true so the first call to sendNextFrame will
+   //dump the Standby to first shot
+    mFirstInit = true;
+    mShotToShot = false;
+    mShotToSnapshot = false;
+
+#endif
+
+    LOG_FUNCTION_NAME_EXIT
 }
 
 FakeCameraAdapter::~FakeCameraAdapter()
@@ -177,6 +190,13 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
             CAMHAL_LOGDA("Start Preview");
             msg.command = BaseCameraAdapter::START_PREVIEW;
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            msg.arg1 = (void *) value1;
+
+#endif
+
+
             mFrameQ.put(&msg);
             MessageQueue::waitForMsg(&mAdapterQ, NULL, NULL, -1);
             mAdapterQ.get(&msg);
@@ -209,6 +229,12 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
             CAMHAL_LOGDA("Start AutoFocus");
             msg.command = BaseCameraAdapter::DO_AUTOFOCUS;
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            msg.arg1 = (void *) value1;
+
+#endif
+
             mFrameQ.put(&msg);
             MessageQueue::waitForMsg(&mAdapterQ, NULL, NULL, -1);
             mAdapterQ.get(&msg);
@@ -225,6 +251,13 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
             CAMHAL_LOGDA("Start TakePicture");
             msg.command = BaseCameraAdapter::TAKE_PICTURE;
             msg.arg1 = (void *) value1;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            msg.arg2 = (void *) value2;
+
+#endif
+
 
             mFrameQ.put(&msg);
             MessageQueue::waitForMsg(&mAdapterQ, NULL, NULL, -1);
@@ -328,6 +361,33 @@ void FakeCameraAdapter::sendNextFrame(PreviewFrameType frame)
          //TODO: memset previewBuffer with preview color
         }
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //Check if this is the first call to sendNextFrame()
+    if ( mFirstInit )
+        {
+         CameraHal::PPM("Standby to first shot: ", mStartPreview);
+         mFirstInit = false;
+        }
+
+    //Check if a picture was captured and the shot to snapshot
+   //measurement should be dumped
+    if ( mShotToSnapshot )
+        {
+         CameraHal::PPM("Shot to snapshot: ", mStartCapture);
+         mShotToSnapshot = false;
+        }
+
+    //Check to see if a picture was captured and the preview
+   //was started again
+    if ( mShotToShot )
+        {
+         CameraHal::PPM("Shot to shot: ", mStartCapture);
+         mShotToShot = false;
+        }
+
+#endif
+
             {
             Mutex::Autolock lock(mSubscriberLock);
             //check for any subscribers
@@ -383,6 +443,14 @@ status_t FakeCameraAdapter::takePicture(void *imageBuf)
 
          }
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //Activates the shot to snapshot measurement
+     mShotToSnapshot = true;
+
+#endif
+
+
     //simulate Snapshot
     sendNextFrame(SNAPSHOT_FRAME);
 
@@ -405,6 +473,15 @@ status_t FakeCameraAdapter::takePicture(void *imageBuf)
                 mCallbackQ.put(&msg);
                 }
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            //Dumps the shot to jpeg and shot to save measurements
+            CameraHal::PPM("Shot to Jpeg: ", mStartCapture);
+            CameraHal::PPM("Shot to Save: ", mStartCapture);
+
+#endif
+
+
             if ( mImageSubscribers.size() == 0 )
                 CAMHAL_LOGDA("No Image Subscribers!");
 
@@ -422,6 +499,15 @@ status_t FakeCameraAdapter::takePicture(void *imageBuf)
 
         }
 
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+         //activates the shot to shot measurement
+        //the next call to sendNextFrame will dump
+        //this statistic
+         mShotToShot = true;
+
+#endif
+
     LOG_FUNCTION_NAME_EXIT
 
     return ret;
@@ -435,6 +521,14 @@ status_t FakeCameraAdapter::doAutofocus()
     status_t ret = NO_ERROR;
 
     LOG_FUNCTION_NAME
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+     //dump the AF latency
+     CameraHal::PPM("Focus finished in: ", mStartFocus);
+
+#endif
+
 
     //Just return success everytime
     focusData.focusLocked = true;
@@ -504,10 +598,24 @@ void FakeCameraAdapter::frameThread()
                             }
                         else if ( BaseCameraAdapter::DO_AUTOFOCUS == msg.command )
                             {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+                            mStartFocus = ( struct timeval * ) msg.arg1;
+
+#endif
+
                             ret = doAutofocus();
                             }
                         else if ( BaseCameraAdapter::TAKE_PICTURE == msg.command )
                             {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+                            mStartCapture = ( struct timeval * ) msg.arg2;
+
+#endif
+
                             ret = takePicture(msg.arg1);
                             }
                         else if ( BaseCameraAdapter::FRAME_EXIT == msg.command )
@@ -554,6 +662,13 @@ void FakeCameraAdapter::frameThread()
                     else if ( BaseCameraAdapter::START_PREVIEW == msg.command )
                         {
                         CAMHAL_LOGDA("State set to running!");
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+                        mStartPreview = ( struct timeval * ) msg.arg1;
+
+#endif
+
                         state = BaseCameraAdapter::RUNNING;
                         }
                     else if ( BaseCameraAdapter::RETURN_FRAME== msg.command )
