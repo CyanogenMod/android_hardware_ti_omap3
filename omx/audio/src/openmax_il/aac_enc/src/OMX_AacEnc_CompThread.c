@@ -231,10 +231,11 @@ void* AACENC_ComponentThread (void* pThreadData)
                     pComponentPrivate->bPreempted = 0;
                 }
 
-            pComponentPrivate->bLoadedCommandPending = OMX_FALSE;
+                pComponentPrivate->bLoadedCommandPending = OMX_FALSE;
+                goto EXIT;
             }
 
-        }  
+        }
     }
 
 EXIT:

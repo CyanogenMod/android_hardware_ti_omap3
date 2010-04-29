@@ -1458,7 +1458,8 @@ static OMX_ERRORTYPE GetState (OMX_HANDLETYPE hComponent, OMX_STATETYPE* pState)
            else if(ret == ETIMEDOUT) {
               /* Unlock mutex in case of timeout */
               pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
-              return OMX_ErrorTimeout;
+              *pState = OMX_StateInvalid;
+              return OMX_ErrorNone;
            }
         }
      }
