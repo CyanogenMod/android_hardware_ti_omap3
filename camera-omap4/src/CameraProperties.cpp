@@ -72,9 +72,9 @@ CameraProperties::~CameraProperties()
     LOG_FUNCTION_NAME
 
     ///Delete the properties from the end to avoid copies within freeCameraProperties()
-    for(int i=mCamerasSupported-1;i>=0;i--)
+    for ( int i = ( mCamerasSupported - 1 ) ; i >= 0 ; i--)
         {
-        CAMHAL_LOGDB("Freeing property array for Camera Index %d",i);
+        CAMHAL_LOGDB("Freeing property array for Camera Index %d", i);
         freeCameraProps(i);
         }
 
@@ -337,7 +337,6 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
                 ///Read the #text tag for closing tag
                 ret = xmlTextReaderRead(reader);
 
-
                 CAMHAL_LOGDB("Tag Name %s Tag Value %s", name, value);
                 if ( propertyIndex = getCameraPropertyIndex( (const char *) name))
                     {
@@ -362,7 +361,6 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
                 ret = NO_ERROR;
                 goto exit;
                 }
-
 
             ret = xmlTextReaderRead(reader);
             if(1 != ret)
@@ -679,6 +677,7 @@ int CameraProperties::camerasSupported()
 CameraProperties::CameraProperty** CameraProperties::getProperties(int cameraIndex)
 {
     LOG_FUNCTION_NAME
+
     CAMHAL_LOGDA("Refreshing properties files");
     ///Refresh the properties file - reload property files if changed from last time
     refreshProperties();
@@ -693,7 +692,8 @@ CameraProperties::CameraProperty** CameraProperties::getProperties(int cameraInd
 
     ///Return the Camera properties for the requested camera index
     LOG_FUNCTION_NAME_EXIT
-    return (CameraProperties::CameraProperty**)mCameraProps[cameraIndex];
+
+    return ( CameraProperties::CameraProperty **) mCameraProps[cameraIndex];
 }
 
 void CameraProperties::refreshProperties()
