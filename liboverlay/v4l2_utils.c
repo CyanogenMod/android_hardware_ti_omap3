@@ -106,6 +106,9 @@ void dump_pixfmt(struct v4l2_pix_format *pix)
         case V4L2_PIX_FMT_RGB565X:
             LOGI ("RGB565X\n");
             break;
+        case V4L2_PIX_FMT_NV12:
+            LOGI ("NV12\n");
+            break;
         default:
             LOGI("not supported\n");
     }
@@ -189,34 +192,35 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
 
     int fd;
 
-	switch (fmt) {
-		case OVERLAY_FORMAT_RGBA_8888:
-			pix->pixelformat = V4L2_PIX_FMT_RGB32;
-			break;
-		case OVERLAY_FORMAT_RGB_565:
-			pix->pixelformat = V4L2_PIX_FMT_RGB565;
-			break;
-		case OVERLAY_FORMAT_YCbYCr_422_I:
-			pix->pixelformat = V4L2_PIX_FMT_YUYV;
-			break;
-		case OVERLAY_FORMAT_CbYCrY_422_I:
-			pix->pixelformat = V4L2_PIX_FMT_UYVY;
-			break;
-		case OVERLAY_FORMAT_YCbCr_420_SP:
-			pix->pixelformat = V4L2_PIX_FMT_NV12;
-			break;
-		//NOTE: we have to add SW color conversion algo
-		//      inorder to support these below formats
-		case OVERLAY_FORMAT_YCbCr_422_SP:
-		case OVERLAY_FORMAT_YCbYCr_420_I:
-		case OVERLAY_FORMAT_CbYCrY_420_I:
-		case OVERLAY_FORMAT_BGRA_8888:
-		return -1;
+   switch (fmt) {
+    case OVERLAY_FORMAT_RGBA_8888:
+        pix->pixelformat = V4L2_PIX_FMT_RGB32;
+        break;
+    case OVERLAY_FORMAT_RGB_565:
+        pix->pixelformat = V4L2_PIX_FMT_RGB565;
+        break;
+    case OVERLAY_FORMAT_YCbYCr_422_I:
+        pix->pixelformat = V4L2_PIX_FMT_YUYV;
+        break;
+    case OVERLAY_FORMAT_CbYCrY_422_I:
+        pix->pixelformat = V4L2_PIX_FMT_UYVY;
+        break;
+    case OVERLAY_FORMAT_YCbCr_420_SP:
+        pix->pixelformat = V4L2_PIX_FMT_NV12;
+        pix->bytesperline = 4096;
+        break;
+    //NOTE: we have to add SW color conversion algo
+    //      inorder to support these below formats
+    case OVERLAY_FORMAT_YCbCr_422_SP:
+    case OVERLAY_FORMAT_YCbYCr_420_I:
+    case OVERLAY_FORMAT_CbYCrY_420_I:
+    case OVERLAY_FORMAT_BGRA_8888:
+    return -1;
 
         default:
             return -1;
     }
-    
+
     pix->width = w;
     pix->height = h;
     return 0;
@@ -307,7 +311,7 @@ int v4l2_overlay_set_position(int fd, int32_t x, int32_t y, int32_t w, int32_t h
     if (ret)
        return ret;
     LOGV("v4l2_overlay_set_position:: w=%d h=%d", format.fmt.win.w.width, format.fmt.win.w.height);
-   
+
     if (mRotateOverlay) {
         w = 480;
         h = 800;
@@ -320,7 +324,7 @@ int v4l2_overlay_set_position(int fd, int32_t x, int32_t y, int32_t w, int32_t h
     ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &format,
                              "set v4l2_overlay format");
     LOGV("v4l2_overlay_set_position:: w=%d h=%d", format.fmt.win.w.width, format.fmt.win.w.height);
-    
+
     if (ret)
        return ret;
     v4l2_overlay_dump_state(fd);
@@ -620,7 +624,7 @@ int v4l2_overlay_get_caps(int fd, struct v4l2_capability *caps)
 int v4l2_overlay_stream_on(int fd)
 {
     LOG_FUNCTION_NAME
-    
+
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     return v4l2_overlay_ioctl(fd, VIDIOC_STREAMON, &type, "stream on");
 }
@@ -679,4 +683,46 @@ int v4l2_overlay_dq_buf(int fd, int *index)
       return ret;
     *index = buf.index;
     return 0;
+}
+
+
+/*
+Copies 2D buffer to 1D buffer. All heights, widths etc. should be in bytes.
+The function copies the lower no. of bytes i.e. if nSize1D < (nHeight2D * nWidth2D)
+then nSize1D bytes is copied else (nHeight2D * nWidth2D) bytes is copied.
+This function does not return any leftover no. of bytes, the calling function
+needs to take care of leftover bytes on its own
+*/
+static int32_t framenumber = 0;
+int32_t Util_Memcpy_2Dto1D(void* pSrc2D, uint32_t nHeight2D, uint32_t nWidth2D, uint32_t nStride2D)
+{
+   FILE *pOutFile;
+   int32_t eError = 0;
+   uint8_t *pInBuffer;
+   uint32_t i;
+
+   char framenumberstr[100];
+   sprintf(framenumberstr, "/patterns/output/frame_%d.txt", framenumber);
+   LOGE("file path %s",framenumberstr);
+   pOutFile = fopen(framenumberstr, "wb");
+   if(pOutFile == NULL)
+   {
+    LOGE("\n!!!!!!!!!!!!!!!!Error in file open\n");
+    return eError;
+   }
+   LOGE("File Opened");
+   pInBuffer = (uint8_t *)pSrc2D;
+   LOGE("2Dto1D 0x%x WxH [%d]x[%d]",(int)pInBuffer,nWidth2D,nHeight2D);
+
+    for(i = 0; i < nHeight2D; i++)
+    {
+    //LOGE("WR%i 0x%x",i,pInBuffer);
+    fwrite(pInBuffer, 1, nWidth2D, pOutFile);
+    fflush(pOutFile);
+        pInBuffer = (uint8_t *)((uint32_t)pInBuffer + nStride2D);
+    }
+   fclose(pOutFile);
+   framenumber++;
+   LOGE("Frame dump done");
+   return eError;
 }

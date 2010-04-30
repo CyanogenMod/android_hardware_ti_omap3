@@ -50,6 +50,7 @@ int v4l2_overlay_set_colorkey(int fd, int enable, int colorkey);
 int v4l2_overlay_set_global_alpha(int fd, int enable, int alpha);
 int v4l2_overlay_set_local_alpha(int fd, int enable);
 
+int32_t Util_Memcpy_2Dto1D(void* pSrc2D, uint32_t nHeight2D, uint32_t nWidth2D, uint32_t nStride2D);
 enum {
   V4L2_OVERLAY_PLANE_GRAPHICS,
   V4L2_OVERLAY_PLANE_VIDEO1,

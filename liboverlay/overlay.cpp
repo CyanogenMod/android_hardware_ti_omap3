@@ -47,10 +47,15 @@ extern "C" {
 
 #define SHARED_DATA_MARKER             (0x68759746) // OVRLYSHM on phone keypad
 
+#ifdef TARGET_OMAP4
+/* These values should come from Surface Flinger */
+#define LCD_WIDTH 864
+#define LCD_HEIGHT 480
+#else
 /* These values should come from Surface Flinger */
 #define LCD_WIDTH 800
 #define LCD_HEIGHT 480
-
+#endif
 
 typedef struct
 {
@@ -70,7 +75,7 @@ typedef struct
   uint32_t cropH;
 } overlay_data_t;
 
-typedef struct 
+typedef struct
 {
   uint32_t marker;
   uint32_t size;
@@ -109,14 +114,14 @@ struct overlay_data_context_t {
     int shared_size;
     int width;
     int height;
-    int format;	
+    int format;
     int num_buffers;
     size_t *buffers_len;
     void **buffers;
 
     overlay_data_t    data;
     overlay_shared_t *shared;
-    mapping_data_t    *mapping_data;    
+    mapping_data_t    *mapping_data;
     int cacheable_buffers;
     int maintain_coherency;
     int attributes_changed;
@@ -226,7 +231,7 @@ public:
         this->h = h;
         this->format = format;
         this->mShared = NULL;
-        
+
         memset( &mCtl, 0, sizeof( mCtl ) );
         memset( &mCtlStage, 0, sizeof( mCtlStage ) );
     }
@@ -421,12 +426,11 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     uint32_t num = NUM_OVERLAY_BUFFERS_REQUESTED;
     int fd;
     int shared_fd;
-
     if (format == OVERLAY_FORMAT_DEFAULT)
     {
         format = OVERLAY_FORMAT_CbYCrY_422_I;
     }
-    
+
     if (ctx->overlay_video1) {
         LOGE("Error - overlays already in use\n");
         return NULL;
@@ -674,7 +678,7 @@ static int overlay_commit(struct overlay_control_device_t *dev,
         LOGI("Nothing to do!\n");
         goto end;
     }
-    
+
     data->posX       = stage->posX;
     data->posY       = stage->posY;
     data->posW       = stage->posW;
@@ -723,7 +727,7 @@ static int overlay_commit(struct overlay_control_device_t *dev,
         LOGE("Get crop value Failed!/%d\n", ret);
         goto end;
     }
-    
+
     if (ret = disable_streaming_locked(shared, fd))
     {
         LOGE("Stream Off Failed!/%d\n", ret);
@@ -736,28 +740,28 @@ static int overlay_commit(struct overlay_control_device_t *dev,
         goto end;
     }
 
-    if (ret = v4l2_overlay_set_crop(fd, 
-                    eCropData.cropX, 
-                    eCropData.cropY, 
-                    eCropData.cropW, 
+    if (ret = v4l2_overlay_set_crop(fd,
+                    eCropData.cropX,
+                    eCropData.cropY,
+                    eCropData.cropW,
                     eCropData.cropH))
     {
         LOGE("Set Cropping Failed!/%d\n",ret);
         goto end;
     }
-    
+
     if (ret = v4l2_overlay_set_position(fd, x, y, w, h))
     {
         LOGE("Set Position Failed!/%d\n", ret);
         goto end;
     }
-    
+
     if (ret = v4l2_overlay_set_colorkey(fd, 1, 0))
     {
         LOGE("Failed enabling color key\n");
         goto end;
     }
-    
+
 end:
     pthread_mutex_unlock(&shared->lock);
 
@@ -767,7 +771,7 @@ end:
 static int overlay_control_close(struct hw_device_t *dev)
 {
     LOG_FUNCTION_NAME
-    
+
     struct overlay_control_context_t* ctx = (struct overlay_control_context_t*)dev;
     overlay_object *overlay_v1;
 
@@ -805,7 +809,7 @@ int overlay_initialize(struct overlay_data_device_t *dev,
     ctx->shared_size  = handle_shared_size(handle);
     ctx->shared       = NULL;
     ctx->cacheable_buffers = 0;
-    ctx->maintain_coherency = 1;    
+    ctx->maintain_coherency = 1;
     ctx->attributes_changed = 0;
 
     if (fstat(ctx->ctl_fd, &stat)) {
@@ -844,14 +848,14 @@ int overlay_initialize(struct overlay_data_device_t *dev,
 static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, uint32_t h)
 {
     LOGD("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-    LOG_FUNCTION_NAME   
-		
+    LOG_FUNCTION_NAME
+
     int ret = 0;
     int rc;
     uint32_t numb = NUM_OVERLAY_BUFFERS_REQUESTED;
     overlay_data_t eCropData;
     int degree = 0;
-    
+
     // Position and output width and heigh
     int32_t _x = 0;
     int32_t _y = 0;
@@ -886,7 +890,7 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
         LOGE("Get crop value Failed!/%d\n", rc);
         goto end;
     }
-    
+
     if (ret = v4l2_overlay_get_position(ctx->ctl_fd, &_x,  &_y, &_w, &_h))
     {
         LOGD(" Could not set the position when creating overlay \n");
@@ -900,7 +904,7 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
     }
 
     for (int i = 0; i < ctx->num_buffers; i++) {
-        v4l2_overlay_unmap_buf(ctx->buffers[i], ctx->buffers_len[i]);      
+        v4l2_overlay_unmap_buf(ctx->buffers[i], ctx->buffers_len[i]);
     }
 
     if (ret = v4l2_overlay_init(ctx->ctl_fd, w, h, ctx->format))
@@ -908,37 +912,37 @@ static int overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, ui
         LOGE("Error initializing overlay");
         goto end;
     }
-    
+
     if (ret = v4l2_overlay_set_rotation(ctx->ctl_fd, degree, 0))
     {
         LOGE("Failed rotation\n");
         goto end;
     }
-    
+
     if (ret = v4l2_overlay_set_crop(ctx->ctl_fd, eCropData.cropX, eCropData.cropY, eCropData.cropW, eCropData.cropH))
     {
         LOGE("Failed crop window\n");
         goto end;
     }
-    
+
     if (ret = v4l2_overlay_set_colorkey(ctx->ctl_fd,1, 0))
     {
         LOGE("Failed enabling color key\n");
         goto end;
     }
-    
+
     if (ret = v4l2_overlay_set_position(ctx->ctl_fd, _x,  _y, _w, _h))
     {
         LOGD(" Could not set the position when creating overlay \n");
         goto end;
     }
-    
+
     if (ret = v4l2_overlay_req_buf(ctx->ctl_fd, (uint32_t *)(&ctx->num_buffers), ctx->cacheable_buffers, ctx->maintain_coherency))
     {
         LOGE("Error creating buffers");
         goto end;
     }
-    
+
     for (int i = 0; i < ctx->num_buffers; i++)
         v4l2_overlay_map_buf(ctx->ctl_fd, i, &ctx->buffers[i], &ctx->buffers_len[i]);
 
@@ -957,7 +961,7 @@ end:
 static int overlay_data_setParameter(struct overlay_data_device_t *dev,
                                      int param, int value)
 {
-    LOG_FUNCTION_NAME   
+    LOG_FUNCTION_NAME
 
     int ret = 0;
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
@@ -967,7 +971,7 @@ static int overlay_data_setParameter(struct overlay_data_device_t *dev,
         LOGI("Shared Data Not Init'd!\n");
         return -1;
     }
-    
+
     if ( ctx->shared->dataReady )
     {
         LOGI("Too late. Cant set it now!\n");
@@ -984,9 +988,9 @@ static int overlay_data_setParameter(struct overlay_data_device_t *dev,
         ctx->maintain_coherency = value;
         ctx->attributes_changed = 1;
         break;
-        
+
     }
-	
+
     return ( ret );
 }
 
@@ -1046,7 +1050,7 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
     /* blocks until a buffer is available and return an opaque structure
      * representing this buffer.
      */
-     
+
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
     int rc;
@@ -1061,8 +1065,8 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
 
     else if ( (rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0 )
     {
-        LOGE("Failed to DQ/%d\n", rc);    
-    }	
+        LOGE("Failed to DQ/%d\n", rc);
+    }
 
     else if ( i < 0 || i > ctx->num_buffers )
     {
@@ -1083,8 +1087,9 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
 
     return ( rc );
 }
-
-
+#ifdef __FILE_DUMP__
+static int noofbuffer = 0;
+#endif
 int overlay_queueBuffer(struct overlay_data_device_t *dev,
                         overlay_buffer_t buffer) {
 
@@ -1093,8 +1098,19 @@ int overlay_queueBuffer(struct overlay_data_device_t *dev,
     if ( !ctx->shared->controlReady ) return -1;
 
     LOGV("INDEX QUEUE = %d", (int)buffer);
-    
-    int rc = v4l2_overlay_q_buf( ctx->ctl_fd, (int)buffer );   
+
+#ifdef __FILE_DUMP__
+   if(noofbuffer > 10)
+   {
+    for(int i=0 ; i < 10 ; i++)
+    {
+    Util_Memcpy_2Dto1D(ctx->buffers[i], ctx->height, ctx->width, 4096);
+    }
+    noofbuffer = 0;
+   }
+   noofbuffer++;
+#endif
+    int rc = v4l2_overlay_q_buf( ctx->ctl_fd, (int)buffer );
     if ( rc == 0 && ctx->shared->qd_buf_count < ctx->num_buffers )
     {
         ctx->shared->qd_buf_count ++;
@@ -1173,7 +1189,7 @@ static int overlay_data_close(struct hw_device_t *dev) {
         {
             LOGE("Stream Off Failed!/%d\n", rc);
         }
-        
+
         for (i = 0; i < ctx->num_buffers; i++) {
             LOGV("Unmap Buffer/%d/%08lx/%d", i, (unsigned long)ctx->buffers[i], ctx->buffers_len[i] );
             rc = v4l2_overlay_unmap_buf(ctx->buffers[i], ctx->buffers_len[i]);
@@ -1202,7 +1218,7 @@ static int overlay_data_close(struct hw_device_t *dev) {
 static int overlay_device_open(const struct hw_module_t* module,
                                const char* name, struct hw_device_t** device)
 {
-    LOG_FUNCTION_NAME   
+    LOG_FUNCTION_NAME
     int status = -EINVAL;
 
     if (!strcmp(name, OVERLAY_HARDWARE_CONTROL)) {
