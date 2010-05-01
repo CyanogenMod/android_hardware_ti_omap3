@@ -48,7 +48,7 @@ wp<CameraHardwareInterface> CameraHal::singleton;
 const int CameraHal::NO_BUFFERS_PREVIEW = 6;
 const int CameraHal::NO_BUFFERS_IMAGE_CAPTURE = 1;
 
-const uint32_t MessageNotifier::EVENT_BIT_FIELD_POSITION = 16;
+const uint32_t MessageNotifier::EVENT_BIT_FIELD_POSITION = 0;
 const uint32_t MessageNotifier::FRAME_BIT_FIELD_POSITION = 0;
 
 
@@ -106,11 +106,16 @@ void CameraHal::setCallbacks(notify_callback notify_cb,
                                       void* user)
 {
     LOG_FUNCTION_NAME
-    Mutex::Autolock lock(mLock);
-    mNotifyCb = notify_cb;
-    mDataCb = data_cb;
-    mDataCbTimestamp = data_cb_timestamp;
-    mCallbackCookie = user;
+
+    if ( NULL != mAppCallbackNotifier.get() )
+        {
+            mAppCallbackNotifier->setCallbacks(this,
+                                                                        notify_cb,
+                                                                        data_cb,
+                                                                        data_cb_timestamp,
+                                                                        user);
+        }
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -348,7 +353,7 @@ status_t CameraHal::allocImageBufs(int width, int height, const char* previewFor
     if(!mImageBufs)
         {
         ///@todo calculate the worst case memory required for JPEG
-        int bytes = width*height*2;
+        int bytes = width*height;
         CAMHAL_LOGDB("Size of Image cap buffer = %d", bytes);
         mImageBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, previewFormat, bytes,CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
         if(!mImageBufs)
@@ -712,21 +717,34 @@ void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 /**
    @brief Start auto focus
 
+   This call asynchronous.
    The notification callback routine is called with CAMERA_MSG_FOCUS once when
    focusing is complete. autoFocus() will be called again if another auto focus is
    needed.
 
    @param none
-   @return NO_ERORR If the focus is locked
+   @return NO_ERROR
    @todo Define the error codes if the focus is not locked
 
  */
 status_t CameraHal::autoFocus()
 {
-    LOG_FUNCTION_NAME
-    ///@todo Implement this when auto focus will be supported
-    return NO_ERROR;
+    status_t ret = NO_ERROR;
 
+    LOG_FUNCTION_NAME
+
+    if ( NULL != mCameraAdapter.get() )
+        {
+            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_PERFORM_AUTOFOCUS);
+        }
+    else
+        {
+            ret = -1;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 /**
@@ -759,9 +777,22 @@ status_t CameraHal::cancelAutoFocus()
  */
 status_t CameraHal::takePicture( )
 {
+    status_t ret = NO_ERROR;
+
     LOG_FUNCTION_NAME
-    ///@todo Implement this when image capture will be supported
-    return NO_ERROR;
+
+
+    if ( NULL != mCameraAdapter.get() )
+        {
+            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) mImageBufs);
+        }
+    else
+        {
+            ret = -1;
+        }
+
+
+    return ret;
 }
 
 /**

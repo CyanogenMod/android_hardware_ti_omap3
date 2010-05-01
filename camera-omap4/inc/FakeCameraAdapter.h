@@ -30,6 +30,12 @@ namespace android {
 class FakeCameraAdapter : public BaseCameraAdapter
 {
 
+    enum PreviewFrameType
+        {
+            SNAPSHOT_FRAME = 0,
+            NORMAL_FRAME
+        };
+
 public:
 
     FakeCameraAdapter();
@@ -58,10 +64,11 @@ public:
     virtual void getFrameSize(int &width, int &height);
 
 protected:
-
+    status_t takePicture(void *imageBuf);
+    status_t doAutofocus();
     virtual void frameThread();
     virtual void frameCallbackThread();
-    virtual void sendNextFrame();
+    virtual void sendNextFrame(PreviewFrameType frame);
 
 //Internal class definitions
 

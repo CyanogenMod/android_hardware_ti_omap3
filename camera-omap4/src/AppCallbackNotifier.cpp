@@ -28,7 +28,7 @@
 
 namespace android {
 
-const int AppCallbackNotifier::NOTIFIER_TIMEOUT = 1000;
+const int AppCallbackNotifier::NOTIFIER_TIMEOUT = -1;
 
 
 /*--------------------NotificationHandler Class STARTS here-----------------------------*/
@@ -62,6 +62,25 @@ status_t AppCallbackNotifier::initialize()
     LOG_FUNCTION_NAME_EXIT
 
     return ret;
+}
+
+void AppCallbackNotifier::setCallbacks(CameraHardwareInterface * cameraHal,
+                                                              notify_callback notifyCb,
+                                                              data_callback dataCb,
+                                                              data_callback_timestamp dataCbTimestamp,
+                                                              void * user)
+{
+    Mutex::Autolock lock(mLock);
+
+    LOG_FUNCTION_NAME
+
+    mCameraHal = cameraHal;
+    mNotifyCb = notifyCb;
+    mDataCb = dataCb;
+    mDataCbTimestamp = dataCbTimestamp;
+    mCallbackCookie = user;
+
+    LOG_FUNCTION_NAME_EXIT
 }
 
 //All sub-components of Camera HAL call this whenever any error happens
@@ -143,52 +162,68 @@ void AppCallbackNotifier::notifyEvent()
     mEventQ.get(&msg);
     bool ret = true;
     CameraHalEvent* evt;
+    CameraHalEvent::FocusEventData *focusEvtData;
+    CameraHalEvent::ZoomEventData *zoomEvtData;
 
     switch(msg.command)
         {
         case AppCallbackNotifier::NOTIFIER_CMD_PROCESS_EVENT:
+
+            evt = (CameraHalEvent*)msg.arg1;
+
+            switch(evt->mEventType)
                 {
-                    evt = (CameraHalEvent*)msg.arg1;
-                    switch(evt->mEventType)
+                case CameraHalEvent::EVENT_SHUTTER:
+
+                    if ( ( NULL != mCameraHal.get() ) &&
+                          ( NULL != mNotifyCb ) &&
+                          ( mCameraHal->msgTypeEnabled(CAMERA_MSG_SHUTTER) ) )
                         {
-                        case CameraHalEvent::EVENT_FOCUS_LOCKED:
-                            case CameraHalEvent::EVENT_FOCUS_ERROR:
-                                {
-                                    CameraHalEvent::FocusEventData &focusEvtData = *((CameraHalEvent::FocusEventData*)evt->mEventData);
-                                    if(focusEvtData.focusLocked)
-                                        {
-                                        ///@todo Send callback to application for focus locked, if corresponding notification flag
-                                        ///       Take care of mutex protection
-                                        ///is enabled
-                                        }
-                                    if(focusEvtData.focusError)
-                                        {
-                                        ///@todo Send callback to application for focus error
-                                        }
-                                        break;
-                            }
-                            case CameraHalEvent::EVENT_ZOOM_LEVEL_REACHED:
-                                    {
-                                        CameraHalEvent::ZoomEventData &zoomEvtData = *((CameraHalEvent::ZoomEventData*)evt->mEventData);
-                                        ///@todo Send callback to application for zoom level
-                                        ///zoomEvtData.currentZoomValue;
-                                        ///zoomEvtData.targetZoomLevelReached;
-
-                                }
-                            case CameraHalEvent::ALL_EVENTS:
-                                {
-                                break;
-                                }
-
-
+                            mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
                         }
+
                     break;
-        case AppCallbackNotifier::NOTIFIER_CMD_PROCESS_ERROR:
-                {
-                    ///@todo send error notification to the app, if error notification flag is enabled
+
+                case CameraHalEvent::EVENT_FOCUS_LOCKED:
+                case CameraHalEvent::EVENT_FOCUS_ERROR:
+
+                    focusEvtData = (CameraHalEvent::FocusEventData *) evt->mEventData;
+                    if ( ( focusEvtData->focusLocked ) &&
+                          ( NULL != mCameraHal.get() ) &&
+                          ( NULL != mNotifyCb ) &&
+                          ( mCameraHal->msgTypeEnabled(CAMERA_MSG_FOCUS) ) )
+                        {
+                         mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+                        }
+                    else if ( focusEvtData->focusError &&
+                                ( NULL != mCameraHal.get() ) &&
+                                ( NULL != mNotifyCb ) &&
+                                ( mCameraHal->msgTypeEnabled(CAMERA_MSG_FOCUS) ) )
+                        {
+                         mNotifyCb(CAMERA_MSG_FOCUS, false, 0, mCallbackCookie);
+                        }
+
+                    break;
+
+                case CameraHalEvent::EVENT_ZOOM_LEVEL_REACHED:
+
+                    zoomEvtData = (CameraHalEvent::ZoomEventData *) evt->mEventData;
+                    ///@todo Send callback to application for zoom level
+                    ///zoomEvtData.currentZoomValue;
+                    ///zoomEvtData.targetZoomLevelReached;
+
+                    break;
+
+                case CameraHalEvent::ALL_EVENTS:
+                    break;
+                default:
                     break;
                 }
-            }
+
+            break;
+        case AppCallbackNotifier::NOTIFIER_CMD_PROCESS_ERROR:
+            ///@todo send error notification to the app, if error notification flag is enabled
+            break;
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -199,17 +234,49 @@ void AppCallbackNotifier::notifyFrame()
 {
     ///Receive and send the frame notifications to app
     Message msg;
+    CameraFrame *frame;
 
     LOG_FUNCTION_NAME
 
-    mEventQ.get(&msg);
+    mFrameQ.get(&msg);
     bool ret = true;
 
     switch(msg.command)
         {
         case AppCallbackNotifier::NOTIFIER_CMD_PROCESS_FRAME:
-                ///@todo Send the callback to application for preview, video cap etc
+
+                frame = (CameraFrame *) msg.arg1;
+                if ( (CameraFrame::RAW_FRAME == frame->mFrameType )&&
+                    ( NULL != mCameraHal.get() ) &&
+                    ( NULL != mDataCb) &&
+                    ( mCameraHal->msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ) )
+                    {
+                    //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
+                    //Send NULL for now
+                    mDataCb(CAMERA_MSG_RAW_IMAGE, NULL,mCallbackCookie);
+                    }
+                else if ( ( CameraFrame::IMAGE_FRAME == frame->mFrameType ) &&
+                             ( NULL != mCameraHal.get() ) &&
+                             ( NULL != mDataCb) &&
+                             ( mCameraHal->msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE)  ) )
+                    {
+                     //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
+                     //Send NULL for now
+                     sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase( 256);
+                     sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, 256);
+
+                    mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                    }
+                else
+                    {
+                    CAMHAL_LOGEB("Frame type 0x%x is still unsupported!", frame->mFrameType);
+                    }
+
                 break;
+
+        default:
+
+            break;
 
         };
 
@@ -384,6 +451,8 @@ void AppCallbackNotifier::setEventProvider(int32_t eventMask, MessageNotifier * 
         CAMHAL_LOGEA("Error in creating EventProvider");
         }
 
+    mEventProvider->enableEventNotification(eventMask);
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -397,6 +466,11 @@ void AppCallbackNotifier::setFrameProvider(FrameNotifier *frameNotifier)
         {
         CAMHAL_LOGEA("Error in creating FrameProvider");
         }
+
+    //Register only for captured images and RAW for now
+    //TODO: Register for and handle all types of frames
+    mFrameProvider->enableFrameNotification(CameraFrame::IMAGE_FRAME);
+    mFrameProvider->enableFrameNotification(CameraFrame::RAW_FRAME);
 
     LOG_FUNCTION_NAME_EXIT
 }
