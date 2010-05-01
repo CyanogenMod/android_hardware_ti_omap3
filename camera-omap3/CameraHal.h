@@ -125,6 +125,8 @@ extern "C" {
 #define ROTATION_PHYSICAL       0
 #define ROTATION_EXIF           1
 
+#define __ALIGN(x,a) ( (x) & (~((a) - 1)))
+
 #define NONNEG_ASSIGN(x,y) \
     if(x > -1) \
         y = x

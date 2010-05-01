@@ -1702,7 +1702,7 @@ int  CameraHal::ICapturePerform()
 
     procMessage[0] = PROC_THREAD_PROCESS;
     procMessage[1] = iobj->proc.out_img_w;
-    procMessage[2] = iobj->proc.out_img_h;
+    procMessage[2] = __ALIGN(iobj->proc.out_img_h, 16);
     procMessage[3] = image_width;
     procMessage[4] = image_height;
     procMessage[5] = pixelFormat;
@@ -3695,7 +3695,7 @@ int CameraHal::onSnapshot(void *priv, void *buf, int width, int height, capture_
     snapshotMessage[0] = SNAPSHOT_THREAD_START;
     snapshotMessage[1] = (unsigned int) buf;
     snapshotMessage[2] = width;
-    snapshotMessage[3] = height;
+    snapshotMessage[3] = __ALIGN(height, 16);
     snapshotMessage[4] = camHal->mZoomTargetIdx;
     snapshotMessage[5] = snapshot_rect.top;
     snapshotMessage[6] = snapshot_rect.left;
