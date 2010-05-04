@@ -19,41 +19,19 @@
  */
 
 
-#include <Errors.h>
-#include <semaphore.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#ifndef DEBUG_UTILS_H
+#define DEBUG_UTILS_H
 
-namespace android {
+///Defines for debug statements - Macro LOG_TAG needs to be defined in the respective files
+#define DBGUTILS_LOGDA(str)         LOGD("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
+#define DBGUTILS_LOGDB(str, ...)    LOGD("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
+#define DBGUTILS_LOGEA(str)         LOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__);
+#define DBGUTILS_LOGEB(str, ...)    LOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__, __VA_ARGS__);
+#define LOG_FUNCTION_NAME           LOGE("%d: %s() ENTER", __LINE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME_EXIT      LOGE("%d: %s() EXIT", __LINE__, __FUNCTION__);
 
-class Semaphore
-{
-public:
 
-    Semaphore();
-    ~Semaphore();
 
-    ///Create the semaphore with initial count value
-    status_t Create(int count=0);
 
-    ///Wait operation
-    status_t Wait();
+#endif //DEBUG_UTILS_H
 
-    ///Signal operation
-    status_t Signal();
-
-    ///Current semaphore count
-    int Count();
-
-    ///Wait operation with a timeout
-    status_t WaitTimeout(int timeoutMicroSecs);
-
-private:
-    sem_t *mSemaphore;
-
-};
-
-};

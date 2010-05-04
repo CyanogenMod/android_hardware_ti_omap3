@@ -35,8 +35,16 @@
 
 namespace android {
 
+/**
+   @brief Constructor for the message queue class
+
+   @param none
+   @return none
+ */
 MessageQueue::MessageQueue()
 {
+    LOG_FUNCTION_NAME
+
     int fds[2] = {-1,-1};
 
     pipe(fds);
@@ -44,174 +52,334 @@ MessageQueue::MessageQueue()
     this->fd_read = fds[0];
     this->fd_write = fds[1];
 
-	mHasMsg = false;
+    mHasMsg = false;
+
+    LOG_FUNCTION_NAME_EXIT
 }
 
+/**
+   @brief Destructor for the semaphore class
+
+   @param none
+   @return none
+ */
 MessageQueue::~MessageQueue()
 {
-    close(this->fd_read);
-    close(this->fd_write);
+    LOG_FUNCTION_NAME
+
+    if(this->fd_read)
+        {
+        close(this->fd_read);
+        }
+
+    if(this->fd_write)
+        {
+        close(this->fd_write);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
 }
 
-int MessageQueue::get(Message* msg)
+/**
+   @brief Get a message from the queue
+
+   @param msg Message structure to hold the message to be retrieved
+   @return NO_ERROR On success
+   @return BAD_VALUE if the message pointer is NULL
+   @return NO_INIT If the file read descriptor is not set
+   @return UNKNOWN_ERROR if the read operation fromthe file read descriptor fails
+ */
+status_t MessageQueue::get(Message* msg)
 {
+    LOG_FUNCTION_NAME
+
+    if(!msg)
+        {
+        MSGQ_LOGEA("msg is NULL");
+        LOG_FUNCTION_NAME_EXIT
+        return BAD_VALUE;
+        }
+
+    if(!this->fd_read)
+        {
+        MSGQ_LOGEA("read descriptor not initialized for message queue");
+        LOG_FUNCTION_NAME_EXIT
+        return NO_INIT;
+        }
+
     char* p = (char*) msg;
     size_t read_bytes = 0;
 
     while( read_bytes  < sizeof(*msg) )
-    {
+        {
         int err = read(this->fd_read, p, sizeof(*msg) - read_bytes);
-        
-        if( err < 0 ) {
-            LOGE("read() error: %s", strerror(errno));
-            return -1;
-        }
+
+        if( err < 0 )
+            {
+            MSGQ_LOGEB("read() error: %s", strerror(errno));
+            return UNKNOWN_ERROR;
+            }
         else
+            {
             read_bytes += err;
-    }
+            }
+        }
 
-#ifdef DEBUG_LOG
+    MSGQ_LOGDB("MQ.get(%d,%p,%p,%p,%p)", msg->command, msg->arg1,msg->arg2,msg->arg3,msg->arg4);
 
-    LOGD("MQ.get(%d,%p,%p,%p,%p)", msg->command, msg->arg1,msg->arg2,msg->arg3,msg->arg4);    
+    mHasMsg = false;
 
-#endif
-
-	mHasMsg = false;
+    LOG_FUNCTION_NAME_EXIT
 
     return 0;
 }
+
+/**
+   @brief Get the input file descriptor of the message queue
+
+   @param none
+   @return file read descriptor
+ */
 
 int MessageQueue::getInFd()
 {
     return this->fd_read;
 }
 
+/**
+   @brief Constructor for the message queue class
+
+   @param fd file read descriptor
+   @return none
+ */
+
 void MessageQueue::setInFd(int fd)
 {
-	this->fd_read = fd;
+    LOG_FUNCTION_NAME
+
+    this->fd_read = fd;
+
+    LOG_FUNCTION_NAME_EXIT
 }
 
-int MessageQueue::put(Message* msg)
+/**
+   @brief Queue a message
+
+   @param msg Message structure to hold the message to be retrieved
+   @return NO_ERROR On success
+   @return BAD_VALUE if the message pointer is NULL
+   @return NO_INIT If the file write descriptor is not set
+   @return UNKNOWN_ERROR if the write operation fromthe file write descriptor fails
+ */
+
+status_t MessageQueue::put(Message* msg)
 {
+    LOG_FUNCTION_NAME
+
     char* p = (char*) msg;
     size_t bytes = 0;
 
-#ifdef DEBUG_LOG
+    if(!msg)
+        {
+        MSGQ_LOGEA("msg is NULL");
+        LOG_FUNCTION_NAME_EXIT
+        return BAD_VALUE;
+        }
 
-    LOGD("MQ.put(%d,%p,%p,%p,%p)", msg->command, msg->arg1,msg->arg2,msg->arg3,msg->arg4);
+    if(!this->fd_write)
+        {
+        MSGQ_LOGEA("write descriptor not initialized for message queue");
+        LOG_FUNCTION_NAME_EXIT
+        return NO_INIT;
+        }
 
-#endif
+
+    MSGQ_LOGDB("MQ.put(%d,%p,%p,%p,%p)", msg->command, msg->arg1,msg->arg2,msg->arg3,msg->arg4);
 
     while( bytes  < sizeof(msg) )
-    {
+        {
         int err = write(this->fd_write, p, sizeof(*msg) - bytes);
-    	 
-        if( err < 0 ) {
-            LOGE("write() error: %s", strerror(errno));
-            return -1;
-        }
+
+        if( err < 0 )
+            {
+            MSGQ_LOGEB("write() error: %s", strerror(errno));
+            LOG_FUNCTION_NAME_EXIT
+            return UNKNOWN_ERROR;
+            }
         else
+            {
             bytes += err;
-    }
+            }
+        }
 
-#ifdef DEBUG_LOG
+    MSGQ_LOGDA("MessageQueue::put EXIT");
 
-    LOGD("MessageQueue::put EXIT");
-
-#endif
-
-    return 0;    
+    LOG_FUNCTION_NAME_EXIT
+    return 0;
 }
 
 
+/**
+   @brief Returns if the message queue is empty or not
+
+   @param none
+   @return true If the queue is empty
+   @return false If the queue has at least one message
+ */
 bool MessageQueue::isEmpty()
 {
+    LOG_FUNCTION_NAME
+
     struct pollfd pfd;
 
     pfd.fd = this->fd_read;
     pfd.events = POLLIN;
     pfd.revents = 0;
 
+    if(!this->fd_read)
+        {
+        MSGQ_LOGEA("read descriptor not initialized for message queue");
+        LOG_FUNCTION_NAME_EXIT
+        return NO_INIT;
+        }
+
+
     if( -1 == poll(&pfd,1,0) )
-        LOGE("poll() error: %s", strerror(errno));
+        {
+        MSGQ_LOGEB("poll() error: %s", strerror(errno));
+        LOG_FUNCTION_NAME_EXIT
+        return false;
+        }
 
     if(pfd.revents & POLLIN)
-        mHasMsg = false;
-    else
+        {
         mHasMsg = true;
+        }
+    else
+        {
+        mHasMsg = false;
+        }
 
-    return mHasMsg;
+    LOG_FUNCTION_NAME_EXIT
+    return !mHasMsg;
 }
 
-int MessageQueue::waitForMsg(MessageQueue *queue1, MessageQueue *queue2, MessageQueue *queue3, int timeout)
-	{	
-	int n =1;
-	struct pollfd pfd[3];
+/**
+   @brief Force whether the message queue has message or not
 
-	if(!queue1)
-		{
-		return BAD_VALUE;
-		}
-	
+   @param hasMsg Whether the queue has a message or not
+   @return none
+ */
+void MessageQueue::setMsg(bool hasMsg)
+    {
+    mHasMsg = hasMsg;
+    }
+
+
+/**
+   @briefWait for message in maximum three different queues with a timeout
+
+   @param queue1 First queue. At least this should be set to a valid queue pointer
+   @param queue2 Second queue. Optional.
+   @param queue3 Third queue. Optional.
+   @param timeout The timeout value (in micro secs) to wait for a message in any of the queues
+   @return NO_ERROR On success
+   @return BAD_VALUE If queue1 is NULL
+   @return NO_INIT If the file read descriptor of any of the provided queues is not set
+ */
+status_t MessageQueue::waitForMsg(MessageQueue *queue1, MessageQueue *queue2, MessageQueue *queue3, int timeout)
+    {
+    LOG_FUNCTION_NAME
+
+    int n =1;
+    struct pollfd pfd[3];
+
+    if(!queue1)
+        {
+        MSGQ_LOGEA("queue1 pointer is NULL");
+        LOG_FUNCTION_NAME_EXIT
+        return BAD_VALUE;
+        }
+
     pfd[0].fd = queue1->getInFd();
+    if(!pfd[0].fd)
+        {
+        MSGQ_LOGEA("read descriptor not initialized for message queue1");
+        LOG_FUNCTION_NAME_EXIT
+        return NO_INIT;
+        }
     pfd[0].events = POLLIN;
-	pfd[0].revents = 0;
-	if(queue2)
-		{
-	    pfd[1].fd = queue2->getInFd();
-	    pfd[1].events = POLLIN;
-		pfd[1].revents = 0;
-		n++;
-		}
+    pfd[0].revents = 0;
+    if(queue2)
+        {
+        MSGQ_LOGDA("queue2 not-null");
+        pfd[1].fd = queue2->getInFd();
+        if(!pfd[1].fd)
+            {
+            MSGQ_LOGEA("read descriptor not initialized for message queue2");
+            LOG_FUNCTION_NAME_EXIT
+            return NO_INIT;
+            }
 
-	if(queue3)
-		{
-	    pfd[2].fd = queue3->getInFd();
-	    pfd[2].events = POLLIN;
-		pfd[2].revents = 0;
-		n++;
-		}
-	
+        pfd[1].events = POLLIN;
+        pfd[1].revents = 0;
+        n++;
+        }
+
+    if(queue3)
+        {
+        MSGQ_LOGDA("queue3 not-null");
+        pfd[2].fd = queue3->getInFd();
+        if(!pfd[2].fd)
+            {
+            MSGQ_LOGEA("read descriptor not initialized for message queue3");
+            LOG_FUNCTION_NAME_EXIT
+            return NO_INIT;
+            }
+
+        pfd[2].events = POLLIN;
+        pfd[2].revents = 0;
+        n++;
+        }
+
 
     int ret = poll(pfd, n, timeout);
-	if(ret==0)
-		{
-		return ret;
-		}
-	
-	if(ret<NO_ERROR)
-		{
-		LOGE("Message queue returned error %d", ret);
-		return ret;
-		}
+    if(ret==0)
+        {
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
 
-    if (pfd[0].revents & POLLIN) 
-		{
+    if(ret<NO_ERROR)
+        {
+        MSGQ_LOGEB("Message queue returned error %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    if (pfd[0].revents & POLLIN)
+        {
         queue1->setMsg(true);
-    	}
+        }
 
-	if(queue2)
-		{
-	    if (pfd[1].revents & POLLIN) 
-			{
-	         queue2->setMsg(true);
-	    	}
-		}
+    if(queue2)
+        {
+        if (pfd[1].revents & POLLIN)
+            {
+            queue2->setMsg(true);
+            }
+        }
 
-	if(queue3)
-		{
-	    if (pfd[2].revents & POLLIN) 
-			{
-	         queue3->setMsg(true);
-	    	}
-		}
-	
-	return ret;
-	}
+    if(queue3)
+        {
+        if (pfd[2].revents & POLLIN)
+            {
+            queue3->setMsg(true);
+            }
+        }
 
-void MessageQueue::setMsg(bool hasMsg)
-	{
-	mHasMsg = hasMsg;
-	}
+    LOG_FUNCTION_NAME_EXIT
+    return ret;
+    }
 
 };

@@ -17,43 +17,39 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#ifndef ERROR_UTILS_H
+#define ERROR_UTILS_H
 
-
+///Header file where all the android error codes are defined
 #include <Errors.h>
-#include <semaphore.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+
+///Header file where all the OMX error codes are defined
+#include "OMX_Core.h"
+
+
+extern "C"
+{
+///Header file where all the TI OSAL error codes are defined
+#include "timm_osal_error.h"
+};
 
 namespace android {
 
-class Semaphore
+///Generic class with static methods to convert any standard error type to Android error type
+class ErrorUtils
 {
 public:
+    ///Method to convert from POSIX to Android errors
+    static status_t posixToAndroidError(int error);
 
-    Semaphore();
-    ~Semaphore();
+    ///Method to convert from TI OSAL to Android errors
+    static status_t osalToAndroidError(TIMM_OSAL_ERRORTYPE error);
 
-    ///Create the semaphore with initial count value
-    status_t Create(int count=0);
-
-    ///Wait operation
-    status_t Wait();
-
-    ///Signal operation
-    status_t Signal();
-
-    ///Current semaphore count
-    int Count();
-
-    ///Wait operation with a timeout
-    status_t WaitTimeout(int timeoutMicroSecs);
-
-private:
-    sem_t *mSemaphore;
+    ///Method to convert from OMX to Android errors
+    static status_t omxToAndroidError(OMX_ERRORTYPE error);
 
 };
 
 };
+
+#endif /// ERROR_UTILS_H
