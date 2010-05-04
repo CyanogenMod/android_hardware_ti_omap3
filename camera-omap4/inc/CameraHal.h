@@ -818,6 +818,8 @@ private:
     bool mPreviewBufsAllocatedUsingOverlay;
 
     CameraProperties::CameraProperty **mCameraPropertiesArr;
+
+    bool mPreviewStartInProgress;
 };
 
 

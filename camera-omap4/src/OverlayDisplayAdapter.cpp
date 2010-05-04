@@ -397,7 +397,7 @@ void OverlayDisplayAdapter::displayThread()
             shouldLive = processHalMsg();
 
             }
-        else  if( !mDisplayQ.isEmpty() )
+        else  if( !mDisplayQ.isEmpty() && mFramesWithDisplay>0 )
             {
             if ( mDisplayState== OverlayDisplayAdapter::DISPLAY_INIT )
                 {
@@ -504,7 +504,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
         ret = mOverlay->queueBuffer(buf);
         if ( ret != NO_ERROR )
             {
-            CAMHAL_LOGEA("Posting error");
+            CAMHAL_LOGEB("Posting error 0x%x", ret);
 
             }
         else
