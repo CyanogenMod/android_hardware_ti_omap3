@@ -39,7 +39,7 @@ public:
     //Message/Frame notification APIs
     virtual void enableMsgType(int32_t msgs, frame_callback callback=NULL, event_callback eventCb=NULL, void* cookie=NULL);
     virtual void disableMsgType(int32_t msgs, void* cookie);
-    virtual void returnFrame(void* frameBuf);
+    virtual void returnFrame(void* frameBuf) = 0;
 
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params) = 0;

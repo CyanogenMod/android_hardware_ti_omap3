@@ -44,6 +44,8 @@ public:
     ///Initialzes the camera adapter creates any resources required
     virtual status_t initialize();
 
+    virtual void returnFrame(void* frameBuf);
+
     virtual int setErrorHandler(ErrorNotifier *errorNotifier);
 
     //APIs to configure Camera adapter and get the current parameter set
@@ -135,6 +137,10 @@ class FramePreview : public Thread {
     CameraParameters mParameters;
     MessageQueue mCallbackQ;
     mutable Mutex mPreviewBufferLock;
+    MessageQueue mFrameQ;
+    MessageQueue mAdapterQ;
+
+
 
 };
 
