@@ -28,6 +28,10 @@
 #include "CameraProperties.h"
 #include "CameraParameters.h"
 
+#define CAMERA_ROOT         "CameraRoot"
+#define CAMERA_INSTANCE     "CameraInstance"
+#define TEXT_XML_ELEMENT    "#text"
+
 namespace android {
 
 
@@ -199,174 +203,226 @@ status_t CameraProperties::parseAndLoadProps(const char* file)
     return ret;
 }
 
-
-
-
 status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
 {
-    LOG_FUNCTION_NAME
-
     status_t ret = NO_ERROR;
-
-    const xmlChar *name=NULL, *value = NULL;
+    const xmlChar *name = NULL, *value = NULL;
     char val[256];
     const xmlChar *nextName = NULL;
+    int curCameraIndex;
+    int propertyIndex;
+
+    LOG_FUNCTION_NAME
+
     ///xmlNode passed to this function is a cameraElement
     ///It's child nodes are the properties
     ///XML structure looks like this
-    /**
+    /**<CameraRoot>
       * <CameraInstance>
       * <CameraProperty1>Value</CameraProperty1>
       * ....
       * <CameraPropertyN>Value</CameraPropertyN>
       * </CameraInstance>
+      *</CameraRoot>
       * CameraPropertyX Tags are the constant property keys defined in CameraProperties.h
       */
+
     name = xmlTextReaderConstName(reader);
-    ///Read the #text tag
     ret = xmlTextReaderRead(reader);
-    while(!strcmp((const char *)name,"CameraInstance"))
+    if( ( strcmp( (const char *) name, CAMERA_ROOT) == 0 ) &&
+         ( 1 == ret))
         {
-        CAMHAL_LOGDB("Camera Element Name:%s", name);
-        ///Increment the number of cameras supported
-        mCamerasSupported++;
-        CAMHAL_LOGDB("Incrementing the number of cameras supported %d",mCamerasSupported);
 
-        ///Current camera index
-        int curCameraIndex = mCamerasSupported-1;
+        //Start parsing the Camera Instances
+        ret = xmlTextReaderRead(reader);
+        name = xmlTextReaderConstName(reader);
 
-        ///Create the properties array and populate all keys
-        CameraProperties::CameraProperty** t = (CameraProperties::CameraProperty**)mCameraProps[curCameraIndex];
-        ret = createPropertiesArray(t);
-        if(ret!=NO_ERROR)
+        //skip #text tag
+        xmlTextReaderRead(reader);
+        if ( 1 != ret)
             {
-            CAMHAL_LOGEA("Allocation failed for properties array");
-            freeCameraProps(curCameraIndex);
-            LOG_FUNCTION_NAME_EXIT
+            CAMHAL_LOGEA("XML File Reached end prematurely or parsing error");
             return ret;
             }
 
-        while(1)
+        while( strcmp( (const char *) name, CAMERA_INSTANCE) == 0)
             {
-            int propertyIndex = 0;
-            if(!nextName)
-                {
-                ret = xmlTextReaderRead(reader);
-                if(ret!=1)
-                    {
-                    CAMHAL_LOGEA("XML File Reached end prematurely or parsing error");
-                    break;
-                    }
-                ///Get the tag name
-                name = xmlTextReaderConstName(reader);
-                CAMHAL_LOGDB("Found tag:%s", name);
-                }
-            else
-                {
-                name = nextName;
-                }
+            CAMHAL_LOGDB("Camera Element Name:%s", name);
 
-            ///Check if the tag is CameraInstance, if so we are done with properties for current camera
-            ///Move on to next one if present
-            if(!strcmp((const char *)name,"CameraInstance"))
+            curCameraIndex  = mCamerasSupported;
+
+            ///Increment the number of cameras supported
+            mCamerasSupported++;
+            CAMHAL_LOGDB("Incrementing the number of cameras supported %d",mCamerasSupported);
+
+            ///Create the properties array and populate all keys
+            CameraProperties::CameraProperty** t = (CameraProperties::CameraProperty**)mCameraProps[curCameraIndex];
+            ret = createPropertiesArray(t);
+            if ( NO_ERROR != ret)
                 {
-                ///End of camera element
-                if(xmlTextReaderNodeType(reader)==XML_READER_TYPE_END_ELEMENT)
+                CAMHAL_LOGEA("Allocation failed for properties array");
+                freeCameraProps(curCameraIndex);
+                LOG_FUNCTION_NAME_EXIT
+                return ret;
+                }
+            while(1)
+                {
+                propertyIndex = 0;
+
+                if ( NULL == nextName )
                     {
-                    CAMHAL_LOGDA("CameraInstance close tag found");
+                    ret = xmlTextReaderRead(reader);
+                    if ( 1 != ret)
+                        {
+                        CAMHAL_LOGEA("XML File Reached end prematurely or parsing error");
+                        break;
+                        }
+                    ///Get the tag name
+                    name = xmlTextReaderConstName(reader);
+                    CAMHAL_LOGDB("Found tag:%s", name);
                     }
                 else
                     {
-                    CAMHAL_LOGDA("CameraInstance close tag not found. Please check properties XML file");
+                    name = nextName;
                     }
-                break;
-                }
 
-
-            ///The next tag should be #text and should containt the value, else process it next time around as regular tag
-            ret = xmlTextReaderRead(reader);
-            if(ret!=1)
-                {
-                CAMHAL_LOGDA("XML File Reached end prematurely or parsing error");
-                break;
-                }
-            ///Get the next tag name
-            nextName = xmlTextReaderConstName(reader);
-            CAMHAL_LOGDB("Found next tag:%s", name);
-            if(!strcmp((const char *)nextName,"#text"))
-                {
-                nextName = NULL;
-                value = xmlTextReaderConstValue(reader);
-                strcpy(val, (const char*)value);
-                value = (const xmlChar *)val;
-                CAMHAL_LOGDB("Found next tag value:%s", value);
-
-                }
-
-            ///Read the closing tag
-            ret = xmlTextReaderRead(reader);
-            if(xmlTextReaderNodeType(reader)==XML_READER_TYPE_END_ELEMENT)
-                {
-                CAMHAL_LOGDA("Found matching ending tag");
-                }
-            else
-                {
-                CAMHAL_LOGDA("Couldn't find matching ending tag");
-                }
-            ///Read the #text tag for closing tag
-            ret = xmlTextReaderRead(reader);
-
-
-            CAMHAL_LOGDB("Tag Name %s Tag Value %s", name, value);
-            if(propertyIndex=getCameraPropertyIndex((const char*)name))
-                {
-                ///If the property already exists, update it with the new value
-                CAMHAL_LOGDB("Found matching property, updating property entry for %s=%s",name
-                                                                                            ,value);
-                CAMHAL_LOGDB("mCameraProps[curCameraIndex][propertyIndex] = 0x%x", mCameraProps[curCameraIndex][propertyIndex]);
-                ret = mCameraProps[curCameraIndex][propertyIndex]->setValue((const char *)value);
-                if(ret!=NO_ERROR)
+                ///Check if the tag is CameraInstance, if so we are done with properties for current camera
+                ///Move on to next one if present
+                if ( strcmp((const char *) name, "CameraInstance") == 0)
                     {
-                    CAMHAL_LOGEB("Cannot set value for key %s value %s",name
-                                                                        ,value );
-                    LOG_FUNCTION_NAME_EXIT
-                    return ret;
+                    ///End of camera element
+                    if ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT )
+                        {
+                        CAMHAL_LOGDA("CameraInstance close tag found");
+                        }
+                    else
+                        {
+                        CAMHAL_LOGDA("CameraInstance close tag not found. Please check properties XML file");
+                        }
+
+                    break;
+
                     }
-                CAMHAL_LOGDA("Updated property..");
+
+                ///The next tag should be #text and should contain the value, else process it next time around as regular tag
+                ret = xmlTextReaderRead(reader);
+                if(1 != ret)
+                    {
+                    CAMHAL_LOGDA("XML File Reached end prematurely or parsing error");
+                    break;
+                    }
+
+                ///Get the next tag name
+                nextName = xmlTextReaderConstName(reader);
+                CAMHAL_LOGDB("Found next tag:%s", name);
+                if ( strcmp((const char *) nextName, TEXT_XML_ELEMENT) == 0)
+                    {
+                    nextName = NULL;
+                    value = xmlTextReaderConstValue(reader);
+                    strcpy(val, (const char *) value);
+                    value = (const xmlChar *) val;
+                    CAMHAL_LOGDB("Found next tag value: %s", value);
+                    }
+
+                ///Read the closing tag
+                ret = xmlTextReaderRead(reader);
+                if ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT )
+                    {
+                    CAMHAL_LOGDA("Found matching ending tag");
+                    }
+                else
+                    {
+                    CAMHAL_LOGDA("Couldn't find matching ending tag");
+                    }
+                ///Read the #text tag for closing tag
+                ret = xmlTextReaderRead(reader);
+
+
+                CAMHAL_LOGDB("Tag Name %s Tag Value %s", name, value);
+                if ( propertyIndex = getCameraPropertyIndex( (const char *) name))
+                    {
+                    ///If the property already exists, update it with the new value
+                    CAMHAL_LOGDB("Found matching property, updating property entry for %s=%s", name, value);
+                    CAMHAL_LOGDB("mCameraProps[curCameraIndex][propertyIndex] = 0x%x", mCameraProps[curCameraIndex][propertyIndex]);
+                    ret = mCameraProps[curCameraIndex][propertyIndex]->setValue((const char *) value);
+                    if(NO_ERROR != ret)
+                        {
+                        CAMHAL_LOGEB("Cannot set value for key %s value %s", name, value );
+                        LOG_FUNCTION_NAME_EXIT
+                        return ret;
+                        }
+                    CAMHAL_LOGDA("Updated property..");
+                    }
+                }
+            //skip #text tag
+            ret = xmlTextReaderRead(reader);
+            if(1 != ret)
+                {
+                CAMHAL_LOGDA("Completed parsing the XML file");
+                ret = NO_ERROR;
+                goto exit;
                 }
 
-            }
 
-        ret = xmlTextReaderRead(reader);
-        if(ret!=1)
-            {
-            CAMHAL_LOGDA("Completed parsing the XML file");
-            break;
+            ret = xmlTextReaderRead(reader);
+            if(1 != ret)
+                {
+                CAMHAL_LOGDA("Completed parsing the XML file");
+                ret = NO_ERROR;
+                goto exit;
+                }
+
+            ///Get the tag name
+            name = xmlTextReaderConstName(reader);
+            nextName = NULL;
+            CAMHAL_LOGDB("Found tag:%s", name);
+            if ( ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT ) &&
+                    ( strcmp( (const char *) name, CAMERA_ROOT) == 0 ) )
+                {
+                CAMHAL_LOGDA("Completed parsing the XML file");
+                ret = NO_ERROR;
+                goto exit;
+                }
+
+            //skip #text tag
+            xmlTextReaderRead(reader);
+            if(1 != ret)
+                {
+                CAMHAL_LOGDA("Completed parsing the XML file");
+                ret = NO_ERROR;
+                goto exit;
+                }
+
             }
         }
 
-    LOG_FUNCTION_NAME_EXIT
-    return ret;
+exit:
 
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 status_t CameraProperties::createPropertiesArray(CameraProperties::CameraProperty** &cameraProps)
 {
     LOG_FUNCTION_NAME
-    for(int i=0;i<CameraProperties::PROP_INDEX_MAX;i++)
+
+    for( int i=0 ; i < CameraProperties::PROP_INDEX_MAX; i++)
         {
+
         ///Creating key with NULL value
-        cameraProps[i] = new CameraProperties::CameraProperty((const char*)getCameraPropertyKey((CameraProperties::CameraPropertyIndex)i),"");
-        if(!cameraProps[i])
+        cameraProps[i] = new CameraProperties::CameraProperty( (const char *) getCameraPropertyKey((CameraProperties::CameraPropertyIndex)i), "");
+        if ( NULL == cameraProps[i] )
             {
             CAMHAL_LOGEB("Allocation failed for camera property class for key %s"
-                                , getCameraPropertyKey((CameraProperties::CameraPropertyIndex)i));
+                                , getCameraPropertyKey( (CameraProperties::CameraPropertyIndex) i));
             LOG_FUNCTION_NAME_EXIT
             return NO_MEMORY;
             }
         }
 
     LOG_FUNCTION_NAME_EXIT
+
     return NO_ERROR;
 }
 
