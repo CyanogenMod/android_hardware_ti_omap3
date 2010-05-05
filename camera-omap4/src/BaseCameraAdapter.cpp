@@ -39,6 +39,29 @@ void BaseCameraAdapter::enableMsgType(int32_t msgs, frame_callback callback, eve
             mFrameSubscribers.add((int) cookie, callback);
             }
         }
+    else if ( CameraFrame::IMAGE_FRAME == msgs)
+        {
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mImageSubscribers.add((int) cookie, callback);
+            }
+        }
+    else if ( CameraFrame::RAW_FRAME == msgs)
+        {
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mRawSubscribers.add((int) cookie, callback);
+            }
+        }
+    else if ( CameraHalEvent::ALL_EVENTS == msgs)
+        {
+         //Subscribe only for focus
+         //TODO: Process case by case
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mFocusSubscribers.add((int) cookie, eventCb);
+            }
+        }
     else
         {
         CAMHAL_LOGEA("Message type subscription no supported yet!");
@@ -56,6 +79,29 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
             {
             Mutex::Autolock lock(mSubscriberLock);
             mFrameSubscribers.removeItem((int) cookie);
+            }
+        }
+    else if ( CameraFrame::IMAGE_FRAME == msgs)
+        {
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mImageSubscribers.removeItem((int) cookie);
+            }
+        }
+    else if ( CameraFrame::RAW_FRAME == msgs)
+        {
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mRawSubscribers.removeItem((int) cookie);
+            }
+        }
+    else if ( CameraHalEvent::ALL_EVENTS == msgs)
+        {
+         //Subscribe only for focus
+         //TODO: Process case by case
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mFocusSubscribers.removeItem((int) cookie);
             }
         }
     else

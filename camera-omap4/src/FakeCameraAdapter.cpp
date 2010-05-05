@@ -204,9 +204,44 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
 
             break;
 
+         case CameraAdapter::CAMERA_PERFORM_AUTOFOCUS:
+
+            CAMHAL_LOGDA("Start AutoFocus");
+            msg.command = BaseCameraAdapter::DO_AUTOFOCUS;
+
+            mFrameQ.put(&msg);
+            MessageQueue::waitForMsg(&mAdapterQ, NULL, NULL, -1);
+            mAdapterQ.get(&msg);
+
+            if ( FakeCameraAdapter::ERROR == msg.command )
+                {
+                ret = -1;
+                }
+
+            break;
+
+         case CameraAdapter::CAMERA_START_IMAGE_CAPTURE:
+
+            CAMHAL_LOGDA("Start TakePicture");
+            msg.command = BaseCameraAdapter::TAKE_PICTURE;
+            msg.arg1 = (void *) value1;
+
+            mFrameQ.put(&msg);
+            MessageQueue::waitForMsg(&mAdapterQ, NULL, NULL, -1);
+            mAdapterQ.get(&msg);
+
+            if ( FakeCameraAdapter::ERROR == msg.command )
+                {
+                ret = -1;
+                }
+
+            break;
+
          default:
             CAMHAL_LOGEB("Command 0x%x unsupported!", operation);
+
             break;
+
     };
 
     LOG_FUNCTION_NAME_EXIT
@@ -247,6 +282,7 @@ void FakeCameraAdapter::frameCallbackThread()
             cFrame.mBuffer = msg.arg1;
             cFrame.mCookie = msg.arg2;
             callback = (frame_callback) msg.arg3;
+            cFrame.mFrameType = (int) msg.arg4;
 
             callback(&cFrame);
 
@@ -257,6 +293,173 @@ void FakeCameraAdapter::frameCallbackThread()
             }
         }
     LOG_FUNCTION_NAME_EXIT
+}
+
+void FakeCameraAdapter::sendNextFrame(PreviewFrameType frame)
+{
+    void *previewBuffer;
+    Message msg;
+    int i = 0;
+
+    previewBuffer = NULL;
+        {
+        Mutex::Autolock lock(mPreviewBufferLock);
+        //check for any buffers available
+        for ( int i = 0 ; i < mPreviewBufferCount ; i++ )
+            {
+            if ( mPreviewBuffersAvailable.valueAt(i) )
+                {
+                previewBuffer = (void *) mPreviewBuffers[i];
+                mPreviewBuffersAvailable.replaceValueAt(i, false);
+                break;
+                }
+            }
+        }
+
+    if ( NULL == previewBuffer )
+        return;
+
+    if ( SNAPSHOT_FRAME == frame )
+        {
+         //TODO: memset previewBuffer with snapshot color
+         }
+    else if ( NORMAL_FRAME == frame)
+        {
+         //TODO: memset previewBuffer with preview color
+        }
+
+            {
+            Mutex::Autolock lock(mSubscriberLock);
+            //check for any subscribers
+            if ( 0 == mFrameSubscribers.size() )
+                {
+                    {
+                    Mutex::Autolock lock(mPreviewBufferLock);
+                    //release buffers in case nobody subscribed for it
+                    mPreviewBuffersAvailable.replaceValueAt(i, true);
+                    }
+                }
+            else
+                {
+                for (unsigned int i = 0 ; i < mFrameSubscribers.size(); i++ )
+                    {
+                    msg.command = FakeCameraAdapter::CALL_CALLBACK;
+                    msg.arg1 = previewBuffer;
+                    msg.arg2 = (void *) mFrameSubscribers.keyAt(i);
+                    msg.arg3 = (void *) mFrameSubscribers.valueAt(i);
+                    msg.arg4 = (void *) CameraFrame::PREVIEW_FRAME_SYNC;
+
+                    mCallbackQ.put(&msg);
+                    }
+                }
+            }
+}
+
+status_t FakeCameraAdapter::takePicture(void *imageBuf)
+{
+    status_t ret = NO_ERROR;
+    CameraHalEvent shutterEvent;
+    event_callback eventCb;
+    Message msg;
+
+    LOG_FUNCTION_NAME
+
+     shutterEvent.mEventType = CameraHalEvent::EVENT_SHUTTER;
+        {
+        Mutex::Autolock lock(mSubscriberLock);
+
+        //Use the focus event subscribers as shutter event subscribers also
+        //TODO: handle the different event types separately
+        if ( mFocusSubscribers.size() == 0 )
+            CAMHAL_LOGDA("No Shutter Subscribers!");
+
+        for (unsigned int i = 0 ; i < mFocusSubscribers.size(); i++ )
+            {
+            shutterEvent.mCookie = (void *) mFocusSubscribers.keyAt(i);
+            eventCb = (event_callback) mFocusSubscribers.valueAt(i);
+
+            eventCb ( &shutterEvent );
+            }
+
+         }
+
+    //simulate Snapshot
+    sendNextFrame(SNAPSHOT_FRAME);
+
+        //Start looking for frame subscribers
+        {
+        Mutex::Autolock lock(mSubscriberLock);
+
+            if ( mRawSubscribers.size() == 0 )
+                CAMHAL_LOGDA("No RAW Subscribers!");
+
+            for (unsigned int i = 0 ; i < mRawSubscribers.size(); i++ )
+                {
+                msg.command = FakeCameraAdapter::CALL_CALLBACK;
+                msg.arg1 = NULL;
+                msg.arg2 = (void *) mRawSubscribers.keyAt(i);
+                msg.arg3 = (void *) mRawSubscribers.valueAt(i);
+                msg.arg4 = (void *) CameraFrame::RAW_FRAME;
+
+                //RAW Capture
+                mCallbackQ.put(&msg);
+                }
+
+            if ( mImageSubscribers.size() == 0 )
+                CAMHAL_LOGDA("No Image Subscribers!");
+
+            for (unsigned int i = 0 ; i < mImageSubscribers.size(); i++ )
+                {
+                msg.command = FakeCameraAdapter::CALL_CALLBACK;
+                msg.arg1 = imageBuf;
+                msg.arg2 = (void *) mImageSubscribers.keyAt(i);
+                msg.arg3 = (void *) mImageSubscribers.valueAt(i);
+                msg.arg4 = (void *) CameraFrame::IMAGE_FRAME;
+
+                //Jpeg encoding done
+                mCallbackQ.put(&msg);
+                }
+
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t FakeCameraAdapter::doAutofocus()
+{
+    event_callback eventCb;
+    CameraHalEvent focusEvent;
+    CameraHalEvent::FocusEventData focusData;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    //Just return success everytime
+    focusData.focusLocked = true;
+    focusEvent.mEventType = CameraHalEvent::EVENT_FOCUS_LOCKED;
+    focusEvent.mEventData = (CameraHalEvent::CameraHalEventData *) &focusData;
+
+        //Start looking for event subscribers
+        {
+        Mutex::Autolock lock(mSubscriberLock);
+
+            if ( mFocusSubscribers.size() == 0 )
+                CAMHAL_LOGDA("No Focus Subscribers!");
+
+            for (unsigned int i = 0 ; i < mFocusSubscribers.size(); i++ )
+                {
+                focusEvent.mCookie = (void *) mFocusSubscribers.keyAt(i);
+                eventCb = (event_callback) mFocusSubscribers.valueAt(i);
+
+                eventCb ( &focusEvent );
+                }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 void FakeCameraAdapter::frameThread()
@@ -277,7 +480,7 @@ void FakeCameraAdapter::frameThread()
 
                 if ( mFrameQ.isEmpty() )
                     {
-                    sendNextFrame();
+                    sendNextFrame(NORMAL_FRAME);
                     }
                 else
                     {
@@ -298,6 +501,14 @@ void FakeCameraAdapter::frameThread()
                                 Mutex::Autolock lock(mPreviewBufferLock);
                                 mPreviewBuffersAvailable.replaceValueFor((int) msg.arg1, true);
                                 }
+                            }
+                        else if ( BaseCameraAdapter::DO_AUTOFOCUS == msg.command )
+                            {
+                            ret = doAutofocus();
+                            }
+                        else if ( BaseCameraAdapter::TAKE_PICTURE == msg.command )
+                            {
+                            ret = takePicture(msg.arg1);
                             }
                         else if ( BaseCameraAdapter::FRAME_EXIT == msg.command )
                             {
@@ -352,6 +563,14 @@ void FakeCameraAdapter::frameThread()
                             mPreviewBuffersAvailable.replaceValueFor((int) msg.arg1, true);
                             }
                         }
+                    else if ( BaseCameraAdapter::DO_AUTOFOCUS == msg.command )
+                        {
+                        CAMHAL_LOGEA("Invalid AutoFocus command during stopped preview!");
+                        }
+                    else if ( BaseCameraAdapter::TAKE_PICTURE == msg.command )
+                        {
+                        CAMHAL_LOGEA("Invalid TakePicture command during stopped preview!");
+                        }
                     else if ( BaseCameraAdapter::FRAME_EXIT == msg.command )
                         {
                         shouldLive = false;
@@ -384,59 +603,6 @@ void FakeCameraAdapter::frameThread()
     };
 
     LOG_FUNCTION_NAME_EXIT
-}
-
-
-void FakeCameraAdapter::sendNextFrame()
-{
-    void *previewBuffer;
-    Message msg;
-    int i = 0;
-
-    previewBuffer = NULL;
-        {
-        Mutex::Autolock lock(mPreviewBufferLock);
-        //check for any buffers available
-        for ( int i = 0 ; i < mPreviewBufferCount ; i++ )
-            {
-            if ( mPreviewBuffersAvailable.valueAt(i) )
-                {
-                previewBuffer = (void *) mPreviewBuffers[i];
-                mPreviewBuffersAvailable.replaceValueAt(i, false);
-                break;
-                }
-            }
-        }
-
-    if ( NULL == previewBuffer )
-        {
-        return;
-        }
-
-        {
-        Mutex::Autolock lock(mSubscriberLock);
-        //check for any subscribers
-        if ( 0 == mFrameSubscribers.size() )
-            {
-                {
-                Mutex::Autolock lock(mPreviewBufferLock);
-                //release buffers in case nobody subscribed for it
-                mPreviewBuffersAvailable.replaceValueAt(i, true);
-                }
-            }
-        else
-            {
-            for (unsigned int i = 0 ; i < mFrameSubscribers.size(); i++ )
-                {
-                msg.command = FakeCameraAdapter::CALL_CALLBACK;
-                msg.arg1 = previewBuffer;
-                msg.arg2 = (void *) mFrameSubscribers.keyAt(i);
-                msg.arg3 = (void *) mFrameSubscribers.valueAt(i);
-
-                mCallbackQ.put(&msg);
-                }
-            }
-        }
 }
 
 extern "C" CameraAdapter* CameraAdapter_Factory() {

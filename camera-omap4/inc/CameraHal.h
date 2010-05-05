@@ -234,8 +234,9 @@ public:
     virtual ~BufferProvider() {}
 };
 
-struct CameraFrame
+class CameraFrame
     {
+    public:
     enum FrameType
     {
         PREVIEW_FRAME_SYNC=0x1, ///SYNC implies that the frame needs to be explicitly returned after consuming in order to be filled by camera again
@@ -246,18 +247,18 @@ struct CameraFrame
         VIDEO_FRAME=0x20,
         FRAME_DATA_SYNC=0x40, ///Any extra data assosicated with the frame. Always synced with the frame
         FRAME_DATA=0x80,
+        RAW_FRAME =0x100,
         ALL_FRAMES=0xFFFF   ///Maximum of 16 frame types supported
     };
 
     void *mCookie;
     void *mBuffer;
-
+    int mFrameType;
     unsigned int mTimestamp;
     ///@todo add other member vars like offset, stride, width, height, etc
     };
 
-///Common Camera Hal Event class which is visible to CameraAdapter, DisplayAdapter and AppCallbackNotifier
-///This class describes the event in the callback from CameraAdapter to DisplayAdapter and AppCallbackNotifier
+///Common Camera Hal Event class which is visible to CameraAdapter,DisplayAdapter and AppCallbackNotifier
 ///@todo Rename this class to CameraEvent
 class CameraHalEvent
 {
@@ -268,6 +269,7 @@ public:
         EVENT_FOCUS_LOCKED = 0x1,
         EVENT_FOCUS_ERROR = 0x2,
         EVENT_ZOOM_LEVEL_REACHED = 0x4,
+        EVENT_SHUTTER = 0x8,
         ///@remarks Future enum related to display, like frame displayed event, could be added here
         ALL_EVENTS = 0xFFFF ///Maximum of 16 event types supported
         };
@@ -355,6 +357,12 @@ public:
     void frameCallback(CameraFrame* caFrame);
     void eventCallback(CameraHalEvent* chEvt);
 
+    void setCallbacks(CameraHardwareInterface *cameraHal,
+                                            notify_callback notifyCb,
+                                            data_callback dataCb,
+                                            data_callback_timestamp dataCbTimestamp,
+                                            void* user);
+
     //Internal class definitions
     class NotificationThread : public Thread {
         AppCallbackNotifier* mAppCallbackNotifier;
@@ -386,6 +394,13 @@ private:
     bool processMessage();
 
 private:
+    mutable Mutex mLock;
+    sp<CameraHardwareInterface> mCameraHal;
+    notify_callback mNotifyCb;
+    data_callback   mDataCb;
+    data_callback_timestamp mDataCbTimestamp;
+    void *mCallbackCookie;
+
     CameraHal *mHardware;
     sp< NotificationThread> mNotificationThread;
     EventProvider *mEventProvider;
@@ -720,11 +735,6 @@ private:
 
 /*----------Member variables - Public ---------------------*/
 public:
-    notify_callback mNotifyCb;
-    data_callback   mDataCb;
-    data_callback_timestamp mDataCbTimestamp;
-    void                 *mCallbackCookie;
-
     int32_t mMsgEnabled;
     bool mRecordEnabled;
     nsecs_t mCurrentTime;

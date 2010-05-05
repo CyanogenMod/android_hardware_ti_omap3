@@ -69,6 +69,8 @@ protected:
         START_PREVIEW = 0,
         RETURN_FRAME,
         STOP_PREVIEW,
+        DO_AUTOFOCUS,
+        TAKE_PICTURE,
         FRAME_EXIT
     };
 
@@ -78,6 +80,9 @@ protected:
     };
 
     KeyedVector<int, frame_callback> mFrameSubscribers;
+    KeyedVector<int, frame_callback> mImageSubscribers;
+    KeyedVector<int, frame_callback> mRawSubscribers;
+    KeyedVector<int, event_callback> mFocusSubscribers;
     MessageQueue mFrameQ;
     MessageQueue mAdapterQ;
     mutable Mutex mSubscriberLock;
