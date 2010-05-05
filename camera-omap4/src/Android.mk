@@ -79,6 +79,7 @@ LOCAL_SHARED_LIBRARIES:= \
     libutils \
     libcutils \
     libtiutils \
+    libcamera \
 
 
 LOCAL_C_INCLUDES += \
