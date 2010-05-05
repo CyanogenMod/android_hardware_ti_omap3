@@ -391,7 +391,10 @@ AppCallbackNotifier::~AppCallbackNotifier()
     stop();
 
     ///Unregister with the frame provider
-    mFrameProvider->disableFrameNotification(CameraFrame::ALL_FRAMES);
+    if ( NULL != mFrameProvider )
+        {
+        mFrameProvider->disableFrameNotification(CameraFrame::ALL_FRAMES);
+        }
 
     ///Kill the display thread
     Semaphore sem;
@@ -416,7 +419,7 @@ AppCallbackNotifier::~AppCallbackNotifier()
 
 
     ///Free the event and frame providers
-    if(mEventProvider)
+    if ( NULL != mEventProvider )
         {
         ///Deleting the event provider
         CAMHAL_LOGDA("Stopping Event Provider");
@@ -424,7 +427,7 @@ AppCallbackNotifier::~AppCallbackNotifier()
         mEventProvider = NULL;
         }
 
-    if(mFrameProvider)
+    if ( NULL != mFrameProvider )
         {
         ///Deleting the frame provider
         CAMHAL_LOGDA("Stopping Frame Provider");
@@ -446,12 +449,14 @@ void AppCallbackNotifier::setEventProvider(int32_t eventMask, MessageNotifier * 
     ///@Remarks Currently only one event provider (CameraAdapter) is supported
     ///@todo Have an array of event providers for each event bitmask
     mEventProvider = new EventProvider(eventNotifier, this, eventCallbackRelay);
-    if(!mEventProvider)
+    if ( NULL == mEventProvider )
         {
         CAMHAL_LOGEA("Error in creating EventProvider");
         }
-
-    mEventProvider->enableEventNotification(eventMask);
+    else
+        {
+        mEventProvider->enableEventNotification(eventMask);
+        }
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -462,15 +467,17 @@ void AppCallbackNotifier::setFrameProvider(FrameNotifier *frameNotifier)
     ///@remarks There is no NULL check here. We will check
     ///for NULL when we get the start command from CameraAdapter
     mFrameProvider = new FrameProvider(frameNotifier, this, frameCallbackRelay);
-    if(!mFrameProvider)
+    if ( NULL == mFrameProvider )
         {
         CAMHAL_LOGEA("Error in creating FrameProvider");
         }
-
-    //Register only for captured images and RAW for now
-    //TODO: Register for and handle all types of frames
-    mFrameProvider->enableFrameNotification(CameraFrame::IMAGE_FRAME);
-    mFrameProvider->enableFrameNotification(CameraFrame::RAW_FRAME);
+    else
+        {
+        //Register only for captured images and RAW for now
+        //TODO: Register for and handle all types of frames
+        mFrameProvider->enableFrameNotification(CameraFrame::IMAGE_FRAME);
+        mFrameProvider->enableFrameNotification(CameraFrame::RAW_FRAME);
+        }
 
     LOG_FUNCTION_NAME_EXIT
 }
