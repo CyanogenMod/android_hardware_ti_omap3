@@ -239,10 +239,11 @@ void my_raw_callback(const sp<IMemory>& mem)
     printf("%s: buffer=%08X, size=%d\n",
             __FUNCTION__, (int)buff, size);
 
+out:
+
     if (fd >= 0)
         close(fd);
 
-out:
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -280,10 +281,11 @@ void saveFile(const sp<IMemory>& mem)
     printf("%s: buffer=%08X, size=%d\n",
             __FUNCTION__, (int)buff, size);
 
+out:
+
     if (fd >= 0)
         close(fd);
 
-out:
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -331,7 +333,9 @@ void my_jpeg_callback(const sp<IMemory>& mem)
     counter++;
     printf("%s: buffer=%08X, size=%d stored at %s\n",
         __FUNCTION__, (int)buff, size, fn);
+
 out:
+
     if (fd >= 0)
         close(fd);
 
@@ -1175,8 +1179,11 @@ char *load_script(char *config)
         printf("Error while reading script file!\n");
 
         free(script);
+        fclose(infile);
         return NULL;
     }
+
+    fclose(infile);
 
     return script;
 }
@@ -1223,7 +1230,10 @@ int execute_script(char *script)
                 }
 
                 previewSizeIDX = i;
-                params.setPreviewSize(previewSize[i].width, previewSize[i].height);
+
+                if ( ( i >= 0 ) && ( i < ARRAY_SIZE(previewSize) ) )
+                    params.setPreviewSize(previewSize[i].width, previewSize[i].height);
+
                 reSizePreview = true;
                 break;
 
@@ -1233,9 +1243,12 @@ int execute_script(char *script)
                         break;
                 }
 
-                params.setPictureSize(captureSize[i].width, captureSize[i].height);
+                if ( ( i >= 0 ) && ( i < ARRAY_SIZE(captureSize) ) )
+                    params.setPictureSize(captureSize[i].width, captureSize[i].height);
+
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
                 break;
 
             case '6':
