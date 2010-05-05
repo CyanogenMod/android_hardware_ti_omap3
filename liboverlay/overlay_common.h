@@ -37,5 +37,15 @@
 #define CACHEABLE_BUFFERS 0x1
 #define MAINTAIN_COHERENCY 0x2
 
+/* The following defines are used to set the maximum values supported
+ * by the overlay.
+ * 720p is the max resolution currently supported (1280x720)
+ * */
+
+#define MAX_OVERLAY_WIDTH_VAL (1280)
+#define MAX_OVERLAY_HEIGHT_VAL (1280)
+#define MAX_OVERLAY_RESOLUTION (1280 * 720)
+
+
 #endif  // OVERLAY_COMMON_H_
 

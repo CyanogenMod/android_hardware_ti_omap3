@@ -426,6 +426,15 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     uint32_t num = NUM_OVERLAY_BUFFERS_REQUESTED;
     int fd;
     int shared_fd;
+    /* Validate the width and height are within a valid range for the
+     * video driver.
+     * */
+    if (w > MAX_OVERLAY_WIDTH_VAL || h > MAX_OVERLAY_HEIGHT_VAL
+    || w*h >MAX_OVERLAY_RESOLUTION){
+       LOGE("%d: Error - Currently unsupported settings width %d, height %d",
+       __LINE__, w, h);
+       return NULL;
+    }
     if (format == OVERLAY_FORMAT_DEFAULT)
     {
         format = OVERLAY_FORMAT_CbYCrY_422_I;
