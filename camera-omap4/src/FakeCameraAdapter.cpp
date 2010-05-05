@@ -127,7 +127,10 @@ status_t FakeCameraAdapter::setParameters(const CameraParameters& params)
 {
     LOG_FUNCTION_NAME
 
+    params.getPreviewSize(&mPreviewWidth, &mPreviewHeight);
+
     LOG_FUNCTION_NAME_EXIT
+
     return NO_ERROR;
 }
 
@@ -181,6 +184,20 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
             else
                 {
                 CAMHAL_LOGEB("Camera Mode %x still not supported!", mode);
+                }
+
+            break;
+
+        case CameraAdapter::CAMERA_PREVIEW_FLUSH_BUFFERS:
+
+            CAMHAL_LOGDA("Flush Buffers");
+
+                {
+                Mutex::Autolock lock(mPreviewBufferLock);
+
+                mPreviewBuffersAvailable.clear();
+                mPreviewBufferCount = 0;
+                mPreviewBuffers = NULL;
                 }
 
             break;
@@ -328,7 +345,52 @@ void FakeCameraAdapter::frameCallbackThread()
     LOG_FUNCTION_NAME_EXIT
 }
 
-void FakeCameraAdapter::sendNextFrame(PreviewFrameType frame)
+/**
+   @brief
+
+   Fills a given overlay buffer with a solid color depending on their index
+   and type
+   Only YUV422I supported for now
+   TODO: Add additional pixelformat support
+
+   @param previewBuffer - pointer to the preview buffer
+   @param index - index of the overlay buffer
+   @param width - width of the buffer
+   @param height - height of the buffer
+   @param pixelformat - pixelFormat of the buffer
+   @param frame - type of the frame (normal for preview, snapshot for capture)
+
+   @return none
+
+ */
+void FakeCameraAdapter::setBuffer(void *previewBuffer, int index, int width, int height, int pixelFormat, PreviewFrameType frame)
+{
+    unsigned int alignedRow;
+    unsigned char *buffer;
+    uint16_t data;
+
+    buffer = ( unsigned char * ) previewBuffer;
+    //rows are page aligned
+    alignedRow = ( width * 2 + ( PAGE_SIZE -1 ) ) & ( ~ ( PAGE_SIZE -1 ) );
+
+    if ( SNAPSHOT_FRAME == frame )
+        {
+        data = 0x0;
+        }
+    else
+        {
+        if ( 2 <= index )
+            data = 0x00C8; //Two alternating colors depending on the buffer indexes
+        else
+            data = 0x0;
+        }
+
+    //iterate through each row
+    for ( int i = 0 ; i < height ; i++,  buffer += alignedRow)
+        memset(buffer, data, sizeof(data)*width);
+}
+
+ void FakeCameraAdapter::sendNextFrame(PreviewFrameType frame)
 {
     void *previewBuffer;
     Message msg;
@@ -338,9 +400,9 @@ void FakeCameraAdapter::sendNextFrame(PreviewFrameType frame)
         {
         Mutex::Autolock lock(mPreviewBufferLock);
         //check for any buffers available
-        for ( int i = 0 ; i < mPreviewBufferCount ; i++ )
+        for ( i = 0 ; i < mPreviewBufferCount ; i++ )
             {
-            if ( mPreviewBuffersAvailable.valueAt(i) )
+            if ( ( mPreviewBuffersAvailable.valueAt(i) ) && ( NULL != mPreviewBuffers ) )
                 {
                 previewBuffer = (void *) mPreviewBuffers[i];
                 mPreviewBuffersAvailable.replaceValueAt(i, false);
@@ -352,14 +414,8 @@ void FakeCameraAdapter::sendNextFrame(PreviewFrameType frame)
     if ( NULL == previewBuffer )
         return;
 
-    if ( SNAPSHOT_FRAME == frame )
-        {
-         //TODO: memset previewBuffer with snapshot color
-         }
-    else if ( NORMAL_FRAME == frame)
-        {
-         //TODO: memset previewBuffer with preview color
-        }
+    //TODO: add pixelformat
+    setBuffer(previewBuffer, i, mPreviewWidth, mPreviewHeight, 0, frame);
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 

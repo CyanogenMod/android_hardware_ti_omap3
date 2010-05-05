@@ -68,6 +68,9 @@ protected:
     status_t doAutofocus();
     virtual void frameThread();
     virtual void frameCallbackThread();
+    //Fills a given overlay buffer with a solid color depending on their index
+    // and type
+    void setBuffer(void *previewBuffer, int index, int width, int height, int pixelFormat, PreviewFrameType frame);
     virtual void sendNextFrame(PreviewFrameType frame);
 
 //Internal class definitions
