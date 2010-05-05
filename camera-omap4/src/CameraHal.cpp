@@ -51,7 +51,7 @@ const int CameraHal::NO_BUFFERS_IMAGE_CAPTURE = 1;
 const uint32_t MessageNotifier::EVENT_BIT_FIELD_POSITION = 0;
 const uint32_t MessageNotifier::FRAME_BIT_FIELD_POSITION = 0;
 
-
+const char CameraHal::PARAMS_DELIMITER []= ",";
 
 /******************************************************************************/
 
@@ -272,8 +272,21 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     ///Update the current parameter set
     mParameters = params;
 
+    int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
+
+    CAMHAL_LOGDB("camera_index %d, mCameraIndex", camera_index, mCameraIndex);
+
+    if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
+        {
+        mCameraIndex = camera_index;
+        mReloadAdapter = true;
+        }
+
+    CAMHAL_LOGDB("mReloadAdapter %d", (int) mReloadAdapter);
+
     ///Call Camera adapter for the rest of the configurations
-    ret = mCameraAdapter->setParameters(params);
+    if ( NULL != mCameraAdapter.get() )
+        ret = mCameraAdapter->setParameters(params);
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -448,11 +461,38 @@ status_t CameraHal::startPreview()
 
     ///Allocate the preview buffers
     ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
-    if(ret!=NO_ERROR)
+    if ( NO_ERROR != ret )
         {
         CAMHAL_LOGEA("Couldn't allocate buffers for Preview");
         goto error;
         }
+
+    //This can only happen when there is a mismatch
+    //between the Camera application default
+    //CameraHal's own default at the start
+    if ( mReloadAdapter )
+        {
+         if ( NULL != mCameraAdapter.get() )
+            {
+              // Free the camera adapter
+             mCameraAdapter.clear();
+
+             //Close the camera adapter DLL
+             ::dlclose(mCameraAdapterHandle);
+            }
+
+        if ( reloadAdapter() < 0 )
+            {
+            CAMHAL_LOGEA("CameraAdapter reload failed")
+            }
+        else
+            {
+            insertSupportedParams(mParameters);
+            }
+
+        mReloadAdapter = false;
+        }
+
 
     ///Pass the buffers to Camera Adapter
     mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, CameraHal::NO_BUFFERS_PREVIEW);
@@ -547,45 +587,43 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
             }
         return ret;
         }
-
     ///CameraService passed a valid overlay
-    if(!mDisplayAdapter.get())
+
+    if ( mDisplayAdapter.get() )
         {
-        ///Need to create the display adapter since it has not been created
-        /// Create display adapter
-        mDisplayAdapter = new OverlayDisplayAdapter();
-        ret = NO_ERROR;
-        if(!mDisplayAdapter.get() || ((ret=mDisplayAdapter->initialize())!=NO_ERROR))
-            {
-            if(ret!=NO_ERROR)
-                {
-                mDisplayAdapter.clear();
-
-                CAMHAL_LOGEA("DisplayAdapter initialize failed")
-
-                LOG_FUNCTION_NAME_EXIT
-
-                return ret;
-                }
-            else
-                {
-                CAMHAL_LOGEA("Couldn't create DisplayAdapter");
-
-                LOG_FUNCTION_NAME_EXIT
-
-                return NO_MEMORY;
-                }
-            }
-
-        ///DisplayAdapter needs to know where to get the CameraFrames from inorder to display
-        ///Since CameraAdapter is the one that provides the frames, set it as the frame provider for DisplayAdapter
-        mDisplayAdapter->setFrameProvider(mCameraAdapter.get());
-
-        ///Any dynamic errors that happen during the camera use case has to be propagated back to the application
-        ///via CAMERA_MSG_ERROR. AppCallbackNotifier is the class that  notifies such errors to the application
-        ///Set it as the error handler for the DisplayAdapter
-        mDisplayAdapter->setErrorHandler(mAppCallbackNotifier.get());
+        mDisplayAdapter.clear();
         }
+
+    ///Need to create the display adapter since it has not been created
+    /// Create display adapter
+    mDisplayAdapter = new OverlayDisplayAdapter();
+    ret = NO_ERROR;
+    if(!mDisplayAdapter.get() || ((ret=mDisplayAdapter->initialize())!=NO_ERROR))
+        {
+        if(ret!=NO_ERROR)
+            {
+            mDisplayAdapter.clear();
+            CAMHAL_LOGEA("DisplayAdapter initialize failed")
+            LOG_FUNCTION_NAME_EXIT
+            return ret;
+            }
+        else
+            {
+            CAMHAL_LOGEA("Couldn't create DisplayAdapter");
+            LOG_FUNCTION_NAME_EXIT
+            return NO_MEMORY;
+            }
+        }
+
+    ///DisplayAdapter needs to know where to get the CameraFrames from inorder to display
+    ///Since CameraAdapter is the one that provides the frames, set it as the frame provider for DisplayAdapter
+    mDisplayAdapter->setFrameProvider(mCameraAdapter.get());
+
+    ///Any dynamic errors that happen during the camera use case has to be propagated back to the application
+    ///via CAMERA_MSG_ERROR. AppCallbackNotifier is the class that  notifies such errors to the application
+    ///Set it as the error handler for the DisplayAdapter
+    mDisplayAdapter->setErrorHandler(mAppCallbackNotifier.get());
+
 
     ///Update the display adapter with the new overlay that is passed from CameraService
     ret  = mDisplayAdapter->setOverlay(overlay);
@@ -672,6 +710,29 @@ void CameraHal::stopPreview()
     freePreviewBufs();
     freeImageBufs();
     mPreviewEnabled = false;
+
+    if ( mReloadAdapter )
+        {
+         if ( NULL != mCameraAdapter.get() )
+            {
+              // Free the camera adapter
+             mCameraAdapter.clear();
+
+             //Close the camera adapter DLL
+             ::dlclose(mCameraAdapterHandle);
+            }
+
+        if ( reloadAdapter() < 0 )
+            {
+            CAMHAL_LOGEA("CameraAdapter reload failed")
+            }
+        else
+            {
+            insertSupportedParams(mParameters);
+            }
+
+        mReloadAdapter = false;
+        }
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -895,6 +956,9 @@ status_t CameraHal::cancelPicture( )
 CameraParameters CameraHal::getParameters() const
 {
     LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
     ///Return the current set of parameters
     return mParameters;
 }
@@ -981,6 +1045,11 @@ CameraHal::CameraHal()
 
 #endif
 
+    //Default is set to '0'
+    mCameraIndex = 0;
+
+    mReloadAdapter = false;
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -1036,7 +1105,7 @@ status_t CameraHal::initialize()
 
     ///Query the number of cameras supported, minimum we expect is one (at least FakeCameraAdapter)
     numCameras = mCameraProperties->camerasSupported();
-    if(!numCameras)
+    if ( 0 == numCameras )
         {
         CAMHAL_LOGEA("No cameras supported in Camera HAL implementation");
         goto fail_loop;
@@ -1046,8 +1115,10 @@ status_t CameraHal::initialize()
         CAMHAL_LOGDB("Cameras found %d", numCameras);
         }
 
-    ///Get the default Camera, which is Camera 0
-    mCameraPropertiesArr = (CameraProperties::CameraProperty**)mCameraProperties->getProperties(0);
+    ///Get the default Camera
+    mCameraPropertiesArr = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(mCameraIndex);
+
+#if DEBUG_LOG
 
     if(!mCameraPropertiesArr)
         {
@@ -1057,8 +1128,10 @@ status_t CameraHal::initialize()
     ///Dump the properties of this Camera
     dumpProperties(mCameraPropertiesArr);
 
+#endif
+
     ///Check if a valid adapter DLL name is present for the first camera
-    if(!mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME])
+    if ( NULL == mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME] )
         {
         CAMHAL_LOGEA("No Camera adapter DLL set for default camera");
         goto fail_loop;
@@ -1066,12 +1139,13 @@ status_t CameraHal::initialize()
 
     /// Create the camera adapter
     /// @todo Incorporate dynamic loading based on cfg file. For now using a constant definition for the adapter dll name
-    mCameraAdapterHandle = ::dlopen((const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue, RTLD_NOW);
-    if( mCameraAdapterHandle == NULL ) {
-       CAMHAL_LOGEB("Unable to open CameraAdapter Library %s for default camera", (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue);
-       LOG_FUNCTION_NAME_EXIT
-       goto fail_loop;
-    }
+    mCameraAdapterHandle = ::dlopen( ( const char * ) mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue, RTLD_NOW);
+    if( NULL  == mCameraAdapterHandle )
+        {
+        CAMHAL_LOGEB("Unable to open CameraAdapter Library %s for default camera", (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue);
+        LOG_FUNCTION_NAME_EXIT
+        goto fail_loop;
+        }
 
     f = (CameraAdapterFactory) ::dlsym(mCameraAdapterHandle, "CameraAdapter_Factory");
     if(!f)
@@ -1091,7 +1165,7 @@ status_t CameraHal::initialize()
 
     /// Create the callback notifier
     mAppCallbackNotifier = new AppCallbackNotifier();
-    if(!mAppCallbackNotifier.get() || (mAppCallbackNotifier->initialize()!=NO_ERROR))
+    if( ( NULL == mAppCallbackNotifier.get() ) || ( mAppCallbackNotifier->initialize() != NO_ERROR))
         {
         CAMHAL_LOGEA("Unable to create or initialize AppCallbackNotifier");
         goto fail_loop;
@@ -1099,7 +1173,7 @@ status_t CameraHal::initialize()
 
     /// Create Memory Manager
     mMemoryManager = new MemoryManager();
-    if(!mMemoryManager.get() || (mMemoryManager->initialize()!=NO_ERROR))
+    if( ( NULL == mMemoryManager.get() ) || ( mMemoryManager->initialize() != NO_ERROR))
         {
         CAMHAL_LOGEA("Unable to create or initialize MemoryManager");
         goto fail_loop;
@@ -1129,7 +1203,6 @@ status_t CameraHal::initialize()
     ///Set it as the error handler for CameraAdapter
     mCameraAdapter->setErrorHandler(mAppCallbackNotifier.get());
 
-
     ///Initialize default parameters
     initDefaultParameters();
 
@@ -1138,17 +1211,126 @@ status_t CameraHal::initialize()
     return NO_ERROR;
 
     fail_loop:
+
         ///Free up the resources because we failed somewhere up
         deinitialize();
         LOG_FUNCTION_NAME_EXIT
+
         return NO_MEMORY;
 
+}
+
+status_t CameraHal::reloadAdapter()
+{
+    typedef CameraAdapter* (*CameraAdapterFactory)();
+    CameraAdapterFactory f = NULL;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( mCameraIndex >= mCameraProperties->camerasSupported() )
+        {
+        CAMHAL_LOGEA("Camera Index exceeds number of supported cameras!");
+        ret = -1;
+        }
+
+    if ( -1 != ret )
+        mCameraPropertiesArr = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(mCameraIndex);
+
+#if DEBUG_LOG
+
+        ///Dump the properties of this Camera
+        dumpProperties(mCameraPropertiesArr);
+
+#endif
+
+    ///Check if a valid adapter DLL name is present for the first camera
+    if ( NULL == mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME] )
+        {
+        CAMHAL_LOGEA("No Camera adapter DLL set for default camera");
+        ret = -1;
+        }
+
+    /// Create the camera adapter
+    if ( -1 != ret )
+        {
+        mCameraAdapterHandle = ::dlopen( ( const char * ) mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue, RTLD_NOW);
+        if( NULL  == mCameraAdapterHandle )
+            {
+            CAMHAL_LOGEB("Unable to open CameraAdapter Library %s for default camera", (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue);
+            ret = -1;
+            }
+        }
+
+    if ( -1 != ret )
+        {
+        f = (CameraAdapterFactory) ::dlsym(mCameraAdapterHandle, "CameraAdapter_Factory");
+        mCameraAdapter = f();
+        }
+
+    if ( ( NULL != mAppCallbackNotifier.get() ) &&
+           ( NULL !=  mCameraAdapter.get() ) )
+        {
+        mAppCallbackNotifier->setEventProvider(CameraHalEvent::ALL_EVENTS, mCameraAdapter.get());
+        mAppCallbackNotifier->setFrameProvider(mCameraAdapter.get());
+        mCameraAdapter->setErrorHandler(mAppCallbackNotifier.get());
+        }
+
+    if ( ( NULL != mDisplayAdapter.get() ) &&
+           ( NULL !=  mCameraAdapter.get() ) )
+        {
+        mDisplayAdapter->setFrameProvider(mCameraAdapter.get());
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 void CameraHal::dumpProperties(CameraProperties::CameraProperty** cameraProps)
 {
     for ( int i = 0 ; i < CameraProperties::PROP_INDEX_MAX; i++)
         CAMHAL_LOGDB("%s = %s", cameraProps[i]->mPropName, cameraProps[i]->mPropValue);
+}
+
+void CameraHal::insertSupportedParams(CameraParameters &p)
+{
+    CameraProperties::CameraProperty **currentProp;
+    char tmpBuffer[PARAM_BUFFER + 1];
+
+    LOG_FUNCTION_NAME
+
+    //Camera Instances supported
+    memset(tmpBuffer, '\0', PARAM_BUFFER);
+    //Enumerate the supported camera instances
+    for ( int i = 0 ; i < mCameraProperties->camerasSupported() ; i++ )
+        {
+         currentProp = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(i);
+         //Set camera adapter index for reference
+         p.set( ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, i);
+         strncat( ( char * ) tmpBuffer, ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, PARAM_BUFFER);
+         strncat( ( char * ) tmpBuffer, ( const char * ) PARAMS_DELIMITER, PARAM_BUFFER);
+        }
+    p.set(TICameraParameters::KEY_SUPPORTED_CAMERAS, tmpBuffer);
+    p.set(TICameraParameters::KEY_CAMERA, mCameraIndex);
+    //
+
+    //Eclair extended parameters
+    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_THUMBNAIL_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_THUMBNAIL_SIZES]->mPropValue);
+    p.set(CameraParameters::KEY_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE]->mPropValue);
+    p.set(CameraParameters::KEY_EFFECT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue);
+    p.set(CameraParameters::KEY_SCENE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES]->mPropValue);
+    p.set(CameraParameters::KEY_FOCUS_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES]->mPropValue);
+    p.set(CameraParameters::KEY_ANTIBANDING, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING]->mPropValue);
+    p.set(CameraParameters::KEY_FLASH_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue);
+    //
+
+    LOG_FUNCTION_NAME_EXIT
 }
 
 void CameraHal::initDefaultParameters()
@@ -1170,20 +1352,7 @@ void CameraHal::initDefaultParameters()
     p.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
     p.set(CameraParameters::KEY_JPEG_QUALITY, 100);
 
-    //Eclair extended parameters
-    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue);
-    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue);
-    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue);
-    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue);
-    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue);
-    p.set(CameraParameters::KEY_SUPPORTED_THUMBNAIL_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_THUMBNAIL_SIZES]->mPropValue);
-    p.set(CameraParameters::KEY_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE]->mPropValue);
-    p.set(CameraParameters::KEY_EFFECT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue);
-    p.set(CameraParameters::KEY_SCENE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES]->mPropValue);
-    p.set(CameraParameters::KEY_FOCUS_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES]->mPropValue);
-    p.set(CameraParameters::KEY_ANTIBANDING, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING]->mPropValue);
-    p.set(CameraParameters::KEY_FLASH_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue);
-    //
+    insertSupportedParams(p);
 
     //@todo Define constants for these custom parameters instead of hard-coding them
     //p.set("max-zoom" , MAX_ZOOM);

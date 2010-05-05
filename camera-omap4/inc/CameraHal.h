@@ -60,6 +60,8 @@
 #define THUMB_HEIGHT    60
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
+//Temporary camera parameters buffer length
+#define PARAM_BUFFER            512
 
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
@@ -718,6 +720,12 @@ private:
             /** Deinitialize CameraHal */
             void deinitialize();
 
+            //Reloads the CameraAdapter
+            status_t reloadAdapter();
+
+            //Inserts the currently supported CameraAdapter parameters
+            void insertSupportedParams(CameraParameters &p);
+
             /** Allocate preview buffers */
             status_t allocPreviewBufs(int width, int height, const char* previewFormat);
 
@@ -782,6 +790,13 @@ public:
 
 /*----------Member variables - Private ---------------------*/
 private:
+    //Index of current camera adapter
+    int mCameraIndex;
+    //When set, reloads Camera Adapter after each stopPreview
+    bool mReloadAdapter;
+    //Google's parameter delimiter
+    static const char PARAMS_DELIMITER[];
+
     mutable Mutex mLock;
 
     void* mCameraAdapterHandle;
