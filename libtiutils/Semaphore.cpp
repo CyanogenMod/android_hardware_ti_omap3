@@ -33,15 +33,18 @@ Semaphore::Semaphore()
 
 Semaphore::~Semaphore()
 {
-	sem_destroy(mSemaphore);
-	free(mSemaphore);
+    if ( NULL != mSemaphore )
+        {
+        sem_destroy(mSemaphore);
+        free(mSemaphore);
+        }
 }
 
 
 status_t Semaphore::Create(int count)
 {
 	if(count<0)
-		{		
+		{
 		return BAD_VALUE;
 		}
     mSemaphore = (sem_t*)malloc(sizeof(sem_t)) ;
@@ -59,8 +62,8 @@ status_t Semaphore::Wait()
 		}
 
 	return sem_wait(mSemaphore);
-	
-	
+
+
 }
 
 status_t Semaphore::Signal()
@@ -79,7 +82,7 @@ status_t Semaphore::Count()
 	if(!mSemaphore)
 		{
 		return BAD_VALUE;
-		}	
+		}
 	sem_getvalue(mSemaphore, &val);
 	return val;
 }
@@ -92,9 +95,9 @@ status_t Semaphore::WaitTimeout(int timeoutMicroSecs)
 		{
 		return BAD_VALUE;
 		}
-	
+
 	timeSpec.tv_sec = (timeoutMicroSecs/1000000);
-	timeSpec.tv_nsec = (timeoutMicroSecs - timeSpec.tv_sec*1000000)*1000;	
+	timeSpec.tv_nsec = (timeoutMicroSecs - timeSpec.tv_sec*1000000)*1000;
 
 	return sem_timedwait(mSemaphore, &timeSpec);
 
