@@ -44,6 +44,7 @@
 #include "overlay_common.h"
 #include "Semaphore.h"
 #include "CameraProperties.h"
+#include "DebugUtils.h"
 
 #define MIN_WIDTH           128
 #define MIN_HEIGHT          96
@@ -72,20 +73,21 @@
 
 #define CAMHAL_LOGDA(str)
 #define CAMHAL_LOGDB(str, ...)
+
+#undef LOG_FUNCTION_NAME
+#undef LOG_FUNCTION_NAME_EXIT
 #define LOG_FUNCTION_NAME
 #define LOG_FUNCTION_NAME_EXIT
 
 #else
 
-#define CAMHAL_LOGDA(str) LOGD("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
-#define CAMHAL_LOGDB(str, ...) LOGD("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
-#define LOG_FUNCTION_NAME    LOGE("%d: %s() ENTER", __LINE__, __FUNCTION__);
-#define LOG_FUNCTION_NAME_EXIT    LOGE("%d: %s() EXIT", __LINE__, __FUNCTION__);
+#define CAMHAL_LOGDA DBGUTILS_LOGDA
+#define CAMHAL_LOGDB DBGUTILS_LOGDB
 
 #endif
 
-#define CAMHAL_LOGEA(str) LOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__);
-#define CAMHAL_LOGEB(str, ...) LOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__, __VA_ARGS__);
+#define CAMHAL_LOGEA DBGUTILS_LOGEA
+#define CAMHAL_LOGEB DBGUTILS_LOGEB
 
 
 
@@ -138,7 +140,9 @@ typedef struct {
 #define SNAPSHOT_THREAD_EXIT    0x2
 
 #define PAGE                    0x1000
-#define PARAM_BUFFER            512
+#define PARAM_BUFFER            768
+#define INDEX_LENGTH            3
+
 
 ///Forward declarations
 class CameraHal;

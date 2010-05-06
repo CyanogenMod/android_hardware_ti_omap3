@@ -197,7 +197,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     const char *prevFormat;
     char *af_coord;
     Message msg;
-    status_t ret;
+    status_t ret = NO_ERROR;
 
     Mutex::Autolock lock(mLock);
 
@@ -1235,8 +1235,16 @@ status_t CameraHal::reloadAdapter()
         }
 
     if ( -1 != ret )
+        {
         mCameraPropertiesArr = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(mCameraIndex);
+        }
 
+    if(!mCameraPropertiesArr)
+        {
+        LOG_FUNCTION_NAME_EXIT
+        CAMHAL_LOGEB("getProperties() returned a NULL property set for Camera index %d", mCameraIndex);
+        return NO_INIT;
+        }
 #if DEBUG_LOG
 
         ///Dump the properties of this Camera
@@ -1265,7 +1273,19 @@ status_t CameraHal::reloadAdapter()
     if ( -1 != ret )
         {
         f = (CameraAdapterFactory) ::dlsym(mCameraAdapterHandle, "CameraAdapter_Factory");
+        if(f)
+            {
         mCameraAdapter = f();
+            if((NULL != mCameraAdapter.get())
+                    && (NO_ERROR != mCameraAdapter->initialize()))
+                {
+                ret = -1;
+                }
+            }
+        else
+            {
+            ret = -1;
+            }
         }
 
     if ( ( NULL != mAppCallbackNotifier.get() ) &&
@@ -1289,8 +1309,16 @@ status_t CameraHal::reloadAdapter()
 
 void CameraHal::dumpProperties(CameraProperties::CameraProperty** cameraProps)
 {
+    if(!cameraProps)
+        {
+        CAMHAL_LOGEA("dumpProperties() passed a NULL pointer");
+        return;
+        }
+
     for ( int i = 0 ; i < CameraProperties::PROP_INDEX_MAX; i++)
+        {
         CAMHAL_LOGDB("%s = %s", cameraProps[i]->mPropName, cameraProps[i]->mPropValue);
+        }
 }
 
 void CameraHal::insertSupportedParams(CameraParameters &p)
@@ -1303,13 +1331,19 @@ void CameraHal::insertSupportedParams(CameraParameters &p)
     //Camera Instances supported
     memset(tmpBuffer, '\0', PARAM_BUFFER);
     //Enumerate the supported camera instances
-    for ( int i = 0 ; i < mCameraProperties->camerasSupported() ; i++ )
+    for ( uint8_t i = 0 ; i < mCameraProperties->camerasSupported() ; i++ )
         {
          currentProp = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(i);
+         if(!currentProp)
+            {
+            CAMHAL_LOGEB("getProperties returns NULL property set for camera index %d", i);
+            LOG_FUNCTION_NAME_EXIT
+            continue;
+            }
          //Set camera adapter index for reference
          p.set( ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, i);
-         strncat( ( char * ) tmpBuffer, ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, PARAM_BUFFER);
-         strncat( ( char * ) tmpBuffer, ( const char * ) PARAMS_DELIMITER, PARAM_BUFFER);
+         strncat( ( char * ) tmpBuffer, ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, INDEX_LENGTH );
+         strncat( ( char * ) tmpBuffer, ( const char * ) PARAMS_DELIMITER, INDEX_LENGTH);
         }
     p.set(TICameraParameters::KEY_SUPPORTED_CAMERAS, tmpBuffer);
     p.set(TICameraParameters::KEY_CAMERA, mCameraIndex);
