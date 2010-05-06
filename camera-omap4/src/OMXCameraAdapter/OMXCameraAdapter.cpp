@@ -875,6 +875,7 @@ status_t OMXCameraAdapter::stopPreview()
     ///Free the OMX Buffers
     for(int i=0;i<mPreviewData->mNumBufs;i++)
         {
+        CAMHAL_LOGDB("OMX_FreeBuffer(0x%x)", mPreviewData->mBufferHeader[i]->pBuffer);
         eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
                             mCameraAdapterParameters.mPrevPortIndex,
                             mPreviewData->mBufferHeader[i]);
@@ -893,11 +894,8 @@ status_t OMXCameraAdapter::stopPreview()
     ///Clear all the available preview buffers
     mPreviewBuffersAvailable.clear();
 
-    ///If no error, clear the preview flag
-    if( NO_ERROR == ret)
-        {
-        mPreviewing = false;
-        }
+    ///Clear the previewing flag, we are no longer previewing
+    mPreviewing = false;
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -1158,15 +1156,13 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
              mFirstInit = false;
             }
 #endif
-
-
-
         ///Send the frame to subscribers, if no subscribers, queue the frame back
         ret = sendFrameToSubscribers(pBuffHeader);
         if(ret != NO_ERROR)
             {
             CAMHAL_LOGEA("Error in sending frames to subscribers");
             }
+
     }
     else
     {
