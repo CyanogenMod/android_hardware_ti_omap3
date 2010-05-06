@@ -22,34 +22,80 @@
 #ifndef __MESSAGEQUEUE_H__
 #define __MESSAGEQUEUE_H__
 
+#include "DebugUtils.h"
+
+
+///Uncomment this macro to debug the message queue implementation
+//#define DEBUG_LOG
+
+///Camera HAL Logging Functions
+#ifndef DEBUG_LOG
+
+#define MSGQ_LOGDA(str)
+#define MSGQ_LOGDB(str, ...)
+
+#undef LOG_FUNCTION_NAME
+#undef LOG_FUNCTION_NAME_EXIT
+#define LOG_FUNCTION_NAME
+#define LOG_FUNCTION_NAME_EXIT
+
+#else
+
+#define MSGQ_LOGDA DBGUTILS_LOGDA
+#define MSGQ_LOGDB DBGUTILS_LOGDB
+
+#endif
+
+#define MSGQ_LOGEA DBGUTILS_LOGEA
+#define MSGQ_LOGEB DBGUTILS_LOGEB
+
+
 namespace android {
 
-
-struct Message 
+///Message type
+struct Message
 {
     unsigned int command;
     void*        arg1;
-    void*        arg2;       
-    void*        arg3;    
-    void*        arg4;    
+    void*        arg2;
+    void*        arg3;
+    void*        arg4;
 };
 
-class MessageQueue 
+///Message queue implementation
+class MessageQueue
 {
 public:
+
     MessageQueue();
     ~MessageQueue();
-    int get(Message*);
+
+    ///Get a message from the queue
+    status_t get(Message*);
+
+    ///Get the input file descriptor of the message queue
     int getInFd();
-	void setInFd(int fd);
-    int put(Message*);
-    bool isEmpty(); 
-	void setMsg(bool hasMsg=false);
-	static int waitForMsg(MessageQueue *queue1, MessageQueue *queue2=0, MessageQueue *queue3=0, int timeout = 0);
+
+    ///Set the input file descriptor for the message queue
+    void setInFd(int fd);
+
+    ///Queue a message
+    status_t put(Message*);
+
+    ///Returns if the message queue is empty or not
+    bool isEmpty();
+
+    ///Force whether the message queue has message or not
+    void setMsg(bool hasMsg=false);
+
+    ///Wait for message in maximum three different queues with a timeout
+    static int waitForMsg(MessageQueue *queue1, MessageQueue *queue2=0, MessageQueue *queue3=0, int timeout = 0);
+
+
 private:
     int fd_read;
     int fd_write;
-	bool mHasMsg;
+    bool mHasMsg;
 };
 
 };
