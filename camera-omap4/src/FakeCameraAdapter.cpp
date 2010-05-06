@@ -806,11 +806,6 @@ extern "C" CameraAdapter* CameraAdapter_Factory() {
 
     ret = new FakeCameraAdapter();
 
-    if ( NULL != ret )
-        {
-        ret->initialize();
-        }
-
     return ret;
 }
 
