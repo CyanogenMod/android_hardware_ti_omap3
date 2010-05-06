@@ -112,28 +112,6 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
     LOG_FUNCTION_NAME_EXIT
 }
 
-void BaseCameraAdapter::returnFrame(void* frameBuf)
-{
-    Message msg;
-
-    if ( NULL != frameBuf )
-        {
-        msg.command = BaseCameraAdapter::RETURN_FRAME;
-        msg.arg1 = frameBuf;
-
-        mFrameQ.put(&msg);
-
-        MessageQueue::waitForMsg(&mAdapterQ, NULL, NULL, -1);
-        mAdapterQ.get(&msg);
-
-        if ( BaseCameraAdapter::ERROR == msg.command )
-            {
-            CAMHAL_LOGEA("Error while returning preview frame!");
-            }
-        }
-
-}
-
 };
 
 
