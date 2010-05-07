@@ -33,7 +33,12 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "SkLibTiJpeg_Test.h"
+
+extern "C" {
+#include "md5.h"
+};
 
 #define LIBSKIAHWTEST "[SkLibTiJpeg_Test_Script]"
 #define PASS 0
@@ -50,6 +55,22 @@
 #else
 #define DBGPRINT
 #endif
+
+#define BUFSIZE              (1024 * 8)
+#define MD5_SUM_LENGTH       16
+#define JPGD_MD5SUM_LIST     0
+#define JPGE_MD5SUM_LIST     1
+
+#define PASSCOUNT_ARM        0
+#define PASSCOUNT_TIDSP      1
+#define PASSCOUNT_SIMCOP     2
+#define FAILCOUNT            3
+#define COUNT_MANUALVERIFY   4
+
+//test case count
+unsigned int nTestCount[5];	//[0]-ARM; [1]-TI;
+                            //[2]-SIMCOP; [3]-Fail count;
+                            //[4]-manual verification needed
 
 //-----------------------------------------------------------------------------
 void printDecoderTestUsage() {
@@ -99,7 +120,7 @@ void printInputScriptFormat() {
 //-----------------------------------------------------------------------------
 void printUsage() {
 
-   PRINT("\n\nUSAGE: \n\n./SkLibTiJpeg_Test <script file name>  OR \n\n");
+   PRINT("\n\nUSAGE: \n\n./SkLibTiJpeg_Test <script file name> <Repeat Count> OR \n\n");
    PRINT("./SkLibTiJpeg_Test <E | D> < parameters..... > \n");
 
    printInputScriptFormat();
@@ -111,6 +132,147 @@ void printUsage() {
    PRINT("\n|------------------------------------------------------------------------------|\n");
 
 } //End of printUsage()
+
+//-----------------------------------------------------------------------------
+void extractFileName(char* InFileName, char* imgFileName) {
+
+   char ch = '/';
+   char* pTmpName = NULL;
+
+   pTmpName = strrchr( InFileName, (int)ch );
+   if (pTmpName == NULL) {
+       strcpy ( imgFileName, (const char*)InFileName );
+   }
+   else {
+       strcpy ( imgFileName, (const char*)pTmpName+1 );
+   }
+} //End of extractFileName()
+
+//-----------------------------------------------------------------------------
+void md5SumFile(unsigned char *md, char* pFileName) {
+
+    MD5_CTX md5_c;
+    int fd;
+    int i;
+    static unsigned char buf[BUFSIZE];
+    FILE* pFile = NULL;
+
+    pFile = fopen(pFileName, "r");
+    if ( pFile == NULL ) {
+        PRINT("\nERROR!!!! Not able to open the file: %s\n", pFileName);
+        return;
+    }
+
+    MD5_Init(&md5_c);
+	for (;;) {
+        i = fread( (void*)buf, 1, BUFSIZE, pFile );
+        if (i <= 0) break;
+        MD5_Update( &md5_c, buf, (unsigned long)i );
+    }
+    MD5_Final( md, &md5_c );
+
+    fclose(pFile);
+
+    DBGPRINT("%s:%d::MD5SUM = ",__FUNCTION__,__LINE__);
+    for (i = 0; i < MD5_SUM_LENGTH; i++)
+        DBGPRINT("%02x",md[i]);
+    DBGPRINT("\n");
+
+} //End of md5SumFile()
+
+//-----------------------------------------------------------------------------
+void md5SumBuf(unsigned char* md, void* pBuf, unsigned long nBufSize) {
+
+    MD5_CTX md5_c;
+    int i;
+
+    MD5_Init(&md5_c);
+    MD5_Update(&md5_c, pBuf, nBufSize);
+    MD5_Final( md, &md5_c );
+
+    DBGPRINT("%s:%d::MD5SUM = ",__FUNCTION__,__LINE__);
+    for (i = 0; i < MD5_SUM_LENGTH; i++)
+        DBGPRINT("%02x",md[i]);
+    DBGPRINT("\n");
+
+} //End of md5SumBuf()
+
+void updateTestCount(int id) {
+
+    android::countMutex.lock();
+    if ( id < 4 ) {
+        nTestCount[id] += 1;
+    }
+    android::countMutex.unlock();
+
+}
+
+//-----------------------------------------------------------------------------
+int verifyMd5Sum( char* InFileName, void *pBuf, unsigned long nBufSize, int flag ) {
+
+    unsigned char md[MD5_SUM_LENGTH];	//16bytes (128bits)
+    char mdString[(MD5_SUM_LENGTH * 2) + 1];	//32bytes + null char
+    char imgFileName[128];
+    const struct JPGD_TEST_OUTPUT_FILE_LIST *pMd5SumDBList = NULL;
+    int i;
+
+    /*Generate the md5sum for the current output from file */
+    if ( pBuf == NULL) {
+        md5SumFile( md, InFileName );
+    }
+    else {
+    /*Generate the md5sum for the current output from buffer */
+        md5SumBuf( md, pBuf, nBufSize );
+    }
+
+    /* Convert the md5 sum to a string */
+    for (i = 0; i < MD5_SUM_LENGTH; i++){
+        sprintf( (char*)&mdString[i*2],"%02x",md[i]);
+    }
+
+    /* Extract the file name alone from the full path */
+    extractFileName(InFileName, imgFileName);
+    PRINT("md5sum String = %s\n",mdString);
+
+    /*comapre the md5sum with the data base */
+    if ( flag == JPGD_MD5SUM_LIST ) {
+        pMd5SumDBList = &st_jpgd_file_list[0];
+    }
+    else {
+        pMd5SumDBList = &st_jpge_file_list[0];
+    }
+
+    for(i = 0; strlen(pMd5SumDBList[i].fileName) != 0; i++) {
+
+        if ( strcmp ( pMd5SumDBList[i].fileName, imgFileName ) == 0 ) {
+            /* File name found.  Now check the md5sum */
+            if ( strcmp( pMd5SumDBList[i].md5CheckSumArm , (const char*)mdString ) == 0 ) {
+                PRINT("Md5Sum matches with ARM decoder output.\n");
+                updateTestCount(PASSCOUNT_ARM);
+                return PASS;
+            }
+            else if ( strcmp( pMd5SumDBList[i].md5CheckSumTi , (const char*)mdString ) == 0 ) {
+                PRINT("Md5Sum matches with TI decoder output.\n");
+                updateTestCount(PASSCOUNT_TIDSP);
+                return PASS;
+            }
+            else if ( strcmp( pMd5SumDBList[i].md5CheckSumSimcop , (const char*)mdString ) == 0 ) {
+                PRINT("Md5Sum matches with SIMCOP decoder output.\n");
+                updateTestCount(PASSCOUNT_SIMCOP);
+                return PASS;
+            }
+            else {
+                PRINT("%s():%d:: ERROR!!! Md5Sum Mismatch !!!.\n",__FUNCTION__,__LINE__);
+                updateTestCount(FAILCOUNT);
+                return FAIL;
+            }
+        }
+    }
+    PRINT("\n%s():%d:: !!!!!New test output file. Manual verification required.!!!!!.\n",__FUNCTION__,__LINE__);
+    updateTestCount(COUNT_MANUALVERIFY);
+    return PASS;
+
+} //End of verifyMd5Sum()
 
 //-----------------------------------------------------------------------------
 int runJPEGDecoderTest(int argc, char** argv) {
@@ -130,8 +292,8 @@ int runJPEGDecoderTest(int argc, char** argv) {
     SkFILEStream   inStream(argv[2]);
     SkFILEWStream   outStream(argv[3]);
 
-    DBGPRINT("%s():%d:: InputFile=%s\n",__FUNCTION__,__LINE__,argv[2]);
-    DBGPRINT("%s():%d:: OutputFile=%s\n",__FUNCTION__,__LINE__,argv[3]);
+    PRINT("InputFile  = %s\n",argv[2]);
+    PRINT("OutputFile = %s\n",argv[3]);
 
     /*output color format*/
     if (argc >= 5) {
@@ -203,8 +365,8 @@ int runJPEGDecoderTest(int argc, char** argv) {
     
     /*call decode*/
     if (skJpegDec->decode(&inStream, &skBM, prefConfig, SkImageDecoder::kDecodePixels_Mode) == false) {
-        DBGPRINT("%s():%d:: !!!! skJpegDec->decode returned false..\n",__FUNCTION__,__LINE__);
-        DBGPRINT("%s():%d:: !!!! Test Failed..\n",__FUNCTION__,__LINE__);
+        PRINT("%s():%d:: !!!! skJpegDec->decode returned false..\n",__FUNCTION__,__LINE__);
+        PRINT("%s():%d:: !!!! Test Failed..\n",__FUNCTION__,__LINE__);
         delete skJpegDec;
         return FAIL;
     }
@@ -213,7 +375,7 @@ int runJPEGDecoderTest(int argc, char** argv) {
     DBGPRINT("%s():%d:: Wrote %d bytes to output file<%s>.\n",__FUNCTION__,__LINE__,skBM.getSize(),argv[3]);
     delete skJpegDec;
 
-    return PASS;
+    return ( verifyMd5Sum(argv[3], skBM.getPixels(), skBM.getSize(), JPGD_MD5SUM_LIST ) );
 
 } //End of runJPEGDecoderTest()
 
@@ -239,8 +401,8 @@ int runJPEGEncoderTest(int argc, char** argv) {
     SkFILEStream   inStream(argv[2]);
     SkFILEWStream   outStream(argv[3]);
 
-    DBGPRINT("%s():%d:: InputFile=%s\n",__FUNCTION__,__LINE__,argv[2]);
-    DBGPRINT("%s():%d:: OutputFile=%s\n",__FUNCTION__,__LINE__,argv[3]);
+    PRINT("InputFile  = %s\n",argv[2]);
+    PRINT("OutputFile = %s\n",argv[3]);
 
     /* width and height */
     nWidth = atoi(argv[4]);
@@ -288,7 +450,7 @@ int runJPEGEncoderTest(int argc, char** argv) {
 
     /* call onEncode */
     if (skJpegEnc->encodeStream( &outStream, skBM, nQFactor) == false) {
-        DBGPRINT("%s():%d::!!!onEncode failed....\n",__FUNCTION__,__LINE__);
+        PRINT("%s():%d::!!!onEncode failed....\n",__FUNCTION__,__LINE__);
         free(tempInBuff);
         delete skJpegEnc;
         return FAIL;
@@ -311,7 +473,12 @@ int runFromCmdArgs(int argc, char** argv) {
     } 
     else if (strcmp(argv[1],"E") == 0) {
         /*call Encoder test function*/
-        return runJPEGEncoderTest(argc, argv);
+        if( runJPEGEncoderTest(argc, argv) == PASS) {
+            return ( verifyMd5Sum (argv[3], NULL, NULL, JPGE_MD5SUM_LIST) );
+        }
+        else {
+            return FAIL;
+        }
     }
     else {
         PRINT("%s():%d:: !!! Invalid test option. only D/E is valid (Decoder/Encoder).\n",__FUNCTION__,__LINE__);
@@ -374,10 +541,14 @@ void RunFromScript(char* scriptFileName) {
         DBGPRINT("===============================================================================\n");
         DBGPRINT("TestCase read from script file: \n%s ",pstrLine);
  
-
         argsCount = sscanf(pstrLine,"%s %s %s %s %s %s %s %s %s %s %s %s %s", &testID[0],
                      pArgs[0],pArgs[1],pArgs[2],pArgs[3],pArgs[4],pArgs[5],
                      pArgs[6],pArgs[7],pArgs[8],pArgs[9],pArgs[10],pArgs[11]);
+
+        if ( argsCount == 0 ) {
+            /*Empty Line with whitespaces. Skip this and continue */
+            continue;
+        }
 
         DBGPRINT("TestCase: ./");
         for (i = 0; i < argsCount-1; i++) {
@@ -385,7 +556,8 @@ void RunFromScript(char* scriptFileName) {
         }
         DBGPRINT("\n");
 
-        DBGPRINT("Executing %s.....\n",testID);
+        PRINT("===============================================================================\n");
+        PRINT("Executing %s.....\n",testID);
         result = runFromCmdArgs(argsCount-1,(char**)&pArgs);
 
         /* Print the result */
@@ -404,7 +576,7 @@ void RunFromScript(char* scriptFileName) {
     }
 
     fclose(fp);
-    PRINT("\n <--------------------End of script: %s------------------->\n",scriptFileName);
+    PRINT("\n <--------------------------End of script: %s------------------------>\n",scriptFileName);
 
 } //End of RunFromScript
 
@@ -412,11 +584,20 @@ void RunFromScript(char* scriptFileName) {
 int main(int argc, char** argv) {
 
     int result = PASS;
+    int count = 0;
+    int i = 0;
+    unsigned int nTotalTests = 0;
+
+    nTestCount[0] = 0;
+    nTestCount[1] = 0;
+    nTestCount[2] = 0;
+    nTestCount[3] = 0;
+    nTestCount[4] = 0;
 
     PRINT("\n|------------------------------------------------------------------------------|\n");
     PRINT  ("|-Skia JPEG Decoder/Encoder Test App built on:"__DATE__":"__TIME__"\n");
     PRINT  ("|------------------------------------------------------------------------------|\n");
-    if (argc > 2) {
+    if (argc > 3) {
         /* test using command line parameters*/
         result = runFromCmdArgs(argc, argv);
  
@@ -431,10 +612,33 @@ int main(int argc, char** argv) {
         /* Test using script file*/
         RunFromScript(argv[1]);
     }
+    else if (argc == 3) {
+        count = atoi(argv[2]);
+        if (count == 0) {
+            count =1;
+        }
+        for(i = 0; i < count; i++) {
+            /* Test using script file*/
+            RunFromScript(argv[1]);
+            PRINT("\n\nRepeating the Script... (%d) more times..\n\n",((count-1)-i) );
+        }
+    }
     else {
         /* Parameters required*/
         printUsage();
     }
+
+    //print the PASS FAIL report
+    nTotalTests = ( nTestCount[0] + nTestCount[1] + nTestCount[2] + nTestCount[3] + nTestCount[4]);
+
+    PRINT("\n|------------------------------------------------------------------------------|\n");
+    PRINT  ("| Total Test cases run           = %d\n\n",nTotalTests );
+    PRINT  ("| Test cases run on ARM          = %d\t (%d %c)\n",nTestCount[0], ((nTestCount[0]/nTotalTests)*100),'%' );
+    PRINT  ("| Test cases run on TI-DSP       = %d\t (%d %c)\n",nTestCount[1], ((nTestCount[1]/nTotalTests)*100),'%' );
+    PRINT  ("| Test cases run on SIMCOP       = %d\t (%d %c)\n",nTestCount[2], ((nTestCount[2]/nTotalTests)*100),'%' );
+    PRINT  ("| Test cases FAILED              = %d\t (%d %c)\n",nTestCount[3], ((nTestCount[3]/nTotalTests)*100),'%' );
+    PRINT  ("| Test cases needs manual check  = %d\t (%d %c)\n",nTestCount[4], ((nTestCount[4]/nTotalTests)*100),'%' );
+    PRINT("\n|------------------------------------------------------------------------------|\n");
 
     return 0;
 } //end of main
