@@ -1808,6 +1808,8 @@ fail_process:
 int CameraHal::ICapturePerform(){
 
     int image_width, image_height;
+    int image_rotation;
+    double image_zoom;
 	int preview_width, preview_height;
     unsigned long base, offset;
     struct v4l2_buffer buffer;
@@ -1841,6 +1843,9 @@ int CameraHal::ICapturePerform(){
     mParameters.getPreviewSize(&preview_width, &preview_height);
 
     LOGD("Picture Size: Width = %d \tHeight = %d", image_width, image_height);
+
+    image_rotation = rotation;
+    image_zoom = zoom_step[mZoomTargetIdx];
 
     format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     format.fmt.pix.width = image_width;
@@ -2148,7 +2153,7 @@ int CameraHal::ICapturePerform(){
 		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
 		jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
 				image_width, image_height, quality, exif_buf, jpegFormat, THUMB_WIDTH, THUMB_HEIGHT, image_width, image_height,
-				0, 1.0, 0, 0, image_width, image_height);
+				image_rotation, image_zoom, 0, 0, image_width, image_height);
 		PPM("AFTER JPEG Encode Image");
 
 		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
