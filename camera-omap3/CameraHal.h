@@ -515,6 +515,7 @@ public:
 	bool                mRecordEnabled;
 	nsecs_t             mCurrentTime[MAX_CAMERA_BUFFERS];
        nsecs_t             mPrevTime;
+       nsecs_t             frameInterval;
 	bool mFalsePreview;
 
 

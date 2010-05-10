@@ -1374,7 +1374,6 @@ void CameraHal::nextPreview()
             nOverlayBuffersQueued--;
             buffers_queued_to_dss[(int)overlaybuffer] = 0;
             lastOverlayBufferDQ = (int)overlaybuffer;	
-            //LOGD("AF OVLY DQ");
         }
     }
 
@@ -1389,19 +1388,20 @@ void CameraHal::nextPreview()
                 /* Drop the frame. Camera is starving. */
                 if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
                     LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
-                }else{
-                    nCameraBuffersQueued++;
-                    LOGD("Didnt queue this buffer to VE");
                 }
+                else nCameraBuffersQueued++;
+                LOGD("Didnt queue this buffer to VE.");
+                if (mPrevTime < mCurrentTime[(int)overlaybuffer])
+                    mPrevTime = mCurrentTime[(int)overlaybuffer];
+                else
+                    mPrevTime += frameInterval;
             }
             else
             {
                 buffers_queued_to_ve[(int)overlaybuffer] = 1;
                 if (mPrevTime > mCurrentTime[(int)overlaybuffer])
                 {
-                    int framerate = mParameters.getPreviewFrameRate();
-                    nsecs_t frameInterval = 1000000000LL / framerate ;
-                    LOGD("Had to adjust the timestamp. Clock went back in time: \n\t mCurrentTime = %lld, mPrevTime = %llu, frameInterval = %llu", mCurrentTime[(int)overlaybuffer], mPrevTime, frameInterval);
+                    //LOGW("Had to adjust the timestamp. Clock went back in time. mCurrentTime = %lld, mPrevTime = %llu", mCurrentTime[(int)overlaybuffer], mPrevTime);
                     mCurrentTime[(int)overlaybuffer] = mPrevTime + frameInterval;
                 }
                 mDataCbTimestamp(mCurrentTime[(int)overlaybuffer], CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
@@ -3055,7 +3055,9 @@ status_t CameraHal::startRecording( )
     int w,h;
     int i = 0;
 
-    mPrevTime = 0;
+    mPrevTime = systemTime(SYSTEM_TIME_MONOTONIC);
+    int framerate = mParameters.getPreviewFrameRate();
+    frameInterval = 1000000000LL / framerate ;
     mParameters.getPreviewSize(&w, &h);
     mRecordingFrameSize = w * h * 2;
     overlay_handle_t overlayhandle = mOverlay->getHandleRef();
