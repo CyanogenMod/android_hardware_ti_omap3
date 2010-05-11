@@ -67,6 +67,8 @@
 /* Messaging DSP commands */
 #define DMM_SETUPBUFFERS    0xABCD
 #define DMM_WRITEREADY      0xADDD
+#define PAGE_ALIGN_MASK		0xfffff000	/* Align mask for a 0x1000 page */
+#define PAGE_ALIGN_UNMASK	0x00000fff	/* Unmask for a 0x1000 page */
 
 UINT g_dwDSPWordSize = 1;	// default for 2430
 
@@ -263,6 +265,8 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 	/* Actual MPU Buffer addresses */
 	ULONG aBufferSend = 0;
 	ULONG aBufferRecv = 0;
+	ULONG aBufferSend1 = 0;
+	ULONG aBufferRecv1 = 0;
 	/* Reserved buffer DSP virtual addresses (bytes) */
 	PVOID aDspSendBuffer = NULL;
 	PVOID aDspRecvBuffer = NULL;
@@ -282,14 +286,17 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 	INT i = 0;
 
 	/* Allocate MPU Buffers */
-	aBufferSend = (ULONG) malloc(ulSendBufferSize);
-	aBufferRecv = (ULONG) malloc(ulRecvBufferSize);
+	aBufferSend = (unsigned long) (char *)calloc(ulSendBufferSize + ((PAGE_ALIGN_UNMASK + 1) << 1),1);
+	aBufferSend1 = (aBufferSend + PAGE_ALIGN_UNMASK) & PAGE_ALIGN_MASK;
+	aBufferRecv = (unsigned long) (char *)calloc(ulRecvBufferSize + ((PAGE_ALIGN_UNMASK + 1) << 1),1);
+	aBufferRecv1 = (aBufferRecv + PAGE_ALIGN_UNMASK) & PAGE_ALIGN_MASK;
+
 	/* Initialize buffers */
 	for (i = 0;i < ulSendBufferSize;i++) {
-		((PSTR) aBufferSend)[i] = 0;
-		((PSTR) aBufferRecv)[i] = 0;
+		((PSTR) aBufferSend1)[i] = 0;
+		((PSTR) aBufferRecv1)[i] = 0;
 	}
-	if (!aBufferSend || !aBufferRecv) {
+	if (!aBufferSend1 || !aBufferRecv1) {
 		fprintf(stdout, "Failed to allocate MPU buffers.\n");
 		status = DSP_EMEMORY;
 	} else {
@@ -318,7 +325,7 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 	}
 	if (DSP_SUCCEEDED(status)) {
 		/* Map MPU "send buffer" to DSP "receive buffer" virtual address */
-		status = DSPProcessor_Map(copyTask->hProcessor, (PVOID)aBufferSend, 
+		status = DSPProcessor_Map(copyTask->hProcessor, (PVOID)aBufferSend1, 
 										ulSendBufferSize, dspAddrSend,
 												&aDspRecvBuffer, 0);
 		if (DSP_SUCCEEDED(status)) {
@@ -330,7 +337,7 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 	}
 	if (DSP_SUCCEEDED(status)) {
 		/* Map MPU "receive buffer" to DSP "send buffer" virtual address */
-		status = DSPProcessor_Map(copyTask->hProcessor, (PVOID)aBufferRecv, 
+		status = DSPProcessor_Map(copyTask->hProcessor, (PVOID)aBufferRecv1, 
 										ulRecvBufferSize, dspAddrRecv, 
 													&aDspSendBuffer,0);
 		if (DSP_SUCCEEDED(status)) {
@@ -361,19 +368,19 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 		 * input buffer.
 		 */
 		/* do a flush of the buffers, before using them */
-		DSPProcessor_FlushMemory(copyTask->hProcessor,(PVOID)aBufferSend,
+		DSPProcessor_FlushMemory(copyTask->hProcessor,(PVOID)aBufferSend1,
 															DEFAULTBUFSIZE,0);
-		DSPProcessor_FlushMemory(copyTask->hProcessor,(PVOID)aBufferRecv,
+		DSPProcessor_FlushMemory(copyTask->hProcessor,(PVOID)aBufferRecv1,
 															DEFAULTBUFSIZE,0);
 		do {
 			/* Read a block of data from the input file */
-			cBytesRead = fread((PSTR)aBufferSend, sizeof(BYTE),DEFAULTBUFSIZE,
+			cBytesRead = fread((PSTR)aBufferSend1, sizeof(BYTE),DEFAULTBUFSIZE,
 																		inFile);
 			if (cBytesRead > 0) {
 				fprintf(stdout, "Read %d bytes from input file.\n", cBytesRead);
 				/* Go ahead and flush here */
 				DSPProcessor_FlushMemory(copyTask->hProcessor,
-										(PVOID)aBufferSend,DEFAULTBUFSIZE,0);
+										(PVOID)aBufferSend1,DEFAULTBUFSIZE,0);
 				/* Tell DSP how many words to read */
 				msgToDsp.dwCmd = DMM_WRITEREADY;
 				msgToDsp.dwArg1 = (DWORD)cBytesRead / g_dwDSPWordSize;
@@ -393,13 +400,13 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 					if (DSP_SUCCEEDED(status)) {
 						/* Go ahead and flush here */
 						DSPProcessor_InvalidateMemory(copyTask->hProcessor,
-											(PVOID)aBufferRecv,DEFAULTBUFSIZE);
+											(PVOID)aBufferRecv1,DEFAULTBUFSIZE);
 						fprintf(stdout, "Writing %d bytes to output file.\n",
 																	cBytesRead);
 
 						for (j = 0;j < cBytesRead;j++) {
-							if (((unsigned char *)aBufferSend)[j] !=
-											((unsigned char *)aBufferRecv)[j]) {
+							if (((unsigned char *)aBufferSend1)[j] !=
+											((unsigned char *)aBufferRecv1)[j]) {
 								fprintf(stdout,"Sent and received buffers"
 														" don't match \n");
 								fprintf(stdout, "Press any key to continue \n");
@@ -411,7 +418,7 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 						 * Copy the block of data from the DSP into
 						 * the output file
 						 */
-						fwrite((PSTR)aBufferRecv, sizeof(BYTE), cBytesRead,
+						fwrite((PSTR)aBufferRecv1, sizeof(BYTE), cBytesRead,
 																	outFile);
 					} else {
 						fprintf(stdout,"DSPProcessor_GetMessage failed. "
