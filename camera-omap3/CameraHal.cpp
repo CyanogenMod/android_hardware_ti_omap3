@@ -147,6 +147,7 @@ CameraHal::CameraHal()
     {
         mVideoBuffer[i] = 0;
         buffers_queued_to_dss[i] = 0;
+        buffers_queued_to_dss_after_stream_off[i] = 0;
     }
 
     CameraCreate();
@@ -1005,6 +1006,7 @@ int CameraHal::CameraDestroy(bool destroyOverlay)
             mVideoBuffer[i].clear();
             mVideoHeaps[i].clear();
             buffers_queued_to_dss[i] = 0;
+            buffers_queued_to_dss_after_stream_off[i] = 0;
         }
         mOverlay->destroy();
         mOverlay = NULL;
@@ -1263,7 +1265,7 @@ void CameraHal::nextPreview()
     struct v4l2_buffer cfilledbuffer;
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-    int w, h, ret, queue_to_dss_failed;
+    int w, h, ret, nBuffers_queued_to_dss, dequeue_from_dss_failed;
     static int frame_count = 0;
     int zoom_inc, err;
     struct timeval lowLightTime;
@@ -1348,10 +1350,10 @@ void CameraHal::nextPreview()
     if( msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME) )
         mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewBuffers[cfilledbuffer.index], mCallbackCookie);
 
-    queue_to_dss_failed = mOverlay->queueBuffer((void*)cfilledbuffer.index);
-    if (queue_to_dss_failed)
+    nBuffers_queued_to_dss = mOverlay->queueBuffer((void*)cfilledbuffer.index);
+    if (nBuffers_queued_to_dss < 0)
     {
-        LOGE("nextPreview(): mOverlay->queueBuffer() failed:[%d]",cfilledbuffer.index);
+        LOGE("nextPreview(): mOverlay->queueBuffer(%d) failed",cfilledbuffer.index);
 
         if (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
             LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
@@ -1362,12 +1364,44 @@ void CameraHal::nextPreview()
     {
         nOverlayBuffersQueued++;
         buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
+        if (nBuffers_queued_to_dss != nOverlayBuffersQueued)
+        {
+            LOGD("nBuffers_queued_to_dss = %d, nOverlayBuffersQueued = %d", nBuffers_queued_to_dss, nOverlayBuffersQueued);
+            LOGD("buffers in DSS \n %d %d %d  %d %d %d", buffers_queued_to_dss[0], buffers_queued_to_dss[1],
+            buffers_queued_to_dss[2], buffers_queued_to_dss[3], buffers_queued_to_dss[4], buffers_queued_to_dss[5]);
+            if (nBuffers_queued_to_dss != 0)
+            {
+                buffers_queued_to_dss_after_stream_off[cfilledbuffer.index] = 1;
+                LOGD("buffers_queued_to_dss_after_stream_off[%d] = 1", cfilledbuffer.index);
+            }
+        }
     }
     
     if (nOverlayBuffersQueued >= NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
     {
-        if(mOverlay->dequeueBuffer(&overlaybuffer)){
-            LOGE("nextPreview(): mOverlay->dequeueBuffer() failed");
+        dequeue_from_dss_failed = mOverlay->dequeueBuffer(&overlaybuffer);
+        if(dequeue_from_dss_failed){
+            if (dequeue_from_dss_failed == -2)
+            {
+                LOGE("nextPreview(): mOverlay->dequeueBuffer() failed. Stream disabled.");
+                //Queue all the buffers that were discarded by DSS upon STREAM OFF, back to camera.
+                for(int k = 0; k < MAX_CAMERA_BUFFERS; k++)
+                {
+                    if ((buffers_queued_to_dss[k] == 1) &&
+                         (buffers_queued_to_dss_after_stream_off[k] != 1))
+                    {
+                        buffers_queued_to_dss[k] = 0;
+                        nOverlayBuffersQueued--;
+                        if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[k]) < 0) {
+                            LOGE("VIDIOC_QBUF Failed, line=%d. Buffer lost forever.",__LINE__);
+                        }else{
+                            nCameraBuffersQueued++;
+                            LOGD("Reclaiming the buffer [%d] from Overlay", k);
+                        }
+                    }
+                    buffers_queued_to_dss_after_stream_off[k] = 0;
+                }
+            }
         }
         else{
             overlaybufferindex = (int)overlaybuffer;

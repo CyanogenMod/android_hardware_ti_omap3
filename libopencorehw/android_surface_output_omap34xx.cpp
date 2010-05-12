@@ -436,7 +436,7 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
     }
     LOGV("queueBuffer %d\n", nBufIndex);
         bufEnc = nBufIndex;
-        if(mOverlay->queueBuffer((void*)bufEnc) != NO_ERROR){
+        if(mOverlay->queueBuffer((void*)bufEnc) < 0){
             LOGE("Video (34xx)MIO queue buffer failed");
             eStatus = PVMFErrArgument; //Only Queue fail
             if(nBuffToStartDQ){ //If error try to dequeue if possible
@@ -469,7 +469,7 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
                 else{
                     /* This code will make sure that whenever a Stream OFF occurs in overlay... 
                        a response is sent for each of the buffer.. so that buffers are not lost */
-                    if(nError == -EPERM ){
+                    if(nError == -2 ){
                         nBuffToStartDQ = NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE -1; // Subtract one, as buffer is already queued
                         LOGV("Handle dq error: EPERM");
                         for(nReturnDSSBufIndex = 0; nReturnDSSBufIndex < mbufferAlloc.maxBuffers; nReturnDSSBufIndex++){

@@ -384,6 +384,7 @@ static int disable_streaming_locked(overlay_shared_t *shared, int ovly_fd)
         } else {
             shared->streamEn = 0;
             shared->qd_buf_count = 0;
+            LOGD("Stream OFF");
         }
     }
 
@@ -1079,16 +1080,19 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
 
     pthread_mutex_lock(&ctx->shared->lock);
 
-    if ( ctx->shared->qd_buf_count <= 1 ) { //dss2 require at least 2 buf queue to perform a dequeue to avoid hang
+    if (ctx->shared->streamEn == 0)
+    {
+        LOGE("Cannot dequeue when streaming is disabled. ctx->shared->qd_buf_count = %d", ctx->shared->qd_buf_count);
+        rc = -2; // This error code is specifically checked for in CameraHal. So, do not change it to something generic.
+    }
+    else if ( ctx->shared->qd_buf_count <= 1 ) { //dss2 require at least 2 buf queue to perform a dequeue to avoid hang
         LOGE("Not enough buffers to dequeue");
         rc = -EPERM;
     }
-
     else if ( (rc = v4l2_overlay_dq_buf( ctx->ctl_fd, &i )) != 0 )
     {
         LOGE("Failed to DQ/%d\n", rc);
     }
-
     else if ( i < 0 || i > ctx->num_buffers )
     {
         LOGE("dqbuffer i=%d",i);
@@ -1098,27 +1102,28 @@ int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
     {
         *((int *)buffer) = i;
         ctx->shared->qd_buf_count --;
-        LOGV("INDEX DEQUEUE = %d", i);
-        LOGV("qd_buf_count --");
+        //LOGD("INDEX DEQUEUE = %d", i);
     }
 
-    LOGV("qd_buf_count = %d", ctx->shared->qd_buf_count);
+    //LOGD("qd_buf_count = %d", ctx->shared->qd_buf_count);
 
     pthread_mutex_unlock(&ctx->shared->lock);
 
     return ( rc );
 }
+
 #ifdef __FILE_DUMP__
 static int noofbuffer = 0;
 #endif
+
 int overlay_queueBuffer(struct overlay_data_device_t *dev,
                         overlay_buffer_t buffer) {
 
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
 
-    if ( !ctx->shared->controlReady ) return -1;
+    if ( !ctx->shared->controlReady ) return -EPERM;
 
-    LOGV("INDEX QUEUE = %d", (int)buffer);
+    //LOGD("INDEX QUEUE = %d, qd_buf_count = %d", (int)buffer, ctx->shared->qd_buf_count);
 
 #ifdef __FILE_DUMP__
    if(noofbuffer > 10)
@@ -1131,20 +1136,34 @@ int overlay_queueBuffer(struct overlay_data_device_t *dev,
    }
    noofbuffer++;
 #endif
+
+    pthread_mutex_lock(&ctx->shared->lock);
+
     int rc = v4l2_overlay_q_buf( ctx->ctl_fd, (int)buffer );
-    if ( rc == 0 && ctx->shared->qd_buf_count < ctx->num_buffers )
+    if (rc < 0) 
+    {
+        LOGD("queueBuffer failed. rc = %d", rc);
+        rc = -EPERM;
+        goto EXIT;
+    }
+
+    if (ctx->shared->qd_buf_count < ctx->num_buffers )
     {
         ctx->shared->qd_buf_count ++;
     }
 
     // Catch the case where the data side had no need to set the crop window
-    LOGV("qd_buf_count = %d", ctx->shared->qd_buf_count);
     if ( ctx->shared->qd_buf_count >= NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE && (ctx->shared->streamEn == 0)) /*DSS2: 2 buffers need to be queue before enable streaming*/
     {
         ctx->shared->dataReady = 1;
-        enable_streaming( ctx->shared, ctx->ctl_fd);
+        enable_streaming_locked( ctx->shared, ctx->ctl_fd);
     }
 
+    rc = ctx->shared->qd_buf_count;
+
+EXIT:
+
+    pthread_mutex_unlock(&ctx->shared->lock);
     return ( rc );
 }
 
