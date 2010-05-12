@@ -253,7 +253,7 @@ void tisk_free(void* p)
         p = header;
 #endif
         ValidateHeap();
-        free(p);
+        MemMgr_Free(p);
         ValidateHeap();
     }
 }
@@ -271,7 +271,10 @@ void* tisk_malloc_flags(size_t size, unsigned flags)
   /*  void* p = malloc(size);*/
      MemReqDescTiler=(MemAllocBlock*)TIMM_OSAL_Malloc((sizeof(MemAllocBlock) * 2), TIMM_OSAL_TRUE, 0 ,TIMMOSAL_MEM_SEGMENT_EXT);
         if (!MemReqDescTiler)
+            {
+                return NULL;
                 printf("\nD can't allocate memory for Tiler block allocation \n");
+            }
 
      MemReqDescTiler[0].pixelFormat = PIXEL_FMT_PAGE;
          MemReqDescTiler[0].dim.len= size;
