@@ -34,10 +34,9 @@ FakeCameraAdapter::FakeCameraAdapter()
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-    //Initialize to true so the first call to sendNextFrame will
-   //dump the Standby to first shot
-    mFirstInit = true;
     mShotToShot = false;
+
+    //TODO: Move shot to snapshot inside DisplayAdapter
     mShotToSnapshot = false;
 
 #endif
@@ -220,13 +219,6 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
 
             CAMHAL_LOGDA("Start Preview");
             msg.command = BaseCameraAdapter::START_PREVIEW;
-
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-            msg.arg1 = (void *) value1;
-
-#endif
-
 
             mFrameQ.put(&msg);
             MessageQueue::waitForMsg(&mAdapterQ, NULL, NULL, -1);
@@ -442,13 +434,6 @@ void FakeCameraAdapter::setBuffer(void *previewBuffer, int index, int width, int
     setBuffer(previewBuffer, i, mPreviewWidth, mPreviewHeight, 0, frameType);
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-    //Check if this is the first call to sendNextFrame()
-    if ( mFirstInit )
-        {
-         CameraHal::PPM("Standby to first shot: ", mStartPreview);
-         mFirstInit = false;
-        }
 
     //Check if a picture was captured and the shot to snapshot
    //measurement should be dumped
@@ -826,13 +811,6 @@ void FakeCameraAdapter::frameThread()
                     else if ( BaseCameraAdapter::START_PREVIEW == msg.command )
                         {
                         CAMHAL_LOGDA("State set to running!");
-
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-                        mStartPreview = ( struct timeval * ) msg.arg1;
-
-#endif
-
                         state = BaseCameraAdapter::RUNNING;
                         }
                     else if ( BaseCameraAdapter::RETURN_FRAME== msg.command )

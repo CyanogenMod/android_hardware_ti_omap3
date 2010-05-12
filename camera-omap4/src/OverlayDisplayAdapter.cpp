@@ -45,6 +45,13 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
 
 {
     LOG_FUNCTION_NAME
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    mMeasureStandby = true;
+
+#endif
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -200,7 +207,7 @@ int OverlayDisplayAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
     return NO_ERROR;
 }
 
-int OverlayDisplayAdapter::enableDisplay()
+int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
 {
     Semaphore sem;
     Message msg;
@@ -214,6 +221,16 @@ int OverlayDisplayAdapter::enableDisplay()
 
         return NO_ERROR;
         }
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    if ( ( NULL != refTime ) && ( mMeasureStandby) )
+        {
+        Mutex::Autolock lock(mLock);
+        memcpy(&mStandbyToShot, refTime, sizeof( struct timeval ));
+        }
+
+#endif
 
     //Send START_DISPLAY COMMAND to display thread. Display thread will start and then wait for a message
     sem.Create();
@@ -596,6 +613,17 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
             { // scope for the lock
             Mutex::Autolock lock(mLock);
             mFramesWithDisplay++;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            if ( mMeasureStandby )
+                {
+                CameraHal::PPM("Standby to first shot: ", &mStandbyToShot);
+                mMeasureStandby = false;
+                }
+
+#endif
+
             }
 
         }

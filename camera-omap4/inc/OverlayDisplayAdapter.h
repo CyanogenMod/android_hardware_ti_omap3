@@ -61,7 +61,7 @@ public:
     virtual int setOverlay(const sp<Overlay> &overlay);
     virtual int setFrameProvider(FrameNotifier *frameProvider);
     virtual int setErrorHandler(ErrorNotifier *errorNotifier);
-    virtual int enableDisplay();
+    virtual int enableDisplay(struct timeval *refTime = NULL);
     virtual int disableDisplay();
     virtual int useBuffers(void* bufArr, int num);
     virtual bool supportsExternalBuffering();
@@ -136,7 +136,9 @@ private:
     mutable Mutex mLock;
     bool mDisplayEnabled;
     KeyedVector<int, int> mPreviewBufferMap;
-
+    //Used for calculating standby to first shot
+    struct timeval mStandbyToShot;
+    bool mMeasureStandby;
 };
 
 };
