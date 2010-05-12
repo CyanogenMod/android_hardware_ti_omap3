@@ -873,6 +873,9 @@ private:
     bool mRecordingEnabled;
 
     int32_t *mImageBufs;
+    uint32_t *mImageOffsets;
+    int mImageFd;
+    int mImageLength;
     int32_t *mPreviewBufs;
     uint32_t *mPreviewOffsets;
     int mPreviewLength;

@@ -179,11 +179,25 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
                         mPreviewBuffersRefCount.add(mPreviewBuffers[i], 0);
                         }
                     }
-                else if ( CameraAdapter::CAMERA_VIDEO == mode )
-                    {
-                    //Don't do anything here, same buffers are
-                    //used for capture as also recording
-                    }
+                }
+            else if ( CameraAdapter::CAMERA_IMAGE_CAPTURE == mode )
+                {
+                if ( NULL == desc )
+                   {
+
+                    CAMHAL_LOGEA("Invalid buffers descriptor!");
+                    ret = -1;
+                   }
+
+                mImageBufferCount = desc->mCount;
+                mImageBuffers = (int *) desc->mBuffers;
+                mImageOffsets = desc->mOffsets;
+                mImageFd = desc->mFd;
+                }
+            else if ( CameraAdapter::CAMERA_VIDEO == mode )
+                {
+                //Don't do anything here, same buffers are
+                 //used for capture as also recording
                 }
             else
                 {
@@ -273,11 +287,10 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
 
             CAMHAL_LOGDA("Start TakePicture");
             msg.command = BaseCameraAdapter::TAKE_PICTURE;
-            msg.arg1 = (void *) value1;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-            msg.arg2 = (void *) value2;
+            msg.arg2 = (void *) value1;
 
 #endif
 
@@ -530,13 +543,20 @@ void FakeCameraAdapter::setBuffer(void *previewBuffer, int index, int width, int
             }
 }
 
-status_t FakeCameraAdapter::takePicture(void *imageBuf)
+status_t FakeCameraAdapter::takePicture()
 {
     status_t ret = NO_ERROR;
     CameraHalEvent shutterEvent;
     event_callback eventCb;
     Message msg;
     CameraFrame *frame;
+
+    if ( mImageBufferCount <= 0 )
+        {
+        return -1;
+        }
+
+    void *imageBuf = ( void * ) mImageBuffers[0];
 
     LOG_FUNCTION_NAME
 
@@ -761,11 +781,11 @@ void FakeCameraAdapter::frameThread()
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-                            mStartCapture = ( struct timeval * ) msg.arg2;
+                            mStartCapture = ( struct timeval * ) msg.arg1;
 
 #endif
 
-                            ret = takePicture(msg.arg1);
+                            ret = takePicture();
                             }
                         else if ( BaseCameraAdapter::FRAME_EXIT == msg.command )
                             {

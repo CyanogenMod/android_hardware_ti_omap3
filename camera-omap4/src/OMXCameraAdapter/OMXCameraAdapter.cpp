@@ -257,6 +257,14 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap.mStride = 4096;
     cap.mBufSize = cap.mStride * cap.mHeight;
 
+    ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, cap);
+    if(ret!=NO_ERROR)
+        {
+        CAMHAL_LOGEB("setFormat() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+         return ret;
+        }
+
     mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex] = cap;
 
     LOG_FUNCTION_NAME_EXIT
@@ -603,6 +611,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         mPreviewData->mBufferHeader[index] = pBufferHdr;
         }
 
+    CAMHAL_LOGDA("LOADED->IDLE state changed");
     ///Wait for state to switch to idle
     eventSem.Wait();
     CAMHAL_LOGDA("LOADED->IDLE state changed");
@@ -745,7 +754,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
 
     status_t ret = NO_ERROR;
     CameraAdapter::CameraMode mode;
-    int *bufArr, num;
+    BuffersDescriptor *desc = NULL;
     Message msg;
 
     switch ( operation ) {
@@ -753,12 +762,11 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                 {
                 CAMHAL_LOGDA("Use Buffers");
                 mode = ( CameraAdapter::CameraMode ) value1;
-                bufArr = (int *) value2;
-                num = value3;
+                desc = ( BuffersDescriptor * ) value2;
 
                 if ( CameraAdapter::CAMERA_PREVIEW == mode )
                     {
-                    if ( NULL == bufArr )
+                    if ( NULL == desc )
                         {
                         CAMHAL_LOGEA("Invalid preview buffers!");
                         ret = -1;
@@ -768,14 +776,11 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                         {
                         Mutex::Autolock lock(mPreviewBufferLock);
 
-                        mCameraAdapterParameters
-                                    .mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex]
-                                                    .mNumBufs = num;
-
-                        mPreviewBuffers = (int *) bufArr;
+                        mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex].mNumBufs =  desc->mCount;
+                        mPreviewBuffers = (int *) desc->mBuffers;
 
                         mPreviewBuffersAvailable.clear();
-                        for ( int i = 0 ; i < num ; i++ )
+                        for ( int i = 0 ; i < desc->mCount ; i++ )
                             {
                             mPreviewBuffersAvailable.add(mPreviewBuffers[i], true);
                             }
@@ -783,7 +788,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                     }
                 else if( CameraAdapter::CAMERA_IMAGE_CAPTURE == mode )
                     {
-                    if ( NULL == bufArr )
+                    if ( NULL == desc )
                         {
                         CAMHAL_LOGEA("Invalid capture buffers!");
                         ret = -1;
@@ -791,10 +796,10 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                     if ( ret == NO_ERROR )
                         {
                         Mutex::Autolock lock(mCaptureBufferLock);
-                        mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex].mNumBufs = num;
-                        mCaptureBuffers = (int *) bufArr;
+                        mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex].mNumBufs = desc->mCount;
+                        mCaptureBuffers = (int *) desc->mBuffers;
                         mCaptureBuffersAvailable.clear();
-                        for ( int i = 0 ; i < num ; i++ )
+                        for ( int i = 0 ; i < desc->mCount ; i++ )
                             {
                             mCaptureBuffersAvailable.add(mCaptureBuffers[i], true);
                             }
@@ -804,7 +809,11 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                     {
                     CAMHAL_LOGEB("Camera Mode %x still not supported!", mode);
                     }
-                useBuffers(mode, bufArr, num);
+
+                if ( NULL != desc )
+                    {
+                    useBuffers(mode, desc->mBuffers, desc->mCount);
+                    }
                 break;
             }
 
@@ -813,9 +822,6 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                 CAMHAL_LOGDA("Start Preview");
                 ret = startPreview();
 
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-                mStartPreview = ( struct timeval * ) value1;
-#endif
                 break;
             }
 
@@ -1107,7 +1113,7 @@ status_t OMXCameraAdapter::startImageCapture()
 status_t OMXCameraAdapter::stopImageCapture()
 {
     LOG_FUNCTION_NAME
-    status_t ret;
+    status_t ret = NO_ERROR;
     Semaphore eventSem;
     OMXCameraPortParameters * capData = NULL;
     OMX_ERRORTYPE eError;
@@ -1470,12 +1476,6 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
 
 OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
 {
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-        //Initialize to true so the first call to OMXCameraAdapterFillBufferDone will
-       //dump the Standby to first shot
-        mFirstInit = true;
-#endif
 
 }
 

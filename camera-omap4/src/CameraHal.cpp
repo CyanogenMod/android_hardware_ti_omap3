@@ -440,6 +440,7 @@ status_t CameraHal::freeVideoBufs()
 
 status_t CameraHal::allocImageBufs(int width, int height, const char* previewFormat)
     {
+    int bytes = width*height;
 
     LOG_FUNCTION_NAME
 
@@ -448,7 +449,6 @@ status_t CameraHal::allocImageBufs(int width, int height, const char* previewFor
     if(!mImageBufs)
         {
         ///@todo calculate the worst case memory required for JPEG
-        int bytes = width*height;
         CAMHAL_LOGDB("Size of Image cap buffer = %d", bytes);
         mImageBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, previewFormat, bytes,CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
         if(!mImageBufs)
@@ -458,6 +458,10 @@ status_t CameraHal::allocImageBufs(int width, int height, const char* previewFor
             return NO_MEMORY;
             }
         }
+
+    mImageFd = mMemoryManager->getFd();
+    mImageLength = bytes;
+    mImageOffsets = mMemoryManager->getOffsets();
 
     LOG_FUNCTION_NAME
 
@@ -1086,17 +1090,23 @@ status_t CameraHal::takePicture( )
     if ( NULL != mCameraAdapter.get() )
         {
 
+        ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
+
+        if ( NO_ERROR == ret )
+            {
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-        //pass capture timestamp along with the camera adapter command
-        ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) mImageBufs, (int) &mStartCapture);
+             //pass capture timestamp along with the camera adapter command
+            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) &mStartCapture);
 
 #else
 
-        ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) mImageBufs);
+            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE);
 
 #endif
 
+            }
         }
     else
         {
