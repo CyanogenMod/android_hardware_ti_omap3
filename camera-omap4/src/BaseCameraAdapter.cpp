@@ -53,6 +53,13 @@ void BaseCameraAdapter::enableMsgType(int32_t msgs, frame_callback callback, eve
                 mRawSubscribers.add((int) cookie, callback);
             }
         }
+    else if ( CameraFrame::VIDEO_FRAME_SYNC == msgs)
+        {
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mVideoSubscribers.add((int) cookie, callback);
+            }
+        }
     else if ( CameraHalEvent::ALL_EVENTS == msgs)
         {
          //Subscribe only for focus
@@ -93,6 +100,13 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
             {
                 Mutex::Autolock lock(mSubscriberLock);
                 mRawSubscribers.removeItem((int) cookie);
+            }
+        }
+    else if ( CameraFrame::VIDEO_FRAME_SYNC == msgs)
+        {
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mVideoSubscribers.removeItem((int) cookie);
             }
         }
     else if ( CameraHalEvent::ALL_EVENTS == msgs)

@@ -301,7 +301,7 @@ void OverlayDisplayAdapter::destroy()
 }
 
 //Implementation of inherited interfaces
-void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* format, int bytes, int numBufs)
+void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* format, int &bytes, int numBufs)
 {
     LOG_FUNCTION_NAME
 
@@ -328,6 +328,7 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
             }
 
             buffers[i] = (int) data->ptr;
+            bytes =  data->length;
             mPreviewBufferMap.add(buffers[i], i);
         }
 
@@ -343,6 +344,91 @@ fail_loop:
 
     LOG_FUNCTION_NAME_EXIT
     return NULL;
+
+}
+
+uint32_t * OverlayDisplayAdapter::getOffsets()
+{
+    uint32_t *offsets;
+    size_t bufferCount;
+    mapping_data_t * data;
+    LOG_FUNCTION_NAME
+
+    offsets = NULL;
+    if ( NULL == mOverlay.get() )
+        {
+        CAMHAL_LOGEA("Overlay reference is missing");
+        goto fail;
+        }
+
+    bufferCount = ( size_t ) mOverlay->getBufferCount();
+
+    offsets = new uint32_t[bufferCount];
+    if ( NULL == offsets )
+        {
+        CAMHAL_LOGEA("No resources to allocate offsets array");
+        goto fail;
+        }
+
+    for ( unsigned int i = 0 ; i < bufferCount ; i ++ )
+        {
+        data =  ( mapping_data_t * ) mOverlay->getBufferAddress( ( void * ) i);
+        if ( NULL == data )
+            {
+            CAMHAL_LOGEA("Invalid Overlay mapping data");
+            goto fail;
+            }
+
+        offsets[i] = ( uint32_t ) data->offset;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return offsets;
+
+fail:
+
+    if ( NULL != offsets )
+        {
+        delete [] offsets;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return NULL;
+}
+
+int OverlayDisplayAdapter::getFd()
+{
+    int fd;
+    mapping_data_t * data;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == mOverlay.get() )
+        {
+        CAMHAL_LOGEA("Overlay reference is missing");
+        goto fail;
+        }
+
+    data =  ( mapping_data_t * ) mOverlay->getBufferAddress( ( void * ) 0);
+    if ( NULL == data )
+    {
+        CAMHAL_LOGEA("Invalid Overlay mapping data");
+        goto fail;
+    }
+
+    fd = ( uint32_t ) data->fd;
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return fd;
+
+fail:
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return -1;
 
 }
 
@@ -516,7 +602,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
     else
         {
         ///Drop the frame, return it back to the provider (Camera Adapter)
-        mFrameProvider->returnFrame(dispFrame.mBuffer);
+        mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
         }
 
     return ret;
@@ -542,7 +628,7 @@ bool OverlayDisplayAdapter::handleFrameReturn()
         }
 
     ///Return the frame back to the provider (Camera Adapter)
-    mFrameProvider->returnFrame( (void *) mPreviewBufferMap.keyAt((int) buf));
+    mFrameProvider->returnFrame( (void *) mPreviewBufferMap.keyAt((int) buf), CameraFrame::PREVIEW_FRAME_SYNC);
 
     //Decrement the frames with display count
         {

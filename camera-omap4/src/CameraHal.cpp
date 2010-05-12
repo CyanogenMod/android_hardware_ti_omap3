@@ -279,7 +279,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
 
-    CAMHAL_LOGDB("camera_index %d, mCameraIndex", camera_index, mCameraIndex);
+    CAMHAL_LOGDB("camera_index %d, mCameraIndex %d", camera_index, mCameraIndex);
 
     if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
         {
@@ -334,8 +334,12 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
 
     if(!mPreviewBufs)
         {
+
         ///@todo Pluralise the name of this method to allocateBuffers
-        mPreviewBufs = (int32_t *)newBufProvider->allocateBuffer(width, height,previewFormat,0,CameraHal::NO_BUFFERS_PREVIEW);
+        mPreviewLength = 0;
+        mPreviewBufs = (int32_t *) newBufProvider->allocateBuffer(width, height, previewFormat, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
+        mPreviewOffsets = (uint32_t *) newBufProvider->getOffsets();
+        mPreviewFd = newBufProvider->getFd();
         mBufProvider = newBufProvider;
 
         }
@@ -346,15 +350,22 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
             ///@todo currently having a static value for number of buffers, this may need to be made dynamic/flexible  b/w preview and video modes
             if((mBufProvider!=(BufferProvider*)mDisplayAdapter.get()) && (newBufProvider==(BufferProvider*)mDisplayAdapter.get()))
                 {
+
                 freePreviewBufs();
-                mPreviewBufs = (int32_t *)newBufProvider->allocateBuffer(width, height,previewFormat,0,CameraHal::NO_BUFFERS_PREVIEW);
-                    if(!mPreviewBufs)
+
+                mPreviewLength = 0;
+                mPreviewBufs = (int32_t *)newBufProvider->allocateBuffer(width, height, previewFormat, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
+                if ( NULL == mPreviewBufs )
                     {
                     CAMHAL_LOGEA("Couldn't allocate preview buffers using Memory manager");
                     LOG_FUNCTION_NAME_EXIT
                     return NO_MEMORY;
                     }
+
+                mPreviewOffsets = (uint32_t *) newBufProvider->getOffsets();
+                mPreviewFd = newBufProvider->getFd();
                 mBufProvider = newBufProvider;
+
                 }
         }
 
@@ -363,6 +374,69 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
     return NO_ERROR;
 
 }
+
+status_t CameraHal::freePreviewBufs()
+    {
+    status_t ret = NO_ERROR;
+    LOG_FUNCTION_NAME
+
+    CAMHAL_LOGDB("mPreviewBufs = 0x%x", (unsigned int)mPreviewBufs);
+    if(mPreviewBufs)
+        {
+        ///@todo Pluralise the name of this method to freeBuffers
+        ret = mBufProvider->freeBuffer(mPreviewBufs);
+        mPreviewBufs = NULL;
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+    LOG_FUNCTION_NAME_EXIT;
+    return ret;
+    }
+
+
+status_t CameraHal::allocVideoBufs(int width, int height, const char* previewFormat)
+{
+    status_t ret;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == mVideoBufProvider )
+        {
+         mVideoBufProvider = ( BufferProvider * ) mMemoryManager.get();
+        }
+
+    if ( NULL != mVideoBufs )
+        {
+         freeVideoBufs();
+        }
+    mVideoLength = 0;
+    mVideoBufs = (int32_t *) mVideoBufProvider->allocateBuffer(width, height, previewFormat, mVideoLength, CameraHal::NO_BUFFERS_PREVIEW);
+    mVideoOffsets = (uint32_t *) mVideoBufProvider->getOffsets();
+    mVideoFd = mVideoBufProvider->getFd();
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return NO_ERROR;
+
+}
+
+status_t CameraHal::freeVideoBufs()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL != mVideoBufs)
+        {
+        ret = mVideoBufProvider->freeBuffer(mVideoBufs);
+        mVideoBufs = NULL;
+        }
+
+    LOG_FUNCTION_NAME_EXIT;
+
+    return ret;
+}
+
 
 status_t CameraHal::allocImageBufs(int width, int height, const char* previewFormat)
     {
@@ -388,24 +462,6 @@ status_t CameraHal::allocImageBufs(int width, int height, const char* previewFor
     LOG_FUNCTION_NAME
 
     return NO_ERROR;
-    }
-
-status_t CameraHal::freePreviewBufs()
-    {
-    status_t ret = NO_ERROR;
-    LOG_FUNCTION_NAME
-
-    CAMHAL_LOGDB("mPreviewBufs = 0x%x", (unsigned int)mPreviewBufs);
-    if(mPreviewBufs)
-        {
-        ///@todo Pluralise the name of this method to freeBuffers
-        ret = mBufProvider->freeBuffer(mPreviewBufs);
-        mPreviewBufs = NULL;
-        LOG_FUNCTION_NAME_EXIT
-        return ret;
-        }
-    LOG_FUNCTION_NAME_EXIT;
-    return ret;
     }
 
 status_t CameraHal::freeImageBufs()
@@ -509,7 +565,7 @@ status_t CameraHal::startPreview()
 
 
     ///Pass the buffers to Camera Adapter
-    mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, CameraHal::NO_BUFFERS_PREVIEW);
+    mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, CameraHal::NO_BUFFERS_PREVIEW);
 
     ///Start the callback notifier
     ret = mAppCallbackNotifier->start();
@@ -687,7 +743,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
                 }
 
             ///Pass the buffers to Camera Adapter
-            mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, CameraHal::NO_BUFFERS_PREVIEW);
+            mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, CameraHal::NO_BUFFERS_PREVIEW);
 
             }
         else
@@ -745,6 +801,7 @@ void CameraHal::stopPreview()
     mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
     freePreviewBufs();
     freeImageBufs();
+    freeVideoBufs();
     mPreviewEnabled = false;
 
     if ( mReloadAdapter )
@@ -802,9 +859,68 @@ bool CameraHal::previewEnabled()
  */
 status_t CameraHal::startRecording( )
 {
+    int w, h;
+    status_t ret = NO_ERROR;
+
     LOG_FUNCTION_NAME
-    ///@todo Implement this when video mode will be supported
-    return NO_ERROR;
+
+    if ( ( NULL == mAppCallbackNotifier.get () ) )
+        {
+        CAMHAL_LOGEA("Callback notifier not initialized")
+        ret = -1;
+        }
+
+    if ( ( NULL == mCameraAdapter.get() ) )
+        {
+        CAMHAL_LOGEA("Camera Adapter not initialized")
+        ret= -1;
+        }
+
+    mParameters.getPreviewSize(&w, &h);
+    if ( NO_ERROR == ret )
+        {
+         ret = allocVideoBufs(w, h, mParameters.getPreviewFormat());
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+#if 1
+
+         ret = mAppCallbackNotifier->initSharedVideoBuffers(mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
+
+#else
+
+        ret = mAppCallbackNotifier->initSharedVideoBuffers(mVideoBufs, mVideoOffsets, mVideoFd, mVideoLength, CameraHal::NO_BUFFERS_PREVIEW);
+
+#endif
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+         ret = mAppCallbackNotifier->startRecording();
+        }
+
+    if ( NO_ERROR == ret )
+        {
+         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mVideoBufs, mVideoOffsets, mVideoFd, CameraHal::NO_BUFFERS_PREVIEW);
+        }
+
+    if ( NO_ERROR == ret )
+        {
+         ret =  mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_VIDEO);
+        }
+
+
+    if ( NO_ERROR == ret )
+        {
+        mRecordingEnabled = true;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 /**
@@ -817,7 +933,21 @@ status_t CameraHal::startRecording( )
 void CameraHal::stopRecording()
 {
     LOG_FUNCTION_NAME
-    ///@todo Implement this when video mode will be supported
+
+    if ( ( NULL != mAppCallbackNotifier.get () ) )
+        {
+        mAppCallbackNotifier->stopRecording();
+        }
+
+    if ( ( NULL == mCameraAdapter.get() ) )
+        {
+        mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_VIDEO);
+        }
+
+    freeVideoBufs();
+
+    mRecordingEnabled = false;
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -832,8 +962,10 @@ void CameraHal::stopRecording()
 bool CameraHal::recordingEnabled()
 {
     LOG_FUNCTION_NAME
-    ///@todo Implement this when video mode will be supported
-    return false;
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return mRecordingEnabled;
 }
 
 /**
@@ -847,7 +979,14 @@ bool CameraHal::recordingEnabled()
 void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 {
     LOG_FUNCTION_NAME
-    ///@todo Implement this when video mode will be supported
+
+    if ( ( mRecordingEnabled ) && ( NULL != mem.get() ) )
+        {
+        mAppCallbackNotifier->releaseRecordingFrame(mem);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
     return;
 }
 
@@ -1075,6 +1214,10 @@ CameraHal::CameraHal()
     mImageBufs = NULL;
     mBufProvider = NULL;
     mPreviewStartInProgress = false;
+    mVideoBufs = NULL;
+    mVideoBufProvider = NULL;
+    mRecordingEnabled = false;
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     //Initialize the CameraHAL constructor timestamp, which is used in the

@@ -230,17 +230,41 @@ void AppCallbackNotifier::notifyEvent()
 
 }
 
+#ifdef  COPY_VIDEO_BUFFER
+
+static void copy2Dto1D(void *dst, void *src, int width, int height, size_t stride, unsigned int bytesPerPixel, size_t length)
+{
+    unsigned int alignedRow, row;
+    unsigned char *bufferDst, *bufferSrc;
+
+    bufferDst = ( unsigned char * ) dst;
+    bufferSrc = ( unsigned char * ) src;
+    row = width*bytesPerPixel;
+    alignedRow = ( row + ( stride -1 ) ) & ( ~ ( stride -1 ) );
+
+    //iterate through each row
+    for ( int i = 0 ; i < height ; i++,  bufferSrc += alignedRow, bufferDst += row)
+        {
+        memcpy(bufferDst, bufferSrc, row);
+        }
+}
+
+#endif
+
 void AppCallbackNotifier::notifyFrame()
 {
     ///Receive and send the frame notifications to app
     Message msg;
     CameraFrame *frame;
+    MemoryHeapBase *heap;
+    MemoryBase *buffer;
 
     LOG_FUNCTION_NAME
 
     mFrameQ.get(&msg);
     bool ret = true;
 
+    frame = NULL;
     switch(msg.command)
         {
         case AppCallbackNotifier::NOTIFIER_CMD_PROCESS_FRAME:
@@ -260,16 +284,77 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE)  ) )
                     {
+
+#ifdef COPY_IMAGE_BUFFER
+
+                    sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase(frame->mLength);
+                    sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, frame->mLength);
+                    memcpy(JPEGPictureMemBase->pointer(), frame->mBuffer, frame->mLength);
+
+#else
+
                      //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
                      //Send NULL for now
                      sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase( 256);
                      sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, 256);
 
+#endif
+
                     mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                    }
+                else if ( ( CameraFrame::VIDEO_FRAME_SYNC == frame->mFrameType ) &&
+                             ( NULL != mCameraHal.get() ) &&
+                             ( NULL != mDataCb) &&
+                             ( mCameraHal->msgTypeEnabled(CAMERA_MSG_VIDEO_FRAME)  ) )
+                    {
+
+#ifdef COPY_VIDEO_BUFFER
+
+                        {
+                        Mutex::Autolock lock(mLock);
+                        if ( mBufferReleased )
+                            {
+
+                            heap = new MemoryHeapBase(frame->mLength);
+                            if ( NULL == heap )
+                                {
+                                CAMHAL_LOGEA("Unable to allocate memory heap");
+                                ret = -1;
+                                goto exit;
+                                }
+
+                            buffer = new MemoryBase(heap, 0, frame->mLength);
+                            if ( NULL == buffer )
+                                {
+                                CAMHAL_LOGEA("Unable to allocate a memory buffer");
+                                ret = -1;
+                                goto exit;
+                                }
+
+                            //TODO: Suport other pixelformats
+                            copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength);
+
+                            mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
+
+                            mBufferReleased = false;
+                            }
+                        }
+
+                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
+
+#else
+
+                    buffer = ( MemoryBase * ) mVideoBuffers.valueFor( ( unsigned int ) frame->mBuffer );
+
+                    mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
+
+#endif
+
                     }
                 else
                     {
                     CAMHAL_LOGEB("Frame type 0x%x is still unsupported!", frame->mFrameType);
+                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
                     }
 
                 break;
@@ -280,9 +365,15 @@ void AppCallbackNotifier::notifyFrame()
 
         };
 
+exit:
+
+    if ( NULL != frame )
+        {
+        delete frame;
+        }
+
     LOG_FUNCTION_NAME_EXIT
 }
-
 
 void AppCallbackNotifier::frameCallbackRelay(CameraFrame* caFrame)
 {
@@ -296,10 +387,27 @@ void AppCallbackNotifier::frameCallback(CameraFrame* caFrame)
 {
     ///Post the event to the event queue of AppCallbackNotifier
     Message msg;
+    CameraFrame *frame;
+
     LOG_FUNCTION_NAME
-    msg.command = AppCallbackNotifier::NOTIFIER_CMD_PROCESS_FRAME;
-    msg.arg1 = caFrame;
-    mFrameQ.put(&msg);
+
+    if ( NULL != caFrame )
+        {
+
+        frame = new CameraFrame(*caFrame);
+        if ( NULL != frame )
+            {
+            msg.command = AppCallbackNotifier::NOTIFIER_CMD_PROCESS_FRAME;
+            msg.arg1 = frame;
+            mFrameQ.put(&msg);
+            }
+        else
+            {
+            CAMHAL_LOGEA("Not enough resources to allocate CameraFrame");
+            }
+
+        }
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -435,6 +543,27 @@ AppCallbackNotifier::~AppCallbackNotifier()
         mFrameProvider = NULL;
         }
 
+    releaseSharedVideoBuffers();
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+//Free all video heaps and buffers
+void AppCallbackNotifier::releaseSharedVideoBuffers()
+{
+    MemoryHeapBase *heap;
+    MemoryBase *buffer;
+
+    LOG_FUNCTION_NAME
+
+    for ( unsigned int i = 0 ; i < mVideoHeaps.size() ; i++ )
+        {
+        heap = ( MemoryHeapBase * ) mVideoHeaps.valueAt(i);
+        heap->dispose();
+        }
+
+    mVideoHeaps.clear();
+    mVideoBuffers.clear();
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -480,6 +609,154 @@ void AppCallbackNotifier::setFrameProvider(FrameNotifier *frameNotifier)
         }
 
     LOG_FUNCTION_NAME_EXIT
+}
+
+status_t AppCallbackNotifier::startRecording()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == mFrameProvider )
+        {
+        CAMHAL_LOGEA("Trying to start video recording without FrameProvider");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+         mFrameProvider->enableFrameNotification(CameraFrame::VIDEO_FRAME_SYNC);
+        }
+
+#ifdef COPY_VIDEO_BUFFER
+
+    mBufferReleased = true;
+
+#endif
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count)
+{
+    MemoryHeapBase *heap;
+    MemoryBase *buffer;
+    status_t ret = NO_ERROR;
+    unsigned int *bufArr;
+
+    LOG_FUNCTION_NAME
+
+    releaseSharedVideoBuffers();
+
+#ifndef COPY_VIDEO_BUFFER
+
+    bufArr = ( unsigned int * ) buffers;
+    for ( unsigned int i = 0 ; i < count ; i ++ )
+        {
+        heap = new MemoryHeapBase(fd, length, 0, offsets[i]);
+        if ( NULL == heap )
+            {
+            CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x", ( void * ) bufArr[i]);
+            ret = -1;
+            goto exit;
+            }
+
+#ifdef DEBUG_LOG
+
+        CAMHAL_LOGEB("New memory heap 0x%x for frame 0x%x", heap, ( void * ) bufArr[i]);
+
+#endif
+
+        buffer = new MemoryBase(heap, 0, length);
+        if ( NULL == buffer )
+            {
+            CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", ( void * ) bufArr[i]);
+            heap->dispose();
+            ret = -1;
+            goto exit;
+            }
+
+#ifdef DEBUG_LOG
+
+        CAMHAL_LOGEB("New memory buffer 0x%x for frame 0x%x ", buffer, ( void * ) bufArr[i]);
+
+#endif
+
+        mVideoHeaps.add( bufArr[i], ( unsigned int ) heap);
+        mVideoBuffers.add( bufArr[i], ( unsigned int ) buffer);
+        }
+
+#endif
+
+exit:
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+
+status_t AppCallbackNotifier::stopRecording()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == mFrameProvider )
+        {
+        CAMHAL_LOGEA("Trying to stop video recording without FrameProvider");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+         mFrameProvider->disableFrameNotification(CameraFrame::VIDEO_FRAME_SYNC);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t AppCallbackNotifier::releaseRecordingFrame(const sp < IMemory > & mem)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+#ifdef COPY_VIDEO_BUFFER
+
+        {
+        Mutex::Autolock lock(mLock);
+        mBufferReleased = true;
+        }
+
+#else
+
+    if ( NULL == mFrameProvider )
+        {
+        CAMHAL_LOGEA("Trying to stop video recording without FrameProvider");
+        ret = -1;
+        }
+
+    if ( NULL == mem.get() )
+        {
+        CAMHAL_LOGEA("Video Frame released is invalid");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+         mFrameProvider->returnFrame(mem->pointer(), CameraFrame::VIDEO_FRAME_SYNC);
+        }
+
+#endif
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 status_t AppCallbackNotifier::start()

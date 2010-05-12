@@ -189,7 +189,7 @@ public:
     virtual status_t setParameters(const CameraParameters& params);
     virtual CameraParameters getParameters() const;
 
-    virtual void returnFrame(void* frameBuf);
+    virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
 
     //API to get the caps
     virtual status_t getCaps();

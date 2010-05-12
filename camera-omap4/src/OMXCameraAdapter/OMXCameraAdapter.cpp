@@ -137,7 +137,7 @@ status_t OMXCameraAdapter::initialize()
 }
 
 
-void OMXCameraAdapter::returnFrame(void* frameBuf)
+void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameType)
 {
     OMXCameraPortParameters * mPreviewData = NULL;
     mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];

@@ -49,7 +49,7 @@ LOCAL_C_INCLUDES += \
 	frameworks/base/include/utils \
 
 
-LOCAL_CFLAGS += -fno-short-enums
+LOCAL_CFLAGS += -fno-short-enums -DCOPY_VIDEO_BUFFER -DCOPY_VIDEO_BUFFER
 
 LOCAL_MODULE:= libcamera
 
@@ -114,7 +114,7 @@ LOCAL_SRC_FILES:= \
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../inc/ \
     $(LOCAL_PATH)/../inc/OMXCameraAdapter \
-    
+
 LOCAL_SHARED_LIBRARIES:= \
     libdl \
     libui \
@@ -135,7 +135,7 @@ LOCAL_STATIC_LIBRARIES:= \
 	libipc_setup \
 	libomx_rpc \
 
-		
+
 
 LOCAL_C_INCLUDES += \
     kernel/android-2.6.29/include \
@@ -150,7 +150,7 @@ LOCAL_C_INCLUDES += \
 
 
 
-LOCAL_CFLAGS += -fno-short-enums 
+LOCAL_CFLAGS += -fno-short-enums
 
 LOCAL_MODULE:= libomxcameraadapter
 
