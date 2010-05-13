@@ -127,6 +127,7 @@ status_t FakeCameraAdapter::setParameters(const CameraParameters& params)
     LOG_FUNCTION_NAME
 
     params.getPreviewSize(&mPreviewWidth, &mPreviewHeight);
+    params.getPictureSize(&mCaptureWidth, &mCaptureHeight);
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -290,7 +291,7 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-            msg.arg2 = (void *) value1;
+            msg.arg1 = (void *) value1;
 
 #endif
 
@@ -607,7 +608,8 @@ status_t FakeCameraAdapter::takePicture()
                     break;
                     }
 
-                frame->mBuffer = NULL;
+                frame->mBuffer = imageBuf;
+                frame->mLength = mCaptureWidth*mCaptureHeight;
                 frame->mCookie = ( void * ) mRawSubscribers.keyAt(i);
                 frame->mFrameType = CameraFrame::RAW_FRAME;
 
@@ -642,6 +644,7 @@ status_t FakeCameraAdapter::takePicture()
                     }
 
                 frame->mBuffer = imageBuf;
+                frame->mLength = mCaptureWidth*mCaptureHeight;
                 frame->mCookie = ( void * ) mImageSubscribers.keyAt(i);
                 frame->mFrameType = CameraFrame::IMAGE_FRAME;
 

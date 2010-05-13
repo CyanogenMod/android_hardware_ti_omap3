@@ -137,6 +137,7 @@ class FramePreview : public Thread {
     int mPreviewFd;
     KeyedVector<int, int> mPreviewBuffersRefCount;
     int mPreviewWidth, mPreviewHeight, mPreviewFormat;
+    int mCaptureWidth, mCaptureHeight, mCaptureFormat;
     int mFrameRate;
     CameraParameters mParameters;
     MessageQueue mCallbackQ;
