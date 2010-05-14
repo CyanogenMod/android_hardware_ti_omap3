@@ -562,6 +562,7 @@ int destroyPreviewSurface() {
     }
 
     if ( NULL != client.get() ) {
+        client->dispose();
         client.clear();
     }
 
