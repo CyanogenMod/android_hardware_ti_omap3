@@ -832,6 +832,7 @@ int functional_menu() {
     if (print_menu) {
 
         printf("\n\n=========== FUNCTIONAL TEST MENU ===================\n\n");
+        printf("   [. Resume Preview after capture\n");
         printf("   0. Reset to defaults\n");
         printf("   1. Start Preview\n");
         printf("   2. Stop Preview/Recording\n");
@@ -876,9 +877,14 @@ int functional_menu() {
     print_menu = 1;
 
     switch (ch) {
-        case '0':
-            initDefaults();
-            break;
+    case '[':
+        if ( hardwareActive )
+            camera->startPreview();
+        break;
+
+    case '0':
+        initDefaults();
+        break;
 
         case '1':
 
