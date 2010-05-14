@@ -40,6 +40,7 @@ public:
         int mHeight;
         int mWidthStride;
         int mHeightStride;
+        CameraFrame::FrameType mType;
         } DisplayFrame;
 
     enum DisplayStates
@@ -63,6 +64,7 @@ public:
     virtual int setErrorHandler(ErrorNotifier *errorNotifier);
     virtual int enableDisplay(struct timeval *refTime = NULL);
     virtual int disableDisplay();
+    virtual status_t pauseDisplay(bool pause);
     virtual int useBuffers(void* bufArr, int num);
     virtual bool supportsExternalBuffering();
 
@@ -125,6 +127,7 @@ private:
     int postBuffer(void* displayBuf);
 
 private:
+    bool mPaused; //Pause state
     sp<Overlay>  mOverlay;
     ErrorNotifier *mErrorNotifier;
     sp<DisplayThread> mDisplayThread;

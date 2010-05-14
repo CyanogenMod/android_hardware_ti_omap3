@@ -184,12 +184,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     status_t ret = NO_ERROR;
 
-    if(mComponentState!=OMX_StateLoaded)
-        {
-        CAMHAL_LOGEA("Calling setParameters() when not in LOADED state");
-        LOG_FUNCTION_NAME_EXIT
-        return NO_INIT;
-        }
+    mParams = params;
 
     ///@todo Include more camera parameters
     int w, h;
@@ -223,49 +218,35 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("Preview frame rate %d", frameRate);
 
-    OMXCameraPortParameters cap;
-    cap.mColorFormat = pixFormat;
-    cap.mWidth = w;
-    cap.mHeight = h;
-    cap.mFrameRate = frameRate;
-    cap.mNumBufs = MAX_CAMERA_BUFFERS;
+    OMXCameraPortParameters *cap;
+    cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
 
-    CAMHAL_LOGDB("cap.mColorFormat = %d", cap.mColorFormat);
-    CAMHAL_LOGDB("cap.mWidth = %d", cap.mWidth);
-    CAMHAL_LOGDB("cap.mHeight = %d", cap.mHeight);
-    CAMHAL_LOGDB("cap.mFrameRate = %d", cap.mFrameRate);
-    CAMHAL_LOGDB("cap.mNumBufs = %d", cap.mNumBufs);
+    cap->mColorFormat = pixFormat;
+    cap->mWidth = w;
+    cap->mHeight = h;
+    cap->mFrameRate = frameRate;
+
+    CAMHAL_LOGDB("Prev: cap.mColorFormat = %d", cap->mColorFormat);
+    CAMHAL_LOGDB("Prev: cap.mWidth = %d", cap->mWidth);
+    CAMHAL_LOGDB("Prev: cap.mHeight = %d", cap->mHeight);
+    CAMHAL_LOGDB("Prev: cap.mFrameRate = %d", cap->mFrameRate);
 
     ///mStride is set from setBufs() while passing the APIs
-    cap.mStride = 4096;
-    cap.mBufSize = cap.mStride * cap.mHeight;
+    cap->mStride = 4096;
+    cap->mBufSize = cap->mStride * cap->mHeight;
 
-    ret = setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, cap);
-    if(ret!=NO_ERROR)
-        {
-        CAMHAL_LOGEB("setFormat() failed %d", ret);
-        LOG_FUNCTION_NAME_EXIT
-        return ret;
-        }
-
-    mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex] = cap;
+    cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
     params.getPictureSize(&w, &h);
-    cap.mWidth = w;
-    cap.mHeight = h;
-    ///mStride is set from setBufs() while passing the APIs
-    cap.mStride = 4096;
-    cap.mBufSize = cap.mStride * cap.mHeight;
+    cap->mWidth = w;
+    cap->mHeight = h;
+    //TODO: Support more pixelformats
+    cap->mStride = w*2;
+    cap->mBufSize = cap->mStride * cap->mHeight;
+    cap->mNumBufs = mCaptureBuffersCount;
 
-    ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, cap);
-    if(ret!=NO_ERROR)
-        {
-        CAMHAL_LOGEB("setFormat() failed %d", ret);
-        LOG_FUNCTION_NAME_EXIT
-         return ret;
-        }
-
-    mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex] = cap;
+    CAMHAL_LOGDB("Image: cap.mWidth = %d", cap->mWidth);
+    CAMHAL_LOGDB("Image: cap.mHeight = %d", cap->mHeight);
 
     LOG_FUNCTION_NAME_EXIT
     return ret;
@@ -291,15 +272,27 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         }
     GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
-    portCheck.format.video.nFrameWidth      = portParams.mWidth;
-    portCheck.format.video.nFrameHeight     = portParams.mHeight;
-    portCheck.format.video.eColorFormat     = portParams.mColorFormat;
-    portCheck.format.video.nStride          = portParams.mStride;
-    portCheck.format.video.xFramerate       = portParams.mFrameRate<<16;
-    portCheck.nBufferSize                   = portParams.mStride * portParams.mHeight;
+    if ( OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW == port )
+        {
+        portCheck.format.video.nFrameWidth      = portParams.mWidth;
+        portCheck.format.video.nFrameHeight     = portParams.mHeight;
+        portCheck.format.video.eColorFormat     = portParams.mColorFormat;
+        portCheck.format.video.nStride          = portParams.mStride;
+        portCheck.format.video.xFramerate       = portParams.mFrameRate<<16;
+        portCheck.nBufferSize                   = portParams.mStride * portParams.mHeight;
+        portCheck.nBufferCountActual = portParams.mNumBufs;
+        }
+    else if ( OMX_CAMERA_PORT_IMAGE_OUT_IMAGE == port )
+        {
+        portCheck.format.image.nFrameWidth      = portParams.mWidth;
+        portCheck.format.image.nFrameHeight     = portParams.mHeight;
+        portCheck.format.image.eColorFormat     = OMX_COLOR_FormatCbYCrY;
+        portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
+        portCheck.format.image.nStride          = portParams.mStride;
+        portCheck.nBufferSize                   = mCaptureBuffersLength;
+        portCheck.nBufferCountActual = 1;
+        }
 
-    /* fill some default buffer count as of now.  */
-    portCheck.nBufferCountActual = portParams.mNumBufs;
     eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp,
                             OMX_IndexParamPortDefinition, &portCheck);
     if(eError!=OMX_ErrorNone)
@@ -474,6 +467,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 
     OMXCameraPortParameters * mPreviewData = NULL;
     mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+    mPreviewData->mNumBufs = num ;
     uint32_t *buffers = (uint32_t*)bufArr;
 
     Semaphore eventSem;
@@ -490,14 +484,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         CAMHAL_LOGEA("Current number of buffers doesnt equal new num of buffers passed!");
         LOG_FUNCTION_NAME_EXIT
         return BAD_VALUE;
-        }
-
-    ///If image capture is ON, return error, we don't support new set of buffers when image capture is ongoing
-    if(mCapturing)
-        {
-        CAMHAL_LOGEA("Image capture is ongoing. UseBuffers not supported");
-        LOG_FUNCTION_NAME_EXIT
-        return NO_INIT;
         }
 
     ///If preview is ongoing
@@ -562,6 +548,14 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         ret = ErrorUtils::omxToAndroidError(eError);
 
         ///Return from here
+        return ret;
+        }
+
+    ret = setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData);
+    if(ret!=NO_ERROR)
+        {
+        CAMHAL_LOGEB("setFormat() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
         return ret;
         }
 
@@ -639,31 +633,17 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     OMXCameraPortParameters * imgCaptureData = NULL;
     uint32_t *buffers = (uint32_t*)bufArr;
     Semaphore camSem;
-    imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
+    OMXCameraPortParameters cap;
 
+    imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
     imgCaptureData->mNumBufs = num;
 
     camSem.Create();
 
-    OMX_PARAM_PORTDEFINITIONTYPE imgPortDefinition;
-    memset(&imgPortDefinition, 0x0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    if ( mCapturing )
+        {
 
-    imgPortDefinition.nVersion.s.nVersionMajor = 0x1;
-    imgPortDefinition.nVersion.s.nVersionMinor = 0x1;
-    imgPortDefinition.nVersion.s.nRevision = 0x0;
-    imgPortDefinition.nVersion.s.nStep = 0x0;
-    imgPortDefinition.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
-
-
-    eError = OMX_GetParameter (mCameraAdapterParameters.mHandleComp,
-                                    OMX_IndexParamPortDefinition,
-                                        &imgPortDefinition);
-
-    /// If the buffers are alredy in use, then we need to free them first
-    /// Also we will need to switch port state to disabled
-    if( imgPortDefinition.bEnabled )
-    {
-        ///Register for Image port DISABLE event
+        ///Register for Image port Disable event
         ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
                                     OMX_EventCmdComplete,
                                     OMX_CommandPortDisable,
@@ -671,26 +651,31 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
                                     camSem,
                                     -1);
 
-        ///Enable Capture Port
+        ///Disable Capture Port
         eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
                                     OMX_CommandPortDisable,
                                     mCameraAdapterParameters.mImagePortIndex,
                                     NULL);
 
-        for( int i = 0; i < imgPortDefinition.nBufferCountActual; i++)
-            {
-            eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
-                                mCameraAdapterParameters.mImagePortIndex,
-                                imgCaptureData->mBufferHeader[i]);
-            if(eError!=OMX_ErrorNone)
-                {
-                CAMHAL_LOGEB("OMX_FreeBuffer - %x", eError);
-                }
-            GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
-            }
-        /// Wait for the DISABLE port event
+        CAMHAL_LOGDA("Waiting for port disable");
+        //Wait for the image port enable event
         camSem.Wait();
-    }
+        CAMHAL_LOGDA("Port disabled");
+
+        }
+
+    //TODO: Support more pixelformats
+
+    LOGE("Params Width = %d", imgCaptureData->mWidth);
+    LOGE("Params Height = %d", imgCaptureData->mWidth);
+
+    ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *imgCaptureData);
+    if(ret!=NO_ERROR)
+        {
+        CAMHAL_LOGEB("setFormat() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+         return ret;
+        }
 
     ///Register for Image port ENABLE event
     ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
@@ -699,6 +684,7 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
                                 mCameraAdapterParameters.mImagePortIndex,
                                 camSem,
                                 -1);
+
     ///Enable Capture Port
     eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
                                 OMX_CommandPortEnable,
@@ -708,13 +694,13 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     for(int index=0;index<num;index++)
     {
         OMX_BUFFERHEADERTYPE *pBufferHdr;
-        CAMHAL_LOGDB("OMX_UseBuffer Capture address: 0x%x", buffers[index]);
+        CAMHAL_LOGDB("OMX_UseBuffer Capture address: 0x%x, size = %d", buffers[index], imgCaptureData->mBufSize);
 
         eError = OMX_UseBuffer( mCameraAdapterParameters.mHandleComp,
                                 &pBufferHdr,
                                 mCameraAdapterParameters.mImagePortIndex,
                                 0,
-                                imgCaptureData->mBufSize,
+                                mCaptureBuffersLength,
                                 (OMX_U8*)buffers[index]);
 
         CAMHAL_LOGDB("OMX_UseBuffer = 0x%x", eError);
@@ -731,7 +717,11 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     }
 
     //Wait for the image port enable event
+    CAMHAL_LOGDA("Waiting for port enable");
     camSem.Wait();
+    CAMHAL_LOGDA("Port enabled");
+
+    mCapturing = true;
 
     EXIT:
     LOG_FUNCTION_NAME_EXIT
@@ -798,6 +788,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                         Mutex::Autolock lock(mCaptureBufferLock);
                         mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex].mNumBufs = desc->mCount;
                         mCaptureBuffers = (int *) desc->mBuffers;
+                        mCaptureBuffersLength = desc->mLength;
                         mCaptureBuffersAvailable.clear();
                         for ( int i = 0 ; i < desc->mCount ; i++ )
                             {
@@ -960,8 +951,11 @@ status_t OMXCameraAdapter::stopPreview()
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     status_t ret = NO_ERROR;
 
-    OMXCameraPortParameters * mPreviewData = NULL;
+    OMXCameraPortParameters *mCaptureData , * mPreviewData;
+    mCaptureData = mPreviewData = NULL;
+
     mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+    mCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
     Mutex::Autolock lock(mPreviewBufferLock);
 
@@ -1069,25 +1063,17 @@ status_t OMXCameraAdapter::startImageCapture()
 
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    Semaphore camSem;
     OMXCameraPortParameters * capData = NULL;
-
     OMX_CONFIG_BOOLEANTYPE bOMX;
-
-    memset(&bOMX, 0x0, sizeof(OMX_CONFIG_BOOLEANTYPE));
-    bOMX.nVersion.s.nVersionMajor = 0x1;
-    bOMX.nVersion.s.nVersionMinor = 0x1;
-    bOMX.nVersion.s.nRevision = 0x0;
-    bOMX.nVersion.s.nStep = 0x0;
-    bOMX.nSize = sizeof(OMX_CONFIG_BOOLEANTYPE);
-
-    camSem.Create();
-
-    GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
     capData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
-    GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+    memset(&bOMX, 0x0, sizeof(OMX_CONFIG_BOOLEANTYPE));
+    bOMX.nVersion.s.nVersionMajor = capData->mBufferHeader[0]->nVersion.s.nVersionMajor ;//0x1;
+    bOMX.nVersion.s.nVersionMinor = capData->mBufferHeader[0]->nVersion.s.nVersionMinor ;//0x1;
+    bOMX.nVersion.s.nRevision = capData->mBufferHeader[0]->nVersion.s.nRevision ;//0x0;
+    bOMX.nVersion.s.nStep = capData->mBufferHeader[0]->nVersion.s.nStep ;//0x0;
+    bOMX.nSize = sizeof(OMX_CONFIG_BOOLEANTYPE);
 
     ///Queue all the buffers on capture port
     for(int index=0;index< capData->mNumBufs;index++)
@@ -1103,6 +1089,8 @@ status_t OMXCameraAdapter::startImageCapture()
     bOMX.bEnabled = OMX_TRUE;
     eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCapturing, &bOMX);
 
+    GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+
     mCapturing = true;
     mWaitingForSnapshot = true;
 
@@ -1114,54 +1102,41 @@ status_t OMXCameraAdapter::stopImageCapture()
 {
     LOG_FUNCTION_NAME
     status_t ret = NO_ERROR;
-    Semaphore eventSem;
     OMXCameraPortParameters * capData = NULL;
     OMX_ERRORTYPE eError;
+    Semaphore camSem;
+
+    camSem.Create();
+
     OMX_CONFIG_BOOLEANTYPE bOMX;
-
-    eventSem.Create();
-
-    memset(&bOMX, 0x0, sizeof(OMX_CONFIG_BOOLEANTYPE));
-    bOMX.nVersion.s.nVersionMajor = 0x1;
-    bOMX.nVersion.s.nVersionMinor = 0x1;
-    bOMX.nVersion.s.nRevision = 0x0;
-    bOMX.nVersion.s.nStep = 0x0;
-    bOMX.nSize = sizeof(OMX_CONFIG_BOOLEANTYPE);
-    bOMX.bEnabled = OMX_FALSE;
-
-    eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCapturing, &bOMX);
 
     capData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
-    ///Free the OMX Buffers for Capture
-    for(int i=0;i<capData->mNumBufs;i++)
+    memset(&bOMX, 0x0, sizeof(OMX_CONFIG_BOOLEANTYPE));
+    bOMX.nVersion.s.nVersionMajor = capData->mBufferHeader[0]->nVersion.s.nVersionMajor ;//0x1;
+    bOMX.nVersion.s.nVersionMinor = capData->mBufferHeader[0]->nVersion.s.nVersionMinor ;//0x1;
+    bOMX.nVersion.s.nRevision = capData->mBufferHeader[0]->nVersion.s.nRevision ;//0x0;
+    bOMX.nVersion.s.nStep = capData->mBufferHeader[0]->nVersion.s.nStep ; //0x0;
+    bOMX.nSize = sizeof(OMX_CONFIG_BOOLEANTYPE);
+
+    bOMX.bEnabled = OMX_FALSE;
+    eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCapturing, &bOMX);
+
+    ///Free all the buffers on capture port
+    for ( int index = 0 ; index < capData->mNumBufs ; index++)
         {
+        CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", capData->mBufferHeader[index]->pBuffer);
         eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
-                            mCameraAdapterParameters.mImagePortIndex,
-                            capData->mBufferHeader[i]);
+                        mCameraAdapterParameters.mImagePortIndex,
+                        (OMX_BUFFERHEADERTYPE*)capData->mBufferHeader[index]);
 
         GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
         }
 
-    ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                                OMX_EventCmdComplete,
-                                OMX_CommandPortDisable,
-                                mCameraAdapterParameters.mImagePortIndex,
-                                eventSem,
-                                -1 ///Infinite timeout
-                                );
-
-    eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
-                                OMX_CommandPortDisable,
-                                mCameraAdapterParameters.mImagePortIndex,
-                                NULL);
-
-    eventSem.Wait();
-
-    mCapturing = false;
     mWaitingForSnapshot = false;
 
-    EXIT:
+EXIT:
+
     LOG_FUNCTION_NAME_EXIT
     return ret;
 }
@@ -1411,7 +1386,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             }
         else
             {
-            ret = sendFrameToSubscribers(pBuffHeader);
+            ret = sendFrameToSubscribers(pBuffHeader, CameraFrame::PREVIEW_FRAME_SYNC);
             ///Send the frame to subscribers, if no subscribers, queue the frame back
             }
         }
@@ -1478,7 +1453,6 @@ OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
 {
 
 }
-
 
 OMXCameraAdapter::~OMXCameraAdapter()
 {
