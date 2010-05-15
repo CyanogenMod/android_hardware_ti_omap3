@@ -71,6 +71,9 @@ OverlayDisplayAdapter::~OverlayDisplayAdapter()
         mFrameProvider->disableFrameNotification(CameraFrame::ALL_FRAMES);
         }
 
+    ///The overlay object will get destroyed here
+    destroy();
+
     ///If Display thread exists
     if(mDisplayThread.get())
         {
@@ -93,9 +96,6 @@ OverlayDisplayAdapter::~OverlayDisplayAdapter()
         //Delete the display thread
         mDisplayThread.clear();
         }
-
-    ///The overlay object will get destroyed here
-    destroy();
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -272,21 +272,24 @@ int OverlayDisplayAdapter::disableDisplay()
     //Unregister with the frame provider here
     mFrameProvider->disableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
 
-    //Send STOP_DISPLAY COMMAND to display thread. Display thread will stop and dequeue all messages
-    //and then wait for message
-    Semaphore sem;
-    sem.Create();
-    Message msg;
-    msg.command = DisplayThread::DISPLAY_STOP;
+    if ( NULL != mDisplayThread.get() )
+        {
+        //Send STOP_DISPLAY COMMAND to display thread. Display thread will stop and dequeue all messages
+        //and then wait for message
+        Semaphore sem;
+        sem.Create();
+        Message msg;
+        msg.command = DisplayThread::DISPLAY_STOP;
 
-    //Send the semaphore to signal once the command is completed
-    msg.arg1 = &sem;
+        //Send the semaphore to signal once the command is completed
+        msg.arg1 = &sem;
 
-    ///Post the message to display thread
-    mDisplayThread->msgQ().put(&msg);
+        ///Post the message to display thread
+        mDisplayThread->msgQ().put(&msg);
 
-    ///Wait for the ACK for display to be disabled
-    sem.Wait();
+        ///Wait for the ACK for display to be disabled
+        sem.Wait();
+        }
 
     ///Reset the display enabled flag
     mDisplayEnabled = false;
