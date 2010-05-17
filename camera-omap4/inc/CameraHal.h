@@ -163,6 +163,7 @@ class CameraFrame
             FRAME_DATA_SYNC=0x40, ///Any extra data assosicated with the frame. Always synced with the frame
             FRAME_DATA=0x80,
             RAW_FRAME =0x100,
+            SNAPSHOT_FRAME =0x200,
             ALL_FRAMES=0xFFFF   ///Maximum of 16 frame types supported
         };
 

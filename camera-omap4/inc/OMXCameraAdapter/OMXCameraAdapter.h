@@ -244,20 +244,33 @@ private:
                                           OMX_IN Semaphore &semaphore,
                                           OMX_IN OMX_U32 timeout);
 
+    // Preview Service
     status_t startPreview();
 
     status_t stopPreview();
 
+    // Image Capture Service
+    status_t startImageCapture();
+    status_t stopImageCapture();
+    status_t UseBuffersCapture(void* bufArr, int num);
+
     ///Send the frame to subscribers
-    status_t  sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader);
+    status_t  sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame = 0);
 
 
 public:
 
 private:
+    bool mWaitingForSnapshot;
     int mPreviewBufferCount;
     int *mPreviewBuffers;
     KeyedVector<int, bool> mPreviewBuffersAvailable;
+
+    int *mCaptureBuffers;
+    KeyedVector<int, bool> mCaptureBuffersAvailable;
+    int mCaptureBuffersCount;
+    mutable Mutex mCaptureBufferLock;
+
     ErrorNotifier *mErrorNotifier;
     CameraParameters mParameters;
     OMXCameraAdapterComponentContext mCameraAdapterParameters;
