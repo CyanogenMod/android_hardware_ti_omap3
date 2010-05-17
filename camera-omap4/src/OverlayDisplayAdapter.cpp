@@ -397,7 +397,7 @@ void OverlayDisplayAdapter::displayThread()
             shouldLive = processHalMsg();
 
             }
-        else  if( !mDisplayQ.isEmpty() && mFramesWithDisplay>0 )
+        else  if( !mDisplayQ.isEmpty() && mFramesWithDisplay>NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
             {
             if ( mDisplayState== OverlayDisplayAdapter::DISPLAY_INIT )
                 {
@@ -459,12 +459,10 @@ bool OverlayDisplayAdapter::processHalMsg()
             CAMHAL_LOGDA("Display thread received DISPLAY_EXIT command from Camera HAL.");
             CAMHAL_LOGDA("Stopping display thread...");
             mDisplayState = OverlayDisplayAdapter::DISPLAY_EXITED;
-            ///If no frames are with display, it is time to exit
-            if ( !mFramesWithDisplay )
-                {
-                ret = false;
-                }
-
+            ///Note that the overlay can have pending buffers when we disable the display
+            ///This is normal and the expectation is that they may not be displayed.
+            ///This is to ensure that the user experience is not impacted
+            ret = false;
             break;
 
         default:
@@ -498,6 +496,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
     ///display or rendering rate whichever is lower
     ///Queue the buffer to overlay
     overlay_buffer_t buf = (overlay_buffer_t) mPreviewBufferMap.valueFor((int) dispFrame.mBuffer);
+    CAMHAL_LOGDB("buf = 0x%x", buf);
     if ( mDisplayState == OverlayDisplayAdapter::DISPLAY_STARTED )
         {
         //Post it to display via Overlay
