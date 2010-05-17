@@ -832,6 +832,17 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
 
         case CameraAdapter::CAMERA_START_IMAGE_CAPTURE:
             {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            refTimestamp = ( struct timeval * ) value1;
+            if ( NULL != refTimestamp )
+                {
+                memcpy( &mStartCapture, refTimestamp, sizeof(struct timeval));
+                }
+
+#endif
+
             ret = startImageCapture();
             break;
             }
@@ -1586,6 +1597,13 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
         }
     else if( pBuffHeader->nOutputPortIndex == OMX_CAMERA_PORT_IMAGE_OUT_IMAGE )
         {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+        CameraHal::PPM("Shot to Jpeg: ", &mStartCapture);
+
+#endif
+
         ret = sendFrameToSubscribers(pBuffHeader, CameraFrame::IMAGE_FRAME);
         }
     else

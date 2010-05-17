@@ -65,6 +65,14 @@ public:
     virtual int enableDisplay(struct timeval *refTime = NULL);
     virtual int disableDisplay();
     virtual status_t pauseDisplay(bool pause);
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //Used for shot to snapshot measurement
+    virtual status_t setSnapshotTimeRef(struct timeval *refTime = NULL);
+
+#endif
+
     virtual int useBuffers(void* bufArr, int num);
     virtual bool supportsExternalBuffering();
 
@@ -139,9 +147,18 @@ private:
     mutable Mutex mLock;
     bool mDisplayEnabled;
     KeyedVector<int, int> mPreviewBufferMap;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
     //Used for calculating standby to first shot
     struct timeval mStandbyToShot;
     bool mMeasureStandby;
+    //Used for shot to snapshot/shot calculation
+    struct timeval mStartCapture;
+    bool mShotToShot;
+
+#endif
+
 };
 
 };

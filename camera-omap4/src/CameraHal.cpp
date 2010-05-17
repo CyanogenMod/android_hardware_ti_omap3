@@ -1093,6 +1093,13 @@ status_t CameraHal::takePicture( )
         mDisplayPaused = true;
         mPreviewEnabled = false;
         ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+        mDisplayAdapter->setSnapshotTimeRef(&mStartCapture);
+
+#endif
+
         }
 
     if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter.get() ) )

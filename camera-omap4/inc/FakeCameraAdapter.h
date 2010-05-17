@@ -112,10 +112,6 @@ class FramePreview : public Thread {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-    //Shot to Shot should be dumped
-    bool mShotToShot;
-    //Shot to Snapshot should be dumped
-    bool mShotToSnapshot;
     //startPreview timestamp from CameraHAL
     struct timeval *mStartPreview;
     //autoFocus timestamp from CameraHAL

@@ -49,6 +49,7 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     mMeasureStandby = true;
+    mShotToShot = false;
 
 #endif
 
@@ -208,6 +209,28 @@ int OverlayDisplayAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
 
     return NO_ERROR;
 }
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+status_t OverlayDisplayAdapter::setSnapshotTimeRef(struct timeval *refTime)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL != refTime )
+        {
+        Mutex::Autolock lock(mLock);
+        memcpy(&mStartCapture, refTime, sizeof( struct timeval ));
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+#endif
+
 
 int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
 {
@@ -653,6 +676,16 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
                 {
                 CameraHal::PPM("Standby to first shot: ", &mStandbyToShot);
                 mMeasureStandby = false;
+                }
+            else if (CameraFrame::CameraFrame::SNAPSHOT_FRAME == dispFrame.mType)
+                {
+                CameraHal::PPM("Shot to snapshot: ", &mStartCapture);
+                mShotToShot = true;
+                }
+            else if ( mShotToShot )
+                {
+                CameraHal::PPM("Shot to shot: ", &mStartCapture);
+                mShotToShot = false;
                 }
 
 #endif

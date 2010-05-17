@@ -582,6 +582,14 @@ public:
     virtual int disableDisplay() = 0;
     //Used for Snapshot review temp. pause
     virtual status_t pauseDisplay(bool pause) = 0;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    //Used for shot to snapshot measurement
+    virtual status_t setSnapshotTimeRef(struct timeval *refTime = NULL) = 0;
+
+#endif
+
     virtual int useBuffers(void *bufArr, int num) = 0;
     virtual bool supportsExternalBuffering() = 0;
 

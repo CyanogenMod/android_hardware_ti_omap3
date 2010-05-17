@@ -270,6 +270,7 @@ private:
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     struct timeval mStartFocus;
+    struct timeval mStartCapture;
 
 #endif
 

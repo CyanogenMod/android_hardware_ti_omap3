@@ -32,15 +32,6 @@ FakeCameraAdapter::FakeCameraAdapter()
 {
     LOG_FUNCTION_NAME
 
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-    mShotToShot = false;
-
-    //TODO: Move shot to snapshot inside DisplayAdapter
-    mShotToSnapshot = false;
-
-#endif
-
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -447,101 +438,81 @@ void FakeCameraAdapter::setBuffer(void *previewBuffer, int index, int width, int
     //TODO: add pixelformat
     setBuffer(previewBuffer, i, mPreviewWidth, mPreviewHeight, 0, frameType);
 
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-    //Check if a picture was captured and the shot to snapshot
-   //measurement should be dumped
-    if ( mShotToSnapshot )
         {
-         CameraHal::PPM("Shot to snapshot: ", mStartCapture);
-         mShotToSnapshot = false;
-        }
-
-    //Check to see if a picture was captured and the preview
-   //was started again
-    if ( mShotToShot )
-        {
-         CameraHal::PPM("Shot to shot: ", mStartCapture);
-         mShotToShot = false;
-        }
-
-#endif
-
+        Mutex::Autolock lock(mSubscriberLock);
+        //check for any preview subscribers
+        for (unsigned int i = 0 ; i < mFrameSubscribers.size(); i++ )
             {
-            Mutex::Autolock lock(mSubscriberLock);
-            //check for any preview subscribers
-            for (unsigned int i = 0 ; i < mFrameSubscribers.size(); i++ )
+
+            frame = new CameraFrame();
+            if ( NULL == frame )
                 {
-
-                frame = new CameraFrame();
-                if ( NULL == frame )
-                    {
-                    CAMHAL_LOGDA("No resources to allocate CameraFrame");
-                    break;
-                    }
-
-                frame->mBuffer = previewBuffer;
-                frame->mAlignment = PAGE_SIZE;
-                frame->mWidth = mPreviewWidth;
-                frame->mHeight = mPreviewHeight;
-                frame->mLength = PAGE_SIZE*mPreviewHeight;
-                frame->mOffset =offset;
-                frame->mFd = fd;
-                frame->mCookie = ( void * ) mFrameSubscribers.keyAt(i);
-                frame->mTimestamp = 0;
-                frame->mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
-
-                msg.command = FakeCameraAdapter::CALL_CALLBACK;
-                msg.arg1 = (void *) mFrameSubscribers.valueAt(i);
-                msg.arg2 = (void *) frame;
-
-                    {
-                    Mutex::Autolock lock(mPreviewBufferLock);
-                    count = mPreviewBuffersRefCount.valueFor( ( unsigned int ) previewBuffer);
-                    count++;
-                    mPreviewBuffersRefCount.replaceValueFor( ( unsigned int ) previewBuffer, count);
-                    }
-
-                mCallbackQ.put(&msg);
+                CAMHAL_LOGDA("No resources to allocate CameraFrame");
+                break;
                 }
 
-            //check for any video subscribers
-            for (unsigned int i = 0 ; i < mVideoSubscribers.size(); i++ )
+            frame->mBuffer = previewBuffer;
+            frame->mAlignment = PAGE_SIZE;
+            frame->mWidth = mPreviewWidth;
+            frame->mHeight = mPreviewHeight;
+            frame->mLength = PAGE_SIZE*mPreviewHeight;
+            frame->mOffset =offset;
+            frame->mFd = fd;
+            frame->mCookie = ( void * ) mFrameSubscribers.keyAt(i);
+            frame->mTimestamp = 0;
+            frame->mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
+
+            msg.command = FakeCameraAdapter::CALL_CALLBACK;
+            msg.arg1 = (void *) mFrameSubscribers.valueAt(i);
+            msg.arg2 = (void *) frame;
+
                 {
-
-                frame = new CameraFrame();
-                if ( NULL == frame )
-                    {
-                    CAMHAL_LOGDA("No resources to allocate CameraFrame");
-                    break;
-                    }
-
-                frame->mBuffer = previewBuffer;
-                frame->mAlignment = PAGE_SIZE;
-                frame->mWidth = mPreviewWidth;
-                frame->mHeight = mPreviewHeight;
-                frame->mLength = PAGE_SIZE*mPreviewHeight;
-                frame->mOffset =offset;
-                frame->mFd = fd;
-                frame->mCookie = ( void * ) mVideoSubscribers.keyAt(i);
-                frame->mTimestamp = 0;
-                frame->mFrameType = CameraFrame::VIDEO_FRAME_SYNC;
-
-                msg.command = FakeCameraAdapter::CALL_CALLBACK;
-                msg.arg1 = ( void * ) mVideoSubscribers.valueAt(i);
-                msg.arg2 = ( void * ) frame;
-
-                    {
-                    Mutex::Autolock lock(mPreviewBufferLock);
-                    count = mPreviewBuffersRefCount.valueFor( ( unsigned int ) previewBuffer);
-                    count++;
-                    mPreviewBuffersRefCount.replaceValueFor( ( unsigned int ) previewBuffer, count);
-                    }
-
-                mCallbackQ.put(&msg);
+                Mutex::Autolock lock(mPreviewBufferLock);
+                count = mPreviewBuffersRefCount.valueFor( ( unsigned int ) previewBuffer);
+                count++;
+                mPreviewBuffersRefCount.replaceValueFor( ( unsigned int ) previewBuffer, count);
                 }
 
+            mCallbackQ.put(&msg);
             }
+
+        //check for any video subscribers
+        for (unsigned int i = 0 ; i < mVideoSubscribers.size(); i++ )
+            {
+
+            frame = new CameraFrame();
+            if ( NULL == frame )
+                {
+                CAMHAL_LOGDA("No resources to allocate CameraFrame");
+                break;
+                }
+
+            frame->mBuffer = previewBuffer;
+            frame->mAlignment = PAGE_SIZE;
+            frame->mWidth = mPreviewWidth;
+            frame->mHeight = mPreviewHeight;
+            frame->mLength = PAGE_SIZE*mPreviewHeight;
+            frame->mOffset =offset;
+            frame->mFd = fd;
+            frame->mCookie = ( void * ) mVideoSubscribers.keyAt(i);
+            frame->mTimestamp = 0;
+            frame->mFrameType = CameraFrame::VIDEO_FRAME_SYNC;
+
+            msg.command = FakeCameraAdapter::CALL_CALLBACK;
+            msg.arg1 = ( void * ) mVideoSubscribers.valueAt(i);
+            msg.arg2 = ( void * ) frame;
+
+                {
+                Mutex::Autolock lock(mPreviewBufferLock);
+                count = mPreviewBuffersRefCount.valueFor( ( unsigned int ) previewBuffer);
+                count++;
+                mPreviewBuffersRefCount.replaceValueFor( ( unsigned int ) previewBuffer, count);
+                }
+
+            mCallbackQ.put(&msg);
+            }
+
+        }
 }
 
 status_t FakeCameraAdapter::takePicture()
@@ -579,14 +550,6 @@ status_t FakeCameraAdapter::takePicture()
             }
 
          }
-
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-    //Activates the shot to snapshot measurement
-     mShotToSnapshot = true;
-
-#endif
-
 
     //simulate Snapshot
     sendNextFrame(SNAPSHOT_FRAME);
@@ -657,15 +620,6 @@ status_t FakeCameraAdapter::takePicture()
                 }
 
         }
-
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-         //activates the shot to shot measurement
-        //the next call to sendNextFrame will dump
-        //this statistic
-         mShotToShot = true;
-
-#endif
 
     LOG_FUNCTION_NAME_EXIT
 
