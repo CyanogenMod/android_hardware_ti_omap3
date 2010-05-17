@@ -244,6 +244,8 @@ private:
                                           OMX_IN Semaphore &semaphore,
                                           OMX_IN OMX_U32 timeout);
 
+    status_t setPictureRotation(unsigned int degree);
+
     //Focus functionality
     status_t doAutoFocus();
     status_t notifyFocusSubscribers();
@@ -276,6 +278,7 @@ private:
 
      //local copy
     CameraParameters mParams;
+    unsigned int mPictureRotation;
     bool mFocusStarted;
     bool mWaitingForSnapshot;
     int mPreviewBufferCount;

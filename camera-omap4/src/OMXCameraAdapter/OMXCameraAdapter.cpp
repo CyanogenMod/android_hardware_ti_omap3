@@ -248,6 +248,11 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     CAMHAL_LOGDB("Image: cap.mWidth = %d", cap->mWidth);
     CAMHAL_LOGDB("Image: cap.mHeight = %d", cap->mHeight);
 
+    if ( params.getInt(KEY_ROTATION) != -1 )
+        {
+        mPictureRotation = params.getInt(KEY_ROTATION);
+        }
+
     LOG_FUNCTION_NAME_EXIT
     return ret;
 }
@@ -1084,6 +1089,39 @@ status_t OMXCameraAdapter::stopPreview()
 
 }
 
+status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_ROTATIONTYPE rotation;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT(rotation, OMX_CONFIG_ROTATIONTYPE);
+        rotation.nRotation = degree;
+        rotation.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
+
+        eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonRotate, &rotation);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEA("Error while configuring rotation");
+            ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::doAutoFocus()
 {
     status_t ret = NO_ERROR;
@@ -1267,6 +1305,8 @@ status_t OMXCameraAdapter::startImageCapture()
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMXCameraPortParameters * capData = NULL;
     OMX_CONFIG_BOOLEANTYPE bOMX;
+
+    ret = setPictureRotation(mPictureRotation);
 
     capData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
@@ -1666,6 +1706,7 @@ OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
     LOG_FUNCTION_NAME
 
     mFocusStarted = false;
+    mPictureRotation = 0;
 
     LOG_FUNCTION_NAME_EXIT
 }
