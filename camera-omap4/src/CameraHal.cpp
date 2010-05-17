@@ -1535,8 +1535,8 @@ void CameraHal::insertSupportedParams(CameraParameters &p)
             }
          //Set camera adapter index for reference
          p.set( ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, i);
-         strncat( ( char * ) tmpBuffer, ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, INDEX_LENGTH );
-         strncat( ( char * ) tmpBuffer, ( const char * ) PARAMS_DELIMITER, INDEX_LENGTH);
+         strncat( ( char * ) tmpBuffer, ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, PARAM_BUFFER );
+         strncat( ( char * ) tmpBuffer, ( const char * ) PARAMS_DELIMITER, PARAM_BUFFER);
         }
     p.set(TICameraParameters::KEY_SUPPORTED_CAMERAS, tmpBuffer);
     p.set(TICameraParameters::KEY_CAMERA, mCameraIndex);
