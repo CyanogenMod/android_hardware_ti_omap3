@@ -244,6 +244,11 @@ private:
                                           OMX_IN Semaphore &semaphore,
                                           OMX_IN OMX_U32 timeout);
 
+    //Focus functionality
+    status_t doAutoFocus();
+    status_t notifyFocusSubscribers();
+    status_t checkFocus(OMX_FOCUSSTATUSTYPE *eFocusStatus);
+
     // Preview Service
     status_t startPreview();
 
@@ -261,8 +266,16 @@ private:
 public:
 
 private:
-    //local copy
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    struct timeval mStartFocus;
+
+#endif
+
+     //local copy
     CameraParameters mParams;
+    bool mFocusStarted;
     bool mWaitingForSnapshot;
     int mPreviewBufferCount;
     int *mPreviewBuffers;

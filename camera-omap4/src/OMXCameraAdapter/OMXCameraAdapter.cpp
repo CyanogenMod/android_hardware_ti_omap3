@@ -744,6 +744,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
 
     status_t ret = NO_ERROR;
     CameraAdapter::CameraMode mode;
+    struct timeval *refTimestamp;
     BuffersDescriptor *desc = NULL;
     Message msg;
 
@@ -839,7 +840,22 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
             ret = stopImageCapture();
             break;
             }
-        case CameraAdapter::CAMERA_PERFORM_AUTOFOCUS:
+         case CameraAdapter::CAMERA_PERFORM_AUTOFOCUS:
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            refTimestamp = ( struct timeval * ) value1;
+            if ( NULL != refTimestamp )
+                {
+                memcpy( &mStartFocus, refTimestamp, sizeof(struct timeval));
+                }
+
+#endif
+
+            ret = doAutoFocus();
+
+            break;
+
         default:
             CAMHAL_LOGEB("Command 0x%x unsupported!", operation);
             break;
@@ -1055,6 +1071,181 @@ status_t OMXCameraAdapter::stopPreview()
         LOG_FUNCTION_NAME_EXIT
         return (ret | ErrorUtils::omxToAndroidError(eError));
 
+}
+
+status_t OMXCameraAdapter::doAutoFocus()
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE focusControl;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component not in executing state");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        focusControl.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+        focusControl.eFocusControl = OMX_IMAGE_FocusControlOn;
+        focusControl.nSize = sizeof(OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
+        focusControl.nVersion.s.nVersionMajor = 0x1 ;
+        focusControl.nVersion.s.nVersionMinor = 0x1 ;
+        focusControl.nVersion.s.nRevision = 0x0;
+        focusControl.nVersion.s.nStep =  0x0;
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEA("Error while starting focus");
+            ret = -1;
+            }
+        else
+            {
+            mFocusStarted = true;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::checkFocus(OMX_FOCUSSTATUSTYPE *eFocusStatus)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_PARAM_FOCUSSTATUSTYPE focusStatus;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == eFocusStatus )
+        {
+        CAMHAL_LOGEA("Invalid focus status");
+        ret = -1;
+        }
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component not in executing state");
+        ret = -1;
+        }
+
+    if ( !mFocusStarted )
+        {
+        CAMHAL_LOGEA("Focus was not started");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        focusStatus.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+        focusStatus.nSize = sizeof(OMX_PARAM_FOCUSSTATUSTYPE);
+        focusStatus.nVersion.s.nVersionMajor = 0x1 ;
+        focusStatus.nVersion.s.nVersionMinor = 0x1 ;
+        focusStatus.nVersion.s.nRevision = 0x0;
+        focusStatus.nVersion.s.nStep =  0x0;
+
+        eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonFocusStatus, &focusStatus);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while retrieving focus status: 0x%x", eError);
+            ret = -1;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        *eFocusStatus = focusStatus.eFocusStatus;
+        CAMHAL_LOGDB("Focus Status: %d", focusStatus.eFocusStatus);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::notifyFocusSubscribers()
+{
+    event_callback eventCb;
+    CameraHalEvent focusEvent;
+    CameraHalEvent::FocusEventData focusData;
+    OMX_FOCUSSTATUSTYPE eFocusStatus;
+    bool focusStatus = false;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( mFocusStarted )
+        {
+        ret = checkFocus(&eFocusStatus);
+
+        if ( NO_ERROR == ret )
+            {
+
+            switch(eFocusStatus)
+                {
+                case OMX_FocusStatusReached:
+                    //AF success
+                    focusStatus = true;
+                    mFocusStarted = false;
+                    break;
+
+                case OMX_FocusStatusUnableToReach:
+                case OMX_FocusStatusLost:
+                case OMX_FocusStatusOff:
+                    //AF fail
+                    focusStatus = false;
+                    mFocusStarted = false;
+                    break;
+
+                case OMX_FocusStatusRequest:
+                default:
+                    //do nothing
+                    break;
+
+                };
+            }
+        }
+    else
+        {
+        return NO_ERROR;
+        }
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+     //dump the AF latency
+     CameraHal::PPM("Focus finished in: ", &mStartFocus);
+
+#endif
+
+    focusData.focusLocked = focusStatus;
+    focusData.focusError = !focusStatus;
+    focusEvent.mEventType = CameraHalEvent::EVENT_FOCUS_LOCKED;
+    focusEvent.mEventData = (CameraHalEvent::CameraHalEventData *) &focusData;
+
+        //Start looking for event subscribers
+        {
+        Mutex::Autolock lock(mSubscriberLock);
+
+            if ( mFocusSubscribers.size() == 0 )
+                CAMHAL_LOGDA("No Focus Subscribers!");
+
+            for (unsigned int i = 0 ; i < mFocusSubscribers.size(); i++ )
+                {
+                focusEvent.mCookie = (void *) mFocusSubscribers.keyAt(i);
+                eventCb = (event_callback) mFocusSubscribers.valueAt(i);
+
+                eventCb ( &focusEvent );
+                }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 status_t OMXCameraAdapter::startImageCapture()
@@ -1386,6 +1577,9 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             }
         else
             {
+
+            notifyFocusSubscribers();
+
             ret = sendFrameToSubscribers(pBuffHeader, CameraFrame::PREVIEW_FRAME_SYNC);
             ///Send the frame to subscribers, if no subscribers, queue the frame back
             }
@@ -1451,7 +1645,11 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
 
 OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
 {
+    LOG_FUNCTION_NAME
 
+    mFocusStarted = false;
+
+    LOG_FUNCTION_NAME_EXIT
 }
 
 OMXCameraAdapter::~OMXCameraAdapter()
