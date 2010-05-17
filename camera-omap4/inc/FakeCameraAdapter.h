@@ -112,8 +112,6 @@ class FramePreview : public Thread {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-    //First initialization of the Camera Adapter
-    bool mFirstInit;
     //Shot to Shot should be dumped
     bool mShotToShot;
     //Shot to Snapshot should be dumped

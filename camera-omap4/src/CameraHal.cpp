@@ -582,27 +582,29 @@ status_t CameraHal::startPreview()
     if(mDisplayAdapter.get())
         {
         CAMHAL_LOGDA("Enabling display");
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+        ret = mDisplayAdapter->enableDisplay(&mStartPreview);
+
+#else
+
         ret = mDisplayAdapter->enableDisplay();
-        if(ret!=NO_ERROR)
+
+#endif
+
+        if ( ret != NO_ERROR )
             {
             CAMHAL_LOGEA("Couldn't enable display");
             goto error;
             }
+
         }
 
     ///Send START_PREVIEW command to adapter
     CAMHAL_LOGDA("Starting CameraAdapter preview mode");
 
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-    //pass the startPreview timestamp along with the camera adapter command
-    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW, ( int ) &mStartPreview);
-
-#else
-
     ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW);
-
-#endif
 
     if(ret!=NO_ERROR)
         {
