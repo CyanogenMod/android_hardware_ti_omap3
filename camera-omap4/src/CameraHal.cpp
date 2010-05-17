@@ -259,19 +259,9 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     framerate = params.getPreviewFrameRate();
     CAMHAL_LOGDB("FRAMERATE %d", framerate);
 
-    ///If the current size of image capture buffers doesnt equal the new size, re-allocate
-    ///Image Capture buffers will be allocated once during initialize() for default size.
-    mParameters.getPictureSize(&w_orig, &h_orig);
-    if((w!=w_orig) || (h_orig!=h))
+    if ( NULL != mCameraAdapter.get() )
         {
-        freeImageBufs();
-        ret = allocImageBufs(w, h, params.getPictureFormat());
-        if(ret!=NO_ERROR)
-            {
-            freeImageBufs();
-            LOG_FUNCTION_NAME_EXIT
-            return ret;
-            }
+        mCameraAdapter->setParameters(params);
         }
 
     ///Update the current parameter set
@@ -440,7 +430,8 @@ status_t CameraHal::freeVideoBufs()
 
 status_t CameraHal::allocImageBufs(int width, int height, const char* previewFormat)
     {
-    int bytes = width*height;
+
+    int bytes = width*height*2;
 
     LOG_FUNCTION_NAME
 
@@ -508,7 +499,19 @@ status_t CameraHal::startPreview()
 
     LOG_FUNCTION_NAME
 
-    if(mPreviewEnabled)
+    if( ( !mPreviewEnabled ) && ( mDisplayPaused ) )
+        {
+        CAMHAL_LOGEA("Preview running in paused state");
+
+        mDisplayPaused = false;
+        mPreviewEnabled = true;
+        ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
+
+        LOG_FUNCTION_NAME_EXIT
+
+        return ret;
+        }
+    else if ( mPreviewEnabled )
         {
         CAMHAL_LOGEA("Preview already running");
 
@@ -526,9 +529,6 @@ status_t CameraHal::startPreview()
         mPreviewStartInProgress = true;
         return NO_ERROR;
         }
-
-    ///Set the parameters here
-    ret = mCameraAdapter->setParameters(mParameters);
 
     /// Ensure that buffers for preview are allocated before we start the camera
     mParameters.getPreviewSize(&w, &h);
@@ -569,7 +569,7 @@ status_t CameraHal::startPreview()
 
 
     ///Pass the buffers to Camera Adapter
-    mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, CameraHal::NO_BUFFERS_PREVIEW);
+    mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
 
     ///Start the callback notifier
     ret = mAppCallbackNotifier->start();
@@ -749,7 +749,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
                 }
 
             ///Pass the buffers to Camera Adapter
-            mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, CameraHal::NO_BUFFERS_PREVIEW);
+            mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
 
             }
         else
@@ -910,7 +910,7 @@ status_t CameraHal::startRecording( )
 
     if ( NO_ERROR == ret )
         {
-         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mVideoBufs, mVideoOffsets, mVideoFd, CameraHal::NO_BUFFERS_PREVIEW);
+         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mVideoBufs, mVideoOffsets, mVideoFd, mVideoLength, CameraHal::NO_BUFFERS_PREVIEW);
         }
 
     if ( NO_ERROR == ret )
@@ -1087,10 +1087,18 @@ status_t CameraHal::takePicture( )
 
     LOG_FUNCTION_NAME
 
-    if ( NULL != mCameraAdapter.get() )
+    //Pause Preview during capture
+    if ( (NO_ERROR == ret) && ( NULL != mDisplayAdapter.get() ) )
+        {
+        mDisplayPaused = true;
+        mPreviewEnabled = false;
+        ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
+        }
+
+    if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter.get() ) )
         {
 
-        ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
+        ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, mImageLength, CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
 
         if ( NO_ERROR == ret )
             {
@@ -1108,11 +1116,6 @@ status_t CameraHal::takePicture( )
 
             }
         }
-    else
-        {
-            ret = -1;
-        }
-
 
     return ret;
 }
@@ -1229,6 +1232,7 @@ CameraHal::CameraHal()
     mVideoBufs = NULL;
     mVideoBufProvider = NULL;
     mRecordingEnabled = false;
+    mDisplayPaused = false;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -1395,6 +1399,10 @@ status_t CameraHal::initialize()
     ///via CAMERA_MSG_ERROR. AppCallbackNotifier is the class that  notifies such errors to the application
     ///Set it as the error handler for CameraAdapter
     mCameraAdapter->setErrorHandler(mAppCallbackNotifier.get());
+
+    //Initialize default image buffers
+    //TODO:Make this dynamically depending on camera insance parameters
+    allocImageBufs(PICTURE_WIDTH, PICTURE_HEIGHT, CameraParameters::PIXEL_FORMAT_YUV422I);
 
     ///Initialize default parameters
     initDefaultParameters();
@@ -1692,6 +1700,8 @@ void CameraHal::PPM(const char* str, struct timeval* ppm_first, ...){
 void CameraHal::deinitialize()
 {
     LOG_FUNCTION_NAME
+
+    freeImageBufs();
 
     /// Free the callback notifier
     mAppCallbackNotifier.clear();

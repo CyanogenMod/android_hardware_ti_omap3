@@ -48,8 +48,8 @@
 
 #define MIN_WIDTH           128
 #define MIN_HEIGHT          96
-#define PICTURE_WIDTH   3296 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
-#define PICTURE_HEIGHT  2464 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
+#define PICTURE_WIDTH   4000 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
+#define PICTURE_HEIGHT  3000 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
 #define PREVIEW_WIDTH 176
 #define PREVIEW_HEIGHT 144
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
@@ -490,6 +490,7 @@ public:
          void *mBuffers;
          uint32_t *mOffsets;
          int mFd;
+         size_t mLength;
          size_t mCount;
         } BuffersDescriptor;
 
@@ -533,13 +534,14 @@ public:
     virtual status_t getCaps() = 0;
 
     //API to give the buffers to Adapter
-    status_t useBuffers(CameraMode mode, void *bufArr, uint32_t *offsets, int fd, int num)
+    status_t useBuffers(CameraMode mode, void *bufArr, uint32_t *offsets, int fd, size_t length,  int num)
         {
         BuffersDescriptor desc;
 
         desc.mBuffers = bufArr;
         desc.mOffsets = offsets;
         desc.mFd = fd;
+        desc.mLength = length;
         desc.mCount = ( size_t ) num;
 
         return sendCommand(CameraAdapter::CAMERA_USE_BUFFERS, mode, (int) &desc);
@@ -578,7 +580,9 @@ public:
     virtual int setErrorHandler(ErrorNotifier *errorNotifier) = 0;
     virtual int enableDisplay(struct timeval *refTime = NULL) = 0;
     virtual int disableDisplay() = 0;
-        virtual int useBuffers(void *bufArr, int num) = 0;
+    //Used for Snapshot review temp. pause
+    virtual status_t pauseDisplay(bool pause) = 0;
+    virtual int useBuffers(void *bufArr, int num) = 0;
     virtual bool supportsExternalBuffering() = 0;
 
 };
@@ -856,6 +860,8 @@ public:
 
 /*----------Member variables - Private ---------------------*/
 private:
+    //keeps paused state of display
+    bool mDisplayPaused;
     //Index of current camera adapter
     int mCameraIndex;
     //When set, reloads Camera Adapter after each stopPreview

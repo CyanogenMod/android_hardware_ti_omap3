@@ -261,6 +261,8 @@ private:
 public:
 
 private:
+    //local copy
+    CameraParameters mParams;
     bool mWaitingForSnapshot;
     int mPreviewBufferCount;
     int *mPreviewBuffers;
@@ -269,6 +271,7 @@ private:
     int *mCaptureBuffers;
     KeyedVector<int, bool> mCaptureBuffersAvailable;
     int mCaptureBuffersCount;
+    size_t mCaptureBuffersLength;
     mutable Mutex mCaptureBufferLock;
 
     ErrorNotifier *mErrorNotifier;

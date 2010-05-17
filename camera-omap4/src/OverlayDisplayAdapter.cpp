@@ -52,6 +52,8 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
 
 #endif
 
+    mPaused = false;
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -292,6 +294,22 @@ int OverlayDisplayAdapter::disableDisplay()
     LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
+}
+
+status_t OverlayDisplayAdapter::pauseDisplay(bool pause)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    {
+        Mutex::Autolock lock(mLock);
+        mPaused = pause;
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 void OverlayDisplayAdapter::destroy()
@@ -599,7 +617,19 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
     ///display or rendering rate whichever is lower
     ///Queue the buffer to overlay
     overlay_buffer_t buf = (overlay_buffer_t) mPreviewBufferMap.valueFor((int) dispFrame.mBuffer);
-    CAMHAL_LOGDB("buf = 0x%x", buf);
+
+    //If paused state is set, and we have a preview frame, then return buffer
+    {
+        Mutex::Autolock lock(mLock);
+        if ( ( mPaused ) && ( CameraFrame::CameraFrame::PREVIEW_FRAME_SYNC == dispFrame.mType ) )
+            {
+            mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
+
+            return NO_ERROR;
+            }
+
+    }
+
     if ( mDisplayState == OverlayDisplayAdapter::DISPLAY_STARTED )
         {
         //Post it to display via Overlay
@@ -700,6 +730,7 @@ void OverlayDisplayAdapter::frameCallback(CameraFrame* caFrame)
     ///Call queueBuffer of overlay in the context of the callback thread
     DisplayFrame df;
     df.mBuffer = caFrame->mBuffer;
+    df.mType = ( CameraFrame::FrameType ) caFrame->mFrameType;
     PostFrame(df);
 }
 
