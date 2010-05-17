@@ -66,7 +66,7 @@ public:
     virtual void getFrameSize(int &width, int &height);
 
 protected:
-    status_t takePicture(void *imageBuf);
+    status_t takePicture();
     status_t doAutofocus();
     virtual void frameThread();
     virtual void frameCallbackThread();
@@ -127,6 +127,10 @@ class FramePreview : public Thread {
 
     sp<FramePreview> mFrameThread;
     sp<FrameCallback> mCallbackThread;
+    int mImageBufferCount;
+    int *mImageBuffers;
+    uint32_t *mImageOffsets;
+    int mImageFd;
     int mPreviewBufferCount;
     int *mPreviewBuffers;
     uint32_t *mPreviewOffsets;

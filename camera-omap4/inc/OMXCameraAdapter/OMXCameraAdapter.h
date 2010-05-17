@@ -286,17 +286,6 @@ private:
 
     OMX_STATETYPE mComponentState;
 
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-    ///@todo Add PPM instrumentation for image capture
-
-    //First initialization of the Camera Adapter
-    bool mFirstInit;
-
-    //startPreview timestamp from CameraHAL
-    struct timeval *mStartPreview;
-#endif
-
-
 };
 }; //// namespace
 #endif //OMX_CAMERA_ADAPTER_H

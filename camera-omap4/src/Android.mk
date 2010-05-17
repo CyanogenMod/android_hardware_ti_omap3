@@ -49,7 +49,7 @@ LOCAL_C_INCLUDES += \
 	frameworks/base/include/utils \
 
 
-LOCAL_CFLAGS += -fno-short-enums -DCOPY_VIDEO_BUFFER -DCOPY_VIDEO_BUFFER
+LOCAL_CFLAGS += -fno-short-enums -DCOPY_IMAGE_BUFFER -DCOPY_VIDEO_BUFFER
 
 LOCAL_MODULE:= libcamera
 
