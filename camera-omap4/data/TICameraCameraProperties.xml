@@ -1,24 +1,7 @@
 <?xml version="1.0"?>
 <CameraRoot>
 <CameraInstance>
-<camera-name>OMX Camera</camera-name>
-<camera-adapter-dll-name>libomxcameraadapter.so</camera-adapter-dll-name>
-<preview-size-values>1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
-<preview-format-values>uyvy</preview-format-values>
-<preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
-<picture-size-values>3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240</picture-size-values><picture-format-values>jpeg</picture-format-values>
-<jpeg-thumbnail-size-values>80x60</jpeg-thumbnail-size-values>
-<whitebalance-values>auto</whitebalance-values>
-<effect-values>none</effect-values>
-<antibanding-values>auto</antibanding-values>
-<focus-mode-values>auto</focus-mode-values>
-<scene-mode-values>auto</scene-mode-values>
-<flash-mode-values>off</flash-mode-values>
-<required-preview-bufs>6</required-preview-bufs>
-<required-image-bufs>1</required-image-bufs>
-</CameraInstance>
-<CameraInstance>
-<camera-name>Fake Camera</camera-name>
+<camera-name>Secondary Camera</camera-name>
 <camera-adapter-dll-name>libfakecameraadapter.so</camera-adapter-dll-name>
 <preview-size-values>1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
 <preview-format-values>uyvy</preview-format-values>
@@ -36,13 +19,30 @@
 <required-image-bufs>1</required-image-bufs>
 </CameraInstance>
 <CameraInstance>
-<camera-name>Test Camera</camera-name>
+<camera-name>Dual Camera</camera-name>
 <camera-adapter-dll-name>libfakecameraadapter.so</camera-adapter-dll-name>
 <preview-size-values>1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
 <preview-format-values>uyvy</preview-format-values>
 <preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
 <picture-size-values>1280x1024,1152x964,640x480,320x240</picture-size-values>
 <picture-format-values>jpeg</picture-format-values>
+<jpeg-thumbnail-size-values>80x60</jpeg-thumbnail-size-values>
+<whitebalance-values>auto</whitebalance-values>
+<effect-values>none</effect-values>
+<antibanding-values>auto</antibanding-values>
+<focus-mode-values>auto</focus-mode-values>
+<scene-mode-values>auto</scene-mode-values>
+<flash-mode-values>off</flash-mode-values>
+<required-preview-bufs>6</required-preview-bufs>
+<required-image-bufs>1</required-image-bufs>
+</CameraInstance>
+<CameraInstance>
+<camera-name>OMX Camera</camera-name>
+<camera-adapter-dll-name>libomxcameraadapter.so</camera-adapter-dll-name>
+<preview-size-values>1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
+<preview-format-values>uyvy</preview-format-values>
+<preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
+<picture-size-values>3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240</picture-size-values><picture-format-values>jpeg</picture-format-values>
 <jpeg-thumbnail-size-values>80x60</jpeg-thumbnail-size-values>
 <whitebalance-values>auto</whitebalance-values>
 <effect-values>none</effect-values>

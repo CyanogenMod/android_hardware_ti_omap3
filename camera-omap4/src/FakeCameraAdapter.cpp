@@ -58,7 +58,7 @@ FakeCameraAdapter::~FakeCameraAdapter()
     msg.command = FakeCameraAdapter::CALLBACK_EXIT;
     mCallbackQ.put(&msg);
 
-    mPreviewBuffersAvailable.clear();
+    mPreviewBuffersRefCount.clear();
     mFrameSubscribers.clear();
 
     mCallbackThread->requestExitAndWait();
@@ -145,7 +145,7 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
 {
     status_t ret = NO_ERROR;
     CameraAdapter::CameraMode mode;
-    int *bufArr, num;
+    BuffersDescriptor *desc;
     Message msg;
 
     LOG_FUNCTION_NAME
@@ -156,30 +156,35 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
 
             CAMHAL_LOGDA("Use Buffers");
             mode = ( CameraAdapter::CameraMode ) value1;
-            bufArr = (int *) value2;
-            num = value3;
+            desc = ( BuffersDescriptor * ) value2;
 
             if ( CameraAdapter::CAMERA_PREVIEW == mode )
                 {
-                if ( NULL == bufArr )
+                if ( NULL == desc )
                     {
-                    CAMHAL_LOGEA("Invalid preview buffers!");
+                    CAMHAL_LOGEA("Invalid buffers descriptor!");
                     ret = -1;
                     }
 
                 if ( ret == NO_ERROR )
                     {
                     Mutex::Autolock lock(mPreviewBufferLock);
-                    mPreviewBufferCount = num;
-                    mPreviewBuffers = (int *) bufArr;
+                    mPreviewBufferCount = desc->mCount;
+                    mPreviewBuffers = (int *) desc->mBuffers;
+                    mPreviewOffsets = desc->mOffsets;
+                    mPreviewFd = desc->mFd;
 
-                    mPreviewBuffersAvailable.clear();
+                    mPreviewBuffersRefCount.clear();
                     for ( int i = 0 ; i < mPreviewBufferCount ; i++ )
                         {
-                        mPreviewBuffersAvailable.add(mPreviewBuffers[i], true);
+                        mPreviewBuffersRefCount.add(mPreviewBuffers[i], 0);
                         }
                     }
-
+                else if ( CameraAdapter::CAMERA_VIDEO == mode )
+                    {
+                    //Don't do anything here, same buffers are
+                    //used for capture as also recording
+                    }
                 }
             else
                 {
@@ -195,11 +200,20 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
                 {
                 Mutex::Autolock lock(mPreviewBufferLock);
 
-                mPreviewBuffersAvailable.clear();
+                mPreviewBuffersRefCount.clear();
                 mPreviewBufferCount = 0;
                 mPreviewBuffers = NULL;
+                mPreviewOffsets = NULL;
                 }
 
+            break;
+
+        //Preview and recording are equivalent in fake camea adapter
+        //They use same buffers, functionality etc.
+        //NOTE: Real camera adapters should implement the
+        //needed functionality for this.
+        case CameraAdapter::CAMERA_START_VIDEO:
+        case CameraAdapter::CAMERA_STOP_VIDEO:
             break;
 
         case CameraAdapter::CAMERA_START_PREVIEW:
@@ -318,7 +332,7 @@ void FakeCameraAdapter::frameCallbackThread()
     bool shouldLive = true;
     Message msg;
     frame_callback callback;
-    CameraFrame cFrame;
+    CameraFrame *frame;
 
     LOG_FUNCTION_NAME
 
@@ -329,13 +343,16 @@ void FakeCameraAdapter::frameCallbackThread()
 
         if ( FakeCameraAdapter::CALL_CALLBACK == msg.command )
             {
-            cFrame.mBuffer = msg.arg1;
-            cFrame.mCookie = msg.arg2;
-            callback = (frame_callback) msg.arg3;
-            cFrame.mFrameType = (int) msg.arg4;
+            callback = ( frame_callback ) msg.arg1;
+            frame = ( CameraFrame * ) msg.arg2;
 
-            callback(&cFrame);
+            callback(frame);
 
+
+            if ( NULL != frame )
+                {
+                delete frame;
+                }
             }
         else if ( FakeCameraAdapter::CALLBACK_EXIT == msg.command  )
             {
@@ -390,22 +407,29 @@ void FakeCameraAdapter::setBuffer(void *previewBuffer, int index, int width, int
         memset(buffer, data, sizeof(data)*width);
 }
 
- void FakeCameraAdapter::sendNextFrame(PreviewFrameType frame)
+ void FakeCameraAdapter::sendNextFrame(PreviewFrameType frameType)
 {
     void *previewBuffer;
+    CameraFrame *frame;
+    uint32_t offset;
+    int fd;
     Message msg;
+    size_t count;
     int i = 0;
 
+    offset = 0;
+    fd = -1;
     previewBuffer = NULL;
         {
         Mutex::Autolock lock(mPreviewBufferLock);
         //check for any buffers available
         for ( i = 0 ; i < mPreviewBufferCount ; i++ )
             {
-            if ( ( mPreviewBuffersAvailable.valueAt(i) ) && ( NULL != mPreviewBuffers ) )
+            if ( ( 0 == mPreviewBuffersRefCount.valueAt(i) ) && ( NULL != mPreviewBuffers ) )
                 {
                 previewBuffer = (void *) mPreviewBuffers[i];
-                mPreviewBuffersAvailable.replaceValueAt(i, false);
+                offset = mPreviewOffsets[i];
+                fd = mPreviewFd;
                 break;
                 }
             }
@@ -415,7 +439,7 @@ void FakeCameraAdapter::setBuffer(void *previewBuffer, int index, int width, int
         return;
 
     //TODO: add pixelformat
-    setBuffer(previewBuffer, i, mPreviewWidth, mPreviewHeight, 0, frame);
+    setBuffer(previewBuffer, i, mPreviewWidth, mPreviewHeight, 0, frameType);
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -446,28 +470,78 @@ void FakeCameraAdapter::setBuffer(void *previewBuffer, int index, int width, int
 
             {
             Mutex::Autolock lock(mSubscriberLock);
-            //check for any subscribers
-            if ( 0 == mFrameSubscribers.size() )
+            //check for any preview subscribers
+            for (unsigned int i = 0 ; i < mFrameSubscribers.size(); i++ )
                 {
+
+                frame = new CameraFrame();
+                if ( NULL == frame )
+                    {
+                    CAMHAL_LOGDA("No resources to allocate CameraFrame");
+                    break;
+                    }
+
+                frame->mBuffer = previewBuffer;
+                frame->mAlignment = PAGE_SIZE;
+                frame->mWidth = mPreviewWidth;
+                frame->mHeight = mPreviewHeight;
+                frame->mLength = PAGE_SIZE*mPreviewHeight;
+                frame->mOffset =offset;
+                frame->mFd = fd;
+                frame->mCookie = ( void * ) mFrameSubscribers.keyAt(i);
+                frame->mTimestamp = 0;
+                frame->mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
+
+                msg.command = FakeCameraAdapter::CALL_CALLBACK;
+                msg.arg1 = (void *) mFrameSubscribers.valueAt(i);
+                msg.arg2 = (void *) frame;
+
                     {
                     Mutex::Autolock lock(mPreviewBufferLock);
-                    //release buffers in case nobody subscribed for it
-                    mPreviewBuffersAvailable.replaceValueAt(i, true);
+                    count = mPreviewBuffersRefCount.valueFor( ( unsigned int ) previewBuffer);
+                    count++;
+                    mPreviewBuffersRefCount.replaceValueFor( ( unsigned int ) previewBuffer, count);
                     }
-                }
-            else
-                {
-                for (unsigned int i = 0 ; i < mFrameSubscribers.size(); i++ )
-                    {
-                    msg.command = FakeCameraAdapter::CALL_CALLBACK;
-                    msg.arg1 = previewBuffer;
-                    msg.arg2 = (void *) mFrameSubscribers.keyAt(i);
-                    msg.arg3 = (void *) mFrameSubscribers.valueAt(i);
-                    msg.arg4 = (void *) CameraFrame::PREVIEW_FRAME_SYNC;
 
-                    mCallbackQ.put(&msg);
-                    }
+                mCallbackQ.put(&msg);
                 }
+
+            //check for any video subscribers
+            for (unsigned int i = 0 ; i < mVideoSubscribers.size(); i++ )
+                {
+
+                frame = new CameraFrame();
+                if ( NULL == frame )
+                    {
+                    CAMHAL_LOGDA("No resources to allocate CameraFrame");
+                    break;
+                    }
+
+                frame->mBuffer = previewBuffer;
+                frame->mAlignment = PAGE_SIZE;
+                frame->mWidth = mPreviewWidth;
+                frame->mHeight = mPreviewHeight;
+                frame->mLength = PAGE_SIZE*mPreviewHeight;
+                frame->mOffset =offset;
+                frame->mFd = fd;
+                frame->mCookie = ( void * ) mVideoSubscribers.keyAt(i);
+                frame->mTimestamp = 0;
+                frame->mFrameType = CameraFrame::VIDEO_FRAME_SYNC;
+
+                msg.command = FakeCameraAdapter::CALL_CALLBACK;
+                msg.arg1 = ( void * ) mVideoSubscribers.valueAt(i);
+                msg.arg2 = ( void * ) frame;
+
+                    {
+                    Mutex::Autolock lock(mPreviewBufferLock);
+                    count = mPreviewBuffersRefCount.valueFor( ( unsigned int ) previewBuffer);
+                    count++;
+                    mPreviewBuffersRefCount.replaceValueFor( ( unsigned int ) previewBuffer, count);
+                    }
+
+                mCallbackQ.put(&msg);
+                }
+
             }
 }
 
@@ -477,6 +551,7 @@ status_t FakeCameraAdapter::takePicture(void *imageBuf)
     CameraHalEvent shutterEvent;
     event_callback eventCb;
     Message msg;
+    CameraFrame *frame;
 
     LOG_FUNCTION_NAME
 
@@ -519,11 +594,21 @@ status_t FakeCameraAdapter::takePicture(void *imageBuf)
 
             for (unsigned int i = 0 ; i < mRawSubscribers.size(); i++ )
                 {
+
+                frame = new CameraFrame();
+                if ( NULL == frame )
+                    {
+                    CAMHAL_LOGDA("No resources to allocate CameraFrame");
+                    break;
+                    }
+
+                frame->mBuffer = NULL;
+                frame->mCookie = ( void * ) mRawSubscribers.keyAt(i);
+                frame->mFrameType = CameraFrame::RAW_FRAME;
+
                 msg.command = FakeCameraAdapter::CALL_CALLBACK;
-                msg.arg1 = NULL;
-                msg.arg2 = (void *) mRawSubscribers.keyAt(i);
-                msg.arg3 = (void *) mRawSubscribers.valueAt(i);
-                msg.arg4 = (void *) CameraFrame::RAW_FRAME;
+                msg.arg1 = ( void * ) mRawSubscribers.valueAt(i);
+                msg.arg2 = ( void * ) frame;
 
                 //RAW Capture
                 mCallbackQ.put(&msg);
@@ -543,11 +628,21 @@ status_t FakeCameraAdapter::takePicture(void *imageBuf)
 
             for (unsigned int i = 0 ; i < mImageSubscribers.size(); i++ )
                 {
+
+                frame = new CameraFrame();
+                if ( NULL == frame )
+                    {
+                    CAMHAL_LOGDA("No resources to allocate CameraFrame");
+                    break;
+                    }
+
+                frame->mBuffer = imageBuf;
+                frame->mCookie = ( void * ) mImageSubscribers.keyAt(i);
+                frame->mFrameType = CameraFrame::IMAGE_FRAME;
+
                 msg.command = FakeCameraAdapter::CALL_CALLBACK;
-                msg.arg1 = imageBuf;
-                msg.arg2 = (void *) mImageSubscribers.keyAt(i);
-                msg.arg3 = (void *) mImageSubscribers.valueAt(i);
-                msg.arg4 = (void *) CameraFrame::IMAGE_FRAME;
+                msg.arg1 = ( void * ) mImageSubscribers.valueAt(i);
+                msg.arg2 = ( void * ) frame;
 
                 //Jpeg encoding done
                 mCallbackQ.put(&msg);
@@ -618,6 +713,7 @@ void FakeCameraAdapter::frameThread()
     int timeout;
     int state = FakeCameraAdapter::STOPPED;
     Message msg;
+    size_t count;
     status_t ret = NO_ERROR;
 
     LOG_FUNCTION_NAME
@@ -648,8 +744,20 @@ void FakeCameraAdapter::frameThread()
                         else if ( BaseCameraAdapter::RETURN_FRAME== msg.command )
                             {
                                 {
-                                Mutex::Autolock lock(mPreviewBufferLock);
-                                mPreviewBuffersAvailable.replaceValueFor((int) msg.arg1, true);
+
+                                    Mutex::Autolock lock(mPreviewBufferLock);
+
+                                    count = mPreviewBuffersRefCount.valueFor( ( unsigned int ) msg.arg1);
+                                    if ( count >= 1 )
+                                        {
+                                        count--;
+                                        mPreviewBuffersRefCount.replaceValueFor( ( unsigned int ) msg.arg1, count);
+                                        }
+                                    else
+                                        {
+                                        CAMHAL_LOGEB("Negative refcount for preview buffer 0x%x!", msg.arg1);
+                                        }
+
                                 }
                             }
                         else if ( BaseCameraAdapter::DO_AUTOFOCUS == msg.command )
@@ -730,8 +838,20 @@ void FakeCameraAdapter::frameThread()
                     else if ( BaseCameraAdapter::RETURN_FRAME== msg.command )
                         {
                             {
+
                             Mutex::Autolock lock(mPreviewBufferLock);
-                            mPreviewBuffersAvailable.replaceValueFor((int) msg.arg1, true);
+
+                            count = mPreviewBuffersRefCount.valueFor( ( unsigned int ) msg.arg1);
+                            if ( count >= 1 )
+                                {
+                                count--;
+                                mPreviewBuffersRefCount.replaceValueFor( ( unsigned int ) msg.arg1, count);
+                                }
+                            else
+                                {
+                                CAMHAL_LOGEB("Negative refcount for preview buffer 0x%x!", msg.arg1);
+                                }
+
                             }
                         }
                     else if ( BaseCameraAdapter::DO_AUTOFOCUS == msg.command )
@@ -776,7 +896,7 @@ void FakeCameraAdapter::frameThread()
     LOG_FUNCTION_NAME_EXIT
 }
 
-void FakeCameraAdapter::returnFrame(void* frameBuf)
+void FakeCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameType)
 {
     Message msg;
 
@@ -784,6 +904,7 @@ void FakeCameraAdapter::returnFrame(void* frameBuf)
         {
         msg.command = BaseCameraAdapter::RETURN_FRAME;
         msg.arg1 = frameBuf;
+        msg.arg2 = ( void * ) frameType;
 
         mFrameQ.put(&msg);
 
@@ -797,7 +918,6 @@ void FakeCameraAdapter::returnFrame(void* frameBuf)
         }
 
 }
-
 
 extern "C" CameraAdapter* CameraAdapter_Factory() {
     FakeCameraAdapter *ret;

@@ -31,7 +31,7 @@ class OverlayDisplayAdapter : public DisplayAdapter
 {
 public:
 
-    typedef struct 
+    typedef struct
         {
         void *mBuffer;
         void *mUser;
@@ -67,7 +67,9 @@ public:
     virtual bool supportsExternalBuffering();
 
     //Implementation of inherited interfaces
-    virtual void* allocateBuffer(int width, int height, const char* format, int bytes, int numBufs);
+    virtual void* allocateBuffer(int width, int height, const char* format, int &bytes, int numBufs);
+    virtual uint32_t * getOffsets() ;
+    virtual int getFd() ;
     virtual int freeBuffer(void* buf);
 
     ///Class specific functions
@@ -86,7 +88,7 @@ public:
 
     static const int DISPLAY_TIMEOUT;
 
-    class DisplayThread : public Thread 
+    class DisplayThread : public Thread
         {
         OverlayDisplayAdapter* mDisplayAdapter;
         MessageQueue mDisplayThreadQ;
@@ -107,7 +109,7 @@ public:
                 return false;
                 }
 
-            enum DisplayThreadCommands 
+            enum DisplayThreadCommands
                 {
                 DISPLAY_START,
                 DISPLAY_STOP,

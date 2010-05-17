@@ -61,8 +61,6 @@
 #define THUMB_HEIGHT    60
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
-//Temporary camera parameters buffer length
-#define PARAM_BUFFER            512
 
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
@@ -150,121 +148,50 @@ class CameraFrame;
 class CameraHalEvent;
 class DisplayFrame;
 
-///@todo See if we can club these type declarations into a namespace
-///      Have a generic callback class based on template - to adapt CameraFrame and Event
-typedef void (*frame_callback)(CameraFrame *cameraFrame);
-typedef void (*event_callback) (CameraHalEvent *event);
-
-/**
-  * Interface class implemented by classes that have some events to communicate to dependendent classes
-  * Dependent classes use this interface for registering for events
-  */
-class MessageNotifier
-{
-public:
-    static const uint32_t EVENT_BIT_FIELD_POSITION;
-    static const uint32_t FRAME_BIT_FIELD_POSITION;
-
-    ///@remarks Msg type comes from CameraFrame and CameraHalEvent classes
-    ///           MSB 16 bits is for events and LSB 16 bits is for frame notifications
-    ///         FrameProvider and EventProvider classes act as helpers to event/frame
-    ///         consumers to call this api
-    virtual void enableMsgType(int32_t msgs, frame_callback frameCb=NULL, event_callback eventCb=NULL, void* cookie=NULL) = 0;
-    virtual void disableMsgType(int32_t msgs, void* cookie) = 0;
-
-    virtual ~MessageNotifier() {};
-};
-
-class ErrorNotifier
-{
-public:
-    virtual void errorNotify(int error) = 0;
-
-    virtual ~ErrorNotifier() {};
-};
-
-
-/**
-  * Interace class abstraction for Camera Adapter to act as a frame provider
-  * This interface is fully implemented by Camera Adapter
-  */
-class FrameNotifier : public MessageNotifier
-{
-public:
-    virtual void returnFrame(void* frameBuf) = 0;
-
-    virtual ~FrameNotifier() {};
-};
-
-/**   * Wrapper class around Frame Notifier, which is used by display and notification classes for interacting with Camera Adapter
-  */
-class FrameProvider
-{
-    FrameNotifier* mFrameNotifier;
-    void* mCookie;
-    frame_callback mFrameCallback;
-
-public:
-    FrameProvider(FrameNotifier *fn, void* cookie, frame_callback frameCallback)
-        :mFrameNotifier(fn), mCookie(cookie),mFrameCallback(frameCallback) { }
-
-    int enableFrameNotification(int32_t frameTypes);
-    int disableFrameNotification(int32_t frameTypes);
-    int returnFrame(void *frameBuf);
-};
-
-/** Wrapper class around MessageNotifier, which is used by display and notification classes for interacting with
-   *  Camera Adapter
-  */
-class EventProvider
-{
-public:
-    MessageNotifier* mEventNotifier;
-    void* mCookie;
-    event_callback mEventCallback;
-
-public:
-    EventProvider(MessageNotifier *mn, void* cookie, event_callback eventCallback)
-        :mEventNotifier(mn), mCookie(cookie), mEventCallback(eventCallback) {}
-
-    int enableEventNotification(int32_t eventTypes);
-    int disableEventNotification(int32_t eventTypes);
-};
-
-/*
-  * Interface for providing buffers
-  */
-class BufferProvider
-{
-public:
-    virtual void* allocateBuffer(int width, int height, const char* format, int bytes, int numBufs) = 0;
-    virtual int freeBuffer(void* buf) = 0;
-
-    virtual ~BufferProvider() {}
-};
-
 class CameraFrame
     {
     public:
+
     enum FrameType
-    {
-        PREVIEW_FRAME_SYNC=0x1, ///SYNC implies that the frame needs to be explicitly returned after consuming in order to be filled by camera again
-        PREVIEW_FRAME=0x2   , ///Preview frame includes viewfinder and snapshot frames
-        IMAGE_FRAME_SYNC=0x4, ///Image Frame is the image capture output frame
-        IMAGE_FRAME=0x8,
-        VIDEO_FRAME_SYNC=0x10, ///Timestamp will be updated for these frames
-        VIDEO_FRAME=0x20,
-        FRAME_DATA_SYNC=0x40, ///Any extra data assosicated with the frame. Always synced with the frame
-        FRAME_DATA=0x80,
-        RAW_FRAME =0x100,
-        ALL_FRAMES=0xFFFF   ///Maximum of 16 frame types supported
-    };
+        {
+            PREVIEW_FRAME_SYNC=0x1, ///SYNC implies that the frame needs to be explicitly returned after consuming in order to be filled by camera again
+            PREVIEW_FRAME=0x2   , ///Preview frame includes viewfinder and snapshot frames
+            IMAGE_FRAME_SYNC=0x4, ///Image Frame is the image capture output frame
+            IMAGE_FRAME=0x8,
+            VIDEO_FRAME_SYNC=0x10, ///Timestamp will be updated for these frames
+            VIDEO_FRAME=0x20,
+            FRAME_DATA_SYNC=0x40, ///Any extra data assosicated with the frame. Always synced with the frame
+            FRAME_DATA=0x80,
+            RAW_FRAME =0x100,
+            ALL_FRAMES=0xFFFF   ///Maximum of 16 frame types supported
+        };
+
+    //default contrustor
+    CameraFrame() {}
+
+    //copy constructor
+    CameraFrame(const CameraFrame &frame) :
+    mCookie(frame.mCookie),
+    mBuffer(frame.mBuffer),
+    mFrameType(frame.mFrameType),
+    mTimestamp(frame.mTimestamp),
+    mWidth(frame.mWidth),
+    mHeight(frame.mHeight),
+    mOffset(frame.mOffset),
+    mAlignment(frame.mAlignment),
+    mFd(frame.mFd),
+    mLength(frame.mLength) {}
 
     void *mCookie;
     void *mBuffer;
     int mFrameType;
     unsigned int mTimestamp;
-    ///@todo add other member vars like offset, stride, width, height, etc
+    unsigned int mWidth, mHeight;
+    uint32_t mOffset;
+    unsigned int mAlignment;
+    int mFd;
+    size_t mLength;
+    ///@todo add other member vars like  stride etc
     };
 
 ///Common Camera Hal Event class which is visible to CameraAdapter,DisplayAdapter and AppCallbackNotifier
@@ -311,6 +238,103 @@ public:
 
 };
 
+///@todo See if we can club these type declarations into a namespace
+///      Have a generic callback class based on template - to adapt CameraFrame and Event
+typedef void (*frame_callback)(CameraFrame *cameraFrame);
+typedef void (*event_callback) (CameraHalEvent *event);
+
+/**
+  * Interface class implemented by classes that have some events to communicate to dependendent classes
+  * Dependent classes use this interface for registering for events
+  */
+class MessageNotifier
+{
+public:
+    static const uint32_t EVENT_BIT_FIELD_POSITION;
+    static const uint32_t FRAME_BIT_FIELD_POSITION;
+
+    ///@remarks Msg type comes from CameraFrame and CameraHalEvent classes
+    ///           MSB 16 bits is for events and LSB 16 bits is for frame notifications
+    ///         FrameProvider and EventProvider classes act as helpers to event/frame
+    ///         consumers to call this api
+    virtual void enableMsgType(int32_t msgs, frame_callback frameCb=NULL, event_callback eventCb=NULL, void* cookie=NULL) = 0;
+    virtual void disableMsgType(int32_t msgs, void* cookie) = 0;
+
+    virtual ~MessageNotifier() {};
+};
+
+class ErrorNotifier
+{
+public:
+    virtual void errorNotify(int error) = 0;
+
+    virtual ~ErrorNotifier() {};
+};
+
+
+/**
+  * Interace class abstraction for Camera Adapter to act as a frame provider
+  * This interface is fully implemented by Camera Adapter
+  */
+class FrameNotifier : public MessageNotifier
+{
+public:
+    virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType) = 0;
+
+    virtual ~FrameNotifier() {};
+};
+
+/**   * Wrapper class around Frame Notifier, which is used by display and notification classes for interacting with Camera Adapter
+  */
+class FrameProvider
+{
+    FrameNotifier* mFrameNotifier;
+    void* mCookie;
+    frame_callback mFrameCallback;
+
+public:
+    FrameProvider(FrameNotifier *fn, void* cookie, frame_callback frameCallback)
+        :mFrameNotifier(fn), mCookie(cookie),mFrameCallback(frameCallback) { }
+
+    int enableFrameNotification(int32_t frameTypes);
+    int disableFrameNotification(int32_t frameTypes);
+    int returnFrame(void *frameBuf, CameraFrame::FrameType frameType);
+};
+
+/** Wrapper class around MessageNotifier, which is used by display and notification classes for interacting with
+   *  Camera Adapter
+  */
+class EventProvider
+{
+public:
+    MessageNotifier* mEventNotifier;
+    void* mCookie;
+    event_callback mEventCallback;
+
+public:
+    EventProvider(MessageNotifier *mn, void* cookie, event_callback eventCallback)
+        :mEventNotifier(mn), mCookie(cookie), mEventCallback(eventCallback) {}
+
+    int enableEventNotification(int32_t eventTypes);
+    int disableEventNotification(int32_t eventTypes);
+};
+
+/*
+  * Interface for providing buffers
+  */
+class BufferProvider
+{
+public:
+    virtual void* allocateBuffer(int width, int height, const char* format, int &bytes, int numBufs) = 0;
+
+    //additional methods used for memory mapping
+    virtual uint32_t * getOffsets() = 0;
+    virtual int getFd() = 0;
+
+    virtual int freeBuffer(void* buf) = 0;
+
+    virtual ~BufferProvider() {}
+};
 
 /**
   * Class for handling data and notify callbacks to application
@@ -372,6 +396,12 @@ public:
                                             data_callback_timestamp dataCbTimestamp,
                                             void* user);
 
+    //Notifications from CameraHal for video recording case
+    status_t startRecording();
+    status_t stopRecording();
+    status_t initSharedVideoBuffers(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count);
+    status_t releaseRecordingFrame(const sp<IMemory>& mem);
+
     //Internal class definitions
     class NotificationThread : public Thread {
         AppCallbackNotifier* mAppCallbackNotifier;
@@ -401,6 +431,7 @@ private:
     void notifyEvent();
     void notifyFrame();
     bool processMessage();
+    void releaseSharedVideoBuffers();
 
 private:
     mutable Mutex mLock;
@@ -409,6 +440,12 @@ private:
     data_callback   mDataCb;
     data_callback_timestamp mDataCbTimestamp;
     void *mCallbackCookie;
+
+    //Keeps Video MemoryHeaps and Buffers within
+    //these objects
+    KeyedVector<unsigned int, unsigned int> mVideoHeaps;
+    KeyedVector<unsigned int, unsigned int> mVideoBuffers;
+    bool mBufferReleased;
 
     CameraHal *mHardware;
     sp< NotificationThread> mNotificationThread;
@@ -430,7 +467,9 @@ public:
     ///Initializes the display adapter creates any resources required
     status_t initialize(){ return NO_ERROR; }
 
-    virtual void* allocateBuffer(int width, int height, const char* format, int bytes, int numBufs);
+    virtual void* allocateBuffer(int width, int height, const char* format, int &bytes, int numBufs);
+    virtual uint32_t * getOffsets();
+    virtual int getFd() ;
     virtual int freeBuffer(void* buf);
 };
 
@@ -445,11 +484,20 @@ public:
 class CameraAdapter: public FrameNotifier, public virtual RefBase
 {
 public:
+    typedef struct
+        {
+         void *mBuffers;
+         uint32_t *mOffsets;
+         int mFd;
+         size_t mCount;
+        } BuffersDescriptor;
 
     enum CameraCommands
         {
-        CAMERA_START_PREVIEW,
+        CAMERA_START_PREVIEW = 0,
         CAMERA_STOP_PREVIEW,
+        CAMERA_START_VIDEO,
+        CAMERA_STOP_VIDEO,
         CAMERA_START_IMAGE_CAPTURE,
         CAMERA_STOP_IMAGE_CAPTURE,
         CAMERA_PERFORM_AUTOFOCUS,
@@ -474,7 +522,7 @@ public:
     //Message/Frame notification APIs
     virtual void enableMsgType(int32_t msgs, frame_callback callback=NULL, event_callback eventCb=NULL, void* cookie=NULL) = 0;
     virtual void disableMsgType(int32_t msgs, void* cookie) = 0;
-    virtual void returnFrame(void* frameBuf) = 0;
+    virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType) = 0;
 
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params) = 0;
@@ -484,9 +532,16 @@ public:
     virtual status_t getCaps() = 0;
 
     //API to give the buffers to Adapter
-    status_t useBuffers(CameraMode mode, void* bufArr, int num)
+    status_t useBuffers(CameraMode mode, void *bufArr, uint32_t *offsets, int fd, int num)
         {
-        return sendCommand(CameraAdapter::CAMERA_USE_BUFFERS, (int)mode, (int)bufArr, (int)num);
+        BuffersDescriptor desc;
+
+        desc.mBuffers = bufArr;
+        desc.mOffsets = offsets;
+        desc.mFd = fd;
+        desc.mCount = ( size_t ) num;
+
+        return sendCommand(CameraAdapter::CAMERA_USE_BUFFERS, mode, (int) &desc);
         }
 
     //API to flush the buffers from Camera
@@ -733,11 +788,17 @@ private:
             /** Allocate preview buffers */
             status_t allocPreviewBufs(int width, int height, const char* previewFormat);
 
+            /** Allocate video buffers */
+            status_t allocVideoBufs(int width, int height, const char* previewFormat);
+
             /** Allocate image capture buffers */
             status_t allocImageBufs(int width, int height, const char* previewFormat);
 
             /** Free preview buffers */
             status_t freePreviewBufs();
+
+            /** Free video bufs */
+            status_t freeVideoBufs();
 
             /** Free image bufs */
             status_t freeImageBufs();
@@ -808,12 +869,21 @@ private:
     CameraParameters mParameters;
     sp<Overlay>  mOverlay;
     bool mPreviewRunning;
+    bool mRecordingEnabled;
 
     int32_t *mImageBufs;
     int32_t *mPreviewBufs;
+    uint32_t *mPreviewOffsets;
+    int mPreviewLength;
+    int mPreviewFd;
+    int32_t *mVideoBufs;
+    uint32_t *mVideoOffsets;
+    int mVideoFd;
+    int mVideoLength;
 
     ///@todo Rename this as preview buffer provider
-    BufferProvider* mBufProvider;
+    BufferProvider *mBufProvider;
+    BufferProvider *mVideoBufProvider;
 
     bool mPreviewBufsAllocatedUsingOverlay;
 

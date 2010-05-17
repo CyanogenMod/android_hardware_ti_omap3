@@ -48,7 +48,7 @@ namespace android {
 
 /*--------------------MemoryManager Class STARTS here-----------------------------*/
 ///@todo Change the name of the MemoryManager class to TilerMemoryManager to indicate that it allocates TILER buffers only
-void* MemoryManager::allocateBuffer(int width, int height, const char* format, int bytes, int numBufs)
+void* MemoryManager::allocateBuffer(int width, int height, const char* format, int &bytes, int numBufs)
 {
     LOG_FUNCTION_NAME
     ///We allocate numBufs+1 because the last entry will be marked NULL to indicate end of array, which is used when freeing
@@ -199,6 +199,26 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
         free(tMemBlock);
         LOG_FUNCTION_NAME_EXIT
         return NULL;
+}
+
+//TODO: Get needed data to map tiler buffers
+//Return dummy data for now
+uint32_t * MemoryManager::getOffsets()
+{
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return NULL;
+}
+
+int MemoryManager::getFd()
+{
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return -1;
 }
 
 int MemoryManager::freeBuffer(void* buf)

@@ -44,7 +44,7 @@ public:
     ///Initialzes the camera adapter creates any resources required
     virtual status_t initialize();
 
-    virtual void returnFrame(void* frameBuf);
+    virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
 
     virtual int setErrorHandler(ErrorNotifier *errorNotifier);
 
@@ -131,7 +131,9 @@ class FramePreview : public Thread {
     sp<FrameCallback> mCallbackThread;
     int mPreviewBufferCount;
     int *mPreviewBuffers;
-    KeyedVector<int, bool> mPreviewBuffersAvailable;
+    uint32_t *mPreviewOffsets;
+    int mPreviewFd;
+    KeyedVector<int, int> mPreviewBuffersRefCount;
     int mPreviewWidth, mPreviewHeight, mPreviewFormat;
     int mFrameRate;
     CameraParameters mParameters;

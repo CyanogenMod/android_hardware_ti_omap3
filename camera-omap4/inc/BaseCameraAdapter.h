@@ -39,7 +39,7 @@ public:
     //Message/Frame notification APIs
     virtual void enableMsgType(int32_t msgs, frame_callback callback=NULL, event_callback eventCb=NULL, void* cookie=NULL);
     virtual void disableMsgType(int32_t msgs, void* cookie);
-    virtual void returnFrame(void* frameBuf) = 0;
+    virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType) = 0;
 
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params) = 0;
@@ -67,8 +67,10 @@ protected:
 
     enum FrameCommands {
         START_PREVIEW = 0,
+        START_RECORDING,
         RETURN_FRAME,
         STOP_PREVIEW,
+        STOP_RECORDING,
         DO_AUTOFOCUS,
         TAKE_PICTURE,
         FRAME_EXIT
@@ -80,6 +82,7 @@ protected:
     };
 
     KeyedVector<int, frame_callback> mFrameSubscribers;
+    KeyedVector<int, frame_callback> mVideoSubscribers;
     KeyedVector<int, frame_callback> mImageSubscribers;
     KeyedVector<int, frame_callback> mRawSubscribers;
     KeyedVector<int, event_callback> mFocusSubscribers;
