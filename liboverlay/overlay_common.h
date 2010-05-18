@@ -21,6 +21,8 @@
 #ifndef OVERLAY_COMMON_H_
 #define OVERLAY_COMMON_H_
 
+#include <hardware/overlay.h>
+#include "v4l2_utils.h"
 
 #ifdef TARGET_OMAP4
 /*This is required to acheive the best performance for ducati codecs.
@@ -29,13 +31,28 @@
 */
 #define NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE    4
 #define NUM_OVERLAY_BUFFERS_REQUESTED  (12)
+/* These values should come from Surface Flinger */
+#define LCD_WIDTH 864
+#define LCD_HEIGHT 480
+#define MAX_NUM_OVERLAYS 3
 #else
 #define NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE    3
 #define NUM_OVERLAY_BUFFERS_REQUESTED  (6)
+/* These values should come from Surface Flinger */
+#define LCD_WIDTH 800
+#define LCD_HEIGHT 480
+#define MAX_NUM_OVERLAYS 1
 #endif
+/** As the PV ARM Codecs are using only two output buffers, we can't have
+* more than 2 buffers queued in the DSS queue
+*/
+#define NUM_BUFFERS_TO_BE_QUEUED_FOR_ARM_CODECS    2
+
 /* Used in setAttributes */
 #define CACHEABLE_BUFFERS 0x1
 #define MAINTAIN_COHERENCY 0x2
+#define OPTIMAL_QBUF_CNT    0x4
+
 #ifdef TARGET_OMAP4
 /* The following defines are used to set the maximum values supported
  * by the overlay.
