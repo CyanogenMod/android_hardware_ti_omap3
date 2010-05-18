@@ -337,21 +337,16 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         }
     }
 
-    switch(overlayid) {
-        case 0: {
-            LOGE("Enabling the OVERLAY1");
-            fd = v4l2_overlay_open(V4L2_OVERLAY_PLANE_VIDEO1);
-            if (fd < 0) {
-                LOGE("Failed to open overlay device1\n");
-                return NULL;
-            }
-        }
-        break;
+    if (overlayid < 0) {
+        LOGE("No free overlay available");
+        return NULL;
+    }
 
-        default: {
-            LOGE("No Free overlay available\n");
-            return NULL;
-        }
+    LOGD("Enabling the OVERLAY[%d]", overlayid);
+    fd = v4l2_overlay_open(overlayid);
+    if (fd < 0) {
+        LOGE("Failed to open overlay device[%d]\n", overlayid);
+        return NULL;
     }
 
     overlay_fd = self->create_shared_overlayobj(&overlayobj);
@@ -625,36 +620,36 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", x, y, w, h );
     LOGI("Rotation/%d\n", data->rotation );
 
-    if (ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH)) {
+    if ((ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
         LOGE("commit:Get crop value Failed!/%d\n", ret);
         goto end;
     }
 
-    if (ret = overlay_data_context_t::disable_streaming_locked(overlayobj, false)) {
+    if ((ret = overlay_data_context_t::disable_streaming_locked(overlayobj, false))) {
         LOGE("Stream Off Failed!/%d\n", ret);
         goto end;
     }
 
-    if (ret = v4l2_overlay_set_rotation(fd, data->rotation, 0)) {
+    if ((ret = v4l2_overlay_set_rotation(fd, data->rotation, 0))) {
         LOGE("Set Rotation Failed!/%d\n", ret);
         goto end;
     }
 
-    if (ret = v4l2_overlay_set_crop(fd,
+    if ((ret = v4l2_overlay_set_crop(fd,
                     eCropData.cropX,
                     eCropData.cropY,
                     eCropData.cropW,
-                    eCropData.cropH)) {
+                    eCropData.cropH))) {
         LOGE("Set Cropping Failed!/%d\n",ret);
         goto end;
     }
 
-    if (ret = v4l2_overlay_set_position(fd, x, y, w, h)) {
+    if ((ret = v4l2_overlay_set_position(fd, x, y, w, h))) {
         LOGE("Set Position Failed!/%d\n", ret);
         goto end;
     }
 
-    if (ret = v4l2_overlay_set_colorkey(fd, 1, 0x00)) {
+    if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00))) {
         LOGE("Failed enabling color key\n");
         goto end;
     }
@@ -812,21 +807,21 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
 
     pthread_mutex_lock(&ctx->omap_overlay->lock);
 
-    if (rc = ctx->disable_streaming_locked(ctx->omap_overlay)) {
+    if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay))) {
         goto end;
     }
 
-    if (ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH)) {
+    if ((ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
         LOGE("resizeip: Get crop value Failed!/%d\n", rc);
         goto end;
     }
 
-    if (ret = v4l2_overlay_get_position(fd, &_x,  &_y, &_w, &_h)) {
+    if ((ret = v4l2_overlay_get_position(fd, &_x,  &_y, &_w, &_h))) {
         LOGD(" Could not set the position when creating overlay \n");
         goto end;
     }
 
-    if (ret = v4l2_overlay_get_rotation(fd, &degree, NULL)) {
+    if ((ret = v4l2_overlay_get_rotation(fd, &degree, NULL))) {
         LOGD("Get rotation value failed! \n");
         goto end;
     }
@@ -835,32 +830,32 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         v4l2_overlay_unmap_buf(ctx->omap_overlay->buffers[i], ctx->omap_overlay->buffers_len[i]);
     }
 
-    if (ret = v4l2_overlay_init(fd, w, h, ctx->omap_overlay->format)) {
+    if ((ret = v4l2_overlay_init(fd, w, h, ctx->omap_overlay->format))) {
         LOGE("Error initializing overlay");
         goto end;
     }
 
-    if (ret = v4l2_overlay_set_rotation(fd, degree, 0)) {
+    if ((ret = v4l2_overlay_set_rotation(fd, degree, 0))) {
         LOGE("Failed rotation\n");
         goto end;
     }
 
-     if (ret = v4l2_overlay_set_crop(fd, eCropData.cropX, eCropData.cropY, eCropData.cropW, eCropData.cropH)) {
+     if ((ret = v4l2_overlay_set_crop(fd, eCropData.cropX, eCropData.cropY, eCropData.cropW, eCropData.cropH))) {
         LOGE("Failed crop window\n");
         goto end;
     }
 
-    if (ret = v4l2_overlay_set_colorkey(fd,1, stage->colorkey)) {
+    if ((ret = v4l2_overlay_set_colorkey(fd,1, stage->colorkey))) {
         LOGE("Failed enabling color key\n");
         goto end;
     }
 
-    if (ret = v4l2_overlay_set_position(fd, _x,  _y, _w, _h)) {
+    if ((ret = v4l2_overlay_set_position(fd, _x,  _y, _w, _h))) {
         LOGD(" Could not set the position when creating overlay \n");
         goto end;
     }
 
-    if (ret = v4l2_overlay_req_buf(fd, (uint32_t *)(&ctx->omap_overlay->num_buffers), ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency)) {
+    if ((ret = v4l2_overlay_req_buf(fd, (uint32_t *)(&ctx->omap_overlay->num_buffers), ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency))) {
         LOGE("Error creating buffers");
         goto end;
     }

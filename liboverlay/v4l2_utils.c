@@ -80,12 +80,9 @@ int v4l2_overlay_get(int name) {
 int v4l2_overlay_open(int id)
 {
     LOG_FUNCTION_NAME
-
-    if (id == V4L2_OVERLAY_PLANE_VIDEO1)
-        return open("/dev/video1", O_RDWR);
-    else if (id == V4L2_OVERLAY_PLANE_VIDEO2)
-        return open("/dev/video2", O_RDWR);
-    return -EINVAL;
+    char v4l2_dev_name[PATH_MAX];
+    sprintf(v4l2_dev_name, "/dev/video%d", id + 1);
+    return open(v4l2_dev_name, O_RDWR);
 }
 
 void dump_pixfmt(struct v4l2_pix_format *pix)
