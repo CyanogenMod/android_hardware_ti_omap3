@@ -312,6 +312,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     uint32_t num = NUM_OVERLAY_BUFFERS_REQUESTED;
     int fd;
     int overlay_fd;
+    int pipelineId = 0;
     /* Validate the width and height are within a valid range for the
     * video driver.
     * */
@@ -375,7 +376,16 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         LOGE("Failed enabling color key\n");
         goto error1;
     }
+    if (v4l2_overlay_getId(fd, &pipelineId)) {
+        LOGE("Failed: getting overlay Id");
+        goto error1;
+    }
+    if ((pipelineId < 0) || (pipelineId > MAX_NUM_OVERLAYS)) {
+        LOGE("Failed: Invalid overlay Id");
+        goto error1;
+    }
 
+    sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
     if (v4l2_overlay_req_buf(fd, &num, 0, 0)) {
         LOGE("Failed requesting buffers\n");
         goto error1;
@@ -1146,7 +1156,7 @@ int overlay_data_context_t::overlay_data_close(struct hw_device_t *dev) {
 
         pthread_mutex_lock(&ctx->omap_overlay->lock);
 
-        if (rc = (ctx->disable_streaming_locked(ctx->omap_overlay))) {
+        if ((rc = (ctx->disable_streaming_locked(ctx->omap_overlay)))) {
             LOGE("Stream Off Failed!/%d\n", rc);
         }
 

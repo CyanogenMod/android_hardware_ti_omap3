@@ -116,6 +116,8 @@ public:
     int optimalQBufCnt;
     int attributes_changed;
 
+    char overlaymanagerpath[PATH_MAX];
+
     static overlay_handle_t getHandleRef(struct overlay_t* overlay) {
         /* returns a reference to the handle, caller doesn't take ownership */
         return &(static_cast<overlay_object *>(overlay)->mControlHandle);

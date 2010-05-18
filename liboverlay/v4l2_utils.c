@@ -682,6 +682,22 @@ int v4l2_overlay_dq_buf(int fd, int *index)
     return 0;
 }
 
+int v4l2_overlay_getId(int fd, int* id)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_control ctrl;
+    memset(&ctrl, 0, sizeof(ctrl));
+    ctrl.id = V4L2_CID_TI_DISPC_OVERLAY;
+    ctrl.value = -1;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_CTRL, &ctrl, "get path");
+    if (ret < 0) {
+        error(fd, "VIDIOC_G_CTRL id: V4L2_CID_TI_DISPC_OVERLAY ioctl");
+        return ret;
+        }
+    *id = ctrl.value;
+     return ret;
+}
 
 /*
 Copies 2D buffer to 1D buffer. All heights, widths etc. should be in bytes.

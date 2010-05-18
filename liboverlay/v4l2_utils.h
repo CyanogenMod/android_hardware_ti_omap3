@@ -51,6 +51,8 @@ int v4l2_overlay_set_global_alpha(int fd, int enable, int alpha);
 int v4l2_overlay_set_local_alpha(int fd, int enable);
 
 int32_t Util_Memcpy_2Dto1D(void* pSrc2D, uint32_t nHeight2D, uint32_t nWidth2D, uint32_t nStride2D);
+int v4l2_overlay_getId(int fd, int* id);
+
 enum {
   V4L2_OVERLAY_PLANE_GRAPHICS,
   V4L2_OVERLAY_PLANE_VIDEO1,
@@ -65,4 +67,7 @@ typedef struct
   void *ptr;
 } mapping_data_t;
 
+/* this constant should be insync with that defined in kernel v4l2 header
+*/
+#define V4L2_CID_TI_DISPC_OVERLAY 0x08000000
 #endif  // ANDROID_ZOOM_REPO_HARDWARE_TI_OMAP3_LIBOVERLAY_V4L2_UTILS_H_
