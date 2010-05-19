@@ -117,6 +117,7 @@ OMX_ERRORTYPE OMX_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BU
 SkTIJPEGImageDecoder::~SkTIJPEGImageDecoder()
     {
     LOG_FUNCTION_NAME
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
 
     sem_destroy(semaphore);
 
@@ -124,6 +125,24 @@ SkTIJPEGImageDecoder::~SkTIJPEGImageDecoder()
         {
         free(semaphore) ;
         semaphore = NULL;
+        }
+    /*### Assume that the inStream will be closed by some upper layer */
+    /*### Assume that the Bitmap object/file need not be closed. */
+    /*### More needs to be done here */
+    /*### Do different things based on iLastState */
+    LIBSKIAHW_LOGDA("Calling FREEHANDLE\n");
+    if (pOMXHandle) {
+        eError = OMX_FreeHandle(pOMXHandle);
+        if ( (eError != OMX_ErrorNone) )    {
+            LIBSKIAHW_LOGEA("Error in Free Handle function\n");
+        }
+        pOMXHandle = NULL;
+        OMX_Deinit();
+    }
+
+    if (pARMHandle) {
+        delete pARMHandle;
+        pARMHandle=NULL;
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -139,7 +158,12 @@ SkTIJPEGImageDecoder::SkTIJPEGImageDecoder()
     semaphore = (sem_t*)malloc(sizeof(sem_t)) ;
     sem_init(semaphore, 0x00, 0x00);
 
+    pOMXHandle = NULL;
+    pARMHandle = NULL;
+
     LIBSKIAHW_LOGDB("semaphore created semaphore = 0x%x", semaphore);
+
+    LIBSKIAHW_LOGDB("Process ID using this instance 0x%x", getpid());
 
     LOG_FUNCTION_NAME_EXIT
     }
@@ -539,7 +563,98 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* st
     }
 
 
+///Decision engine method that decides between ARM decoder or SIMCOP decoder
+bool SkTIJPEGImageDecoder::IsHwFormat(SkStream* stream)
+{
+    bool useHw = true;
+
+    inputFileSize = ParseJpegHeader(stream , &JpegHeaderInfo);
+
+    if((JpegHeaderInfo.nFormat!=OMX_COLOR_FormatYUV420Planar)
+            && (JpegHeaderInfo.nFormat!=OMX_COLOR_FormatCbYCrY))
+        {
+            useHw=false;
+        }
+
+    if(JpegHeaderInfo.nProgressive)
+        {
+        useHw = false;
+        }
+
+    return useHw;
+}
+
+///LIBSKIA decode top level method - this call further branches into ARM or SIMCOP decode based on decision engine
 bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, Mode mode)
+{
+    LOG_FUNCTION_NAME
+    LIBSKIAHW_LOGEB ("Process %x calling onDecode", getpid());
+    if(IsHwFormat(stream) && IsHwAvailable())
+        {
+        LOG_FUNCTION_NAME_EXIT
+        return onDecodeOmx(stream, bm, prefConfig, mode);
+
+        }
+    else
+        {
+        LOG_FUNCTION_NAME_EXIT
+        return onDecodeArm(stream, bm, prefConfig, mode);
+        }
+}
+
+///Method which tries to acquire SIMCOP resource
+bool SkTIJPEGImageDecoder::IsHwAvailable()
+{
+    LOG_FUNCTION_NAME
+    char strTIJpegDec[] = "OMX.TI.DUCATI1.IMAGE.JPEGD";
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    if(pOMXHandle)
+        {
+        return true;
+        }
+
+    OMX_Init();
+
+    OMX_CALLBACKTYPE JPEGCallBack ={OMX_EventHandler, OMX_EmptyBufferDone, OMX_FillBufferDone};
+
+    eError = OMX_GetHandle(&pOMXHandle, strTIJpegDec, (void *)this, &JPEGCallBack);
+    if ( (eError != OMX_ErrorNone) ||  (pOMXHandle == NULL) )
+        {
+        LIBSKIAHW_LOGEB ("Error in Get Handle function eError %d\n", eError);
+        pOMXHandle = NULL;
+         OMX_Deinit();
+         LOG_FUNCTION_NAME_EXIT
+         return false;
+        }
+
+    iLastState = STATE_LOADED;
+    iState = STATE_LOADED;
+    LIBSKIAHW_LOGEB ("SIMCOP Available to process %x", getpid());
+
+    LOG_FUNCTION_NAME_EXIT
+    return true;
+
+}
+
+
+///Method for decoding using ARM decoder
+bool SkTIJPEGImageDecoder::onDecodeArm(SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, Mode mode)
+{
+    if(!pARMHandle)
+        {
+        pARMHandle = SkNEW(SkJPEGImageDecoder);
+        if(!pARMHandle)
+            {
+            return false;
+            }
+        }
+    stream->rewind();
+    return pARMHandle->decode(stream,bm, prefConfig,mode);
+}
+
+///Method for decoding using SIMCOP decoder
+bool SkTIJPEGImageDecoder::onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, Mode mode)
     {
     LOG_FUNCTION_NAME
 
@@ -557,18 +672,12 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     int bitsPerPixel;
     void *p_out=NULL;
     MemAllocBlock *MemReqDescTiler;
-    OMX_S32 inputFileSize;
     OMX_S32 nCompId = 100;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    JPEG_HEADER_INFO JpegHeaderInfo;
     OMX_PORT_PARAM_TYPE PortType;
 
     OMX_JPEG_PARAM_UNCOMPRESSEDMODETYPE tUncompressedMode;
     OMX_IMAGE_PARAM_DECODE_SUBREGION pSubRegionDecode;
-
-    char strTIJpegDec[] = "OMX.TI.DUCATI1.IMAGE.JPEGD";
-
-    OMX_CALLBACKTYPE JPEGCallBack ={OMX_EventHandler, OMX_EmptyBufferDone, OMX_FillBufferDone};
 
     LIBSKIAHW_LOGDA("\nUsing TI Image Decoder.\n");
 
@@ -593,8 +702,6 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
         {
         scaleFactor = 8;
         }
-
-    inputFileSize = ParseJpegHeader(stream , &JpegHeaderInfo);
 
 #ifdef TIME_DECODE
     atm.setResolution(JpegHeaderInfo.nWidth , JpegHeaderInfo.nHeight);
@@ -622,17 +729,6 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
         LIBSKIAHW_LOGDA("Leaving Critical Section 1 \n");
         return true;
         }
-
-    eError = OMX_GetHandle(&pOMXHandle, strTIJpegDec, (void *)this, &JPEGCallBack);
-    if ( (eError != OMX_ErrorNone) ||  (pOMXHandle == NULL) )
-        {
-        LIBSKIAHW_LOGEB ("Error in Get Handle function eError %d\n", eError);
-        iState = STATE_ERROR;
-        goto EXIT;
-        }
-
-    iLastState = STATE_LOADED;
-    iState = STATE_LOADED;
 
     PortType.nSize = sizeof(OMX_PORT_PARAM_TYPE);
     PortType.nVersion.s.nVersionMajor = 0x1;
@@ -679,9 +775,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
     InPortDef.bBuffersContiguous = OMX_FALSE;
     InPortDef.nBufferAlignment = 0;
 
-    if (JpegHeaderInfo.nFormat == OMX_COLOR_FormatYCbYCr ||
-        JpegHeaderInfo.nFormat == OMX_COLOR_FormatYUV444Interleaved ||
-        JpegHeaderInfo.nFormat == OMX_COLOR_FormatUnused)
+    if (JpegHeaderInfo.nFormat == OMX_COLOR_FormatYCbYCr)
         {
         InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
         }
@@ -953,9 +1047,6 @@ void SkTIJPEGImageDecoder::Run()
                                 break;
                                 }
 
-                         MemMgr_Free(pInBuffHead->pBuffer);
-                         LIBSKIAHW_LOGDA("\nBACK FROM INPUT BUFFER mmgr_free call \n");
-
                             /* Free buffers */
                             eError = OMX_FreeBuffer(pOMXHandle, InPortDef.nPortIndex, pInBuffHead);
                             if ( eError != OMX_ErrorNone )
@@ -964,9 +1055,6 @@ void SkTIJPEGImageDecoder::Run()
                                 iState = STATE_ERROR;
                                 break;
                                 }
-
-                        MemMgr_Free(pOutBuffHead->pBuffer);
-                        LIBSKIAHW_LOGDA("\nBACK FROM OUTPUT BUFFER mmgr_free call \n");
 
                             eError = OMX_FreeBuffer(pOMXHandle, OutPortDef.nPortIndex, pOutBuffHead);
                             if ( eError != OMX_ErrorNone )
@@ -1051,13 +1139,6 @@ void SkTIJPEGImageDecoder::Run()
                     }
                 }
             }
-                        LIBSKIAHW_LOGDA("Calling FREEHANDLE\n");
-                        if (pOMXHandle) {
-                            eError = OMX_FreeHandle(pOMXHandle);
-                            if ( (eError != OMX_ErrorNone) )    {
-                                LIBSKIAHW_LOGEA("Error in Free Handle function\n");
-                            }
-                        }
 
                         iState = STATE_EXIT;
                         sem_post(semaphore);
@@ -1076,5 +1157,35 @@ void SkTIJPEGImageDecoder::Run()
         }
     LOG_FUNCTION_NAME_EXIT
     }
+
+///@optimization Use one global instance of decoder so that we don't have to call OMX_GetHandle, OMX_FreeHandle every time
+static SkTIJPEGImageDecoder gJpegDecoder;
+
+///Wrapper class which will be created every time by the factory method.
+///This class wraps the handle to the global singleton jpeg decoder instance
+class SkJPEGTIImageDecoderWrapper : public SkImageDecoder {
+public:
+    SkJPEGTIImageDecoderWrapper(SkImageDecoder* ptr)
+        {
+        mPtr = ptr;
+        }
+    virtual Format getFormat() const {
+        return kJPEG_Format;
+    }
+
+protected:
+    virtual bool onDecode(SkStream* stream, SkBitmap* bm,
+                          SkBitmap::Config pref, Mode mode)
+        {
+            return mPtr->decode(stream, bm, pref, mode);
+        }
+public:
+    SkImageDecoder *mPtr;
+};
+
+///LIBSKIAHW Factory method
+extern "C" SkImageDecoder* SkImageDecoder_HWJPEG_Factory() {
+    return new SkJPEGTIImageDecoderWrapper(&gJpegDecoder);
+}
 
 

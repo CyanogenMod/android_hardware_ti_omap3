@@ -110,6 +110,17 @@ namespace android {
 #define M_DHT   0xC4
 #define M_DRI   0xDD
 
+class SkJPEGImageDecoder : public SkImageDecoder {
+public:
+    virtual Format getFormat() const {
+        return kJPEG_Format;
+    }
+
+protected:
+    virtual bool onDecode(SkStream* stream, SkBitmap* bm,
+                          SkBitmap::Config pref, Mode);
+};
+
 
 class SkTIJPEGImageDecoder :public SkImageDecoder
 {
@@ -160,6 +171,7 @@ private:
     } JPEG_HEADER_INFO;
 
         OMX_HANDLETYPE pOMXHandle;
+        SkJPEGImageDecoder *pARMHandle;
         OMX_BUFFERHEADERTYPE *pInBuffHead;
         OMX_BUFFERHEADERTYPE *pOutBuffHead;
         OMX_PARAM_PORTDEFINITIONTYPE InPortDef;
@@ -174,11 +186,17 @@ private:
     OMX_S32 ParseJpegHeader (SkStream* stream, JPEG_HEADER_INFO* JpegHeaderInfo);
     OMX_S32 fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* stream, OMX_S32 bufferSize);
     void FixFrameSize(JPEG_HEADER_INFO* JpegHeaderInfo);
+    bool IsHwFormat(SkStream* stream);
+    bool IsHwAvailable();
+    bool onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, Mode);
+    bool onDecodeArm(SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, Mode);
 
 public:
     sem_t *semaphore;
     JPEGDEC_State iState;
     JPEGDEC_State iLastState;
+    JPEG_HEADER_INFO JpegHeaderInfo;
+    OMX_S32 inputFileSize;
 
 };
 
@@ -229,9 +247,6 @@ typedef struct OMX_CUSTOM_RESOLUTION
 
 
 
-extern "C" SkImageDecoder* SkImageDecoder_HWJPEG_Factory() {
-    return SkNEW(SkTIJPEGImageDecoder);
-}
 
 OMX_ERRORTYPE OMX_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffHead);
 OMX_ERRORTYPE OMX_EmptyBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffer);
