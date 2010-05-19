@@ -1027,6 +1027,9 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         goto end;
     }
 
+    //Update the overlay object with the new width and height
+    ctx->omap_overlay->w = w;
+    ctx->omap_overlay->h = h;
     if ((ret = v4l2_overlay_set_rotation(fd, degree, 0))) {
         LOGE("Failed rotation\n");
         goto end;
