@@ -55,6 +55,8 @@ public:
         posH = 0;
         colorkey = 0;
         rotation = 0;
+        alpha = 0;
+        zorder = 3;
     };
 public:
   uint32_t posX;
@@ -63,6 +65,8 @@ public:
   uint32_t posH;
   uint32_t colorkey;
   uint32_t rotation;
+  uint32_t alpha;
+  uint32_t zorder;
 } ;
 
 class overlay_data_t {
@@ -117,6 +121,8 @@ public:
     int attributes_changed;
 
     char overlaymanagerpath[PATH_MAX];
+    char overlayzorderpath[PATH_MAX];
+    char overlayenabled[PATH_MAX];
 
     static overlay_handle_t getHandleRef(struct overlay_t* overlay) {
         /* returns a reference to the handle, caller doesn't take ownership */
@@ -232,6 +238,22 @@ public:
 
 static int overlay_device_open(const struct hw_module_t* module,
                                const char* name, struct hw_device_t** device);
+
+
+//struct to maintain the display panel names and paths for sysfs
+struct displayPanelMetaData {
+    char displayenabled[PATH_MAX];
+    char displayname[PATH_MAX];
+};
+
+//struct to maintain the display Manager names and paths for sysfs
+struct displayManagerMetaData {
+    char managername[PATH_MAX];
+    char managertrans_key_value[PATH_MAX];
+    char managertrans_key_type[PATH_MAX];
+    char managertrans_key_enabled[PATH_MAX];
+};
+
 
 #endif  // TIOVERLAY_H_
 

@@ -42,6 +42,14 @@ extern "C" {
 #include "overlay_common.h"
 #include "TIOverlay.h"
 
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+
+#define MAX_DISPLAY_CNT 4
+#define MAX_MANAGER_CNT 3
+static displayPanelMetaData screenMetaData[MAX_DISPLAY_CNT];
+static displayManagerMetaData managerMetaData[MAX_MANAGER_CNT];
+
 /*****************************************************************************/
 
 #define LOG_FUNCTION_NAME_ENTRY    LOGD(" ###### Calling %s() ++ ######",  __FUNCTION__);
@@ -70,6 +78,80 @@ struct overlay_module_t HAL_MODULE_INFO_SYM = {
         methods: &overlay_module_methods,
     }
 };
+
+int sysfile_write(const char* pathname, const void* buf, size_t size) {
+    int fd = open(pathname, O_RDWR);
+    if (fd == -1) {
+        LOGE("Can't open [%s]", pathname);
+        return -1;
+    }
+    size_t written_size = write(fd, buf, size);
+    if (written_size <= 0) {
+        LOGE("Can't write [%s]", pathname);
+        close(fd);
+        return -1;
+    }
+    if (close(fd) == -1) {
+        LOGE("cant close [%s]", pathname);
+        return -1;
+    }
+    return 0;
+}
+
+int sysfile_read(const char* pathname, void* buf, size_t size) {
+    int fd = open(pathname, O_RDWR);
+    if (fd == -1) {
+        LOGE("Can't open the file[%s]", pathname);
+        return -1;
+    }
+    size_t bytesread = read(fd, buf, size);
+    if ((int)bytesread < 0) {
+        LOGE("cant read from file[%s]", pathname);
+        close(fd);
+        return -1;
+    }
+    if (close(fd) == -1) {
+        LOGE("cant close file[%s]", pathname);
+        return -1;
+    }
+    return bytesread;
+}
+
+int InitDisplayManagerMetaData() {
+    /**
+    *Initialize the display names and the associated paths to enable
+    */
+    for (int i = 0; i < MAX_DISPLAY_CNT; i++) {
+        sprintf(screenMetaData[i].displayenabled, "/sys/devices/platform/omapdss/display%d/enabled", i);
+        char displaypathname[PATH_MAX];
+        sprintf(displaypathname, "/sys/devices/platform/omapdss/display%d/name", i);
+        if (sysfile_read(displaypathname, (void*)(&screenMetaData[i].displayname), PATH_MAX) < 0) {
+            LOGE("lcd name get failed");
+            return -1;
+        }
+        strtok(screenMetaData[i].displayname, "\n");
+        LOGD("LCD[%d] NAME[%s] \n", i, screenMetaData[i].displayname);
+        LOGD("LCD[%d] PATH[%s] \n", i, screenMetaData[i].displayenabled);
+    }
+
+    /**
+    *Initialize the manager names and the paths to control manager transparency settings
+    */
+    for (int i = 0; i < MAX_MANAGER_CNT; i++) {
+        char managerpathname[PATH_MAX];
+        sprintf(managerpathname, "/sys/devices/platform/omapdss/manager%d/name", i);
+        if (sysfile_read(managerpathname, (void*)(&managerMetaData[i].managername), PATH_MAX) < 0) {
+            LOGE("manager name get failed");
+            return -1;
+        }
+        strtok(managerMetaData[i].managername, "\n");
+        LOGD("MANAGER[%d] NAME[%s] \n", i, managerMetaData[i].managername);
+        sprintf(managerMetaData[i].managertrans_key_enabled, "/sys/devices/platform/omapdss/manager%d/trans_key_enabled", i);
+        sprintf(managerMetaData[i].managertrans_key_type, "/sys/devices/platform/omapdss/manager%d/trans_key_type", i);
+        sprintf(managerMetaData[i].managertrans_key_value, "/sys/devices/platform/omapdss/manager%d/trans_key_value", i);
+    }
+    return 0;
+}
 
 // ****************************************************************************
 // Control context shared methods: to be used between control and data contexts
@@ -313,6 +395,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     int fd;
     int overlay_fd;
     int pipelineId = 0;
+    int index = 0;
     /* Validate the width and height are within a valid range for the
     * video driver.
     * */
@@ -372,10 +455,17 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
+#ifndef TARGET_OMAP4
     if (v4l2_overlay_set_colorkey(fd, 1, 0)){
         LOGE("Failed enabling color key\n");
         goto error1;
     }
+#else
+    if (v4l2_overlay_set_global_alpha(fd, 1, 1)){
+        LOGE("Failed enabling alpha\n");
+        goto error1;
+    }
+
     if (v4l2_overlay_getId(fd, &pipelineId)) {
         LOGE("Failed: getting overlay Id");
         goto error1;
@@ -386,6 +476,51 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     }
 
     sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
+    sprintf(overlayobj->overlayzorderpath, "/sys/devices/platform/omapdss/overlay%d/zorder", pipelineId);
+    sprintf(overlayobj->overlayenabled, "/sys/devices/platform/omapdss/overlay%d/enabled", pipelineId);
+
+    /* Enable the video zorder and video transparency
+    * for the controls to be visible on top of video, give the graphics highest zOrder
+    * and set the video source as the tranparency key type
+    * set black as the transparency key value
+    * and enable the trasparency feature
+    **/
+    /** in order to findout which manager to set, check for the name
+    * and set the properties for lcd manager
+    */
+    for (int i = 0; i < MAX_MANAGER_CNT; i++) {
+        if (strcmp(managerMetaData[i].managername, "lcd") == 0) {
+            LOGD("found LCD manager @ [%d]", i);
+            index = i;
+            break;
+        }
+    }
+
+    if (sysfile_write("sys/devices/platform/omapdss/overlay0/zorder", "3",  strlen("0")) < 0) {
+        goto error1;
+    }
+
+    if (sysfile_write("sys/devices/platform/omapdss/overlay1/zorder", "0",  strlen("0")) < 0) {
+        goto error1;
+    }
+
+    if (sysfile_write(overlayobj->overlayzorderpath, "1",  strlen("0")) < 0) {
+        goto error1;
+    }
+
+    if (sysfile_write(managerMetaData[index].managertrans_key_value, "0", strlen("0")) < 0) {
+        goto error1;
+    }
+
+    if (sysfile_write(managerMetaData[index].managertrans_key_type, "video-source", strlen("video-source")) < 0) {
+        goto error1;
+    }
+
+    if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
+        goto error1;
+    }
+#endif
+
     if (v4l2_overlay_req_buf(fd, &num, 0, 0)) {
         LOGE("Failed requesting buffers\n");
         goto error1;
@@ -551,8 +686,29 @@ int overlay_control_context_t::overlay_setParameter(struct overlay_control_devic
             break;
         }
         break;
+    case OVERLAY_COLOR_KEY:
+        stage->colorkey = value;
+        break;
+    case OVERLAY_PLANE_ALPHA:
+        //adjust the alpha to the HW limit
+        stage->alpha = MIN(value, 0xFF);
+        break;
+    case OVERLAY_PLANE_Z_ORDER:
+        //limit the max value of z-order to hw limit i.e.3
+        //make sure that video is behind graphics so it to only 2
+        stage->zorder = MIN(value, 2);
+        break;
+    case OVERLAY_SET_DISPLAY_WIDTH:
+        overlayobj->dispW = value;
+        break;
+    case OVERLAY_SET_DISPLAY_HEIGHT:
+        overlayobj->dispH = value;
+        break;
+    default:
+        rc = -1;
+
     }
-LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT;
     return rc;
 }
 
@@ -586,7 +742,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
     if (data->posX == stage->posX && data->posY == stage->posY &&
         data->posW == stage->posW && data->posH == stage->posH &&
-        data->rotation == stage->rotation) {
+        data->rotation == stage->rotation && data->alpha == stage->alpha) {
         LOGI("Nothing to do!\n");
         goto end;
     }
@@ -597,6 +753,8 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     data->posH       = stage->posH;
     data->rotation   = stage->rotation;
     data->colorkey   = stage->colorkey;
+    data->alpha      = stage->alpha;
+
 
     // Adjust the coordinate system to match the V4L change
     switch ( data->rotation ) {
@@ -629,6 +787,8 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     LOGI("Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", x, y, w, h );
     LOGI("Rotation/%d\n", data->rotation );
+    LOGI("alpha/%d\n", data->alpha );
+    LOGI("zorder/%d\n", stage->zorder );
 
     if ((ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
         LOGE("commit:Get crop value Failed!/%d\n", ret);
@@ -658,12 +818,34 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGE("Set Position Failed!/%d\n", ret);
         goto end;
     }
-
+#ifndef TARGET_OMAP4
     if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00))) {
         LOGE("Failed enabling color key\n");
         goto end;
     }
+#else
+    if (ret = v4l2_overlay_set_global_alpha(fd, 1, data->alpha)) {
+        LOGE("Failed enabling alpha\n");
+        goto end;
+    }
 
+    //unlock the mutex here as the subsequent operations are file operations
+    //otherwise it may hang
+    pthread_mutex_unlock(&overlayobj->lock);
+    if (data->zorder != stage->zorder) {
+        data->zorder = stage->zorder;
+        //Set up the z-order for the overlay:
+        //TBD:Surface flinger or the driver has to re-work the zorder of all the
+        //other active overlays for a given manager to service the current request.
+        char z_order[16];
+        sprintf(z_order, "%d", data->zorder);
+        if (sysfile_write(overlayobj->overlayzorderpath, &z_order,  strlen("0")) < 0) {
+            LOGE("zorder setting failed");
+            return -1;
+        }
+    }
+    return 0;
+#endif
 end:
     pthread_mutex_unlock(&overlayobj->lock);
     return ret;
@@ -854,11 +1036,12 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         LOGE("Failed crop window\n");
         goto end;
     }
-
-    if ((ret = v4l2_overlay_set_colorkey(fd,1, stage->colorkey))) {
+#ifndef TARGET_OMAP4
+    if ((ret = v4l2_overlay_set_colorkey(fd,1, 0x00))) {
         LOGE("Failed enabling color key\n");
         goto end;
     }
+#endif
 
     if ((ret = v4l2_overlay_set_position(fd, _x,  _y, _w, _h))) {
         LOGD(" Could not set the position when creating overlay \n");
@@ -1226,7 +1409,11 @@ static int overlay_device_open(const struct hw_module_t* module,
             dev->mOmapOverlays[i] = NULL;
         }
         TheOverlayControlDevice = dev;
+#ifdef TARGET_OMAP4
+        status = InitDisplayManagerMetaData();
+#else
         status = 0;
+#endif
     } else {
             /* Error: no memory available*/
             status = -ENOMEM;
