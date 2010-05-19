@@ -941,6 +941,7 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
             }
         }
     }
+    ctx->omap_overlay->mappedbufcount = ctx->omap_overlay->num_buffers;
     LOG_FUNCTION_NAME_EXIT;
     LOGE("Initialize ret = %d", rc);
 
@@ -1018,7 +1019,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         goto end;
     }
 
-    for (int i = 0; i < ctx->omap_overlay->num_buffers; i++) {
+    for (int i = 0; i < ctx->omap_overlay->mappedbufcount; i++) {
         v4l2_overlay_unmap_buf(ctx->omap_overlay->buffers[i], ctx->omap_overlay->buffers_len[i]);
     }
 
@@ -1059,6 +1060,8 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     for (int i = 0; i < ctx->omap_overlay->num_buffers; i++) {
         v4l2_overlay_map_buf(fd, i, &ctx->omap_overlay->buffers[i], &ctx->omap_overlay->buffers_len[i]);
     }
+
+    ctx->omap_overlay->mappedbufcount = ctx->omap_overlay->num_buffers;
 
     /* The control pameters just got set */
     ctx->omap_overlay->controlReady = 1;
@@ -1104,6 +1107,14 @@ int overlay_data_context_t::overlay_data_setParameter(struct overlay_data_device
         break;
     case OPTIMAL_QBUF_CNT:
         ctx->omap_overlay->optimalQBufCnt = value;
+        break;
+    case OVERLAY_NUM_BUFFERS:
+        if (value <= 0) {
+            LOGE("InValid number of Overlay bufffers requested[%d]", value);
+            return -1;
+        }
+        ctx->omap_overlay->num_buffers = MIN(value, NUM_OVERLAY_BUFFERS_REQUESTED);
+        ctx->omap_overlay->attributes_changed = 1;
         break;
     }
 

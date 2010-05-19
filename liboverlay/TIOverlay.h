@@ -118,6 +118,7 @@ public:
     int cacheable_buffers;
     int maintain_coherency;
     int optimalQBufCnt;
+    int mappedbufcount;
     int attributes_changed;
 
     char overlaymanagerpath[PATH_MAX];
