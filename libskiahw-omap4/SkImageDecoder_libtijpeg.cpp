@@ -119,6 +119,8 @@ SkTIJPEGImageDecoder::~SkTIJPEGImageDecoder()
     LOG_FUNCTION_NAME
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
+    AutoTimeMillis atm("DeInit time: ");
+
     sem_destroy(semaphore);
 
     if (semaphore != NULL)
@@ -478,6 +480,8 @@ void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
     iLastState = iState;
     iState = STATE_FILL_BUFFER_DONE_CALLED;
 
+    delete pDecodeTime;
+
     LOG_FUNCTION_NAME_EXIT
     }
 
@@ -609,6 +613,8 @@ bool SkTIJPEGImageDecoder::IsHwAvailable()
     char strTIJpegDec[] = "OMX.TI.DUCATI1.IMAGE.JPEGD";
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
+    AutoTimeMillis atm("Init time: ");
+
     if(pOMXHandle)
         {
         return true;
@@ -664,6 +670,9 @@ bool SkTIJPEGImageDecoder::onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap:
 #ifdef TIME_DECODE
     AutoTimeMillis atm("TI JPEG Decode");
 #endif
+{
+
+    AutoTimeMillis atm("Configuration Decode");
 
     int nRetval;
     int nIndex1;
@@ -690,18 +699,6 @@ bool SkTIJPEGImageDecoder::onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap:
     LIBSKIAHW_LOGDB("mode = %d\n", mode);
     LIBSKIAHW_LOGDB("scaleFactor = %d ", scaleFactor);
 
-   if (scaleFactor == 3)
-        {
-        scaleFactor = 2;
-        }
-    else if ((scaleFactor > 4) && (scaleFactor < 8))
-        {
-        scaleFactor = 4;
-        }
-    else if (scaleFactor > 8)
-        {
-        scaleFactor = 8;
-        }
 
 #ifdef TIME_DECODE
     atm.setResolution(JpegHeaderInfo.nWidth , JpegHeaderInfo.nHeight);
@@ -917,6 +914,7 @@ bool SkTIJPEGImageDecoder::onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap:
     if (!bm->allocPixels(&allocator, NULL))
         {
         LIBSKIAHW_LOGEA("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+        iState = STATE_ERROR;
         goto EXIT;
         }
 
@@ -937,8 +935,9 @@ bool SkTIJPEGImageDecoder::onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap:
         }
 
     LIBSKIAHW_LOGDB(" \n THE ADDRESSSS OFFFF BM->getPixels(): %p  \n", bm->getPixels());
-
+}
     android::gTIJpegDecMutex.unlock();
+    pBeforeDecodeTime=new AutoTimeMillis("Before_BufferDecode Time");
     Run();
 
     return true;
@@ -1005,9 +1004,7 @@ void SkTIJPEGImageDecoder::Run()
 
     while(1)
         {
-        int count = 100000;
-        while(count--);
-        LIBSKIAHW_LOGDB("+Waiting on Run Sem. semaphore = 0x%x\n", semaphore);
+
         sem_wait(semaphore) ;
         LIBSKIAHW_LOGDA("-Run Sem Signalled\n");
 
@@ -1092,9 +1089,12 @@ void SkTIJPEGImageDecoder::Run()
 
                         pInBuffHead->nFlags = OMX_BUFFERFLAG_EOS;
                         pInBuffHead->nInputPortIndex = OMX_JPEGD_TEST_INPUT_PORT;
-                        pInBuffHead->nFilledLen = nRead;
                         pInBuffHead->nAllocLen = pInBuffHead->nFilledLen;
                         pInBuffHead->nOffset = 0;
+
+                        delete pBeforeDecodeTime;
+
+                        pDecodeTime=new AutoTimeMillis("BufferDecode Time");
                         OMX_EmptyThisBuffer(pOMXHandle, pInBuffHead);
 
                         pOutBuffHead->nOutputPortIndex = OMX_JPEGD_TEST_OUTPUT_PORT;
@@ -1106,6 +1106,9 @@ void SkTIJPEGImageDecoder::Run()
             case STATE_EMPTY_BUFFER_DONE_CALLED:
             case STATE_FILL_BUFFER_DONE_CALLED:
                     {
+
+                        pAfterDecodeTime=new AutoTimeMillis("After_BufferDecode Time");
+
                         ///@todo make this logic cleaner - should be waiting for both EBD and FBD to arrive
                         ///        Put this function under mutex so that state variables are not raced
                         LIBSKIAHW_LOGDA("\nProcessing empty buffer done or fill buffer done state, sending component to idle state\n");
@@ -1142,6 +1145,8 @@ void SkTIJPEGImageDecoder::Run()
 
                         iState = STATE_EXIT;
                         sem_post(semaphore);
+
+                        delete pAfterDecodeTime;
 
                         break;
                 }

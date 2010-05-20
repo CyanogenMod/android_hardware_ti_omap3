@@ -110,6 +110,8 @@ namespace android {
 #define M_DHT   0xC4
 #define M_DRI   0xDD
 
+class AutoTimeMillis;
+
 class SkJPEGImageDecoder : public SkImageDecoder {
 public:
     virtual Format getFormat() const {
@@ -172,6 +174,7 @@ private:
 
         OMX_HANDLETYPE pOMXHandle;
         SkJPEGImageDecoder *pARMHandle;
+        AutoTimeMillis *pDecodeTime, *pBeforeDecodeTime, *pAfterDecodeTime;
         OMX_BUFFERHEADERTYPE *pInBuffHead;
         OMX_BUFFERHEADERTYPE *pOutBuffHead;
         OMX_PARAM_PORTDEFINITIONTYPE InPortDef;

@@ -36,7 +36,7 @@ LOCAL_SRC_FILES+= \
         SkImageDecoder_libtijpeg.cpp \
         SkAllocator.cpp \
         SkMemory.cpp \
-   
+
 LOCAL_MODULE:= libskiahwdec
 
 include $(BUILD_SHARED_LIBRARY)
