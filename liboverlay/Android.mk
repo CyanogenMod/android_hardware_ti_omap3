@@ -28,6 +28,6 @@ ifeq ($(TARGET_BOARD_PLATFORM),omap4)
 LOCAL_CFLAGS := -DTARGET_OMAP4
 endif
 LOCAL_SHARED_LIBRARIES := liblog libcutils libhardware libutils libui
-LOCAL_SRC_FILES := overlay_test.cpp
+LOCAL_SRC_FILES := TIOverlay_test.cpp
 LOCAL_MODULE := overlay_test
 include $(BUILD_EXECUTABLE)
