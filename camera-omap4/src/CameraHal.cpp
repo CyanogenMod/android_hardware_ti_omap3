@@ -806,8 +806,6 @@ void CameraHal::stopPreview()
     //Stop the source of frames
     mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
     freePreviewBufs();
-    freeImageBufs();
-    freeVideoBufs();
     mPreviewEnabled = false;
 
     if ( mReloadAdapter )
