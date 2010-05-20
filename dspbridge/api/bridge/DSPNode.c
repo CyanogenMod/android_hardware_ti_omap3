@@ -87,7 +87,6 @@
 
 /*  ----------------------------------- Others */
 #include <dsptrap.h>
-
 /*  ----------------------------------- This */
 #include "_dbdebug.h"
 #include "_dbpriv.h"
@@ -98,8 +97,20 @@
 #include <perfutils.h>
 #endif
 
+static struct mmap_element *mmaplist;
+static sem_t sem_mmap;
 /*  ----------------------------------- Globals */
 extern int hMediaFile;		/* class driver handle */
+
+static void start(void) __attribute__((constructor));
+
+void start(void)
+{
+	if (sem_init(&sem_mmap, 0, 1) == -1)
+		DEBUGMSG(DSPAPI_ZONE_ERROR,
+			(TEXT("NODE: Failed to Initialize"
+				"the MMAP semaphore\n")));
+}
 
 /* Declared here, not to users */
 DSP_STATUS GetNodeType(DSP_HNODE hNode, DSP_NODETYPE *pNodeType);
@@ -122,6 +133,7 @@ DBAPI DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
 	struct CMM_INFO pInfo;		/* Used for virtual space allocation */
 	PVOID pVirtBase;
 	struct DSP_BUFFERATTR bufAttr;
+	struct mmap_element *pelement;
     DSP_NODETYPE nodeType;
     struct DSP_NDBPROPS    nodeProps;
     UINT            heapSize = 0;
@@ -225,6 +237,7 @@ DBAPI DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
 				 PROT_READ | PROT_WRITE, MAP_SHARED |
 				 MAP_LOCKED, hMediaFile,
 				 pInfo.segInfo[0].dwSegBasePa);
+
 			if (!pVirtBase) {
 				DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("NODE: "
 				"DSPNode_Allocate:Virt alloc failed\r\n")));
@@ -250,9 +263,20 @@ DBAPI DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
 				tempStruct.ARGS_NODE_DELETE.hNode = *phNode;
 				DSPTRAP_Trap(&tempStruct,
 					CMD_NODE_DELETE_OFFSET);
+				goto func_end;
+			}
+
+			pelement = malloc(sizeof(struct mmap_element));
+			if (!pelement) {
+				fprintf(stdout, "DSPNODE:Alloc for mmap element failed\n");
+			} else {
+				pelement->virt_base = (BYTE *)pVirtBase;
+				pelement->seg_size = pInfo.segInfo[0].ulTotalSegSize;
+				insert_mmapelement(pelement, &mmaplist);
 			}
 		}
 	}
+
 func_end:
 	if (DSP_FAILED(status) && pGPPVirtAddr)
 		free(pGPPVirtAddr);
@@ -260,6 +284,55 @@ func_end:
     return status;
 }
 
+int insert_mmapelement(struct mmap_element *elem, struct mmap_element **mmaplist)
+{
+	sem_wait(&sem_mmap);
+	elem->next = *mmaplist;
+	*mmaplist = elem;
+	sem_post(&sem_mmap);
+
+	return 0;
+}
+
+int delete_mmapelement(BYTE *vb, struct mmap_element **mmaplist)
+{
+	int ret = 0;
+	struct mmap_element *tmp = *mmaplist, *tmp2 = NULL;
+
+	sem_wait(&sem_mmap);
+	for (; tmp && tmp->virt_base != vb; tmp = tmp->next)
+		tmp2 = tmp;
+
+	if (!tmp) {
+		ret = -1;
+		goto func_end;
+	} else if (!tmp2)
+		*mmaplist = tmp->next;
+	else
+		tmp2->next = tmp->next;
+
+	free(tmp);
+
+func_end:
+	sem_post(&sem_mmap);
+
+	return ret;
+}
+
+void munmap_all(void)
+{
+	struct mmap_element *tmp;
+
+	sem_wait(&sem_mmap);
+
+	while (mmaplist) {
+		munmap(mmaplist->virt_base, mmaplist->seg_size);
+		tmp = mmaplist;
+		mmaplist = mmaplist->next;
+		free(tmp);
+	}
+	sem_post(&sem_mmap);
+}
 /*
  *  ======== DSPNode_AllocMsgBuf ========
  */
@@ -522,6 +595,8 @@ DBAPI DSPNode_Delete(DSP_HNODE hNode)
 					pInfo.segInfo[0].ulTotalSegSize)) {
 				status = DSP_EFAIL;
 			}
+
+			delete_mmapelement(pVirtBase, &mmaplist);
 		}
 	}
 loop_end:

@@ -67,7 +67,7 @@
 #include "_dbpriv.h"
 
 #include <DSPManager.h>
-
+#include <DSPNode.h>
 #ifdef DEBUG_BRIDGE_PERF
 #include <perfutils.h>
 #endif
@@ -158,6 +158,7 @@ DBAPI DspManager_Close(UINT argc, PVOID argp)
 	sem_wait(&semOpenClose);
 
 	if (usage_count == 1) {
+		munmap_all();
 		status = close(hMediaFile);
 		if (status >= 0)
 			hMediaFile = -1;
