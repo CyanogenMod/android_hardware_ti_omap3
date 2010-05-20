@@ -81,6 +81,8 @@ int exposure_mode = 0;
 int ippIdx = 0;
 int jpegQuality = 85;
 timeval autofocus_start, picture_start;
+char script_name[25];
+char dir_path[40]="/sdcard/";
 
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
 const char *iso [] = { "auto", "100", "200", "400", "800"};
@@ -364,7 +366,7 @@ void my_jpeg_callback(const sp<IMemory>& mem) {
         goto out;
 
     fn[0] = 0;
-    sprintf(fn, "/sdcard/img%03d.jpg", counter);
+    sprintf(fn, "%s/img%03d.jpg", dir_path,counter);
     fd = open(fn, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
 
     if (fd < 0)
@@ -1326,11 +1328,26 @@ char *load_script(char *config) {
     size_t fileSize;
     char *script;
     size_t nRead = 0;
+    char dir_name[20];
+    char log_cmd[60];
 
     infile = fopen(config, "r");
 
-    if ( (NULL == infile)) {
+    strcpy(script_name,config);
+    printf("\n SCRIPT : <%s> is currently being executed \n",script_name);
+    if(strncpy(dir_name,config,16) == NULL)
+        printf("Strcpy error");
+    dir_name[16]=NULL;
+    if(strcat(dir_path,dir_name) == NULL)
+        printf("Strcat error");
+    printf("\n COMPLETE FOLDER PATH : %s \n",dir_path);
+    if(mkdir(dir_path,0777) == -1)
+        printf("\n Directory %s was not created \n",dir_path);
+    else
+        printf("\n Directory %s was created \n",dir_path);
+    printf("\n DIRECTORY CREATED FOR TEST RESULT IMAGES IN MMC CARD : %s \n",dir_name);
 
+    if( (NULL == infile)){
         printf("Error while opening script file %s!\n", config);
         return NULL;
     }
@@ -1356,6 +1373,13 @@ char *load_script(char *config) {
     }
 
     fclose(infile);
+
+    /*Start logcat before executing script*/
+
+    if(!sprintf(log_cmd,"logcat > /sdcard/%s/log.txt &",dir_name))
+          printf(" Sprintf Error");
+    if(!system(log_cmd))
+          printf("\nCould not execute %s command\n",log_cmd);
 
     return script;
 }
@@ -1795,8 +1819,10 @@ int execute_functional_script(char *script) {
                     recordingMode = false;
                 }
 
-                dump_mem_status();
-
+                if(system("exit"))
+                      printf("Exit command failed");
+                else
+                      printf("\nlogcat for script %s is complete\n Saved @ location: %s\n",script_name,dir_path);
                 goto exit;
 
             case '\n':

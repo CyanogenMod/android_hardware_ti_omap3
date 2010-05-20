@@ -107,6 +107,7 @@ extern "C" {
 #define MAX_ZOOM        3
 #define COMPENSATION_OFFSET 20
 #define CONTRAST_OFFSET 100
+#define BRIGHTNESS_OFFSET 100
 #define THUMB_WIDTH     80
 #define THUMB_HEIGHT    60
 
