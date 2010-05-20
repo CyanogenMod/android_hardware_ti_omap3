@@ -1160,14 +1160,11 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
             if (pComponentPrivate->pInputBufferList->numBuffers ||
                 pComponentPrivate->pOutputBufferList->numBuffers) {
 
-                pthread_mutex_lock(&pComponentPrivate->ToLoaded_mutex);
+                pthread_mutex_lock(&pComponentPrivate->InIdle_mutex);
                 pComponentPrivate->InIdle_goingtoloaded = 1;
+                pthread_cond_wait(&pComponentPrivate->InIdle_threshold, &pComponentPrivate->InIdle_mutex);
                 pthread_mutex_unlock(&pComponentPrivate->ToLoaded_mutex);
-
             }
-
-            if (!pComponentPrivate->pInputBufferList->numBuffers &&
-                !pComponentPrivate->pOutputBufferList->numBuffers) {
 
             /* Now Deinitialize the component No error should be returned from
             * this function. It should clean the system as much as possible */
@@ -1179,13 +1176,13 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
                 goto EXIT;
             }
 
-    /*Closing LCML Lib*/
-    if (pComponentPrivate->ptrLibLCML != NULL)
-    {
-        OMX_PRDSP2(pComponentPrivate->dbg, "%d OMX_AmrEncoder.c Closing LCML library\n",__LINE__);
-        dlclose( pComponentPrivate->ptrLibLCML);
-        pComponentPrivate->ptrLibLCML = NULL;
-    }   
+            /*Closing LCML Lib*/
+            if (pComponentPrivate->ptrLibLCML != NULL)
+            {
+                OMX_PRDSP2(pComponentPrivate->dbg, "%d OMX_AmrEncoder.c Closing LCML library\n",__LINE__);
+                dlclose( pComponentPrivate->ptrLibLCML);
+                pComponentPrivate->ptrLibLCML = NULL;
+            }
 
             
 #ifdef __PERF_INSTRUMENTATION__
@@ -1195,12 +1192,6 @@ OMX_U32 NBAMRENC_HandleCommand (AMRENC_COMPONENT_PRIVATE *pComponentPrivate)
             pComponentPrivate->bInitParamsInitialized = 0;
             pComponentPrivate->bLoadedCommandPending = OMX_FALSE;
             pComponentPrivate->bLoadedWaitingFreeBuffers = OMX_FALSE;
-            
-        }
-        else {
-            pComponentPrivate->bLoadedWaitingFreeBuffers = OMX_TRUE;
-            OMX_PRBUFFER2(pComponentPrivate->dbg, "Skipped this section because buffers not yet freed\n");
-        }
             break;
 
         case OMX_StatePause:
@@ -3209,6 +3200,7 @@ OMX_ERRORTYPE AddStateTransition(AMRENC_COMPONENT_PRIVATE *pComponentPrivate) {
     }
     /* Increment state change request reference count */
     pComponentPrivate->nPendingStateChangeRequests++;
+    LOGI("addstatetranstion: %ld @ %d", pComponentPrivate->nPendingStateChangeRequests, pComponentPrivate->curState);
 
     if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
        return OMX_ErrorUndefined;
@@ -3225,6 +3217,7 @@ OMX_ERRORTYPE RemoveStateTransition(AMRENC_COMPONENT_PRIVATE *pComponentPrivate,
     }
     pComponentPrivate->nPendingStateChangeRequests--;
 
+    LOGI("removestatetransition: %ld @ %d", pComponentPrivate->nPendingStateChangeRequests, pComponentPrivate->curState);
     /* If there are no more pending requests, signal the thread waiting on this*/
     if(!pComponentPrivate->nPendingStateChangeRequests && bEnableSignal) {
        pthread_cond_signal(&(pComponentPrivate->StateChangeCondition));
