@@ -101,6 +101,7 @@ public:
     bool zoom2;
     bool autoscale1;
     bool autoscale2;
+    bool resize;
 
 public:
     int init();
@@ -128,7 +129,7 @@ public:
 
     autoscale1 = false;
     autoscale2 = false;
-
+    resize = false;
     }
     void testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1, uint8_t panel1, char* img2=NULL, uint32_t w2=0, uint32_t h2=0, uint8_t fmt2 = 0, uint8_t panel2=0);
 
@@ -235,6 +236,21 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     {
         LOGE("NoMemory for overlay[%d]", __LINE__);
         return;
+    }
+
+    if (resize) {
+    int ret = mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, -11);
+    if (ret != 0) {
+        LOGE("Yes, Overlay ERROR scenario is tested");
+    }
+    else {
+        LOGE("Failed:Overlay error scenario test");
+        return;
+    }
+    mOverlay1->resizeInput(w1/2, h1/2);
+
+    mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, 30);
+    mOverlay1->resizeInput(w1, h1);
     }
 
     if (img2 != NULL)
@@ -923,6 +939,7 @@ int main (int argc, char* argv[])
     printf("\n5 -\tTo test z-order");
     printf("\n6 -\tTo test digital Zoom");
     printf("\n7 -\tTo test auto scale");
+    printf("\n8 -\tTo test resize Overlay and dynamic buffer alloc");
 
     printf("\nFORMAT Ids");
     printf("\n0 - RGB565");
@@ -999,6 +1016,10 @@ int main (int argc, char* argv[])
             test.autoscale1 = true;
         break;
 
+        case 8:
+            test.resize = true;
+            break;
+
         default:
             printf("starting with default settings\n");
             test.alpha1 = 1.0;
@@ -1068,6 +1089,10 @@ int main (int argc, char* argv[])
             case 7:
                 test.autoscale1 = true;
                 test.autoscale2 = true;
+            break;
+
+            case 8:
+                test.resize = true;
             break;
 
             default:
