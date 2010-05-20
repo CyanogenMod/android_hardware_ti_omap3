@@ -3242,7 +3242,7 @@ status_t CameraHal::convertGPSCoord(double coord, int *deg, int *min, int *sec)
     
     LOG_FUNCTION_NAME
 
-    if ( coord < 0 ) {
+    if ( coord == 0 ) {
         
         LOGE("Invalid GPS coordinate");
         
@@ -3637,7 +3637,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
         if(brightness != -1) 
+        {
+            brightness -= BRIGHTNESS_OFFSET;
             fobj->settings_2a.general.brightness = brightness;
+        }
 
         if(saturation != -1)
             fobj->settings_2a.general.saturation = saturation;
