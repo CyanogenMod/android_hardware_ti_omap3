@@ -132,6 +132,14 @@ int InitDisplayManagerMetaData() {
         strtok(screenMetaData[i].displayname, "\n");
         LOGD("LCD[%d] NAME[%s] \n", i, screenMetaData[i].displayname);
         LOGD("LCD[%d] PATH[%s] \n", i, screenMetaData[i].displayenabled);
+
+        char displaytimingspath[PATH_MAX];
+        sprintf(displaytimingspath, "/sys/devices/platform/omapdss/display%d/timings", i);
+        if (sysfile_read(displaytimingspath, (void*)(&screenMetaData[i].displaytimings), PATH_MAX) < 0) {
+            LOGE("display get timings failed");
+            return -1;
+        }
+        LOGD("LCD[%d] timings[%s] \n", i, screenMetaData[i].displaytimings);
     }
 
     /**
@@ -146,6 +154,7 @@ int InitDisplayManagerMetaData() {
         }
         strtok(managerMetaData[i].managername, "\n");
         LOGD("MANAGER[%d] NAME[%s] \n", i, managerMetaData[i].managername);
+        sprintf(managerMetaData[i].managerdisplay, "/sys/devices/platform/omapdss/manager%d/display", i);
         sprintf(managerMetaData[i].managertrans_key_enabled, "/sys/devices/platform/omapdss/manager%d/trans_key_enabled", i);
         sprintf(managerMetaData[i].managertrans_key_type, "/sys/devices/platform/omapdss/manager%d/trans_key_type", i);
         sprintf(managerMetaData[i].managertrans_key_value, "/sys/devices/platform/omapdss/manager%d/trans_key_value", i);
@@ -486,7 +495,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     * and enable the trasparency feature
     **/
     /** in order to findout which manager to set, check for the name
-    * and set the properties for lcd manager
+    * and set the properties for that lcd manager
     */
     for (int i = 0; i < MAX_MANAGER_CNT; i++) {
         if (strcmp(managerMetaData[i].managername, "lcd") == 0) {
@@ -563,6 +572,12 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
 
     overlay_data_context_t::disable_streaming(overlayobj, false);
 
+#ifdef TARGET_OMAP4
+    //lets reset the manager to the lcd
+    if (sysfile_write(overlayobj->overlaymanagerpath, "lcd", sizeof("lcd")) < 0) {
+        LOGE("Overlay Manager reset failed, but proceed anyway");
+    }
+#endif
     LOGI("Destroying overlay/fd=%d/obj=%08lx", fd, (unsigned long)overlay);
 
     if (close(fd)) {
@@ -704,6 +719,12 @@ int overlay_control_context_t::overlay_setParameter(struct overlay_control_devic
     case OVERLAY_SET_DISPLAY_HEIGHT:
         overlayobj->dispH = value;
         break;
+    case OVERLAY_SET_SCREEN_ID:
+        if (value > OVERLAY_ON_VIRTUAL_SINK) {
+            value = OVERLAY_ON_PRIMARY;
+        }
+        stage->panel = value;
+        break;
     default:
         rc = -1;
 
@@ -733,6 +754,11 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
     int ret = 0;
     int x,y,w,h;
+    int panelIdx = 0;
+    int managerIndx = 0;
+    const char* paneltobeDisabled = NULL;
+    static const char* panelname = "lcd";
+    static const char* managername = "lcd";
     int fd = overlayobj->getctrl_videofd();
     overlay_data_t eCropData;
 
@@ -742,7 +768,8 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
     if (data->posX == stage->posX && data->posY == stage->posY &&
         data->posW == stage->posW && data->posH == stage->posH &&
-        data->rotation == stage->rotation && data->alpha == stage->alpha) {
+        data->rotation == stage->rotation && data->alpha == stage->alpha
+        && data->panel == stage->panel) {
         LOGI("Nothing to do!\n");
         goto end;
     }
@@ -784,6 +811,91 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         break;
     }
 
+#ifdef TARGET_OMAP4
+    if (stage->panel != data->panel) {
+        switch(stage->panel){
+            data->panel = stage->panel;
+            case OVERLAY_ON_PRIMARY: {
+                LOGD("REQUEST FOR LCD1");
+                panelname = "lcd";
+                managername = "lcd";
+            }
+            break;
+            case OVERLAY_ON_SECONDARY: {
+                LOGD("REQUEST FOR LCD2");
+                panelname = "2lcd";
+                managername ="2lcd";
+                paneltobeDisabled = "pico_DLP";
+            }
+            break;
+            case OVERLAY_ON_TV: {
+                LOGD("REQUEST FOR TV");
+                panelname = "hdmi";
+                managername = "tv";
+            }
+            break;
+            case OVERLAY_ON_PICODLP: {
+                LOGD("REQUEST FOR PICO DLP");
+                panelname = "pico_DLP";
+                managername = "2lcd";
+                paneltobeDisabled = "2lcd";
+            }
+            break;
+            case OVERLAY_ON_VIRTUAL_SINK:
+                LOGD("REQUEST FOR VIRTUAL SINK: Setting the Default display for now");
+            default: {
+                panelname = "lcd";
+                managername = "lcd";
+            }
+            break;
+        };
+    }
+
+        for (int i = 0; i < MAX_DISPLAY_CNT; i++) {
+            LOGD("Display id [%s]", screenMetaData[i].displayname);
+            LOGD("dst id [%s]", panelname);
+            if (strcmp(screenMetaData[i].displayname, panelname) == 0) {
+                LOGD("found Panel Id @ [%d]", i);
+                panelIdx = i;
+                break;
+            }
+        }
+        for (int i = 0; i < MAX_MANAGER_CNT; i++) {
+            LOGD("managername name [%s]", managerMetaData[i].managername);
+            LOGD("dst name [%s]", managername);
+
+            if (strcmp(managerMetaData[i].managername, managername) == 0) {
+                LOGD("found Display Manager @ [%d]", i);
+                managerIndx = i;
+                break;
+            }
+        }
+    /*
+    * If default UI is on TV, android UI will receive 1920x1080 for screen size, and w & h will be 1920x1080 by default.
+    * It will remain 1920x1080 even if overlay is requested on LCD. A better choice would be to query the display size:
+    * and use the full resolution only for TV, for LCD lets respect whatever surface flinger asks for: this is required to
+    * maintain the aspect ratio decided by media player
+    */
+    uint32_t dummy, w2, h2;
+    if (sscanf(screenMetaData[panelIdx].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
+        &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
+        w2 = w;
+        h2 = h; /* leave w/h unchanged (default) if could not read timings */
+    }
+    if (stage->panel == OVERLAY_ON_TV) {
+        LOGE("for HDTV use the timing resolution");
+        x = 0;
+        y = 0;
+        w = w2;
+        h = h2;
+    }
+    else {
+        LOGE("for non TV panels, use the timings resolution as the upper limit");
+        w = MIN (w, w2);
+        h = MIN (h, h2);
+    }
+
+#endif
     LOGI("Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", x, y, w, h );
     LOGI("Rotation/%d\n", data->rotation );
@@ -824,11 +936,10 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 #else
-    if (ret = v4l2_overlay_set_global_alpha(fd, 1, data->alpha)) {
+    if ((ret = v4l2_overlay_set_global_alpha(fd, 1, data->alpha))) {
         LOGE("Failed enabling alpha\n");
         goto end;
     }
-
     //unlock the mutex here as the subsequent operations are file operations
     //otherwise it may hang
     pthread_mutex_unlock(&overlayobj->lock);
@@ -844,10 +955,76 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
             return -1;
         }
     }
+        if (data->panel != stage->panel) {
+        data->panel = stage->panel;
+        LOGD("Panel path [%s]", screenMetaData[panelIdx].displayenabled);
+        LOGD("Manager display [%s]", managerMetaData[managerIndx].managerdisplay);
+
+        LOGD("manager path [%s]", overlayobj->overlaymanagerpath);
+        LOGD("manager name [%s]", managerMetaData[managerIndx].managername);
+        if (paneltobeDisabled != NULL) {
+            //since we are switching to the pico_DLP/2LCD, switch off the 2LCD/pico_DLP first
+            int tbdindx = -1;
+            for (int i = 0; i < MAX_DISPLAY_CNT; i++) {
+                LOGD("Display id [%s]", screenMetaData[i].displayname);
+                LOGD("Display to be disabled id [%s]", paneltobeDisabled);
+                if (strcmp(screenMetaData[i].displayname, paneltobeDisabled) == 0) {
+                    LOGD("found to be disabled Panel Id @ [%d]", i);
+                    tbdindx = i;
+                    break;
+                }
+            }
+            if (tbdindx != -1) {
+                char disablepanelpath[PATH_MAX];
+                sprintf(disablepanelpath, "/sys/devices/platform/omapdss/display%d/enabled", tbdindx);
+                if (sysfile_write(disablepanelpath, "0", sizeof("0")) < 0) {
+                    LOGE("panel disable failed");
+                    return -1;
+                }
+            }
+        }
+        /** Even thought stream is already off in the beginning, there are chances that, buffer que can happen from
+          * media process and enable the pipeline. hence read the current status here and resume to that
+          * after the manager is changed
+          */
+        int ovlyEn;
+        if (sysfile_read(overlayobj->overlayenabled, (void*)(&ovlyEn), sizeof(int)) < 0) {
+            LOGE("Failed: overlay Enable Read");
+            return -1;
+        }
+        if (sysfile_write(overlayobj->overlayenabled, "0", sizeof("0")) < 0) {
+            LOGE("Failed: overlay Disable");
+            return -1;
+        }
+        /* and the manager to the overlay */
+        if (sysfile_write(overlayobj->overlaymanagerpath, &managerMetaData[managerIndx].managername, PATH_MAX) < 0) {
+            LOGE("Unable to set the overlay->manager");
+            return -1;
+        }
+
+        /** set the manager display to the panel*/
+        if (sysfile_write(managerMetaData[managerIndx].managerdisplay, panelname, sizeof(panelname)) < 0) {
+            LOGE("Unable to set the manager->display");
+            return -1;
+        }
+
+        //enable the requested panel here
+        if (sysfile_write(screenMetaData[panelIdx].displayenabled, "1", sizeof("1")) < 0) {
+            LOGE("Panel enable failed");
+            return -1;
+        }
+        if (sysfile_write(overlayobj->overlayenabled, (void*)(&ovlyEn), sizeof("0")) < 0) {
+            LOGE("Failed: overlay restore");
+            return -1;
+        }
+    }
+    LOG_FUNCTION_NAME_EXIT;
     return 0;
+
 #endif
 end:
     pthread_mutex_unlock(&overlayobj->lock);
+    LOG_FUNCTION_NAME_EXIT;
     return ret;
 
 }
@@ -870,6 +1047,7 @@ int overlay_control_context_t::overlay_control_close(struct hw_device_t *dev)
         }
 
         free(self);
+        TheOverlayControlDevice = NULL;
     }
     return 0;
 }
@@ -1394,6 +1572,7 @@ static int overlay_device_open(const struct hw_module_t* module,
     if (!strcmp(name, OVERLAY_HARDWARE_CONTROL)) {
         if (TheOverlayControlDevice != NULL) {
             LOGE("Control device is already Open");
+            *device = &(TheOverlayControlDevice->common);
             return 0;
         }
         overlay_control_context_t *dev;

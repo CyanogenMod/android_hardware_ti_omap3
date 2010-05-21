@@ -40,7 +40,6 @@ struct handle_t : public native_handle {
     int overlayobj_index;
 };
 
-
 //forward declaration
 class overlay_control_context_t;
 class overlay_data_context_t;
@@ -57,6 +56,7 @@ public:
         rotation = 0;
         alpha = 0;
         zorder = 3;
+        panel = 0x0;
     };
 public:
   uint32_t posX;
@@ -67,6 +67,7 @@ public:
   uint32_t rotation;
   uint32_t alpha;
   uint32_t zorder;
+  uint32_t panel;
 } ;
 
 class overlay_data_t {
@@ -245,11 +246,13 @@ static int overlay_device_open(const struct hw_module_t* module,
 struct displayPanelMetaData {
     char displayenabled[PATH_MAX];
     char displayname[PATH_MAX];
+    char displaytimings[PATH_MAX];
 };
 
 //struct to maintain the display Manager names and paths for sysfs
 struct displayManagerMetaData {
     char managername[PATH_MAX];
+    char managerdisplay[PATH_MAX];
     char managertrans_key_value[PATH_MAX];
     char managertrans_key_type[PATH_MAX];
     char managertrans_key_enabled[PATH_MAX];
