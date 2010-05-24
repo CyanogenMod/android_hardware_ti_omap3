@@ -151,16 +151,16 @@ public:
         memset( &mCtlStage, 0, sizeof( mCtlStage ) );
     }
 
-    int const getctrl_videofd()const  { return mControlHandle.video_fd; }
-    int const getdata_videofd()const   { return mDataHandle.video_fd;}
-    int const getctrl_ovlyobjfd()const {return mControlHandle.overlayobj_sharedfd;}
-    int const getdata_ovlyobjfd()const {return mDataHandle.overlayobj_sharedfd;}
+    int  getctrl_videofd()const  { return mControlHandle.video_fd; }
+    int  getdata_videofd()const   { return mDataHandle.video_fd;}
+    int  getctrl_ovlyobjfd()const {return mControlHandle.overlayobj_sharedfd;}
+    int  getdata_ovlyobjfd()const {return mDataHandle.overlayobj_sharedfd;}
 
-    int const getIndex() const    { return mControlHandle.overlayobj_index; }
-    int const getsize() const    { return mControlHandle.overlayobj_size; }
+    int  getIndex() const    { return mControlHandle.overlayobj_index; }
+    int  getsize() const    { return mControlHandle.overlayobj_size; }
 
-    overlay_ctrl_t*  const data()      { return &mCtl; }
-    overlay_ctrl_t*  const staging()   { return &mCtlStage; }
+    overlay_ctrl_t*  data()     { return &mCtl; }
+    overlay_ctrl_t*   staging()   { return &mCtlStage; }
 
 };
 

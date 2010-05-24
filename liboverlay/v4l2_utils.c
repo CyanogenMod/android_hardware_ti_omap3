@@ -259,7 +259,9 @@ int v4l2_overlay_init(int fd, uint32_t w, uint32_t h, uint32_t fmt)
     LOGV("v4l2_overlay_init:: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);
 
     format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-    configure_pixfmt(&format.fmt.pix, fmt, w, h);
+    ret = configure_pixfmt(&format.fmt.pix, fmt, w, h);
+    if (ret)
+        return ret;
     LOGV("v4l2_overlay_init set:: w=%d h=%d fmt=%d", format.fmt.pix.width, format.fmt.pix.height, format.fmt.pix.pixelformat);
     ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &format, "set output format");
 

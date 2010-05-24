@@ -415,6 +415,12 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
        return NULL;
     }
 
+    if (w <= 0 || h <= 0){
+       LOGE("%d: Error - Invalid settings width %d, height %d",
+       __LINE__, w, h);
+       return NULL;
+    }
+
     if (format == OVERLAY_FORMAT_DEFAULT) {
         format = OVERLAY_FORMAT_CbYCrY_422_I;  //UYVY is the default format
     }
@@ -1161,6 +1167,11 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
        LOGE("%d: Error - Currently unsupported settings width %d, height %d", __LINE__, w, h);
        return -1;
     }
+    if (w <= 0 || h <= 0){
+       LOGE("%d: Error - Invalid settings width %d, height %d",
+       __LINE__, w, h);
+       return -1;
+    }
 
     int fd = ctx->omap_overlay->getdata_videofd();
     overlay_ctrl_t *stage = ctx->omap_overlay->staging();
@@ -1284,7 +1295,12 @@ int overlay_data_context_t::overlay_data_setParameter(struct overlay_data_device
         ctx->omap_overlay->attributes_changed = 1;
         break;
     case OPTIMAL_QBUF_CNT:
-        ctx->omap_overlay->optimalQBufCnt = value;
+        if (value < 0) {
+            LOGE("InValid number of optimal quebufffers requested[%d]", value);
+            return -1;
+        }
+        ctx->omap_overlay->optimalQBufCnt = MIN(value, NUM_OVERLAY_BUFFERS_REQUESTED);
+
         break;
     case OVERLAY_NUM_BUFFERS:
         if (value <= 0) {
@@ -1305,7 +1321,12 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
                            uint32_t y, uint32_t w, uint32_t h) {
     LOG_FUNCTION_NAME_ENTRY;
     if (dev == NULL) {
-        LOGE("Null Arguments ");
+        LOGE("Null Arguments[%d]", __LINE__);
+        return -1;
+    }
+
+    if (((int)x < 0)||((int)y < 0)||((int)w <= 0)||((int)h <= 0)||(w > MAX_OVERLAY_WIDTH_VAL)||(h > MAX_OVERLAY_HEIGHT_VAL)) {
+        LOGE("Invalid Arguments [%d]", __LINE__);
         return -1;
     }
 
@@ -1365,7 +1386,7 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
     /* blocks until a buffer is available and return an opaque structure
      * representing this buffer.
      */
-    if (dev == NULL) {
+    if ((dev == NULL)||(buffer == NULL)) {
         LOGE("Null Arguments ");
         return -1;
     }
@@ -1421,6 +1442,10 @@ int overlay_data_context_t::overlay_queueBuffer(struct overlay_data_device_t *de
     }
 
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
+    if (((int)buffer < 0)||((int)buffer >= ctx->omap_overlay->num_buffers)) {
+        LOGE("Invalid buffer Index [%d]@[%d]", (int)buffer, __LINE__);
+        return -1;
+    }
     int fd = ctx->omap_overlay->getdata_videofd();
 
 if ( !ctx->omap_overlay->controlReady ) return -1;
@@ -1470,17 +1495,15 @@ void* overlay_data_context_t::overlay_getBufferAddress(struct overlay_data_devic
         return NULL;
     }
 
-    /* this may fail (NULL) if this feature is not supported. In that case,
-     * presumably, there is some other HAL module that can fill the buffer,
-     * using a DSP for instance
-     */
     int ret;
     struct v4l2_buffer buf;
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
+    if (((int)buffer < 0)||((int)buffer >= ctx->omap_overlay->num_buffers)) {
+        LOGE("Invalid buffer Index [%d]@[%d]", (int)buffer, __LINE__);
+        return NULL;
+    }
     int fd = ctx->omap_overlay->getdata_videofd();
-
     ret = v4l2_overlay_query_buffer(fd, (int)buffer, &buf);
-
     if (ret)
         return NULL;
 
