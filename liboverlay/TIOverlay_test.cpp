@@ -43,6 +43,9 @@
 using namespace android;
 
 namespace android {
+
+#define RET_CHECK_EQ(x, y, z) {if (x != y) { LOGE("ErrScenario Test failed @%d", z); return;} }
+#define RET_CHECK_NOTEQ(x, y, z) {if (x == y) { LOGE("ErrScenario Test failed @%d", z); return;} }
 class Test {
 public:
     void getISurface(const sp<SurfaceControl>& s) {
@@ -132,7 +135,7 @@ public:
     resize = false;
     }
     void testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1, uint8_t panel1, char* img2=NULL, uint32_t w2=0, uint32_t h2=0, uint8_t fmt2 = 0, uint8_t panel2=0);
-
+   void testErrorScenarios();
 };
 
 
@@ -221,7 +224,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         format = OVERLAY_FORMAT_CbYCrY_420_I;
         break;
     default:
-        format = OVERLAY_FORMAT_RGB_565;
+        format = fmt1;
         break;
     };
 
@@ -314,7 +317,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         format = OVERLAY_FORMAT_CbYCrY_420_I;
         break;
     default:
-        format = OVERLAY_FORMAT_RGB_565;
+        format = fmt2;
         break;
     };
     ref2 = secondSurface->createOverlay(w2, h2, format);
@@ -410,7 +413,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     }
 
     int filedes1 = -1;
-    int file1size = 0;
+    long int file1size = 0;
     mapping_data_t* data1;
     int cnt1 = 0, iter = 0;
     overlay_buffer_t buffer1;
@@ -420,7 +423,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     uint8_t* localbuffer1 = new uint8_t [framesize1];
 
     int filedes2 = -1;
-    int file2size = 0;
+    long int file2size = 0;
     mapping_data_t* data2;
     int cnt2 = 0;
     overlay_buffer_t buffer2;
@@ -448,7 +451,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         data1 = (mapping_data_t *)mOverlay1->getBufferAddress((void*)i1);
         if (data1 == NULL)
         {
-            LOGE("No Buffer from Overlay [%x]", data1);
+            LOGE("No Buffer from Overlay [%x]", (unsigned int)data1);
         delete []localbuffer1;
         localbuffer1 = NULL;
         delete []localbuffer2;
@@ -480,7 +483,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         data2 = (mapping_data_t *)mOverlay2->getBufferAddress((void*)i2);
         if (data2 == NULL)
         {
-            LOGE("No Buffer from Overlay [%x]", data2);
+            LOGE("No Buffer from Overlay [%x]", (unsigned int)data2);
             delete []localbuffer1;
             localbuffer1 = NULL;
             delete []localbuffer2;
@@ -501,9 +504,9 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         // copy the file into the buffers:
         //we can use read: provided we have the file des
         int ret1 = read (filedes1, (void*)localbuffer1, framesize1);
-        if (ret1 != framesize1)
+        if (ret1 != (int)framesize1)
         {
-            LOGE ("\nReading error file1.[%s]\n", errno);
+            LOGE ("\nReading error file1.[%d]\n", errno);
             delete []localbuffer1;
             localbuffer1 = NULL;
             delete []localbuffer2;
@@ -518,8 +521,8 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         uint8_t* runningptr1 = localbuffer1;
 
         #ifdef TARGET_OMAP4
-        for (int k1 = 0; k1 < h1  ; k1 += 1){
-        for (int j1 = 0; j1 < w1; j1+= 2){
+        for (int k1 = 0; k1 < (int)h1  ; k1 += 1){
+        for (int j1 = 0; j1 < (int)w1; j1+= 2){
             *(uint32_t *)(p1) = *(uint32_t*)(runningptr1);
             p1 += 4;
             runningptr1 += 4;
@@ -535,9 +538,9 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         {
             //we can use pread: provided we have the file des
             int ret2 = read (filedes2, (void*)localbuffer2, framesize2);
-            if (ret2 != framesize2)
+            if (ret2 != (int)framesize2)
             {
-                LOGE ("\nReading error file1.[%s]\n", errno);
+                LOGE ("\nReading error file1.[%d]\n", errno);
                 delete []localbuffer1;
                 localbuffer1 = NULL;
                 delete []localbuffer2;
@@ -550,8 +553,8 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
             uint8_t *p2 = (uint8_t*) mBuffers2[cnt2];
             uint8_t* runningptr2 = localbuffer2;
             #ifdef TARGET_OMAP4
-            for (int k2 = 0; k2 < h2  ; k2 += 1){
-            for (int j2 = 0; j2 < w2; j2 += 2){
+            for (int k2 = 0; k2 < (int)h2  ; k2 += 1){
+            for (int j2 = 0; j2 < (int)w2; j2 += 2){
                 *(uint32_t *)(p2) = *(uint32_t*)(runningptr2);
                 p2 += 4;
                 runningptr2 += 4;
@@ -569,17 +572,17 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     if (file1size > 0)
     {
         int ret1 = read (filedes1, (void*)localbuffer1, framesize1);
-        if (ret1 != framesize1)
+        if (ret1 != (int)framesize1)
         {
-            LOGE ("\nReading error file or File End.[%s]\n", errno);
+            LOGE ("\nReading error file or File End.[%d]\n", errno);
             break;
         }
         file1size -= framesize1;
         uint8_t *p1 = (uint8_t*) mBuffers1[cnt1];
         uint8_t* runningptr1 = localbuffer1;
         #ifdef TARGET_OMAP4
-        for (int k1 = 0; k1 < h1  ; k1 += 1) {
-        for (int j1 = 0; j1 < w1; j1 += 2) {
+        for (int k1 = 0; k1 < (int)h1  ; k1 += 1) {
+        for (int j1 = 0; j1 < (int)w1; j1 += 2) {
             *(uint32_t *)(p1) = *(uint32_t*)(runningptr1);
             p1 += 4;
             runningptr1 += 4;
@@ -601,17 +604,17 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         if (file2size > 0)
         {
             int ret2 = read (filedes2, (void*)localbuffer2, framesize2);
-            if (ret2 != framesize2)
+            if (ret2 != (int)framesize2)
             {
-                LOGE ("\nReading error file2.[%s]\n", errno);
+                LOGE ("\nReading error file2.[%d]\n", errno);
                 break;
             }
             file2size -= framesize2;
             uint8_t *p2 = (uint8_t*) mBuffers2[cnt2];
             uint8_t* runningptr2 = localbuffer2;
             #ifdef TARGET_OMAP4
-            for (int k2 = 0; k2 < h2  ; k2 += 1) {
-            for (int j2 = 0; j2 < w2; j2 += 2) {
+            for (int k2 = 0; k2 < (int)h2  ; k2 += 1) {
+            for (int j2 = 0; j2 < (int)w2; j2 += 2) {
                 *(uint32_t *)(p2) = *(uint32_t*)(runningptr2);
                 p2 += 4;
                 runningptr2 += 4;
@@ -820,6 +823,222 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         LOGE("testOverlay--");
     }
 
+/** menthod to test all possible error scenarios from overlay library
+*/
+void OverlayTest::testErrorScenarios()
+{
+    /** the test scenarios to be tested
+    *<1>Passing NULL arguments
+    *<2>passing Invalid argumnets
+    *<3>requesting for que buffers beyond max
+    *<4>creating overlay with invalid size
+    *<5>requesting for invalid overlay bufffers
+    *<6>requesting for Invalid optimal buffer for queuing
+    *<7>request for invalid formats
+    *<8>deque without queuing the buffers first
+    *<9>corrupt handle and create overlay
+    *<10>setting up for invalid window size
+    *<11>request for invalid crop size
+    *<12>queue buffers beyond the max limit
+    *<13>create overlays beyond max limit
+    *<14>call apis with NULL device
+    *<15>call resizeInput multiple times
+    */
+
+    sp<ISurface> firstSurface = mSurfaceLcd1;
+    sp<SurfaceComposerClient> firstClient = mClient1;
+    sp<SurfaceControl> firstSurfaceCtrl = mSurfaceCtrlLcd1;
+    sp<OverlayRef> ref1;
+
+    /** create overlay with invalid sizes*/
+    //Invalid width
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL*2, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565);
+    RET_CHECK_EQ(ref1, NULL, __LINE__);
+    //Invalid height
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL*2, OVERLAY_FORMAT_RGB_565);
+    RET_CHECK_EQ(ref1, NULL, __LINE__);
+    //Invalid format
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_DEFAULT+1);
+    RET_CHECK_EQ(ref1, NULL, __LINE__);
+
+    //currently unsupported format
+    ref1 = firstSurface->createOverlay(0, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_BGRA_8888);
+    RET_CHECK_EQ(ref1, NULL, __LINE__);
+
+    //ZERO size
+    ref1 = firstSurface->createOverlay(0, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_DEFAULT);
+    RET_CHECK_EQ(ref1, NULL, __LINE__);
+
+    //correct format & size
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565);
+    RET_CHECK_NOTEQ(ref1, NULL, __LINE__);
+
+    mOverlay1 = new Overlay(ref1);
+    RET_CHECK_NOTEQ(mOverlay1, NULL, __LINE__);
+
+    int ret = mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, -11);
+    RET_CHECK_NOTEQ(ret, 0 , __LINE__);
+
+    ret = mOverlay1->resizeInput(LCD_WIDTH, LCD_HEIGHT);
+    RET_CHECK_EQ(ret, 0 , __LINE__);
+
+    ret = mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, 0);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, 100);
+    RET_CHECK_EQ(ret, 0 , __LINE__);
+
+    ret = mOverlay1->getBufferCount();
+    RET_CHECK_EQ(ret, NUM_OVERLAY_BUFFERS_REQUESTED, __LINE__);
+
+    ret = mOverlay1->resizeInput(200, 200);
+    RET_CHECK_EQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->resizeInput(10, 0);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->resizeInput(MAX_OVERLAY_WIDTH_VAL*2, 10);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->resizeInput(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL*2);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->resizeInput(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL);
+    RET_CHECK_EQ(ret, 0, __LINE__);
+
+    /** finally overlay is created and inialized after passing all err tests !!!
+    */
+    //now start setting Invalid parameters
+    //since there are indirectly configured to overlay by Surface Flinger
+    // we cant check for return values here, but system should not crash or something like that
+    // overlay library should return error values: observe the prints
+    firstClient->openTransaction();
+    firstSurfaceCtrl->setPosition(-100, -200);
+    firstSurfaceCtrl->setSize(0, 0);
+    firstClient->closeTransaction();
+
+    firstClient->openTransaction();
+    firstSurfaceCtrl->setPosition(MAX_OVERLAY_WIDTH_VAL*2, MAX_OVERLAY_WIDTH_VAL*2);
+    firstSurfaceCtrl->setSize(0, 0);
+    firstClient->closeTransaction();
+
+    firstClient->openTransaction();
+    firstSurfaceCtrl->setLayer(1000);
+    firstClient->closeTransaction();
+
+    firstClient->openTransaction();
+    firstSurfaceCtrl->setLayer(-1000);
+    firstClient->closeTransaction();
+
+    firstClient->openTransaction();
+    firstSurfaceCtrl->setLayer(0);
+    firstClient->closeTransaction();
+
+    firstClient->openTransaction();
+    firstClient->setOrientation(0,1000,0);
+    firstClient->closeTransaction();
+
+    firstClient->openTransaction();
+    firstClient->setOrientation(0,ISurfaceComposer::eOrientationDefault,0);
+    firstClient->closeTransaction();
+
+    firstClient->openTransaction();
+    firstSurfaceCtrl->setAlpha(0);
+    firstClient->closeTransaction();
+
+
+    firstClient->openTransaction();
+    firstSurfaceCtrl->setAlpha(-1000);
+    firstClient->closeTransaction();
+
+    firstClient->openTransaction();
+    firstSurfaceCtrl->setAlpha(1000);
+    firstClient->closeTransaction();
+
+    //Tested control parameter configuration; Now lets test buffer q/dq apis
+    //data setParameter apis
+    ret = mOverlay1->setParameter(OPTIMAL_QBUF_CNT, -100);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->setParameter(OPTIMAL_QBUF_CNT, NUM_OVERLAY_BUFFERS_REQUESTED);
+    RET_CHECK_EQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->setParameter(OPTIMAL_QBUF_CNT, NUM_OVERLAY_BUFFERS_REQUESTED*2);
+    RET_CHECK_EQ(ret, 0, __LINE__);
+
+    //test crop api for errors
+    ret = mOverlay1->setCrop(0,0, 100,100);
+    RET_CHECK_EQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->setCrop(0,0, 0,0);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->setCrop(-1,-100, MAX_OVERLAY_WIDTH_VAL,MAX_OVERLAY_HEIGHT_VAL);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->setCrop(10,10, MAX_OVERLAY_WIDTH_VAL*2,MAX_OVERLAY_HEIGHT_VAL*2);
+    RET_CHECK_EQ(ret, 0, __LINE__);
+    //get buffer addresses beyond the max buffer cnt
+    int numBuffers1 = mOverlay1->getBufferCount();
+    mapping_data_t* data1;
+    void* mBuffers1[NUM_OVERLAY_BUFFERS_REQUESTED*2];
+
+    for (int i1 = 0; i1 < numBuffers1*2; i1++) {
+        data1 = (mapping_data_t *)mOverlay1->getBufferAddress((void*)i1);
+        if (i1 < numBuffers1) {
+            RET_CHECK_NOTEQ(data1, NULL, __LINE__);
+        }
+        else {
+            RET_CHECK_EQ(data1, NULL, __LINE__);
+        }
+        mBuffers1[i1] = data1;
+    }
+    overlay_buffer_t buffer1;
+    //start dequeing buffering, even before queing
+    ret = mOverlay1->dequeueBuffer(&buffer1);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    for (int k = 0; k < numBuffers1*2; k++) {
+        ret = mOverlay1->queueBuffer((void*)k);
+        if (k < numBuffers1) {
+            RET_CHECK_EQ(ret, k+1, __LINE__);
+        }
+        else {
+            RET_CHECK_NOTEQ(ret, k+1, __LINE__);
+        }
+    }
+
+    //set invalid screen ID
+    // create pushbuffer surface for Invalid screen and virtual sink
+    //surface would be created normally, but for the default screen:Primary LCD
+    mSurfaceCtrlDlp = (mClient2->createSurface(getpid(), OVERLAY_ON_VIRTUAL_SINK, LCD_WIDTH, LCD_HEIGHT,
+    PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
+    RET_CHECK_NOTEQ(mSurfaceCtrlDlp, NULL, __LINE__);
+
+    // create pushbuffer surface for Invalid screen and virtual sink
+    mSurfaceCtrlDlp = (mClient2->createSurface(getpid(), OVERLAY_ON_VIRTUAL_SINK+1, LCD_WIDTH, LCD_HEIGHT,
+    PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
+    RET_CHECK_NOTEQ(mSurfaceCtrlDlp, NULL, __LINE__);
+
+    sp<OverlayRef> ref2;
+    sp<OverlayRef> ref3;
+    sp<OverlayRef> ref4;
+
+    //correct format & size: 2nd overlay
+    ref2 = mSurfaceLcd2->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565);
+    RET_CHECK_NOTEQ(ref2, NULL, __LINE__);
+    //correct format & size: 3rd Overlay
+    ref3 = mSurfaceTv->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565);
+    RET_CHECK_EQ(ref3, NULL, __LINE__);
+    //correct format & size 4th Overlay
+    ref4 = mSurfaceDlp->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565);
+    RET_CHECK_EQ(ref4, NULL, __LINE__);
+
+    printf("Error Scenario test completed");
+
+}
+
+
 /** Initialize the surfaces**/
 int OverlayTest::init()
 {
@@ -940,6 +1159,7 @@ int main (int argc, char* argv[])
     printf("\n6 -\tTo test digital Zoom");
     printf("\n7 -\tTo test auto scale");
     printf("\n8 -\tTo test resize Overlay and dynamic buffer alloc");
+   printf("\n9 -\tTo test all Error Scenarios");
 
     printf("\nFORMAT Ids");
     printf("\n0 - RGB565");
@@ -1018,7 +1238,11 @@ int main (int argc, char* argv[])
 
         case 8:
             test.resize = true;
-            break;
+        break;
+
+        case 9:
+            test.testErrorScenarios();
+        return 0;
 
         default:
             printf("starting with default settings\n");
@@ -1094,6 +1318,10 @@ int main (int argc, char* argv[])
             case 8:
                 test.resize = true;
             break;
+
+            case 9:
+                test.testErrorScenarios();
+            return 0;
 
             default:
                 printf("starting with default settings\n");
