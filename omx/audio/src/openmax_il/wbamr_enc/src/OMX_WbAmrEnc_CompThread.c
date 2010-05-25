@@ -204,10 +204,14 @@ void* WBAMRENC_CompThread(void* pThreadData) {
 #endif
 
                 if (pComponentPrivate->bPreempted == 0) {
+                   if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
+                       return OMX_ErrorUndefined;
+                   }
+
                     pComponentPrivate->cbInfo.EventHandler( pHandle,
                                                             pHandle->pApplicationPrivate,
                                                             OMX_EventCmdComplete,
-                                                            OMX_ErrorNone,
+                                                            OMX_CommandStateSet,
                                                             pComponentPrivate->curState,
                                                             NULL);
                 } else {
