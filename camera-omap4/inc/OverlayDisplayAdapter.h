@@ -147,9 +147,9 @@ private:
     mutable Mutex mLock;
     bool mDisplayEnabled;
     KeyedVector<int, int> mPreviewBufferMap;
+    KeyedVector<int, int> mFramesWithDisplayMap;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
     //Used for calculating standby to first shot
     struct timeval mStandbyToShot;
     bool mMeasureStandby;

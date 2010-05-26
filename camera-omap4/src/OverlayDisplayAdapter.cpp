@@ -162,6 +162,10 @@ int OverlayDisplayAdapter::setOverlay(const sp<Overlay> &overlay)
 
     mDisplayQ.setInFd(overlayfd);
 
+    ///Set the optimal buffer count to 0 since we have a display thread which monitors the
+    ///fd of overlay
+    mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
+
     LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
@@ -366,10 +370,24 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
 {
     LOG_FUNCTION_NAME
 
+    if(!numBufs)
+        {
+        ///if numBufs is zero, we take the default number of buffers allocated by overlay
+        numBufs = (int)mOverlay->getBufferCount();
+        }
+    else
+        {
+        ///Set the number of buffers to be created by overlay
+        mOverlay->setParameter(OVERLAY_NUM_BUFFERS, numBufs);
+        mOverlay->resizeInput(width, height);
+        }
+
+    CAMHAL_LOGDB("Configuring %d buffers for overlay", numBufs);
+
     ///We just return the buffers from Overlay, if the width and height are same, else (vstab, vnf case)
     ///re-allocate buffers using overlay and then get them
     ///@todo - Re-allocate buffers for vnf and vstab using the width, height, format, numBufs etc
-    const int lnumBufs = (int)mOverlay->getBufferCount();
+    const int lnumBufs = numBufs;
     int32_t *buffers = new int32_t[lnumBufs];
     if ( NULL == buffers )
         {
@@ -544,7 +562,10 @@ void OverlayDisplayAdapter::displayThread()
             shouldLive = processHalMsg();
 
             }
-        else  if( !mDisplayQ.isEmpty() && mFramesWithDisplay>NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
+        /// @bug With mFramesWithDisplay>2, we will have always 2 buffers with overlay.
+        ///          Ideally, we should remove this check and dequeue immediately when mDisplayQ is not empty
+        ///          But there is some bug in OMX which is causing a crash when performing OMX_FillThisBuffer call
+        else  if( !mDisplayQ.isEmpty() & mFramesWithDisplay>2)
             {
             if ( mDisplayState== OverlayDisplayAdapter::DISPLAY_INIT )
                 {
@@ -555,6 +576,9 @@ void OverlayDisplayAdapter::displayThread()
                 }
             else
                 {
+                ///There is a frame from overlay for us to dequeue
+                ///We dequeue and return the frame back to Camera adapter
+                ///Below method returns true of there are no frames left with display after the dequeue
                 noFramesLeft = handleFrameReturn();
 
                 if ( ( mDisplayState == OverlayDisplayAdapter::DISPLAY_EXITED ) && noFramesLeft)
@@ -637,6 +661,7 @@ bool OverlayDisplayAdapter::processHalMsg()
 status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &dispFrame)
 {
     status_t ret = NO_ERROR;
+    int actualFramesWithDisplay = 0;
 
     ///@todo Do cropping based on the stabilized frame coordinates
     ///@todo Insert logic to drop frames here based on refresh rate of
@@ -659,8 +684,8 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
     if ( mDisplayState == OverlayDisplayAdapter::DISPLAY_STARTED )
         {
         //Post it to display via Overlay
-        ret = mOverlay->queueBuffer(buf);
-        if ( ret != NO_ERROR )
+        actualFramesWithDisplay = ret = mOverlay->queueBuffer(buf);
+        if ( ret < NO_ERROR )
             {
             CAMHAL_LOGEB("Posting error 0x%x", ret);
 
@@ -689,6 +714,22 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
                 }
 
 #endif
+            if(actualFramesWithDisplay!=mFramesWithDisplay)
+                {
+                ///Skew detected. Overlay has gone through a stream off sequence due to trigger from Surface flinger
+                /// Reclaim all the buffers back except the one we posted
+                for(int i=0;i<mFramesWithDisplayMap.size();i++)
+                    {
+                    ///Return the reclaimed frames back to the provider (Camera Adapter)
+                    mFrameProvider->returnFrame( (void *) mFramesWithDisplayMap.keyAt(i), CameraFrame::PREVIEW_FRAME_SYNC);
+                    }
+                ///Update the mFramesWithDisplay with the updated count.
+                ///Note that actualFramesWithDisplay will always be 1 with the first queueBuffer after stream off
+                mFramesWithDisplay = actualFramesWithDisplay;
+                }
+
+            mFramesWithDisplayMap.add((int) dispFrame.mBuffer, mFramesWithDisplay);
+            ret = NO_ERROR;
 
             }
 
@@ -706,34 +747,38 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
 bool OverlayDisplayAdapter::handleFrameReturn()
 {
     overlay_buffer_t buf = NULL;
+    status_t ret = NO_ERROR;
 
+    Mutex::Autolock lock(mLock);
+
+    ///If there are no frames with the display we return true so that dipslay thread can exit
+    ///after receiving the exit command from camera hal.
+    if ( 0 == mFramesWithDisplay )
         {
-        Mutex::Autolock lock(mLock);
-
-        if ( 0 == mFramesWithDisplay )
-            {
-            return true;
-            }
+        return true;
         }
 
-    if ( mOverlay->dequeueBuffer(&buf) < 0 )
+
+    ///This case implies that a stream off happened. In this case, there are no buffers to dequeue
+    ///Buffers already queued will  be dequeued by PostFrame when it detects skew in the count
+    ///of frames with overlay and internal count value
+    if ( mOverlay->dequeueBuffer(&buf) == -2 )
         {
+        CAMHAL_LOGEA("Looks like STREAM OFF happened inside overlay");
         return true;
         }
 
     ///Return the frame back to the provider (Camera Adapter)
     mFrameProvider->returnFrame( (void *) mPreviewBufferMap.keyAt((int) buf), CameraFrame::PREVIEW_FRAME_SYNC);
 
-    //Decrement the frames with display count
-        {
-        Mutex::Autolock lock(mLock);
+    ///Remove the frame from the display frame list
+    mFramesWithDisplayMap.removeItem(mPreviewBufferMap.keyAt((int) buf));
 
-        mFramesWithDisplay--;
-        if ( 0 == mFramesWithDisplay )
-            {
-            CAMHAL_LOGDA("Received all frames back from Display");
-            return true;
-            }
+    mFramesWithDisplay--;
+    if ( 0 == mFramesWithDisplay )
+        {
+        CAMHAL_LOGDA("Received all frames back from Display");
+        return true;
         }
 
     return false;

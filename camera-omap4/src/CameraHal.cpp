@@ -327,7 +327,7 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
 
         ///@todo Pluralise the name of this method to allocateBuffers
         mPreviewLength = 0;
-        mPreviewBufs = (int32_t *) newBufProvider->allocateBuffer(width, height, previewFormat, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
+        mPreviewBufs = (int32_t *) newBufProvider->allocateBuffer(width, height, previewFormat, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
         mPreviewOffsets = (uint32_t *) newBufProvider->getOffsets();
         mPreviewFd = newBufProvider->getFd();
         mBufProvider = newBufProvider;
@@ -344,7 +344,7 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
                 freePreviewBufs();
 
                 mPreviewLength = 0;
-                mPreviewBufs = (int32_t *)newBufProvider->allocateBuffer(width, height, previewFormat, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
+                mPreviewBufs = (int32_t *)newBufProvider->allocateBuffer(width, height, previewFormat, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
                 if ( NULL == mPreviewBufs )
                     {
                     CAMHAL_LOGEA("Couldn't allocate preview buffers using Memory manager");
@@ -400,7 +400,7 @@ status_t CameraHal::allocVideoBufs(int width, int height, const char* previewFor
          freeVideoBufs();
         }
     mVideoLength = 0;
-    mVideoBufs = (int32_t *) mVideoBufProvider->allocateBuffer(width, height, previewFormat, mVideoLength, CameraHal::NO_BUFFERS_PREVIEW);
+    mVideoBufs = (int32_t *) mVideoBufProvider->allocateBuffer(width, height, previewFormat, mVideoLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
     mVideoOffsets = (uint32_t *) mVideoBufProvider->getOffsets();
     mVideoFd = mVideoBufProvider->getFd();
 
@@ -569,7 +569,7 @@ status_t CameraHal::startPreview()
 
 
     ///Pass the buffers to Camera Adapter
-    mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
+    mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
 
     ///Start the callback notifier
     ret = mAppCallbackNotifier->start();
@@ -749,13 +749,13 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
                 }
 
             ///Pass the buffers to Camera Adapter
-            mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
+            mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
 
             }
         else
             {
             ///Overlay supports external buffering, let DisplayAdapter know about the Camera buffers
-            mDisplayAdapter->useBuffers(mPreviewBufs, CameraHal::NO_BUFFERS_PREVIEW);
+            mDisplayAdapter->useBuffers(mPreviewBufs, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
             }
 
         ///Everything initialized, It's time to start the display of frames through overlay
@@ -889,15 +889,7 @@ status_t CameraHal::startRecording( )
     if ( NO_ERROR == ret )
         {
 
-#if 1
-
-         ret = mAppCallbackNotifier->initSharedVideoBuffers(mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, CameraHal::NO_BUFFERS_PREVIEW);
-
-#else
-
-        ret = mAppCallbackNotifier->initSharedVideoBuffers(mVideoBufs, mVideoOffsets, mVideoFd, mVideoLength, CameraHal::NO_BUFFERS_PREVIEW);
-
-#endif
+         ret = mAppCallbackNotifier->initSharedVideoBuffers(mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
 
         }
 
@@ -908,7 +900,7 @@ status_t CameraHal::startRecording( )
 
     if ( NO_ERROR == ret )
         {
-         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mVideoBufs, mVideoOffsets, mVideoFd, mVideoLength, CameraHal::NO_BUFFERS_PREVIEW);
+         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mVideoBufs, mVideoOffsets, mVideoFd, mVideoLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
         }
 
     if ( NO_ERROR == ret )
