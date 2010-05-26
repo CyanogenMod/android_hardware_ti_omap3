@@ -48,7 +48,6 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-    mMeasureStandby = true;
     mShotToShot = false;
 
 #endif
@@ -253,10 +252,11 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-    if ( ( NULL != refTime ) && ( mMeasureStandby) )
+    if ( NULL != refTime )
         {
         Mutex::Autolock lock(mLock);
         memcpy(&mStandbyToShot, refTime, sizeof( struct timeval ));
+        mMeasureStandby = true;
         }
 
 #endif

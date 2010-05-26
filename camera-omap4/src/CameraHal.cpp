@@ -1668,16 +1668,20 @@ void CameraHal::PPM(const char* str){
 void CameraHal::PPM(const char* str, struct timeval* ppm_first, ...){
     char temp_str[256];
     struct timeval ppm;
+    unsigned long long absolute;
     va_list args;
 
     va_start(args, ppm_first);
     vsprintf(temp_str, str, args);
     gettimeofday(&ppm, NULL);
+    absolute = ppm.tv_sec;
+    absolute *= 1000;
+    absolute += ppm.tv_usec /1000;
     ppm.tv_sec = ppm.tv_sec - ppm_first->tv_sec;
     ppm.tv_sec = ppm.tv_sec * 1000000;
     ppm.tv_sec = ppm.tv_sec + ppm.tv_usec - ppm_first->tv_usec;
 
-    LOGD("PPM: %s :%ld.%ld ms", temp_str, ( ppm.tv_sec /1000 ), ( ppm.tv_sec % 1000 ));
+    LOGD("PPM: %s :%ld.%ld ms :  %llu ms", temp_str, ( ppm.tv_sec /1000 ), ( ppm.tv_sec % 1000 ), absolute);
 
     va_end(args);
 }
