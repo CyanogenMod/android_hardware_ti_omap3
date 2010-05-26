@@ -212,12 +212,15 @@ void* AACENC_ComponentThread (void* pThreadData)
                 PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryComplete | PERF_BoundaryCleanup);
 #endif  
 
-
                 if(pComponentPrivate->bPreempted==0){
-                    pComponentPrivate->cbInfo.EventHandler(pHandle, 
+                    if (RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
+                        return OMX_ErrorUndefined;
+                    }
+                    pComponentPrivate->cbInfo.EventHandler(pHandle,
                                                            pHandle->pApplicationPrivate,
                                                            OMX_EventCmdComplete,
-                                                           OMX_ErrorNone,pComponentPrivate->curState, 
+                                                           OMX_CommandStateSet,
+                                                           pComponentPrivate->curState,
                                                            NULL);
 
                 }

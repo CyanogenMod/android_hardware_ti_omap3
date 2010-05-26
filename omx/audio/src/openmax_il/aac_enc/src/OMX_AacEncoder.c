@@ -1428,40 +1428,26 @@ static OMX_ERRORTYPE GetState (OMX_HANDLETYPE hComponent, OMX_STATETYPE* pState)
     /* Retrieve current state */
     if (pHandle && pHandle->pComponentPrivate) {
         /* Check for any pending state transition requests */
-        if(pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest)) {
-            return OMX_ErrorUndefined;
-        }
-        nPendingStateChangeRequests = pComponentPrivate->nPendingStateChangeRequests;
-        if(!nPendingStateChangeRequests) {
-           if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
-               return OMX_ErrorUndefined;
-           }
-
-           /* No pending state transitions */
-          *pState = ((AACENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->curState;
-            eError = OMX_ErrorNone;
-        }
-        else {
-                  /* Wait for component to complete state transition */
+        pthread_mutex_lock(&pComponentPrivate->mutexStateChangeRequest);
+        while (nPendingStateChangeRequests != 0) {
+           /* Wait for component to complete state transition */
            clock_gettime(CLOCK_REALTIME, &abs_time);
            abs_time.tv_sec += mutex_timeout;
            abs_time.tv_nsec = 0;
-          ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition), &(pComponentPrivate->mutexStateChangeRequest), &abs_time);
-           if (!ret) {
-              /* Component has completed state transitions*/
-              *pState = ((AACENC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate)->curState;
-              if(pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest)) {
-                 return OMX_ErrorUndefined;
-              }
-              eError = OMX_ErrorNone;
-           }
-           else if(ret == ETIMEDOUT) {
-              /* Unlock mutex in case of timeout */
-              pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
-              *pState = OMX_StateInvalid;
-              return OMX_ErrorNone;
+           ret = pthread_cond_timedwait(&(pComponentPrivate->StateChangeCondition),
+                                        &(pComponentPrivate->mutexStateChangeRequest),
+                                        &abs_time);
+           if (ret == ETIMEDOUT) {
+                OMX_ERROR4(pComponentPrivate->dbg, "GetState() timeout at state %d",
+                        pComponentPrivate->curState);
+                *pState = OMX_StateInvalid;
+                break;
            }
         }
+        if (!ret) {
+            *pState = pComponentPrivate->curState;
+        }
+        pthread_mutex_unlock(&pComponentPrivate->mutexStateChangeRequest);
      }
      else {
         eError = OMX_ErrorInvalidComponent;
