@@ -286,19 +286,22 @@ void saveFile(const sp<IMemory>& mem) {
     fn[0] = 0;
     sprintf(fn, "/preview%03d.yuv", counter);
     fd = open(fn, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
-
-    if (fd < 0)
+    if(fd < 0) {
+        LOGE("Unable to open file %s: %s", fn, strerror(fd));
         goto out;
+    }
 
     size = mem->size();
-
-    if (size <= 0)
+    if (size <= 0) {
+        LOGE("IMemory object is of zero size");
         goto out;
+    }
 
     buff = (unsigned char *)mem->pointer();
-
-    if (!buff)
+    if (!buff) {
+        LOGE("Buffer pointer is invalid");
         goto out;
+    }
 
     if (size != write(fd, buff, size))
         printf("Bad Write int a %s error (%d)%s\n", fn, errno, strerror(errno));
@@ -400,8 +403,19 @@ void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr) {
     }
 }
 
-void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr) {
-    printf("DataTime cb: %d %lld %p\n", msgType, timestamp, dataPtr.get());
+void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr)
+{
+    static unsigned int count = 0;
+    printf("Recording cb: %d %lld %p\n", msgType, timestamp, dataPtr.get());
+
+    if ( count < 5 ) {
+        saveFile(dataPtr);
+        camera->releaseRecordingFrame(dataPtr);
+        count++;
+    } else {
+        count = 0;
+        camera->stopRecording();
+    }
 }
 
 int createPreviewSurface(unsigned int width, unsigned int height) {
@@ -864,6 +878,7 @@ int functional_menu() {
         printf("   o. Jpeg Quality:   %d\n", jpegQuality);
         printf("   f. Auto Focus\n");
         printf("   p. Take picture\n");
+        printf("   m. Start Video Recording dump ( 5 raw frames ) \n");
         printf("   a. GEO tagging settings menu\n");
         printf("\n");
         printf("   q. Quit\n");
@@ -1002,6 +1017,12 @@ int functional_menu() {
             videoCodecIdx %= ARRAY_SIZE(videoCodecs);
             break;
 
+	case 'm':
+	case 'M':
+	    if ( hardwareActive )
+                camera->startRecording();
+            break;
+
         case 'o':
         case 'O':
 
@@ -1071,39 +1092,30 @@ int functional_menu() {
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
-
             break;
 
         case 'h':
         case 'H':
-
             if ( sharpness >= 100) {
                 sharpness = 0;
             } else {
                 sharpness += 10;
             }
-
             params.set(KEY_SHARPNESS, sharpness);
-
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
-
             break;
 
         case 'c':
         case 'C':
-
             if ( contrast >= 100) {
                 contrast = -100;
             } else {
                 contrast += 10;
             }
-
             params.set(KEY_CONTRAST, contrast);
-
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
-
             break;
 
         case 'z':
@@ -1499,6 +1511,13 @@ int execute_script(char *script) {
                 videoCodecIdx++;
                 videoCodecIdx %= ARRAY_SIZE(videoCodecs);
                 break;
+
+            case 'm':
+            case 'M':
+                if ( hardwareActive )
+                    camera->startRecording();
+                break;
+
 
             case 'o':
             case 'O':
