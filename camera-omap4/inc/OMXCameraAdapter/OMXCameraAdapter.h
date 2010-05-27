@@ -123,10 +123,7 @@ class OMXCameraAdapter : public BaseCameraAdapter
 public:
 
     /*--------------------Constant declarations----------------------------------------*/
-    ///@remarks Maximum number of buffers supported is currently only 6. Usually, we use only six buffers for preview
-    ///                 However, for slow motion video, we might need to use more buffers. This parameter needs to be changed
-    ///                 when this feature is supported.
-    static const int32_t MAX_NO_BUFFERS = 6;
+    static const int32_t MAX_NO_BUFFERS = 20;
 
     ///@remarks OMX Camera has six ports - buffer input, time input, preview, image, video, and meta data
     static const int MAX_NO_PORTS = 6;

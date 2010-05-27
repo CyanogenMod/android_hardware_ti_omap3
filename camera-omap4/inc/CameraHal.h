@@ -350,6 +350,8 @@ public:
     ///Constants
     static const int NOTIFIER_TIMEOUT;
 
+    static const int32_t MAX_BUFFERS;
+
     enum NotifierCommands
         {
         NOTIFIER_CMD_PROCESS_EVENT,
@@ -382,6 +384,10 @@ public:
 
     //All sub-components of Camera HAL call this whenever any error happens
     virtual void errorNotify(int error);
+
+    sp<IMemoryHeap> getPreviewHeap();
+    status_t startPreviewCallbacks(CameraParameters &params);
+    status_t stopPreviewCallbacks();
 
 
     //thread loops
@@ -457,6 +463,13 @@ private:
     MessageQueue mEventQ;
     MessageQueue mFrameQ;
     NotifierState mNotifierState;
+
+    bool mPreviewing;
+    MemoryHeapBase *mPreviewHeap;
+    KeyedVector<int, MemoryBase*> mPreviewBuffers;
+    int mPreviewBufCount;
+    const char *mPreviewPixelFormat;
+
 
 };
 
@@ -910,6 +923,8 @@ private:
     CameraProperties::CameraProperty **mCameraPropertiesArr;
 
     bool mPreviewStartInProgress;
+
+    bool mSetOverlayCalled;
 };
 
 

@@ -79,7 +79,7 @@ struct timeval CameraHal::mStartCapture;
 sp<IMemoryHeap> CameraHal::getPreviewHeap() const
     {
     LOG_FUNCTION_NAME
-    return 0;
+    return ((mAppCallbackNotifier.get())?mAppCallbackNotifier->getPreviewHeap():NULL);
     }
 
 /**
@@ -139,6 +139,16 @@ void CameraHal::enableMsgType(int32_t msgType)
     Mutex::Autolock lock(mLock);
     mMsgEnabled |= msgType;
 
+    if(mMsgEnabled &CAMERA_MSG_PREVIEW_FRAME)
+        {
+        CAMHAL_LOGDA("Enabling Preview Callback");
+        }
+    else
+        {
+        CAMHAL_LOGDB("Preview callback not enabled %x", msgType);
+        }
+
+
     ///@todo configure app callback notifier with the message callback required
 
     ///@todo once preview callback is supported, enable preview here if preview start in progress
@@ -157,7 +167,15 @@ void CameraHal::disableMsgType(int32_t msgType)
 {
     LOG_FUNCTION_NAME
     Mutex::Autolock lock(mLock);
+
+    if((mMsgEnabled &CAMERA_MSG_PREVIEW_FRAME) && ( msgType & CAMERA_MSG_PREVIEW_FRAME))
+        {
+        CAMHAL_LOGDA("Disabling Preview Callback");
+        mAppCallbackNotifier->stopPreviewCallbacks();
+        }
+
     mMsgEnabled &= ~msgType;
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -523,7 +541,7 @@ status_t CameraHal::startPreview()
     ///If we don't have the preview callback enabled and display adapter,
     ///@todo add check for preview callback, once it is supported
     if(//!(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) &&
-         (!mDisplayAdapter.get()))
+         (!mSetOverlayCalled))
         {
         CAMHAL_LOGEA("Preview not started. Preview in progress flag set");
         mPreviewStartInProgress = true;
@@ -570,6 +588,11 @@ status_t CameraHal::startPreview()
 
     ///Pass the buffers to Camera Adapter
     mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+
+    if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
+        {
+        mAppCallbackNotifier->startPreviewCallbacks(mParameters);
+        }
 
     ///Start the callback notifier
     ret = mAppCallbackNotifier->start();
@@ -653,7 +676,13 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     status_t ret = NO_ERROR;
     LOG_FUNCTION_NAME
 
-    ///@todo test the scenario when Camera is running with previous overlay and a new overlay is passed
+    mSetOverlayCalled = true;
+
+    if(overlay.get() && (strcmp(mParameters.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I)!=0))
+        {
+        ////Overlay is supported only for YUV422I format
+        return BAD_VALUE;
+        }
 
     ///If the Camera service passes a null overlay, we destroy existing overlay and free the DisplayAdapter
     if(!overlay.get())
@@ -663,21 +692,13 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
             ///NULL overlay passed, destroy the display adapter if present
             CAMHAL_LOGEA("NULL Overlay passed to setOverlay, destroying display adapter");
             mDisplayAdapter.clear();
-            if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME)
-                {
-                // Setting the buffer provider to memory manager if preview callback is enabled
-                mBufProvider = (BufferProvider*) mMemoryManager.get();
-                }
-            else
-                {
-                /// Setting the buffer provider to NULL if preview callback is not set
-                mBufProvider = NULL;
-                }
             }
+        // Setting the buffer provider to memory manager
+                mBufProvider = (BufferProvider*) mMemoryManager.get();
         return ret;
         }
-    ///CameraService passed a valid overlay
 
+    ///CameraService passed a valid overlay
     if ( mDisplayAdapter.get() )
         {
         mDisplayAdapter.clear();
@@ -803,6 +824,11 @@ void CameraHal::stopPreview()
     //Stop the callback sending
     mAppCallbackNotifier->stop();
 
+    if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
+        {
+        mAppCallbackNotifier->stopPreviewCallbacks();
+        }
+
     //Stop the source of frames
     mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
     freePreviewBufs();
@@ -830,6 +856,8 @@ void CameraHal::stopPreview()
 
         mReloadAdapter = false;
         }
+
+    mSetOverlayCalled = false;
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -1230,6 +1258,7 @@ CameraHal::CameraHal()
     mVideoBufProvider = NULL;
     mRecordingEnabled = false;
     mDisplayPaused = false;
+    mSetOverlayCalled = false;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 

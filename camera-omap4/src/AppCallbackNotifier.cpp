@@ -30,6 +30,9 @@ namespace android {
 
 const int AppCallbackNotifier::NOTIFIER_TIMEOUT = -1;
 
+const int32_t AppCallbackNotifier::MAX_BUFFERS = 20;
+
+
 
 /*--------------------NotificationHandler Class STARTS here-----------------------------*/
 
@@ -110,10 +113,21 @@ void AppCallbackNotifier::notificationThread()
     while(shouldLive)
         {
         CAMHAL_LOGDA("Notification Thread waiting for message");
+        if(mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED)
+            {
         ret = MessageQueue::waitForMsg(&mNotificationThread->msgQ()
                                                         , &mEventQ
                                                         , &mFrameQ
                                                         , AppCallbackNotifier::NOTIFIER_TIMEOUT);
+            }
+        else
+            {
+            ret = MessageQueue::waitForMsg(&mNotificationThread->msgQ()
+                                                            , NULL
+                                                            , NULL
+                                                            , AppCallbackNotifier::NOTIFIER_TIMEOUT);
+
+            }
 
         CAMHAL_LOGDA("Notification Thread received message");
 
@@ -230,12 +244,55 @@ void AppCallbackNotifier::notifyEvent()
 
 }
 
-#ifdef  COPY_VIDEO_BUFFER
-
-static void copy2Dto1D(void *dst, void *src, int width, int height, size_t stride, unsigned int bytesPerPixel, size_t length)
+static void copy2Dto1D(void *dst, void *src, int width, int height, size_t stride, unsigned int bytesPerPixel, size_t length,
+    const char *pixelFormat)
 {
     unsigned int alignedRow, row;
     unsigned char *bufferDst, *bufferSrc;
+    uint16_t *bufferDst_UV;
+
+
+    if(pixelFormat!=NULL)
+        {
+        if(strcmp(pixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
+            {
+            CAMHAL_LOGDA("YUV422I");
+            bytesPerPixel = 2;
+            }
+        else if(strcmp(pixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
+            {
+            //Convert here from NV12 to NV21 and return
+            bytesPerPixel = 1;
+    bufferDst = ( unsigned char * ) dst;
+    bufferSrc = ( unsigned char * ) src;
+    row = width*bytesPerPixel;
+    alignedRow = ( row + ( stride -1 ) ) & ( ~ ( stride -1 ) );
+
+    //iterate through each row
+    for ( int i = 0 ; i < height ; i++,  bufferSrc += alignedRow, bufferDst += row)
+        {
+        memcpy(bufferDst, bufferSrc, row);
+        }
+
+            ///Convert NV21 to NV12 by swapping U & V
+            bufferDst_UV = (uint16_t *) bufferDst;
+            for(int i = 0 ; i < height/2 ; i++)
+                {
+                for(int j=0;j<width/2;j++)
+                    {
+                    *bufferDst_UV++ = (*bufferSrc<<16) | *(bufferSrc+1);
+                     bufferSrc +=2;
+                    }
+                bufferSrc += alignedRow;
+                }
+            return ;
+
+            }
+        else if(strcmp(pixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
+            {
+            bytesPerPixel = 2;
+            }
+}
 
     bufferDst = ( unsigned char * ) dst;
     bufferSrc = ( unsigned char * ) src;
@@ -247,9 +304,8 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
         {
         memcpy(bufferDst, bufferSrc, row);
         }
-}
 
-#endif
+}
 
 void AppCallbackNotifier::notifyFrame()
 {
@@ -261,7 +317,10 @@ void AppCallbackNotifier::notifyFrame()
 
     LOG_FUNCTION_NAME
 
+    if(!mFrameQ.isEmpty())
+        {
     mFrameQ.get(&msg);
+        }
     bool ret = true;
 
     frame = NULL;
@@ -332,7 +391,8 @@ void AppCallbackNotifier::notifyFrame()
                                 }
 
                             //TODO: Suport other pixelformats
-                            copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength);
+                            copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2
+                                                                                                , frame->mLength, NULL);
 
                             mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
 
@@ -349,6 +409,32 @@ void AppCallbackNotifier::notifyFrame()
                     mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
 
 #endif
+
+                    }
+                else if(( CameraFrame::PREVIEW_FRAME_SYNC== frame->mFrameType ) &&
+                             ( NULL != mCameraHal.get() ) &&
+                             ( NULL != mDataCb) &&
+                             ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME)  ))
+                    {
+
+                    buffer = mPreviewBuffers.valueAt(mPreviewBufCount);
+                    if(!buffer || !frame || !frame->mBuffer)
+                        {
+                        CAMHAL_LOGDA("Error! One of the buffer is NULL");
+                        break;
+                        }
+
+                    ///CAMHAL_LOGDB("+Copy 0x%x to 0x%x", buffer->pointer(), frame->mBuffer);
+                    ///Copy the data into 1-D buffer
+                    copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                                mPreviewPixelFormat);
+                    ///CAMHAL_LOGDA("-Copy");
+
+                    //Increment the buffer count
+                    mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
+
+                    ///Give preview callback to app
+                    mDataCb(CAMERA_MSG_PREVIEW_FRAME, buffer, mCallbackCookie);
 
                     }
                 else
@@ -609,6 +695,130 @@ void AppCallbackNotifier::setFrameProvider(FrameNotifier *frameNotifier)
         }
 
     LOG_FUNCTION_NAME_EXIT
+}
+
+status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == mFrameProvider )
+        {
+        CAMHAL_LOGEA("Trying to start video recording without FrameProvider");
+        return -1;
+        }
+
+    if(mPreviewing)
+        {
+        return -1;
+        }
+
+    int w,h;
+    params.getPreviewSize(&w, &h);
+    mPreviewHeap = new MemoryHeapBase(w*h*2*AppCallbackNotifier::MAX_BUFFERS);
+    mPreviewHeap->incStrong(this);
+    if(!mPreviewHeap)
+        {
+        return NO_MEMORY;
+        }
+
+    for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
+        {
+            MemoryBase * mBase = new MemoryBase(mPreviewHeap,w*h*2*i, w*h*2 );
+            if(!mBase)
+                {
+                mPreviewHeap->dispose();
+                for(int i=0;i<mPreviewBuffers.size();i++)
+                    {
+                    MemoryBase *mBase = mPreviewBuffers.valueAt(i);
+                    //Delete the instance
+                    mBase->decStrong(this);
+
+                    }
+                mPreviewHeap->decStrong(this);
+                return NO_MEMORY;
+                }
+            mBase->incStrong(this);
+            mPreviewBuffers.add(i, mBase);
+        }
+
+    //Get the preview pixel format
+    mPreviewPixelFormat = params.getPreviewFormat();
+
+    if ( NO_ERROR == ret )
+        {
+         mFrameProvider->enableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
+        }
+
+    mPreviewBufCount = 0;
+
+    mPreviewing = true;
+
+    return ret;
+
+}
+
+sp<IMemoryHeap> AppCallbackNotifier::getPreviewHeap()
+{
+
+    CAMHAL_LOGDA("getPreviewHeap");
+
+    return mPreviewHeap;
+}
+
+
+status_t AppCallbackNotifier::stopPreviewCallbacks()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == mFrameProvider )
+        {
+        CAMHAL_LOGEA("Trying to stop preview callbacks without FrameProvider");
+        ret = -1;
+        }
+
+    if(!mPreviewing)
+        {
+        return -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+         mFrameProvider->disableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
+        }
+
+    bool alreadyStopped = false;
+    if(stop()==ALREADY_EXISTS)
+        {
+        alreadyStopped = true;
+        }
+
+    mPreviewHeap->dispose();
+
+    //Free the buffers
+    for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
+        {
+           MemoryBase *mBase = mPreviewBuffers.valueAt(i);
+
+           //Delete the instance
+           mBase->decStrong(this);
+        }
+
+    mPreviewHeap->decStrong(this);
+
+    if(!alreadyStopped)
+        {
+        start();
+        }
+
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+
 }
 
 status_t AppCallbackNotifier::startRecording()

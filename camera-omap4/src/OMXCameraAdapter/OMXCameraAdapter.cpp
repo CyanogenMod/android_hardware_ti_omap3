@@ -201,6 +201,11 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             CAMHAL_LOGDA("YUV420SP format selected");
             pixFormat = OMX_COLOR_FormatYUV420SemiPlanar;
             }
+        else if(strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
+            {
+            CAMHAL_LOGDA("RGB565 format selected");
+            pixFormat = OMX_COLOR_Format16bitRGB565;
+            }
         else
             {
             CAMHAL_LOGDA("Invalid format, YCbCr format selected as default");
