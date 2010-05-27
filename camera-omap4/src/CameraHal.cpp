@@ -226,55 +226,43 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("PreviewFormat %s", params.getPreviewFormat());
 
-    if ( params.getPreviewFormat() != NULL )
+    if ( !isParameterValid(params.getPreviewFormat(), (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue))
         {
-        if (strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) != 0)
-            {
-            CAMHAL_LOGEA("Only yuv422i preview is supported");
-            LOG_FUNCTION_NAME_EXIT
-            return -1;
-            }
-    }
+        CAMHAL_LOGEB("Invalid preview format %s",  (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue);
+        return -EINVAL;
+        }
 
-    CAMHAL_LOGDB("PictureFormat %s", params.getPictureFormat());
-    if ( params.getPictureFormat() != NULL )
+    if ( !isParameterValid(params.getPictureFormat(), (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue))
         {
-        if (strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_JPEG) != 0)
-            {
-            CAMHAL_LOGEA("Only jpeg still pictures are supported");
-            LOG_FUNCTION_NAME_EXIT
-            return -1;
-            }
+        CAMHAL_LOGEA("Invalid picture format");
+        return -EINVAL;
         }
 
     params.getPreviewSize(&w, &h);
-    if (!validateSize(w, h))
+    if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
         {
-        CAMHAL_LOGEA("Preview size not supported");
-        LOG_FUNCTION_NAME_EXIT
-        return -1;
+        CAMHAL_LOGEA("Invalid preview resolution");
+        return -EINVAL;
         }
 
     CAMHAL_LOGDB("PreviewResolution by App %d x %d", w, h);
 
-    mParameters.getPreviewSize(&w_orig, &h_orig);
-    if((w!=w_orig) || (h_orig!=h))
+    params.getPictureSize(&w, &h);
+    if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue))
         {
-        ///Free the preview buffers if size is different from what is currently configured,buffers will be re-allocated
-        ///again in startPreview. For overlay, anyway re-allocation doesn't happen, we just return from freePreviewBufs
-        freePreviewBufs();
+        CAMHAL_LOGEA("Invalid picture resolution");
+        return -EINVAL;
         }
 
-    params.getPictureSize(&w, &h);
-    if (!validateSize(w, h))
-        {
-        CAMHAL_LOGEA("Picture size not supported");
-        LOG_FUNCTION_NAME_EXIT
-        return -1;
-        }
     CAMHAL_LOGDB("Picture Size by App %d x %d", w, h);
 
     framerate = params.getPreviewFrameRate();
+    if ( !isParameterValid(framerate, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue))
+        {
+        CAMHAL_LOGEA("Invalid frame rate");
+        return -EINVAL;
+        }
+
     CAMHAL_LOGDB("FRAMERATE %d", framerate);
 
     if ( NULL != mCameraAdapter.get() )
@@ -302,17 +290,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     return ret;
 
     }
-
-int CameraHal::validateSize(int w, int h)
-{
-    if ((w < MIN_WIDTH) || (h < MIN_HEIGHT))
-        {
-        return false;
-        }
-
-    return true;
-}
-
 
 status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewFormat)
 {
@@ -1546,6 +1523,126 @@ void CameraHal::dumpProperties(CameraProperties::CameraProperty** cameraProps)
         {
         CAMHAL_LOGDB("%s = %s", cameraProps[i]->mPropName, cameraProps[i]->mPropValue);
         }
+}
+
+bool CameraHal::isResolutionValid(unsigned int width, unsigned int height, const char *supportedResolutions)
+{
+    bool ret = true;
+    status_t status = NO_ERROR;
+    char tmpBuffer[PARAM_BUFFER + 1];
+    char *pos = NULL;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == supportedResolutions )
+        {
+        CAMHAL_LOGEA("Invalid supported resolutions string");
+        ret = false;
+        goto exit;
+        }
+
+    status = snprintf(tmpBuffer, PARAM_BUFFER, "%dx%d", width, height);
+    if ( 0 > status )
+        {
+        CAMHAL_LOGEA("Error encountered while generating validation string");
+        ret = false;
+        goto exit;
+        }
+
+    pos = strstr(supportedResolutions, tmpBuffer);
+    if ( NULL == pos )
+        {
+        ret = false;
+        }
+    else
+        {
+        ret = true;
+        }
+
+exit:
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+bool CameraHal::isParameterValid(const char *param, const char *supportedParams)
+{
+    bool ret = true;
+    char *pos = NULL;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == supportedParams )
+        {
+        CAMHAL_LOGEA("Invalid supported parameters string");
+        ret = false;
+        goto exit;
+        }
+
+    if ( NULL == param )
+        {
+        CAMHAL_LOGEA("Invalid parameter string");
+        ret = false;
+        goto exit;
+        }
+
+    pos = strstr(supportedParams, param);
+    if ( NULL == pos )
+        {
+        ret = false;
+        }
+    else
+        {
+        ret = true;
+        }
+
+exit:
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+bool CameraHal::isParameterValid(int param, const char *supportedParams)
+{
+    bool ret = true;
+    char *pos = NULL;
+    status_t status;
+    char tmpBuffer[PARAM_BUFFER + 1];
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == supportedParams )
+        {
+        CAMHAL_LOGEA("Invalid supported parameters string");
+        ret = false;
+        goto exit;
+        }
+
+    status = snprintf(tmpBuffer, PARAM_BUFFER, "%d", param);
+    if ( 0 > status )
+        {
+        CAMHAL_LOGEA("Error encountered while generating validation string");
+        ret = false;
+        goto exit;
+        }
+
+    pos = strstr(supportedParams, tmpBuffer);
+    if ( NULL == pos )
+        {
+        ret = false;
+        }
+    else
+        {
+        ret = true;
+        }
+
+exit:
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 void CameraHal::insertSupportedParams(CameraParameters &p)

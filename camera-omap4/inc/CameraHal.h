@@ -46,10 +46,10 @@
 #include "CameraProperties.h"
 #include "DebugUtils.h"
 
-#define MIN_WIDTH           128
-#define MIN_HEIGHT          96
-#define PICTURE_WIDTH   4000 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
-#define PICTURE_HEIGHT  3000 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
+#define MIN_WIDTH           640
+#define MIN_HEIGHT          480
+#define PICTURE_WIDTH   640 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
+#define PICTURE_HEIGHT  480 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
 #define PREVIEW_WIDTH 176
 #define PREVIEW_HEIGHT 144
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
@@ -831,14 +831,17 @@ private:
             /** Free image bufs */
             status_t freeImageBufs();
 
+            //Check if a given resolution is supported by the current camera
+            //instance
+            bool isResolutionValid(unsigned int width, unsigned int height, const char *supportedResolutions);
+
+            //Check if a given parameter is supported by the current camera
+            // instance
+            bool isParameterValid(const char *param, const char *supportedParams);
+            bool isParameterValid(int param, const char *supportedParams);
+
             /** Initialize default parameters */
             void initDefaultParameters();
-
-            /** Method to validate the size supported by CameraHal
-              * @todo Currently this checks only for minimum size and for both IC and PRVIEW, change this
-              *           method to something more generic and which checks for validity of all parameters
-              */
-            int validateSize(int w, int h);
 
             void dumpProperties(CameraProperties::CameraProperty** cameraProps);
 

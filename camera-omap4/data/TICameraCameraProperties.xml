@@ -4,10 +4,11 @@
 <camera-name>OMX Camera</camera-name>
 <camera-adapter-dll-name>libomxcameraadapter.so</camera-adapter-dll-name>
 <preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
-<preview-format-values>uyvy</preview-format-values>
+<preview-format-values>yuv422i-yuyv</preview-format-values>
 <preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
 <picture-size-values>3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240</picture-size-values><picture-format-values>jpeg</picture-format-values>
 <jpeg-thumbnail-size-values>80x60</jpeg-thumbnail-size-values>
+<picture-format-values>jpeg</picture-format-values>
 <whitebalance-values>auto</whitebalance-values>
 <effect-values>none</effect-values>
 <antibanding-values>auto</antibanding-values>
@@ -21,7 +22,7 @@
 <camera-name>Secondary Camera</camera-name>
 <camera-adapter-dll-name>libfakecameraadapter.so</camera-adapter-dll-name>
 <preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
-<preview-format-values>uyvy</preview-format-values>
+<preview-format-values>yuv422i-yuyv</preview-format-values>
 <preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
 <picture-size-values>3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240</picture-size-values>
 <picture-format-values>jpeg</picture-format-values>
@@ -39,7 +40,7 @@
 <camera-name>Dual Camera</camera-name>
 <camera-adapter-dll-name>libfakecameraadapter.so</camera-adapter-dll-name>
 <preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
-<preview-format-values>uyvy</preview-format-values>
+<preview-format-values>yuv422i-yuyv</preview-format-values>
 <preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
 <picture-size-values>1280x1024,1152x964,640x480,320x240</picture-size-values>
 <picture-format-values>jpeg</picture-format-values>
