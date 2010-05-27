@@ -136,8 +136,11 @@ void CameraHal::setCallbacks(notify_callback notify_cb,
 void CameraHal::enableMsgType(int32_t msgType)
 {
     LOG_FUNCTION_NAME
+
+    {
     Mutex::Autolock lock(mLock);
     mMsgEnabled |= msgType;
+    }
 
     if(mMsgEnabled &CAMERA_MSG_PREVIEW_FRAME)
         {
@@ -166,15 +169,17 @@ void CameraHal::enableMsgType(int32_t msgType)
 void CameraHal::disableMsgType(int32_t msgType)
 {
     LOG_FUNCTION_NAME
-    Mutex::Autolock lock(mLock);
 
-    if((mMsgEnabled &CAMERA_MSG_PREVIEW_FRAME) && ( msgType & CAMERA_MSG_PREVIEW_FRAME))
+        {
+        Mutex::Autolock lock(mLock);
+        mMsgEnabled &= ~msgType;
+        }
+
+    if( msgType & CAMERA_MSG_PREVIEW_FRAME)
         {
         CAMHAL_LOGDA("Disabling Preview Callback");
         mAppCallbackNotifier->stopPreviewCallbacks();
         }
-
-    mMsgEnabled &= ~msgType;
 
     LOG_FUNCTION_NAME_EXIT
 }

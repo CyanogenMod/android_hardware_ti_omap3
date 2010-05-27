@@ -416,7 +416,8 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME)  ))
                     {
-
+                        {
+                        Mutex::Autolock lock(mLock);
                     buffer = mPreviewBuffers.valueAt(mPreviewBufCount);
                     if(!buffer || !frame || !frame->mBuffer)
                         {
@@ -432,6 +433,8 @@ void AppCallbackNotifier::notifyFrame()
 
                     //Increment the buffer count
                     mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
+
+                        }
 
                     ///Give preview callback to app
                     mDataCb(CAMERA_MSG_PREVIEW_FRAME, buffer, mCallbackCookie);
@@ -703,6 +706,8 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params)
 
     LOG_FUNCTION_NAME
 
+    Mutex::Autolock lock(mLock);
+
     if ( NULL == mFrameProvider )
         {
         CAMHAL_LOGEA("Trying to start video recording without FrameProvider");
@@ -791,12 +796,9 @@ status_t AppCallbackNotifier::stopPreviewCallbacks()
         }
 
     bool alreadyStopped = false;
-    if(stop()==ALREADY_EXISTS)
-        {
-        alreadyStopped = true;
-        }
 
-    mPreviewHeap->dispose();
+        {
+    Mutex::Autolock lock(mLock);
 
     //Free the buffers
     for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
@@ -809,11 +811,9 @@ status_t AppCallbackNotifier::stopPreviewCallbacks()
 
     mPreviewHeap->decStrong(this);
 
-    if(!alreadyStopped)
-        {
-        start();
-        }
+    }
 
+    mPreviewing = false;
 
     LOG_FUNCTION_NAME_EXIT
 
