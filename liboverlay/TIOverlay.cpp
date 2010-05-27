@@ -765,8 +765,23 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     const char* paneltobeDisabled = NULL;
     static const char* panelname = "lcd";
     static const char* managername = "lcd";
+    char overlaymanagername[PATH_MAX];
+    int strmatch;
     int fd = overlayobj->getctrl_videofd();
     overlay_data_t eCropData;
+
+#ifdef TARGET_OMAP4
+    /** NOTE: In order to support HDMI without app explicitly requesting for
+    * the screen ID, this is the alternative path
+    * check for the overlay manager (here assumption is that: overlay manager
+    * is set from command line prior to playing the media clip
+    */
+    if (sysfile_read(overlayobj->overlaymanagerpath, &overlaymanagername, PATH_MAX) < 0) {
+        LOGE("Overlay manager Name Get failed [%d]", __LINE__);
+        return -1;
+    }
+    strtok(overlaymanagername, "\n");
+#endif
 
     pthread_mutex_lock(&overlayobj->lock);
 
@@ -888,12 +903,21 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         w2 = w;
         h2 = h; /* leave w/h unchanged (default) if could not read timings */
     }
+    strmatch = strcmp(overlaymanagername, "tv");
+
     if (stage->panel == OVERLAY_ON_TV) {
         LOGE("for HDTV use the timing resolution");
         x = 0;
         y = 0;
         w = w2;
         h = h2;
+    }
+    else if (!strmatch) {
+        LOGE("HDTV requested from command line");
+        x = 0;
+        y = 0;
+        w = FULLHD_WIDTH;
+        h = FULLHD_HEIGHT;
     }
     else {
         LOGE("for non TV panels, use the timings resolution as the upper limit");
