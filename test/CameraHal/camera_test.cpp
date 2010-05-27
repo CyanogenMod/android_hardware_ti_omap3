@@ -758,6 +758,8 @@ void initDefaults() {
     params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
     params.set(KEY_IPP, ippIdx);
     params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
+    params.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV422I);
+    params.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
     params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
 }
 
