@@ -179,6 +179,7 @@ status_t FakeCameraAdapter::sendCommand(int operation, int value1, int value2, i
 
                     CAMHAL_LOGEA("Invalid buffers descriptor!");
                     ret = -1;
+                    break;
                    }
 
                 mImageBufferCount = desc->mCount;

@@ -674,9 +674,10 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
             ///NULL overlay passed, destroy the display adapter if present
             CAMHAL_LOGEA("NULL Overlay passed to setOverlay, destroying display adapter");
             mDisplayAdapter.clear();
+            mSetOverlayCalled = false;
             }
         // Setting the buffer provider to memory manager
-                mBufProvider = (BufferProvider*) mMemoryManager.get();
+        mBufProvider = (BufferProvider*) mMemoryManager.get();
         return ret;
         }
 
@@ -813,6 +814,7 @@ void CameraHal::stopPreview()
 
     //Stop the source of frames
     mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
+
     freePreviewBufs();
     mPreviewEnabled = false;
 
@@ -838,8 +840,6 @@ void CameraHal::stopPreview()
 
         mReloadAdapter = false;
         }
-
-    mSetOverlayCalled = false;
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -1671,8 +1671,8 @@ void CameraHal::insertSupportedParams(CameraParameters &p)
             }
          //Set camera adapter index for reference
          p.set( ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, i);
-         strncat( ( char * ) tmpBuffer, ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, PARAM_BUFFER );
-         strncat( ( char * ) tmpBuffer, ( const char * ) PARAMS_DELIMITER, PARAM_BUFFER);
+         strncat( ( char * ) tmpBuffer, ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, INDEX_LENGTH );
+         strncat( ( char * ) tmpBuffer, ( const char * ) PARAMS_DELIMITER, INDEX_LENGTH);
         }
     p.set(TICameraParameters::KEY_SUPPORTED_CAMERAS, tmpBuffer);
     p.set(TICameraParameters::KEY_CAMERA, mCameraIndex);
@@ -1843,6 +1843,8 @@ void CameraHal::deinitialize()
 
     /// Free the display adapter
     mDisplayAdapter.clear();
+
+    mSetOverlayCalled = false;
 
     /// Free the camera adapter
     mCameraAdapter.clear();

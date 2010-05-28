@@ -565,7 +565,7 @@ void OverlayDisplayAdapter::displayThread()
         /// @bug With mFramesWithDisplay>2, we will have always 2 buffers with overlay.
         ///          Ideally, we should remove this check and dequeue immediately when mDisplayQ is not empty
         ///          But there is some bug in OMX which is causing a crash when performing OMX_FillThisBuffer call
-        else  if( !mDisplayQ.isEmpty() & mFramesWithDisplay>2)
+        else  if( !mDisplayQ.isEmpty() & (mFramesWithDisplay>4))
             {
             if ( mDisplayState== OverlayDisplayAdapter::DISPLAY_INIT )
                 {

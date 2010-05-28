@@ -140,8 +140,8 @@ typedef struct {
 #define SNAPSHOT_THREAD_EXIT    0x2
 
 #define PAGE                    0x1000
-#define PARAM_BUFFER            768
-#define INDEX_LENGTH            3
+#define PARAM_BUFFER            6000
+#define INDEX_LENGTH            20
 
 
 ///Forward declarations

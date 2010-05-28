@@ -51,6 +51,7 @@ Semaphore::~Semaphore()
     if(mSemaphore)
         {
         sem_destroy(mSemaphore);
+        if(mSemaphore)
         free(mSemaphore);
         }
 }

@@ -321,6 +321,11 @@ void AppCallbackNotifier::notifyFrame()
         {
     mFrameQ.get(&msg);
         }
+    else
+        {
+        return;
+        }
+
     bool ret = true;
 
     frame = NULL;
@@ -329,6 +334,11 @@ void AppCallbackNotifier::notifyFrame()
         case AppCallbackNotifier::NOTIFIER_CMD_PROCESS_FRAME:
 
                 frame = (CameraFrame *) msg.arg1;
+                if(!frame)
+                    {
+                    break;
+                    }
+
                 if ( (CameraFrame::RAW_FRAME == frame->mFrameType )&&
                     ( NULL != mCameraHal.get() ) &&
                     ( NULL != mDataCb) &&
@@ -416,10 +426,8 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME)  ))
                     {
-                        {
-                        Mutex::Autolock lock(mLock);
                     buffer = mPreviewBuffers.valueAt(mPreviewBufCount);
-                    if(!buffer || !frame || !frame->mBuffer)
+                    if(!buffer || !frame->mBuffer)
                         {
                         CAMHAL_LOGDA("Error! One of the buffer is NULL");
                         break;
@@ -433,8 +441,6 @@ void AppCallbackNotifier::notifyFrame()
 
                     //Increment the buffer count
                     mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
-
-                        }
 
                     ///Give preview callback to app
                     mDataCb(CAMERA_MSG_PREVIEW_FRAME, buffer, mCallbackCookie);
@@ -797,21 +803,8 @@ status_t AppCallbackNotifier::stopPreviewCallbacks()
 
     bool alreadyStopped = false;
 
-        {
-    Mutex::Autolock lock(mLock);
-
-    //Free the buffers
-    for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
-        {
-           MemoryBase *mBase = mPreviewBuffers.valueAt(i);
-
-           //Delete the instance
-           mBase->decStrong(this);
-        }
-
-    mPreviewHeap->decStrong(this);
-
-    }
+    mPreviewHeap = NULL;
+    mPreviewBuffers.clear();
 
     mPreviewing = false;
 
