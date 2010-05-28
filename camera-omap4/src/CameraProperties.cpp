@@ -261,7 +261,6 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
             if ( NO_ERROR != ret)
                 {
                 CAMHAL_LOGEA("Allocation failed for properties array");
-                freeCameraProps(curCameraIndex);
                 LOG_FUNCTION_NAME_EXIT
                 return ret;
                 }
@@ -403,9 +402,11 @@ exit:
 
 status_t CameraProperties::createPropertiesArray(CameraProperties::CameraProperty** &cameraProps)
 {
+    int i;
+
     LOG_FUNCTION_NAME
 
-    for( int i=0 ; i < CameraProperties::PROP_INDEX_MAX; i++)
+    for( i = 0 ; i < CameraProperties::PROP_INDEX_MAX; i++)
         {
 
         ///Creating key with NULL value
@@ -414,14 +415,25 @@ status_t CameraProperties::createPropertiesArray(CameraProperties::CameraPropert
             {
             CAMHAL_LOGEB("Allocation failed for camera property class for key %s"
                                 , getCameraPropertyKey( (CameraProperties::CameraPropertyIndex) i));
-            LOG_FUNCTION_NAME_EXIT
-            return NO_MEMORY;
+
+            goto no_memory;
             }
         }
 
     LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
+
+no_memory:
+
+    for( int j = 0 ; j < i; j++)
+        {
+        delete cameraProps[j];
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return NO_MEMORY;
 }
 
 status_t CameraProperties::freeCameraProps(int cameraIndex)
