@@ -32,7 +32,13 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
     endif
   endif
 
-  LOCAL_SRC_FILES:= alsa_omap3.cpp
+  ifeq ($(strip $(TARGET_BOARD_PLATFORM)), omap3)
+    LOCAL_SRC_FILES:= alsa_omap3.cpp
+  endif
+  ifeq ($(strip $(TARGET_BOARD_PLATFORM)), omap4)
+    LOCAL_SRC_FILES:= alsa_omap4.cpp
+  endif
+
   ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
     LOCAL_SRC_FILES += alsa_omap3_modem.cpp
   endif
@@ -55,7 +61,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
     endif
   endif
 
-  LOCAL_MODULE:= alsa.$(TARGET_PRODUCT)
+  LOCAL_MODULE:= alsa.$(TARGET_BOARD_PLATFORM)
 
   include $(BUILD_SHARED_LIBRARY)
 
