@@ -66,6 +66,7 @@ int rotation = 0;
 bool reSizePreview = true;
 bool hardwareActive = false;
 bool recordingMode = false;
+bool previewRunning = false;
 int saturation = 0;
 int zoomIdx = 0;
 int videoCodecIdx = 0;
@@ -318,6 +319,23 @@ out:
     LOG_FUNCTION_NAME_EXIT
 }
 
+void debugShowFPS()
+{
+    static int mFrameCount = 0;
+    static int mLastFrameCount = 0;
+    static nsecs_t mLastFpsTime = 0;
+    static float mFps = 0;
+    mFrameCount++;
+    if ( ( mFrameCount % 30 ) == 0 ) {
+        nsecs_t now = systemTime();
+        nsecs_t diff = now - mLastFpsTime;
+        mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        mLastFpsTime = now;
+        mLastFrameCount = mFrameCount;
+        printf("####### [%d] Frames, %f FPS", mFrameCount, mFps);
+    }
+}
+
 /** Callback for startPreview() */
 void my_preview_callback(const sp<IMemory>& mem) {
     if (dump_preview) {
@@ -325,8 +343,7 @@ void my_preview_callback(const sp<IMemory>& mem) {
         dump_preview = 0;
     }
 
-    printf(".");
-    fflush(stdout);
+    debugShowFPS();
 }
 
 /** Callback for takePicture() */
@@ -675,6 +692,7 @@ int startPreview() {
 
         camera->startPreview();
 
+        previewRunning = true;
         reSizePreview = false;
         hardwareActive = true;
     } else if ( reSizePreview && hardwareActive ) {
@@ -694,6 +712,7 @@ int startPreview() {
 
         camera->startPreview();
 
+        previewRunning = true;
         reSizePreview = false;
         hardwareActive = true;
     }
@@ -707,6 +726,7 @@ void stopPreview() {
         closeCamera();
         destroyPreviewSurface();
 
+        previewRunning  = false;
         reSizePreview = true;
         hardwareActive = false;
     }
@@ -880,7 +900,8 @@ int functional_menu() {
         printf("   o. Jpeg Quality:   %d\n", jpegQuality);
         printf("   f. Auto Focus\n");
         printf("   p. Take picture\n");
-        printf("   m. Start Video Recording dump ( 5 raw frames ) \n");
+        printf("   *. Start Video Recording dump ( 5 raw frames ) \n");
+        printf("   &. Dump a preview frame\n");
         printf("   a. GEO tagging settings menu\n");
         printf("\n");
         printf("   q. Quit\n");
@@ -929,7 +950,6 @@ int functional_menu() {
             rotation += 90;
             rotation %= 360;
             params.set(KEY_ROTATION, rotation);
-
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
 
@@ -941,9 +961,13 @@ int functional_menu() {
             params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
             reSizePreview = true;
 
-            if ( hardwareActive )
-                camera->setParameters(params.flatten());
-
+        if ( hardwareActive && previewRunning ) {
+            camera->stopPreview();
+            camera->setParameters(params.flatten());
+            camera->startPreview();
+        } else if ( hardwareActive ) {
+            camera->setParameters(params.flatten());
+        }
             break;
 
         case '5':
@@ -1238,8 +1262,7 @@ int functional_menu() {
 
             break;
 
-        case 'N':
-        case 'n':
+        case '&':
             dump_preview = 1;
             break;
 
@@ -1439,8 +1462,13 @@ int execute_script(char *script) {
 
                 reSizePreview = true;
 
-                if ( hardwareActive )
+                if ( hardwareActive && previewRunning ) {
+                    camera->stopPreview();
                     camera->setParameters(params.flatten());
+                    camera->startPreview();
+                } else if ( hardwareActive ) {
+                    camera->setParameters(params.flatten());
+                }
 
                 break;
 
@@ -1529,6 +1557,10 @@ int execute_script(char *script) {
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
 
+                break;
+
+            case '&':
+                dump_preview = 1;
                 break;
 
             case 'k':
