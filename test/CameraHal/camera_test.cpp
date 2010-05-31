@@ -1354,7 +1354,7 @@ char * get_cycle_cmd(const char *aSrc) {
     return cycle_cmd;
 }
 
-int execute_script(char *script) {
+int execute_functional_script(char *script) {
     char *cmd, *ctx, *cycle_cmd, *temp_cmd;
     char id;
     unsigned int i;
@@ -1380,7 +1380,7 @@ int execute_script(char *script) {
 
                 for (unsigned ind = 0; ind < cycleCounter; ind++) {
                     strcpy(temp_cmd, cycle_cmd);
-                    execute_script(temp_cmd);
+                    execute_functional_script(temp_cmd);
                     temp_cmd[0] = '\0';
 
                     //patch for image capture
@@ -1757,6 +1757,200 @@ exit:
     return 0;
 }
 
+int execute_error_script(char *script) {
+    char *cmd, *ctx;
+    char id;
+    status_t stat = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    cmd = strtok_r((char *) script, DELIMITER, &ctx);
+
+    while ( NULL != cmd ) {
+        id = cmd[0];
+
+        switch (id) {
+
+            case '0': {
+                bufferStarvationTest = 1;
+                params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
+
+                if ( !recordingMode ) {
+
+                    if ( startPreview() < 0 ) {
+                        printf("Error while starting preview\n");
+
+                        return -1;
+                    }
+
+                    if ( openRecorder() < 0 ) {
+                        printf("Error while openning video recorder\n");
+
+                        return -1;
+                    }
+
+                    if ( configureRecorder() < 0 ) {
+                        printf("Error while configuring video recorder\n");
+
+                        return -1;
+                    }
+
+                    if ( startRecording() < 0 ) {
+                        printf("Error while starting video recording\n");
+
+                        return -1;
+                    }
+
+                    recordingMode = true;
+                }
+
+                usleep(1000000);//1s
+
+                stopPreview();
+
+                if ( recordingMode ) {
+                    stopRecording();
+                    closeRecorder();
+
+                    recordingMode = false;
+                }
+
+                break;
+            }
+
+            case '1': {
+                int* tMemoryEater = new int[999999999];
+
+                if (!tMemoryEater) {
+                    printf("Not enough memory\n");
+                    return -1;
+                } else {
+                    delete tMemoryEater;
+                }
+
+                break;
+            }
+
+            case '2': {
+                //camera = Camera::connect();
+
+                if ( NULL == camera.get() ) {
+                    printf("Unable to connect to CameraService\n");
+                    return -1;
+                }
+
+                break;
+            }
+
+            case '3': {
+                int err = 0;
+
+                err = open("/dev/video5", O_RDWR);
+
+                if (err < 0) {
+                    printf("Could not open the camera device5: %d\n",  err );
+                    return err;
+                }
+
+                if ( startPreview() < 0 ) {
+                    printf("Error while starting preview\n");
+                    return -1;
+                }
+
+                usleep(1000000);//1s
+
+                stopPreview();
+
+                close(err);
+                break;
+            }
+
+            case '4': {
+
+                if ( hardwareActive ) {
+
+                    params.setPictureFormat("invalid-format");
+                    params.setPreviewFormat("invalid-format");
+
+                    stat = camera->setParameters(params.flatten());
+
+                    if ( NO_ERROR != stat ) {
+                        printf("Test passed!\n");
+                    } else {
+                        printf("Test failed!\n");
+                    }
+
+                    initDefaults();
+                }
+
+                break;
+            }
+
+            case '5': {
+
+                if ( hardwareActive ) {
+
+                    params.setPictureSize(-1, -1);
+                    params.setPreviewSize(-1, -1);
+
+                    stat = camera->setParameters(params.flatten());
+
+                    if ( NO_ERROR != stat ) {
+                        printf("Test passed!\n");
+                    } else {
+                        printf("Test failed!\n");
+                    }
+
+                    initDefaults();
+                }
+
+                break;
+            }
+
+            case '6': {
+
+                if ( hardwareActive ) {
+
+                    params.setPreviewFrameRate(-1);
+
+                    stat = camera->setParameters(params.flatten());
+
+                    if ( NO_ERROR != stat ) {
+                        printf("Test passed!\n");
+                    } else {
+                        printf("Test failed!\n");
+                    }
+
+                    initDefaults();
+                }
+
+
+                break;
+            }
+
+            case 'q': {
+                goto exit;
+
+                break;
+            }
+
+            default: {
+                printf("Unrecognized command!\n");
+
+                break;
+            }
+        }
+
+        cmd = strtok_r(NULL, DELIMITER, &ctx);
+    }
+
+exit:
+
+    return 0;
+}
+
+
+
 void print_usage() {
     printf(" USAGE: camera_test  <param>  <script>\n");
     printf(" <param>\n-----------\n\n");
@@ -1771,20 +1965,18 @@ void print_usage() {
 
 int error_scenario() {
     char ch;
+    status_t stat = NO_ERROR;
 
     if (print_menu) {
         printf("   0. Buffer need\n");
-        printf("\n");
         printf("   1. Not enough memory\n");
-        printf("\n");
         printf("   2. Media server crash\n");
-        printf("\n");
         printf("   3. Overlay object request\n");
-        printf("\n");
-        printf("   4. Other\n");
-        printf("\n");
+        printf("   4. Pass unsupported preview&picture format\n");
+        printf("   5. Pass unsupported preview&picture resolution\n");
+        printf("   6. Pass unsupported preview framerate\n");
+
         printf("   q. Quit\n");
-        printf("\n");
         printf("   Choice: ");
     }
 
@@ -1840,6 +2032,7 @@ int error_scenario() {
 
             break;
         }
+
         case '1': {
             printf("Case1:Not enough memory\n");
             int* tMemoryEater = new int[999999999];
@@ -1853,6 +2046,7 @@ int error_scenario() {
 
             break;
         }
+
         case '2': {
             printf("Case2:Media server crash\n");
             //camera = Camera::connect();
@@ -1864,6 +2058,7 @@ int error_scenario() {
 
             break;
         }
+
         case '3': {
             printf("Case3:Overlay object request\n");
             int err = 0;
@@ -1885,6 +2080,69 @@ int error_scenario() {
             stopPreview();
 
             close(err);
+            break;
+        }
+
+        case '4': {
+
+            if ( hardwareActive ) {
+
+                params.setPictureFormat("invalid-format");
+                params.setPreviewFormat("invalid-format");
+
+                stat = camera->setParameters(params.flatten());
+
+                if ( NO_ERROR != stat ) {
+                    printf("Test passed!\n");
+                } else {
+                    printf("Test failed!\n");
+                }
+
+                initDefaults();
+            }
+
+            break;
+        }
+
+        case '5': {
+
+            if ( hardwareActive ) {
+
+                params.setPictureSize(-1, -1);
+                params.setPreviewSize(-1, -1);
+
+                stat = camera->setParameters(params.flatten());
+
+                if ( NO_ERROR != stat ) {
+                    printf("Test passed!\n");
+                } else {
+                    printf("Test failed!\n");
+                }
+
+                initDefaults();
+            }
+
+            break;
+        }
+
+        case '6': {
+
+            if ( hardwareActive ) {
+
+                params.setPreviewFrameRate(-1);
+
+                stat = camera->setParameters(params.flatten());
+
+                if ( NO_ERROR != stat ) {
+                    printf("Test passed!\n");
+                } else {
+                    printf("Test failed!\n");
+                }
+
+                initDefaults();
+            }
+
+
             break;
         }
 
@@ -1960,6 +2218,17 @@ int main(int argc, char *argv[]) {
 
             case 'E':
             case 'e': {
+                ProcessState::self()->startThreadPool();
+
+                if ( openCamera() < 0 ) {
+                    printf("Camera initialization failed\n");
+
+                    return -1;
+                }
+
+                hardwareActive = true;
+                params.unflatten(camera->getParameters());
+                initDefaults();
                 print_menu = 1;
 
                 while (1) {
@@ -1995,9 +2264,31 @@ int main(int argc, char *argv[]) {
         cmd = load_script(argv[2]);
 
         if ( cmd != NULL) {
-            execute_script(cmd);
+            execute_functional_script(cmd);
             free(cmd);
         }
+    } else if ( ( argc == 3) && ( ( *argv[1] == 'E' ) || ( *argv[1] == 'e') ) ) {
+
+        ProcessState::self()->startThreadPool();
+
+        if ( openCamera() < 0 ) {
+            printf("Camera initialization failed\n");
+
+            return -1;
+        }
+
+        hardwareActive = true;
+
+        params.unflatten(camera->getParameters());
+        initDefaults();
+
+        cmd = load_script(argv[2]);
+
+        if ( cmd != NULL) {
+            execute_error_script(cmd);
+            free(cmd);
+        }
+
     } else {
         printf("INVALID OPTION USED\n");
         print_usage();
