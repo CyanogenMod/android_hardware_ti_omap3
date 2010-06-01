@@ -258,6 +258,9 @@ private:
     status_t stopImageCapture();
     status_t UseBuffersCapture(void* bufArr, int num);
 
+    //Used for calculation of the average frame rate during preview
+    status_t recalculateFPS();
+
     ///Send the frame to subscribers
     status_t  sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame = 0);
 
@@ -272,6 +275,9 @@ private:
     struct timeval mStartCapture;
 
 #endif
+
+    //variables holding the estimated framerate
+    float mFPS, mLastFPS;
 
      //local copy
     CameraParameters mParams;

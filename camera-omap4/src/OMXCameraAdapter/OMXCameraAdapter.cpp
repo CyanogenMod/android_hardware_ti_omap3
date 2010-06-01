@@ -11,6 +11,8 @@ namespace android {
 
 #define LOG_TAG "OMXCameraAdapter"
 
+//frames skipped before recalculating the framerate
+#define FPS_PERIOD 30
 
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
@@ -971,6 +973,10 @@ status_t OMXCameraAdapter::startPreview()
 
     mComponentState = OMX_StateExecuting;
 
+    //reset frame rate estimates
+    mFPS = 0.0f;
+    mLastFPS = 0.0f;
+
     LOG_FUNCTION_NAME_EXIT
     return ret;
 
@@ -1084,6 +1090,8 @@ status_t OMXCameraAdapter::stopPreview()
     mPreviewing = false;
 
     LOG_FUNCTION_NAME_EXIT
+
+    CAMHAL_LOGEB("Average framerate: %f", mFPS);
 
     return (ret | ErrorUtils::omxToAndroidError(eError));
 
@@ -1669,6 +1677,42 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
     return eError;
 }
 
+status_t OMXCameraAdapter::recalculateFPS()
+{
+    static int frameCount = 0;
+    static unsigned int iter = 1;
+    static int lastFrameCount = 0;
+    static nsecs_t lastFPSTime = 0;
+    float currentFPS;
+
+    frameCount++;
+
+    if ( ( frameCount % FPS_PERIOD ) == 0 )
+        {
+        nsecs_t now = systemTime();
+        nsecs_t diff = now - lastFPSTime;
+        currentFPS =  ((frameCount - lastFrameCount) * float(s2ns(1))) / diff;
+        lastFPSTime = now;
+        lastFrameCount = frameCount;
+
+        if ( 1 == iter )
+            {
+            mFPS = currentFPS;
+            }
+        else
+            {
+            //cumulative moving average
+            mFPS = mLastFPS + (currentFPS - mLastFPS)/iter;
+            }
+
+        mLastFPS = mFPS;
+        iter++;
+        }
+
+    return NO_ERROR;
+}
+
+
 status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame)
 {
     frame_callback callback;
@@ -1693,6 +1737,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
      {
         for(int i = 0 ; i < mFrameSubscribers.size(); i++ )
         {
+            recalculateFPS();
             cFrame.mFrameType = typeOfFrame;
             cFrame.mBuffer = pBuffHeader->pBuffer;
             cFrame.mCookie = (void *) mFrameSubscribers.keyAt(i);
