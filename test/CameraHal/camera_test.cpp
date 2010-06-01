@@ -963,13 +963,14 @@ int functional_menu() {
             params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
             reSizePreview = true;
 
-        if ( hardwareActive && previewRunning ) {
-            camera->stopPreview();
-            camera->setParameters(params.flatten());
-            camera->startPreview();
-        } else if ( hardwareActive ) {
-            camera->setParameters(params.flatten());
-        }
+            if ( hardwareActive && previewRunning ) {
+                camera->stopPreview();
+                camera->setParameters(params.flatten());
+                camera->startPreview();
+            } else if ( hardwareActive ) {
+                camera->setParameters(params.flatten());
+            }
+
             break;
 
         case '5':
@@ -1217,8 +1218,13 @@ int functional_menu() {
             frameRateIDX %= ARRAY_SIZE(frameRate);
             params.setPreviewFrameRate(frameRate[frameRateIDX].fps);
 
-            if ( hardwareActive )
+            if ( hardwareActive && previewRunning ) {
+                camera->stopPreview();
                 camera->setParameters(params.flatten());
+                camera->startPreview();
+            } else if ( hardwareActive ) {
+                camera->setParameters(params.flatten());
+            }
 
             break;
 
@@ -1684,8 +1690,13 @@ int execute_functional_script(char *script) {
             case 'R':
                 params.setPreviewFrameRate(atoi(cmd + 1));
 
-                if ( hardwareActive )
+                if ( hardwareActive && previewRunning ) {
+                    camera->stopPreview();
                     camera->setParameters(params.flatten());
+                    camera->startPreview();
+                } else if ( hardwareActive ) {
+                    camera->setParameters(params.flatten());
+                }
 
                 break;
 
