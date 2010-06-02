@@ -350,7 +350,7 @@ public:
     ///Constants
     static const int NOTIFIER_TIMEOUT;
 
-    static const int32_t MAX_BUFFERS;
+    static const int32_t MAX_BUFFERS = 8;
 
     enum NotifierCommands
         {
@@ -465,8 +465,8 @@ private:
     NotifierState mNotifierState;
 
     bool mPreviewing;
-    MemoryHeapBase *mPreviewHeap;
-    KeyedVector<int, MemoryBase*> mPreviewBuffers;
+    sp<MemoryHeapBase> mPreviewHeap;
+    sp<MemoryBase> mPreviewBuffers[MAX_BUFFERS];
     int mPreviewBufCount;
     const char *mPreviewPixelFormat;
 

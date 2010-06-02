@@ -30,9 +30,6 @@ namespace android {
 
 const int AppCallbackNotifier::NOTIFIER_TIMEOUT = -1;
 
-const int32_t AppCallbackNotifier::MAX_BUFFERS = 20;
-
-
 
 /*--------------------NotificationHandler Class STARTS here-----------------------------*/
 
@@ -426,7 +423,7 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME)  ))
                     {
-                    buffer = mPreviewBuffers.valueAt(mPreviewBufCount);
+                    buffer = mPreviewBuffers[mPreviewBufCount].get();
                     if(!buffer || !frame->mBuffer)
                         {
                         CAMHAL_LOGDA("Error! One of the buffer is NULL");
@@ -722,36 +719,30 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params)
 
     if(mPreviewing)
         {
+        CAMHAL_LOGEA("+Already previewing");
         return -1;
         }
 
     int w,h;
     params.getPreviewSize(&w, &h);
     mPreviewHeap = new MemoryHeapBase(w*h*2*AppCallbackNotifier::MAX_BUFFERS);
-    mPreviewHeap->incStrong(this);
-    if(!mPreviewHeap)
+    if(!mPreviewHeap.get())
         {
         return NO_MEMORY;
         }
 
     for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
         {
-            MemoryBase * mBase = new MemoryBase(mPreviewHeap,w*h*2*i, w*h*2 );
-            if(!mBase)
+            mPreviewBuffers[i] = new MemoryBase(mPreviewHeap,w*h*2*i, w*h*2 );
+            if(!mPreviewBuffers[i].get())
                 {
-                mPreviewHeap->dispose();
-                for(int i=0;i<mPreviewBuffers.size();i++)
+                for(int j=0;j<i-1;j++)
                     {
-                    MemoryBase *mBase = mPreviewBuffers.valueAt(i);
-                    //Delete the instance
-                    mBase->decStrong(this);
-
+                    mPreviewBuffers[j].clear();
                     }
-                mPreviewHeap->decStrong(this);
+                mPreviewHeap.clear();
                 return NO_MEMORY;
                 }
-            mBase->incStrong(this);
-            mPreviewBuffers.add(i, mBase);
         }
 
     //Get the preview pixel format
@@ -765,6 +756,7 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params)
     mPreviewBufCount = 0;
 
     mPreviewing = true;
+
 
     return ret;
 
@@ -803,8 +795,13 @@ status_t AppCallbackNotifier::stopPreviewCallbacks()
 
     bool alreadyStopped = false;
 
-    mPreviewHeap = NULL;
-    mPreviewBuffers.clear();
+    for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
+        {
+        //Delete the instance
+        mPreviewBuffers[i].clear();
+        }
+
+    mPreviewHeap.clear();
 
     mPreviewing = false;
 
