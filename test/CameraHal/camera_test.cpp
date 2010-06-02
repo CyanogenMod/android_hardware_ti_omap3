@@ -752,7 +752,7 @@ void initDefaults() {
     zoomIdx = 0;
     videoCodecIdx = 0;
     contrast = 0;
-    brightness = 0;
+    brightness = 100;
     sharpness = 0;
     iso_mode = 0;
     capture_mode = 0;
@@ -1190,8 +1190,8 @@ int functional_menu() {
         case 'b':
         case 'B':
 
-            if ( brightness >= 100) {
-                brightness = -100;
+            if ( brightness >= 200) {
+                brightness = 0;
             } else {
                 brightness += 10;
             }
