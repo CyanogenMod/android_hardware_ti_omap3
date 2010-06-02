@@ -904,6 +904,7 @@ int functional_menu() {
         printf("   p. Take picture\n");
         printf("   *. Start Video Recording dump ( 5 raw frames ) \n");
         printf("   &. Dump a preview frame\n");
+        printf("   @. Disconnect and Reconnect to CameraService \n");
         printf("   a. GEO tagging settings menu\n");
         printf("\n");
         printf("   q. Quit\n");
@@ -1046,11 +1047,11 @@ int functional_menu() {
             videoCodecIdx %= ARRAY_SIZE(videoCodecs);
             break;
 
-	case 'm':
-	case 'M':
-	    if ( hardwareActive )
-                camera->startRecording();
-            break;
+        case 'm':
+        case 'M':
+            if ( hardwareActive )
+                    camera->startRecording();
+                break;
 
         case 'o':
         case 'O':
@@ -1076,6 +1077,21 @@ int functional_menu() {
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
+
+            break;
+
+        case '@':
+            if ( hardwareActive && !previewRunning ) {
+
+                closeCamera();
+
+                hardwareActive = false;
+
+                if ( 0 >= openCamera() ) {
+                    hardwareActive = true;
+                    printf( "Reconnected to CameraService \n");
+                }
+            }
 
             break;
 
@@ -1625,6 +1641,21 @@ int execute_functional_script(char *script) {
 
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
+
+                break;
+
+            case '@':
+                if ( hardwareActive && !previewRunning ) {
+
+                    closeCamera();
+
+                    hardwareActive = false;
+
+                    if ( 0 >= openCamera() ) {
+                        hardwareActive = true;
+                        printf( "Reconnected to CameraService \n");
+                    }
+                }
 
                 break;
 
