@@ -39,6 +39,8 @@
 #define KEY_IPP             "ippMode"
 #define KEY_BUFF_STARV      "buff-starvation"
 
+#define MEMORY_DUMP "procrank -u"
+
 #define COMPENSATION_OFFSET 20
 #define DELIMITER           "|"
 
@@ -1315,6 +1317,10 @@ int functional_menu() {
     return 0;
 }
 
+status_t dump_mem_status() {
+  return system(MEMORY_DUMP);
+}
+
 char *load_script(char *config) {
     FILE *infile;
     size_t fileSize;
@@ -1385,15 +1391,18 @@ int execute_functional_script(char *script) {
     int dly;
     int cycleCounter = 1;
     int tLen = 0;
+    unsigned int iteration = 0;
 
     LOG_FUNCTION_NAME
+
+    dump_mem_status();
 
     cmd = strtok_r((char *) script, DELIMITER, &ctx);
 
     while ( NULL != cmd ) {
         id = cmd[0];
-        printf("Full Command: !%s!\n", cmd);
-        printf("Command: !%c!\n", cmd[0]);
+        printf("Full Command: %s \n", cmd);
+        printf("Command: %c \n", cmd[0]);
 
         switch (id) {
             case '+': {
@@ -1786,7 +1795,15 @@ int execute_functional_script(char *script) {
                     recordingMode = false;
                 }
 
+                dump_mem_status();
+
                 goto exit;
+
+            case '\n':
+                printf("Iteration: %d \n", iteration);
+                iteration++;
+
+                break;
 
             default:
                 printf("Unrecognized command!\n");
