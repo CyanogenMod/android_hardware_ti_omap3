@@ -46,13 +46,21 @@ MessageQueue::MessageQueue()
     LOG_FUNCTION_NAME
 
     int fds[2] = {-1,-1};
+    status_t stat;
 
-    pipe(fds);
+    stat = pipe(fds);
 
-    this->fd_read = fds[0];
-    this->fd_write = fds[1];
+    if ( 0 > stat )
+        {
+        MSGQ_LOGEB("Error while openning pipe: %s", strerror(stat) );
+        }
+    else
+        {
+        this->fd_read = fds[0];
+        this->fd_write = fds[1];
 
-    mHasMsg = false;
+        mHasMsg = false;
+        }
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -156,6 +164,11 @@ int MessageQueue::getInFd()
 void MessageQueue::setInFd(int fd)
 {
     LOG_FUNCTION_NAME
+
+    if ( -1 != this->fd_read )
+        {
+        close(this->fd_read);
+        }
 
     this->fd_read = fd;
 
