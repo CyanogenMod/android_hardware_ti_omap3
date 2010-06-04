@@ -21,6 +21,7 @@
 #include <binder/IPCThreadState.h>
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
+#include <cutils/properties.h>
 
 #define PRINTOVER(arg...)     LOGD(#arg)
 #define LOG_FUNCTION_NAME         LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
@@ -40,6 +41,7 @@
 #define KEY_BUFF_STARV      "buff-starvation"
 
 #define MEMORY_DUMP "procrank -u"
+#define KEY_METERING_MODE   "meter-mode"
 
 #define COMPENSATION_OFFSET 20
 #define DELIMITER           "|"
@@ -70,15 +72,17 @@ bool hardwareActive = false;
 bool recordingMode = false;
 bool previewRunning = false;
 int saturation = 0;
-int zoomIdx = 0;
-int videoCodecIdx = 0;
+int zoomIDX = 0;
+int videoCodecIDX = 0;
+int audioCodecIDX = 0;
+int outputFormatIDX = 0;
 int contrast = 0;
 int brightness = 0;
 int sharpness = 0;
 int iso_mode = 0;
 int capture_mode = 0;
 int exposure_mode = 0;
-int ippIdx = 0;
+int ippIDX = 0;
 int jpegQuality = 85;
 timeval autofocus_start, picture_start;
 char script_name[25];
@@ -149,15 +153,50 @@ const struct {
     { VIDEO_ENCODER_MPEG_4_SP, "MPEG4"}
 };
 
+const struct { audio_encoder type; const char *desc; } audioCodecs[] = {
+    { AUDIO_ENCODER_AMR_NB, "AMR_NB" },
+    { AUDIO_ENCODER_AMR_WB, "AMR_WB" },
+    { AUDIO_ENCODER_AAC, "AAC" },
+    { AUDIO_ENCODER_AAC_PLUS, "AAC+" },
+    { AUDIO_ENCODER_EAAC_PLUS, "EAAC+" },
+};
+
+const struct { output_format type; const char *desc; } outputFormat[] = {
+    { OUTPUT_FORMAT_THREE_GPP, "3gp" },
+    { OUTPUT_FORMAT_MPEG_4, "mp4" },
+};
+
 const struct {
     int width, height;
     const char *desc;
 } previewSize[] = {
-    { 176, 144, "176x144" },
+    { 128, 96, "SQCIF" },
+    { 176, 144, "QCIF" },
+    { 352, 288, "CIF" },
     { 320, 240, "QVGA" },
     { 640, 480, "VGA" },
     { 720, 486, "NTSC" },
     { 720, 576, "PAL" },
+    { 800, 480, "WVGA" },
+    { 848, 480, "WVGA2"},
+    { 864, 480, "WVGA3"},
+    { 992, 560, "WVGA4"},
+    { 1280, 720, "HD" },
+};
+
+const struct {
+    int width, height;
+    const char *desc;
+} VcaptureSize[] = {
+    { 128, 96, "SQCIF" },
+    { 176, 144, "QCIF" },
+    { 352, 288, "CIF" },
+    { 320, 240, "QVGA" },
+    { 640, 480, "VGA" },
+    { 704, 480, "TVNTSC" },
+    { 704, 576, "TVPAL" },
+    { 720, 480, "D1NTSC" },
+    { 720, 576, "D1PAL" },
     { 800, 480, "WVGA" },
     { 1280, 720, "HD" },
 };
@@ -191,14 +230,46 @@ const struct {
     {30}
 };
 
+const struct {
+    uint32_t bit_rate;
+    const char *desc;
+} VbitRate[] = {
+    {    64000, "64K"  },
+    {   128000, "128K" },
+    {   192000, "192K" },
+    {   240000, "240K" },
+    {   320000, "320K" },
+    {   360000, "360K" },
+    {   384000, "384K" },
+    {   420000, "420K" },
+    {   768000, "768K" },
+    {  1000000, "1M"   },
+    {  1500000, "1.5M" },
+    {  2000000, "2M"   },
+    {  4000000, "4M"   },
+    {  6000000, "6M"   },
+    {  8000000, "8M"   },
+    { 10000000, "10M"  },
+
+};
+
 int previewSizeIDX = ARRAY_SIZE(previewSize) - 1;
 int captureSizeIDX = ARRAY_SIZE(captureSize) - 1;
 int frameRateIDX = ARRAY_SIZE(frameRate) - 1;
+int VcaptureSizeIDX = ARRAY_SIZE(VcaptureSize) - 1;
+int VbitRateIDX = ARRAY_SIZE(VbitRate) - 1;
 
 static unsigned int recording_counter = 1;
 
 int dump_preview = 0;
 int bufferStarvationTest = 0;
+bool showfps = false;
+
+const char *metering[] = {
+    "center",
+    "average",
+};
+int meter_mode = 0;
 
 namespace android {
 
@@ -540,7 +611,9 @@ int closeRecorder() {
 }
 
 int configureRecorder() {
-    char videoFile[80];
+
+    char videoFile[256],vbit_string[50];
+    int fd = -1;
 
     if ( ( NULL == recorder.get() ) || ( NULL == camera.get() ) ) {
         printf("invalid recorder and/or camera references\n");
@@ -557,18 +630,35 @@ int configureRecorder() {
     }
 
     if ( recorder->setVideoSource(VIDEO_SOURCE_CAMERA) < 0 ) {
-        printf("error while configuring camera source\n");
+        printf("error while configuring camera video source\n");
 
         return -1;
     }
 
-    if ( recorder->setOutputFormat(OUTPUT_FORMAT_THREE_GPP) < 0 ) {
+
+    if ( recorder->setAudioSource(AUDIO_SOURCE_MIC) < 0 ) {
+        printf("error while configuring camera audio source\n");
+
+        return -1;
+    }
+
+    if ( recorder->setOutputFormat(outputFormat[outputFormatIDX].type) < 0 ) {
         printf("error while configuring output format\n");
 
         return -1;
     }
 
-    sprintf(videoFile, "/sdcard/video%d.3gp", recording_counter);
+    if(mkdir("/system/media/videos",0777) == -1)
+         printf("\n Directory --videos-- was not created \n");
+    sprintf(videoFile, "/system/media/videos/video%d.%s", recording_counter,outputFormat[outputFormatIDX].desc);
+
+    fd = open(videoFile, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
+
+    if(fd < 0){
+        printf("Error while creating video filename\n");
+
+        return -1;
+    }
 
     if ( recorder->setOutputFile(videoFile) < 0 ) {
         printf("error while configuring video filename\n");
@@ -584,17 +674,33 @@ int configureRecorder() {
         return -1;
     }
 
-    if ( recorder->setVideoSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height) < 0 ) {
-        printf("error while configuring vide size\n");
+    if ( recorder->setVideoSize(VcaptureSize[VcaptureSizeIDX].width, VcaptureSize[VcaptureSizeIDX].height) < 0 ) {
+        printf("error while configuring video size\n");
 
         return -1;
     }
 
-    if ( recorder->setVideoEncoder(videoCodecs[videoCodecIdx].type) < 0 ) {
+    if ( recorder->setVideoEncoder(videoCodecs[videoCodecIDX].type) < 0 ) {
         printf("error while configuring video codec\n");
 
         return -1;
     }
+
+    if ( recorder->setAudioEncoder(audioCodecs[audioCodecIDX].type) < 0 ) {
+        printf("error while configuring audio codec\n");
+
+        return -1;
+    }
+
+    sprintf(vbit_string,"video-param-encoding-bitrate=%u", VbitRate[VbitRateIDX].bit_rate);
+    String8 bit_rate(vbit_string);
+    if ( recorder->setParameters(bit_rate) < 0 ) {
+        printf("error while configuring bit rate\n");
+
+        return -1;
+    }
+
+
 
     if ( recorder->setPreviewSurface( overlayControl->getSurface() ) < 0 ) {
         printf("error while configuring preview surface\n");
@@ -741,9 +847,11 @@ void stopPreview() {
 void initDefaults() {
     antibanding_mode = 0;
     focus_mode = 0;
-    previewSizeIDX = ARRAY_SIZE(previewSize) - 1;
-    captureSizeIDX = ARRAY_SIZE(captureSize) - 1;
-    frameRateIDX = ARRAY_SIZE(frameRate) - 1;
+    previewSizeIDX = ARRAY_SIZE(previewSize) - 5;  /* Default resolution set to WVGA */
+    captureSizeIDX = ARRAY_SIZE(captureSize) - 3;  /* Default capture resolution is 8MP */
+    frameRateIDX = ARRAY_SIZE(frameRate) - 1;      /* Default frame rate is 30 FPS */
+    VcaptureSizeIDX = ARRAY_SIZE(VcaptureSize) - 2;/* Default video record is WVGA */
+    VbitRateIDX = ARRAY_SIZE(VbitRate) - 4;        /*Default video bit rate is 4M */
     compensation = 0.0;
     awb_mode = 0;
     effects_mode = 0;
@@ -751,18 +859,18 @@ void initDefaults() {
     caf_mode = 0;
     rotation = 0;
     saturation = 0;
-    zoomIdx = 0;
-    videoCodecIdx = 0;
+    zoomIDX = 0;
+    videoCodecIDX = 0;
     contrast = 0;
     brightness = 100;
     sharpness = 0;
     iso_mode = 0;
     capture_mode = 0;
     exposure_mode = 0;
-    ippIdx = 0;
+    ippIDX = 0;
     jpegQuality = 85;
     bufferStarvationTest = 0;
-
+    meter_mode = 0;
     params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
     params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
     params.set(KEY_ROTATION, rotation);
@@ -774,7 +882,7 @@ void initDefaults() {
     params.set(KEY_ISO, iso_mode);
     params.set(KEY_SHARPNESS, sharpness);
     params.set(KEY_CONTRAST, contrast);
-    params.set(KEY_ZOOM, zoom[zoomIdx].idx);
+    params.set(KEY_ZOOM, zoom[zoomIDX].idx);
     params.set(KEY_EXPOSURE, exposure_mode);
     params.set(KEY_BRIGHTNESS, brightness);
     params.set(KEY_SATURATION, saturation);
@@ -782,11 +890,12 @@ void initDefaults() {
     params.setPreviewFrameRate(frameRate[frameRateIDX].fps);
     params.set(params.KEY_ANTIBANDING, antibanding[antibanding_mode]);
     params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
-    params.set(KEY_IPP, ippIdx);
+    params.set(KEY_IPP, ippIDX);
     params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
     params.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV422I);
     params.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
     params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
+    params.set(KEY_METERING_MODE, metering[meter_mode]);
 }
 
 int menu_gps() {
@@ -874,21 +983,53 @@ int functional_menu() {
     if (print_menu) {
 
         printf("\n\n=========== FUNCTIONAL TEST MENU ===================\n\n");
+
+        printf(" \n\nSTART / STOP SERVICES \n");
+        printf(" -----------------------------\n");
         printf("   [. Resume Preview after capture\n");
         printf("   0. Reset to defaults\n");
+        printf("   q. Quit\n");
+        printf("   @. Disconnect and Reconnect to CameraService \n");
+        printf("   /. Enable/Disable showfps: %s\n", ((showfps)? "Enabled":"Disabled"));
+        printf("   a. GEO tagging settings menu\n");
+
+        printf(" \n\n PREVIEW SUB MENU \n");
+        printf(" -----------------------------\n");
         printf("   1. Start Preview\n");
-        printf("   2. Stop Preview/Recording\n");
+        printf("   2. Stop Preview\n");
+        printf("   4. Preview size:   %4d x %4d - %s\n",previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
+        printf("   &. Dump a preview frame\n");
+
+        printf(" \n\n IMAGE CAPTURE SUB MENU \n");
+        printf(" -----------------------------\n");
+        printf("   p. Take picture\n");
         printf("   3. Picture Rotation:       %3d degree\n", rotation );
-        printf("   4. Preview size:   %4d x %4d - %s\n",
-               previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
-        printf("   5. Picture size:   %4d x %4d - %s\n",
-               captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height,
-               captureSize[captureSizeIDX].name);
+        printf("   5. Picture size:   %4d x %4d - %s\n",captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height,              captureSize[captureSizeIDX].name);
+        printf("   i. ISO mode:       %s\n", iso[iso_mode]);
+        printf("   u. Capture Mode:   %s\n", capture[capture_mode]);
+        printf("   k. IPP Mode:       %s\n", ipp_mode[ippIDX]);
+        printf("   o. Jpeg Quality:   %d\n", jpegQuality);
+
+        printf(" \n\n VIDEO CAPTURE SUB MENU \n");
+        printf(" -----------------------------\n");
+
         printf("   6. Start Video Recording\n");
+        printf("   2. Stop Recording\n");
+        printf("   l. Video Capture resolution:   %4d x %4d - %s\n",VcaptureSize[VcaptureSizeIDX].width,VcaptureSize[VcaptureSizeIDX].height, VcaptureSize[VcaptureSizeIDX].desc);
+        printf("   ]. Video Bit rate :  %s\n", VbitRate[VbitRateIDX].desc);
+        printf("   9. Video Codec:    %s\n", videoCodecs[videoCodecIDX].desc);
+        printf("   d. Audio Codec:    %s\n", audioCodecs[audioCodecIDX].desc);
+        printf("   v. Output Format:  %s\n", outputFormat[outputFormatIDX].desc);
+        printf("   r. Framerate:     %3d\n", frameRate[frameRateIDX].fps);
+        printf("   *. Start Video Recording dump ( 5 raw frames ) \n");
+
+        printf(" \n\n 3A SETTING SUB MENU \n");
+        printf(" -----------------------------\n");
+
+        printf("   f. Auto Focus\n");
         printf("   7. EV offset:      %4.1f\n", compensation);
         printf("   8. AWB mode:       %s\n", strawb_mode[awb_mode]);
-        printf("   9. Video Codec:    %s\n", videoCodecs[videoCodecIdx].desc);
-        printf("   z. Zoom            %s\n", zoom[zoomIdx].zoom_description);
+        printf("   z. Zoom            %s\n", zoom[zoomIDX].zoom_description);
         printf("   j. Exposure        %s\n", exposure[exposure_mode]);
         printf("   e. Effect:         %s\n", effects[effects_mode]);
         printf("   w. Scene:          %s\n", scene[scene_mode]);
@@ -897,21 +1038,10 @@ int functional_menu() {
         printf("   h. Sharpness:      %d\n", sharpness);
         printf("   b. Brightness:     %d\n", brightness);
         printf("   y. Continuous AF:  %s\n", caf[caf_mode]);
-        printf("   r. Framerate:     %3d\n", frameRate[frameRateIDX].fps);
         printf("   x. Antibanding:    %s\n", antibanding[antibanding_mode]);
         printf("   g. Focus mode:     %s\n", focus[focus_mode]);
-        printf("   i. ISO mode:       %s\n", iso[iso_mode]);
-        printf("   u. Capture Mode:   %s\n", capture[capture_mode]);
-        printf("   k. IPP Mode:       %s\n", ipp_mode[ippIdx]);
-        printf("   o. Jpeg Quality:   %d\n", jpegQuality);
-        printf("   f. Auto Focus\n");
-        printf("   p. Take picture\n");
-        printf("   *. Start Video Recording dump ( 5 raw frames ) \n");
-        printf("   &. Dump a preview frame\n");
-        printf("   @. Disconnect and Reconnect to CameraService \n");
-        printf("   a. GEO tagging settings menu\n");
-        printf("\n");
-        printf("   q. Quit\n");
+        printf("   m. Metering mode:     %s\n", metering[meter_mode]);
+
         printf("\n");
         printf("   Choice: ");
     }
@@ -985,8 +1115,19 @@ int functional_menu() {
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
-
             break;
+
+        case 'l':
+        case 'L':
+            VcaptureSizeIDX++;
+            VcaptureSizeIDX %= ARRAY_SIZE(VcaptureSize);
+            break;
+
+        case ']':
+            VbitRateIDX++;
+            VbitRateIDX %= ARRAY_SIZE(VbitRate);
+            break;
+
 
         case '6':
 
@@ -1047,19 +1188,17 @@ int functional_menu() {
             break;
 
         case '9':
-            videoCodecIdx++;
-            videoCodecIdx %= ARRAY_SIZE(videoCodecs);
+            videoCodecIDX++;
+            videoCodecIDX %= ARRAY_SIZE(videoCodecs);
             break;
 
-        case 'm':
-        case 'M':
+        case '*':
             if ( hardwareActive )
-                    camera->startRecording();
-                break;
+                camera->startRecording();
+            break;
 
         case 'o':
         case 'O':
-
             if ( jpegQuality >= 100) {
                 jpegQuality = 0;
             } else {
@@ -1067,17 +1206,23 @@ int functional_menu() {
             }
 
             params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
-
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
-
             break;
+
+        case 'M':
+        case 'm':
+        {
+            meter_mode = (meter_mode + 1)%ARRAY_SIZE(metering);
+            params.set(KEY_METERING_MODE, metering[meter_mode]);
+            break;
+        }
 
         case 'k':
         case 'K':
-            ippIdx += 1;
-            ippIdx %= ARRAY_SIZE(ipp_mode);
-            params.set(KEY_IPP, ippIdx);
+            ippIDX += 1;
+            ippIDX %= ARRAY_SIZE(ipp_mode);
+            params.set(KEY_IPP, ippIDX);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1167,11 +1312,27 @@ int functional_menu() {
                 camera->setParameters(params.flatten());
             break;
 
+        case 'D':
+        case 'd':
+        {
+            audioCodecIDX++;
+            audioCodecIDX %= ARRAY_SIZE(audioCodecs);
+            break;
+        }
+
+        case 'V':
+        case 'v':
+        {
+            outputFormatIDX++;
+            outputFormatIDX %= ARRAY_SIZE(outputFormat);
+            break;
+        }
+
         case 'z':
         case 'Z':
-            zoomIdx++;
-            zoomIdx %= ARRAY_SIZE(zoom);
-            params.set(KEY_ZOOM, zoom[zoomIdx].idx);
+            zoomIDX++;
+            zoomIDX %= ARRAY_SIZE(zoom);
+            params.set(KEY_ZOOM, zoom[zoomIDX].idx);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1310,6 +1471,21 @@ int functional_menu() {
 
             return -1;
 
+        case '/':
+        {
+            if (showfps)
+            {
+                property_set("debug.image.showfps", "0");
+                showfps = false;
+            }
+            else
+            {
+                property_set("debug.image.showfps", "1");
+                showfps = true;
+            }
+            break;
+        }
+
         default:
             print_menu = 0;
 
@@ -1384,16 +1560,6 @@ char *load_script(char *config) {
     return script;
 }
 
-unsigned get_str_len(const char *aSrc) {
-    unsigned ind = 0;
-
-    while (*aSrc != '\0') {
-        ind++;
-        aSrc++;
-    }
-
-    return ind;
-}
 
 char * get_cycle_cmd(const char *aSrc) {
     unsigned ind = 0;
@@ -1402,7 +1568,6 @@ char * get_cycle_cmd(const char *aSrc) {
     while ((*aSrc != '+') && (*aSrc != '\0')) {
         cycle_cmd[ind++] = *aSrc++;
     }
-
     cycle_cmd[ind] = '\0';
 
     return cycle_cmd;
@@ -1432,7 +1597,7 @@ int execute_functional_script(char *script) {
             case '+': {
                 cycleCounter = atoi(cmd + 1);
                 cycle_cmd = get_cycle_cmd(ctx);
-                tLen = get_str_len(cycle_cmd);
+                tLen = strlen(cycle_cmd);
                 temp_cmd = new char[tLen+1];
 
                 for (unsigned ind = 0; ind < cycleCounter; ind++) {
@@ -1474,6 +1639,13 @@ int execute_functional_script(char *script) {
 
                 break;
             }
+
+            case '0':
+            {
+                initDefaults();
+                break;
+            }
+
             case '1':
 
                 if ( startPreview() < 0 ) {
@@ -1506,17 +1678,29 @@ int execute_functional_script(char *script) {
                 break;
 
             case '4':
-
-                for (i = 0; i < ARRAY_SIZE(previewSize); i++) {
-                    if ( strcmp((cmd + 1), previewSize[i].desc) == 0)
+            {
+                int width, height;
+                for(i = 0; i < ARRAY_SIZE(previewSize); i++)
+                {
+                    if( strcmp((cmd + 1), previewSize[i].desc) == 0)
+                    {
+                        width = previewSize[i].width;
+                        height = previewSize[i].height;
+                        previewSizeIDX = i;
                         break;
+                    }
                 }
 
-                previewSizeIDX = i;
+                if (i == ARRAY_SIZE(previewSize))   //if the resolution is not in the supported ones
+                {
+                    char *res = NULL;
+                    res = strtok(cmd + 1, "x");
+                    width = atoi(res);
+                    res = strtok(NULL, "x");
+                    height = atoi(res);
+                }
 
-                if ( ( i >= 0 ) && ( i < ARRAY_SIZE(previewSize) ) )
-                    params.setPreviewSize(previewSize[i].width, previewSize[i].height);
-
+                params.setPreviewSize(width, height);
                 reSizePreview = true;
 
                 if ( hardwareActive && previewRunning ) {
@@ -1528,7 +1712,7 @@ int execute_functional_script(char *script) {
                 }
 
                 break;
-
+            }
             case '5':
 
                 for (i = 0; i < ARRAY_SIZE(captureSize); i++) {
@@ -1595,12 +1779,11 @@ int execute_functional_script(char *script) {
                 break;
 
             case '9':
-                videoCodecIdx++;
-                videoCodecIdx %= ARRAY_SIZE(videoCodecs);
+                videoCodecIDX++;
+                videoCodecIDX %= ARRAY_SIZE(videoCodecs);
                 break;
 
-            case 'm':
-            case 'M':
+            case '*':
                 if ( hardwareActive )
                     camera->startRecording();
                 break;
@@ -1622,8 +1805,7 @@ int execute_functional_script(char *script) {
 
             case 'k':
             case 'K':
-                params.set(KEY_IPP, (cmd + 1));
-
+                params.set(KEY_IPP, atoi(cmd + 1));
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
 
@@ -1631,8 +1813,7 @@ int execute_functional_script(char *script) {
 
             case 'u':
             case 'U':
-                params.set(KEY_MODE, (cmd + 1));
-
+                params.set(KEY_MODE, atoi(cmd + 1));
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
 
@@ -1714,8 +1895,7 @@ int execute_functional_script(char *script) {
 
             case 'j':
             case 'J':
-                params.set(KEY_EXPOSURE, (cmd + 1));
-
+                params.set(KEY_EXPOSURE, atoi(cmd + 1));
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
 
@@ -1828,8 +2008,18 @@ int execute_functional_script(char *script) {
             case '\n':
                 printf("Iteration: %d \n", iteration);
                 iteration++;
-
                 break;
+
+            case 'M':
+            case 'm':
+            {
+                params.set(KEY_METERING_MODE, (cmd + 1));
+                if ( hardwareActive )
+                {
+                    camera->setParameters(params.flatten());
+                }
+                break;
+            }
 
             default:
                 printf("Unrecognized command!\n");
