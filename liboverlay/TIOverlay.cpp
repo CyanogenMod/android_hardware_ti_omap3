@@ -547,6 +547,11 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     overlayobj->dispW = LCD_WIDTH; // Need to determine this properly: change it in setParameter
     overlayobj->dispH = LCD_HEIGHT; // Need to determine this properly
 
+    overlayobj->mData.cropX = 0;
+    overlayobj->mData.cropY = 0;
+    overlayobj->mData.cropW = w;
+    overlayobj->mData.cropH = h;
+
     self->mOmapOverlays[overlayid] = overlayobj;
 
     LOGD("overlay_createOverlay: OUT");
@@ -840,7 +845,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
     if (stage->panel != data->panel) {
         switch(stage->panel){
-            data->panel = stage->panel;
             case OVERLAY_ON_PRIMARY: {
                 LOGD("REQUEST FOR LCD1");
                 panelname = "lcd";
@@ -933,6 +937,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
                     x = (w2 - w) / 2;
                 }
             }
+            break;
         default:
             LOGE("Leave the default  values");
         };
@@ -1131,6 +1136,12 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
     ctx->omap_overlay->maintain_coherency = 1;
     ctx->omap_overlay->optimalQBufCnt = NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE;
     ctx->omap_overlay->attributes_changed = 0;
+
+    ctx->omap_overlay->mData.cropX = 0;
+    ctx->omap_overlay->mData.cropY = 0;
+    ctx->omap_overlay->mData.cropW = overlayobj->w;
+    ctx->omap_overlay->mData.cropH = overlayobj->h;
+
 
 
     if (fstat(video_fd, &stat)) {

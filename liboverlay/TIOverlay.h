@@ -50,8 +50,8 @@ public:
         // position maintained here is wrt to DSS.
         posX = 0;
         posY = 0;
-        posW = 0;
-        posH = 0;
+        posW = LCD_WIDTH;
+        posH = LCD_HEIGHT;
         colorkey = 0;
         rotation = 0;
         alpha = 0;
@@ -75,8 +75,8 @@ public:
     overlay_data_t() {
         cropX = 0;
         cropY = 0;
-        cropW = 0;
-        cropH = 0;
+        cropW = LCD_WIDTH;
+        cropH = LCD_HEIGHT;
     }
 
 public:
