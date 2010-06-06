@@ -838,6 +838,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 
 #ifdef TARGET_OMAP4
+
     strmatch = strcmp(overlaymanagername, "tv");
     if (!strmatch) {
         stage->panel = OVERLAY_ON_TV;
@@ -976,13 +977,14 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGE("Set Position Failed!/%d\n", ret);
         goto end;
     }
+
 #ifndef TARGET_OMAP4
     if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00))) {
         LOGE("Failed enabling color key\n");
         goto end;
     }
 #else
-    if ((ret = v4l2_overlay_set_global_alpha(fd, 1, data->alpha))) {
+    if ((ret = v4l2_overlay_set_global_alpha(fd, 1, 255))) {
         LOGE("Failed enabling alpha\n");
         goto end;
     }
