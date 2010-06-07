@@ -146,21 +146,6 @@ int OverlayDisplayAdapter::setOverlay(const sp<Overlay> &overlay)
     ///Move to new overlay obj
     mOverlay = overlay;
 
-    ///Set the display queue file descriptor
-    overlay_handle_t overlayhandle = mOverlay->getHandleRef();
-    overlay_true_handle_t true_handle;
-    if ( overlayhandle == NULL )
-        {
-        CAMHAL_LOGEA("Overlay handle is NULL");
-        LOG_FUNCTION_NAME_EXIT
-        return UNKNOWN_ERROR;
-        }
-
-    memcpy(&true_handle,overlayhandle,sizeof(overlay_true_handle_t));
-    int overlayfd = true_handle.ctl_fd;
-
-    mDisplayQ.setInFd(overlayfd);
-
     ///Set the optimal buffer count to 0 since we have a display thread which monitors the
     ///fd of overlay
     mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
@@ -565,7 +550,7 @@ void OverlayDisplayAdapter::displayThread()
         /// @bug With mFramesWithDisplay>2, we will have always 2 buffers with overlay.
         ///          Ideally, we should remove this check and dequeue immediately when mDisplayQ is not empty
         ///          But there is some bug in OMX which is causing a crash when performing OMX_FillThisBuffer call
-        else  if( !mDisplayQ.isEmpty() & (mFramesWithDisplay>4))
+        else  if( !mDisplayQ.isEmpty())
             {
             if ( mDisplayState== OverlayDisplayAdapter::DISPLAY_INIT )
                 {
@@ -576,6 +561,14 @@ void OverlayDisplayAdapter::displayThread()
                 }
             else
                 {
+                Message msg;
+                ///Get the dummy msg from the displayQ
+                if(mDisplayQ.get(&msg)!=NO_ERROR)
+                    {
+                    CAMHAL_LOGEA("Error in getting message from display Q");
+                    continue;
+                    }
+
                 ///There is a frame from overlay for us to dequeue
                 ///We dequeue and return the frame back to Camera adapter
                 ///Below method returns true of there are no frames left with display after the dequeue
@@ -688,12 +681,20 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
         if ( ret < NO_ERROR )
             {
             CAMHAL_LOGEB("Posting error 0x%x", ret);
-
+            ///Drop the frame, return it back to the provider (Camera Adapter)
+            mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
             }
         else
             { // scope for the lock
             Mutex::Autolock lock(mLock);
             mFramesWithDisplay++;
+
+            if(mFramesWithDisplay>=NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
+                {
+                ///Enough buffers with display. Post a DQ for dequeing a buffer from display
+                Message msg;
+                mDisplayQ.put(&msg);
+                }
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -762,10 +763,22 @@ bool OverlayDisplayAdapter::handleFrameReturn()
     ///This case implies that a stream off happened. In this case, there are no buffers to dequeue
     ///Buffers already queued will  be dequeued by PostFrame when it detects skew in the count
     ///of frames with overlay and internal count value
-    if ( mOverlay->dequeueBuffer(&buf) == -2 )
+    if ( (ret=mOverlay->dequeueBuffer(&buf)) == -2 )
         {
         CAMHAL_LOGEA("Looks like STREAM OFF happened inside overlay");
         return true;
+        }
+
+    if(ret<0)
+        {
+        CAMHAL_LOGDB("Overlay DQ Error %d", ret);
+        return false;
+        }
+
+    if(mFramesWithDisplayMap.indexOfKey(mPreviewBufferMap.keyAt((int) buf))<0)
+        {
+        CAMHAL_LOGDA("Invalid DQ..Return");
+        return false;
         }
 
     ///Return the frame back to the provider (Camera Adapter)

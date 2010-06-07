@@ -446,7 +446,6 @@ void AppCallbackNotifier::notifyFrame()
                 else
                     {
                     CAMHAL_LOGEB("Frame type 0x%x is still unsupported!", frame->mFrameType);
-                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
                     }
 
                 break;
