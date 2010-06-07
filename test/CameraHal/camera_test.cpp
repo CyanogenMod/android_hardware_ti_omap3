@@ -499,17 +499,11 @@ void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr) {
 
 void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr)
 {
-    static unsigned int count = 0;
     printf("Recording cb: %d %lld %p\n", msgType, timestamp, dataPtr.get());
 
-    if ( count < 5 ) {
-        saveFile(dataPtr);
-        camera->releaseRecordingFrame(dataPtr);
-        count++;
-    } else {
-        count = 0;
-        camera->stopRecording();
-    }
+    camera->stopRecording();
+    saveFile(dataPtr);
+    camera->releaseRecordingFrame(dataPtr);
 }
 
 int createPreviewSurface(unsigned int width, unsigned int height) {
@@ -1022,7 +1016,7 @@ int functional_menu() {
         printf("   d. Audio Codec:    %s\n", audioCodecs[audioCodecIDX].desc);
         printf("   v. Output Format:  %s\n", outputFormat[outputFormatIDX].desc);
         printf("   r. Framerate:     %3d\n", frameRate[frameRateIDX].fps);
-        printf("   *. Start Video Recording dump ( 5 raw frames ) \n");
+        printf("   *. Start Video Recording dump ( 1 raw frame ) \n");
 
         printf(" \n\n 3A SETTING SUB MENU \n");
         printf(" -----------------------------\n");
