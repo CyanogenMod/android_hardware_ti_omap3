@@ -833,6 +833,11 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 
 #ifdef TARGET_OMAP4
+    strmatch = strcmp(overlaymanagername, "tv");
+    if (!strmatch) {
+        stage->panel = OVERLAY_ON_TV;
+    }
+
     if (stage->panel != data->panel) {
         switch(stage->panel){
             data->panel = stage->panel;
@@ -903,28 +908,34 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         w2 = w;
         h2 = h; /* leave w/h unchanged (default) if could not read timings */
     }
-    strmatch = strcmp(overlaymanagername, "tv");
-
-    if (stage->panel == OVERLAY_ON_TV) {
-        LOGE("for HDTV use the timing resolution");
-        x = 0;
-        y = 0;
-        w = w2;
-        h = h2;
-    }
-    else if (!strmatch) {
-        LOGE("HDTV requested from command line");
-        x = 0;
-        y = 0;
-        w = FULLHD_WIDTH;
-        h = FULLHD_HEIGHT;
-    }
-    else {
-        LOGE("for non TV panels, use the timings resolution as the upper limit");
-        w = MIN (w, w2);
-        h = MIN (h, h2);
-    }
-
+    switch (stage->panel) {
+        case OVERLAY_ON_PRIMARY:
+        case OVERLAY_ON_SECONDARY:
+        case OVERLAY_ON_PICODLP:
+            {
+                if (overlayobj->mData.cropW <= w2 &&
+                overlayobj->mData.cropH <= h2) {
+                    LOGE("Nothing to Adjust");
+                    break;
+                }
+            } //fall through in case of width or height beyond the limits
+        case OVERLAY_ON_TV:
+            {
+                x = 0;
+                y = 0;
+                if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
+                    w = w2;
+                    h = overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
+                    y = (h2 - h) / 2;
+                } else {
+                    h = h2;
+                    w = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
+                    x = (w2 - w) / 2;
+                }
+            }
+        default:
+            LOGE("Leave the default  values");
+        };
 #endif
     LOGI("Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", x, y, w, h );
