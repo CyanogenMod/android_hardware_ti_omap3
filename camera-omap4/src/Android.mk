@@ -48,7 +48,7 @@ LOCAL_C_INCLUDES += \
 	hardware/ti/omap3/libtiutils \
 	frameworks/base/include/utils \
 
-LOCAL_CFLAGS += -fno-short-enums -DCOPY_IMAGE_BUFFER -DCOPY_VIDEO_BUFFER -DTARGET_OMAP4
+LOCAL_CFLAGS += -fno-short-enums -DCOPY_IMAGE_BUFFER -DTARGET_OMAP4
 
 LOCAL_MODULE:= libcamera
 

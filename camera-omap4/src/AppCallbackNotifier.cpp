@@ -374,48 +374,9 @@ void AppCallbackNotifier::notifyFrame()
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_VIDEO_FRAME)  ) )
                     {
 
-#ifdef COPY_VIDEO_BUFFER
-
-                        {
-                        Mutex::Autolock lock(mLock);
-                        if ( mBufferReleased )
-                            {
-
-                            heap = new MemoryHeapBase(frame->mLength);
-                            if ( NULL == heap )
-                                {
-                                CAMHAL_LOGEA("Unable to allocate memory heap");
-                                ret = -1;
-                                goto exit;
-                                }
-
-                            buffer = new MemoryBase(heap, 0, frame->mLength);
-                            if ( NULL == buffer )
-                                {
-                                CAMHAL_LOGEA("Unable to allocate a memory buffer");
-                                ret = -1;
-                                goto exit;
-                                }
-
-                            //TODO: Suport other pixelformats
-                            copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2
-                                                                                                , frame->mLength, NULL);
-
-                            mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
-
-                            mBufferReleased = false;
-                            }
-                        }
-
-                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
-
-#else
-
                     buffer = ( MemoryBase * ) mVideoBuffers.valueFor( ( unsigned int ) frame->mBuffer );
 
                     mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
-
-#endif
 
                     }
                 else if(( CameraFrame::PREVIEW_FRAME_SYNC== frame->mFrameType ) &&
@@ -647,14 +608,9 @@ void AppCallbackNotifier::releaseSharedVideoBuffers()
 
     LOG_FUNCTION_NAME
 
-    for ( unsigned int i = 0 ; i < mVideoHeaps.size() ; i++ )
-        {
-        heap = ( MemoryHeapBase * ) mVideoHeaps.valueAt(i);
-        heap->dispose();
-        }
-
     mVideoHeaps.clear();
     mVideoBuffers.clear();
+    mVideoMap.clear();
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -827,12 +783,6 @@ status_t AppCallbackNotifier::startRecording()
          mFrameProvider->enableFrameNotification(CameraFrame::VIDEO_FRAME_SYNC);
         }
 
-#ifdef COPY_VIDEO_BUFFER
-
-    mBufferReleased = true;
-
-#endif
-
     LOG_FUNCTION_NAME_EXIT
 
     return ret;
@@ -848,8 +798,6 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
     LOG_FUNCTION_NAME
 
     releaseSharedVideoBuffers();
-
-#ifndef COPY_VIDEO_BUFFER
 
     bufArr = ( unsigned int * ) buffers;
     for ( unsigned int i = 0 ; i < count ; i ++ )
@@ -885,9 +833,8 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
 
         mVideoHeaps.add( bufArr[i], ( unsigned int ) heap);
         mVideoBuffers.add( bufArr[i], ( unsigned int ) buffer);
+        mVideoMap.add( ( unsigned int ) buffer->pointer(), bufArr[i]);
         }
-
-#endif
 
 exit:
 
@@ -922,17 +869,9 @@ status_t AppCallbackNotifier::stopRecording()
 status_t AppCallbackNotifier::releaseRecordingFrame(const sp < IMemory > & mem)
 {
     status_t ret = NO_ERROR;
+    void *frame;
 
     LOG_FUNCTION_NAME
-
-#ifdef COPY_VIDEO_BUFFER
-
-        {
-        Mutex::Autolock lock(mLock);
-        mBufferReleased = true;
-        }
-
-#else
 
     if ( NULL == mFrameProvider )
         {
@@ -946,12 +885,12 @@ status_t AppCallbackNotifier::releaseRecordingFrame(const sp < IMemory > & mem)
         ret = -1;
         }
 
+    frame = ( void * ) mVideoMap.valueFor( (unsigned int) mem->pointer());
+
     if ( NO_ERROR == ret )
         {
-         mFrameProvider->returnFrame(mem->pointer(), CameraFrame::VIDEO_FRAME_SYNC);
+         mFrameProvider->returnFrame(frame, CameraFrame::VIDEO_FRAME_SYNC);
         }
-
-#endif
 
     LOG_FUNCTION_NAME_EXIT
 

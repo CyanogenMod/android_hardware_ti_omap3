@@ -878,6 +878,13 @@ status_t CameraHal::startRecording( )
 
     LOG_FUNCTION_NAME
 
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            gettimeofday(&mStartPreview, NULL);
+
+#endif
+
     if ( ( NULL == mAppCallbackNotifier.get () ) )
         {
         CAMHAL_LOGEA("Callback notifier not initialized")
@@ -890,17 +897,28 @@ status_t CameraHal::startRecording( )
         ret= -1;
         }
 
+    mPreviewStateOld = previewEnabled();
+
+    //Stop preview if it was running
+    if ( mPreviewStateOld )
+        {
+        stopPreview();
+        }
+
     mParameters.getPreviewSize(&w, &h);
     if ( NO_ERROR == ret )
         {
-         ret = allocVideoBufs(w, h, mParameters.getPreviewFormat());
+        ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
         }
 
     if ( NO_ERROR == ret )
         {
+        ret = mAppCallbackNotifier->start();
+        }
 
+    if ( NO_ERROR == ret )
+        {
          ret = mAppCallbackNotifier->initSharedVideoBuffers(mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
-
         }
 
     if ( NO_ERROR == ret )
@@ -910,7 +928,7 @@ status_t CameraHal::startRecording( )
 
     if ( NO_ERROR == ret )
         {
-         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mVideoBufs, mVideoOffsets, mVideoFd, mVideoLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
         }
 
     if ( NO_ERROR == ret )
@@ -918,6 +936,20 @@ status_t CameraHal::startRecording( )
          ret =  mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_VIDEO);
         }
 
+    if ( NO_ERROR == ret )
+        {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+        ret = mDisplayAdapter->enableDisplay(&mStartPreview);
+
+#else
+
+        ret = mDisplayAdapter->enableDisplay();
+
+#endif
+
+        }
 
     if ( NO_ERROR == ret )
         {
@@ -940,12 +972,20 @@ void CameraHal::stopRecording()
 {
     LOG_FUNCTION_NAME
 
+    if ( false == mRecordingEnabled )
+        {
+        return;
+        }
+
     if ( ( NULL != mAppCallbackNotifier.get () ) )
         {
         mAppCallbackNotifier->stopRecording();
+        mAppCallbackNotifier->stop();
         }
 
-    if ( ( NULL == mCameraAdapter.get() ) )
+    mDisplayAdapter->disableDisplay();
+
+    if ( ( NULL != mCameraAdapter.get() ) )
         {
         mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_VIDEO);
         }
@@ -953,6 +993,12 @@ void CameraHal::stopRecording()
     freeVideoBufs();
 
     mRecordingEnabled = false;
+
+    //restore old preview state
+    if ( mPreviewStateOld )
+        {
+        startPreview();
+        }
 
     LOG_FUNCTION_NAME_EXIT
 }

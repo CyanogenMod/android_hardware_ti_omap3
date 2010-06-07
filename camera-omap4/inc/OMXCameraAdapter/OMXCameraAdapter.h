@@ -28,6 +28,7 @@
 #include "OMX_IVCommon.h"
 #include "OMX_Component.h"
 #include "OMX_Index.h"
+#include "OMX_TI_Index.h"
 #include "OMX_TI_IVCommon.h"
 #include "OMX_TI_Common.h"
 #include "BaseCameraAdapter.h"
@@ -253,6 +254,10 @@ private:
 
     status_t stopPreview();
 
+    //Video recording service
+    status_t startVideoCapture();
+    status_t stopVideoCapture();
+
     // Image Capture Service
     status_t startImageCapture();
     status_t stopImageCapture();
@@ -262,7 +267,7 @@ private:
     status_t recalculateFPS();
 
     ///Send the frame to subscribers
-    status_t  sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame = 0);
+    status_t  sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame,  OMXCameraPortParameters *port);
 
 
 public:
@@ -286,13 +291,19 @@ private:
     bool mWaitingForSnapshot;
     int mPreviewBufferCount;
     int *mPreviewBuffers;
-    KeyedVector<int, bool> mPreviewBuffersAvailable;
+    KeyedVector<int, int> mPreviewBuffersAvailable;
 
     int *mCaptureBuffers;
     KeyedVector<int, bool> mCaptureBuffersAvailable;
     int mCaptureBuffersCount;
     size_t mCaptureBuffersLength;
     mutable Mutex mCaptureBufferLock;
+
+    int *mVideoBuffers;
+    KeyedVector<int, int> mVideoBuffersAvailable;
+    int mVideoBuffersCount;
+    size_t mVideoBuffersLength;
+    mutable Mutex mVideoBufferLock;
 
     ErrorNotifier *mErrorNotifier;
     CameraParameters mParameters;
@@ -303,6 +314,7 @@ private:
     Mutex mLock;
     bool mPreviewing;
     bool mCapturing;
+    bool mRecording;
     bool mFlushBuffers;
     mutable Mutex mSubscriberLock;
     mutable Mutex mPreviewBufferLock;

@@ -454,6 +454,7 @@ private:
     //these objects
     KeyedVector<unsigned int, unsigned int> mVideoHeaps;
     KeyedVector<unsigned int, unsigned int> mVideoBuffers;
+    KeyedVector<unsigned int, unsigned int> mVideoMap;
     bool mBufferReleased;
 
     CameraHal *mHardware;
@@ -902,6 +903,7 @@ private:
     CameraParameters mParameters;
     sp<Overlay>  mOverlay;
     bool mPreviewRunning;
+    bool mPreviewStateOld;
     bool mRecordingEnabled;
 
     int32_t *mImageBufs;

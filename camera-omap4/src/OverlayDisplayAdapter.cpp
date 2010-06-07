@@ -674,13 +674,21 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
 
     }
 
+    if ( NAME_NOT_FOUND != mFramesWithDisplayMap.indexOfKey( (int) dispFrame.mBuffer) )
+        {
+        CAMHAL_LOGEB("Warning: Buffer 0x%x already queued", dispFrame.mBuffer);
+        mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
+
+        return NO_ERROR;
+        }
+
     if ( mDisplayState == OverlayDisplayAdapter::DISPLAY_STARTED )
         {
         //Post it to display via Overlay
         actualFramesWithDisplay = ret = mOverlay->queueBuffer(buf);
         if ( ret < NO_ERROR )
             {
-            CAMHAL_LOGEB("Posting error 0x%x", ret);
+            CAMHAL_LOGEB("Posting error 0x%x for buffer 0x%x, index %d", ret, dispFrame.mBuffer, buf);
             ///Drop the frame, return it back to the provider (Camera Adapter)
             mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
             }
