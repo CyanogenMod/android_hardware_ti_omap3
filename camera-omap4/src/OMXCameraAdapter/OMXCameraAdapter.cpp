@@ -1271,22 +1271,18 @@ status_t OMXCameraAdapter::doAutoFocus()
 
     if ( NO_ERROR == ret )
         {
-        focusControl.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
-        focusControl.eFocusControl = OMX_IMAGE_FocusControlOn;
-        focusControl.nSize = sizeof(OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
-        focusControl.nVersion.s.nVersionMajor = 0x1 ;
-        focusControl.nVersion.s.nVersionMinor = 0x1 ;
-        focusControl.nVersion.s.nRevision = 0x0;
-        focusControl.nVersion.s.nStep =  0x0;
+        OMX_INIT_STRUCT_PTR (&focusControl, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
+        focusControl.eFocusControl = OMX_IMAGE_FocusControlAutoLock;
 
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
         if ( OMX_ErrorNone != eError )
             {
-            CAMHAL_LOGEA("Error while starting focus");
+            CAMHAL_LOGEB("Error while starting focus 0x%x", eError);
             ret = -1;
             }
         else
             {
+            CAMHAL_LOGDA("Autofocus started successfully");
             mFocusStarted = true;
             }
         }
