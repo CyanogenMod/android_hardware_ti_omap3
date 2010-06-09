@@ -131,7 +131,6 @@ LOCAL_SHARED_LIBRARIES:= \
 
 
 LOCAL_STATIC_LIBRARIES:= \
-	libipc_setup \
 	libomx_rpc \
 
 
@@ -142,7 +141,6 @@ LOCAL_C_INCLUDES += \
 	hardware/ti/omap3/liboverlay \
 	hardware/ti/omap3/libtiutils \
 	frameworks/base/include/utils \
-	hardware/ti/omx/ducati/domx/mmplatform \
 	hardware/ti/omx/ducati/system-omx/system/omx_core/inc \
 	hardware/ti/omx/ducati/system-omx/system/mm_osal/inc \
 	$(LOCAL_PATH)/../../../../../external/libxml2/include \

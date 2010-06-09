@@ -1,6 +1,5 @@
 #include "CameraHal.h"
 #include "OMXCameraAdapter.h"
-#include "mmplatform.h"
 #include "ErrorUtils.h"
 
 
