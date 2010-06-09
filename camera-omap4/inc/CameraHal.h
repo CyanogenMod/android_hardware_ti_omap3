@@ -62,7 +62,9 @@
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
 
-#define KEY_ROTATION "picture-rotation"
+#define KEY_ROTATION    "picture-rotation"
+#define KEY_BURST           "burst-capture"
+#define KEY_CAP_MODE   "mode"
 
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1

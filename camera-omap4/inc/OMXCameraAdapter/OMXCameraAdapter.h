@@ -137,6 +137,12 @@ public:
         CAMERA_PORT_DISABLE = 0x4,
     };
 
+    enum CaptureMode
+        {
+        HIGH_SPEED = 1,
+        HIGH_QUALITY = 2,
+        };
+
     ///Parameters specific to any port of the OMX Camera component
     class OMXCameraPortParameters
     {
@@ -259,6 +265,8 @@ private:
     // Image Capture Service
     status_t startImageCapture();
     status_t stopImageCapture();
+    //Sets eithter HQ or HS mode and the frame count
+    status_t setCaptureMode(OMXCameraAdapter::CaptureMode mode, size_t frames);
     status_t UseBuffersCapture(void* bufArr, int num);
 
     //Used for calculation of the average frame rate during preview
@@ -271,6 +279,9 @@ private:
 public:
 
 private:
+
+    CaptureMode mCapMode;
+    size_t mBurstFrames;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 

@@ -123,6 +123,8 @@ status_t OMXCameraAdapter::initialize()
     mFlushBuffers = false;
     mWaitingForSnapshot = false;
     mComponentState = OMX_StateLoaded;
+    mCapMode = HIGH_QUALITY;
+    mBurstFrames = 1;
 
     return ErrorUtils::omxToAndroidError(eError);
 
@@ -335,7 +337,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mWidth = w;
     cap->mHeight = h;
     //TODO: Support more pixelformats
-    cap->mStride = w*2;
+    cap->mStride = 2;
     cap->mBufSize = cap->mStride * cap->mHeight;
     cap->mNumBufs = mCaptureBuffersCount;
 
@@ -346,6 +348,35 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         {
         mPictureRotation = params.getInt(KEY_ROTATION);
         }
+    else
+        {
+        mPictureRotation = 0;
+        }
+
+    CAMHAL_LOGDB("Picture Rotation set %d", mPictureRotation);
+
+    if ( params.getInt(KEY_CAP_MODE) != -1 )
+        {
+        mCapMode = ( OMXCameraAdapter::CaptureMode ) params.getInt(KEY_CAP_MODE);
+        }
+    else
+        {
+        mCapMode = OMXCameraAdapter::HIGH_QUALITY;
+        }
+
+    CAMHAL_LOGDB("Capture Mode set %d", mCapMode);
+
+    if ( params.getInt(KEY_BURST)  >= 1 )
+        {
+        mBurstFrames = params.getInt(KEY_BURST);
+        }
+    else
+        {
+        mBurstFrames = 1;
+        }
+
+    CAMHAL_LOGDB("Burst Frames set %d", mBurstFrames);
+
 
     LOG_FUNCTION_NAME_EXIT
     return ret;
@@ -387,8 +418,8 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         portCheck.format.image.nFrameHeight     = portParams.mHeight;
         portCheck.format.image.eColorFormat     = OMX_COLOR_FormatCbYCrY;
         portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
-        portCheck.format.image.nStride          = portParams.mStride;
-        portCheck.nBufferSize                   = mCaptureBuffersLength;
+        portCheck.format.image.nStride          = portParams.mStride * portParams.mWidth;
+        portCheck.nBufferSize                   =  portParams.mStride * portParams.mWidth * portParams.mHeight;
         portCheck.nBufferCountActual = 1;
         }
 
@@ -409,17 +440,35 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         }
     GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
-    LOGD("\n *** PRV Width = %ld", portCheck.format.video.nFrameWidth);
-    LOGD("\n ***PRV Height = %ld", portCheck.format.video.nFrameHeight);
+    if ( OMX_CAMERA_PORT_IMAGE_OUT_IMAGE == port )
+        {
+        LOGD("\n *** IMG Width = %ld", portCheck.format.image.nFrameWidth);
+        LOGD("\n ***IMG Height = %ld", portCheck.format.image.nFrameHeight);
 
-    LOGD("\n ***PRV IMG FMT = %x", portCheck.format.video.eColorFormat);
-    LOGD("\n ***PRV portCheck.nBufferSize = %ld\n",portCheck.nBufferSize);
-    LOGD("\n ***PRV portCheck.nBufferCountMin = %ld\n",
-                                            portCheck.nBufferCountMin);
-    LOGD("\n ***PRV portCheck.nBufferCountActual = %ld\n",
-                                            portCheck.nBufferCountActual);
-    LOGD("\n ***PRV portCheck.format.video.nStride = %ld\n",
-                                            portCheck.format.video.nStride);
+        LOGD("\n ***IMG IMG FMT = %x", portCheck.format.image.eColorFormat);
+        LOGD("\n ***IMG portCheck.nBufferSize = %ld\n",portCheck.nBufferSize);
+        LOGD("\n ***IMG portCheck.nBufferCountMin = %ld\n",
+                                                portCheck.nBufferCountMin);
+        LOGD("\n ***IMG portCheck.nBufferCountActual = %ld\n",
+                                                portCheck.nBufferCountActual);
+        LOGD("\n ***IMG portCheck.format.image.nStride = %ld\n",
+                                                portCheck.format.image.nStride);
+
+        }
+    else
+        {
+        LOGD("\n *** PRV Width = %ld", portCheck.format.video.nFrameWidth);
+        LOGD("\n ***PRV Height = %ld", portCheck.format.video.nFrameHeight);
+
+        LOGD("\n ***PRV IMG FMT = %x", portCheck.format.video.eColorFormat);
+        LOGD("\n ***PRV portCheck.nBufferSize = %ld\n",portCheck.nBufferSize);
+        LOGD("\n ***PRV portCheck.nBufferCountMin = %ld\n",
+                                                portCheck.nBufferCountMin);
+        LOGD("\n ***PRV portCheck.nBufferCountActual = %ld\n",
+                                                portCheck.nBufferCountActual);
+        LOGD("\n ***PRV portCheck.format.video.nStride = %ld\n",
+                                                portCheck.format.video.nStride);
+        }
 
     LOG_FUNCTION_NAME_EXIT
     return ErrorUtils::omxToAndroidError(eError);
@@ -647,6 +696,14 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         ret = ErrorUtils::omxToAndroidError(eError);
 
         ///Return from here
+        return ret;
+        }
+
+    ret = setCaptureMode(mCapMode, mBurstFrames);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("setCaptureMode() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
         return ret;
         }
 
@@ -1255,6 +1312,69 @@ status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
     return ret;
 }
 
+status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode, size_t frames)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_CAPTUREMODETYPE capMode;
+    OMX_CONFIG_CAMOPERATINGMODETYPE camMode;
+
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+
+        OMX_INIT_STRUCT_PTR (&capMode, OMX_CONFIG_CAPTUREMODETYPE);
+        OMX_INIT_STRUCT_PTR (&camMode, OMX_CONFIG_CAMOPERATINGMODETYPE);
+
+        if ( OMXCameraAdapter::HIGH_SPEED == mode )
+            {
+            CAMHAL_LOGDA("Camera mode: HIGH SPEED");
+            capMode.bContinuous = OMX_TRUE;
+            camMode.eCamOperatingMode = OMX_CaptureImageHighSpeedTemporalBracketing;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Camera mode: HIGH QUALITY");
+            capMode.bContinuous = OMX_FALSE;
+            camMode.eCamOperatingMode = OMX_CaptureImageProfileBase;
+            }
+
+        capMode.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
+        capMode.bFrameLimited = OMX_TRUE;
+        capMode.nFrameLimit = frames;
+
+        eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexCameraOperatingMode, &camMode);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring camera mode 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Camera mode configured successfully");
+            }
+
+
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCaptureMode, &capMode);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring capture mode 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Capture mode configured successfully");
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::doAutoFocus()
 {
     status_t ret = NO_ERROR;
@@ -1459,6 +1579,8 @@ status_t OMXCameraAdapter::startImageCapture()
     /// sending Capturing Command to th ecomponent
     bOMX.bEnabled = OMX_TRUE;
     eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCapturing, &bOMX);
+
+    CAMHAL_LOGDB("Capture set - 0x%x", eError);
 
     GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
