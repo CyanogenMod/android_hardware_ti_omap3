@@ -660,13 +660,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
 
     mSetOverlayCalled = true;
 
-    if(overlay.get() && (strcmp(mParameters.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I)!=0))
-        {
-        ////Overlay is supported only for YUV422I format
-        return BAD_VALUE;
-        }
-
-    ///If the Camera service passes a null overlay, we destroy existing overlay and free the DisplayAdapter
+   ///If the Camera service passes a null overlay, we destroy existing overlay and free the DisplayAdapter
     if(!overlay.get())
         {
         if(mDisplayAdapter.get())

@@ -1789,6 +1789,12 @@ int execute_functional_script(char *script) {
                     camera->startRecording();
                 break;
 
+            case 'T':
+            case 't':
+                params.setPreviewFormat((cmd + 1));
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+                break;
 
             case 'o':
             case 'O':
