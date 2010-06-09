@@ -268,8 +268,8 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         {
         if (strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
             {
-            CAMHAL_LOGDA("YCbCr format selected");
-            pixFormat = OMX_COLOR_FormatYCbYCr;
+            CAMHAL_LOGDA("CbYCrY format selected");
+            pixFormat = OMX_COLOR_FormatCbYCrY;
             }
         else if(strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
             {
@@ -283,14 +283,14 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         else
             {
-            CAMHAL_LOGDA("Invalid format, YCbCr format selected as default");
-            pixFormat = OMX_COLOR_FormatYCbYCr;
+            CAMHAL_LOGDA("Invalid format, CbYCrY format selected as default");
+            pixFormat = OMX_COLOR_FormatCbYCrY;
             }
         }
     else
         {
-        CAMHAL_LOGEA("Preview format is NULL, defaulting to YCbCr");
-        pixFormat = OMX_COLOR_FormatYCbYCr;
+        CAMHAL_LOGEA("Preview format is NULL, defaulting to CbYCrY");
+        pixFormat = OMX_COLOR_FormatCbYCrY;
         }
 
     params.getPreviewSize(&w, &h);
