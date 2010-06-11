@@ -1126,51 +1126,53 @@ static OMX_ERRORTYPE SetParameter (OMX_HANDLETYPE hComp,
                     memcpy(((AMRENC_COMPONENT_PRIVATE*)
                             pHandle->pComponentPrivate)->pcmParams, pCompAmrParam, sizeof(OMX_AUDIO_PARAM_AMRTYPE));
                 } else if (pCompAmrParam->nPortIndex == 1) { /* 1 means Output port */
+                    if (((AMRENC_COMPONENT_PRIVATE *) pHandle->pComponentPrivate)->amrParams == NULL) {
+                        eError = OMX_ErrorBadParameter;
+                        goto EXIT;
+                    }
+
+                    memcpy(((AMRENC_COMPONENT_PRIVATE *)
+                            pHandle->pComponentPrivate)->amrParams, pCompAmrParam, sizeof(OMX_AUDIO_PARAM_AMRTYPE));
+
                     switch (pCompAmrParam->eAMRBandMode)
                     {
                              case OMX_AUDIO_AMRBandModeNB7:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_BR122;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_BR122;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode = SN_AUDIO_BR122 \n",__LINE__);
                                   break;
                              case OMX_AUDIO_AMRBandModeNB6:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_BR102;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_BR102;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode = SN_AUDIO_BR102 \n",__LINE__);
                                   break;
                              case OMX_AUDIO_AMRBandModeNB5:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_BR795;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_BR795;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode = SN_AUDIO_BR795 \n",__LINE__);
                                   break;
                              case OMX_AUDIO_AMRBandModeNB4:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_BR74;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_BR74;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode = SN_AUDIO_BR74 \n",__LINE__);
                                   break;
                              case OMX_AUDIO_AMRBandModeNB3:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_BR67;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_BR67;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode = SN_AUDIO_BR67 \n",__LINE__);
                                   break;
                              case OMX_AUDIO_AMRBandModeNB2:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_BR59;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_BR59;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode = SN_AUDIO_BR59 \n",__LINE__);
                                   break;
                              case OMX_AUDIO_AMRBandModeNB1:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_BR515;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_BR515;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode = SN_AUDIO_BR515 \n",__LINE__);
                                   break;
                              case OMX_AUDIO_AMRBandModeNB0:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_475;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_475;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode = SN_AUDIO_BR475 \n",__LINE__);
                                   break;
                              default:
-                                  pCompAmrParam->eAMRBandMode = SN_AUDIO_BR122;
+                                  pComponentPrivate->amrParams->eAMRBandMode = SN_AUDIO_BR122;
                                   OMX_PRDSP2(pComponentPrivate->dbg, "%d :: SetParameter OMX_IndexParamAudioAmr:: pCompAmrParam->eAMRBandMode =DEFAULT!! SN_AUDIO_BR122 \n",__LINE__);
                                   break;
                     }
-		    if (((AMRENC_COMPONENT_PRIVATE *) pHandle->pComponentPrivate)->amrParams == NULL) {
-                        eError = OMX_ErrorBadParameter;
-			goto EXIT;
-		    }
-                    memcpy(((AMRENC_COMPONENT_PRIVATE *)
-                            pHandle->pComponentPrivate)->amrParams, pCompAmrParam, sizeof(OMX_AUDIO_PARAM_AMRTYPE));
                     if (pCompAmrParam->eAMRFrameFormat == OMX_AUDIO_AMRFrameFormatConformance) {
                         pComponentPrivate->frameMode = NBAMRENC_FORMATCONFORMANCE;
                     }
