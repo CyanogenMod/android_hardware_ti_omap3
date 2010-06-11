@@ -266,7 +266,7 @@ private:
     status_t startImageCapture();
     status_t stopImageCapture();
     //Sets eithter HQ or HS mode and the frame count
-    status_t setCaptureMode(OMXCameraAdapter::CaptureMode mode, size_t frames);
+    status_t setCaptureMode(OMXCameraAdapter::CaptureMode mode);
     status_t UseBuffersCapture(void* bufArr, int num);
 
     //Used for calculation of the average frame rate during preview
@@ -282,6 +282,7 @@ private:
 
     CaptureMode mCapMode;
     size_t mBurstFrames;
+    size_t mCapturedFrames;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 

@@ -311,6 +311,7 @@ void AppCallbackNotifier::notifyFrame()
     CameraFrame *frame;
     MemoryHeapBase *heap;
     MemoryBase *buffer;
+    sp<MemoryBase> memBase;
 
     LOG_FUNCTION_NAME
 
@@ -347,35 +348,38 @@ void AppCallbackNotifier::notifyFrame()
                     }
                 else if ( ( CameraFrame::IMAGE_FRAME == frame->mFrameType ) &&
                              ( NULL != mCameraHal.get() ) &&
-                             ( NULL != mDataCb) &&
-                             ( mCameraHal->msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE)  ) )
+                             ( NULL != mDataCb) )
                     {
 
 #ifdef COPY_IMAGE_BUFFER
 
                     sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase(frame->mLength);
                     sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, frame->mLength);
-                    memcpy(JPEGPictureMemBase->pointer(), frame->mBuffer, frame->mLength);
+                    memcpy(JPEGPictureMemBase->pointer(), ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
+
+                    mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
 
 #else
 
                      //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
-                     //Send NULL for now
-                     sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase( 256);
-                     sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, 256);
 
 #endif
 
-                    mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
+
                     }
                 else if ( ( CameraFrame::VIDEO_FRAME_SYNC == frame->mFrameType ) &&
                              ( NULL != mCameraHal.get() ) &&
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_VIDEO_FRAME)  ) )
                     {
-
                     buffer = ( MemoryBase * ) mVideoBuffers.valueFor( ( unsigned int ) frame->mBuffer );
 
+                    if( (NULL == buffer) || ( NULL == frame->mBuffer) )
+                        {
+                        CAMHAL_LOGDA("Error! One of the video buffer is NULL");
+                        break;
+                        }
                     mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
 
                     }
@@ -384,24 +388,18 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME)  ))
                     {
-                    buffer = mPreviewBuffers[mPreviewBufCount].get();
-                    if(!buffer || !frame->mBuffer)
+                    memBase = mPreviewBuffers.valueFor( ( unsigned int ) frame->mBuffer );
+
+                    if( (NULL == memBase.get() ) || ( NULL == frame->mBuffer) )
                         {
-                        CAMHAL_LOGDA("Error! One of the buffer is NULL");
+                        CAMHAL_LOGDA("Error! One of the preview buffer is NULL");
                         break;
                         }
 
-                    ///CAMHAL_LOGDB("+Copy 0x%x to 0x%x", buffer->pointer(), frame->mBuffer);
-                    ///Copy the data into 1-D buffer
-                    copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
-                                mPreviewPixelFormat);
-                    ///CAMHAL_LOGDA("-Copy");
-
-                    //Increment the buffer count
-                    mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
-
                     ///Give preview callback to app
-                    mDataCb(CAMERA_MSG_PREVIEW_FRAME, buffer, mCallbackCookie);
+                    mDataCb(CAMERA_MSG_PREVIEW_FRAME, memBase, mCallbackCookie);
+
+                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
 
                     }
                 else
@@ -658,9 +656,12 @@ void AppCallbackNotifier::setFrameProvider(FrameNotifier *frameNotifier)
     LOG_FUNCTION_NAME_EXIT
 }
 
-status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params)
+status_t AppCallbackNotifier::startPreviewCallbacks(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count)
 {
+    sp<MemoryHeapBase> heap;
+    sp<MemoryBase> buffer;
     status_t ret = NO_ERROR;
+    unsigned int *bufArr;
 
     LOG_FUNCTION_NAME
 
@@ -672,46 +673,64 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params)
         return -1;
         }
 
-    if(mPreviewing)
+    if ( mPreviewing )
         {
         CAMHAL_LOGEA("+Already previewing");
         return -1;
         }
 
-    int w,h;
-    params.getPreviewSize(&w, &h);
-    mPreviewHeap = new MemoryHeapBase(w*h*2*AppCallbackNotifier::MAX_BUFFERS);
-    if(!mPreviewHeap.get())
+    if ( NO_ERROR == ret )
         {
-        return NO_MEMORY;
-        }
 
-    for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
-        {
-            mPreviewBuffers[i] = new MemoryBase(mPreviewHeap,w*h*2*i, w*h*2 );
-            if(!mPreviewBuffers[i].get())
+        bufArr = ( unsigned int * ) buffers;
+
+        for ( unsigned int i = 0 ; i < count ; i ++ )
+            {
+            heap = new MemoryHeapBase(fd, length, 0, offsets[i]);
+            if ( NULL == heap.get() )
                 {
-                for(int j=0;j<i-1;j++)
-                    {
-                    mPreviewBuffers[j].clear();
-                    }
-                mPreviewHeap.clear();
-                return NO_MEMORY;
+                CAMHAL_LOGEB("Unable to map a memory heap to preview frame 0x%x", ( unsigned int ) bufArr[i]);
+                ret = -1;
+                goto exit;
                 }
-        }
 
-    //Get the preview pixel format
-    mPreviewPixelFormat = params.getPreviewFormat();
+#ifdef DEBUG_LOG
+
+            CAMHAL_LOGEB("New memory heap 0x%x for preview frame 0x%x", ( unsigned int ) heap.get(), ( unsigned int ) bufArr[i]);
+
+#endif
+
+            buffer = new MemoryBase(heap, 0, length);
+            if ( NULL == buffer.get() )
+                {
+                CAMHAL_LOGEB("Unable to initialize a memory base to preview frame 0x%x", ( unsigned int ) bufArr[i]);
+                heap->dispose();
+                heap.clear();
+                ret = -1;
+                goto exit;
+                }
+
+#ifdef DEBUG_LOG
+
+            CAMHAL_LOGEB("New memory buffer 0x%x for preview frame 0x%x ", ( unsigned int ) buffer.get(), ( unsigned int ) bufArr[i]);
+
+#endif
+
+            mPreviewHeaps.add( bufArr[i], heap);
+            mPreviewBuffers.add( bufArr[i], buffer);
+            }
+        }
 
     if ( NO_ERROR == ret )
         {
          mFrameProvider->enableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
         }
 
-    mPreviewBufCount = 0;
-
     mPreviewing = true;
 
+    LOG_FUNCTION_NAME
+
+    exit:
 
     return ret;
 
@@ -722,13 +741,15 @@ sp<IMemoryHeap> AppCallbackNotifier::getPreviewHeap()
 
     CAMHAL_LOGDA("getPreviewHeap");
 
-    return mPreviewHeap;
+    return NULL; //mPreviewHeap; We dont have one single heap
 }
 
 
 status_t AppCallbackNotifier::stopPreviewCallbacks()
 {
     status_t ret = NO_ERROR;
+    sp<MemoryHeapBase> heap;
+    sp<MemoryBase> buffer;
 
     LOG_FUNCTION_NAME
 
@@ -750,13 +771,17 @@ status_t AppCallbackNotifier::stopPreviewCallbacks()
 
     bool alreadyStopped = false;
 
-    for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
+    for ( unsigned int i = 0 ; i < mPreviewHeaps.size() ; i++ )
         {
         //Delete the instance
-        mPreviewBuffers[i].clear();
+        heap = mPreviewHeaps.valueAt(i);
+        buffer = mPreviewBuffers.valueAt(i);
+        heap.clear();
+        buffer.clear();
         }
 
-    mPreviewHeap.clear();
+    mPreviewHeaps.clear();
+    mPreviewBuffers.clear();
 
     mPreviewing = false;
 
@@ -805,21 +830,21 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
         heap = new MemoryHeapBase(fd, length, 0, offsets[i]);
         if ( NULL == heap )
             {
-            CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x", bufArr[i]);
+            CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x",  ( unsigned int ) bufArr[i]);
             ret = -1;
             goto exit;
             }
 
 #ifdef DEBUG_LOG
 
-        CAMHAL_LOGEB("New memory heap 0x%x for frame 0x%x", (unsigned int)heap, bufArr[i]);
+        CAMHAL_LOGEB("New memory heap 0x%x for frame 0x%x", ( unsigned int ) heap, ( unsigned int ) bufArr[i]);
 
 #endif
 
         buffer = new MemoryBase(heap, 0, length);
         if ( NULL == buffer )
             {
-            CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", bufArr[i]);
+            CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", ( unsigned int ) bufArr[i]);
             heap->dispose();
             ret = -1;
             goto exit;
@@ -827,7 +852,7 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
 
 #ifdef DEBUG_LOG
 
-        CAMHAL_LOGEB("New memory buffer 0x%x for frame 0x%x ", (unsigned int)buffer, bufArr[i]);
+        CAMHAL_LOGEB("New memory buffer 0x%x for frame 0x%x ", ( unsigned int ) buffer, ( unsigned int ) bufArr[i]);
 
 #endif
 

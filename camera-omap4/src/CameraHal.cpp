@@ -46,7 +46,7 @@ wp<CameraHardwareInterface> CameraHal::singleton;
 ////       Currently, they are hard-coded
 
 const int CameraHal::NO_BUFFERS_PREVIEW = MAX_CAMERA_BUFFERS;
-const int CameraHal::NO_BUFFERS_IMAGE_CAPTURE = 1;
+const int CameraHal::NO_BUFFERS_IMAGE_CAPTURE = 2;
 
 const uint32_t MessageNotifier::EVENT_BIT_FIELD_POSITION = 0;
 const uint32_t MessageNotifier::FRAME_BIT_FIELD_POSITION = 0;
@@ -429,48 +429,79 @@ status_t CameraHal::freeVideoBufs()
 
 
 status_t CameraHal::allocImageBufs(int width, int height, const char* previewFormat)
-    {
+{
+    status_t ret = NO_ERROR;
 
-    int bytes = width*height*2;
+    //TODO:
+    //Ideally this should come out during negotiations with camera adapter
+    int bytes = 6*0x100000; //width*height*2;
 
     LOG_FUNCTION_NAME
 
     ///@todo Enhance this method allocImageBufs() to take in a flag for burst capture
     ///Always allocate the buffers for image capture using MemoryManager
-    if(!mImageBufs)
+    if ( NO_ERROR == ret )
         {
-        ///@todo calculate the worst case memory required for JPEG
-        CAMHAL_LOGDB("Size of Image cap buffer = %d", bytes);
-        mImageBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, previewFormat, bytes,CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
-        if(!mImageBufs)
+        if( ( NULL != mImageBufs ) )
             {
-            LOG_FUNCTION_NAME_EXIT
-            CAMHAL_LOGEA("Couldn't allocate image buffers using memory manager");
-            return NO_MEMORY;
+            ret = freeImageBufs();
             }
         }
 
-    mImageFd = mMemoryManager->getFd();
-    mImageLength = bytes;
-    mImageOffsets = mMemoryManager->getOffsets();
+    if ( NO_ERROR == ret )
+        {
+        CAMHAL_LOGDB("Size of Image cap buffer = %d", bytes);
+        mImageBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, previewFormat, bytes, CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
+        if( NULL == mImageBufs )
+            {
+            CAMHAL_LOGEA("Couldn't allocate image buffers using memory manager");
+            ret = -NO_MEMORY;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        mImageFd = mMemoryManager->getFd();
+        mImageLength = bytes;
+        mImageOffsets = mMemoryManager->getOffsets();
+        }
+    else
+        {
+        mImageFd = -1;
+        mImageLength = 0;
+        mImageOffsets = NULL;
+        }
 
     LOG_FUNCTION_NAME
 
-    return NO_ERROR;
-    }
+    return ret;
+}
 
 status_t CameraHal::freeImageBufs()
-    {
-    LOG_FUNCTION_NAME
+{
     status_t ret = NO_ERROR;
-    if(mImageBufs)
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
         {
-        ///@todo Pluralise the name of this method to freeBuffers
-        ret = mMemoryManager->freeBuffer(mImageBufs);
-        mImageBufs = NULL;
-        LOG_FUNCTION_NAME_EXIT
-        return ret;
+
+        if( NULL != mImageBufs )
+            {
+
+            ///@todo Pluralise the name of this method to freeBuffers
+            ret = mMemoryManager->freeBuffer(mImageBufs);
+            mImageBufs = NULL;
+
+            }
+        else
+            {
+            ret = -EINVAL;
+            }
+
         }
+
+    LOG_FUNCTION_NAME_EXIT
 
     return ret;
 }
@@ -573,7 +604,7 @@ status_t CameraHal::startPreview()
 
     if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
         {
-        mAppCallbackNotifier->startPreviewCallbacks(mParameters);
+        mAppCallbackNotifier->startPreviewCallbacks(mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
         }
 
     ///Start the callback notifier
