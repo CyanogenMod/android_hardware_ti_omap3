@@ -805,21 +805,21 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
         heap = new MemoryHeapBase(fd, length, 0, offsets[i]);
         if ( NULL == heap )
             {
-            CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x", ( void * ) bufArr[i]);
+            CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x", bufArr[i]);
             ret = -1;
             goto exit;
             }
 
 #ifdef DEBUG_LOG
 
-        CAMHAL_LOGEB("New memory heap 0x%x for frame 0x%x", heap, ( void * ) bufArr[i]);
+        CAMHAL_LOGEB("New memory heap 0x%x for frame 0x%x", (unsigned int)heap, bufArr[i]);
 
 #endif
 
         buffer = new MemoryBase(heap, 0, length);
         if ( NULL == buffer )
             {
-            CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", ( void * ) bufArr[i]);
+            CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", bufArr[i]);
             heap->dispose();
             ret = -1;
             goto exit;
@@ -827,7 +827,7 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
 
 #ifdef DEBUG_LOG
 
-        CAMHAL_LOGEB("New memory buffer 0x%x for frame 0x%x ", buffer, ( void * ) bufArr[i]);
+        CAMHAL_LOGEB("New memory buffer 0x%x for frame 0x%x ", (unsigned int)buffer, bufArr[i]);
 
 #endif
 

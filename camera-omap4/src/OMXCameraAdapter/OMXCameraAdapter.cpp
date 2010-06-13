@@ -8,6 +8,8 @@
 
 namespace android {
 
+///Maintain a separate tag for OMXCameraAdapter logs to isolate issues OMX specific
+#undef LOG_TAG
 #define LOG_TAG "OMXCameraAdapter"
 
 //frames skipped before recalculating the framerate
@@ -164,11 +166,11 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
                 //Update refCount accordingly
                 Mutex::Autolock lock(mVideoBufferLock);
                 refCount = mVideoBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
-                CAMHAL_LOGDB("Video Frame 0x%x returned refCount %d -> %d", frameBuf, refCount, refCount-1);
+                //CAMHAL_LOGDB("Video Frame 0x%x returned refCount %d -> %d", frameBuf, refCount, refCount-1);
 
                 if ( 0 >= refCount )
                     {
-                    CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", refCount, frameBuf);
+                    CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", (uint32_t)refCount, (uint32_t)frameBuf);
                     return;
                     }
 
@@ -193,11 +195,11 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
                 //Update refCoung accordingly
                 Mutex::Autolock lock(mPreviewBufferLock);
                 refCount = mPreviewBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
-                CAMHAL_LOGDB("Preview Frame 0x%x returned refCount %d -> %d", frameBuf, refCount, refCount-1);
+                //CAMHAL_LOGDB("Preview Frame 0x%x returned refCount %d -> %d", frameBuf, refCount, refCount-1);
 
                 if ( 0 >= refCount )
                     {
-                    CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", refCount, frameBuf);
+                    CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", refCount, (unsigned int)frameBuf);
                     return;
                     }
                 refCount--;
@@ -304,10 +306,10 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mHeight = h;
     cap->mFrameRate = frameRate;
 
-    CAMHAL_LOGDB("Prev: cap.mColorFormat = %d", cap->mColorFormat);
-    CAMHAL_LOGDB("Prev: cap.mWidth = %d", cap->mWidth);
-    CAMHAL_LOGDB("Prev: cap.mHeight = %d", cap->mHeight);
-    CAMHAL_LOGDB("Prev: cap.mFrameRate = %d", cap->mFrameRate);
+    CAMHAL_LOGDB("Prev: cap.mColorFormat = %d", (int)cap->mColorFormat);
+    CAMHAL_LOGDB("Prev: cap.mWidth = %d", (int)cap->mWidth);
+    CAMHAL_LOGDB("Prev: cap.mHeight = %d", (int)cap->mHeight);
+    CAMHAL_LOGDB("Prev: cap.mFrameRate = %d", (int)cap->mFrameRate);
 
     //TODO: Add an additional parameter for video resolution
    //use preview resolution for now
@@ -317,10 +319,10 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mHeight = h;
     cap->mFrameRate = frameRate;
 
-    CAMHAL_LOGDB("Video: cap.mColorFormat = %d", cap->mColorFormat);
-    CAMHAL_LOGDB("Video: cap.mWidth = %d", cap->mWidth);
-    CAMHAL_LOGDB("Video: cap.mHeight = %d", cap->mHeight);
-    CAMHAL_LOGDB("Video: cap.mFrameRate = %d", cap->mFrameRate);
+    CAMHAL_LOGDB("Video: cap.mColorFormat = %d", (int)cap->mColorFormat);
+    CAMHAL_LOGDB("Video: cap.mWidth = %d", (int)cap->mWidth);
+    CAMHAL_LOGDB("Video: cap.mHeight = %d", (int)cap->mHeight);
+    CAMHAL_LOGDB("Video: cap.mFrameRate = %d", (int)cap->mFrameRate);
 
 
     ///mStride is set from setBufs() while passing the APIs
@@ -337,8 +339,8 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mBufSize = cap->mStride * cap->mHeight;
     cap->mNumBufs = mCaptureBuffersCount;
 
-    CAMHAL_LOGDB("Image: cap.mWidth = %d", cap->mWidth);
-    CAMHAL_LOGDB("Image: cap.mHeight = %d", cap->mHeight);
+    CAMHAL_LOGDB("Image: cap.mWidth = %d", (int)cap->mWidth);
+    CAMHAL_LOGDB("Image: cap.mHeight = %d", (int)cap->mHeight);
 
     if ( params.getInt(KEY_ROTATION) != -1 )
         {
@@ -426,7 +428,7 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
     ///Here, we do any resource freeing and convert from OMX error code to Camera Hal error code
     EXIT:
 
-    CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, eError);
+    CAMHAL_LOGEB("Exiting function %s because of eError=%x", __FUNCTION__, eError);
     LOG_FUNCTION_NAME_EXIT
     return ErrorUtils::omxToAndroidError(eError);
 
@@ -763,8 +765,8 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
 
     //TODO: Support more pixelformats
 
-    LOGE("Params Width = %d", imgCaptureData->mWidth);
-    LOGE("Params Height = %d", imgCaptureData->mWidth);
+    LOGE("Params Width = %d", (int)imgCaptureData->mWidth);
+    LOGE("Params Height = %d", (int)imgCaptureData->mWidth);
 
     ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *imgCaptureData);
     if(ret!=NO_ERROR)
@@ -791,7 +793,7 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     for(int index=0;index<num;index++)
     {
         OMX_BUFFERHEADERTYPE *pBufferHdr;
-        CAMHAL_LOGDB("OMX_UseBuffer Capture address: 0x%x, size = %d", buffers[index], imgCaptureData->mBufSize);
+        CAMHAL_LOGDB("OMX_UseBuffer Capture address: 0x%x, size = %d", (unsigned int)buffers[index], (int)imgCaptureData->mBufSize);
 
         eError = OMX_UseBuffer( mCameraAdapterParameters.mHandleComp,
                                 &pBufferHdr,
@@ -868,7 +870,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                         mPreviewBuffers = (int *) desc->mBuffers;
 
                         mPreviewBuffersAvailable.clear();
-                        for ( int i = 0 ; i < desc->mCount ; i++ )
+                        for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
                             {
                             mPreviewBuffersAvailable.add(mPreviewBuffers[i], 0);
                             }
@@ -889,7 +891,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                         mVideoBuffersLength = desc->mLength;
                         mVideoBuffersAvailable.clear();
                         mPreviewBuffersAvailable.clear();
-                        for ( int i = 0 ; i < desc->mCount ; i++ )
+                        for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
                             {
                             mVideoBuffersAvailable.add(mVideoBuffers[i], 0);
                             mPreviewBuffersAvailable.add(mVideoBuffers[i], 0);
@@ -910,7 +912,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                         mCaptureBuffers = (int *) desc->mBuffers;
                         mCaptureBuffersLength = desc->mLength;
                         mCaptureBuffersAvailable.clear();
-                        for ( int i = 0 ; i < desc->mCount ; i++ )
+                        for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
                             {
                             mCaptureBuffersAvailable.add(mCaptureBuffers[i], true);
                             }
@@ -1079,7 +1081,7 @@ status_t OMXCameraAdapter::startPreview()
     ///Queue all the buffers on preview port
     for(int index=0;index< mPreviewData->mNumBufs;index++)
         {
-        CAMHAL_LOGDB("Queuing buffer on Preview port - 0x%x", mPreviewData->mBufferHeader[index]->pBuffer);
+        CAMHAL_LOGDB("Queuing buffer on Preview port - 0x%x", (uint32_t)mPreviewData->mBufferHeader[index]->pBuffer);
         eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp,
                     (OMX_BUFFERHEADERTYPE*)mPreviewData->mBufferHeader[index]);
         if(eError!=OMX_ErrorNone)
@@ -1451,7 +1453,7 @@ status_t OMXCameraAdapter::startImageCapture()
     ///Queue all the buffers on capture port
     for(int index=0;index< capData->mNumBufs;index++)
         {
-        CAMHAL_LOGDB("Queuing buffer on Capture port - 0x%x", capData->mBufferHeader[index]->pBuffer);
+        CAMHAL_LOGDB("Queuing buffer on Capture port - 0x%x", (uint32_t)capData->mBufferHeader[index]->pBuffer);
         eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp,
                     (OMX_BUFFERHEADERTYPE*)capData->mBufferHeader[index]);
 
@@ -1498,7 +1500,7 @@ status_t OMXCameraAdapter::stopImageCapture()
     ///Free all the buffers on capture port
     for ( int index = 0 ; index < capData->mNumBufs ; index++)
         {
-        CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", capData->mBufferHeader[index]->pBuffer);
+        CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", (uint32_t)capData->mBufferHeader[index]->pBuffer);
         eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
                         mCameraAdapterParameters.mImagePortIndex,
                         (OMX_BUFFERHEADERTYPE*)capData->mBufferHeader[index]);
@@ -1578,7 +1580,7 @@ status_t OMXCameraAdapter::startVideoCapture()
 
         for ( int index=0 ; index < videoData->mNumBufs ; index++ )
             {
-            CAMHAL_LOGDB("Queuing buffer on Preview port - 0x%x", videoData->mBufferHeader[index]->pBuffer);
+            CAMHAL_LOGDB("Queuing buffer on Preview port - 0x%x",(uint32_t) videoData->mBufferHeader[index]->pBuffer);
             eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp,
                         (OMX_BUFFERHEADERTYPE*) videoData->mBufferHeader[index]);
 
@@ -1800,7 +1802,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETY
 
     switch (eEvent) {
         case OMX_EventCmdComplete:
-            CAMHAL_LOGDB("+OMX_EventCmdComplete %d %d", nData1, nData2);
+            CAMHAL_LOGDB("+OMX_EventCmdComplete %d %d", (int)nData1, (int)nData2);
 
             if (OMX_CommandStateSet == nData1) {
                 mCameraAdapterParameters.mState = (OMX_STATETYPE) nData2;
@@ -1822,7 +1824,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETY
         break;
 
         case OMX_EventError:
-            CAMHAL_LOGDB("OMX interface failed to execute OMX command %d", nData1);
+            CAMHAL_LOGDB("OMX interface failed to execute OMX command %d", (int)nData1);
             CAMHAL_LOGDA("See OMX_INDEXTYPE for reference");
         break;
 
@@ -1998,7 +2000,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
                 {
                 Mutex::Autolock lock(mPreviewBufferLock);
-                CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mFrameSubscribers.size());
+                CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer,(int) mFrameSubscribers.size());
                 mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) pBuffHeader->pBuffer, mFrameSubscribers.size());
                 }
 
@@ -2010,14 +2012,14 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
                     {
                     Mutex::Autolock lock(mVideoBufferLock);
-                    CAMHAL_LOGDB("Video Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mVideoSubscribers.size());
+                    CAMHAL_LOGDB("Video Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer, (int)mVideoSubscribers.size());
                     mVideoBuffersAvailable.replaceValueFor( ( unsigned int ) pBuffHeader->pBuffer, mVideoSubscribers.size());
                     }
 
                 res2  = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
                 }
 
-            ret = ( ( NO_ERROR == res1) || ( NO_ERROR == res2 ) ) ? ( NO_ERROR ) : ( -1 );
+            ret = ( ( NO_ERROR == res1) || ( NO_ERROR == res2 ) ) ? ( (uint32_t)NO_ERROR ) : ( -1 );
 
             }
         }
@@ -2126,7 +2128,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
 
         if(CameraFrame::IMAGE_FRAME == typeOfFrame )
             {
-            for (int i = 0 ; i < mImageSubscribers.size(); i++ )
+            for (uint32_t i = 0 ; i < mImageSubscribers.size(); i++ )
                 {
                 cFrame.mCookie = (void *) mImageSubscribers.keyAt(i);
                 callback = (frame_callback) mImageSubscribers.valueAt(i);
@@ -2139,7 +2141,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             if ( 0 < mVideoSubscribers.size() )
                 {
 
-                for(int i = 0 ; i < mVideoSubscribers.size(); i++ )
+                for(uint32_t i = 0 ; i < mVideoSubscribers.size(); i++ )
                     {
                     cFrame.mCookie = (void *) mVideoSubscribers.keyAt(i);
                     callback = (frame_callback) mVideoSubscribers.valueAt(i);
@@ -2156,7 +2158,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             {
             if ( 0 < mFrameSubscribers.size() )
                 {
-                for(int i = 0 ; i < mFrameSubscribers.size(); i++ )
+                for(uint32_t i = 0 ; i < mFrameSubscribers.size(); i++ )
                     {
                     recalculateFPS();
                     cFrame.mCookie = (void *) mFrameSubscribers.keyAt(i);

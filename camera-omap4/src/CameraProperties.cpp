@@ -337,11 +337,11 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
                 ret = xmlTextReaderRead(reader);
 
                 CAMHAL_LOGDB("Tag Name %s Tag Value %s", name, value);
-                if ( propertyIndex = getCameraPropertyIndex( (const char *) name))
+                if ( (propertyIndex = getCameraPropertyIndex( (const char *) name)))
                     {
                     ///If the property already exists, update it with the new value
                     CAMHAL_LOGDB("Found matching property, updating property entry for %s=%s", name, value);
-                    CAMHAL_LOGDB("mCameraProps[curCameraIndex][propertyIndex] = 0x%x", mCameraProps[curCameraIndex][propertyIndex]);
+                    CAMHAL_LOGDB("mCameraProps[curCameraIndex][propertyIndex] = 0x%x", (unsigned int)mCameraProps[curCameraIndex][propertyIndex]);
                     ret = mCameraProps[curCameraIndex][propertyIndex]->setValue((const char *) value);
                     if(NO_ERROR != ret)
                         {

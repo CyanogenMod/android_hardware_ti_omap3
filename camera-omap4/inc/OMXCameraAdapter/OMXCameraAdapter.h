@@ -89,8 +89,6 @@ namespace android {
 
 #define GOTO_EXIT_IF(_CONDITION,_ERROR) {                                       \
     if ((_CONDITION)) {                                                         \
-        TIMM_OSAL_ErrorExt(TIMM_OSAL_TRACEGRP_OMXCAM, "Error :: %s : %s : %d :: ", __FILE__, __FUNCTION__, __LINE__);  \
-        TIMM_OSAL_InfoExt(TIMM_OSAL_TRACEGRP_OMXCAM, "Exiting because: %s \n", #_CONDITION);                          \
         eError = (_ERROR);                                                      \
         goto EXIT;                                                              \
     }                                                                           \

@@ -1396,7 +1396,7 @@ status_t CameraHal::initialize()
     if(!f)
         {
         CAMHAL_LOGEB("%s does not export required factory method CameraAdapter_Factory"
-            ,mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]
+            ,mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue
             );
         goto fail_loop;
         }

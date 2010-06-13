@@ -718,7 +718,7 @@ void FakeCameraAdapter::frameThread()
                                         }
                                     else
                                         {
-                                        CAMHAL_LOGEB("Negative refcount for preview buffer 0x%x!", msg.arg1);
+                                        CAMHAL_LOGEB("Negative refcount for preview buffer 0x%x!", (unsigned int)msg.arg1);
                                         }
 
                                 }
@@ -805,7 +805,7 @@ void FakeCameraAdapter::frameThread()
                                 }
                             else
                                 {
-                                CAMHAL_LOGEB("Negative refcount for preview buffer 0x%x!", msg.arg1);
+                                CAMHAL_LOGEB("Negative refcount for preview buffer 0x%x!", (unsigned int)msg.arg1);
                                 }
 
                             }

@@ -654,7 +654,7 @@ bool OverlayDisplayAdapter::processHalMsg()
 status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &dispFrame)
 {
     status_t ret = NO_ERROR;
-    int actualFramesWithDisplay = 0;
+    uint32_t actualFramesWithDisplay = 0;
 
     ///@todo Do cropping based on the stabilized frame coordinates
     ///@todo Insert logic to drop frames here based on refresh rate of
@@ -676,7 +676,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
 
     if ( NAME_NOT_FOUND != mFramesWithDisplayMap.indexOfKey( (int) dispFrame.mBuffer) )
         {
-        CAMHAL_LOGEB("Warning: Buffer 0x%x already queued", dispFrame.mBuffer);
+        CAMHAL_LOGEB("Warning: Buffer 0x%x already queued", (unsigned int)dispFrame.mBuffer);
         mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
 
         return NO_ERROR;
@@ -688,7 +688,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
         actualFramesWithDisplay = ret = mOverlay->queueBuffer(buf);
         if ( ret < NO_ERROR )
             {
-            CAMHAL_LOGEB("Posting error 0x%x for buffer 0x%x, index %d", ret, dispFrame.mBuffer, buf);
+            CAMHAL_LOGEB("Posting error 0x%x for buffer 0x%x, index %d", ret, (unsigned int)dispFrame.mBuffer, (unsigned int)buf);
             ///Drop the frame, return it back to the provider (Camera Adapter)
             mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
             }
@@ -727,7 +727,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
                 {
                 ///Skew detected. Overlay has gone through a stream off sequence due to trigger from Surface flinger
                 /// Reclaim all the buffers back except the one we posted
-                for(int i=0;i<mFramesWithDisplayMap.size();i++)
+                for(unsigned int i=0;i<mFramesWithDisplayMap.size();i++)
                     {
                     ///Return the reclaimed frames back to the provider (Camera Adapter)
                     mFrameProvider->returnFrame( (void *) mFramesWithDisplayMap.keyAt(i), CameraFrame::PREVIEW_FRAME_SYNC);
