@@ -389,7 +389,7 @@ public:
     virtual void errorNotify(int error);
 
     sp<IMemoryHeap> getPreviewHeap();
-    status_t startPreviewCallbacks(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count);
+    status_t startPreviewCallbacks(CameraParameters &params, void *buffers, uint32_t *offsets, int fd, size_t length, size_t count);
     status_t stopPreviewCallbacks();
 
 
@@ -469,8 +469,15 @@ private:
     NotifierState mNotifierState;
 
     bool mPreviewing;
-    KeyedVector<unsigned int, sp<MemoryHeapBase> > mPreviewHeaps;
-    KeyedVector<unsigned int, sp<MemoryBase> > mPreviewBuffers;
+    sp<MemoryHeapBase> mPreviewHeap;
+    sp<MemoryHeapBase> mPreviewHeapArr[MAX_BUFFERS];
+    sp<MemoryBase> mPreviewBuffers[MAX_BUFFERS];
+    int mPreviewBufCount;
+    const char *mPreviewPixelFormat;
+    KeyedVector<unsigned int, sp<MemoryHeapBase> > mSharedPreviewHeaps;
+    KeyedVector<unsigned int, sp<MemoryBase> > mSharedPreviewBuffers;
+    bool mAppSupportsStride;
+
 };
 
 
@@ -597,6 +604,7 @@ public:
     virtual int disableDisplay() = 0;
     //Used for Snapshot review temp. pause
     virtual status_t pauseDisplay(bool pause) = 0;
+
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -929,6 +937,10 @@ private:
     bool mPreviewStartInProgress;
 
     bool mSetOverlayCalled;
+
+    uint32_t mPreviewWidth;
+    uint32_t mPreviewHeight;
+
 };
 
 
