@@ -46,6 +46,9 @@ extern "C"
 namespace android {
 
 
+#define MIN_JPEG_QUALITY 1
+#define MAX_JPEG_QUALITY 100
+
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
 
@@ -247,6 +250,7 @@ private:
                                           OMX_IN OMX_U32 timeout);
 
     status_t setPictureRotation(unsigned int degree);
+    status_t setImageQuality(unsigned int quality);
 
     //Focus functionality
     status_t doAutoFocus();
@@ -290,6 +294,9 @@ private:
     struct timeval mStartCapture;
 
 #endif
+
+    //jpeg Picture Quality
+    unsigned int mPictureQuality;
 
     //variables holding the estimated framerate
     float mFPS, mLastFPS;

@@ -126,6 +126,7 @@ status_t OMXCameraAdapter::initialize()
     mCapMode = HIGH_QUALITY;
     mBurstFrames = 1;
     mCapturedFrames = 0;
+    mPictureQuality = 100;
 
     return ErrorUtils::omxToAndroidError(eError);
 
@@ -399,6 +400,17 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("Burst Frames set %d", mBurstFrames);
 
+    if ( ( params.getInt(CameraParameters::KEY_JPEG_QUALITY)  >= MIN_JPEG_QUALITY ) &&
+         ( params.getInt(CameraParameters::KEY_JPEG_QUALITY)  <= MAX_JPEG_QUALITY ) )
+        {
+        mPictureQuality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
+        }
+    else
+        {
+        mPictureQuality = MAX_JPEG_QUALITY;
+        }
+
+    CAMHAL_LOGDB("Picture Quality set %d", mPictureQuality);
 
     LOG_FUNCTION_NAME_EXIT
     return ret;
@@ -735,6 +747,13 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         {
         CAMHAL_LOGEB("setFormat() failed %d", ret);
         LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    ret = setImageQuality(mPictureQuality);
+    if ( NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring image quality %x", ret);
         return ret;
         }
 
@@ -1321,6 +1340,39 @@ status_t OMXCameraAdapter::stopPreview()
 
 }
 
+status_t OMXCameraAdapter::setImageQuality(unsigned int quality)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_IMAGE_PARAM_QFACTORTYPE jpegQualityConf;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in loaded state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT(jpegQualityConf, OMX_IMAGE_PARAM_QFACTORTYPE);
+        jpegQualityConf.nQFactor = quality;
+        jpegQualityConf.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
+
+        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, OMX_IndexParamQFactor, &jpegQualityConf);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring jpeg Quality 0x%x", eError);
+            ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
 {
     status_t ret = NO_ERROR;
@@ -1576,7 +1628,14 @@ status_t OMXCameraAdapter::startImageCapture()
 
     LOG_FUNCTION_NAME
 
-    ret = setPictureRotation(mPictureRotation);
+    if ( NO_ERROR == ret )
+        {
+        ret = setPictureRotation(mPictureRotation);
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("Error configuring image rotation %x", ret);
+            }
+        }
 
     if ( NO_ERROR == ret )
         {
