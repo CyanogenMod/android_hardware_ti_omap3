@@ -49,6 +49,9 @@ namespace android {
 #define MIN_JPEG_QUALITY 1
 #define MAX_JPEG_QUALITY 100
 
+#define DEFAULT_THUMB_WIDTH     160
+#define DEFAULT_THUMB_HEIGHT    128
+
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
 
@@ -251,6 +254,7 @@ private:
 
     status_t setPictureRotation(unsigned int degree);
     status_t setImageQuality(unsigned int quality);
+    status_t setThumbnailSize(unsigned int width, unsigned int height);
 
     //Focus functionality
     status_t doAutoFocus();
@@ -297,6 +301,9 @@ private:
 
     //jpeg Picture Quality
     unsigned int mPictureQuality;
+
+    //thumbnail resolution
+    unsigned int mThumbWidth, mThumbHeight;
 
     //variables holding the estimated framerate
     float mFPS, mLastFPS;

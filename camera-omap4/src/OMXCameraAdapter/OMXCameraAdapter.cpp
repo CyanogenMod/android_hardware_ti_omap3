@@ -412,6 +412,28 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("Picture Quality set %d", mPictureQuality);
 
+    if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH)  > 0 )
+        {
+        mThumbWidth = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+        }
+    else
+        {
+        mThumbWidth = DEFAULT_THUMB_WIDTH;
+        }
+
+    CAMHAL_LOGDB("Picture Thumb width set %d", mThumbWidth);
+
+    if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT)  > 0 )
+        {
+        mThumbHeight = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+        }
+    else
+        {
+        mThumbHeight = DEFAULT_THUMB_HEIGHT;
+        }
+
+    CAMHAL_LOGDB("Picture Thumb height set %d", mThumbHeight);
+
     LOG_FUNCTION_NAME_EXIT
     return ret;
 }
@@ -743,7 +765,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         }
 
     ret = setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData);
-    if(ret!=NO_ERROR)
+    if ( ret != NO_ERROR )
         {
         CAMHAL_LOGEB("setFormat() failed %d", ret);
         LOG_FUNCTION_NAME_EXIT
@@ -754,6 +776,13 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
     if ( NO_ERROR != ret)
         {
         CAMHAL_LOGEB("Error configuring image quality %x", ret);
+        return ret;
+        }
+
+    ret = setThumbnailSize(mThumbWidth, mThumbHeight);
+    if ( NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring thumbnail size %x", ret);
         return ret;
         }
 
@@ -1338,6 +1367,48 @@ status_t OMXCameraAdapter::stopPreview()
         LOG_FUNCTION_NAME_EXIT
         return (ret | ErrorUtils::omxToAndroidError(eError));
 
+}
+
+status_t OMXCameraAdapter::setThumbnailSize(unsigned int width, unsigned int height)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_PARAM_THUMBNAILTYPE thumbConf;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in loaded state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT(thumbConf, OMX_PARAM_THUMBNAILTYPE);
+        thumbConf.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
+
+        eError = OMX_GetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexParamThumbnail, &thumbConf);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while retrieving thumbnail size 0x%x", eError);
+            ret = -1;
+            }
+
+        thumbConf.nWidth = width;
+        thumbConf.nHeight = height;
+
+        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexParamThumbnail, &thumbConf);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring thumbnail size 0x%x", eError);
+            ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 status_t OMXCameraAdapter::setImageQuality(unsigned int quality)
