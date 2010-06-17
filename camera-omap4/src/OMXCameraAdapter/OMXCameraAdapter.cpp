@@ -404,7 +404,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     return ret;
 }
 
-
 status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &portParams)
 {
     size_t bufferCount;
@@ -1147,6 +1146,7 @@ status_t OMXCameraAdapter::startPreview()
         }
     if( NO_ERROR == ret)
         {
+        Mutex::Autolock lock(mLock);
         mPreviewing = true;
         }
     else
@@ -1204,7 +1204,7 @@ status_t OMXCameraAdapter::stopPreview()
     mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
     mCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
-    Mutex::Autolock lock(mPreviewBufferLock);
+    CAMHAL_LOGEB("Average framerate: %f", mFPS);
 
     Semaphore eventSem;
     ret = eventSem.Create(0);
@@ -1301,15 +1301,16 @@ status_t OMXCameraAdapter::stopPreview()
 
     mComponentState = OMX_StateLoaded;
 
-    ///Clear all the available preview buffers
-    mPreviewBuffersAvailable.clear();
+        {
+        Mutex::Autolock lock(mPreviewBufferLock);
+        ///Clear all the available preview buffers
+        mPreviewBuffersAvailable.clear();
+        }
 
     ///Clear the previewing flag, we are no longer previewing
     mPreviewing = false;
 
     LOG_FUNCTION_NAME_EXIT
-
-    CAMHAL_LOGEB("Average framerate: %f", mFPS);
 
     return (ret | ErrorUtils::omxToAndroidError(eError));
 
@@ -1897,9 +1898,66 @@ status_t OMXCameraAdapter::cancelCommand(int operation)
 //by camera service when VSTAB/VNF is turned ON for example
 void OMXCameraAdapter::getFrameSize(int &width, int &height)
 {
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_RECTTYPE tFrameDim;
+
     LOG_FUNCTION_NAME
 
+    OMX_INIT_STRUCT_PTR (&tFrameDim, OMX_CONFIG_RECTTYPE);
+    tFrameDim.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("Calling queryBufferPreviewResolution() when not in LOADED state");
+        width = -1;
+        height = -1;
+        goto exit;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = setCaptureMode(mCapMode);
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("setCaptureMode() failed %d", ret);
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = setFormat (mCameraAdapterParameters.mPrevPortIndex, mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex]);
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("setFormat() failed %d", ret);
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        eError = OMX_GetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexParam2DBufferAllocDimension, &tFrameDim);
+        if ( OMX_ErrorNone == eError)
+            {
+            width = tFrameDim.nWidth;
+            height = tFrameDim.nHeight;
+            }
+        else
+            {
+            width = -1;
+            height = -1;
+            }
+        }
+    else
+        {
+        width = -1;
+        height = -1;
+        }
+exit:
+
+    CAMHAL_LOGDB("Required frame size %dx%d", width, height);
+
     LOG_FUNCTION_NAME_EXIT
+
 }
 
 /* Application callback Functions */

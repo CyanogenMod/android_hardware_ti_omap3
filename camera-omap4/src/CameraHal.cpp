@@ -562,7 +562,8 @@ status_t CameraHal::startPreview()
         }
 
     /// Ensure that buffers for preview are allocated before we start the camera
-    mParameters.getPreviewSize(&w, &h);
+    //mParameters.getPreviewSize(&w, &h);
+    mCameraAdapter->getFrameSize(w, h);
 
     ///Allocate the preview buffers
     ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
