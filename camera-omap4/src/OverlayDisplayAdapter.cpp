@@ -53,6 +53,9 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
 #endif
 
     mPaused = false;
+    mXOff = 0;
+    mYOff = 0;
+
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -146,6 +149,12 @@ int OverlayDisplayAdapter::setOverlay(const sp<Overlay> &overlay)
     ///Move to new overlay obj
     mOverlay = overlay;
 
+    /// Update the original overlay width and height as the frame width and height
+    /// Later on when allocateBuffer gets called, the overlay size may get changed
+    /// to the padded buffer size.
+    mFrameWidth  = mOverlay->getWidth();
+    mFrameHeight = mOverlay->getHeight();
+
     LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
@@ -235,10 +244,14 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
     ///fd of overlay
     mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
 
-    if(mOverlay->getWidth()>=1920)
+    CAMHAL_LOGDB("mFrameWidth = %d mFrameHeight = %d", mFrameWidth, mFrameHeight);
+
+    if(mFrameWidth>=1920)
         {
         CAMHAL_LOGDA("1080p enabled!! Setting crop");
         status_t ret = mOverlay->setCrop(0, 0, 1860, 1046);
+        mFrameWidth = 1860;
+        mFrameHeight = 1046;
         if(ret!=NO_ERROR)
             {
             CAMHAL_LOGEB("Overlay setCrop API returned error %d", ret);
@@ -248,7 +261,10 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
             CAMHAL_LOGDA("setCrop API succeeded");
             }
         }
-
+    else
+        {
+        mOverlay->setCrop(0, 0, mFrameWidth, mFrameHeight);
+        }
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -321,6 +337,18 @@ int OverlayDisplayAdapter::disableDisplay()
     ///Reset the display enabled flag
     mDisplayEnabled = false;
 
+    ///Reset the offset values
+    mXOff = 0;
+    mYOff = 0;
+
+    ///Reset the frame width and height values
+    mFrameWidth =0;
+    mFrameHeight = 0;
+
+    ///Reset the buffer tracking variables
+    mFramesWithDisplayMap.clear();
+    mFramesWithDisplay = 0;
+
     LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
@@ -341,6 +369,7 @@ status_t OverlayDisplayAdapter::pauseDisplay(bool pause)
 
     return ret;
 }
+
 
 void OverlayDisplayAdapter::destroy()
 {
@@ -410,6 +439,8 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
             bytes =  data->length;
             mPreviewBufferMap.add(buffers[i], i);
         }
+
+    mPixelFormat = format;
 
     return buffers;
 
@@ -699,8 +730,46 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
 
     if ( mDisplayState == OverlayDisplayAdapter::DISPLAY_STARTED )
         {
+
+        uint32_t xOff = (dispFrame.mOffset% PAGE_SIZE);
+        uint32_t yOff = (dispFrame.mOffset / PAGE_SIZE);
+
+        ///Set crop only if current x and y offsets do not match with frame offsets
+        ///@todo    setCrop may take effect immediately before the queued buffer is displayed
+        ///              We need a way to set the offset for the correct frame
+        if((mXOff!=xOff) || (mYOff!=yOff))
+            {
+            CAMHAL_LOGDB("Offset %d xOff = %d, yOff = %d", dispFrame.mOffset, xOff, yOff);
+            uint8_t bytesPerPixel;
+            ///Calculate bytes per pixel based on the pixel format
+            if(strcmp(mPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
+                {
+                bytesPerPixel = 2;
+                }
+            else if(strcmp(mPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
+                {
+                bytesPerPixel = 2;
+                }
+            else if(strcmp(mPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
+                {
+                bytesPerPixel = 1;
+                }
+            else
+                {
+                bytesPerPixel = 1;
+                }
+
+            ///Set the crop for this buffer on the fly
+            mOverlay->setCrop(xOff/bytesPerPixel, yOff, mFrameWidth, mFrameHeight);
+
+            ///Update the current x and y offsets
+            mXOff = xOff;
+            mYOff = yOff;
+            }
+
         //Post it to display via Overlay
         actualFramesWithDisplay = ret = mOverlay->queueBuffer(buf);
+
         if ( ret < NO_ERROR )
             {
             CAMHAL_LOGEB("Posting error 0x%x for buffer 0x%x, index %d", ret, (unsigned int)dispFrame.mBuffer, (unsigned int)buf);
@@ -848,6 +917,7 @@ void OverlayDisplayAdapter::frameCallback(CameraFrame* caFrame)
     DisplayFrame df;
     df.mBuffer = caFrame->mBuffer;
     df.mType = ( CameraFrame::FrameType ) caFrame->mFrameType;
+    df.mOffset = caFrame->mOffset;
     PostFrame(df);
 }
 
