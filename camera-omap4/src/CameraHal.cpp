@@ -518,7 +518,7 @@ status_t CameraHal::freeImageBufs()
  */
 status_t CameraHal::startPreview()
 {
-    int ret = NO_ERROR;
+    status_t ret = NO_ERROR;
     int w, h;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
@@ -532,15 +532,22 @@ status_t CameraHal::startPreview()
 
     if( ( !mPreviewEnabled ) && ( mDisplayPaused ) )
         {
-        CAMHAL_LOGEA("Preview running in paused state");
+        CAMHAL_LOGDA("Preview is in paused state");
 
         mDisplayPaused = false;
         mPreviewEnabled = true;
-        ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
+        if ( NO_ERROR == ret )
+            {
+            ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
 
-        LOG_FUNCTION_NAME_EXIT
+            if ( NO_ERROR != ret )
+                {
+                CAMHAL_LOGEB("Display adapter resume failed %x", ret);
+                }
+            }
 
         return ret;
+
         }
     else if ( mPreviewEnabled )
         {

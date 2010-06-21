@@ -127,6 +127,8 @@ status_t OMXCameraAdapter::initialize()
     mBurstFrames = 1;
     mCapturedFrames = 0;
     mPictureQuality = 100;
+    memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
+    memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
 
     return ErrorUtils::omxToAndroidError(eError);
 
@@ -161,11 +163,28 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
 
     if ( CameraFrame::IMAGE_FRAME == frameType )
         {
-        port = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
+        if ( 1 > mCapturedFrames )
+            {
+            stopImageCapture();
+            return;
+            }
+        else
+            {
+            port = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
+            }
+        }
+    else if (  ( CameraFrame::PREVIEW_FRAME_SYNC == frameType ) ||
+               ( CameraFrame::SNAPSHOT_FRAME == frameType ) )
+        {
+        port = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+        }
+    else if ( CameraFrame::VIDEO_FRAME_SYNC == frameType )
+        {
+        port = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
         }
     else
         {
-        port = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+        return;
         }
 
     if ( NULL == frameBuf )
@@ -206,7 +225,8 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
             port = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
 
             }
-        else if ( CameraFrame::PREVIEW_FRAME_SYNC == frameType )
+        else if ( ( CameraFrame::PREVIEW_FRAME_SYNC == frameType ) ||
+                  ( CameraFrame::SNAPSHOT_FRAME == frameType ))
             {
 
                 {
@@ -359,7 +379,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     //TODO: Support more pixelformats
     cap->mStride = 2;
     cap->mBufSize = cap->mStride * cap->mHeight;
-    cap->mNumBufs = mCaptureBuffersCount;
 
     CAMHAL_LOGDB("Image: cap.mWidth = %d", (int)cap->mWidth);
     CAMHAL_LOGDB("Image: cap.mHeight = %d", (int)cap->mHeight);
@@ -868,7 +887,6 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
 
     if ( mCapturing )
         {
-
         ///Register for Image port Disable event
         ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
                                     OMX_EventCmdComplete,
@@ -887,7 +905,6 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
         //Wait for the image port enable event
         camSem.Wait();
         CAMHAL_LOGDA("Port disabled");
-
         }
 
     imgCaptureData->mNumBufs = num;
@@ -950,7 +967,6 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     CAMHAL_LOGDA("Port enabled");
 
     mCapturedFrames = mBurstFrames;
-    mCapturing = true;
 
     EXIT:
     LOG_FUNCTION_NAME_EXIT
@@ -1252,7 +1268,6 @@ status_t OMXCameraAdapter::stopPreview()
     mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
     mCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
-    CAMHAL_LOGEB("Average framerate: %f", mFPS);
 
     Semaphore eventSem;
     ret = eventSem.Create(0);
@@ -1269,6 +1284,8 @@ status_t OMXCameraAdapter::stopPreview()
         LOG_FUNCTION_NAME_EXIT
         return NO_INIT;
         }
+
+    CAMHAL_LOGEB("Average framerate: %f", mFPS);
 
     ///Register for EXECUTING state transition.
     ///This method just inserts a message in Event Q, which is checked in the callback
@@ -1303,6 +1320,8 @@ status_t OMXCameraAdapter::stopPreview()
 
     CAMHAL_LOGDA("EXECUTING->IDLE state changed");
 
+    mComponentState = OMX_StateIdle;
+
     ///Register for LOADED state transition.
     ///This method just inserts a message in Event Q, which is checked in the callback
     ///The sempahore passed is signalled by the callback
@@ -1319,7 +1338,6 @@ status_t OMXCameraAdapter::stopPreview()
         goto EXIT;
         }
 
-
     eError = OMX_SendCommand (mCameraAdapterParameters.mHandleComp,
                             OMX_CommandStateSet, OMX_StateLoaded, NULL);
     if(eError!=OMX_ErrorNone)
@@ -1329,7 +1347,7 @@ status_t OMXCameraAdapter::stopPreview()
     GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
     ///Free the OMX Buffers
-    for(int i=0;i<mPreviewData->mNumBufs;i++)
+    for ( int i = 0 ; i < mPreviewData->mNumBufs ; i++ )
         {
         eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
                             mCameraAdapterParameters.mPrevPortIndex,
@@ -1732,8 +1750,11 @@ status_t OMXCameraAdapter::startImageCapture()
 
         GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
-        mCapturing = true;
-        mWaitingForSnapshot = true;
+            {
+            Mutex::Autolock lock(mLock);
+            mWaitingForSnapshot = true;
+            mCapturing = true;
+            }
         }
 
     EXIT:
@@ -1744,29 +1765,17 @@ status_t OMXCameraAdapter::startImageCapture()
 status_t OMXCameraAdapter::stopImageCapture()
 {
     status_t ret = NO_ERROR;
-    OMXCameraPortParameters * capData = NULL;
     OMX_ERRORTYPE eError;
     OMX_CONFIG_BOOLEANTYPE bOMX;
+    OMXCameraPortParameters *imgCaptureData = NULL;
 
     LOG_FUNCTION_NAME
 
     mWaitingForSnapshot = false;
 
-    capData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
-
-    ///Free all the buffers on capture port
-    for ( int index = 0 ; index < capData->mNumBufs ; index++)
-        {
-        CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", (uint32_t)capData->mBufferHeader[index]->pBuffer);
-        eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
-                        mCameraAdapterParameters.mImagePortIndex,
-                        (OMX_BUFFERHEADERTYPE*)capData->mBufferHeader[index]);
-
-        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
-        }
-
     OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
     bOMX.bEnabled = OMX_FALSE;
+    imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
     eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCapturing, &bOMX);
 
@@ -1777,6 +1786,18 @@ status_t OMXCameraAdapter::stopImageCapture()
         }
 
     CAMHAL_LOGDB("Capture set - 0x%x", eError);
+
+    ///Free all the buffers on capture port
+    CAMHAL_LOGDB("Freeing buffer on Capture port - %d", imgCaptureData->mNumBufs);
+    for ( int index = 0 ; index < imgCaptureData->mNumBufs ; index++)
+        {
+        CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", imgCaptureData->mBufferHeader[index]->pBuffer);
+        eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
+                        mCameraAdapterParameters.mImagePortIndex,
+                        (OMX_BUFFERHEADERTYPE*)imgCaptureData->mBufferHeader[index]);
+
+        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+        }
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -2312,42 +2333,42 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
     pPortParam = &(mCameraAdapterParameters.mCameraPortParams[pBuffHeader->nOutputPortIndex]);
     if (pBuffHeader->nOutputPortIndex == OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW)
         {
+        notifyFocusSubscribers();
+        recalculateFPS();
+
         if( mWaitingForSnapshot )
             {
             typeOfFrame = CameraFrame::SNAPSHOT_FRAME;
-            ret = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
+            //CAMHAL_LOGDB("Snapshot Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mFrameSubscribers.size());
             }
         else
             {
-            notifyFocusSubscribers();
-            recalculateFPS();
-
             typeOfFrame = CameraFrame::PREVIEW_FRAME_SYNC;
-
-                {
-                Mutex::Autolock lock(mPreviewBufferLock);
-                //CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer,(int) mFrameSubscribers.size());
-                mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) pBuffHeader->pBuffer, mFrameSubscribers.size());
-                }
-
-            res1 = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
-
-            if ( mRecording )
-                {
-                typeOfFrame = CameraFrame::VIDEO_FRAME_SYNC;
-
-                    {
-                    Mutex::Autolock lock(mVideoBufferLock);
-                    //CAMHAL_LOGDB("Video Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer, (int)mVideoSubscribers.size());
-                    mVideoBuffersAvailable.replaceValueFor( ( unsigned int ) pBuffHeader->pBuffer, mVideoSubscribers.size());
-                    }
-
-                res2  = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
-                }
-
-            ret = ( ( NO_ERROR == res1) || ( NO_ERROR == res2 ) ) ? ( (uint32_t)NO_ERROR ) : ( -1 );
-
+            //CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mFrameSubscribers.size());
             }
+
+            {
+            Mutex::Autolock lock(mPreviewBufferLock);
+            mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) pBuffHeader->pBuffer, mFrameSubscribers.size());
+            }
+
+        res1 = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
+
+        if ( mRecording )
+            {
+            typeOfFrame = CameraFrame::VIDEO_FRAME_SYNC;
+
+                {
+                Mutex::Autolock lock(mVideoBufferLock);
+                //CAMHAL_LOGDB("Video Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mVideoSubscribers.size());
+                mVideoBuffersAvailable.replaceValueFor( ( unsigned int ) pBuffHeader->pBuffer, mVideoSubscribers.size());
+                }
+
+            res2  = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
+            }
+
+        ret = ( ( NO_ERROR == res1) || ( NO_ERROR == res2 ) ) ? ( NO_ERROR ) : ( -1 );
+
         }
     else if( pBuffHeader->nOutputPortIndex == OMX_CAMERA_PORT_IMAGE_OUT_IMAGE )
         {
@@ -2358,18 +2379,18 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
 #endif
 
-        typeOfFrame = CameraFrame::IMAGE_FRAME;
-
-        ret = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
+        if ( 1 > mCapturedFrames )
+            {
+            goto EXIT;
+            }
 
         CAMHAL_LOGDB("Captured Frames: %d", mCapturedFrames);
 
         mCapturedFrames--;
 
-        if ( 0 == mCapturedFrames )
-            {
-            stopImageCapture();
-            }
+        typeOfFrame = CameraFrame::IMAGE_FRAME;
+
+        ret = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
         }
     else
         {
