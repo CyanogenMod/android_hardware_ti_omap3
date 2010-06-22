@@ -29,6 +29,7 @@
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define KEY_SATURATION      "saturation"
 #define KEY_BRIGHTNESS      "brightness"
+#define KEY_BURST           "burst-capture"
 #define KEY_EXPOSURE        "exposure"
 #define KEY_ZOOM            "zoom"
 #define KEY_CONTRAST        "contrast"
@@ -44,6 +45,11 @@
 #define KEY_ROTATION        "picture-rotation"
 #define KEY_IPP             "ippMode"
 #define KEY_BUFF_STARV      "buff-starvation"
+
+#define SDCARD_PATH "/sdcard/"
+
+#define MAX_BURST   15
+#define BURST_INC     5
 
 #define MEMORY_DUMP "procrank -u"
 #define KEY_METERING_MODE   "meter-mode"
@@ -83,6 +89,7 @@ int audioCodecIDX = 0;
 int outputFormatIDX = 0;
 int contrast = 0;
 int brightness = 0;
+unsigned int burst = 0;
 int sharpness = 0;
 int iso_mode = 0;
 int capture_mode = 0;
@@ -92,10 +99,11 @@ int jpegQuality = 85;
 int thumbQuality = 85;
 timeval autofocus_start, picture_start;
 char script_name[25];
-char dir_path[40]="/sdcard/";
 bool nullOverlay = false;
 int prevcnt = 0;
 
+
+char dir_path[40] = SDCARD_PATH;
 
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
 const char *iso [] = { "auto", "100", "200", "400", "800"};
@@ -222,7 +230,7 @@ const struct {
     { 1600, 1200,  "2MP" },
     { 2048, 1536,  "3MP" },
     { 2560, 2048,  "5MP" },
-    { 3280, 2464,  "8MP" },
+    { 3264, 2448,  "8MP" },
     { 3648, 2736, "10MP"},
     { 4000, 3000, "12MP"},
 };
@@ -460,18 +468,22 @@ void my_jpeg_callback(const sp<IMemory>& mem) {
     sprintf(fn, "%s/img%03d.jpg", dir_path,counter);
     fd = open(fn, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
 
-    if (fd < 0)
+    if(fd < 0) {
+        LOGE("Unable to open file %s: %s", fn, strerror(fd));
         goto out;
+    }
 
     size = mem->size();
-
-    if (size <= 0)
+    if (size <= 0) {
+        LOGE("IMemory object is of zero size");
         goto out;
+    }
 
     buff = (unsigned char *)mem->pointer();
-
-    if (!buff)
+    if (!buff) {
+        LOGE("Buffer pointer is invalid");
         goto out;
+    }
 
     if (size != write(fd, buff, size))
         printf("Bad Write int a %s error (%d)%s\n", fn, errno, strerror(errno));
@@ -817,13 +829,6 @@ int startPreview() {
             return -1;
         }
 
-        params.unflatten(camera->getParameters());
-
-        params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
-        params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
-        if(dump_preview)
-            camera->setPreviewCallbackFlags(FRAME_CALLBACK_FLAG_ENABLE_MASK);
-
         camera->setParameters(params.flatten());
 
         if(!nullOverlay) {
@@ -1062,6 +1067,7 @@ int functional_menu() {
         printf("   u. Capture Mode:   %s\n", capture[capture_mode]);
         printf("   k. IPP Mode:       %s\n", ipp_mode[ippIDX]);
         printf("   o. Jpeg Quality:   %d\n", jpegQuality);
+        printf("   #. Burst Images:  %3d\n", burst);
         printf("   :. Thumbnail Size:  %4d x %4d - %s\n",previewSize[thumbSizeIDX].width, previewSize[thumbSizeIDX].height, previewSize[thumbSizeIDX].desc);
         printf("   ': Thumbnail Quality %d\n", thumbQuality);
 
@@ -1315,6 +1321,19 @@ int functional_menu() {
 
             break;
 
+        case '#':
+
+            if ( burst >= MAX_BURST ) {
+                burst = 0;
+            } else {
+                burst += BURST_INC;
+            }
+            params.set(KEY_BURST, burst);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
 
         case 'u':
         case 'U':
@@ -1591,11 +1610,13 @@ char *load_script(char *config) {
     if(strcat(dir_path,dir_name) == NULL)
         printf("Strcat error");
     printf("\n COMPLETE FOLDER PATH : %s \n",dir_path);
-    if(mkdir(dir_path,0777) == -1)
+    if(mkdir(dir_path,0777) == -1) {
         printf("\n Directory %s was not created \n",dir_path);
-    else
+        strncpy(dir_path, SDCARD_PATH, strlen(SDCARD_PATH) + 1);
+    } else {
         printf("\n Directory %s was created \n",dir_path);
-    printf("\n DIRECTORY CREATED FOR TEST RESULT IMAGES IN MMC CARD : %s \n",dir_name);
+        printf("\n DIRECTORY CREATED FOR TEST RESULT IMAGES IN MMC CARD : %s \n",dir_name);
+    }
 
     if( (NULL == infile)){
         printf("Error while opening script file %s!\n", config);
@@ -1668,6 +1689,10 @@ int execute_functional_script(char *script) {
         printf("Command: %c \n", cmd[0]);
 
         switch (id) {
+            case '[':
+                if ( hardwareActive )
+                    camera->startPreview();
+                break;
             case '+': {
                 cycleCounter = atoi(cmd + 1);
                 cycle_cmd = get_cycle_cmd(ctx);
@@ -1940,6 +1965,16 @@ int execute_functional_script(char *script) {
                     camera->setParameters(params.flatten());
 
                 break;
+
+            case '#':
+
+                params.set(KEY_BURST, atoi(cmd + 1));
+
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
+                break;
+
 
             case 'w':
             case 'W':
