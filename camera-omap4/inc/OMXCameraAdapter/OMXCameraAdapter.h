@@ -254,7 +254,7 @@ private:
 
     status_t setPictureRotation(unsigned int degree);
     status_t setImageQuality(unsigned int quality);
-    status_t setThumbnailSize(unsigned int width, unsigned int height);
+    status_t setThumbnailParams(unsigned int width, unsigned int height, unsigned int quality);
 
     //Focus functionality
     status_t doAutoFocus();
@@ -309,6 +309,9 @@ private:
 
     //thumbnail resolution
     unsigned int mThumbWidth, mThumbHeight;
+
+    //thumbnail quality
+    unsigned int mThumbQuality;
 
     //variables holding the estimated framerate
     float mFPS, mLastFPS;

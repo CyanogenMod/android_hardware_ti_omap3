@@ -510,6 +510,18 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mVstabEnabled = false;
         }
 
+    if ( ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY)  >= MIN_JPEG_QUALITY ) &&
+         ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY)  <= MAX_JPEG_QUALITY ) )
+        {
+        mThumbQuality = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY);
+        }
+    else
+        {
+        mThumbQuality = MAX_JPEG_QUALITY;
+        }
+
+    CAMHAL_LOGDB("Thumbnail Quality set %d", mThumbQuality);
+
     LOG_FUNCTION_NAME_EXIT
     return ret;
 }
@@ -1012,7 +1024,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-    ret = setThumbnailSize(mThumbWidth, mThumbHeight);
+    ret = setThumbnailParams(mThumbWidth, mThumbHeight, mThumbQuality);
     if ( NO_ERROR != ret)
         {
         CAMHAL_LOGEB("Error configuring thumbnail size %x", ret);
@@ -1617,7 +1629,7 @@ status_t OMXCameraAdapter::stopPreview()
 
 }
 
-status_t OMXCameraAdapter::setThumbnailSize(unsigned int width, unsigned int height)
+status_t OMXCameraAdapter::setThumbnailParams(unsigned int width, unsigned int height, unsigned int quality)
 {
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
@@ -1645,6 +1657,7 @@ status_t OMXCameraAdapter::setThumbnailSize(unsigned int width, unsigned int hei
 
         thumbConf.nWidth = width;
         thumbConf.nHeight = height;
+        thumbConf.nQuality = quality;
 
         eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexParamThumbnail, &thumbConf);
         if ( OMX_ErrorNone != eError )
@@ -1963,7 +1976,7 @@ status_t OMXCameraAdapter::startImageCapture()
         ///Queue all the buffers on capture port
         for ( int index = 0 ; index < capData->mNumBufs ; index++ )
             {
-            CAMHAL_LOGDB("Queuing buffer on Capture port - 0x%x", capData->mBufferHeader[index]->pBuffer);
+            CAMHAL_LOGDB("Queuing buffer on Capture port - 0x%x", ( unsigned int ) capData->mBufferHeader[index]->pBuffer);
             eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp,
                         (OMX_BUFFERHEADERTYPE*)capData->mBufferHeader[index]);
 
@@ -2021,7 +2034,7 @@ status_t OMXCameraAdapter::stopImageCapture()
     CAMHAL_LOGDB("Freeing buffer on Capture port - %d", imgCaptureData->mNumBufs);
     for ( int index = 0 ; index < imgCaptureData->mNumBufs ; index++)
         {
-        CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", imgCaptureData->mBufferHeader[index]->pBuffer);
+        CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", ( unsigned int ) imgCaptureData->mBufferHeader[index]->pBuffer);
         eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
                         mCameraAdapterParameters.mImagePortIndex,
                         (OMX_BUFFERHEADERTYPE*)imgCaptureData->mBufferHeader[index]);
