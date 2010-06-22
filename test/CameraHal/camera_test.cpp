@@ -89,6 +89,7 @@ int capture_mode = 0;
 int exposure_mode = 0;
 int ippIDX = 0;
 int jpegQuality = 85;
+int thumbQuality = 85;
 timeval autofocus_start, picture_start;
 char script_name[25];
 char dir_path[40]="/sdcard/";
@@ -261,6 +262,7 @@ const struct {
 
 };
 
+int thumbSizeIDX =  ARRAY_SIZE(previewSize) - 1;
 int previewSizeIDX = ARRAY_SIZE(previewSize) - 1;
 int captureSizeIDX = ARRAY_SIZE(captureSize) - 1;
 int frameRateIDX = ARRAY_SIZE(frameRate) - 1;
@@ -1060,6 +1062,8 @@ int functional_menu() {
         printf("   u. Capture Mode:   %s\n", capture[capture_mode]);
         printf("   k. IPP Mode:       %s\n", ipp_mode[ippIDX]);
         printf("   o. Jpeg Quality:   %d\n", jpegQuality);
+        printf("   :. Thumbnail Size:  %4d x %4d - %s\n",previewSize[thumbSizeIDX].width, previewSize[thumbSizeIDX].height, previewSize[thumbSizeIDX].desc);
+        printf("   ': Thumbnail Quality %d\n", thumbQuality);
 
         printf(" \n\n VIDEO CAPTURE SUB MENU \n");
         printf(" -----------------------------\n");
@@ -1093,7 +1097,6 @@ int functional_menu() {
         printf("   x. Antibanding:    %s\n", antibanding[antibanding_mode]);
         printf("   g. Focus mode:     %s\n", focus[focus_mode]);
         printf("   m. Metering mode:     %s\n", metering[meter_mode]);
-
         printf("\n");
         printf("   Choice: ");
     }
@@ -1852,6 +1855,44 @@ int execute_functional_script(char *script) {
             case '9':
                 videoCodecIDX++;
                 videoCodecIDX %= ARRAY_SIZE(videoCodecs);
+                break;
+
+            case ':':
+                int width, height;
+                for(i = 0; i < ARRAY_SIZE(previewSize); i++)
+                {
+                    if( strcmp((cmd + 1), previewSize[i].desc) == 0)
+                    {
+                        width = previewSize[i].width;
+                        height = previewSize[i].height;
+                        thumbSizeIDX = i;
+                        break;
+                    }
+                }
+
+                if (i == ARRAY_SIZE(previewSize))   //if the resolution is not in the supported ones
+                {
+                    char *res = NULL;
+                    res = strtok(cmd + 1, "x");
+                    width = atoi(res);
+                    res = strtok(NULL, "x");
+                    height = atoi(res);
+                }
+
+                params.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, width);
+                params.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, height);
+
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
+                break;
+
+            case '\'':
+                thumbQuality = atoi(cmd + 1);
+
+                params.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, thumbQuality);
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
                 break;
 
             case '*':
