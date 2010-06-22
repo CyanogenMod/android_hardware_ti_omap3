@@ -337,7 +337,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     params.getPreviewSize(&w, &h);
     int frameRate = params.getPreviewFrameRate();
 
-    CAMHAL_LOGDB("Preview frame rate %d", frameRate);
+    CAMHAL_LOGVB("Preview frame rate %d", frameRate);
 
     OMXCameraPortParameters *cap;
     cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
@@ -347,10 +347,10 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mHeight = h;
     cap->mFrameRate = frameRate;
 
-    CAMHAL_LOGDB("Prev: cap.mColorFormat = %d", (int)cap->mColorFormat);
-    CAMHAL_LOGDB("Prev: cap.mWidth = %d", (int)cap->mWidth);
-    CAMHAL_LOGDB("Prev: cap.mHeight = %d", (int)cap->mHeight);
-    CAMHAL_LOGDB("Prev: cap.mFrameRate = %d", (int)cap->mFrameRate);
+    CAMHAL_LOGVB("Prev: cap.mColorFormat = %d", (int)cap->mColorFormat);
+    CAMHAL_LOGVB("Prev: cap.mWidth = %d", (int)cap->mWidth);
+    CAMHAL_LOGVB("Prev: cap.mHeight = %d", (int)cap->mHeight);
+    CAMHAL_LOGVB("Prev: cap.mFrameRate = %d", (int)cap->mFrameRate);
 
     //TODO: Add an additional parameter for video resolution
    //use preview resolution for now
@@ -360,10 +360,10 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mHeight = h;
     cap->mFrameRate = frameRate;
 
-    CAMHAL_LOGDB("Video: cap.mColorFormat = %d", (int)cap->mColorFormat);
-    CAMHAL_LOGDB("Video: cap.mWidth = %d", (int)cap->mWidth);
-    CAMHAL_LOGDB("Video: cap.mHeight = %d", (int)cap->mHeight);
-    CAMHAL_LOGDB("Video: cap.mFrameRate = %d", (int)cap->mFrameRate);
+    CAMHAL_LOGVB("Video: cap.mColorFormat = %d", (int)cap->mColorFormat);
+    CAMHAL_LOGVB("Video: cap.mWidth = %d", (int)cap->mWidth);
+    CAMHAL_LOGVB("Video: cap.mHeight = %d", (int)cap->mHeight);
+    CAMHAL_LOGVB("Video: cap.mFrameRate = %d", (int)cap->mFrameRate);
 
 
     ///mStride is set from setBufs() while passing the APIs
@@ -379,8 +379,8 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mStride = 2;
     cap->mBufSize = cap->mStride * cap->mHeight;
 
-    CAMHAL_LOGDB("Image: cap.mWidth = %d", (int)cap->mWidth);
-    CAMHAL_LOGDB("Image: cap.mHeight = %d", (int)cap->mHeight);
+    CAMHAL_LOGVB("Image: cap.mWidth = %d", (int)cap->mWidth);
+    CAMHAL_LOGVB("Image: cap.mHeight = %d", (int)cap->mHeight);
 
     if ( params.getInt(KEY_ROTATION) != -1 )
         {
@@ -391,7 +391,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mPictureRotation = 0;
         }
 
-    CAMHAL_LOGDB("Picture Rotation set %d", mPictureRotation);
+    CAMHAL_LOGVB("Picture Rotation set %d", mPictureRotation);
 
     if ( params.getInt(KEY_CAP_MODE) != -1 )
         {
@@ -402,7 +402,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mCapMode = OMXCameraAdapter::HIGH_QUALITY;
         }
 
-    CAMHAL_LOGDB("Capture Mode set %d", mCapMode);
+    CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
 
     if ( params.getInt(KEY_BURST)  >= 1 )
         {
@@ -416,7 +416,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mBurstFrames = 1;
         }
 
-    CAMHAL_LOGDB("Burst Frames set %d", mBurstFrames);
+    CAMHAL_LOGVB("Burst Frames set %d", mBurstFrames);
 
     if ( ( params.getInt(CameraParameters::KEY_JPEG_QUALITY)  >= MIN_JPEG_QUALITY ) &&
          ( params.getInt(CameraParameters::KEY_JPEG_QUALITY)  <= MAX_JPEG_QUALITY ) )
@@ -428,7 +428,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mPictureQuality = MAX_JPEG_QUALITY;
         }
 
-    CAMHAL_LOGDB("Picture Quality set %d", mPictureQuality);
+    CAMHAL_LOGVB("Picture Quality set %d", mPictureQuality);
 
     if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH)  > 0 )
         {
@@ -439,7 +439,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mThumbWidth = DEFAULT_THUMB_WIDTH;
         }
 
-    CAMHAL_LOGDB("Picture Thumb width set %d", mThumbWidth);
+    CAMHAL_LOGVB("Picture Thumb width set %d", mThumbWidth);
 
     if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT)  > 0 )
         {
@@ -450,7 +450,29 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mThumbHeight = DEFAULT_THUMB_HEIGHT;
         }
 
-    CAMHAL_LOGDB("Picture Thumb height set %d", mThumbHeight);
+    ///Set VNF Configuration
+    if ( params.getInt(KEY_VNF)  > 0 )
+        {
+        CAMHAL_LOGDA("VNF Enabled");
+        mVnfEnabled = true;
+        }
+    else
+        {
+        CAMHAL_LOGDA("VNF Disabled");
+        mVnfEnabled = false;
+        }
+
+    ///Set VSTAB Configuration
+    if ( params.getInt(KEY_VSTAB)  > 0 )
+        {
+        CAMHAL_LOGDA("VSTAB Enabled");
+        mVstabEnabled = true;
+        }
+    else
+        {
+        CAMHAL_LOGDA("VSTAB Disabled");
+        mVstabEnabled = false;
+        }
 
     LOG_FUNCTION_NAME_EXIT
     return ret;
@@ -472,7 +494,7 @@ void saveFile(unsigned char   *buff, int width, int height, int format) {
         return;
     }
 
-    CAMHAL_LOGDB("Copying from 0x%x, size=%d x %d", buff, width, height);
+    CAMHAL_LOGVB("Copying from 0x%x, size=%d x %d", buff, width, height);
 
     //method currently supports only nv12 dumping
     int stride = width;
@@ -600,6 +622,107 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
     CAMHAL_LOGEB("Exiting function %s because of eError=%x", __FUNCTION__, eError);
     LOG_FUNCTION_NAME_EXIT
     return ErrorUtils::omxToAndroidError(eError);
+
+}
+
+
+status_t OMXCameraAdapter::enableVideoStabilization(bool enable)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_FRAMESTABTYPE frameStabCfg;
+
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+
+        OMX_INIT_STRUCT_PTR (&frameStabCfg, OMX_CONFIG_FRAMESTABTYPE);
+
+
+        eError =  OMX_GetConfig(mCameraAdapterParameters.mHandleComp,
+                                            ( OMX_INDEXTYPE ) OMX_IndexConfigCommonFrameStabilisation, &frameStabCfg);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while getting video stabilization mode 0x%x", eError);
+            ret = -1;
+            }
+
+        CAMHAL_LOGDB("VSTAB Port Index = %d", frameStabCfg.nPortIndex);
+
+        frameStabCfg.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+        if ( enable )
+            {
+            CAMHAL_LOGDA("VSTAB is enabled");
+            frameStabCfg.bStab = OMX_TRUE;
+            }
+        else
+            {
+            CAMHAL_LOGDA("VSTAB is disabled");
+            frameStabCfg.bStab = OMX_FALSE;
+
+            }
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp,
+                                            ( OMX_INDEXTYPE ) OMX_IndexConfigCommonFrameStabilisation, &frameStabCfg);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring video stabilization mode 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Video stabilization mode configured successfully");
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+
+status_t OMXCameraAdapter::enableVideoNoiseFilter(bool enable)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_PARAM_VIDEONOISEFILTERTYPE vnfCfg;
+
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&vnfCfg, OMX_PARAM_VIDEONOISEFILTERTYPE);
+
+        if ( enable )
+            {
+            CAMHAL_LOGDA("VNF is enabled");
+            vnfCfg.eMode = OMX_VideoNoiseFilterModeOn;
+            }
+        else
+            {
+            CAMHAL_LOGDA("VNF is disabled");
+            vnfCfg.eMode = OMX_VideoNoiseFilterModeOff;
+            }
+
+        eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp,
+                                            ( OMX_INDEXTYPE ) OMX_IndexParamVideoNoiseFilter, &vnfCfg);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring video noise filter 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Video noise filter is configured successfully");
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 
 }
 
@@ -848,6 +971,23 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         CAMHAL_LOGEB("Error configuring thumbnail size %x", ret);
         return ret;
         }
+
+    ///Enable/Disable Video Noise Filter
+    ret = enableVideoNoiseFilter(mVnfEnabled);
+    if ( NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring VNF %x", ret);
+        return ret;
+        }
+
+    ///Enable/Disable Video Stabilization
+    ret = enableVideoStabilization(mVstabEnabled);
+    if ( NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
+        return ret;
+        }
+
 
     ///Register for IDLE state switch event
     ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
@@ -1269,8 +1409,7 @@ status_t OMXCameraAdapter::startPreview()
     eventSem.Wait();
     CAMHAL_LOGDA("+Great. Component went into executing state!!");
 
-
-    ///Queue all the buffers on preview port
+   ///Queue all the buffers on preview port
     for(int index=0;index< mPreviewData->mNumBufs;index++)
         {
         CAMHAL_LOGDB("Queuing buffer on Preview port - 0x%x", (uint32_t)mPreviewData->mBufferHeader[index]->pBuffer);

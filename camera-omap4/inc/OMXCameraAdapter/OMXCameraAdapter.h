@@ -261,6 +261,10 @@ private:
     status_t notifyFocusSubscribers();
     status_t checkFocus(OMX_FOCUSSTATUSTYPE *eFocusStatus);
 
+    //VSTAB and VNF Functionality
+    status_t enableVideoNoiseFilter(bool enable);
+    status_t enableVideoStabilization(bool enable);
+
     // Preview Service
     status_t startPreview();
 
@@ -282,6 +286,7 @@ private:
 
     ///Send the frame to subscribers
     status_t  sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame,  OMXCameraPortParameters *port);
+
 
 
 public:
@@ -344,6 +349,9 @@ private:
     mutable Mutex mPreviewBufferLock;
 
     OMX_STATETYPE mComponentState;
+
+    bool mVnfEnabled;
+    bool mVstabEnabled;
 
 };
 }; //// namespace

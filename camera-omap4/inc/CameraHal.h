@@ -66,6 +66,9 @@
 #define KEY_ROTATION    "picture-rotation"
 #define KEY_BURST           "burst-capture"
 #define KEY_CAP_MODE   "mode"
+#define KEY_VSTAB       "vstab"
+#define KEY_VNF       "vnf"
+
 
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
@@ -76,6 +79,9 @@
 
 #define CAMHAL_LOGDA(str)
 #define CAMHAL_LOGDB(str, ...)
+#define CAMHAL_LOGVA(str)
+#define CAMHAL_LOGVB(str, ...)
+
 
 #undef LOG_FUNCTION_NAME
 #undef LOG_FUNCTION_NAME_EXIT
@@ -86,6 +92,9 @@
 
 #define CAMHAL_LOGDA DBGUTILS_LOGDA
 #define CAMHAL_LOGDB DBGUTILS_LOGDB
+#define CAMHAL_LOGVA DBGUTILS_LOGVA
+#define CAMHAL_LOGVB DBGUTILS_LOGVB
+
 
 #endif
 
