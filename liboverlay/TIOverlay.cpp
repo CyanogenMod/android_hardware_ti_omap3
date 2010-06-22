@@ -1396,15 +1396,26 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
         goto end;
     }
 
+#ifndef TARGET_OMAP4
+    if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay)))
+        goto end;
+#else
+    /** since OMAP4 V4L2 driver does support on-the-fly crop functionality to change
+    * the crop window position, we needn't disable the stream, if the change is only in the
+    * co-ordinates. but if the setCrop involves chnage in Window size, we have call stream off first
+    */
+    if ((ctx->omap_overlay->mData.cropW != w) ||
+        (ctx->omap_overlay->mData.cropH != h)){
+        if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay)))
+        goto end;
+    }
+#endif
     ctx->omap_overlay->mData.cropX = x;
     ctx->omap_overlay->mData.cropY = y;
     ctx->omap_overlay->mData.cropW = w;
     ctx->omap_overlay->mData.cropH = h;
 
     LOGE("Crop Win/X%d/Y%d/W%d/H%d\n", x, y, w, h );
-
-    if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay)))
-        goto end;
 
     rc = v4l2_overlay_set_crop(fd, x, y, w, h);
     if (rc) {
