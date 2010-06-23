@@ -334,20 +334,26 @@ int OverlayDisplayAdapter::disableDisplay()
         sem.Wait();
         }
 
-    ///Reset the display enabled flag
-    mDisplayEnabled = false;
+    ///Dequeue the remaining buffers
+    while(!handleFrameReturn());
 
-    ///Reset the offset values
-    mXOff = 0;
-    mYOff = 0;
+    Mutex::Autolock lock(mLock);
+        {
+        ///Reset the display enabled flag
+        mDisplayEnabled = false;
 
-    ///Reset the frame width and height values
-    mFrameWidth =0;
-    mFrameHeight = 0;
+        ///Reset the offset values
+        mXOff = 0;
+        mYOff = 0;
 
-    ///Reset the buffer tracking variables
-    mFramesWithDisplayMap.clear();
-    mFramesWithDisplay = 0;
+        ///Reset the frame width and height values
+        mFrameWidth =0;
+        mFrameHeight = 0;
+
+        ///Reset the buffer tracking variables
+        mFramesWithDisplayMap.clear();
+        mFramesWithDisplay = 0;
+        }
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -575,7 +581,7 @@ int OverlayDisplayAdapter::useBuffers(void *bufArr, int num)
 
 void OverlayDisplayAdapter::displayThread()
 {
-    bool shouldLive = true, noFramesLeft = false;
+    bool shouldLive = true;
     int timeout = 0;
     status_t ret;
 
@@ -618,12 +624,12 @@ void OverlayDisplayAdapter::displayThread()
 
                 ///There is a frame from overlay for us to dequeue
                 ///We dequeue and return the frame back to Camera adapter
-                ///Below method returns true of there are no frames left with display after the dequeue
-                noFramesLeft = handleFrameReturn();
+                handleFrameReturn();
 
-                if ( ( mDisplayState == OverlayDisplayAdapter::DISPLAY_EXITED ) && noFramesLeft)
+                if (mDisplayState == OverlayDisplayAdapter::DISPLAY_EXITED)
                     {
-                    ///we exit the thread only after all the frames have been returned from display
+                    ///we exit the thread even though there are frames still to dequeue. They will be dequeued
+                    ///in disableDisplay
                     shouldLive = false;
                     }
                 }
@@ -847,8 +853,9 @@ bool OverlayDisplayAdapter::handleFrameReturn()
 
     ///If there are no frames with the display we return true so that dipslay thread can exit
     ///after receiving the exit command from camera hal.
-    if ( 0 == mFramesWithDisplay )
+    if ( mFramesWithDisplay<=1 )
         {
+        CAMHAL_LOGEA("Further frames cannot be dequeued from display");
         return true;
         }
 
@@ -881,9 +888,10 @@ bool OverlayDisplayAdapter::handleFrameReturn()
     mFramesWithDisplayMap.removeItem(mPreviewBufferMap.keyAt((int) buf));
 
     mFramesWithDisplay--;
-    if ( 0 == mFramesWithDisplay )
+    ///Overlay still holds one buffer back as long as display is enabled
+    if ( 1 == mFramesWithDisplay )
         {
-        CAMHAL_LOGDA("Received all frames back from Display");
+        CAMHAL_LOGDA("Received all but one frames back from Display.");
         return true;
         }
 

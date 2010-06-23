@@ -377,8 +377,9 @@ void AppCallbackNotifier::notifyFrame()
                         CAMHAL_LOGDA("Error! One of the video buffer is NULL");
                         break;
                         }
-
+                    //CAMHAL_LOGDB("+CB 0x%x buffer 0x%x", frame->mBuffer, buffer);
                     mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
+                    //CAMHAL_LOGDA("-CB");
 
                     }
                 else if(( CameraFrame::PREVIEW_FRAME_SYNC== frame->mFrameType ) &&
@@ -631,6 +632,16 @@ void AppCallbackNotifier::releaseSharedVideoBuffers()
     MemoryBase *buffer;
 
     LOG_FUNCTION_NAME
+
+    for ( unsigned int i = 0 ; i < mVideoHeaps.size() ; i ++ )
+        {
+        ((MemoryHeapBase*)mVideoHeaps.valueFor(mVideoHeaps.keyAt(i)))->decStrong(this);
+        }
+
+    for ( unsigned int i = 0 ; i < mVideoBuffers.size() ; i ++ )
+        {
+        ((MemoryBase *)mVideoBuffers.valueFor(mVideoBuffers.keyAt(i)))->decStrong(this);
+        }
 
     mVideoHeaps.clear();
     mVideoBuffers.clear();
@@ -917,6 +928,7 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
     for ( unsigned int i = 0 ; i < count ; i ++ )
         {
         heap = new MemoryHeapBase(fd, length, 0, offsets[i]);
+        heap->incStrong(this);
         if ( NULL == heap )
             {
             CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x", bufArr[i]);
@@ -931,6 +943,7 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
 #endif
 
         buffer = new MemoryBase(heap, 0, length);
+        buffer->incStrong(this);
         if ( NULL == buffer )
             {
             CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", bufArr[i]);

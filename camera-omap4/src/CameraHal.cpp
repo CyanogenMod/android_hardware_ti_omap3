@@ -996,7 +996,7 @@ status_t CameraHal::startRecording( )
 #endif
 
             }
- 
+
     if ( NO_ERROR == ret )
         {
         mRecordingEnabled = true;
@@ -1080,6 +1080,8 @@ bool CameraHal::recordingEnabled()
 void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 {
     LOG_FUNCTION_NAME
+
+    //CAMHAL_LOGDB(" 0x%x", mem->pointer());
 
     if ( ( mRecordingEnabled ) && ( NULL != mem.get() ) )
         {

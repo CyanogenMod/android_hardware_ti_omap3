@@ -265,6 +265,7 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
 
                 if ( port->mBufferHeader[i]->pBuffer == frameBuf )
                     {
+                    //CAMHAL_LOGDB("Sending Frame 0x%x back to Ducati for filling", frameBuf);
                     eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp, port->mBufferHeader[i]);
                     if ( eError != OMX_ErrorNone )
                         {
