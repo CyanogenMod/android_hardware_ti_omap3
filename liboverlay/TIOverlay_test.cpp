@@ -496,8 +496,14 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         }
     }
 
- int x, y, w, h, cropw, croph, cropx, cropy;
+ int x, y, w, h, cropw = w1/2, croph = h1/2;
  int totalIter = file1size/(framesize1*numBuffers1);
+ static int cropx = 0;
+ static int cropy = 0;
+
+if (zoom1) {
+    mOverlay1->setCrop(cropx, cropy, cropw, croph);
+}
 
     for (int i3 = 0; i3 < NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE; i3++)
     {
@@ -640,48 +646,22 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
 
         if (zoom1)
         {
-            bool changed = false;
-            if (iter == 1)
-            {
-                cropx = 30;
-                cropy = 30;
-                cropw = 100;
-                croph = 100;
-                changed = true;
-            }
-            else if (iter == totalIter/4)
-            {
-                cropx = 100;
-                cropy = 0;
-                cropw = 100;
-                croph = 100;
-                changed = true;
-            }
-            else if (iter == totalIter/2)
-            {
+            /**on-the-fly setcrop supports only the co-ordinates chnage, but not
+            * the window size changes
+            **/
+            cropx = cropx+5;
+            cropy = cropy+5;
+            if (cropx > cropw/5) {
                 cropx = 0;
-                cropy = 100;
-                cropw = 100;
-                croph = 100;
-                changed = true;
             }
-            else if (iter == 3*totalIter/4)
-            {
-                cropx = 80;
-                cropy = 80;
-                cropw = 100;
-                croph = 100;
-                changed = true;
+            if (cropy > croph/5) {
+                cropy = 0;
             }
-            if (changed)
-            {
-                mOverlay1->setCrop(cropx, cropy,cropw, croph);
-                firstClient->openTransaction();
-                firstSurfaceCtrl->setPosition(50, 50);
-                firstSurfaceCtrl->setSize(w1, h1);
-                firstClient->closeTransaction();
-                changed = false;
-            }
+            mOverlay1->setCrop(cropx, cropy,cropw, croph);
+            firstClient->openTransaction();
+            firstSurfaceCtrl->setPosition(50, 50);
+            firstSurfaceCtrl->setSize(w1, h1);
+            firstClient->closeTransaction();
         }
         if (autoscale1)
         {
