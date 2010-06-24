@@ -1,4 +1,5 @@
 
+ifeq (0,1)
 LOCAL_PATH:= $(call my-dir)
 # HAL module implemenation, not prelinked and stored in
 # hw/<COPYPIX_HARDWARE_MODULE_ID>.<ro.product.board>.so
@@ -31,3 +32,4 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libhardware libutils libui
 LOCAL_SRC_FILES := TIOverlay_test.cpp
 LOCAL_MODULE := overlay_test
 include $(BUILD_EXECUTABLE)
+endif

@@ -1,3 +1,4 @@
+ifeq (0,1)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
@@ -36,4 +37,4 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE := libopencorehw
 
 include $(BUILD_SHARED_LIBRARY)
-
+endif
