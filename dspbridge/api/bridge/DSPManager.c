@@ -100,20 +100,6 @@ DBAPI DspManager_Open(UINT argc, PVOID argp)
 	FILE *file;
 	char line[4];
 
-	if (argc == ROOT_ACCESS)
-		goto open;
-
-	file = fopen(SYSFS_DRV_STATE, "r");
-	if (!file)
-		return DSP_EFAIL;
-	fgets(line, 3, file);
-	sscanf(line, "%d", &drv_state);
-	fclose(file);
-	if (drv_state != RUNNING && (drv_state > DSP_HIB || drv_state < SLEEP_TRANSITION )) {
-		printf("Driver is not ready, access denied!\n");
-		return DSP_EFAIL;
-	}
-open:
 	if (!bridge_sem_initialized) {
 		if (sem_init(&semOpenClose, 0, 1) == -1) {
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
