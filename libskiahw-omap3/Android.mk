@@ -26,6 +26,7 @@ LOCAL_CFLAGS += -fpic -fstrict-aliasing
 
 LOCAL_SRC_FILES+= \
    SkImageDecoder_libtijpeg.cpp \
+   SkImageEncoder_libtijpeg.cpp \
    SkAllocator.cpp \
    SkMemory.cpp \
    
@@ -53,7 +54,7 @@ LOCAL_C_INCLUDES += \
 include $(BUILD_EXECUTABLE)
 
 ################################################
-ifdef 0
+
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := SkImageEncoderTest.cpp
@@ -70,7 +71,7 @@ LOCAL_C_INCLUDES += \
 	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
 
 include $(BUILD_EXECUTABLE)
-endif
+
 ################################################
 
 endif
