@@ -382,6 +382,42 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     CAMHAL_LOGVB("Image: cap.mWidth = %d", (int)cap->mWidth);
     CAMHAL_LOGVB("Image: cap.mHeight = %d", (int)cap->mHeight);
 
+    if ( params.getPictureFormat() != NULL )
+        {
+        if (strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
+            {
+            CAMHAL_LOGDA("CbYCrY format selected");
+            pixFormat = OMX_COLOR_FormatCbYCrY;
+            }
+        else if(strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
+            {
+            CAMHAL_LOGDA("YUV420SP format selected");
+            pixFormat = OMX_COLOR_FormatYUV420SemiPlanar;
+            }
+        else if(strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
+            {
+            CAMHAL_LOGDA("RGB565 format selected");
+            pixFormat = OMX_COLOR_Format16bitRGB565;
+            }
+        else if(strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_JPEG) == 0)
+            {
+            CAMHAL_LOGDA("JPEG format selected");
+            pixFormat = OMX_COLOR_FormatUnused;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Invalid format, JPEG format selected as default");
+            pixFormat = OMX_COLOR_FormatUnused;
+            }
+        }
+    else
+        {
+        CAMHAL_LOGEA("Preview format is NULL, defaulting to JPEG");
+        pixFormat = OMX_COLOR_FormatUnused;
+        }
+
+    cap->mColorFormat = pixFormat;
+
     if ( params.getInt(KEY_ROTATION) != -1 )
         {
         mPictureRotation = params.getInt(KEY_ROTATION);
@@ -557,12 +593,24 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         {
         portCheck.format.image.nFrameWidth      = portParams.mWidth;
         portCheck.format.image.nFrameHeight     = portParams.mHeight;
-        //@todo Need to check if this is correct when the preview format is NV12
-        portCheck.format.image.eColorFormat     = OMX_COLOR_FormatCbYCrY;
-        portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
+        if ( OMX_COLOR_FormatUnused == portParams.mColorFormat )
+            {
+            portCheck.format.image.eColorFormat     = OMX_COLOR_FormatCbYCrY;
+            portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
+            }
+        else
+            {
+            portCheck.format.image.eColorFormat     = portParams.mColorFormat;
+            portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingUnused;
+            }
+
         portCheck.format.image.nStride          = portParams.mStride * portParams.mWidth;
         portCheck.nBufferSize                   =  portParams.mStride * portParams.mWidth * portParams.mHeight;
         portCheck.nBufferCountActual = CameraHal::NO_BUFFERS_IMAGE_CAPTURE;
+        }
+    else
+        {
+        CAMHAL_LOGEB("Unsupported port index 0x%x", port);
         }
 
     eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp,
@@ -595,7 +643,6 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
                                                 portCheck.nBufferCountActual);
         LOGD("\n ***IMG portCheck.format.image.nStride = %ld\n",
                                                 portCheck.format.image.nStride);
-
         }
     else
         {
@@ -1134,7 +1181,7 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
 
         CAMHAL_LOGDB("OMX_UseBuffer = 0x%x", eError);
 
-        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+        GOTO_EXIT_IF(( eError != OMX_ErrorNone ), eError);
 
         pBufferHdr->pAppPrivate = (OMX_PTR)pBufferHdr;
         pBufferHdr->nSize = sizeof(OMX_BUFFERHEADERTYPE);

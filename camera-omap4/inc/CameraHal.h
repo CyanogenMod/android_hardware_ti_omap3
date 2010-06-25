@@ -215,7 +215,7 @@ class CameraHalEvent
 {
 public:
     //Enums
-    enum CamerHalEventType
+    enum CameraHalEventType
         {
         EVENT_FOCUS_LOCKED = 0x1,
         EVENT_FOCUS_ERROR = 0x2,
@@ -248,7 +248,7 @@ public:
         };
 
     void* mCookie;
-    CamerHalEventType mEventType;
+    CameraHalEventType mEventType;
     CameraHalEventData *mEventData;
 
 };
