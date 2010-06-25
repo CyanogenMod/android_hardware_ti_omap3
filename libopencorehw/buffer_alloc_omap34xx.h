@@ -28,7 +28,6 @@
 #define BUFFER_ALLOC_OMAP34XXH_INCLUDED
 
 #include "pv_interface.h"
-#include "overlay_common.h"
 
 #ifndef PVMF_FIXEDSIZE_BUFFER_ALLOC_H_INCLUDED
 #include "pvmf_fixedsize_buffer_alloc.h"
@@ -63,7 +62,7 @@ class BufferAllocOmap34xx: public PVInterface, public PVMFFixedSizeBufferAlloc
         int32 bufferSize;
         int32 maxBuffers;
         int32 numAllocated;
-        void* buffer_address[NUM_OVERLAY_BUFFERS_REQUESTED]; //max buffers supported in overlay
+        uint8** buffer_address;
 };
 
 #endif

@@ -26,7 +26,7 @@
 #define LOG_NDEBUG 0
 #define LOG_TAG "BufferAllocOmap34xx"
 #include <utils/Log.h>
-
+#include "overlay_common.h"
 #include "buffer_alloc_omap34xx.h"
 #include "oscl_mem.h" // needed for oscl_malloc / oscl_free
 
@@ -51,11 +51,8 @@ OSCL_EXPORT_REF void BufferAllocOmap34xx::removeRef()
     --refCount;
     if (refCount <= 0)
     {
-    	LOGD("BufferAllocOmap34xx::removeRef()");
+    	LOGV("BufferAllocOmap34xx::removeRef()");
        // this->~BufferAllocOmap34xx();
-#if 0
-        OSCL_DELETE(this);
-#endif
     }
 }
 

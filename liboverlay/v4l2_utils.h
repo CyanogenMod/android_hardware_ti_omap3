@@ -67,6 +67,8 @@ typedef struct
   void *ptr;
 } mapping_data_t;
 
+#define ALL_BUFFERS_FLUSHED -66
+
 /* this constant should be insync with that defined in kernel v4l2 header
 */
 #define V4L2_CID_TI_DISPC_OVERLAY 0x08000000

@@ -33,9 +33,6 @@
 // support for shared contiguous physical memory
 #include <ui/Overlay.h>
 
-using namespace android;
-
-
 class AndroidSurfaceOutputOmap34xx : public AndroidSurfaceOutput
 {
 public:
@@ -61,6 +58,8 @@ private:
     int 						bufEnc;
     int32 iNumberOfBuffers;
     int32 iBufferSize;
+    bool                    mIsFirstFrame;
+
     bool                    mConvert;
 
 };

@@ -40,7 +40,10 @@ static int mDebugFps = 0;
 #include "pv_mime_string_utils.h"
 #include "pvmf_video.h"
 #include <media/PVPlayer.h>
+
+extern "C" {
 #include "v4l2_utils.h"
+}
 
 using namespace android;
 
@@ -58,15 +61,17 @@ typedef struct WriteResponseData{
 static void convertYuv420pToYuv422i(int width, int height, void* src, void* dst);
 
 
-AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
+OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     AndroidSurfaceOutput()
 {
     mUseOverlay = true;
     mOverlay = NULL;
+    mIsFirstFrame = true;
+    mbufferAlloc.buffer_address = NULL;
     mConvert = false;
 }
 
-AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
+OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
 {
     mUseOverlay = false;
     mInitialized = false;
@@ -75,11 +80,15 @@ AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
         mOverlay->destroy();
         mOverlay = NULL;
     }
+    if (mbufferAlloc.buffer_address) {
+        delete [] mbufferAlloc.buffer_address;
+        mbufferAlloc.buffer_address = NULL;
+    }
 }
 
-bool AndroidSurfaceOutputOmap34xx::initCheck()
+OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
 {
-    LOGD("Calling Vendor(34xx) Specific initCheck");
+    LOGV("Calling Vendor(34xx) Specific initCheck");
      mInitialized = false;
     // reset flags in case display format changes in the middle of a stream
     resetVideoParameterFlags();
@@ -122,10 +131,20 @@ bool AndroidSurfaceOutputOmap34xx::initCheck()
     mapping_data_t *data;
     if (mUseOverlay) {
         if(mOverlay == NULL){
-            LOGV("using Vendor Speicifc(34xx) codec");
-            sp<OverlayRef> ref = mSurface->createOverlay(displayWidth, displayHeight,videoFormat);
-            if(ref != NULL)LOGV("Vendor Speicifc(34xx)MIO: overlay created ");
-            else LOGV("Vendor Speicifc(34xx)MIO: Creating overlay failed");
+            LOGV("using Vendor Specific(34xx) codec");
+            sp<OverlayRef> ref = NULL;
+            // FIXME:
+            // Surfaceflinger may hold onto the previous overlay reference for some
+            // time after we try to destroy it. retry a few times. In the future, we
+            // should make the destroy call block, or possibly specify that we can
+            // wait in the createOverlay call if the previous overlay is in the
+            // process of being destroyed.
+            for (int retry = 0; retry < 50; ++retry) {
+                ref = mSurface->createOverlay(displayWidth, displayHeight, videoFormat, 0);
+                if (ref != NULL) break;
+                LOGD("Overlay create failed - retrying");
+                usleep(100000);
+            }
             if ( ref.get() == NULL )
             {
                 LOGE("Overlay Creation Failed!");
@@ -137,12 +156,6 @@ bool AndroidSurfaceOutputOmap34xx::initCheck()
         }
         else
         {
-            LOGD("Before resizeInput()");
-            LOGD("sWriteRespData[0].inQ = %d", sWriteRespData[0].bInDSSQueue);
-            LOGD("sWriteRespData[1].inQ = %d", sWriteRespData[1].bInDSSQueue);
-            LOGD("sWriteRespData[2].inQ = %d", sWriteRespData[2].bInDSSQueue);
-            LOGD("sWriteRespData[3].inQ = %d", sWriteRespData[3].bInDSSQueue);            
-        
             mOverlay->resizeInput(frameWidth, frameHeight);
         }
         LOGI("Actual resolution: %dx%d", frameWidth, frameHeight);
@@ -150,21 +163,24 @@ bool AndroidSurfaceOutputOmap34xx::initCheck()
 
         mbufferAlloc.maxBuffers = mOverlay->getBufferCount();
         mbufferAlloc.bufferSize = iBufferSize;
-        LOGD("number of buffers = %d\n", mbufferAlloc.maxBuffers);
-        if (mbufferAlloc.maxBuffers < 0)
-        {
-            LOGE("problem with bufferallocations\n");
-             return mInitialized;
-		}
+        if (mbufferAlloc.buffer_address) {
+            delete [] mbufferAlloc.buffer_address;
+        }
+        mbufferAlloc.buffer_address = new uint8*[mbufferAlloc.maxBuffers];
+        if (mbufferAlloc.buffer_address == NULL) {
+            LOGE("unable to allocate mem for overlay addresses");
+            return mInitialized;
+        }
+        LOGV("number of buffers = %d\n", mbufferAlloc.maxBuffers);
         for (int i = 0; i < mbufferAlloc.maxBuffers; i++) {
             data = (mapping_data_t *)mOverlay->getBufferAddress((void*)i);
-            mbufferAlloc.buffer_address[i] = data->ptr;
+            mbufferAlloc.buffer_address[i] = (uint8*)data->ptr;
             strcpy((char *)mbufferAlloc.buffer_address[i], "hello");
             if (strcmp((char *)mbufferAlloc.buffer_address[i], "hello")) {
                 LOGI("problem with buffer\n");
                 return mInitialized;
             }else{
-                LOGD("buffer = %d allocated addr=%#lx\n", i, (unsigned long) mbufferAlloc.buffer_address[i]);
+                LOGV("buffer = %d allocated addr=%#lx\n", i, (unsigned long) mbufferAlloc.buffer_address[i]);
             }
         }        
     }
@@ -315,7 +331,7 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
 					sWriteRespData[bufEnc].bInDSSQueue = true;
 				}
 				bDequeueFail = false;
-                bQueueFail = false;
+		                bQueueFail = false;
 				status = writeFrameBuf((uint8*)mbufferAlloc.buffer_address[bufEnc], aDataLen, data_header_info);
 				switch (status)
 				{
@@ -392,18 +408,9 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
          RunIfNotReady();
          return cmdid;
      }
-
-     if(iEosReceived) LOGD("iEosReceived - line %d", __LINE__);
-
      WriteResponse resp(status, cmdid, aContext, aTimestamp);
-     if(iEosReceived) LOGD("iEosReceived - line %d", __LINE__);
-     
      iWriteResponseQueue.push_back(resp);
-     if(iEosReceived) LOGD("iEosReceived - line %d", __LINE__);
-     
      RunIfNotReady();
-     if(iEosReceived) LOGD("iEosReceived - line %d", __LINE__);
- 
      return cmdid;
  }
  
@@ -568,7 +575,6 @@ void AndroidSurfaceOutputOmap34xx::setParametersSync(PvmiMIOSession aSession,
     /* Copy Code from base class. Ideally we'd just call base class's setParametersSync, but we can't as it will not get to initCheck if it encounters an unrecognized parameter such as the one we're handling here */
     uint32 mycache = iVideoParameterFlags ;
     if( checkVideoParameterFlags() ) {
-   // CloseFrameBuf();	
 	initCheck();
     }
     iVideoParameterFlags = mycache;
@@ -677,10 +683,7 @@ static void convertYuv420pToYuv422i (int width, int height, void* src, void* dst
 // factory function for playerdriver linkage
 extern "C" AndroidSurfaceOutputOmap34xx* createVideoMio()
 {
-    LOGD("Creating Vendor(34xx) Specific MIO component");
+    LOGV("Creating Vendor(34xx) Specific MIO component");
     return new AndroidSurfaceOutputOmap34xx();
 }
-
-
-
 
