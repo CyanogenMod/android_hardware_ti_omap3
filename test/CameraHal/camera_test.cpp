@@ -95,6 +95,7 @@ int iso_mode = 0;
 int capture_mode = 0;
 int exposure_mode = 0;
 int ippIDX = 0;
+int previewFormat = 0;
 int jpegQuality = 85;
 int thumbQuality = 85;
 timeval autofocus_start, picture_start;
@@ -149,6 +150,8 @@ const char *focus[] = {
     "macro",
 };
 int focus_mode = 0;
+const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg"};
+int pictureFormat = ARRAY_SIZE(pixelformat) - 1;
 const char *exposure[] = {"Auto", "Macro", "Portrait", "Landscape", "Sports", "Night", "Night Portrait", "Backlighting", "Manual"};
 const char *capture[] = { "High Performance", "High Quality" };
 const struct {
@@ -929,6 +932,9 @@ void initDefaults() {
     jpegQuality = 85;
     bufferStarvationTest = 0;
     meter_mode = 0;
+    previewFormat = 0;
+    pictureFormat = ARRAY_SIZE(pixelformat) - 1;
+
     params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
     params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
     params.set(KEY_ROTATION, rotation);
@@ -950,8 +956,8 @@ void initDefaults() {
     params.set(params.KEY_FOCUS_MODE, focus[focus_mode]);
     params.set(KEY_IPP, ippIDX);
     params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
-    params.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV422I);
-    params.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
+    params.setPreviewFormat(pixelformat[previewFormat]);
+    params.setPictureFormat(pixelformat[pictureFormat]);
     params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
     params.set(KEY_METERING_MODE, metering[meter_mode]);
 }
@@ -1055,12 +1061,14 @@ int functional_menu() {
         printf(" -----------------------------\n");
         printf("   1. Start Preview\n");
         printf("   2. Stop Preview\n");
+        printf("   ~. Preview format %s\n", pixelformat[previewFormat]);
         printf("   4. Preview size:   %4d x %4d - %s\n",previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
         printf("   &. Dump a preview frame\n");
 
         printf(" \n\n IMAGE CAPTURE SUB MENU \n");
         printf(" -----------------------------\n");
         printf("   p. Take picture\n");
+        printf("   $. Picture Format: %s\n", pixelformat[pictureFormat]);
         printf("   3. Picture Rotation:       %3d degree\n", rotation );
         printf("   5. Picture size:   %4d x %4d - %s\n",captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height,              captureSize[captureSizeIDX].name);
         printf("   i. ISO mode:       %s\n", iso[iso_mode]);
@@ -1251,6 +1259,24 @@ int functional_menu() {
         case '9':
             videoCodecIDX++;
             videoCodecIDX %= ARRAY_SIZE(videoCodecs);
+            break;
+        case '~':
+            previewFormat += 1;
+            previewFormat %= ARRAY_SIZE(pixelformat) - 1;
+            params.setPreviewFormat(pixelformat[previewFormat]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+        case '$':
+            pictureFormat += 1;
+            pictureFormat %= ARRAY_SIZE(pixelformat);
+            params.setPictureFormat(pixelformat[pictureFormat]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
             break;
 
         case '?' :
@@ -1880,6 +1906,20 @@ int execute_functional_script(char *script) {
             case '9':
                 videoCodecIDX++;
                 videoCodecIDX %= ARRAY_SIZE(videoCodecs);
+                break;
+
+            case '~':
+                params.setPreviewFormat(cmd + 1);
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
+                break;
+
+            case '$':
+                params.setPictureFormat(cmd + 1);
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
                 break;
 
             case ':':
