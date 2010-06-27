@@ -39,10 +39,14 @@
 #include "binder/MemoryBase.h"
 #include "binder/MemoryHeapBase.h"
 #include <utils/threads.h>
-#include <ui/CameraHardwareInterface.h>
+#include <ui/Overlay.h>
+#include <camera/CameraHardwareInterface.h>
 #include "MessageQueue.h"
 #include "overlay_common.h"
+
+#ifdef HARDWARE_OMX
 #include <JpegEncoderEXIF.h>
+#endif
 
 #define RESIZER 1
 #define JPEG 1
@@ -449,8 +453,10 @@ public:
 	    
     mutable Mutex mLock;
     struct v4l2_crop mInitialCrop;
+#ifdef HARDWARE_OMX
     gps_data *gpsLocation;
     exif_params mExifParams;
+#endif
     bool mShutterEnable;
     bool mCAFafterPreview;
     CameraParameters mParameters;

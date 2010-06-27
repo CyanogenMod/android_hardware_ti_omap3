@@ -131,7 +131,9 @@ CameraHal::CameraHal()
     mZoomTargetIdx = 0;
     mZoomCurrentIdx = 0;
     rotation = 0;
+#ifdef HARDWARE_OMX
     gpsLocation = NULL;
+#endif
     mShutterEnable = true;
     mCAFafterPreview = false;
     ancillary_len = 8092;
@@ -246,7 +248,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, CameraHal::supportedFPS);
-    p.set(CameraParameters::KEY_SUPPORTED_THUMBNAIL_SIZES, CameraHal::supprotedThumbnailSizes);
+    p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, CameraHal::supprotedThumbnailSizes);
     p.set("max-zoom" , MAX_ZOOM);
     p.set("zoom", 0);
     p.set("zoom-supported", "true");
@@ -2046,7 +2048,7 @@ int CameraHal::ICapturePerform(){
         scale_deinit();
 
         err = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
-        if (err) {
+        if (err < 0) {
             LOGE("mOverlay->queueBuffer() failed!!!!");
         } else {
             buffers_queued_to_dss[lastOverlayBufferDQ]=1;
@@ -2310,12 +2312,12 @@ void CameraHal::snapshotThread()
 		{
                 snapshot_buffer = data->ptr;
 		}		
-
+#ifdef HARDWARE_OMX
                 scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
 
                 status = scale_process(yuv_buffer, image_width, image_height,
                          snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, 1, crop_top, crop_left, crop_width, crop_height);
-
+#endif
 #ifdef DEBUG_LOG
 
                PPM("After vpp downscales:");
@@ -2332,10 +2334,11 @@ void CameraHal::snapshotThread()
                PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 
 #endif
+#ifdef HARDWARE_OMX
                 scale_deinit();
-
+#endif
                 status = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
-                if (status) {
+                if (status < 0) {
                      LOGE("mOverlay->queueBuffer() failed!!!!");
                 } else {
                      buffers_queued_to_dss[lastOverlayBufferDQ]=1;
@@ -2513,7 +2516,9 @@ void CameraHal::procThread()
     data_callback JpegPictureCallback;
     void *yuv_buffer, *outBuffer, *PictureCallbackCookie;
     int thumb_width, thumb_height;
+#ifdef HARDWARE_OMX
     exif_buffer *exif_buf;
+#endif
     unsigned short EdgeEnhancementStrength, WeakEdgeThreshold, StrongEdgeThreshold,
                    LowFreqLumaNoiseFilterStrength, MidFreqLumaNoiseFilterStrength, HighFreqLumaNoiseFilterStrength,
                    LowFreqCbNoiseFilterStrength, MidFreqCbNoiseFilterStrength, HighFreqCbNoiseFilterStrength,
@@ -2619,8 +2624,9 @@ void CameraHal::procThread()
                 crop_left = procMessage[38];
                 crop_width = procMessage[39];
                 crop_height = procMessage[40];
+#ifdef HARDWARE_OMX
                 exif_buf = (exif_buffer *) procMessage[41];
-
+#endif
                 jpegSize = mJPEGLength;
                 JPEGPictureHeap = mJPEGPictureHeap;
                 outBuffer = mJPEGBuffer;
@@ -2760,9 +2766,10 @@ void CameraHal::procThread()
                 LOGD("jpegEncoder->jpegSize=%d jpegSize=%d", jpegEncoder->jpegSize, jpegSize);
 
 #endif
+#ifdef HARDWARE_OMX
                 if((exif_buf != NULL) && (exif_buf->data != NULL))
                     exif_buf_free(exif_buf);
-
+#endif
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
 
@@ -3319,8 +3326,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     }
     LOGD("Picture Size by App %d x %d", w, h);
 
+#ifdef HARDWARE_OMX
     mExifParams.width = w;
     mExifParams.height = h;
+#endif
 
     framerate = params.getPreviewFrameRate();
     LOGD("FRAMERATE %d", framerate);
@@ -3371,15 +3380,17 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mZoomTargetIdx = zoom_idx[0];
     }
     LOGD("Zoom by App %d", zoom);
+#ifdef HARDWARE_OMX
     mExifParams.zoom = zoom;
-
+#endif
     if ( ( params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL )) {
 
         double gpsCoord;
 
+#ifdef HARDWARE_OMX
         if( NULL == gpsLocation )
             gpsLocation = (gps_data *) malloc( sizeof(gps_data));
-        
+
         if( NULL != gpsLocation ) {
             LOGE("initializing gps_data structure");
 
@@ -3406,7 +3417,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         } else {
             LOGE("Not enough memory to allocate gps_data structure");
         }
-
+#endif
     }
 
     if ( params.get(KEY_SHUTTER_ENABLE) != NULL ) {

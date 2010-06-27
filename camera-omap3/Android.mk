@@ -18,12 +18,14 @@ LOCAL_SHARED_LIBRARIES:= \
     libbinder \
     libutils \
     libcutils \
+    libcamera_client \
+    libsurfaceflinger_client
 
 LOCAL_C_INCLUDES += \
-	kernel/android-2.6.29/include \
-	frameworks/base/include/ui \
-        frameworks/base/include/binder \
-	hardware/ti/omap3/liboverlay
+    kernel/android-2.6.29/include \
+    frameworks/base/include/camera \
+    frameworks/base/include/binder \
+    hardware/ti/omap3/liboverlay
 
 LOCAL_CFLAGS += -fno-short-enums 
 
@@ -35,15 +37,15 @@ LOCAL_SRC_FILES += \
     JpegEncoderEXIF.cpp \
 
 LOCAL_C_INCLUDES += \
-	hardware/ti/omap3/dspbridge/api/inc \
-	hardware/ti/omx/system/src/openmax_il/lcml/inc \
-	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
-	hardware/ti/omx/system/src/openmax_il/common/inc \
-	hardware/ti/omx/system/src/openmax_il/resource_manager_proxy/inc \
-	hardware/ti/omx/system/src/openmax_il/resource_manager/resource_activity_monitor/inc \
-	hardware/ti/omx/image/src/openmax_il/jpeg_enc/inc \
-	external/libexif \
-	
+    hardware/ti/omap3/dspbridge/api/inc \
+    hardware/ti/omx/system/src/openmax_il/lcml/inc \
+    hardware/ti/omx/system/src/openmax_il/omx_core/inc \
+    hardware/ti/omx/system/src/openmax_il/common/inc \
+    hardware/ti/omx/system/src/openmax_il/resource_manager_proxy/inc \
+    hardware/ti/omx/system/src/openmax_il/resource_manager/resource_activity_monitor/inc \
+    hardware/ti/omx/image/src/openmax_il/jpeg_enc/inc \
+    external/libexif
+
 LOCAL_CFLAGS += -O0 -g3 -fpic -fstrict-aliasing -DIPP_LINUX -D___ANDROID___ -DHARDWARE_OMX
 
 LOCAL_SHARED_LIBRARIES += \
