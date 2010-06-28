@@ -80,6 +80,15 @@ typedef struct OMX_CUSTOM_RESOLUTION
 	OMX_U32 nHeight;
 } OMX_CUSTOM_RESOLUTION;
 
+void* ThreadDecoderWrapper(void* me)
+{
+    SkTIJPEGImageDecoder *decoder = static_cast<SkTIJPEGImageDecoder *>(me);
+
+    decoder->Run();
+
+    return NULL;
+}
+
 
 OMX_ERRORTYPE OMX_EventHandler(OMX_HANDLETYPE hComponent,
                                     OMX_PTR pAppData,
@@ -114,18 +123,38 @@ OMX_ERRORTYPE OMX_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BU
 
 SkTIJPEGImageDecoder::~SkTIJPEGImageDecoder()
 {
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    gTIJpegDecMutex.lock();
+#if OPTIMIZE
+    if( ( iLastState || iState ) && ( NULL != pOMXHandle ) ){
+        if(iState == STATE_EXIT)
+            iState = STATE_EMPTY_BUFFER_DONE_CALLED;
+        eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF("\nError from SendCommand-Idle(nStop) State function\n");
+            iState = STATE_ERROR;
+            PRINTF("sem_post at %d", __LINE__);
+            sem_post(semaphore) ;
+        }
 
+        Run();
+    }
+#endif
     sem_destroy(semaphore);
     if (semaphore != NULL) {
         free(semaphore) ;
         semaphore = NULL;
     }
+    gTIJpegDecMutex.unlock();
 }
 
 SkTIJPEGImageDecoder::SkTIJPEGImageDecoder()
 {
+    mLoad = 0;
     pInBuffHead = NULL;
     pOutBuffHead = NULL;
+    pOMXHandle = NULL;
+    mProgressive = 0;
     semaphore = NULL;
     semaphore = (sem_t*)malloc(sizeof(sem_t)) ;
     sem_init(semaphore, 0x00, 0x00);
@@ -461,6 +490,19 @@ void SkTIJPEGImageDecoder::EventHandler(OMX_HANDLETYPE hComponent,
             iState = STATE_ERROR;
             OMX_SendCommand(hComponent, OMX_CommandStateSet, OMX_StateInvalid, NULL);
             sem_post(semaphore) ;
+#if OPTIMIZE
+            // Run() is not running under this condition. We won't clean anything without this.
+            // We also don't want to block here because we could deadlock the system
+            // OMX calls into this function, and Run() will call into OMX
+            if (iLastState == STATE_EXIT){
+                pthread_t thread;
+                pthread_attr_t attr;
+                pthread_attr_init(&attr);
+                pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+                pthread_create(&thread, &attr, ThreadDecoderWrapper, this);
+                pthread_attr_destroy(&attr);
+            }
+#endif
             break;
 
         default:
@@ -495,18 +537,19 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* st
     return pBuf->nFilledLen;
 }
 
-
-bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
+bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, SkImageDecoder::Mode mode)
 {
 
-    android::gTIJpegDecMutex.lock();
+    gTIJpegDecMutex.lock();
     /* Critical section */
     PRINTF("Entering Critical Section \n");
 
+    AutoTrackLoad autotrack(mLoad);
 #ifdef TIME_DECODE
     AutoTimeMicros atm("TI JPEG Decode");
 #endif
 
+    int reuseHandle = 0;
     int nRetval;
     int nIndex1;
     int nIndex2;
@@ -514,6 +557,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
     int bitsPerPixel;
     OMX_S32 inputFileSize;
     OMX_S32 nCompId = 100;
+    OMX_U32 outBuffSize;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     JPEG_HEADER_INFO JpegHeaderInfo;
     OMX_PORT_PARAM_TYPE PortType;
@@ -531,8 +575,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
 
     bitmap = bm;
     inStream = stream;
-    SkBitmap::Config config = this->getPrefConfig(k32Bit_SrcDepth, false);
-    scaleFactor = this->getSampleSize();
+    SkBitmap::Config config = prefConfig;
+    scaleFactor = dec_impl->getSampleSize();
     
     PRINTF("config = %d\n", config);
     PRINTF("mode = %d\n", mode);
@@ -564,182 +608,252 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
         config = SkImageDecoder::GetDeviceConfig();
 
     bm->setConfig(config, JpegHeaderInfo.nWidth/scaleFactor, JpegHeaderInfo.nHeight/scaleFactor);
+    if (bm->config() == SkBitmap::kARGB_8888_Config)
+        bm->setIsOpaque(false);
+    else
     bm->setIsOpaque(true);
     PRINTF("bm->width() = %d\n", bm->width());
     PRINTF("bm->height() = %d\n", bm->height());
     PRINTF("bm->config() = %d\n", bm->config());
-    PRINTF("bm->getSize() = %d\n", bm->getSize());		
+    PRINTF("bm->getSize() = %d\n", bm->getSize());
+    PRINTF("InPortDef.format.image.nFrameWidth = %d\n", InPortDef.format.image.nFrameWidth);
+    PRINTF("InPortDef.format.image.nFrameHeight = %d\n", InPortDef.format.image.nFrameHeight);
 
     if (SkImageDecoder::kDecodeBounds_Mode == mode) {
-        android::gTIJpegDecMutex.unlock();
+        gTIJpegDecMutex.unlock();
         PRINTF("Leaving Critical Section 1 \n");
         return true;
     }
 
     FixFrameSize(&JpegHeaderInfo);
 
-    eError = TIOMX_Init();
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF("%d :: Error returned by OMX_Init()\n",__LINE__);
-        goto EXIT;
-    }
-
-    /* Load the JPEGDecoder Component */
-
-    //PRINTF("Calling OMX_GetHandle\n");
-    eError = TIOMX_GetHandle(&pOMXHandle, strTIJpegDec, (void *)this, &JPEGCallBack);
-    if ( (eError != OMX_ErrorNone) ||  (pOMXHandle == NULL) ) {
-        PRINTF ("Error in Get Handle function\n");
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
-    iLastState = STATE_LOADED;
-    iState = STATE_LOADED;
-
-    PortType.nSize = sizeof(OMX_PORT_PARAM_TYPE);
-    PortType.nVersion.s.nVersionMajor = 0x1;
-    PortType.nVersion.s.nVersionMinor = 0x0;
-    PortType.nVersion.s.nRevision = 0x0;
-    PortType.nVersion.s.nStep = 0x0;
-
-    eError = OMX_GetParameter(pOMXHandle, OMX_IndexParamImageInit, &PortType);
-    if ( eError != OMX_ErrorNone ) {
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
-    nIndex1 = PortType.nStartPortNumber;
-    nIndex2 = nIndex1 + 1;
-
-    /**********************************************************************/
-    /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (INPUT) */
-    /**********************************************************************/
-
-    InPortDef.nPortIndex = PortType.nStartPortNumber;
-    InPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
-    InPortDef.nVersion.s.nVersionMajor = 0x1;
-    InPortDef.nVersion.s.nVersionMinor = 0x0;
-    InPortDef.nVersion.s.nRevision = 0x0;
-    InPortDef.nVersion.s.nStep = 0x0;
-
-    eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
-    if ( eError != OMX_ErrorNone ) {
-        eError = OMX_ErrorBadParameter;
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
-    InPortDef.eDir = OMX_DirInput;
-    InPortDef.nBufferCountActual =1;
-    InPortDef.nBufferCountMin = 1;
-    InPortDef.bEnabled = OMX_TRUE;
-    InPortDef.bPopulated = OMX_FALSE;
-    InPortDef.eDomain = OMX_PortDomainImage;
-    InPortDef.format.image.pNativeRender = NULL;
-    InPortDef.format.image.nFrameWidth = JpegHeaderInfo.nWidth;
-    InPortDef.format.image.nFrameHeight = JpegHeaderInfo.nHeight;
-    InPortDef.format.image.nStride = -1;
-    InPortDef.format.image.nSliceHeight = -1;
-    InPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
-    InPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
-    InPortDef.nBufferSize = inputFileSize;
-
-    if (InPortDef.eDir == nIndex1 ) {
-        InPortDef.nPortIndex = nIndex1;
-    }
-    else {
-        InPortDef.nPortIndex = nIndex2;
-    }
-
-    if (JpegHeaderInfo.nFormat == OMX_COLOR_FormatYCbYCr ||
-        JpegHeaderInfo.nFormat == OMX_COLOR_FormatYUV444Interleaved ||
-        JpegHeaderInfo.nFormat == OMX_COLOR_FormatUnused) {
-        InPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
-    }
-    else {
-//        InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420Planar;
-		  InPortDef.format.image.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
-    }
-
-    //PRINTF("Calling OMX_SetParameter for Input Port\n");
-    eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
-    if ( eError != OMX_ErrorNone ) {
-        eError = OMX_ErrorBadParameter;
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
-    /***********************************************************************/
-    /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (OUTPUT) */
-    /***********************************************************************/
-
-    OutPortDef.nPortIndex = PortType.nStartPortNumber;
-    OutPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
-    OutPortDef.nVersion.s.nVersionMajor = 0x1;
-    OutPortDef.nVersion.s.nVersionMinor = 0x0;
-    OutPortDef.nVersion.s.nRevision = 0x0;
-    OutPortDef.nVersion.s.nStep = 0x0;
-
-    eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
-    if ( eError != OMX_ErrorNone ) {
-        eError = OMX_ErrorBadParameter;
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
-    OutPortDef.eDir = OMX_DirOutput;
-    OutPortDef.nBufferCountActual = 1;
-    OutPortDef.nBufferCountMin = 1;
-    OutPortDef.bEnabled = OMX_TRUE;
-    OutPortDef.bPopulated = OMX_FALSE;
-    OutPortDef.eDomain = OMX_PortDomainImage;
-    OutPortDef.format.image.pNativeRender = NULL;
-    OutPortDef.format.image.nFrameWidth = JpegHeaderInfo.nWidth;
-    OutPortDef.format.image.nFrameHeight = JpegHeaderInfo.nHeight;
-    OutPortDef.format.image.nStride = -1;
-    OutPortDef.format.image.nSliceHeight = -1;
-    OutPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
-    OutPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingUnused;
-
-    if (OutPortDef.eDir == nIndex1 ) {
-        OutPortDef.nPortIndex = nIndex1;
-    }
-    else {
-        OutPortDef.nPortIndex = nIndex2;
-    }
-
     if (config == SkBitmap::kA8_Config) { /* 8-bits per pixel, with only alpha specified (0 is transparent, 0xFF is opaque) */
-        OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatL8;
-        //PRINTF("Color format is OMX_COLOR_FormatL8\n");
         bitsPerPixel = 1;
     }
     else if (config == SkBitmap::kRGB_565_Config) { /* 16-bits per pixel*/
-        OutPortDef.format.image.eColorFormat = OMX_COLOR_Format16bitRGB565;
-        //PRINTF("Color format is OMX_COLOR_Format16bitRGB565\n");
         bitsPerPixel = 2;
     }
     else if (config == SkBitmap::kARGB_8888_Config) { /* 32-bits per pixel */
-        OutPortDef.format.image.eColorFormat = OMX_COLOR_Format32bitARGB8888;
-        //PRINTF("Color format is OMX_COLOR_Format32bitARGB8888\n");
         bitsPerPixel = 4;
     }
     else { /*Set DEFAULT color format*/
-        OutPortDef.format.image.eColorFormat = OMX_COLOR_FormatCbYCrY;
-        //PRINTF("Color format is OMX_COLOR_FormatCbYCrY\n");
         bitsPerPixel = 2;
     }
 
-    OutPortDef.nBufferSize = (JpegHeaderInfo.nWidth / scaleFactor ) * (JpegHeaderInfo.nHeight / scaleFactor) * bitsPerPixel ;
+    outBuffSize = (JpegHeaderInfo.nWidth / scaleFactor ) * (JpegHeaderInfo.nHeight / scaleFactor) * bitsPerPixel;
 
-    //PRINTF("Output buffer size is %ld\n", OutPortDef.nBufferSize);
+#if OPTIMIZE
+    if(pOMXHandle == NULL ||
+            (OMX_U32) JpegHeaderInfo.nWidth > InPortDef.format.image.nFrameWidth ||
+            (OMX_U32) JpegHeaderInfo.nHeight > InPortDef.format.image.nFrameHeight ||
+            OutPortDef.format.image.eColorFormat != SkBitmapToOMXColorFormat(bm->config()) ||
+            mProgressive != JpegHeaderInfo.nProgressive ||
+            InPortDef.format.image.eColorFormat != JPEGToOMXColorFormat(JpegHeaderInfo.nFormat) ||
+            outBuffSize > OutPortDef.nBufferSize)
+    {
+#endif
+        if (pOMXHandle != NULL) {
+            eError = TIOMX_FreeHandle(pOMXHandle);
+            if ( (eError != OMX_ErrorNone) )    {
+                PRINTF("Error in Free Handle function\n");
+            }
+        } else {
+            eError = TIOMX_Init();
+            if ( eError != OMX_ErrorNone ) {
+                PRINTF("%d :: Error returned by OMX_Init()\n",__LINE__);
+                goto EXIT;
+            }
+        }
+        /* Load the JPEGDecoder Component */
 
-    eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
-    if ( eError != OMX_ErrorNone ) {
-        eError = OMX_ErrorBadParameter;
+        //PRINTF("Calling OMX_GetHandle\n");
+        eError = TIOMX_GetHandle(&pOMXHandle, strTIJpegDec, (void *)this, &JPEGCallBack);
+        if ( (eError != OMX_ErrorNone) ||  (pOMXHandle == NULL) ) {
+            PRINTF ("Error in Get Handle function\n");
+            iState = STATE_ERROR;
+            goto EXIT;
+        }
+
+        iLastState = STATE_LOADED;
+        iState = STATE_LOADED;
+
+        PortType.nSize = sizeof(OMX_PORT_PARAM_TYPE);
+        PortType.nVersion.s.nVersionMajor = 0x1;
+        PortType.nVersion.s.nVersionMinor = 0x0;
+        PortType.nVersion.s.nRevision = 0x0;
+        PortType.nVersion.s.nStep = 0x0;
+
+        eError = OMX_GetParameter(pOMXHandle, OMX_IndexParamImageInit, &PortType);
+        if ( eError != OMX_ErrorNone ) {
+            iState = STATE_ERROR;
+            goto EXIT;
+        }
+
+        nIndex1 = PortType.nStartPortNumber;
+        nIndex2 = nIndex1 + 1;
+
+        /**********************************************************************/
+        /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (INPUT) */
+        /**********************************************************************/
+
+        InPortDef.nPortIndex = PortType.nStartPortNumber;
+        InPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
+        InPortDef.nVersion.s.nVersionMajor = 0x1;
+        InPortDef.nVersion.s.nVersionMinor = 0x0;
+        InPortDef.nVersion.s.nRevision = 0x0;
+        InPortDef.nVersion.s.nStep = 0x0;
+
+        eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
+        if ( eError != OMX_ErrorNone ) {
+            eError = OMX_ErrorBadParameter;
+            iState = STATE_ERROR;
+            goto EXIT;
+        }
+
+        InPortDef.eDir = OMX_DirInput;
+        InPortDef.nBufferCountActual =1;
+        InPortDef.nBufferCountMin = 1;
+        InPortDef.bEnabled = OMX_TRUE;
+        InPortDef.bPopulated = OMX_FALSE;
+        InPortDef.eDomain = OMX_PortDomainImage;
+        InPortDef.format.image.pNativeRender = NULL;
+        InPortDef.format.image.nFrameWidth = JpegHeaderInfo.nWidth;
+        InPortDef.format.image.nFrameHeight = JpegHeaderInfo.nHeight;
+        InPortDef.format.image.nStride = -1;
+        InPortDef.format.image.nSliceHeight = -1;
+        InPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
+        InPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
+        InPortDef.nBufferSize = inputFileSize;
+
+        if (InPortDef.eDir == nIndex1 ) {
+            InPortDef.nPortIndex = nIndex1;
+        }
+        else {
+            InPortDef.nPortIndex = nIndex2;
+        }
+
+        InPortDef.format.image.eColorFormat = JPEGToOMXColorFormat(JpegHeaderInfo.nFormat);
+
+        //PRINTF("Calling OMX_SetParameter for Input Port\n");
+        eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
+        if ( eError != OMX_ErrorNone ) {
+            eError = OMX_ErrorBadParameter;
+            iState = STATE_ERROR;
+            goto EXIT;
+        }
+
+        /***********************************************************************/
+        /* Set the component's OMX_PARAM_PORTDEFINITIONTYPE structure (OUTPUT) */
+        /***********************************************************************/
+
+        OutPortDef.nPortIndex = PortType.nStartPortNumber;
+        OutPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
+        OutPortDef.nVersion.s.nVersionMajor = 0x1;
+        OutPortDef.nVersion.s.nVersionMinor = 0x0;
+        OutPortDef.nVersion.s.nRevision = 0x0;
+        OutPortDef.nVersion.s.nStep = 0x0;
+
+        eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
+        if ( eError != OMX_ErrorNone ) {
+            eError = OMX_ErrorBadParameter;
+            iState = STATE_ERROR;
+            goto EXIT;
+        }
+
+        OutPortDef.eDir = OMX_DirOutput;
+        OutPortDef.nBufferCountActual = 1;
+        OutPortDef.nBufferCountMin = 1;
+        OutPortDef.bEnabled = OMX_TRUE;
+        OutPortDef.bPopulated = OMX_FALSE;
+        OutPortDef.eDomain = OMX_PortDomainImage;
+        OutPortDef.format.image.pNativeRender = NULL;
+        OutPortDef.format.image.nFrameWidth = JpegHeaderInfo.nWidth;
+        OutPortDef.format.image.nFrameHeight = JpegHeaderInfo.nHeight;
+        OutPortDef.format.image.nStride = -1;
+        OutPortDef.format.image.nSliceHeight = -1;
+        OutPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
+        OutPortDef.format.image.eCompressionFormat = OMX_IMAGE_CodingUnused;
+        OutPortDef.format.image.eColorFormat = SkBitmapToOMXColorFormat(config);
+
+        if (OutPortDef.eDir == nIndex1 ) {
+            OutPortDef.nPortIndex = nIndex1;
+        }
+        else {
+            OutPortDef.nPortIndex = nIndex2;
+        }
+
+        OutPortDef.nBufferSize = outBuffSize;
+
+        //PRINTF("Output buffer size is %ld\n", OutPortDef.nBufferSize);
+
+        eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
+        if ( eError != OMX_ErrorNone ) {
+            eError = OMX_ErrorBadParameter;
+            iState = STATE_ERROR;
+            goto EXIT;
+        }
+        /* Set max width & height value*/
+        eError = OMX_GetExtensionIndex(pOMXHandle, strMaxResolution, (OMX_INDEXTYPE*)&nCustomIndex);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         iState = STATE_ERROR;
-        goto EXIT;
+            goto EXIT;
+        }
+
+        MaxResolution.nWidth = JpegHeaderInfo.nWidth;
+        MaxResolution.nHeight = JpegHeaderInfo.nHeight;
+
+        eError = OMX_SetParameter (pOMXHandle, nCustomIndex, &MaxResolution);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
+            goto EXIT;
+        }
+
+#if USE_OMX_UseBuffer
+        if (!bm->allocPixels(&allocator, NULL)) {
+            PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+        iState = STATE_ERROR;
+            goto EXIT;
+        }
+#else
+        if (!bm->allocPixels()) {
+        PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+        iState = STATE_ERROR;
+            goto EXIT;
+        }
+#endif
+
+        //PRINTF("Allocated Buffer for input port: %d bytes \n", InPortDef.nBufferSize);
+        eError = OMX_AllocateBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
+            goto EXIT;
+        }
+
+#if USE_OMX_UseBuffer
+        eError = OMX_UseBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize, (OMX_U8*)bm->getPixels());
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
+            goto EXIT;
+        }
+#else
+        /*### For now I am going to use AllocateBuffer. Later on, we must change this to UseBuffer and pass bm as the bufer. */
+        /*### OMX will allocate the buffer and in the FillBufferDone function, we will memcpy the buffer to bm.                      */
+        eError = OMX_AllocateBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
+            goto EXIT;
+        }
+#endif
+#if OPTIMIZE
+    } else {
+        reuseHandle = 1;
     }
+#endif
 
     if (scaleFactor == 2){
         ScaleFactor.xWidth = 50;
@@ -765,6 +879,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
         goto EXIT;
     }
 
+    mProgressive = JpegHeaderInfo.nProgressive;
     eError = OMX_GetExtensionIndex(pOMXHandle, strProgressive, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
@@ -792,80 +907,46 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
         goto EXIT;
     }
 
-    /* Set max width & height value*/
-    eError = OMX_GetExtensionIndex(pOMXHandle, strMaxResolution, (OMX_INDEXTYPE*)&nCustomIndex);
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
+    if(!reuseHandle)
+    {
+        eError = OMX_SendCommand(pOMXHandle, OMX_CommandStateSet, OMX_StateIdle ,NULL);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF ("Error from SendCommand-Idle(Init) State function\n");
         iState = STATE_ERROR;
-        goto EXIT;
+            goto EXIT;
+        }
     }
-
-    MaxResolution.nWidth = JpegHeaderInfo.nWidth;
-    MaxResolution.nHeight = JpegHeaderInfo.nHeight;
-
-    eError = OMX_SetParameter (pOMXHandle, nCustomIndex, &MaxResolution);
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
+#if OPTIMIZE
+    else
+    {
+        PRINTF("REUSING HANDLE current state %d", iState);
 #if USE_OMX_UseBuffer
-
-    if (!bm->allocPixels(&allocator, NULL)) {
-        PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
+        if (!bm->allocPixels(&allocator, NULL)) {
+            PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+            goto EXIT;
+        }
+        pOutBuffHead->pBuffer = (OMX_U8*)bm->getPixels();
+        pOutBuffHead->nAllocLen = outBuffSize;
 #else
-    if (!bm->allocPixels()) {
-        PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
-        iState = STATE_ERROR;
-        goto EXIT;
+        if (!bm->allocPixels()) {
+            SkDebugf("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+            goto EXIT;
+        }
+#endif
+        iState = STATE_EXECUTING;
+        {
+            int sem_val;
+            if(sem_getvalue(semaphore, &sem_val) == 0)
+                PRINTF("line %d: sem value = %d", __LINE__, sem_val);
+        }
+        PRINTF("sem_post at %d", __LINE__);
+        sem_post(semaphore);
     }
 #endif
-
-    //PRINTF("Allocated Buffer for input port: %d bytes \n", InPortDef.nBufferSize);
-    eError = OMX_AllocateBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize);
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
-#if USE_OMX_UseBuffer
-
-    eError = OMX_UseBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize, (OMX_U8*)bm->getPixels());
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
-#else
-
-    /*### For now I am going to use AllocateBuffer. Later on, we must change this to UseBuffer and pass bm as the bufer. */
-    /*### OMX will allocate the buffer and in the FillBufferDone function, we will memcpy the buffer to bm.                      */
-    eError = OMX_AllocateBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize);
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
-
-#endif
-
-
-    eError = OMX_SendCommand(pOMXHandle, OMX_CommandStateSet, OMX_StateIdle ,NULL);
-    if ( eError != OMX_ErrorNone ) {
-        PRINTF ("Error from SendCommand-Idle(Init) State function\n");
-        iState = STATE_ERROR;
-        goto EXIT;
-    }
 
     Run();
 
-    android::gTIJpegDecMutex.unlock();
+    gTIJpegDecMutex.unlock();
     PRINTF("Leaving Critical Section 2 \n");
     return true;
 
@@ -875,7 +956,7 @@ EXIT:
         Run();
     }
 
-    android::gTIJpegDecMutex.unlock();
+    gTIJpegDecMutex.unlock();
     PRINTF("Leaving Critical Section 3 \n");
     return false;
 }
@@ -996,12 +1077,15 @@ while(1){
             break;
 
         case STATE_EMPTY_BUFFER_DONE_CALLED:
-
+#if OPTIMIZE
+            iState = STATE_EXIT;
+#else
             eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
             if ( eError != OMX_ErrorNone ) {
                 PRINTF("Error from SendCommand-Idle(nStop) State function\n");
                 iState = STATE_ERROR;
             }
+#endif
             break;
 
         case STATE_LOADED:
@@ -1032,6 +1116,7 @@ while(1){
                 if ( (eError != OMX_ErrorNone) )    {
                     PRINTF("Error in Free Handle function\n");
                 }
+                pOMXHandle = NULL;
             }
 
             eError = TIOMX_Deinit();

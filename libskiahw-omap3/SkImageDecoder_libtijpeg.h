@@ -26,10 +26,14 @@
 *  in the license agreement under which this software has been supplied.
 * ============================================================================ */
 
+#ifndef SKIAHW_DECODER_H
+#define SKIAHW_DECODER_H
+
 #include "SkBitmap.h"
 #include "SkStream.h"
 #include "SkAllocator.h"
 #include "SkImageDecoder.h"
+#include "SkImageUtility.h"
 #include <stdio.h>
 #include <string.h>
 #include <semaphore.h>
@@ -40,10 +44,7 @@ extern "C" {
 	#include "OMX_IVCommon.h"
 }
 
-namespace android {
-    Mutex       gTIJpegDecMutex;
-}; //namespace android
-
+#define OPTIMIZE 1
 
 #define M_SOF0  0xC0            /* nStart Of Frame N*/
 #define M_SOF1  0xC1            /* N indicates which compression process*/
@@ -69,10 +70,8 @@ namespace android {
 #define M_DRI   0xDD
 
 
-class SkTIJPEGImageDecoder :public SkImageDecoder
+class SkTIJPEGImageDecoder
 {
-protected:
-	virtual bool onDecode(SkStream* stream, SkBitmap* bm, Mode);
 
 public:
 
@@ -101,8 +100,8 @@ public:
 
         SkTIJPEGImageDecoder();
         ~SkTIJPEGImageDecoder();
+    bool onDecode(SkImageDecoder* dec_impl, SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, SkImageDecoder::Mode);
         bool SetJpegDecodeParameters(JpegDecoderParams * jdp) {memcpy(&jpegDecParams, jdp, sizeof(JpegDecoderParams)); return true;}
-        virtual Format getFormat() const { return kJPEG_Format; }
         void Run();
         void PrintState();
         void FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen);
@@ -111,6 +110,7 @@ public:
         									OMX_U32 nData1,
         									OMX_U32 nData2,
         									OMX_PTR pEventData);
+    int GetLoad(){ return mLoad; }
 
 private:
 
@@ -130,7 +130,9 @@ private:
         SkStream* inStream;
         SkBitmap* bitmap;
         TIHeapAllocator allocator;
-
+        android::Mutex       gTIJpegDecMutex;
+    int mLoad;
+    int mProgressive;
 	OMX_S16 GetYUVformat(OMX_U8 * Data);
 	OMX_S16 Get16m(const void * Short);
 	OMX_S32 ParseJpegHeader (SkStream* stream, JPEG_HEADER_INFO* JpegHeaderInfo);
@@ -138,11 +140,6 @@ private:
 	void FixFrameSize(JPEG_HEADER_INFO* JpegHeaderInfo);
 
 };
-
-
-extern "C" SkImageDecoder* SkImageDecoder_HWJPEG_Factory() {
-    return SkNEW(SkTIJPEGImageDecoder);
-}
 
 OMX_ERRORTYPE OMX_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffHead);
 OMX_ERRORTYPE OMX_EmptyBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffer);
@@ -152,4 +149,4 @@ OMX_ERRORTYPE OMX_EventHandler(OMX_HANDLETYPE hComponent,
 											OMX_U32 nData1,
 											OMX_U32 nData2,
 											OMX_PTR pEventData);
-
+#endif

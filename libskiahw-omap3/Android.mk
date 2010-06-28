@@ -25,54 +25,17 @@ LOCAL_C_INCLUDES += \
 LOCAL_CFLAGS += -fpic -fstrict-aliasing
 
 LOCAL_SRC_FILES+= \
+   SkImageUtility.cpp \
    SkImageDecoder_libtijpeg.cpp \
+   SkImageDecoder_libtijpeg_entry.cpp \
    SkImageEncoder_libtijpeg.cpp \
+   SkImageEncoder_libtijpeg_entry.cpp \
    SkAllocator.cpp \
    SkMemory.cpp \
    
 LOCAL_MODULE:= libskiahw
 
 include $(BUILD_SHARED_LIBRARY)
-
-################################################
-
-include $(CLEAR_VARS)
-
-LOCAL_SRC_FILES := SkImageDecoderTest.cpp
-
-LOCAL_SHARED_LIBRARIES := \
-	libskiahw
-
-LOCAL_MODULE := SkImageDecoderTest
-
-LOCAL_C_INCLUDES += \
-	external/skia/include/images \
-	external/skia/include/ports \
-	external/skia/include/core \
-	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
-
-include $(BUILD_EXECUTABLE)
-
-################################################
-
-include $(CLEAR_VARS)
-
-LOCAL_SRC_FILES := SkImageEncoderTest.cpp
-
-LOCAL_SHARED_LIBRARIES := \
-    libskiahw
-
-LOCAL_MODULE := SkImageEncoderTest
-
-LOCAL_C_INCLUDES += \
-	external/skia/include/images \
-	external/skia/include/core \
-	external/skia/include/graphics \
-	hardware/ti/omx/system/src/openmax_il/omx_core/inc \
-
-include $(BUILD_EXECUTABLE)
-
-################################################
 
 endif
 endif
