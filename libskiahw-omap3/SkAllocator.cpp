@@ -108,12 +108,17 @@ void TISkMallocPixelRef::flatten(SkFlattenableWriteBuffer& buffer) const {
 TISkMallocPixelRef::TISkMallocPixelRef(SkFlattenableReadBuffer& buffer) : INHERITED(buffer, NULL) {
     fSize = buffer.readU32();
     fStorage = tisk_malloc_throw(fSize);
-    buffer.read(fStorage, fSize);
+    if (fStorage) {
+        buffer.read(fStorage, fSize);
+    } else {
+        SkDebugf("\n%s():%d::ERROR!!!tisk_malloc_throw Failed\n",__FUNCTION__,__LINE__);
+    }
     if (buffer.readBool()) {
         fCTable = SkNEW_ARGS(SkColorTable, (buffer));
     } else {
         fCTable = NULL;
     }
+
 }
 
 
