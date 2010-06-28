@@ -387,6 +387,52 @@ void AppCallbackNotifier::notifyFrame()
                         }
 
                     }
+                else if(( CameraFrame::SNAPSHOT_FRAME == frame->mFrameType ) &&
+                             ( NULL != mCameraHal.get() ) &&
+                             ( NULL != mDataCb) &&
+                             ( NULL != mNotifyCb) )
+                    {
+
+                    if(!mAppSupportsStride)
+                        {
+                        buffer = mPreviewBuffers[mPreviewBufCount].get();
+                        if(!buffer || !frame->mBuffer)
+                            {
+                            CAMHAL_LOGDA("Error! One of the buffer is NULL");
+                            break;
+                            }
+                        }
+                    else
+                        {
+
+                        memBase = mSharedPreviewBuffers.valueFor( ( unsigned int ) frame->mBuffer );
+
+                        if( (NULL == memBase.get() ) || ( NULL == frame->mBuffer) )
+                            {
+                            CAMHAL_LOGDA("Error! One of the preview buffer is NULL");
+                            break;
+                            }
+                        }
+
+                    if(!mAppSupportsStride)
+                        {
+                        copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                                    mPreviewPixelFormat);
+
+                        mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
+
+                        memBase = buffer;
+                        }
+
+                    //activate shutter sound
+                    mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
+
+                    ///Give preview callback to app
+                    mDataCb(CAMERA_MSG_POSTVIEW_FRAME, memBase, mCallbackCookie);
+
+                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
+
+                    }
                 else if(( CameraFrame::PREVIEW_FRAME_SYNC== frame->mFrameType ) &&
                              ( NULL != mCameraHal.get() ) &&
                              ( NULL != mDataCb) &&
