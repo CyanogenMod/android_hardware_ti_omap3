@@ -1022,7 +1022,7 @@ while(1){
                     break;
                 }
             }
-            else if (iLastState == STATE_EMPTY_BUFFER_DONE_CALLED)
+            else if ((iLastState == STATE_EMPTY_BUFFER_DONE_CALLED) || (iLastState==STATE_FILL_BUFFER_DONE_CALLED))
             {
                     eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateLoaded, NULL);
                     if ( eError != OMX_ErrorNone ) {
