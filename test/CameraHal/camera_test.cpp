@@ -57,6 +57,9 @@
 #define COMPENSATION_OFFSET 20
 #define DELIMITER           "|"
 
+#define MAX_PREVIEW_SURFACE_WIDTH   800
+#define MAX_PREVIEW_SURFACE_HEIGHT  480
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 using namespace android;
@@ -202,6 +205,7 @@ const struct {
     { 864, 480, "WVGA3"},
     { 992, 560, "WVGA4"},
     { 1280, 720, "HD" },
+    { 1920, 1080, "FULLHD"},
 };
 
 const struct {
@@ -219,6 +223,7 @@ const struct {
     { 720, 576, "D1PAL" },
     { 800, 480, "WVGA" },
     { 1280, 720, "HD" },
+    { 1920, 1080, "FULLHD"},
 };
 
 const struct {
@@ -556,6 +561,20 @@ void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const 
 }
 
 int createPreviewSurface(unsigned int width, unsigned int height) {
+    unsigned int previewWidth, previewHeight;
+
+    if ( MAX_PREVIEW_SURFACE_WIDTH < width ) {
+        previewWidth = MAX_PREVIEW_SURFACE_WIDTH;
+    } else {
+        previewWidth = width;
+    }
+
+    if ( MAX_PREVIEW_SURFACE_HEIGHT < height ) {
+        previewHeight = MAX_PREVIEW_SURFACE_HEIGHT;
+    } else {
+        previewHeight = height;
+    }
+
     client = new SurfaceComposerClient();
 
     if ( NULL == client.get() ) {
@@ -564,7 +583,7 @@ int createPreviewSurface(unsigned int width, unsigned int height) {
         return -1;
     }
 
-    overlayControl = client->createSurface(getpid(), 0, width, height,
+    overlayControl = client->createSurface(getpid(), 0, previewWidth, previewHeight,
                                            PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers);
 
     if ( NULL == overlayControl.get() ) {
@@ -587,7 +606,7 @@ int createPreviewSurface(unsigned int width, unsigned int height) {
 
     client->openTransaction();
     overlayControl->setPosition(0, 0);
-    overlayControl->setSize(width, height);
+    overlayControl->setSize(previewWidth, previewHeight);
     client->closeTransaction();
 
     return 0;
