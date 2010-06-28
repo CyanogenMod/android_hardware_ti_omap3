@@ -17,6 +17,8 @@ LOCAL_SHARED_LIBRARIES:= \
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/ui \
+	frameworks/base/include/surfaceflinger \
+	frameworks/base/include/camera \
 	frameworks/base/include/media \
 	$(PV_INCLUDES)
 
