@@ -72,7 +72,7 @@ namespace android {
 class SkTIJPEGImageDecoder :public SkImageDecoder
 {
 protected:
-	virtual bool onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, Mode);
+	virtual bool onDecode(SkStream* stream, SkBitmap* bm, Mode);
 
 public:
 

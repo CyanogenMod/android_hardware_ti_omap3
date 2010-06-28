@@ -496,7 +496,7 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* st
 }
 
 
-bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, Mode mode)
+bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
 {
 
     android::gTIJpegDecMutex.lock();
@@ -531,10 +531,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Co
 
     bitmap = bm;
     inStream = stream;
-    SkBitmap::Config config = prefConfig;
+    SkBitmap::Config config = this->getPrefConfig(k32Bit_SrcDepth, false);
     scaleFactor = this->getSampleSize();
     
-    PRINTF("prefConfig = %d\n", prefConfig);
+    PRINTF("config = %d\n", config);
     PRINTF("mode = %d\n", mode);
     PRINTF("scaleFactor = %d ", scaleFactor);
     //PRINTF("File size = %d\n", stream->getLength());
