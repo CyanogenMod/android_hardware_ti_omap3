@@ -2018,6 +2018,21 @@ status_t OMXCameraAdapter::stopImageCapture()
         }
 
     CAMHAL_LOGDB("Capture set - 0x%x", eError);
+    Semaphore camSem;
+
+    ///Register for Image port Disable event
+    ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
+                                OMX_EventCmdComplete,
+                                OMX_CommandPortDisable,
+                                mCameraAdapterParameters.mImagePortIndex,
+                                camSem,
+                                -1);
+
+    ///Disable Capture Port
+    eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
+                                OMX_CommandPortDisable,
+                                mCameraAdapterParameters.mImagePortIndex,
+                                NULL);
 
     ///Free all the buffers on capture port
     CAMHAL_LOGDB("Freeing buffer on Capture port - %d", imgCaptureData->mNumBufs);
@@ -2031,9 +2046,23 @@ status_t OMXCameraAdapter::stopImageCapture()
         GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
         }
 
+    CAMHAL_LOGDA("Waiting for port disable");
+    //Wait for the image port enable event
+    camSem.Wait();
+    CAMHAL_LOGDA("Port disabled");
+
+    mCapturing = false;
+
     LOG_FUNCTION_NAME_EXIT
 
+    return ret;
+
     EXIT:
+        if(eError != OMX_ErrorNone)
+            {
+            CAMHAL_LOGEB("Error occured when disabling image capture port %x",eError);
+            }
+
 
     return ret;
 }
