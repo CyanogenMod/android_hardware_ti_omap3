@@ -498,17 +498,17 @@ LOGV("%s", __FUNCTION__);
     /* for input devices */
     if (devices >> 16) {
         if (devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) {
-            control.set("Analog Left Capture Route Main mic", 1); // on
-            control.set("Analog Right Capture Route Sub mic", 1); // on
+            control.set("Analog Left Main Mic Capture Switch", 1); // on
+            control.set("Analog Right Sub Mic Capture Switch", 1); // on
         } else {
-            control.set("Analog Left Capture Route Main mic", (unsigned int)0); // off
-            control.set("Analog Right Capture Route Sub mic", (unsigned int)0); // off
+            control.set("Analog Left Main Mic Capture Switch", (unsigned int)0); // off
+            control.set("Analog Right Sub Mic Capture Switch", (unsigned int)0); // off
         }
 
         if (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) {
-            control.set("Analog Left Capture Route Headset mic", 1); // on
+            control.set("Analog Left Headset Mic Capture Switch", 1); // on
         } else {
-            control.set("Analog Left Capture Route Headset mic", (unsigned int)0); // off
+            control.set("Analog Left Headset Mic Capture Switch", (unsigned int)0); // off
         }
     }
 }
