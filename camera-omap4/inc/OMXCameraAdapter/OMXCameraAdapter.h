@@ -45,6 +45,7 @@ extern "C"
 
 namespace android {
 
+#define FOCUS_THRESHOLD  5 //[s.]
 
 #define MIN_JPEG_QUALITY 1
 #define MAX_JPEG_QUALITY 100
@@ -259,8 +260,9 @@ private:
 
     //Focus functionality
     status_t doAutoFocus();
+    status_t stopAutoFocus();
     status_t notifyFocusSubscribers();
-    status_t checkFocus(OMX_FOCUSSTATUSTYPE *eFocusStatus);
+    status_t checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus);
 
     //VSTAB and VNF Functionality
     status_t enableVideoNoiseFilter(bool enable);
@@ -316,6 +318,9 @@ private:
 
     //variables holding the estimated framerate
     float mFPS, mLastFPS;
+
+    //automatically disable AF after a given amount of frames
+    unsigned int mFocusThreshold;
 
      //local copy
     CameraParameters mParams;

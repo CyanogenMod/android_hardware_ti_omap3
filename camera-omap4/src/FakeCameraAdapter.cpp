@@ -631,7 +631,6 @@ status_t FakeCameraAdapter::doAutofocus()
 {
     event_callback eventCb;
     CameraHalEvent focusEvent;
-    CameraHalEvent::FocusEventData focusData;
     status_t ret = NO_ERROR;
 
     LOG_FUNCTION_NAME
@@ -645,9 +644,8 @@ status_t FakeCameraAdapter::doAutofocus()
 
 
     //Just return success everytime
-    focusData.focusLocked = true;
     focusEvent.mEventType = CameraHalEvent::EVENT_FOCUS_LOCKED;
-    focusEvent.mEventData = (CameraHalEvent::CameraHalEventData *) &focusData;
+    focusEvent.mEventData.focusEvent.focusLocked = true;
 
         //Start looking for event subscribers
         {

@@ -172,7 +172,7 @@ void AppCallbackNotifier::notifyEvent()
     LOG_FUNCTION_NAME
     mEventQ.get(&msg);
     bool ret = true;
-    CameraHalEvent* evt;
+    CameraHalEvent *evt = NULL;
     CameraHalEvent::FocusEventData *focusEvtData;
     CameraHalEvent::ZoomEventData *zoomEvtData;
 
@@ -180,7 +180,13 @@ void AppCallbackNotifier::notifyEvent()
         {
         case AppCallbackNotifier::NOTIFIER_CMD_PROCESS_EVENT:
 
-            evt = (CameraHalEvent*)msg.arg1;
+            evt = ( CameraHalEvent * ) msg.arg1;
+
+            if ( NULL == evt )
+                {
+                CAMHAL_LOGEA("Invalid CameraHalEvent");
+                return;
+                }
 
             switch(evt->mEventType)
                 {
@@ -198,7 +204,7 @@ void AppCallbackNotifier::notifyEvent()
                 case CameraHalEvent::EVENT_FOCUS_LOCKED:
                 case CameraHalEvent::EVENT_FOCUS_ERROR:
 
-                    focusEvtData = (CameraHalEvent::FocusEventData *) evt->mEventData;
+                    focusEvtData = &evt->mEventData.focusEvent;
                     if ( ( focusEvtData->focusLocked ) &&
                           ( NULL != mCameraHal.get() ) &&
                           ( NULL != mNotifyCb ) &&
@@ -218,7 +224,7 @@ void AppCallbackNotifier::notifyEvent()
 
                 case CameraHalEvent::EVENT_ZOOM_LEVEL_REACHED:
 
-                    zoomEvtData = (CameraHalEvent::ZoomEventData *) evt->mEventData;
+                    zoomEvtData = &evt->mEventData.zoomEvent;
                     ///@todo Send callback to application for zoom level
                     ///zoomEvtData.currentZoomValue;
                     ///zoomEvtData.targetZoomLevelReached;
@@ -236,6 +242,12 @@ void AppCallbackNotifier::notifyEvent()
             ///@todo send error notification to the app, if error notification flag is enabled
             break;
         }
+
+    if ( NULL != evt )
+        {
+        delete evt;
+        }
+
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -553,16 +565,28 @@ void AppCallbackNotifier::eventCallback(CameraHalEvent* chEvt)
 
     ///Post the event to the event queue of AppCallbackNotifier
     Message msg;
+    CameraHalEvent *event;
+
 
     LOG_FUNCTION_NAME
 
-    msg.command = AppCallbackNotifier::NOTIFIER_CMD_PROCESS_EVENT;
-    msg.arg1 = chEvt;
-
-    if(mNotifierState == AppCallbackNotifier::NOTIFIER_STARTED)
+    if ( NULL != chEvt )
         {
-        mEventQ.put(&msg);
+
+        event = new CameraHalEvent(*chEvt);
+        if ( NULL != event )
+            {
+            msg.command = AppCallbackNotifier::NOTIFIER_CMD_PROCESS_EVENT;
+            msg.arg1 = event;
+            mEventQ.put(&msg);
+            }
+        else
+            {
+            CAMHAL_LOGEA("Not enough resources to allocate CameraHalEvent");
+            }
+
         }
+
     LOG_FUNCTION_NAME_EXIT
 }
 

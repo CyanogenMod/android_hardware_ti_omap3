@@ -225,31 +225,42 @@ public:
         ALL_EVENTS = 0xFFFF ///Maximum of 16 event types supported
         };
 
-    typedef void* CameraHalEventData;
-
     ///Class declarations
     ///@remarks Add a new class for a new event type added above
 
     ///Focus event specific data
-    class FocusEventData
+    typedef struct FocusEventData_t
         {
-        public:
             bool focusLocked;
             bool focusError;
             int currentFocusValue;
-        };
+        } FocusEventData;
 
     ///Zoom specific event data
-    class ZoomEventData
+    typedef struct ZoomEventData_t
         {
-        public:
             int currentZoomValue;
             bool targetZoomLevelReached;
-        };
+        } ZoomEventData;
+
+    typedef union
+        {
+        CameraHalEvent::FocusEventData focusEvent;
+        CameraHalEvent::ZoomEventData zoomEvent;
+        } CameraHalEventData;
+
+    //default contrustor
+    CameraHalEvent() {}
+
+    //copy constructor
+    CameraHalEvent(const CameraHalEvent &event) :
+        mCookie(event.mCookie),
+        mEventType(event.mEventType),
+        mEventData(event.mEventData) {};
 
     void* mCookie;
     CameraHalEventType mEventType;
-    CameraHalEventData *mEventData;
+    CameraHalEventData mEventData;
 
 };
 

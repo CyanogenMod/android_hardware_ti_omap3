@@ -598,6 +598,7 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         portCheck.format.video.xFramerate       = portParams.mFrameRate<<16;
         portCheck.nBufferSize                   = portParams.mStride * portParams.mHeight;
         portCheck.nBufferCountActual = portParams.mNumBufs;
+        mFocusThreshold = FOCUS_THRESHOLD * portParams.mFrameRate;
         }
     else if ( OMX_CAMERA_PORT_IMAGE_OUT_IMAGE == port )
         {
@@ -1806,19 +1807,13 @@ status_t OMXCameraAdapter::doAutoFocus()
     return ret;
 }
 
-status_t OMXCameraAdapter::checkFocus(OMX_FOCUSSTATUSTYPE *eFocusStatus)
+status_t OMXCameraAdapter::stopAutoFocus()
 {
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    OMX_PARAM_FOCUSSTATUSTYPE focusStatus;
+    OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE focusControl;
 
     LOG_FUNCTION_NAME
-
-    if ( NULL == eFocusStatus )
-        {
-        CAMHAL_LOGEA("Invalid focus status");
-        ret = -1;
-        }
 
     if ( OMX_StateExecuting != mComponentState )
         {
@@ -1826,22 +1821,61 @@ status_t OMXCameraAdapter::checkFocus(OMX_FOCUSSTATUSTYPE *eFocusStatus)
         ret = -1;
         }
 
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&focusControl, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
+        focusControl.eFocusControl = OMX_IMAGE_FocusControlOff;
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while stopping focus 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Autofocus stopped successfully");
+            }
+        }
+
+    mFocusStarted = false;
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+
+}
+
+status_t OMXCameraAdapter::checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == eFocusStatus )
+        {
+        CAMHAL_LOGEA("Invalid focus status");
+        ret = -EINVAL;
+        }
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component not in executing state");
+        ret = -EINVAL;
+        }
+
     if ( !mFocusStarted )
         {
         CAMHAL_LOGEA("Focus was not started");
-        ret = -1;
+        ret = -EINVAL;
         }
 
     if ( NO_ERROR == ret )
         {
-        focusStatus.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
-        focusStatus.nSize = sizeof(OMX_PARAM_FOCUSSTATUSTYPE);
-        focusStatus.nVersion.s.nVersionMajor = 0x1 ;
-        focusStatus.nVersion.s.nVersionMinor = 0x1 ;
-        focusStatus.nVersion.s.nRevision = 0x0;
-        focusStatus.nVersion.s.nStep =  0x0;
+        OMX_INIT_STRUCT_PTR (eFocusStatus, OMX_PARAM_FOCUSSTATUSTYPE);
 
-        eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonFocusStatus, &focusStatus);
+        eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonFocusStatus, eFocusStatus);
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEB("Error while retrieving focus status: 0x%x", eError);
@@ -1851,8 +1885,7 @@ status_t OMXCameraAdapter::checkFocus(OMX_FOCUSSTATUSTYPE *eFocusStatus)
 
     if ( NO_ERROR == ret )
         {
-        *eFocusStatus = focusStatus.eFocusStatus;
-        CAMHAL_LOGDB("Focus Status: %d", focusStatus.eFocusStatus);
+        CAMHAL_LOGDB("Focus Status: %d", eFocusStatus->eFocusStatus);
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -1862,10 +1895,10 @@ status_t OMXCameraAdapter::checkFocus(OMX_FOCUSSTATUSTYPE *eFocusStatus)
 
 status_t OMXCameraAdapter::notifyFocusSubscribers()
 {
+    static int frameCounter = 0;
     event_callback eventCb;
     CameraHalEvent focusEvent;
-    CameraHalEvent::FocusEventData focusData;
-    OMX_FOCUSSTATUSTYPE eFocusStatus;
+    OMX_PARAM_FOCUSSTATUSTYPE eFocusStatus;
     bool focusStatus = false;
     status_t ret = NO_ERROR;
 
@@ -1873,33 +1906,30 @@ status_t OMXCameraAdapter::notifyFocusSubscribers()
 
     if ( mFocusStarted )
         {
+
+        frameCounter++;
+
         ret = checkFocus(&eFocusStatus);
 
         if ( NO_ERROR == ret )
             {
 
-            switch(eFocusStatus)
+            if ( OMX_FocusStatusReached == eFocusStatus.eFocusStatus)
                 {
-                case OMX_FocusStatusReached:
-                    //AF success
-                    focusStatus = true;
-                    mFocusStarted = false;
-                    break;
-
-                case OMX_FocusStatusUnableToReach:
-                case OMX_FocusStatusLost:
-                case OMX_FocusStatusOff:
-                    //AF fail
-                    focusStatus = false;
-                    mFocusStarted = false;
-                    break;
-
-                case OMX_FocusStatusRequest:
-                default:
-                    //do nothing
-                    break;
-
-                };
+                stopAutoFocus();
+                frameCounter = 0;
+                focusStatus = true;
+                }
+            else if ( frameCounter > mFocusThreshold )
+                {
+                stopAutoFocus();
+                frameCounter = 0;
+                focusStatus = false;
+                }
+            else
+                {
+                return NO_ERROR;
+                }
             }
         }
     else
@@ -1914,10 +1944,9 @@ status_t OMXCameraAdapter::notifyFocusSubscribers()
 
 #endif
 
-    focusData.focusLocked = focusStatus;
-    focusData.focusError = !focusStatus;
     focusEvent.mEventType = CameraHalEvent::EVENT_FOCUS_LOCKED;
-    focusEvent.mEventData = (CameraHalEvent::CameraHalEventData *) &focusData;
+    focusEvent.mEventData.focusEvent.focusLocked = focusStatus;
+    focusEvent.mEventData.focusEvent.focusError = !focusStatus;
 
         //Start looking for event subscribers
         {
