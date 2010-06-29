@@ -927,7 +927,7 @@ void stopPreview() {
 void initDefaults() {
     antibanding_mode = 0;
     focus_mode = 0;
-    previewSizeIDX = ARRAY_SIZE(previewSize) - 5;  /* Default resolution set to WVGA */
+    previewSizeIDX = ARRAY_SIZE(previewSize) - 6;  /* Default resolution set to WVGA */
     captureSizeIDX = ARRAY_SIZE(captureSize) - 3;  /* Default capture resolution is 8MP */
     frameRateIDX = ARRAY_SIZE(frameRate) - 1;      /* Default frame rate is 30 FPS */
     VcaptureSizeIDX = ARRAY_SIZE(VcaptureSize) - 2;/* Default video record is WVGA */
