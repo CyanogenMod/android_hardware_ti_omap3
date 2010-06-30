@@ -608,6 +608,8 @@ public:
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height) = 0;
 
+    //API to get required picture buffers size with the current configuration in CameraParameters
+    virtual status_t getPictureBufferSize(size_t &length) = 0;
 
     virtual ~CameraAdapter() {};
 };
@@ -851,7 +853,7 @@ private:
             status_t allocVideoBufs(int width, int height, const char* previewFormat);
 
             /** Allocate image capture buffers */
-            status_t allocImageBufs(int width, int height, const char* previewFormat);
+            status_t allocImageBufs(size_t length, const char* previewFormat);
 
             /** Free preview buffers */
             status_t freePreviewBufs();

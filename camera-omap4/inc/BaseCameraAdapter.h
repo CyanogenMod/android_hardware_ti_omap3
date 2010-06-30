@@ -58,6 +58,9 @@ public:
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height) = 0;
 
+    virtual status_t getPictureBufferSize(size_t &length) = 0;
+
+
 protected:
 
     enum FrameState {

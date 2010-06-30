@@ -226,6 +226,8 @@ public:
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height);
 
+    virtual status_t getPictureBufferSize(size_t &length);
+
  OMX_ERRORTYPE OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETYPE hComponent,
                                     OMX_IN OMX_EVENTTYPE eEvent,
                                     OMX_IN OMX_U32 nData1,

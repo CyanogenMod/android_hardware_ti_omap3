@@ -26,6 +26,9 @@
 namespace android {
 
 
+#define DEFAULT_PICTURE_BUFFER_SIZE 0x1000
+
+
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
 FakeCameraAdapter::FakeCameraAdapter()
@@ -323,7 +326,22 @@ status_t FakeCameraAdapter::cancelCommand(int operation)
 void FakeCameraAdapter::getFrameSize(int &width, int &height)
 {
     LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
 }
+
+status_t FakeCameraAdapter::getPictureBufferSize(size_t &length)
+{
+    LOG_FUNCTION_NAME
+
+    length = DEFAULT_PICTURE_BUFFER_SIZE;
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return NO_ERROR;
+}
+
 
 void FakeCameraAdapter::frameCallbackThread()
 {

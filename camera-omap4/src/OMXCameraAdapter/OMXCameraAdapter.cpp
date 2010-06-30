@@ -641,6 +641,8 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         }
     GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
+    portParams.mBufSize = portCheck.nBufferSize;
+
     if ( OMX_CAMERA_PORT_IMAGE_OUT_IMAGE == port )
         {
         LOGD("\n *** IMG Width = %ld", portCheck.format.image.nFrameWidth);
@@ -2236,6 +2238,43 @@ exit:
 
     LOG_FUNCTION_NAME_EXIT
 
+}
+
+status_t OMXCameraAdapter::getPictureBufferSize(size_t &length)
+{
+    status_t ret = NO_ERROR;
+    OMXCameraPortParameters *imgCaptureData = NULL;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    LOG_FUNCTION_NAME
+
+    if ( mCapturing )
+        {
+        CAMHAL_LOGEA("getPictureBufferSize() called during image capture");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
+
+        ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *imgCaptureData);
+        if ( ret == NO_ERROR )
+            {
+            length = imgCaptureData->mBufSize;
+            }
+        else
+            {
+            CAMHAL_LOGEB("setFormat() failed 0x%x", ret);
+            length = 0;
+            }
+        }
+
+    CAMHAL_LOGDB("getPictureBufferSize %d", length);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 /* Application callback Functions */

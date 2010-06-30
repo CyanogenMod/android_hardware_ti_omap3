@@ -384,15 +384,14 @@ status_t CameraHal::freePreviewBufs()
     }
 
 
-status_t CameraHal::allocImageBufs(int width, int height, const char* previewFormat)
+status_t CameraHal::allocImageBufs(size_t size, const char* previewFormat)
 {
     status_t ret = NO_ERROR;
-
-    //TODO:
-    //Ideally this should come out during negotiations with camera adapter
-    int bytes = 6*0x100000; //width*height*2;
+    int bytes;
 
     LOG_FUNCTION_NAME
+
+    bytes = size;
 
     ///@todo Enhance this method allocImageBufs() to take in a flag for burst capture
     ///Always allocate the buffers for image capture using MemoryManager
@@ -1067,6 +1066,7 @@ status_t CameraHal::cancelAutoFocus()
 status_t CameraHal::takePicture( )
 {
     status_t ret = NO_ERROR;
+    size_t pictureBufferLength;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -1089,6 +1089,25 @@ status_t CameraHal::takePicture( )
 
 #endif
 
+        }
+
+    if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter.get() ) )
+        {
+        ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength);
+
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("getPictureBufferSize returned error 0x%x", ret);
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = allocImageBufs(pictureBufferLength, mParameters.getPictureFormat());
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("allocImageBufs returned error 0x%x", ret);
+            }
         }
 
     if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter.get() ) )
@@ -1396,10 +1415,6 @@ status_t CameraHal::initialize()
     ///via CAMERA_MSG_ERROR. AppCallbackNotifier is the class that  notifies such errors to the application
     ///Set it as the error handler for CameraAdapter
     mCameraAdapter->setErrorHandler(mAppCallbackNotifier.get());
-
-    //Initialize default image buffers
-    //TODO:Make this dynamically depending on camera insance parameters
-    allocImageBufs(PICTURE_WIDTH, PICTURE_HEIGHT, CameraParameters::PIXEL_FORMAT_YUV422I);
 
     ///Initialize default parameters
     initDefaultParameters();
