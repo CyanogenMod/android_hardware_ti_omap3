@@ -52,6 +52,11 @@ AudioModemAlsa::AudioModemAlsa()
     status_t error;
 
     LOGV("Build date: %s time: %s", __DATE__, __TIME__);
+
+#ifdef AUDIO_MODEM_HACK_IGNORE_PCM_START_ERROR
+     LOGV("Hack: ignore PCM start errors");
+#endif
+
     LOGD("Initializing devices for Modem OMAP4 ALSA module");
 
     audioModemSetProperties();
@@ -352,11 +357,15 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
 
     if ((error = snd_pcm_start(cHandle)) < 0) {
         LOGE("Modem PCM capture start error: %d:%s\n", error, snd_strerror(error));
+#ifndef AUDIO_MODEM_HACK_IGNORE_PCM_START_ERROR
         return INVALID_OPERATION;
+#endif
     }
     if ((error = snd_pcm_start(pHandle)) < 0) {
         LOGE("Modem PCM playback start error: %d:%s\n", error, snd_strerror(error));
+#ifndef AUDIO_MODEM_HACK_IGNORE_PCM_START_ERROR
         return INVALID_OPERATION;
+#endif
     }
 
     return NO_ERROR;
