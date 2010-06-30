@@ -18,6 +18,8 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   LOCAL_CFLAGS := -D_POSIX_SOURCE -Wno-multichar
   ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
     LOCAL_CFLAGS += -DAUDIO_MODEM_TI
+    # HACK flag below ignore error reported by the pcm start
+    LOCAL_CFLAGS += -DAUDIO_MODEM_HACK_IGNORE_PCM_START_ERROR
   endif
   ifeq ($(BOARD_HAVE_BLUETOOTH),true)
       LOCAL_CFLAGS += -DAUDIO_BLUETOOTH
