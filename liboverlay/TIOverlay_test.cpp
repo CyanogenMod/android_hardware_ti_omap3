@@ -41,13 +41,17 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <getopt.h>
 
 using namespace android;
 
 namespace android {
 
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+
 #define RET_CHECK_EQ(x, y, z) {if (x != y) { LOGE("ErrScenario Test failed @%d", z); return;} }
 #define RET_CHECK_NOTEQ(x, y, z) {if (x == y) { LOGE("ErrScenario Test failed @%d", z); return;} }
+
 class Test {
 public:
     void getISurface(const sp<SurfaceControl>& s) {
@@ -99,6 +103,9 @@ public:
     int newwidth2;
     int newheight2;
 
+    int win_x;
+    int win_y;
+    
     int zOrder1;
     int zOrder2;
 
@@ -126,6 +133,9 @@ public:
     newwidth2 = -1;
     newheight2 = -1;
 
+    win_x = 100;
+    win_y = 100;
+    
     zOrder1 = -1;
     zOrder2 = -1;
 
@@ -337,7 +347,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     }
 
     firstClient->openTransaction();
-    firstSurfaceCtrl->setPosition(112, 0);
+    firstSurfaceCtrl->setPosition(win_x, win_y);
     if ((newwidth1 != -1) && (newheight1 != -1))
     {
         firstSurfaceCtrl->setSize(newwidth1, newheight1);
@@ -498,14 +508,14 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         }
     }
 
- int x, y, w, h, cropw = w1/2, croph = h1/2;
- int totalIter = file1size/(framesize1*numBuffers1);
- static int cropx = 0;
- static int cropy = 0;
+    int x, y, w, h, cropw = w1/2, croph = h1/2;
+    int totalIter = file1size/(framesize1*numBuffers1);
+    static int cropx = 0;
+    static int cropy = 0;
 
-if (zoom1) {
-    mOverlay1->setCrop(cropx, cropy, cropw, croph);
-}
+    if (zoom1) {
+        mOverlay1->setCrop(cropx, cropy, cropw, croph);
+    }
 
     for (int i3 = 0; i3 < NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE; i3++)
     {
@@ -661,7 +671,7 @@ if (zoom1) {
             }
             mOverlay1->setCrop(cropx, cropy,cropw, croph);
             firstClient->openTransaction();
-            firstSurfaceCtrl->setPosition(50, 50);
+                firstSurfaceCtrl->setPosition(win_x, win_y);
             firstSurfaceCtrl->setSize(w1, h1);
             firstClient->closeTransaction();
         }
@@ -777,8 +787,15 @@ if (zoom1) {
     }
     }while((file1size > 0) || (file2size > 0));
 
-    printf("Playback Done");
-    resetParams();
+    //resetting Rotation
+    if (deg1 > 0){
+        firstClient->openTransaction();
+        firstClient->setOrientation(panel1,ISurfaceComposer::eOrientationDefault,0);
+        firstClient->closeTransaction();
+    }
+    
+    printf("\n\nPlayback Done\n\n");
+    //resetParams();
     if (mOverlay1 != NULL)
     {
         mOverlay1->destroy();
@@ -802,7 +819,7 @@ if (zoom1) {
 
     close(filedes1);
     close(filedes2);
-        LOGE("testOverlay--");
+    LOGD("testOverlay--");
     }
 
 /** menthod to test all possible error scenarios from overlay library
@@ -866,6 +883,10 @@ void OverlayTest::testErrorScenarios()
     int ret = mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, -11);
     RET_CHECK_NOTEQ(ret, 0 , __LINE__);
 
+    //Same res as createOverlay. So, no change should occur.
+    ret = mOverlay1->resizeInput(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2);
+    RET_CHECK_EQ(ret, 0 , __LINE__);
+
     ret = mOverlay1->resizeInput(LCD_WIDTH, LCD_HEIGHT);
     RET_CHECK_EQ(ret, 0 , __LINE__);
 
@@ -891,7 +912,13 @@ void OverlayTest::testErrorScenarios()
     RET_CHECK_NOTEQ(ret, 0, __LINE__);
 
     ret = mOverlay1->resizeInput(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL);
-    RET_CHECK_EQ(ret, 0, __LINE__);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->resizeInput(0, MAX_OVERLAY_HEIGHT_VAL);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    ret = mOverlay1->resizeInput(MAX_OVERLAY_WIDTH_VAL, -1);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
 
     /** finally overlay is created and inialized after passing all err tests !!!
     */
@@ -964,7 +991,12 @@ void OverlayTest::testErrorScenarios()
     RET_CHECK_NOTEQ(ret, 0, __LINE__);
 
     ret = mOverlay1->setCrop(10,10, MAX_OVERLAY_WIDTH_VAL*2,MAX_OVERLAY_HEIGHT_VAL*2);
-    RET_CHECK_EQ(ret, 0, __LINE__);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
+    //Call Sequence: resizeInput cannot be called after setCrop()
+    ret = mOverlay1->resizeInput(200, 200);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
     //get buffer addresses beyond the max buffer cnt
     int numBuffers1 = mOverlay1->getBufferCount();
     mapping_data_t* data1;
@@ -995,6 +1027,10 @@ void OverlayTest::testErrorScenarios()
         }
     }
 
+    //Call Sequence: resizeInput cannot be called after queueBuffer()
+    ret = mOverlay1->resizeInput(200, 200);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+
     //set invalid screen ID
     // create pushbuffer surface for Invalid screen and virtual sink
     //surface would be created normally, but for the default screen:Primary LCD
@@ -1012,16 +1048,19 @@ void OverlayTest::testErrorScenarios()
     sp<OverlayRef> ref4;
 
     //correct format & size: 2nd overlay
-    ref2 = mSurfaceLcd2->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
+    ref2 = mSurfaceLcd2->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_NOTEQ(ref2, NULL, __LINE__);
     //correct format & size: 3rd Overlay
-    ref3 = mSurfaceTv->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
+    ref3 = mSurfaceTv->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref3, NULL, __LINE__);
     //correct format & size 4th Overlay
-    ref4 = mSurfaceDlp->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
+    ref4 = mSurfaceDlp->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref4, NULL, __LINE__);
 
-    printf("Error Scenario test completed");
+    mOverlay1->destroy();
+    mOverlay1.clear();
+
+    printf("\n\nError Scenario test completed\n\n");
 
 }
 
@@ -1029,7 +1068,7 @@ void OverlayTest::testErrorScenarios()
 /** Initialize the surfaces**/
 int OverlayTest::init()
 {
-    LOGE("init++");
+    LOGV("init++");
     // set up the thread-pool
     mProc = (ProcessState::self());
     ProcessState::self()->startThreadPool();
@@ -1126,17 +1165,17 @@ int OverlayTest::init()
 }
 }; //android name space
 
-/** main entry point**/
-int main (int argc, char* argv[])
+void printUsage()
 {
-    if ((argc < 8) || ((argc >8) && (argc <13))) {
-    printf("\nUsage: for single overlay");
+    printf("\n\nUsage: for single overlay");
     printf("\noverlay_test <single/multi ovly> <test scenario> <file> <w> <h> <format> <panel>");
     printf("\nExample: ./system/bin/overlay_test S 1 test.yuv 320 240 1 0");
-    printf("\nUsage: for multiple overlay");
+
+    printf("\n\nUsage: for multiple overlay");
     printf("\noverlay_test <single/multi ovly> <test scenario> <file1> <w1> <h1> <format1> <panel1> <file2> <w2> <h2> <format2> <panel2>");
     printf("\nExample: ./system/bin/overlay_test M 5 test1.yuv 320 240 2 0 test2.rgb 640 480 1 1");
-    printf("\ntest scenarios");
+    
+    printf("\n\nTest Scenarios");
     printf("\n0 -\tDefalut playback");
     printf("\n1 -\tTo test Alpha Blend");
     printf("\n2 -\tTo test Scaling");
@@ -1146,9 +1185,9 @@ int main (int argc, char* argv[])
     printf("\n6 -\tTo test digital Zoom");
     printf("\n7 -\tTo test auto scale");
     printf("\n8 -\tTo test resize Overlay and dynamic buffer alloc");
-   printf("\n9 -\tTo test all Error Scenarios");
+    printf("\n9 -\tTo test all Error Scenarios");
 
-    printf("\nFORMAT Ids");
+    printf("\n\nFORMAT Ids");
     printf("\n0 - RGB565");
     printf("\n1 - RGBA8888");
     printf("\n2 - BGRA8888");
@@ -1159,13 +1198,41 @@ int main (int argc, char* argv[])
     printf("\n7 - UYVY422-I");
     printf("\n8 - UYVY420-I");
 
-    printf("\nPANEL Ids");
+    printf("\n\nPANEL Ids");
     printf("\n0 -\tPrimary LCD");
     printf("\n1 -\tSecondary LCD");
     printf("\n2 -\tHDTV");
-    printf("\n3 -\tPICO DLP\n");
+    printf("\n3 -\tPICO DLP");
 
-    return 0;
+    printf("\n\nOptional Arguments");
+    printf("\n-x val : win x");
+    printf("\n-y val : win y");
+    printf("\n-i val : Repeat test 'val' times");    
+
+    printf("\n\n");
+}
+
+
+/** main entry point**/
+int main (int argc, char* argv[])
+{
+
+    int opt;
+    const char* const short_options = "x:y:p:n:i:";
+    const struct option long_options[] = {
+        {"win_x",           1, NULL, 'x'},
+        {"win_y",           1, NULL, 'y'},
+        {"iterations",      1, NULL, 'i'},        
+        {NULL,               0, NULL, 0}
+    };
+
+    char* img1, img2;
+    uint32_t w1, w2, h1, h2;
+    uint8_t fmt1, fmt2, panel1, panel2;
+
+    if (argc < 8){
+        printUsage();
+        return 0;
     }
 
     OverlayTest test;
@@ -1175,9 +1242,12 @@ int main (int argc, char* argv[])
         printf("Overlay Test Init failed\n");
         return 0;
     }
+   
     int val = -1;
+    int stressTest = 1;
     bool cmp1 = strcmp(argv[1], "S");
     bool cmp2 = strcmp(argv[1], "s");
+
     if ((!cmp1) || (!cmp2))
     {
         switch(atoi(argv[2]))
@@ -1235,10 +1305,47 @@ int main (int argc, char* argv[])
             printf("starting with default settings\n");
             test.alpha1 = 1.0;
         };
-        test.testOverlay(argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), atoi(argv[7]));
+
+        img1 = argv[3];
+        w1 = atoi(argv[4]);
+        h1 = atoi(argv[5]);
+        fmt1 = atoi(argv[6]);
+        panel1 = atoi(argv[7]);
+        
+        while((opt = getopt_long(argc, argv, short_options, long_options, NULL)) != -1) {
+            switch(opt) {
+                case 'x':
+                    test.win_x = atoi(optarg);
+                    break;
+                case 'y':
+                    test.win_y = atoi(optarg);
+                    break;
+                case 'i':
+                    stressTest = MIN(5000, atoi(optarg)); 
+                    break;                
+                case ':':
+                    LOGE("\nError - Option `%c' needs a value\n\n", optopt);
+                    return -1;
+                case '?':
+                    LOGE("\nError - No such option: `%c'\n\n", optopt);
+                    return -1;
+            }
+        }
+        
+        for (int i = 0; i < stressTest; i ++)
+        {
+            LOGD("\n\n---------------------Iteration %d ------------------------------\n\n", i);
+            test.testOverlay(img1, w1, h1, fmt1, panel1);
+        }
     }
     else
     {
+        if (argc < 13){
+            printUsage();
+            return 0;
+        }
+    
+        LOGD("Testing Multiple Overlays");
         switch(atoi(argv[2]))
         {
             case 1:
@@ -1315,7 +1422,13 @@ int main (int argc, char* argv[])
                 test.alpha1 = 1.0;
                 test.alpha2 = 1.0;
         };
-        test.testOverlay(argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), atoi(argv[7]), argv[8], atoi(argv[9]), atoi(argv[10]), atoi(argv[11]), atoi(argv[12]));
+
+        for (int i = 0; i < stressTest; i ++)
+        {
+            LOGD("\n\n---------------------Iteration %d ------------------------------\n\n", i);
+            test.testOverlay(argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), atoi(argv[7]), argv[8], atoi(argv[9]), atoi(argv[10]), atoi(argv[11]), atoi(argv[12]));
+        }
+
     }
 return 0;
 }
