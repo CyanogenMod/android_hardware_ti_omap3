@@ -16,7 +16,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 
   LOCAL_CFLAGS := -D_POSIX_SOURCE -Wno-multichar
-  ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
+  ifeq ($(strip $(BOARD_USES_TI_OMAP_MODEM_AUDIO)),true)
     LOCAL_CFLAGS += -DAUDIO_MODEM_TI
     # HACK flag below ignore error reported by the pcm start
     LOCAL_CFLAGS += -DAUDIO_MODEM_HACK_IGNORE_PCM_START_ERROR
@@ -26,7 +26,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   endif
 
   LOCAL_C_INCLUDES += hardware/alsa_sound external/alsa-lib/include
-  ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
+  ifeq ($(strip $(BOARD_USES_TI_OMAP_MODEM_AUDIO)),true)
     LOCAL_C_INCLUDES += hardware/ti/omap3/modules/alsa
     ifeq ($(BOARD_HAVE_BLUETOOTH),true)
         LOCAL_C_INCLUDES += $(call include-path-for, bluez-libs) \
@@ -36,13 +36,15 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
   ifeq ($(strip $(TARGET_BOARD_PLATFORM)), omap3)
     LOCAL_SRC_FILES:= alsa_omap3.cpp
+    ifeq ($(strip $(BOARD_USES_TI_OMAP_MODEM_AUDIO)),true)
+      LOCAL_SRC_FILES += alsa_omap3_modem.cpp
+    endif
   endif
   ifeq ($(strip $(TARGET_BOARD_PLATFORM)), omap4)
     LOCAL_SRC_FILES:= alsa_omap4.cpp
-  endif
-
-  ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
-    LOCAL_SRC_FILES += alsa_omap3_modem.cpp
+    ifeq ($(strip $(BOARD_USES_TI_OMAP_MODEM_AUDIO)),true)
+      LOCAL_SRC_FILES += alsa_omap4_modem.cpp
+    endif
   endif
 
   LOCAL_SHARED_LIBRARIES := \
@@ -53,7 +55,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
     libutils \
     libdl
 
-  ifeq ($(strip $(BOARD_USES_TI_OMAP3_MODEM_AUDIO)),true)
+  ifeq ($(strip $(BOARD_USES_TI_OMAP_MODEM_AUDIO)),true)
     ifeq ($(strip $(BOARD_HAVE_BLUETOOTH)),true)
         LOCAL_SHARED_LIBRARIES += \
             libbluetooth

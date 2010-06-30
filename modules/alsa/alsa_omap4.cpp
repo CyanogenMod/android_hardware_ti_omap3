@@ -23,7 +23,7 @@
 
 #ifdef AUDIO_MODEM_TI
 #include "audio_modem_interface.h"
-#include "alsa_omap3_modem.h"
+#include "alsa_omap4_modem.h"
 #endif
 
 #define BLUETOOTH_SCO_DEVICE "hw:0,1"
