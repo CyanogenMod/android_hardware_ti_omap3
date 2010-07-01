@@ -446,6 +446,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
         eError = TIOMX_GetHandle(&pOMXHandle, strTIJpegEnc, (void *)this, &JPEGCallBack);
         if ( (eError != OMX_ErrorNone) ||  (pOMXHandle == NULL) ) {
             PRINTF ("Error in Get Handle function\n");
+            iState = STATE_ERROR;
             goto EXIT;
         }
 
@@ -457,6 +458,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
         outputBuffer = memalign(ALIGN_128_BYTE, outBuffSize);
         if ( outputBuffer == NULL) {
             PRINTF("\n %s():%d:: ERROR:: outputBuffer Allocation Failed. \n", __FUNCTION__,__LINE__);
+            iState = STATE_ERROR;
             goto EXIT;
         }
 
@@ -471,6 +473,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
 
         eError = OMX_GetParameter(pOMXHandle, OMX_IndexParamImageInit, &PortType);
         if ( eError != OMX_ErrorNone ) {
+            iState = STATE_ERROR;
             goto EXIT;
         }
 
@@ -491,6 +494,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
         eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
         if ( eError != OMX_ErrorNone ) {
             eError = OMX_ErrorBadParameter;
+            iState = STATE_ERROR;
             goto EXIT;
         }
 
@@ -522,6 +526,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
         eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &InPortDef);
         if ( eError != OMX_ErrorNone ) {
             eError = OMX_ErrorBadParameter;
+            iState = STATE_ERROR;
             goto EXIT;
         }
 
@@ -539,6 +544,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
         eError = OMX_GetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
         if ( eError != OMX_ErrorNone ) {
             eError = OMX_ErrorBadParameter;
+            iState = STATE_ERROR;
             goto EXIT;
         }
 
@@ -568,18 +574,21 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
         eError = OMX_SetParameter (pOMXHandle, OMX_IndexParamPortDefinition, &OutPortDef);
         if ( eError != OMX_ErrorNone ) {
             eError = OMX_ErrorBadParameter;
+            iState = STATE_ERROR;
             goto EXIT;
         }
 
         eError = OMX_UseBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize, (OMX_U8*)inputBuffer);
         if ( eError != OMX_ErrorNone ) {
             PRINTF ("JPEGEnc test:: %d:error= %x\n", __LINE__, eError);
+            iState = STATE_ERROR;
             goto EXIT;
         }
 
         eError = OMX_UseBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize, (OMX_U8*)outputBuffer);
         if ( eError != OMX_ErrorNone ) {
             PRINTF ("JPEGEnc test:: %d:error= %x\n", __LINE__, eError);
+            iState = STATE_ERROR;
             goto EXIT;
         }
 #if OPTIMIZE
@@ -598,36 +607,42 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
     eError = OMX_GetExtensionIndex(pOMXHandle, strQFactor, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
     
     eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &QfactorType);
     if ( eError != OMX_ErrorNone ) {
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
     eError = OMX_GetExtensionIndex(pOMXHandle, strInputWidth, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
     eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &width);
     if ( eError != OMX_ErrorNone ) {
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
     eError = OMX_GetExtensionIndex(pOMXHandle, strInputHeight, (OMX_INDEXTYPE*)&nCustomIndex);
     if ( eError != OMX_ErrorNone ) {
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
 
     eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &height);
     if ( eError != OMX_ErrorNone ) {
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
+        iState = STATE_ERROR;
         goto EXIT;
     }
     pInBuffHead->nFilledLen = pInBuffHead->nAllocLen;
@@ -638,6 +653,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
     eError = OMX_SendCommand(pOMXHandle, OMX_CommandStateSet, OMX_StateIdle ,NULL);
     if ( eError != OMX_ErrorNone ) {
         PRINTF ("Error from SendCommand-Idle(Init) State function\n");
+        iState = STATE_ERROR;
         goto EXIT;
         }
     }
@@ -671,6 +687,11 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
 EXIT:
     if(outputBuffer != NULL)
         free(outputBuffer);
+
+    if (iState == STATE_ERROR) {
+        sem_post(semaphore);
+        Run();
+    }
 
     gTIJpegEncMutex.unlock();
     PRINTF("Leaving Critical Section 3 \n");
@@ -815,6 +836,22 @@ void SkTIJPEGImageEncoder::Run()
                 /*### Assume that the Bitmap object/file need not be closed. */
                 /*### More needs to be done here */
                 /*### Do different things based on iLastState */
+
+                if ( iState == STATE_ERROR ) {
+                    if (pInBuffHead != NULL) {
+                        /* Free buffers if it got allocated */
+                        eError = OMX_FreeBuffer(pOMXHandle, InPortDef.nPortIndex, pInBuffHead);
+                        if ( eError != OMX_ErrorNone ) {
+                            PRINTF("Error from OMX_FreeBuffer. Input port.\n");
+                        }
+                    }
+                    if (pOutBuffHead != NULL) {
+                        eError = OMX_FreeBuffer(pOMXHandle, OutPortDef.nPortIndex, pOutBuffHead);
+                        if ( eError != OMX_ErrorNone ) {
+                            PRINTF("Error from OMX_FreeBuffer. Output port.\n");
+                        }
+                    }
+                }
 
                 if (pOMXHandle) {
                     eError = TIOMX_FreeHandle(pOMXHandle);
