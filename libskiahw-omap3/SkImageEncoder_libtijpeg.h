@@ -26,11 +26,15 @@
 *  in the license agreement under which this software has been supplied.
 * ============================================================================ */
 
+#ifndef SKIAHW_ENCODER_H
+#define SKIAHW_ENCODER_H
+
 #include <string.h>
 #include <time.h>
 #include "SkBitmap.h"
 #include "SkStream.h"
 #include "SkImageEncoder.h"
+#include "SkImageUtility.h"
 #include <stdio.h>
 #include <semaphore.h>
 #include <utils/threads.h>
@@ -40,18 +44,11 @@ extern "C" {
     #include "OMX_IVCommon.h"
 }
 
-namespace android {
-    Mutex gTIJpegEncMutex;
-}; //namespace android
+#define OPTIMIZE 1
 
-
-class SkTIJPEGImageEncoder :public SkImageEncoder
+class SkTIJPEGImageEncoder
 {
-protected:
-    virtual bool onEncode(SkWStream* stream, const SkBitmap& bm, int quality);
-
 public:
-
     enum JPEGENC_State
     {
         STATE_LOADED,
@@ -86,8 +83,10 @@ public:
     int jpegSize;
 
     SkTIJPEGImageEncoder();
+    void _SkTIJPEGImageEncoder();
     ~SkTIJPEGImageEncoder();
-    bool encodeImage(void* outputBuffer, int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, SkBitmap::Config config);    
+    bool onEncode(SkImageEncoder* enc_impl, SkWStream* stream, const SkBitmap& bm, int quality);
+    bool encodeImage(int outBuffSize, void *inputBuffer, int inBuffSize, int width, int height, int quality, SkBitmap::Config config);
     bool SetJpegEncodeParameters(JpegEncoderParams * jep) {memcpy(&jpegEncParams, jep, sizeof(JpegEncoderParams)); return true;}
     void Run();
     void PrintState();
@@ -97,6 +96,7 @@ public:
                                             OMX_U32 nData1,
                                             OMX_U32 nData2,
                                             OMX_PTR pEventData);
+    int GetLoad(){ return mLoad; }
 
 private:
 
@@ -108,17 +108,10 @@ private:
     JpegEncoderParams jpegEncParams;
     OMX_U8* pEncodedOutputBuffer;
     OMX_U32 nEncodedOutputFilledLen;
+    android::Mutex gTIJpegEncMutex;
+    int mLoad;
 
 };
-
-
-extern "C" SkImageEncoder* SkImageEncoder_HWJPEG_Factory() {
-    return SkNEW(SkTIJPEGImageEncoder);
-}
-
-extern "C" SkTIJPEGImageEncoder* SkImageEncoder_TIJPEG_Factory() {
-    return SkNEW(SkTIJPEGImageEncoder);
-}
 
 OMX_ERRORTYPE OMX_JPEGE_FillBufferDone (OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffHead);
 OMX_ERRORTYPE OMX_JPEGE_EmptyBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR ptr, OMX_BUFFERHEADERTYPE* pBuffer);
@@ -128,4 +121,4 @@ OMX_ERRORTYPE OMX_JPEGE_EventHandler(OMX_HANDLETYPE hComponent,
                                             OMX_U32 nData1,
                                             OMX_U32 nData2,
                                             OMX_PTR pEventData);
-
+#endif
