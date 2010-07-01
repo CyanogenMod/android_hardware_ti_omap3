@@ -47,6 +47,25 @@
 #define EVT_CMD_STATUS		0x0F
 
 #define VERBOSE
+#ifdef ANDROID
+
+#define LOG_TAG "UIM: "
+#define UIM_ERR(fmt, arg...)  LOGE("uim:"fmt"\n" , ##arg)
+#if defined(UIM_DEBUG)		/* limited debug messages */
+#define UIM_START_FUNC()      LOGE("uim: Inside %s", __FUNCTION__)
+#define UIM_DBG(fmt, arg...)  LOGD("uim:"fmt"\n" , ## arg)
+#define UIM_VER(fmt, arg...)
+#elif defined(VERBOSE)		/* very verbose */
+#define UIM_START_FUNC()      LOGE("uim: Inside %s", __FUNCTION__)
+#define UIM_DBG(fmt, arg...)  LOGD("uim:"fmt"\n" , ## arg)
+#define UIM_VER(fmt, arg...)  LOGE("uim:"fmt"\n" , ## arg)
+#else /* error msgs only */
+#define UIM_START_FUNC()
+#define UIM_DBG(fmt, arg...)
+#define UIM_VER(fmt, arg...)
+#endif
+
+#else
 
 /*Debug logs*/
 #define UIM_ERR(fmt, arg...)  printf("uim:"fmt"\n" , ##arg)
@@ -63,6 +82,8 @@
 #define UIM_DBG(fmt, arg...)
 #define UIM_VER(fmt, arg...)
 #endif
+
+#endif	/* ANDROID */
 
 /*Termios2 structure for setting the Custom baud rate*/
 struct termios2 {
