@@ -654,7 +654,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
             OutPortDef.format.image.eColorFormat != SkBitmapToOMXColorFormat(bm->config()) ||
             mProgressive != JpegHeaderInfo.nProgressive ||
             InPortDef.format.image.eColorFormat != JPEGToOMXColorFormat(JpegHeaderInfo.nFormat) ||
-            outBuffSize > OutPortDef.nBufferSize)
+            outBuffSize > OutPortDef.nBufferSize ||
+            (OMX_U32) inputFileSize > InPortDef.nBufferSize)
     {
 #endif
         if (pOMXHandle != NULL) {
