@@ -2765,8 +2765,6 @@ fm_status fmapp_init_stack(void  **fm_context)
 	else
 		ret = FMC_STATUS_SUCCESS;
 
-	if (set_fm_chip_enable(1) < 0)
-		ret = FMC_STATUS_FAILED;
 	FMAPP_END();
 	return ret;
 }
@@ -2784,8 +2782,6 @@ fm_status fmapp_deinit_stack(void  **fm_context)
 		FMAPP_ERROR("failed to deinitialize FM stack (%s)",
 						STATUS_DBG_STR(ret));
 
-	if (set_fm_chip_enable(0) < 0)
-		ret = FMC_STATUS_FAILED;
 	FMAPP_END();
 	return ret;
 }
@@ -3517,79 +3513,6 @@ fm_status parse_options(int argc, char **argv, char **script, int *startup_len)
 		*startup_len = index;
 
 	FMAPP_END();
-	return ret;
-}
-
-static int get_rfkill_id(void)
-{
-	char path[64];
-	char buf[16];
-	int fd;
-	int sz;
-	int id;
-	for (id = 0;; id++) {
-		snprintf(path, sizeof(path), "/sys/class/rfkill/rfkill%d/type",
-			  id);
-		fd = open(path, O_RDONLY);
-		if (fd < 0) {
-			fprintf(stderr, "open(%s) failed: %s (%d)\n", path,
-				 strerror(errno), errno);
-			return -1;
-		}
-		sz = read(fd, &buf, sizeof(buf));
-		close(fd);
-		if (sz >= 2 && memcmp(buf, "fm", 2) == 0) {
-			break;
-		}
-	}
-	return id;
-}
-
-int set_fm_chip_enable(int enable)
-{
-	char buffer='0';
-	int ret,id;
-	/*
-	 * const char enable_path[]="/sys/wl127x/fm_enable";
-	 * change for donut branch [2.6.29 kernel only
-	 */
-	char *enable_path = NULL;
-	id = get_rfkill_id();
-	if (id < 0)
-	{
-	   	FMAPP_ERROR("Unable to find FM rfkill id");
-		return -1;
-	}
-	/* set /sys/class/rfkill/rfkill1/state to enable FM chip */
-	asprintf(&enable_path,"/sys/class/rfkill/rfkill%d/state", id);
-	if (!enable_path)
-            return -1;
-	/* set /sys/wl127x/fm_enable=0 to enable FM chip */
-	ret = open(enable_path, O_RDWR);
-	if (ret < 0)
-	{
-		FMAPP_ERROR("Unable to open %s\n", enable_path);
-		free(enable_path);
-		return -1;
-	}
-	/* FIXME: why does this require a pulse, and
-	 * not just a transition from high to low
-	 */
-	buffer='0';
-	write(ret,&buffer,1);
-	buffer='1';
-	write(ret,&buffer,1);
-	buffer='0';
-	write(ret,&buffer,1);
-
-	if (!enable)
-	{
-		buffer='1';
-		write(ret,&buffer,1);
-	}
-	free(enable_path);
-	close(ret);
-	/* end of change for Zoom2+pg-2.0 */
 	return ret;
 }
 

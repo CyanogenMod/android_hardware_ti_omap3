@@ -44,9 +44,5 @@
  * Changes/Additions for Android
  */
 #include <cutils/properties.h>
-/*
- * set the FM-Enable GPIO to Low[0]
- */
-int set_fm_chip_enable(int enable);
 
 #endif
