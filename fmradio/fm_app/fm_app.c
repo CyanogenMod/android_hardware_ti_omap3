@@ -3685,11 +3685,8 @@ fastout:
 #ifdef ANDROID
 const char *control_elements_of_interest[] = {
 	"Analog Capture Volume",
-	/* change for donut branch -
-	 * kernel 2.6.29 has changed the mixer names
-	 */
-	"Analog Left Capture Route AUXL",
-	"Analog Right Capture Route AUXR",
+	"Analog Left AUXL Capture Switch", /*Mixer names for FM*/
+	"Analog Right AUXR Capture Switch",/*Mixer names for FM*/
 	"Left2 Analog Loopback Switch",
 	"Right2 Analog Loopback Switch"
 };
