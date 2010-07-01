@@ -603,6 +603,11 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         goto EXIT;
     }
 
+    if (JpegHeaderInfo.nWidth * JpegHeaderInfo.nHeight > 12000000) {
+        PRINTF ("%s():%d::Unsupported Resolution ( larger than 12MP) \n",__FUNCTION__,__LINE__);
+        goto EXIT;
+    }
+
     // if no user preference, see what the device recommends
     if (config == SkBitmap::kNo_Config)
         config = SkImageDecoder::GetDeviceConfig();
