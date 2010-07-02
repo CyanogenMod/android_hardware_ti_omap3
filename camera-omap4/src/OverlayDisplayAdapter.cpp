@@ -246,26 +246,6 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
 
     CAMHAL_LOGDB("mFrameWidth = %d mFrameHeight = %d", mFrameWidth, mFrameHeight);
 
-    if(mFrameWidth>=1920)
-        {
-        CAMHAL_LOGDA("1080p enabled!! Setting crop");
-        status_t ret = mOverlay->setCrop(0, 0, 1860, 1046);
-        mFrameWidth = 1860;
-        mFrameHeight = 1046;
-        if(ret!=NO_ERROR)
-            {
-            CAMHAL_LOGEB("Overlay setCrop API returned error %d", ret);
-            }
-        else
-            {
-            CAMHAL_LOGDA("setCrop API succeeded");
-            }
-        }
-    else
-        {
-        mOverlay->setCrop(0, 0, mFrameWidth, mFrameHeight);
-        }
-
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     if ( NULL != refTime )
