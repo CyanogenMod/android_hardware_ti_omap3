@@ -794,7 +794,7 @@ void CameraHal::stopPreview()
 {
     LOG_FUNCTION_NAME
 
-    if(!previewEnabled())
+    if(!previewEnabled() && !mDisplayPaused)
         {
         LOG_FUNCTION_NAME_EXIT
         return;
@@ -1836,6 +1836,8 @@ void CameraHal::PPM(const char* str, struct timeval* ppm_first, ...){
 void CameraHal::deinitialize()
 {
     LOG_FUNCTION_NAME
+
+    stopPreview();
 
     freeImageBufs();
 
