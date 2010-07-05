@@ -3451,6 +3451,9 @@ status_t CameraHal::setParameters(const CameraParameters &params)
                 //Set 3A config to disable variable fps
                 fobj->settings_2a.ae.framerate = framerate;
             }
+        }else {
+            //disable variable fps by default
+            fobj->settings_2a.ae.framerate = framerate;
         }
 
         if ( params.get(CameraParameters::KEY_SCENE_MODE) != NULL ) {
