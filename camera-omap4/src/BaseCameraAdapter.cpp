@@ -68,6 +68,12 @@ void BaseCameraAdapter::enableMsgType(int32_t msgs, frame_callback callback, eve
                 Mutex::Autolock lock(mSubscriberLock);
                 mFocusSubscribers.add((int) cookie, eventCb);
             }
+
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mShutterSubscribers.add((int) cookie, eventCb);
+            }
+
         }
     else
         {
@@ -117,6 +123,11 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
                 Mutex::Autolock lock(mSubscriberLock);
                 mFocusSubscribers.removeItem((int) cookie);
             }
+            {
+                Mutex::Autolock lock(mSubscriberLock);
+                mShutterSubscribers.removeItem((int) cookie);
+            }
+
         }
     else
         {

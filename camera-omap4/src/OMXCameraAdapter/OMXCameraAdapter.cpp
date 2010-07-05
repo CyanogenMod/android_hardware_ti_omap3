@@ -1527,6 +1527,7 @@ status_t OMXCameraAdapter::stopPreview()
         }
 
 
+
     ret = OMX_SendCommand (mCameraAdapterParameters.mHandleComp,
                                 OMX_CommandStateSet, OMX_StateIdle, NULL);
     if(eError!=OMX_ErrorNone)
@@ -1766,6 +1767,24 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             CAMHAL_LOGDA("Camera mode configured successfully");
             }
         }
+
+    OMX_CONFIG_FLICKERCANCELTYPE flickerCfg;
+
+     OMX_INIT_STRUCT_PTR (&flickerCfg, OMX_CONFIG_FLICKERCANCELTYPE);
+        flickerCfg.eFlickerCancel = OMX_FlickerCancel60;
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE )OMX_IndexConfigFlickerCancel, &flickerCfg);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while setting flicker cancel 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Flicker cancel set successfully");
+            }
+
+
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -2685,6 +2704,24 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             }
         else if ( ( CameraFrame::PREVIEW_FRAME_SYNC == typeOfFrame ) || ( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ) )
             {
+            //Currently send the snapshot callback as shutter callback
+            if( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ){
+                if ( mShutterSubscribers.size() == 0 )
+                    CAMHAL_LOGDA("No shutter Subscribers!");
+
+                CameraHalEvent shutterEvent;
+                event_callback eventCb;
+                shutterEvent.mEventType = CameraHalEvent::EVENT_SHUTTER;
+                shutterEvent.mEventData.shutterEvent.shutterClosed = true;
+                for (unsigned int i = 0 ; i < mShutterSubscribers.size(); i++ )
+                    {
+                    shutterEvent.mCookie = (void *) mShutterSubscribers.keyAt(i);
+                    eventCb = (event_callback) mShutterSubscribers.valueAt(i);
+                    CAMHAL_LOGEA("Sending shutter callback");
+                    eventCb ( &shutterEvent );
+                    }
+            }
+
             OMXCameraPortParameters *cap;
             cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
             cFrame.mWidth = cap->mWidth;
@@ -2708,6 +2745,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
                 {
                 ret = -EINVAL;
                 }
+
             }
         else
             {
