@@ -43,7 +43,7 @@
 /* These values should come from Surface Flinger */
 #define LCD_WIDTH 800
 #define LCD_HEIGHT 480
-#define MAX_NUM_OVERLAYS 1
+#define MAX_NUM_OVERLAYS 2
 #endif
 /** As the PV ARM Codecs are using only two output buffers, we can't have
 * more than 2 buffers queued in the DSS queue

@@ -25,10 +25,12 @@
 #include <binder/IServiceManager.h>
 #include <utils/Log.h>
 
-#include <ui/Surface.h>
-#include <ui/ISurface.h>
+#include <surfaceflinger/Surface.h>
+#include <surfaceflinger/ISurface.h>
+#include <surfaceflinger/ISurfaceComposer.h>
+#include <surfaceflinger/SurfaceComposerClient.h>
+#include <surfaceflinger/ISurfaceFlingerClient.h>
 #include <ui/Overlay.h>
-#include <ui/SurfaceComposerClient.h>
 #include "v4l2_utils.h"
 #include "overlay_common.h"
 
@@ -228,7 +230,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         break;
     };
 
-    ref1 = firstSurface->createOverlay(w1, h1, format);
+    ref1 = firstSurface->createOverlay(w1, h1, format, 0);
     if(ref1 == NULL)
     {
         LOGE("NoMemory for overlayRef[%d]", __LINE__);
@@ -320,7 +322,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         format = fmt2;
         break;
     };
-    ref2 = secondSurface->createOverlay(w2, h2, format);
+    ref2 = secondSurface->createOverlay(w2, h2, format, 0);
     if(ref2 == NULL)
     {
         LOGE("NoMemory for overlayRef[%d]", __LINE__);
@@ -832,25 +834,30 @@ void OverlayTest::testErrorScenarios()
 
     /** create overlay with invalid sizes*/
     //Invalid width
-    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL*2, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565);
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL*2, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref1, NULL, __LINE__);
     //Invalid height
-    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL*2, OVERLAY_FORMAT_RGB_565);
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL*2, OVERLAY_FORMAT_RGB_565, 0);
+    RET_CHECK_EQ(ref1, NULL, __LINE__);
+    //Invalid width x height
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
+    RET_CHECK_EQ(ref1, NULL, __LINE__);
+    //ZERO size
+    ref1 = firstSurface->createOverlay(0, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_DEFAULT, 0);
+    RET_CHECK_EQ(ref1, NULL, __LINE__);
+    //negative size
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, -1, OVERLAY_FORMAT_DEFAULT, 0);
     RET_CHECK_EQ(ref1, NULL, __LINE__);
     //Invalid format
-    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_DEFAULT+1);
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_DEFAULT+1, 0);
     RET_CHECK_EQ(ref1, NULL, __LINE__);
-
     //currently unsupported format
-    ref1 = firstSurface->createOverlay(0, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_BGRA_8888);
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_BGRA_8888, 0);
     RET_CHECK_EQ(ref1, NULL, __LINE__);
 
-    //ZERO size
-    ref1 = firstSurface->createOverlay(0, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_DEFAULT);
-    RET_CHECK_EQ(ref1, NULL, __LINE__);
 
     //correct format & size
-    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565);
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_NOTEQ(ref1, NULL, __LINE__);
 
     mOverlay1 = new Overlay(ref1);
@@ -1005,13 +1012,13 @@ void OverlayTest::testErrorScenarios()
     sp<OverlayRef> ref4;
 
     //correct format & size: 2nd overlay
-    ref2 = mSurfaceLcd2->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565);
+    ref2 = mSurfaceLcd2->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_NOTEQ(ref2, NULL, __LINE__);
     //correct format & size: 3rd Overlay
-    ref3 = mSurfaceTv->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565);
+    ref3 = mSurfaceTv->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref3, NULL, __LINE__);
     //correct format & size 4th Overlay
-    ref4 = mSurfaceDlp->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565);
+    ref4 = mSurfaceDlp->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref4, NULL, __LINE__);
 
     printf("Error Scenario test completed");

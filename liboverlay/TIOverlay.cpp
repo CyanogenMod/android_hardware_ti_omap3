@@ -1225,7 +1225,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     overlay_ctrl_t *stage = ctx->omap_overlay->staging();
 
     if (ctx->omap_overlay->dataReady) {
-        LOGV("Either setCrop() or queueBuffer() was called prior to this!"
+        LOGE("Either setCrop() or queueBuffer() was called prior to this!"
              "Therefore failing this call.\n");
         return -1;
     }

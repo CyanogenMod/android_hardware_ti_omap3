@@ -29,20 +29,20 @@ LOCAL_MODULE := overlay.$(TARGET_BOARD_PLATFORM)
 
 include $(BUILD_SHARED_LIBRARY)
 
+ifeq (0,1)
 include $(CLEAR_VARS)
 LOCAL_CFLAGS := -mabi=aapcs-linux 
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_SRC_FILES := v4l2_utils.c v4l2_test.c
 LOCAL_MODULE := v4l2_test
 include $(BUILD_EXECUTABLE)
+endif
 
-ifeq (0,1)
 include $(CLEAR_VARS)
 ifeq ($(TARGET_BOARD_PLATFORM),omap4)
 LOCAL_CFLAGS := -DTARGET_OMAP4
 endif
-LOCAL_SHARED_LIBRARIES := liblog libcutils libhardware libutils libui
+LOCAL_SHARED_LIBRARIES := liblog libcutils libhardware libutils libui libsurfaceflinger_client
 LOCAL_SRC_FILES := TIOverlay_test.cpp
 LOCAL_MODULE := overlay_test
 include $(BUILD_EXECUTABLE)
-endif
