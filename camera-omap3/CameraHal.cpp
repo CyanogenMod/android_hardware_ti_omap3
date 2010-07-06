@@ -776,7 +776,7 @@ void CameraHal::previewThread()
                 err = 0;
 
                 if( !mPreviewRunning )
-                    msg.command = PREVIEW_NACK;
+                    msg.command = PREVIEW_ACK;
                 else
                 {
 #ifdef FW3A    
