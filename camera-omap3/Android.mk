@@ -41,8 +41,6 @@ LOCAL_C_INCLUDES += \
     hardware/ti/omx/system/src/openmax_il/lcml/inc \
     hardware/ti/omx/system/src/openmax_il/omx_core/inc \
     hardware/ti/omx/system/src/openmax_il/common/inc \
-    hardware/ti/omx/system/src/openmax_il/resource_manager_proxy/inc \
-    hardware/ti/omx/system/src/openmax_il/resource_manager/resource_activity_monitor/inc \
     hardware/ti/omx/image/src/openmax_il/jpeg_enc/inc \
     external/libexif
 
@@ -51,8 +49,7 @@ LOCAL_CFLAGS += -O0 -g3 -fpic -fstrict-aliasing -DIPP_LINUX -D___ANDROID___ -DHA
 LOCAL_SHARED_LIBRARIES += \
     libbridge \
     libLCML \
-    libOMX_Core \
-    libOMX_ResourceManagerProxy
+    libOMX_Core
 
 LOCAL_STATIC_LIBRARIES := \
 	libexifgnu

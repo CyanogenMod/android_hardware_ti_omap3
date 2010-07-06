@@ -76,17 +76,6 @@
 #include "ipp_algotypes.h"
 #include "capdefs.h"
 
-#define OPP_OPTIMIZATION 1
-
-#ifdef OPP_OPTIMIZATION
-
-extern "C" {
-    #include "ResourceManagerProxyAPI.h"
-    #include "Resource_Activity_Monitor.h"
-}
-
-#endif
-
 #define MAXIPPDynamicParams 10
 
 #endif

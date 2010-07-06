@@ -854,16 +854,6 @@ void CameraHal::previewThread()
 
                 if( mPreviewRunning ) {
 
-#ifdef OPP_OPTIMIZATION
-
-                    if ( RMProxy_RequestBoost(MAX_BOOST) != OMX_ErrorNone ) {
-                        LOGE("OPP Boost failed");
-                    } else {
-                        LOGE("OPP Boost success");
-                    }
-
-#endif
-
                     if( CameraStop() < 0){
                         LOGE("ERROR CameraStop()");
                         err = -1;
@@ -2821,16 +2811,6 @@ void CameraHal::procThread()
 #endif
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
-
-#ifdef OPP_OPTIMIZATION
-
-                if ( RMProxy_ReleaseBoost() != OMX_ErrorNone ) {
-                     LOGE("OPP Release Boost failed");
-                } else {
-                     LOGE("OPP Release Boost success");
-                }
-
-#endif
 
             } else if( procMessage[0] == PROC_THREAD_EXIT ) {
                 LOGD("PROC_THREAD_EXIT_RECEIVED");
