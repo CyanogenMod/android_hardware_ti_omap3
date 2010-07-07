@@ -22,14 +22,41 @@
 #include <media/stagefright/MediaDebug.h>
 #include <surfaceflinger/ISurface.h>
 #include <ui/Overlay.h>
-
+#include <cutils/properties.h>
 #include "v4l2_utils.h"
+#define UNLIKELY( exp ) (__builtin_expect( (exp) != 0, false ))
 
 #define CACHEABLE_BUFFERS 0x1
 
 namespace android {
 
-////////////////////////////////////////////////////////////////////////////////
+static int mDebugFps = 0;
+
+/*
+    To print the FPS, type this command on the console before starting playback:
+    setprop debug.video.showfps 1
+    To disable the prints, type:
+    setprop debug.video.showfps 0
+
+*/
+
+static void debugShowFPS()
+{
+    static int mFrameCount = 0;
+    static int mLastFrameCount = 0;
+    static nsecs_t mLastFpsTime = 0;
+    static float mFps = 0;
+    mFrameCount++;
+    if (!(mFrameCount & 0x1F)) {
+        nsecs_t now = systemTime();
+        nsecs_t diff = now - mLastFpsTime;
+        mFps = ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        mLastFpsTime = now;
+        mLastFrameCount = mFrameCount;
+        LOGD("%d Frames, %f FPS", mFrameCount, mFps);
+    }
+    // XXX: mFPS has the value we want
+}
 
 TIHardwareRenderer::TIHardwareRenderer(
         const sp<ISurface> &surface,
@@ -72,6 +99,11 @@ TIHardwareRenderer::TIHardwareRenderer(
 
         mOverlayAddresses.push(data->ptr);
     }
+
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.video.showfps", value, "0");
+    mDebugFps = atoi(value);
+    LOGD_IF(mDebugFps, "showfps enabled");
 
     mInitCheck = OK;
 }
@@ -148,6 +180,10 @@ void TIHardwareRenderer::render(
 
     if (mOverlay.get() == NULL) {
         return;
+    }
+
+    if (UNLIKELY(mDebugFps)) {
+        debugShowFPS();
     }
 
 #if 0
