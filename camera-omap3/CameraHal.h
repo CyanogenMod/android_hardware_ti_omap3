@@ -110,7 +110,7 @@ extern "C" {
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
-#define MAX_ZOOM        3
+#define ZOOM_SCALE  100
 #define COMPENSATION_OFFSET 20
 #define CONTRAST_OFFSET 100
 #define BRIGHTNESS_OFFSET 100
@@ -554,6 +554,7 @@ public:
     int mred_eye;
     int mcapture_mode;
     int mZoomCurrentIdx, mZoomTargetIdx, mZoomSpeed;
+    bool mReturnZoomStatus;
     int mcaf;
     int j;
 
@@ -570,7 +571,8 @@ public:
         PREVIEW_CAF_START,
         PREVIEW_CAF_STOP,
 		PREVIEW_FPS,
-        ZOOM_UPDATE,
+        START_SMOOTH_ZOOM,
+        STOP_SMOOTH_ZOOM,
         // ACKs        
         PREVIEW_ACK,
         PREVIEW_NACK,

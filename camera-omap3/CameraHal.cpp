@@ -130,6 +130,7 @@ CameraHal::CameraHal()
     mZoomSpeed = 1;
     mZoomTargetIdx = 0;
     mZoomCurrentIdx = 0;
+    mReturnZoomStatus = false;
     rotation = 0;
 #ifdef HARDWARE_OMX
     gpsLocation = NULL;
@@ -218,7 +219,8 @@ CameraHal::CameraHal()
 void CameraHal::initDefaultParameters()
 {
     CameraParameters p;
-    char tmpBuffer[PARAM_BUFFER];
+    char tmpBuffer[PARAM_BUFFER], zoomStageBuffer[PARAM_BUFFER];
+    unsigned int zoomStage;
  
     LOG_FUNCTION_NAME
 
@@ -243,15 +245,26 @@ void CameraHal::initDefaultParameters()
     p.set(KEY_GPS_MAPDATUM, "WGS-84");
     p.set(CameraParameters::KEY_GPS_TIMESTAMP, "834720834");
 
+    memset(tmpBuffer, '\0', PARAM_BUFFER);
+    for ( int i = 0 ; i < ZOOM_STAGES ; i++ ) {
+        zoomStage =  (unsigned int ) ( zoom_step[i]*ZOOM_SCALE );
+        snprintf(zoomStageBuffer, PARAM_BUFFER, "%d", zoomStage);
+
+        if(camerahal_strcat((char*) tmpBuffer, (const char*) zoomStageBuffer, PARAM_BUFFER)) return;
+        if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
+    }
+    p.set(CameraParameters::KEY_ZOOM_RATIOS, tmpBuffer);
+    p.set(CameraParameters::KEY_ZOOM_SUPPORTED, "true");
+    p.set(CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED, "true");
+    p.set(CameraParameters::KEY_MAX_ZOOM, ZOOM_STAGES);
+    p.set(CameraParameters::KEY_ZOOM, 0);
+
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, CameraHal::supportedPictureSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, CameraHal::supportedFPS);
     p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, CameraHal::supprotedThumbnailSizes);
-    p.set("max-zoom" , MAX_ZOOM);
-    p.set("zoom", 0);
-    p.set("zoom-supported", "true");
 
     memset(tmpBuffer, '\0', PARAM_BUFFER);
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_AUTO, PARAM_BUFFER)) return;
@@ -495,6 +508,7 @@ CameraHal::~CameraHal()
 void CameraHal::previewThread()
 {
     Message msg;
+    int parm;
     bool  shouldLive = true;
     bool has_message;
     int err; 
@@ -689,7 +703,35 @@ void CameraHal::previewThread()
                 previewThreadAckQ.put(&msg);
             }
             break;
-	
+
+            case START_SMOOTH_ZOOM:
+
+                parm = ( int ) msg.arg1;
+
+                LOGD("Receive Command: START_SMOOTH_ZOOM %d", parm);
+
+                if ( ( parm >= 0 ) && ( parm <= ZOOM_STAGES) ) {
+                    mZoomTargetIdx = parm;
+                    msg.command = PREVIEW_ACK;
+                } else {
+                    msg.command = PREVIEW_NACK;
+                }
+
+                previewThreadAckQ.put(&msg);
+
+                break;
+
+            case STOP_SMOOTH_ZOOM:
+
+                LOGD("Receive Command: STOP_SMOOTH_ZOOM");
+                mZoomTargetIdx = mZoomCurrentIdx;
+                mReturnZoomStatus = true;
+                msg.command = PREVIEW_ACK;
+
+                previewThreadAckQ.put(&msg);
+
+                break;
+
             case PREVIEW_AF_START:
             {
                 LOGD("Receive Command: PREVIEW_AF_START");
@@ -1296,11 +1338,18 @@ void CameraHal::nextPreview()
         }
 
         ZoomPerform(zoom_step[mZoomCurrentIdx]);
-        mParameters.set("zoom", ((int) zoom_step[mZoomCurrentIdx] - 1));
+        mParameters.set("zoom", mZoomCurrentIdx);
 
         if( mZoomCurrentIdx == mZoomTargetIdx )
-            mNotifyCb(CAMERA_MSG_ZOOM, ((int) zoom_step[mZoomCurrentIdx] - 1), 1, mCallbackCookie);
+            mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
+        else
+            mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
 
+    }
+
+    if ( mReturnZoomStatus ) {
+        mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
+        mReturnZoomStatus = false;
     }
 
 #ifdef FW3A
@@ -3374,10 +3423,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     } 
 
     zoom = mParameters.getInt("zoom");
-    if( (zoom >= 0) && ( zoom <= MAX_ZOOM) ){
-        mZoomTargetIdx = zoom_idx[zoom];
+    if( (zoom >= 0) && ( zoom <= ZOOM_STAGES) ){
+        mZoomTargetIdx = zoom;
     } else {
-        mZoomTargetIdx = zoom_idx[0];
+        mZoomTargetIdx = 0;
     }
     LOGD("Zoom by App %d", zoom);
 #ifdef HARDWARE_OMX
@@ -3917,7 +3966,40 @@ status_t CameraHal::cancelAutoFocus()
 
 status_t CameraHal::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2)
 {
-    return NO_ERROR;
+    Message msg;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    switch(cmd) {
+        case CAMERA_CMD_START_SMOOTH_ZOOM:
+            msg.command = START_SMOOTH_ZOOM;
+            msg.arg1 = ( void * ) arg1;
+            previewThreadCommandQ.put(&msg);
+            previewThreadAckQ.get(&msg);
+
+            if ( PREVIEW_ACK != msg.command ) {
+                ret = -EINVAL;
+            }
+
+            break;
+        case CAMERA_CMD_STOP_SMOOTH_ZOOM:
+            msg.command = STOP_SMOOTH_ZOOM;
+            previewThreadCommandQ.put(&msg);
+            previewThreadAckQ.get(&msg);
+
+            if ( PREVIEW_ACK != msg.command ) {
+                ret = -EINVAL;
+            }
+
+            break;
+        default:
+            break;
+    };
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 
