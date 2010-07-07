@@ -37,9 +37,10 @@
 #define PRINTF SkDebugf
 
 const int DESIRED_LOAD = 1;
+const int MAX_DEL_ATTEMPTS = 3;
 const unsigned int MAX_ENCODERS = 1;
 
-static android::List<SkTIJPEGImageEncoderList_Item*> SkTIJPEGImageEncoderList;
+static SkTIJPEGImageEncoderListWrapper SkTIJPEGImageEncoderList;
 static android::Mutex SkTIJPEGImageEncoderListLock;
 
 SkTIJPEGImageEncoderEntry::~SkTIJPEGImageEncoderEntry()
@@ -61,24 +62,28 @@ bool SkTIJPEGImageEncoderEntry::WatchdogCallback(void* __item)
     android::Mutex::Autolock autolock(SkTIJPEGImageEncoderListLock);
     SkDebugf("SkTIJPEGImageEncoderEntry::WatchdogCallback() item=0x%x", item);
 
-    if(item->Encoder->GetLoad() == 0)
+    if(item->Encoder->GetLoad() == 0 || item->Encoder->GetDeleteAttempts() >= MAX_DEL_ATTEMPTS)
     {
+        if(item->Encoder->GetDeleteAttempts() > MAX_DEL_ATTEMPTS)
+            SkDebugf("    Restart attempt limit reached. deleting...");
+
         // watchdog has expired, delete our reference to encoder object
         SkAutoTDelete<SkTIJPEGImageEncoder> autodelete(item->Encoder);
         // reset the strong pointer, okay to do here since lifetime will last longer than reset
         item->WatchdogTimer.clear();
         // delete item from encoder list
-        for(iter = SkTIJPEGImageEncoderList.begin(); iter != SkTIJPEGImageEncoderList.end(); iter++)
+        for(iter = SkTIJPEGImageEncoderList.list.begin(); iter != SkTIJPEGImageEncoderList.list.end(); iter++)
         {
             if(((SkTIJPEGImageEncoderList_Item*)*iter) == item)
             {
-                SkTIJPEGImageEncoderList.erase(iter);
+                SkTIJPEGImageEncoderList.list.erase(iter);
                 break;
             }
         }
     }else{
-        // encoder is still doing something, restart watchdog
+        // encoder is still doing something, increase delete attempt, restart watchdog
         SkDebugf("  encoder is still doing something, restart watchdog");
+        item->Encoder->IncDeleteAttempts();
         restart = true;
     }
     return restart;
@@ -99,7 +104,7 @@ bool SkTIJPEGImageEncoderEntry::onEncode(SkWStream* stream, const SkBitmap& bm, 
         //TODO: Need algo to select encoder from list
         //      Maybe we can keep list sorted by Load and just pick off from the beginning of the list
         //      Below will work for now as we are not supporting parallel decodes anyways
-        for(iter = SkTIJPEGImageEncoderList.begin(); iter != SkTIJPEGImageEncoderList.end(); iter++)
+        for(iter = SkTIJPEGImageEncoderList.list.begin(); iter != SkTIJPEGImageEncoderList.list.end(); iter++)
         {
             SkTIJPEGImageEncoderList_Item* item = static_cast<SkTIJPEGImageEncoderList_Item*>(*iter);
             if(item->Encoder->GetLoad() < DESIRED_LOAD)
@@ -112,17 +117,17 @@ bool SkTIJPEGImageEncoderEntry::onEncode(SkWStream* stream, const SkBitmap& bm, 
 
         if(!itemFound)
         {
-            if(SkTIJPEGImageEncoderList.empty() || SkTIJPEGImageEncoderList.size() < MAX_ENCODERS)
+            if(SkTIJPEGImageEncoderList.list.empty() || SkTIJPEGImageEncoderList.list.size() < MAX_ENCODERS)
             {
                 SkTIJPEGImageEncoderList_Item* type = new SkTIJPEGImageEncoderList_Item;
                 type->Encoder =  SkNEW(SkTIJPEGImageEncoder);
                 type->WatchdogTimer = new EncoderWatchdog(this, (void*)type, (nsecs_t) 10*1000*1000*1000);
                 type->WatchdogTimer->run("Encoder Watchdog", ANDROID_PRIORITY_DISPLAY);
-                SkTIJPEGImageEncoderList.insert(SkTIJPEGImageEncoderList.begin(), type);
-                iter = SkTIJPEGImageEncoderList.begin();
+                SkTIJPEGImageEncoderList.list.insert(SkTIJPEGImageEncoderList.list.begin(), type);
+                iter = SkTIJPEGImageEncoderList.list.begin();
             } else {
                 // oh well, tried our best. just return an encoder from the top of the list
-                iter = SkTIJPEGImageEncoderList.begin();
+                iter = SkTIJPEGImageEncoderList.list.begin();
                 static_cast<SkTIJPEGImageEncoderList_Item*>(*iter)->WatchdogTimer->restart();
             }
         }

@@ -111,6 +111,10 @@ public:
         									OMX_U32 nData2,
         									OMX_PTR pEventData);
     int GetLoad(){ return mLoad; }
+    void IncDeleteAttempts() {mDeleteAttempts++;}
+    void ResetDeleteAttempts() {mDeleteAttempts = 0;}
+    int GetDeleteAttempts() {return mDeleteAttempts;}
+
 
 private:
 
@@ -132,6 +136,7 @@ private:
         TIHeapAllocator allocator;
         android::Mutex       gTIJpegDecMutex;
     int mLoad;
+    int mDeleteAttempts;
     int mProgressive;
 	OMX_S16 GetYUVformat(OMX_U8 * Data);
 	OMX_S16 Get16m(const void * Short);

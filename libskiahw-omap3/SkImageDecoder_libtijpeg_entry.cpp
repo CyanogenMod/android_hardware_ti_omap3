@@ -37,13 +37,15 @@
 #define PRINTF SkDebugf
 
 const int DESIRED_LOAD = 1;
+const int MAX_DEL_ATTEMPTS = 3;
 const unsigned int MAX_DECODERS = 1;
 
-static android::List<SkTIJPEGImageDecoderList_Item*> SkTIJPEGImageDecoderList;
+static SkTIJPEGImageDecoderListWrapper SkTIJPEGImageDecoderList;
 static android::Mutex SkTIJPEGImageDecoderListLock;
+
 SkTIJPEGImageDecoderEntry::~SkTIJPEGImageDecoderEntry()
 {
-
+    SkDebugf("SkTIJPEGImageDecoderEntry::~SkTIJPEGImageDecoderEntry()");
 }
 
 SkTIJPEGImageDecoderEntry::SkTIJPEGImageDecoderEntry()
@@ -60,29 +62,33 @@ bool SkTIJPEGImageDecoderEntry::WatchdogCallback(void* __item)
     android::Mutex::Autolock autolock(SkTIJPEGImageDecoderListLock);
     SkDebugf("SkTIJPEGImageDecoderEntry::WatchdogCallback() item=0x%x", item);
 
-    if(item->Decoder->GetLoad() == 0)
+    if(item->Decoder->GetLoad() == 0 || item->Decoder->GetDeleteAttempts() >= MAX_DEL_ATTEMPTS)
     {
+        if(item->Decoder->GetDeleteAttempts() > MAX_DEL_ATTEMPTS)
+            SkDebugf("    Restart attempt limit reached. deleting...");
+
         // watchdog has expired, delete our reference to Decoder object
         SkAutoTDelete<SkTIJPEGImageDecoder> autodelete(item->Decoder);
         // reset the strong pointer, okay to do here since lifetime will last longer than reset
         item->WatchdogTimer.clear();
         // delete item from Decoder list
-        for(iter = SkTIJPEGImageDecoderList.begin(); iter != SkTIJPEGImageDecoderList.end(); iter++)
+        for(iter = SkTIJPEGImageDecoderList.list.begin(); iter != SkTIJPEGImageDecoderList.list.end(); iter++)
         {
             if(((SkTIJPEGImageDecoderList_Item*)*iter) == item)
             {
-                SkTIJPEGImageDecoderList.erase(iter);
+                SkTIJPEGImageDecoderList.list.erase(iter);
                 break;
             }
         }
     }else{
-        // Decoder is still doing something, restart watchdog
+        // Decoder is still doing something, increment deleltion attempt, restart watchdog
         SkDebugf("  Decoder is still doing something, restart watchdog");
+        item->Decoder->IncDeleteAttempts();
         restart = true;
     }
     return restart;
 
-    // return DeleteFromListIfCodecNotWorking<SkTIJPEGImageDecoderList_Item*, SkTIJPEGImageDecoder>(__item, SkTIJPEGImageDecoderList);
+    // return DeleteFromListIfDecoderNotWorking<SkTIJPEGImageDecoderList_Item*, SkTIJPEGImageDecoder>(__item, SkTIJPEGImageDecoderList);
 }
 bool SkTIJPEGImageDecoderEntry::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
 {
@@ -103,7 +109,7 @@ bool SkTIJPEGImageDecoderEntry::onDecode(SkStream* stream, SkBitmap* bm, Mode mo
         //TODO: Need algo to select decoder from list
         //      Maybe we can keep list sorted by Load and just pick off from the beginning of the list
         //      Below will work for now as we are not supporting parallel decodes anyways
-        for(iter = SkTIJPEGImageDecoderList.begin(); iter != SkTIJPEGImageDecoderList.end(); iter++)
+        for(iter = SkTIJPEGImageDecoderList.list.begin(); iter != SkTIJPEGImageDecoderList.list.end(); iter++)
         {
             SkTIJPEGImageDecoderList_Item* item = static_cast<SkTIJPEGImageDecoderList_Item*>(*iter);
             if(item->Decoder->GetLoad() < DESIRED_LOAD)
@@ -116,17 +122,17 @@ bool SkTIJPEGImageDecoderEntry::onDecode(SkStream* stream, SkBitmap* bm, Mode mo
 
         if(!itemFound)
         {
-            if(SkTIJPEGImageDecoderList.empty() || SkTIJPEGImageDecoderList.size() < MAX_DECODERS)
+            if(SkTIJPEGImageDecoderList.list.empty() || SkTIJPEGImageDecoderList.list.size() < MAX_DECODERS)
             {
                 SkTIJPEGImageDecoderList_Item* type = new SkTIJPEGImageDecoderList_Item;
                 type->Decoder =  SkNEW(SkTIJPEGImageDecoder);
                 type->WatchdogTimer = new DecoderWatchdog(this, (void*)type, (nsecs_t) 10*1000*1000*1000);
                 type->WatchdogTimer->run("Decoder Watchdog", ANDROID_PRIORITY_DISPLAY);
-                SkTIJPEGImageDecoderList.insert(SkTIJPEGImageDecoderList.begin(), type);
-                iter = SkTIJPEGImageDecoderList.begin();
+                SkTIJPEGImageDecoderList.list.insert(SkTIJPEGImageDecoderList.list.begin(), type);
+                iter = SkTIJPEGImageDecoderList.list.begin();
             } else {
                 // oh well, tried our best. just return an decoder from the top of the list
-                iter = SkTIJPEGImageDecoderList.begin();
+                iter = SkTIJPEGImageDecoderList.list.begin();
                 static_cast<SkTIJPEGImageDecoderList_Item*>(*iter)->WatchdogTimer->restart();
             }
         }

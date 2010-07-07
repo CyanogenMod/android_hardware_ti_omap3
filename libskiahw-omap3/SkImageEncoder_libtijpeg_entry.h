@@ -26,8 +26,8 @@
 *  in the license agreement under which this software has been supplied.
 * ============================================================================ */
 
-#ifndef SKIAHW_DECODER_ENTRY_H
-#define SKIAHW_DECODER_ENTRY_H
+#ifndef SKIAHW_ENCODER_ENTRY_H
+#define SKIAHW_ENCODER_ENTRY_H
 
 #include <string.h>
 #include "SkBitmap.h"
@@ -54,6 +54,24 @@ class SkTIJPEGImageEncoderList_Item
 public:
     SkTIJPEGImageEncoder* Encoder;
     android::sp<EncoderWatchdog>  WatchdogTimer;
+};
+
+class SkTIJPEGImageEncoderListWrapper
+{
+public:
+    SkTIJPEGImageEncoderListWrapper() {}
+    ~SkTIJPEGImageEncoderListWrapper(){
+        while(list.begin() != list.end())
+        {
+            android::List<SkTIJPEGImageEncoderList_Item*>::iterator iter = list.begin();
+            SkTIJPEGImageEncoderList_Item* item = static_cast<SkTIJPEGImageEncoderList_Item*>(*iter);
+            SkAutoTDelete<SkTIJPEGImageEncoder> autodelete(item->Encoder);
+            item->WatchdogTimer.clear();
+            SkDebugf("SkTIJPEGImageEncoder Cleanup: 0x%x", item);
+            list.erase(iter);
+        }
+    }
+    android::List<SkTIJPEGImageEncoderList_Item*> list;
 };
 
 class SkTIJPEGImageEncoderEntry :public SkImageEncoder
