@@ -104,6 +104,7 @@ public:
     uint32_t streamEn;
 
     pthread_mutex_t lock;
+    pthread_mutexattr_t attr;
 
     uint32_t dispW;
     uint32_t dispH;

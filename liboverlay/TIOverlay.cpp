@@ -169,6 +169,7 @@ int overlay_control_context_t::create_shared_overlayobj(overlay_object** overlay
 {
     LOG_FUNCTION_NAME_ENTRY
     int fd;
+    int ret = 0;
     // NOTE: assuming sizeof(overlay_object) < two pages
     int size = getpagesize()*3;
     overlay_object *p;
@@ -192,8 +193,19 @@ int overlay_control_context_t::create_shared_overlayobj(overlay_object** overlay
     p->mControlHandle.overlayobj_sharedfd = fd;
     p->refCnt = 1;
 
-    if (pthread_mutex_init(&p->lock, NULL) != 0) {
-        LOGE("Failed to Open Overlay Lock!\n");
+    if ((ret = pthread_mutexattr_init(&p->attr)) != 0) {
+        LOGE("Failed to initialize overlay mutex attr");
+    }
+
+    if (ret == 0 && (ret = pthread_mutexattr_setpshared(&p->attr, PTHREAD_PROCESS_SHARED)) != 0) {
+        LOGE("Failed to set the overlay mutex attr to be shared across-processes");
+    }
+
+    if (ret == 0 && (ret = pthread_mutex_init(&p->lock, &p->attr)) != 0) {
+        LOGE("Failed to initialize overlay mutex\n");
+    }
+
+    if (ret != 0) {
         munmap(p, size);
         close(fd);
         return -1;
@@ -214,8 +226,13 @@ void overlay_control_context_t::destroy_shared_overlayobj(overlay_object *overla
     // side will deadlock trying to use an already released mutex
     if (android_atomic_dec(&(overlayobj->refCnt)) == 1) {
         if (pthread_mutex_destroy(&(overlayobj->lock))) {
-            LOGE("Failed to Close Overlay Semaphore!\n");
+            LOGE("Failed to uninitialize overlay mutex!\n");
         }
+
+        if (pthread_mutexattr_destroy(&(overlayobj->attr))) {
+            LOGE("Failed to uninitialize the overlay mutex attr!\n");
+        }
+
         overlayobj->marker = 0;
     }
 
