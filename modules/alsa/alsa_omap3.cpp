@@ -26,8 +26,8 @@
 #include "alsa_omap3_modem.h"
 #endif
 
-#define BLUETOOTH_SCO_DEVICE "hw:0,1"
-#define FM_TRANSMIT_DEVICE "hw:0,2"
+#define BLUETOOTH_SCO_DEVICE "hw:0,2"
+#define FM_TRANSMIT_DEVICE "hw:0,3"
 
 #ifndef ALSA_DEFAULT_SAMPLE_RATE
 #define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
