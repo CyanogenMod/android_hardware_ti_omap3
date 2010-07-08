@@ -51,7 +51,7 @@ namespace android {
 #define MAX_JPEG_QUALITY 100
 
 #define DEFAULT_THUMB_WIDTH     160
-#define DEFAULT_THUMB_HEIGHT    128
+#define DEFAULT_THUMB_HEIGHT    120
 
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
@@ -329,6 +329,7 @@ private:
     unsigned int mPictureRotation;
     bool mFocusStarted;
     bool mWaitingForSnapshot;
+	int mSnapshotCount;
     int mPreviewBufferCount;
     int *mPreviewBuffers;
     KeyedVector<int, int> mPreviewBuffersAvailable;

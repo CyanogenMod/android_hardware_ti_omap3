@@ -420,6 +420,9 @@ public:
     status_t startPreviewCallbacks(CameraParameters &params, void *buffers, uint32_t *offsets, int fd, size_t length, size_t count);
     status_t stopPreviewCallbacks();
 
+	status_t enableMsgType(int32_t msgType);
+	status_t disableMsgType(int32_t msgType);
+
 
     //thread loops
     void notificationThread();

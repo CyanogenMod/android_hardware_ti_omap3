@@ -361,20 +361,15 @@ void AppCallbackNotifier::notifyFrame()
                     {
 
 #ifdef COPY_IMAGE_BUFFER
+                        sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase(frame->mLength);
+                        sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, frame->mLength);
+                        memcpy(JPEGPictureMemBase->pointer(), ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
 
-                    sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase(frame->mLength);
-                    sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, frame->mLength);
-                    memcpy(JPEGPictureMemBase->pointer(), ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
-
-                    mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
-
+                        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
 #else
-
-                     //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
-
+                     //TODO: Find a way to map a Tiler buffer to a MemoryHeapBases
 #endif
-
-                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
+                        mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
 
                     }
                 else if ( ( CameraFrame::VIDEO_FRAME_SYNC == frame->mFrameType ) &&
@@ -402,7 +397,7 @@ void AppCallbackNotifier::notifyFrame()
                 else if(( CameraFrame::SNAPSHOT_FRAME == frame->mFrameType ) &&
                              ( NULL != mCameraHal.get() ) &&
                              ( NULL != mDataCb) &&
-                             ( NULL != mNotifyCb) )
+                             ( NULL != mNotifyCb))
                     {
 
                     if(!mAppSupportsStride)
@@ -436,11 +431,19 @@ void AppCallbackNotifier::notifyFrame()
                         memBase = buffer;
                         }
 
-                    //activate shutter sound
-                    mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
 
-                    ///Give preview callback to app
-                    mDataCb(CAMERA_MSG_POSTVIEW_FRAME, memBase, mCallbackCookie);
+                    if(mCameraHal->msgTypeEnabled(CAMERA_MSG_SHUTTER))
+                        {
+                        //activate shutter sound
+                        mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
+                        }
+
+                    if(mCameraHal->msgTypeEnabled(CAMERA_MSG_POSTVIEW_FRAME))
+                        {
+
+                        ///Give preview callback to app
+                        mDataCb(CAMERA_MSG_POSTVIEW_FRAME, memBase, mCallbackCookie);
+                        }
 
                     mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
 
@@ -874,7 +877,8 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params, vo
    //Get the preview pixel format
     mPreviewPixelFormat = params.getPreviewFormat();
 
-    if ( NO_ERROR == ret )
+
+    if ( (NO_ERROR == ret)  && mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
         {
          mFrameProvider->enableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
         }
@@ -1117,6 +1121,37 @@ status_t AppCallbackNotifier::releaseRecordingFrame(const sp < IMemory > & mem)
     LOG_FUNCTION_NAME_EXIT
 
     return ret;
+}
+
+status_t AppCallbackNotifier::enableMsgType(int32_t msgType)
+{
+    if(msgType & CAMERA_MSG_POSTVIEW_FRAME)
+        {
+        mFrameProvider->enableFrameNotification(CameraFrame::SNAPSHOT_FRAME);
+        }
+
+    if(msgType & CAMERA_MSG_PREVIEW_FRAME)
+        {
+         mFrameProvider->enableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
+        }
+
+    return NO_ERROR;
+}
+
+status_t AppCallbackNotifier::disableMsgType(int32_t msgType)
+{
+    if(msgType & CAMERA_MSG_POSTVIEW_FRAME)
+        {
+        mFrameProvider->disableFrameNotification(CameraFrame::SNAPSHOT_FRAME);
+        }
+
+    if(msgType & CAMERA_MSG_PREVIEW_FRAME)
+        {
+        mFrameProvider->disableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
+        }
+
+    return NO_ERROR;
+
 }
 
 status_t AppCallbackNotifier::start()

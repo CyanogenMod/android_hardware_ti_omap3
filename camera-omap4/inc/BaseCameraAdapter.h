@@ -87,7 +87,7 @@ protected:
     KeyedVector<int, frame_callback> mFrameSubscribers;
     KeyedVector<int, frame_callback> mVideoSubscribers;
     KeyedVector<int, frame_callback> mImageSubscribers;
-    KeyedVector<int, frame_callback> mRawSubscribers;
+	KeyedVector<int, frame_callback> mRawSubscribers;
     KeyedVector<int, event_callback> mFocusSubscribers;
 	KeyedVector<int, event_callback> mShutterSubscribers;
     MessageQueue mFrameQ;

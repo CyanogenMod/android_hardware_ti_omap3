@@ -121,6 +121,7 @@ status_t OMXCameraAdapter::initialize()
     mRecording = false;
     mFlushBuffers = false;
     mWaitingForSnapshot = false;
+    mSnapshotCount = 0;
     mComponentState = OMX_StateLoaded;
     mCapMode = HIGH_QUALITY;
     mBurstFrames = 1;
@@ -473,8 +474,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mThumbWidth = DEFAULT_THUMB_WIDTH;
         }
 
-    CAMHAL_LOGVB("Picture Thumb width set %d", mThumbWidth);
-
     if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT)  > 0 )
         {
         mThumbHeight = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
@@ -483,6 +482,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         {
         mThumbHeight = DEFAULT_THUMB_HEIGHT;
         }
+
+    CAMHAL_LOGDB("Picture Thumb size set %d x %d", mThumbWidth, mThumbHeight);
+
 
     ///Set VNF Configuration
     if ( params.getInt(KEY_VNF)  > 0 )
@@ -2054,6 +2056,7 @@ status_t OMXCameraAdapter::stopImageCapture()
     LOG_FUNCTION_NAME
 
     mWaitingForSnapshot = false;
+    mSnapshotCount = 0;
 
     OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
     bOMX.bEnabled = OMX_FALSE;
@@ -2069,6 +2072,8 @@ status_t OMXCameraAdapter::stopImageCapture()
 
     CAMHAL_LOGDB("Capture set - 0x%x", eError);
     Semaphore camSem;
+
+    camSem.Create();
 
     ///Register for Image port Disable event
     ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
@@ -2526,7 +2531,8 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
         if( mWaitingForSnapshot )
             {
             typeOfFrame = CameraFrame::SNAPSHOT_FRAME;
-            //CAMHAL_LOGDB("Snapshot Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mFrameSubscribers.size());
+            mSnapshotCount++;
+            CAMHAL_LOGDB("Snapshot Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mFrameSubscribers.size());
             }
         else
             {
@@ -2705,7 +2711,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
         else if ( ( CameraFrame::PREVIEW_FRAME_SYNC == typeOfFrame ) || ( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ) )
             {
             //Currently send the snapshot callback as shutter callback
-            if( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ){
+            if( (CameraFrame::SNAPSHOT_FRAME == typeOfFrame) && (mSnapshotCount==1) ){
                 if ( mShutterSubscribers.size() == 0 )
                     CAMHAL_LOGDA("No shutter Subscribers!");
 
@@ -2728,9 +2734,9 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             cFrame.mHeight = cap->mHeight;
 
             /*static int bufCount =0;
-            if((bufCount>100) && (bufCount<103))
-            saveFile(( unsigned char*) cFrame.mBuffer, cFrame.mWidth, cFrame.mHeight, 0);
-            bufCount++;*/
+                        if((bufCount>100) && (bufCount<103))
+                        saveFile(( unsigned char*) cFrame.mBuffer, cFrame.mWidth, cFrame.mHeight, 0);
+                        bufCount++;*/
 
             if ( 0 < mFrameSubscribers.size() )
                 {

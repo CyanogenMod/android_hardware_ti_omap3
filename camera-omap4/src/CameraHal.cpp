@@ -152,9 +152,12 @@ void CameraHal::enableMsgType(int32_t msgType)
         }
 
 
-    ///@todo configure app callback notifier with the message callback required
+    ///Configure app callback notifier with the message callback required
+    mAppCallbackNotifier->enableMsgType (msgType);
 
     ///@todo once preview callback is supported, enable preview here if preview start in progress
+    ///@todo Once the bug in OMXCamera related to flush buffers is removed, and external buffering
+    ////in overlay is supported, we can start preview here
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -178,8 +181,10 @@ void CameraHal::disableMsgType(int32_t msgType)
     if( msgType & CAMERA_MSG_PREVIEW_FRAME)
         {
         CAMHAL_LOGDA("Disabling Preview Callback");
-        mAppCallbackNotifier->stopPreviewCallbacks();
         }
+
+    ///Configure app callback notifier
+    mAppCallbackNotifier->disableMsgType (msgType);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -571,10 +576,7 @@ status_t CameraHal::startPreview()
     ///Pass the buffers to Camera Adapter
     mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
 
-    if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
-        {
-        mAppCallbackNotifier->startPreviewCallbacks(mParameters, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
-        }
+    mAppCallbackNotifier->startPreviewCallbacks(mParameters, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
 
     ///Start the callback notifier
     ret = mAppCallbackNotifier->start();
@@ -800,6 +802,7 @@ void CameraHal::stopPreview()
         return;
         }
 
+
     if(mDisplayAdapter.get() != NULL)
         {
         ///Stop the buffer display first
@@ -809,16 +812,16 @@ void CameraHal::stopPreview()
     //Stop the callback sending
     mAppCallbackNotifier->stop();
 
-    if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
-        {
-        mAppCallbackNotifier->stopPreviewCallbacks();
-        }
+    mAppCallbackNotifier->stopPreviewCallbacks();
+
 
     //Stop the source of frames
     mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
 
     freePreviewBufs();
+
     mPreviewEnabled = false;
+    mDisplayPaused = false;
 
     if ( mReloadAdapter )
         {
@@ -1068,6 +1071,8 @@ status_t CameraHal::takePicture( )
     status_t ret = NO_ERROR;
     size_t pictureBufferLength;
 
+    Mutex::Autolock lock(mLock);
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     gettimeofday(&mStartCapture, NULL);
@@ -1075,6 +1080,12 @@ status_t CameraHal::takePicture( )
 #endif
 
     LOG_FUNCTION_NAME
+
+    if(!previewEnabled() && !mDisplayPaused)
+        {
+        LOG_FUNCTION_NAME_EXIT
+        return NO_INIT;
+        }
 
     //Pause Preview during capture
     if ( (NO_ERROR == ret) && ( NULL != mDisplayAdapter.get() ) )
@@ -1689,12 +1700,20 @@ void CameraHal::insertSupportedParams(CameraParameters &p)
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_THUMBNAIL_SIZES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_EFFECTS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_ANTIBANDING, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue);
     p.set(CameraParameters::KEY_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE]->mPropValue);
     p.set(CameraParameters::KEY_EFFECT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue);
     p.set(CameraParameters::KEY_SCENE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES]->mPropValue);
     p.set(CameraParameters::KEY_FOCUS_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES]->mPropValue);
     p.set(CameraParameters::KEY_ANTIBANDING, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING]->mPropValue);
     p.set(CameraParameters::KEY_FLASH_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue);
+
+
     //
 
     LOG_FUNCTION_NAME_EXIT
