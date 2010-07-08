@@ -16,17 +16,13 @@
 
 #define LOG_TAG "TIHardwareRenderer"
 #include <utils/Log.h>
-
 #include "TIHardwareRenderer.h"
-
 #include <media/stagefright/MediaDebug.h>
 #include <surfaceflinger/ISurface.h>
 #include <ui/Overlay.h>
 #include <cutils/properties.h>
-#include "v4l2_utils.h"
-#define UNLIKELY( exp ) (__builtin_expect( (exp) != 0, false ))
 
-#define CACHEABLE_BUFFERS 0x1
+#define UNLIKELY( exp ) (__builtin_expect( (exp) != 0, false ))
 
 namespace android {
 
@@ -73,31 +69,30 @@ TIHardwareRenderer::TIHardwareRenderer(
       mFrameSize(mDecodedWidth * mDecodedHeight * 2),
       mIsFirstFrame(true),
       mIndex(0) {
+
+    sp<IMemory> mem;
+    mapping_data_t *data;
+
     CHECK(mISurface.get() != NULL);
     CHECK(mDecodedWidth > 0);
     CHECK(mDecodedHeight > 0);
-
-    if (colorFormat != OMX_COLOR_FormatCbYCrY
-            && colorFormat != OMX_COLOR_FormatYUV420Planar) {
-        return;
-    }
 
     sp<OverlayRef> ref = mISurface->createOverlay(
             mDecodedWidth, mDecodedHeight, OVERLAY_FORMAT_CbYCrY_422_I, 0);
 
     if (ref.get() == NULL) {
-        LOGE("Unable to create the overlay!");
         return;
     }
 
     mOverlay = new Overlay(ref);
-    mOverlay->setParameter(CACHEABLE_BUFFERS, 0);
-
+    
     for (size_t i = 0; i < (size_t)mOverlay->getBufferCount(); ++i) {
-        mapping_data_t *data =
-            (mapping_data_t *)mOverlay->getBufferAddress((void *)i);
-
-        mOverlayAddresses.push(data->ptr);
+        data = (mapping_data_t *)mOverlay->getBufferAddress((void *)i);
+        mVideoHeaps[i] = new MemoryHeapBase(data->fd,data->length, 0, data->offset);
+        mem = new MemoryBase(mVideoHeaps[i], 0, data->length);
+        CHECK(mem.get() != NULL);
+        LOGV("mem->pointer[%d] = %p", i, mem->pointer());
+        mOverlayAddresses.push(mem);
     }
 
     char value[PROPERTY_VALUE_MAX];
@@ -109,7 +104,15 @@ TIHardwareRenderer::TIHardwareRenderer(
 }
 
 TIHardwareRenderer::~TIHardwareRenderer() {
+    sp<IMemory> mem;
+
     if (mOverlay.get() != NULL) {
+
+        for (size_t i = 0; i < mOverlayAddresses.size(); ++i) {
+            //(mOverlayAddresses[i]).clear();
+            mVideoHeaps[i].clear();
+        }
+
         mOverlay->destroy();
         mOverlay.clear();
 
@@ -176,75 +179,45 @@ static void convertYuv420ToYuv422(
 
 void TIHardwareRenderer::render(
         const void *data, size_t size, void *platformPrivate) {
-    // CHECK_EQ(size, mFrameSize);
-
-    if (mOverlay.get() == NULL) {
-        return;
-    }
 
     if (UNLIKELY(mDebugFps)) {
         debugShowFPS();
     }
 
-#if 0
+    overlay_buffer_t overlay_buffer;
     size_t i = 0;
-    for (; i < mOverlayAddresses.size(); ++i) {
-        if (mOverlayAddresses[i] == data) {
-            break;
-        }
-
-        if (mIsFirstFrame) {
-            LOGI("overlay buffer #%d: %p", i, mOverlayAddresses[i]);
-        }
-    }
-
-    if (i == mOverlayAddresses.size()) {
-        LOGE("No suitable overlay buffer found.");
+    
+    if (mOverlay.get() == NULL) {
         return;
     }
 
-    mOverlay->queueBuffer((void *)i);
-
-    overlay_buffer_t overlay_buffer;
-    if (!mIsFirstFrame) {
-        CHECK_EQ(mOverlay->dequeueBuffer(&overlay_buffer), OK);
-    } else {
-        mIsFirstFrame = false;
-    }
-#else
     if (mColorFormat == OMX_COLOR_FormatYUV420Planar) {
-        convertYuv420ToYuv422(
-                mDecodedWidth, mDecodedHeight, data, mOverlayAddresses[mIndex]);
-    } else {
+        convertYuv420ToYuv422(mDecodedWidth, mDecodedHeight, data, mOverlayAddresses[mIndex]->pointer());
+    } 
+    else {
+
         CHECK_EQ(mColorFormat, OMX_COLOR_FormatCbYCrY);
 
-        memcpy(mOverlayAddresses[mIndex], data, size);
-    }
+        for (; i < mOverlayAddresses.size(); ++i) {
+            if (mOverlayAddresses[i]->pointer() == data) {
+                break;
+            }
+        }
 
-    if (mOverlay->queueBuffer((void *)mIndex) == ALL_BUFFERS_FLUSHED) {
-        mIsFirstFrame = true;
-        if (mOverlay->queueBuffer((void *)mIndex) != 0) {
-            return;
+        if (i == mOverlayAddresses.size()) {
+            LOGE("Doing a memcpy. Report this issue.");
+            memcpy(mOverlayAddresses[mIndex]->pointer(), data, size);
+        }
+        else{
+            mIndex = i;
         }
     }
 
-    if (++mIndex == mOverlayAddresses.size()) {
-        mIndex = 0;
-    }
+    mOverlay->queueBuffer((void *)mIndex);
+    mOverlay->dequeueBuffer(&overlay_buffer);
+    
+    if (++mIndex == mOverlayAddresses.size()) mIndex = 0;
 
-    overlay_buffer_t overlay_buffer;
-    if (!mIsFirstFrame) {
-        status_t err = mOverlay->dequeueBuffer(&overlay_buffer);
-
-        if (err == ALL_BUFFERS_FLUSHED) {
-            mIsFirstFrame = true;
-        } else {
-            return;
-        }
-    } else {
-        mIsFirstFrame = false;
-    }
-#endif
 }
 
 }  // namespace android

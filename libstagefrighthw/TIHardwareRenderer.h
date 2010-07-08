@@ -19,10 +19,13 @@
 #define TI_HARDWARE_RENDERER_H_
 
 #include <media/stagefright/VideoRenderer.h>
+#include "binder/MemoryHeapBase.h"
+#include "binder/MemoryBase.h"
 #include <utils/RefBase.h>
 #include <utils/Vector.h>
 
 #include <OMX_Component.h>
+#include "overlay_common.h"
 
 namespace android {
 
@@ -44,6 +47,8 @@ public:
     virtual void render(
             const void *data, size_t size, void *platformPrivate);
 
+    Vector< sp<IMemory> > getBuffers() { return mOverlayAddresses; }
+
 private:
     sp<ISurface> mISurface;
     size_t mDisplayWidth, mDisplayHeight;
@@ -52,9 +57,10 @@ private:
     status_t mInitCheck;
     size_t mFrameSize;
     sp<Overlay> mOverlay;
-    Vector<void *> mOverlayAddresses;
+    Vector< sp<IMemory> > mOverlayAddresses;
     bool mIsFirstFrame;
     size_t mIndex;
+    sp<MemoryHeapBase> mVideoHeaps[NUM_OVERLAY_BUFFERS_REQUESTED];
 
     TIHardwareRenderer(const TIHardwareRenderer &);
     TIHardwareRenderer &operator=(const TIHardwareRenderer &);
