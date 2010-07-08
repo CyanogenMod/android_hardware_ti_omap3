@@ -342,7 +342,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
     //
-    p.set("picture-rotation", 0);
+    p.set(CameraParameters::KEY_ROTATION, 0);
     p.set(KEY_ROTATION_TYPE, ROTATION_PHYSICAL);
 
     if (setParameters(p) != NO_ERROR) {
@@ -3384,7 +3384,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     LOGD("FRAMERATE %d", framerate);
 
     rot_orig = rotation;
-    rotation = params.getInt("picture-rotation");
+    rotation = params.getInt(CameraParameters::KEY_ROTATION);
 
     mParameters.getPictureSize(&w_orig, &h_orig);
 
