@@ -68,7 +68,8 @@ TIHardwareRenderer::TIHardwareRenderer(
       mInitCheck(NO_INIT),
       mFrameSize(mDecodedWidth * mDecodedHeight * 2),
       mIsFirstFrame(true),
-      mIndex(0) {
+      mIndex(0),
+      release_frame_cb(0) {
 
     sp<IMemory> mem;
     mapping_data_t *data;
@@ -186,6 +187,7 @@ void TIHardwareRenderer::render(
 
     overlay_buffer_t overlay_buffer;
     size_t i = 0;
+    int err;
     
     if (mOverlay.get() == NULL) {
         return;
@@ -211,13 +213,27 @@ void TIHardwareRenderer::render(
         else{
             mIndex = i;
         }
+
     }
 
-    mOverlay->queueBuffer((void *)mIndex);
-    mOverlay->dequeueBuffer(&overlay_buffer);
-    
-    if (++mIndex == mOverlayAddresses.size()) mIndex = 0;
+    err = mOverlay->queueBuffer((void *)mIndex);
+    if ((err < 0) && (release_frame_cb)){
+        release_frame_cb(mOverlayAddresses[mIndex], cookie);
+    }
 
+    err = mOverlay->dequeueBuffer(&overlay_buffer);
+    if ((err == 0) && (release_frame_cb)){
+        release_frame_cb(mOverlayAddresses[(int)overlay_buffer], cookie);
+    }
+
+    if (++mIndex == mOverlayAddresses.size()) mIndex = 0;
+}
+
+bool TIHardwareRenderer::setCallback(release_rendered_buffer_callback cb, void *c)
+{
+    release_frame_cb = cb;
+    cookie = c;
+    return true;
 }
 
 }  // namespace android
