@@ -1306,6 +1306,14 @@ int CameraHal::ZoomPerform(float zoom)
     return 0;
 }
 
+void CameraHal::SetDSPHz(unsigned int Hz)
+{
+    char command[100];
+    int dsp_opp;
+    sprintf(command, "echo %u > /sys/power/dsp_opp", Hz);
+    system(command);
+    // LOGD("command: %s", command);
+}
 /************/
 
 void CameraHal::PPM(const char* str){

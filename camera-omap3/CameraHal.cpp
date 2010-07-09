@@ -852,8 +852,10 @@ void CameraHal::previewThread()
                 gettimeofday(&ppm_receiveCmdToTakePicture, NULL);
 #endif
 
-                if( mPreviewRunning ) {
+                // Boost DSP OPP to highest level
+                SetDSPHz(DSP3630_HZ_MAX);
 
+                if( mPreviewRunning ) {
                     if( CameraStop() < 0){
                         LOGE("ERROR CameraStop()");
                         err = -1;
@@ -895,7 +897,10 @@ void CameraHal::previewThread()
                    err = -1;
                }
 
-               if( err )
+                // Release constraint to DSP OPP by setting lowest Hz
+                SetDSPHz(DSP3630_HZ_MIN);
+
+                if( err )
                    LOGE("Capture failed.");
 
                //restart the preview

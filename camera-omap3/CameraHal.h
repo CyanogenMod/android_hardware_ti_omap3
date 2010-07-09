@@ -121,6 +121,9 @@
 #define ROTATION_PHYSICAL       0
 #define ROTATION_EXIF           1
 
+#define DSP3630_HZ_MIN 260000000
+#define DSP3630_HZ_MAX 800000000
+
 #define __ALIGN(x,a) ( (x) & (~((a) - 1)))
 
 #define NONNEG_ASSIGN(x,y) \
@@ -396,6 +399,7 @@ public:
     int ICapturePerform();
     int ICaptureCreate(void);
     int ICaptureDestroy(void);
+    void SetDSPHz(unsigned int Hz);
 	void PPM(const char *);
 	void PPM(const char *, struct timeval*, ...);
     status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
