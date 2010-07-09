@@ -873,7 +873,7 @@ bool OverlayDisplayAdapter::handleFrameReturn()
     ///Overlay still holds one buffer back as long as display is enabled
     if ( 1 == mFramesWithDisplay )
         {
-        CAMHAL_LOGDA("Received all but one frames back from Display.");
+        //CAMHAL_LOGDA("Received all but one frames back from Display.");
         return true;
         }
 

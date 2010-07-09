@@ -8,6 +8,7 @@
 
 namespace android {
 
+#undef LOG_TAG
 ///Maintain a separate tag for OMXCameraAdapter logs to isolate issues OMX specific
 #define LOG_TAG "OMXCameraAdapter"
 
@@ -528,7 +529,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
 void saveFile(unsigned char   *buff, int width, int height, int format) {
     static int      counter = 1;
-    int             size;
     int             fd = -1;
     char            fn[256];
 
@@ -559,12 +559,10 @@ void saveFile(unsigned char   *buff, int width, int height, int format) {
         bf += 4096;
         }
 
-
+    close(fd);
 
 
     counter++;
-    printf("%s: buffer=%08X, size=%d\n",
-           __FUNCTION__, (int)buff, size);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -623,7 +621,7 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         }
     else
         {
-        CAMHAL_LOGEB("Unsupported port index 0x%x", port);
+        CAMHAL_LOGEB("Unsupported port index 0x%x", (unsigned int)port);
         }
 
     eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp,
@@ -707,11 +705,11 @@ status_t OMXCameraAdapter::enableVideoStabilization(bool enable)
                                             ( OMX_INDEXTYPE ) OMX_IndexConfigCommonFrameStabilisation, &frameStabCfg);
         if ( OMX_ErrorNone != eError )
             {
-            CAMHAL_LOGEB("Error while getting video stabilization mode 0x%x", eError);
+            CAMHAL_LOGEB("Error while getting video stabilization mode 0x%x", (unsigned int)eError);
             ret = -1;
             }
 
-        CAMHAL_LOGDB("VSTAB Port Index = %d", frameStabCfg.nPortIndex);
+        CAMHAL_LOGDB("VSTAB Port Index = %d", (int)frameStabCfg.nPortIndex);
 
         frameStabCfg.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
         if ( enable )
@@ -1918,7 +1916,7 @@ status_t OMXCameraAdapter::checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus)
 
 status_t OMXCameraAdapter::notifyFocusSubscribers()
 {
-    static int frameCounter = 0;
+    static unsigned int frameCounter = 0;
     event_callback eventCb;
     CameraHalEvent focusEvent;
     OMX_PARAM_FOCUSSTATUSTYPE eFocusStatus;
@@ -2132,7 +2130,7 @@ status_t OMXCameraAdapter::startVideoCapture()
         return NO_INIT;
         }
 
-    for(int i=0;i<mPreviewBuffersAvailable.size();i++)
+    for(unsigned int i=0;i<mPreviewBuffersAvailable.size();i++)
         {
         mVideoBuffersAvailable.add(mPreviewBuffersAvailable.keyAt(i), 0);
         }
@@ -2532,7 +2530,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             {
             typeOfFrame = CameraFrame::SNAPSHOT_FRAME;
             mSnapshotCount++;
-            CAMHAL_LOGDB("Snapshot Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mFrameSubscribers.size());
+            CAMHAL_LOGDB("Snapshot Frame 0x%x refCount start %d", (unsigned int)pBuffHeader->pBuffer, mFrameSubscribers.size());
             }
         else
             {
@@ -2560,7 +2558,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             res2  = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
             }
 
-        ret = ( ( NO_ERROR == res1) || ( NO_ERROR == res2 ) ) ? ( NO_ERROR ) : ( -1 );
+        ret = ( ( NO_ERROR == res1) || ( NO_ERROR == res2 ) ) ? ( (int)NO_ERROR ) : ( -1 );
 
         }
     else if( pBuffHeader->nOutputPortIndex == OMX_CAMERA_PORT_IMAGE_OUT_IMAGE )
