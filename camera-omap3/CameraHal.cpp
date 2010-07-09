@@ -1629,6 +1629,7 @@ int  CameraHal::ICapturePerform()
 #endif
 
     memset(&manual_config, 0 ,sizeof(manual_config));
+    memset(&iobj->cfg, 0, sizeof(icap_configure_t));
 
 #ifdef DEBUG_LOG
 
@@ -1670,7 +1671,6 @@ int  CameraHal::ICapturePerform()
     spec_res.res.width = image_width;
     spec_res.res.height = image_height;
     spec_res.capture_format = ICAP_CAPTURE_FORMAT_UYVY;
-
 
     status = icap_query_resolution(iobj->lib_private, 0, &spec_res);
 
@@ -2474,10 +2474,11 @@ void CameraHal::snapshotThread()
                PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 
 #endif
+
                 scale_deinit();
 
                 status = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
-                if (status) {
+                if (status < 0) {
                      LOGE("mOverlay->queueBuffer() failed!!!!");
                 } else {
                      buffers_queued_to_dss[lastOverlayBufferDQ]=1;
@@ -2485,7 +2486,7 @@ void CameraHal::snapshotThread()
                 }
 
                 status = mOverlay->dequeueBuffer(&overlaybuffer);
-                if (status) {
+                if (status < 0) {
                     LOGE("mOverlay->dequeueBuffer() failed!!!!");
                 } else {
                     nOverlayBuffersQueued--;
@@ -2499,7 +2500,7 @@ EXIT:
           } else if (snapshotMessage[0] == SNAPSHOT_THREAD_START_GEN) {
 
                 status = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
-                if (status) {
+                if (status < 0) {
                      LOGE("mOverlay->queueBuffer() failed!!!!");
                 } else {
                      buffers_queued_to_dss[lastOverlayBufferDQ]=1;
@@ -2516,7 +2517,7 @@ EXIT:
 #endif
 
                 status = mOverlay->dequeueBuffer(&overlaybuffer);
-                if (status) {
+                if (status < 0) {
                     LOGE("mOverlay->dequeueBuffer() failed!!!!");
                 } else {
                     nOverlayBuffersQueued--;
