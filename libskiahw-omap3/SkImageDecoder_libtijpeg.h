@@ -141,7 +141,9 @@ private:
 	OMX_S16 GetYUVformat(OMX_U8 * Data);
 	OMX_S16 Get16m(const void * Short);
 	OMX_S32 ParseJpegHeader (SkStream* stream, JPEG_HEADER_INFO* JpegHeaderInfo);
-	OMX_S32 fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* stream, OMX_S32 bufferSize);
+	OMX_S32 ParseJpegHeader (OMX_U8* JpgBuffer, OMX_S32 lSize, JPEG_HEADER_INFO* JpgHdrInfo);
+	OMX_U32 JpegHeader_GetMarkerInfo (OMX_U32 Marker, OMX_U8* MarkerData, JPEG_HEADER_INFO* JpgHdrInfo);
+	OMX_S32 fill_data(OMX_U8* pBuf, SkStream* stream, OMX_S32 bufferSize);
 	void FixFrameSize(JPEG_HEADER_INFO* JpegHeaderInfo);
 
 };
