@@ -34,7 +34,7 @@ LOCAL_ARM_MODE := arm
 LOCAL_C_INCLUDES := \
     $(PV_INCLUDES)
 
-LOCAL_SHARED_LIBRARIES := libOMX_Core
+LOCAL_SHARED_LIBRARIES := libOMX_Core liblog
 
 -include $(PV_TOP)/Android_platform_extras.mk
 
