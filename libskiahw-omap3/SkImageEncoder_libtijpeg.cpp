@@ -48,8 +48,6 @@
 	int eInputCount = 0;
 #endif
 
-#define ALIGN_128_BYTE 128
-
 void* ThreadEncoderWrapper(void* me)
 {
     SkTIJPEGImageEncoder *encoder = static_cast<SkTIJPEGImageEncoder *>(me);

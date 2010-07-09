@@ -46,6 +46,8 @@ extern "C" {
     #include "OMX_IVCommon.h"
 }
 
+#define ALIGN_128_BYTE 128
+
 template <class TYPE>
 class WatchdogThread : public android::Thread
 {

@@ -254,7 +254,6 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
     stream->rewind();
     JpgHdrInfo->nProgressive = 0; /*Default value is non progressive*/
 
-
     a = stream->readU8();
     if ( a != 0xff || stream->readU8() != M_SOI )  {
         return 0;
@@ -262,29 +261,19 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
     for ( ;; )  {
         OMX_U32 itemlen = 0;
         OMX_U32 marker = 0;
-        OMX_U32 ll = 0,lh = 0, got = 0;
-        OMX_U8 *Data = NULL;
+        OMX_U32 ll = 0,lh = 0, got = 0, err = 0;
+        OMX_U8 *data = NULL;
 
         for ( a=0;a<15 /* 7 originally */;a++ ) {
             marker = stream->readU8();
-
             //PRINTF("MARKER IS %x\n",marker);
-
-            if ( marker != 0xff )   {
+            if ( marker != 0xff )
                 break;
-            }
-            if ( a >= 14 /* 6 originally */)   {
-                PRINTF("too many padding bytes\n");
-                if ( Data != NULL ) {
-                    free(Data);
-                    Data=NULL;
-                }
-                return 0;
-            }
         }
         if ( marker == 0xff )   {
             /* 0xff is legal padding, but if we get that many, something's wrong.*/
             PRINTF("too many padding bytes!");
+            return 0;
         }
 
         /* Read the length of the section.*/
@@ -297,62 +286,116 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
             PRINTF("invalid marker");
         }
 
-        Data = (OMX_U8 *)malloc(itemlen);
-        if ( Data == NULL ) {
+        data = (OMX_U8 *)malloc(itemlen);
+        if ( data == NULL ) {
             PRINTF("Could not allocate memory");
             break;
         }
 
         /* Store first two pre-read bytes. */
-        Data[0] = (OMX_U8)lh;
-        Data[1] = (OMX_U8)ll;
+        data[0] = (OMX_U8)lh;
+        data[1] = (OMX_U8)ll;
 
-        got = stream->read(Data+2, itemlen-2); /* Read the whole section.*/
+        got = stream->read(data+2, itemlen-2); /* Read the whole section.*/
 
         if ( got != itemlen-2 ) {
             PRINTF("Premature end of file?");
-            if ( Data != NULL ) {
-                free(Data);
-                Data=NULL;
+            if ( data != NULL ) {
+                free(data);
+                data=NULL;
             }
             return 0;           
         }
 
         //PRINTF("Jpeg section marker 0x%02x size %d\n",marker, itemlen);
-        switch ( marker )   {
+        err = JpegHeader_GetMarkerInfo(marker, data, JpgHdrInfo);
 
-        case M_SOS:
-            if ( Data != NULL ) {
-                free(Data);
-                Data=NULL;
-            }
+        if ( data != NULL ) {
+            free(data);
+            data=NULL;
+        }
 
+        if(err ==  M_SOS)
             return lSize;
+        else if(err == M_EOI)
+            return 0;
+    }
+
+
+    return 0;
+}
+
+OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (OMX_U8* JpgBuffer, OMX_S32 lSize, JPEG_HEADER_INFO* JpgHdrInfo)
+{
+    OMX_U8 a = 0;
+    OMX_U32 pos = 0;
+    JpgHdrInfo->nProgressive = 0; /*Default value is non progressive*/
+
+    a = JpgBuffer[pos++];
+    if ( a != 0xff || JpgBuffer[pos++] != M_SOI )  {
+        return 0;
+    }
+    for ( ;; )
+    {
+        OMX_U32 itemlen = 0;
+        OMX_U32 marker = 0;
+        OMX_U32 ll = 0,lh = 0, err = 0;
+        OMX_U8 *data = NULL;
+
+        for ( a=0;a<15 /* 7 originally */;a++ ) {
+            marker = JpgBuffer[pos++];
+            //PRINTF("MARKER IS %x\n",marker);
+            if ( marker != 0xff )
+                break;
+        }
+        if ( marker == 0xff )   {
+            /* 0xff is legal padding, but if we get that many, something's wrong.*/
+            PRINTF("too many padding bytes!");
+            return 0;
+        }
+
+        /* Read the length of the section.*/
+        data = &JpgBuffer[pos];
+        lh = data[0];
+        ll = data[1];
+
+        itemlen = (lh << 8) | ll;
+
+        if ( itemlen < 2 )  {
+            PRINTF("invalid marker");
+        }
+
+        pos += itemlen; /* Move position by the whole section.*/
+
+        //PRINTF("Jpeg section marker 0x%02x size %d\n",marker, itemlen);
+        err = JpegHeader_GetMarkerInfo(marker, data, JpgHdrInfo);
+
+        if(err ==  M_SOS)
+            return lSize;
+        else if(err == M_EOI)
+            return 0;
+    }
+    return 0;
+}
+OMX_U32 SkTIJPEGImageDecoder::JpegHeader_GetMarkerInfo (OMX_U32 Marker, OMX_U8* MarkerData, JPEG_HEADER_INFO* JpgHdrInfo)
+{
+    switch ( Marker )
+    {
+        case M_SOS:
+            return M_SOS;
 
         case M_EOI:
             PRINTF("No image in jpeg!\n");
-            if ( Data != NULL ) {
-                free(Data);
-                Data=NULL;
-            }
-            return 0;
+            return M_EOI;
 
         case M_COM: /* Comment section  */
-
-            break;
-
         case M_JFIF:
-
-            break;
-
         case M_EXIF:
-
             break;
 
         case M_SOF2:
             PRINTF("nProgressive IMAGE!\n");
             JpgHdrInfo->nProgressive=1;
-
         case M_SOF0:
         case M_SOF1:
         case M_SOF3:
@@ -366,9 +409,9 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
         case M_SOF14:
         case M_SOF15:
 
-            JpgHdrInfo->nHeight = Get16m(Data+3);
-            JpgHdrInfo->nWidth = Get16m(Data+5);
-            JpgHdrInfo->nFormat = GetYUVformat(Data);
+            JpgHdrInfo->nHeight = Get16m(MarkerData+3);
+            JpgHdrInfo->nWidth = Get16m(MarkerData+5);
+            JpgHdrInfo->nFormat = GetYUVformat(MarkerData);
             switch (JpgHdrInfo->nFormat) {
             case OMX_COLOR_FormatYUV420Planar:
                 PRINTF("Image chroma format is OMX_COLOR_FormatYUV420Planar\n");
@@ -390,7 +433,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
                  JpgHdrInfo->nFormat = OMX_COLOR_FormatUnused;
                  break;
             }
-            PRINTF("Image Width x Height = %u * %u\n", Get16m(Data+5), Get16m(Data+3)  );
+            PRINTF("Image Width x Height = %u * %u\n", Get16m(MarkerData+5), Get16m(MarkerData+3)  );
             /*
             PRINTF("JPEG image is %uw * %uh,\n", Get16m(Data+3), Get16m(Data+5)  );
 
@@ -399,29 +442,13 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
                 JpgHdrInfo->format= 1;
             }
             */
-
-            if ( Data != NULL ) {
-                free(Data);
-                Data=NULL;
-            }
             break;
         default:
             /* Skip any other sections.*/
             break;
-        }
-
-        if ( Data != NULL ) {
-            free(Data);
-            Data=NULL;
-        }
     }
-
-
     return 0;
 }
-
-
-
 void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
 {
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
@@ -523,10 +550,10 @@ void SkTIJPEGImageDecoder::EventHandler(OMX_HANDLETYPE hComponent,
 }
 
 
-OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* stream, OMX_S32 bufferSize)
+OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_U8* pBuf, SkStream* stream, OMX_S32 bufferSize)
 {
-    pBuf->nFilledLen = stream->read(pBuf->pBuffer, bufferSize);
-    //PRINTF ("Populated Input Buffer: nAllocLen = %d, nFilledLen =%ld\n", bufferSize, pBuf->nFilledLen);
+    OMX_U32 nFilledLen = stream->read(pBuf, bufferSize);
+    PRINTF ("Populated Input Buffer: nAllocLen = %d, nFilledLen =%ld\n", bufferSize, nFilledLen);
 
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
 
@@ -536,7 +563,7 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* st
     PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
     
     SkFILEWStream tempFile(path);
-    if (tempFile.write(pBuf->pBuffer, pBuf->nFilledLen) == false)
+    if (tempFile.write(pBuf, nFilledLen) == false)
         PRINTF("Writing to %s failed\n", path);
     else
         PRINTF("Writing to %s succeeded\n", path);
@@ -545,7 +572,7 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* st
     PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
 #endif
     
-    return pBuf->nFilledLen;
+    return nFilledLen;
 }
 
 bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, SkImageDecoder::Mode mode)
@@ -566,6 +593,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     int nIndex2;
     int scaleFactor;
     int bitsPerPixel;
+    int nRead = 0;
     OMX_S32 inputFileSize;
     OMX_S32 nCompId = 100;
     OMX_U32 outBuffSize;
@@ -575,6 +603,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     OMX_CUSTOM_RESOLUTION MaxResolution;
     OMX_CONFIG_SCALEFACTORTYPE ScaleFactor;
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
+    void* inputBuffer = NULL;
     char strTIJpegDec[] = "OMX.TI.JPEG.decoder";
     char strColorFormat[] = "OMX.TI.JPEG.decoder.Config.OutputColorFormat";
     char strProgressive[] = "OMX.TI.JPEG.decoder.Config.ProgressiveFactor";
@@ -593,7 +622,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     PRINTF("mode = %d\n", mode);
     PRINTF("scaleFactor = %d ", scaleFactor);
     //PRINTF("File size = %d\n", stream->getLength());
-	
+
     if (scaleFactor == 3)
     	scaleFactor = 2;
     else if ((scaleFactor > 4) && (scaleFactor < 8))
@@ -602,8 +631,18 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     	scaleFactor = 8;
     	
     PRINTF ("Modified scaleFactor = %d\n", scaleFactor);
+    if (SkImageDecoder::kDecodeBounds_Mode == mode) {
+        inputFileSize = ParseJpegHeader(stream , &JpegHeaderInfo);
+    }else{
+        inputFileSize = stream->getLength();
+        inputFileSize = (OMX_U32)((inputFileSize + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
+        inputBuffer = memalign(ALIGN_128_BYTE, inputFileSize);
 
-    inputFileSize = ParseJpegHeader(stream , &JpegHeaderInfo);
+        stream->rewind();
+        nRead = fill_data((OMX_U8*)inputBuffer, stream, stream->getLength());
+
+        inputFileSize = ParseJpegHeader((OMX_U8*)inputBuffer, inputFileSize, &JpegHeaderInfo);
+    }
 
 #ifdef TIME_DECODE
 	atm.setResolution(JpegHeaderInfo.nWidth , JpegHeaderInfo.nHeight);
@@ -627,7 +666,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     if (bm->config() == SkBitmap::kARGB_8888_Config)
         bm->setIsOpaque(false);
     else
-    bm->setIsOpaque(true);
+        bm->setIsOpaque(true);
+
     PRINTF("bm->width() = %d\n", bm->width());
     PRINTF("bm->height() = %d\n", bm->height());
     PRINTF("bm->config() = %d\n", bm->config());
@@ -636,6 +676,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     PRINTF("InPortDef.format.image.nFrameHeight = %d\n", InPortDef.format.image.nFrameHeight);
 
     if (SkImageDecoder::kDecodeBounds_Mode == mode) {
+        if(inputBuffer != NULL)
+            free(inputBuffer);
         gTIJpegDecMutex.unlock();
         PRINTF("Leaving Critical Section 1 \n");
         return true;
@@ -847,13 +889,14 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         }
 #endif
 
-        //PRINTF("Allocated Buffer for input port: %d bytes \n", InPortDef.nBufferSize);
-        eError = OMX_AllocateBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize);
+        eError = OMX_UseBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize, (OMX_U8*)inputBuffer);
         if ( eError != OMX_ErrorNone ) {
             PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         iState = STATE_ERROR;
             goto EXIT;
         }
+        // assign nFilledLen to actual amount read during fill_data
+        pInBuffHead->nFilledLen = nRead;
 
 #if USE_OMX_UseBuffer
         eError = OMX_UseBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize, (OMX_U8*)bm->getPixels());
@@ -956,6 +999,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
             goto EXIT;
         }
 #endif
+        // assign nFilledLen to actual amount read during fill_data
+        pInBuffHead->nFilledLen = nRead;
+        pInBuffHead->pBuffer = (OMX_U8*)inputBuffer;
+
         iState = STATE_EXECUTING;
         {
             int sem_val;
@@ -968,7 +1015,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
 #endif
 
     Run();
-
+    if(inputBuffer != NULL)
+        free(inputBuffer);
     gTIJpegDecMutex.unlock();
     PRINTF("Leaving Critical Section 2 \n");
     return true;
@@ -978,6 +1026,8 @@ EXIT:
         sem_post(semaphore);
         Run();
     }
+    if(inputBuffer != NULL)
+        free(inputBuffer);
 
     gTIJpegDecMutex.unlock();
     PRINTF("Leaving Critical Section 3 \n");
@@ -1026,7 +1076,6 @@ void SkTIJPEGImageDecoder::PrintState()
 
 void SkTIJPEGImageDecoder::Run()
 {
-    int nRead;
     int sem_retval;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     struct timespec timeout;
@@ -1108,10 +1157,6 @@ while(1){
             break;
 
         case STATE_EXECUTING:
-
-            inStream->rewind();
-            nRead = fill_data(pInBuffHead, inStream, pInBuffHead->nAllocLen);
-            pInBuffHead->nFilledLen = nRead;
             pInBuffHead->nFlags = OMX_BUFFERFLAG_EOS;
             OMX_EmptyThisBuffer(pOMXHandle, pInBuffHead);
             OMX_FillThisBuffer(pOMXHandle, pOutBuffHead);
