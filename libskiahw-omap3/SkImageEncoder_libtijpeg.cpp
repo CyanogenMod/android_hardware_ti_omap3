@@ -91,6 +91,7 @@ OMX_ERRORTYPE OMX_JPEGE_EventHandler(OMX_HANDLETYPE hComponent,
 SkTIJPEGImageEncoder::SkTIJPEGImageEncoder()
 {
     mLoad = 0;
+    mDeleteAttempts = 0;
     pInBuffHead = NULL;
     pOutBuffHead = NULL;
     pOMXHandle = NULL;
@@ -103,28 +104,33 @@ SkTIJPEGImageEncoder::SkTIJPEGImageEncoder()
 
 SkTIJPEGImageEncoder::~SkTIJPEGImageEncoder()
 {
-    gTIJpegEncMutex.lock();
 #if OPTIMIZE
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     if( ( iLastState || iState ) && ( NULL != pOMXHandle ) ){
         if(iState == STATE_EXIT)
+        {
             iState = STATE_EMPTY_BUFFER_DONE_CALLED;
-        eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
-        if ( eError != OMX_ErrorNone ) {
-            PRINTF("\nError from SendCommand-Idle(nStop) State function\n");
-            iState = STATE_ERROR;
-            PRINTF("sem_post at %d", __LINE__);
-            sem_post(semaphore) ;
+            eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
+            if ( eError != OMX_ErrorNone ) {
+                PRINTF("\nError from SendCommand-Idle(nStop) State function\n");
+                iState = STATE_ERROR;
+                PRINTF("sem_post at %d", __LINE__);
+                sem_post(semaphore) ;
+            }
+            Run();
+        }else{
+            iState = STATE_EXIT;
+            sem_post(semaphore);
         }
-        Run();
     }
+#endif
 
+    gTIJpegEncMutex.lock();
     if(pEncodedOutputBuffer != NULL)
     {
         free(pEncodedOutputBuffer);
         pEncodedOutputBuffer = NULL;
     }
-#endif
     sem_destroy(semaphore);
     if (semaphore != NULL) {
         free(semaphore) ;
@@ -203,23 +209,28 @@ void SkTIJPEGImageEncoder::EventHandler(OMX_HANDLETYPE hComponent,
 
         case OMX_EventError:
             PRINTF ("\n\n\nOMX Component  reported an Error!!!!\n\n\n");
-            iLastState = iState;
-            iState = STATE_ERROR;
-            OMX_SendCommand(hComponent, OMX_CommandStateSet, OMX_StateInvalid, NULL);
-            sem_post(semaphore) ;
+            if(iState != STATE_ERROR)
+            {
+                iLastState = iState;
+                iState = STATE_ERROR;
+                OMX_SendCommand(hComponent, OMX_CommandStateSet, OMX_StateInvalid, NULL);
+                sem_post(semaphore) ;
 #if OPTIMIZE
-            // Run() is not running under this condition. We won't clean anything without this.
-            // We also don't want to block here because we could deadlock the system
-            // OMX calls into this function, and Run() will call into OMX
-            if (iLastState == STATE_EXIT){
-                pthread_t thread;
-                pthread_attr_t attr;
-                pthread_attr_init(&attr);
-                pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-                pthread_create(&thread, &attr, ThreadEncoderWrapper, this);
-                pthread_attr_destroy(&attr);
-            }
+                // Run() is not running under this condition. We won't clean anything without this.
+                // We also don't want to block here because we could deadlock the system
+                // OMX calls into this function, and Run() will call into OMX
+                if (iLastState == STATE_EXIT){
+                    pthread_t thread;
+                    pthread_attr_t attr;
+                    pthread_attr_init(&attr);
+                    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+                    pthread_create(&thread, &attr, ThreadEncoderWrapper, this);
+                    pthread_attr_destroy(&attr);
+                }
 #endif
+            }else{
+                PRINTF ("Libskiahw(encoder) already handling Error!!!");
+            }
             break;
 
         default:
@@ -460,6 +471,12 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
             PRINTF("\n %s():%d:: ERROR:: outputBuffer Allocation Failed. \n", __FUNCTION__,__LINE__);
             iState = STATE_ERROR;
             goto EXIT;
+        }
+
+        // reset semaphore if we previously used it
+        if(iState == STATE_EXIT){
+            sem_destroy(semaphore);
+            sem_init(semaphore, 0x00, 0x00);
         }
 
         iLastState = STATE_LOADED;
@@ -745,13 +762,23 @@ void SkTIJPEGImageEncoder::PrintState()
 void SkTIJPEGImageEncoder::Run()
 {
     int nRead;
+    int sem_retval;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
+    struct timespec timeout;
+    clock_gettime( CLOCK_REALTIME, &timeout );
+    timeout.tv_sec += 15; // set intial timeout to be arbitrarily high
+    timeout.tv_nsec += 0;
 
     while(1){
-        if (sem_wait(semaphore))
+        while ((sem_retval = sem_timedwait(semaphore, &timeout)) == -1 && errno == EINTR)
+            continue;       // sem_wait interrupted try again
+        if(sem_retval == -1)
         {
-            PRINTF("sem_wait returned the error: %d", errno);
-            continue;
+            iState = STATE_ERROR;
+            if(errno == ETIMEDOUT)
+                SkDebugf("Encoder waiting for semaphore timedout...");
+            else
+                SkDebugf("Encoder waiting for semaphore unknown error...");
         }
 
         PrintState();
@@ -810,25 +837,30 @@ void SkTIJPEGImageEncoder::Run()
                 {
                     iState = STATE_ERROR;
                 }
+                clock_gettime( CLOCK_REALTIME, &timeout );
+                timeout.tv_sec += 15;
                 break;
 
             case STATE_EXECUTING:
 
                 OMX_EmptyThisBuffer(pOMXHandle, pInBuffHead);
                 OMX_FillThisBuffer(pOMXHandle, pOutBuffHead);
+                clock_gettime( CLOCK_REALTIME, &timeout );
+                timeout.tv_sec += 7;
                 break;
 
             case STATE_EMPTY_BUFFER_DONE_CALLED:
-    #if OPTIMIZE
+#if OPTIMIZE
                 iState = STATE_EXIT;
-
-    #else
+#else
                 eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
                 if ( eError != OMX_ErrorNone ) {
                     PRINTF("Error from SendCommand-Idle(nStop) State function\n");
                     iState = STATE_ERROR;
                 }
-    #endif
+#endif
+                clock_gettime( CLOCK_REALTIME, &timeout );
+                timeout.tv_sec += 15;
                 break;
 
             case STATE_LOADED:

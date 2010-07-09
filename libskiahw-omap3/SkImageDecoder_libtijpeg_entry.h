@@ -57,6 +57,23 @@ public:
     android::sp<DecoderWatchdog>  WatchdogTimer;
 };
 
+class SkTIJPEGImageDecoderListWrapper
+{
+public:
+    SkTIJPEGImageDecoderListWrapper() {}
+    ~SkTIJPEGImageDecoderListWrapper(){
+        while(list.begin() != list.end())
+        {
+            android::List<SkTIJPEGImageDecoderList_Item*>::iterator iter = list.begin();
+            SkTIJPEGImageDecoderList_Item* item = static_cast<SkTIJPEGImageDecoderList_Item*>(*iter);
+            SkAutoTDelete<SkTIJPEGImageDecoder> autodelete(item->Decoder);
+            item->WatchdogTimer.clear();
+            SkDebugf("SkTIJPEGImageDecoder Cleanup: 0x%x", item);
+            list.erase(iter);
+        }
+    }
+    android::List<SkTIJPEGImageDecoderList_Item*> list;
+};
 
 class SkTIJPEGImageDecoderEntry :public SkImageDecoder
 {

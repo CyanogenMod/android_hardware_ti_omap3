@@ -97,6 +97,9 @@ public:
                                             OMX_U32 nData2,
                                             OMX_PTR pEventData);
     int GetLoad(){ return mLoad; }
+    void IncDeleteAttempts() {mDeleteAttempts++;}
+    void ResetDeleteAttempts() {mDeleteAttempts = 0;}
+    int GetDeleteAttempts() {return mDeleteAttempts;}
 
 private:
 
@@ -110,6 +113,7 @@ private:
     OMX_U32 nEncodedOutputFilledLen;
     android::Mutex gTIJpegEncMutex;
     int mLoad;
+    int mDeleteAttempts;
 
 };
 
