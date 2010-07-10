@@ -48,6 +48,7 @@ public:
             const void *data, size_t size, void *platformPrivate);
 
     Vector< sp<IMemory> > getBuffers() { return mOverlayAddresses; }
+    bool setCallback(release_rendered_buffer_callback cb, void *c);
 
 private:
     sp<ISurface> mISurface;
@@ -61,6 +62,8 @@ private:
     bool mIsFirstFrame;
     size_t mIndex;
     sp<MemoryHeapBase> mVideoHeaps[NUM_OVERLAY_BUFFERS_REQUESTED];
+    release_rendered_buffer_callback release_frame_cb;
+    void  *cookie;
 
     TIHardwareRenderer(const TIHardwareRenderer &);
     TIHardwareRenderer &operator=(const TIHardwareRenderer &);
