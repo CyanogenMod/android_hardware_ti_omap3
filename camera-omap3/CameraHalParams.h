@@ -36,7 +36,6 @@
 #define KEY_GPS_MAPDATUM        "gps-mapdatum"
 #define KEY_SHUTTER_ENABLE      "shutter-enable"
 #define KEY_ROTATION_TYPE       "rotation-type"
-#define KEY_EV_COMPENSATION     "compensation"
 #define KEY_SATURATION          "saturation"
 #define KEY_SHARPNESS           "sharpness"
 #define KEY_CONTRAST            "contrast"
@@ -75,12 +74,14 @@
 
 #define ROTATION_PHYSICAL       0
 #define ROTATION_EXIF           1
-#define MAX_ZOOM                6
-#define COMPENSATION_OFFSET     20
+#define COMPENSATION_MIN        -20
+#define COMPENSATION_MAX        20
+#define COMPENSATION_STEP       "0.1"
 #define CONTRAST_OFFSET         100
 #define BRIGHTNESS_OFFSET       100
 #define SATURATION_OFFSET       100
 #define PARM_ZOOM_SCALE  100
+
 
 #endif
 

@@ -302,6 +302,11 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_MAX_ZOOM, ZOOM_STAGES);
     p.set(CameraParameters::KEY_ZOOM, 0);
 
+    p.set(CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION, COMPENSATION_MAX);
+    p.set(CameraParameters::KEY_MIN_EXPOSURE_COMPENSATION, COMPENSATION_MIN);
+    p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, COMPENSATION_STEP);
+    p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, 0);
+
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, CameraHal::supportedPictureSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
@@ -3990,7 +3995,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
         }
 
-        compensation = mParameters.getInt(KEY_EV_COMPENSATION);
+        compensation = mParameters.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION);
         saturation = mParameters.getInt(KEY_SATURATION);
         sharpness = mParameters.getInt(KEY_SHARPNESS);
         contrast = mParameters.getInt(KEY_CONTRAST);
@@ -4016,8 +4021,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         if(sharpness != -1)
             fobj->settings.general.sharpness = sharpness;
 
-        if(compensation!= -1)
-            fobj->settings.ae.compensation = compensation - COMPENSATION_OFFSET;
+        fobj->settings.ae.compensation = compensation;
 
         FW3A_SetSettings();
 
@@ -4288,7 +4292,7 @@ CameraParameters CameraHal::getParameters() const
                 break;
         };
 
-        params.set(KEY_EV_COMPENSATION, ( fobj->settings.ae.compensation + COMPENSATION_OFFSET ));
+        params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, fobj->settings.ae.compensation);
         params.set(KEY_SATURATION, ( fobj->settings.general.saturation + SATURATION_OFFSET ));
         params.set(KEY_SHARPNESS, fobj->settings.general.sharpness);
         params.set(KEY_CONTRAST, ( fobj->settings.general.contrast + CONTRAST_OFFSET ));
