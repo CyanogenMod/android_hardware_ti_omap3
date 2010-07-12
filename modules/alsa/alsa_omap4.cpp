@@ -485,15 +485,28 @@ LOGV("%s", __FUNCTION__);
         }
 
         if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
-            control.set("DL1 Mixer Multimedia", 1);        // on
             control.set("Headset Playback Volume", 15);    // on
             control.set("HS Left Playback", 1);  // on
             control.set("HS Right Playback", 1); // on
         } else {
-            control.set("DL1 Mixer Multimedia", (unsigned int)0);        // on
             control.set("Headset Playback Volume", (unsigned int)0);     // off
             control.set("HS Left Playback", (unsigned int)0);  // off
             control.set("HS Right Playback", (unsigned int)0); // off
+        }
+
+        if (devices & AudioSystem::DEVICE_OUT_EARPIECE) {
+            control.set("Earphone Driver Switch", 1);  // on
+            control.set("Earphone Playback Volume", 15);    // on
+        } else {
+            control.set("Earphone Playback Volume", (unsigned int)0);     // off
+            control.set("Earphone Driver Switch", (unsigned int)0);  // off
+        }
+
+        if ((devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
+            (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
+            control.set("DL1 Mixer Multimedia", 1);        // on
+        } else {
+            control.set("DL1 Mixer Multimedia", (unsigned int)0);        // on
         }
     }
 
