@@ -46,6 +46,7 @@
 #include <OMX_Component.h>
 #include <pthread.h>
 #include <OMX_TI_Debug.h>
+#include <cutils/log.h>
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
