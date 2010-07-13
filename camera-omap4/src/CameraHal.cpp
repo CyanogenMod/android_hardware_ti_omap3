@@ -384,50 +384,6 @@ status_t CameraHal::freePreviewBufs()
     }
 
 
-status_t CameraHal::allocVideoBufs(int width, int height, const char* previewFormat)
-{
-    status_t ret;
-
-    LOG_FUNCTION_NAME
-
-    if ( NULL == mVideoBufProvider )
-        {
-         mVideoBufProvider = ( BufferProvider * ) mMemoryManager.get();
-        }
-
-    if ( NULL != mVideoBufs )
-        {
-         freeVideoBufs();
-        }
-    mVideoLength = 0;
-    mVideoBufs = (int32_t *) mVideoBufProvider->allocateBuffer(width, height, previewFormat, mVideoLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
-    mVideoOffsets = (uint32_t *) mVideoBufProvider->getOffsets();
-    mVideoFd = mVideoBufProvider->getFd();
-
-    LOG_FUNCTION_NAME_EXIT
-
-    return NO_ERROR;
-
-}
-
-status_t CameraHal::freeVideoBufs()
-{
-    status_t ret = NO_ERROR;
-
-    LOG_FUNCTION_NAME
-
-    if ( NULL != mVideoBufs)
-        {
-        ret = mVideoBufProvider->freeBuffer(mVideoBufs);
-        mVideoBufs = NULL;
-        }
-
-    LOG_FUNCTION_NAME_EXIT;
-
-    return ret;
-}
-
-
 status_t CameraHal::allocImageBufs(int width, int height, const char* previewFormat)
 {
     status_t ret = NO_ERROR;
@@ -708,6 +664,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
 
     mSetOverlayCalled = true;
 
+
    ///If the Camera service passes a null overlay, we destroy existing overlay and free the DisplayAdapter
     if(!overlay.get())
         {
@@ -931,36 +888,10 @@ status_t CameraHal::startRecording( )
 
 #endif
 
-    if ( ( NULL == mAppCallbackNotifier.get () ) )
+    if(!previewEnabled())
         {
-        CAMHAL_LOGEA("Callback notifier not initialized")
-        ret = -1;
+        return NO_INIT;
         }
-
-    if ( ( NULL == mCameraAdapter.get() ) )
-        {
-        CAMHAL_LOGEA("Camera Adapter not initialized")
-        ret= -1;
-        }
-
-            mPreviewStateOld = previewEnabled();
-
-            //Stop preview if it was running
-            if ( mPreviewStateOld )
-                {
-                stopPreview();
-                }
-
-    mParameters.getPreviewSize(&w, &h);
-            if ( NO_ERROR == ret )
-                {
-                ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
-                }
-
-            if ( NO_ERROR == ret )
-                {
-                ret = mAppCallbackNotifier->start();
-                }
 
     if ( NO_ERROR == ret )
         {
@@ -972,30 +903,11 @@ status_t CameraHal::startRecording( )
          ret = mAppCallbackNotifier->startRecording();
         }
 
-        if ( NO_ERROR == ret )
-            {
-             ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
-            }
-
     if ( NO_ERROR == ret )
         {
+        ///Buffers for video capture (if different from preview) are expected to be allocated within CameraAdapter
          ret =  mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_VIDEO);
         }
-
-    if ( NO_ERROR == ret )
-            {
-
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-            ret = mDisplayAdapter->enableDisplay(&mStartPreview);
-
-#else
-
-            ret = mDisplayAdapter->enableDisplay();
-
-#endif
-
-            }
 
     if ( NO_ERROR == ret )
         {
@@ -1018,36 +930,16 @@ void CameraHal::stopRecording()
 {
     LOG_FUNCTION_NAME
 
-    if ( false == mRecordingEnabled )
+    if (!mRecordingEnabled )
         {
         return;
         }
 
-    if ( ( NULL != mAppCallbackNotifier.get () ) )
-        {
-        mAppCallbackNotifier->stopRecording();
-        mAppCallbackNotifier->stop();
-        }
+    mAppCallbackNotifier->stopRecording();
 
-    if(mDisplayAdapter.get() != NULL)
-        {
-        mDisplayAdapter->disableDisplay();
-        }
-
-    if ( ( NULL != mCameraAdapter.get() ) )
-        {
-        mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_VIDEO);
-        }
-
-    freeVideoBufs();
+    mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_VIDEO);
 
     mRecordingEnabled = false;
-
-    //restore old preview state
-    if ( mPreviewStateOld )
-        {
-        startPreview();
-        }
 
     LOG_FUNCTION_NAME_EXIT
 }

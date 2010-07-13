@@ -487,6 +487,9 @@ private:
     KeyedVector<unsigned int, sp<MemoryBase> > mSharedPreviewBuffers;
     bool mAppSupportsStride;
 
+    mutable Mutex mRecordingLock;
+    bool mRecording;
+
 };
 
 

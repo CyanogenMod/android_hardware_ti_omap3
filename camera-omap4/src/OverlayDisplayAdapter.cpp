@@ -741,6 +741,8 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
         uint32_t xOff = (dispFrame.mOffset% PAGE_SIZE);
         uint32_t yOff = (dispFrame.mOffset / PAGE_SIZE);
 
+        //CAMHAL_LOGDB("Offset %d xOff = %d, yOff = %d", dispFrame.mOffset, xOff, yOff);
+
         ///Set crop only if current x and y offsets do not match with frame offsets
         ///@todo    setCrop may take effect immediately before the queued buffer is displayed
         ///              We need a way to set the offset for the correct frame

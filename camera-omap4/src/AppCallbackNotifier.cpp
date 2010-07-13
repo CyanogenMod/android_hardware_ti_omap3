@@ -370,16 +370,21 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_VIDEO_FRAME)  ) )
                     {
-                    buffer = ( MemoryBase * ) mVideoBuffers.valueFor( ( unsigned int ) frame->mBuffer );
 
-                    if( (NULL == buffer) || ( NULL == frame->mBuffer) )
+                    Mutex::Autolock lock(mRecordingLock);
+                    if(mRecording)
                         {
-                        CAMHAL_LOGDA("Error! One of the video buffer is NULL");
-                        break;
+                        buffer = ( MemoryBase * ) mVideoBuffers.valueFor( ( unsigned int ) frame->mBuffer );
+
+                        if( (NULL == buffer) || ( NULL == frame->mBuffer) )
+                            {
+                            CAMHAL_LOGDA("Error! One of the video buffer is NULL");
+                            break;
+                            }
+                        //CAMHAL_LOGDB("+CB 0x%x buffer 0x%x", frame->mBuffer, buffer);
+                        mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
+                        //CAMHAL_LOGDA("-CB");
                         }
-                    //CAMHAL_LOGDB("+CB 0x%x buffer 0x%x", frame->mBuffer, buffer);
-                    mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
-                    //CAMHAL_LOGDA("-CB");
 
                     }
                 else if(( CameraFrame::PREVIEW_FRAME_SYNC== frame->mFrameType ) &&
@@ -897,16 +902,25 @@ status_t AppCallbackNotifier::startRecording()
 
     LOG_FUNCTION_NAME
 
+   Mutex::Autolock lock(mRecordingLock);
+
     if ( NULL == mFrameProvider )
         {
         CAMHAL_LOGEA("Trying to start video recording without FrameProvider");
         ret = -1;
         }
 
+    if(mRecording)
+        {
+        return NO_INIT;
+        }
+
     if ( NO_ERROR == ret )
         {
          mFrameProvider->enableFrameNotification(CameraFrame::VIDEO_FRAME_SYNC);
         }
+
+    mRecording = true;
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -921,8 +935,6 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
     unsigned int *bufArr;
 
     LOG_FUNCTION_NAME
-
-    releaseSharedVideoBuffers();
 
     bufArr = ( unsigned int * ) buffers;
     for ( unsigned int i = 0 ; i < count ; i ++ )
@@ -978,16 +990,28 @@ status_t AppCallbackNotifier::stopRecording()
 
     LOG_FUNCTION_NAME
 
+    Mutex::Autolock lock(mRecordingLock);
+
     if ( NULL == mFrameProvider )
         {
         CAMHAL_LOGEA("Trying to stop video recording without FrameProvider");
         ret = -1;
         }
 
+    if(!mRecording)
+        {
+        return NO_INIT;
+        }
+
     if ( NO_ERROR == ret )
         {
          mFrameProvider->disableFrameNotification(CameraFrame::VIDEO_FRAME_SYNC);
         }
+
+    ///Release the shared video buffers
+    releaseSharedVideoBuffers();
+
+    mRecording = false;
 
     LOG_FUNCTION_NAME_EXIT
 

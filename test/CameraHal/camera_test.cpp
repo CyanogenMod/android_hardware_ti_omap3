@@ -36,6 +36,10 @@
 #define KEY_ISO             "iso"
 #define KEY_CAF             "caf"
 #define KEY_MODE            "mode"
+#define KEY_VNF             "vnf"
+#define KEY_VSTAB           "vstab"
+
+
 #define KEY_COMPENSATION    "compensation"
 #define KEY_ROTATION        "picture-rotation"
 #define KEY_IPP             "ippMode"
@@ -89,6 +93,8 @@ timeval autofocus_start, picture_start;
 char script_name[25];
 char dir_path[40]="/sdcard/";
 bool nullOverlay = false;
+int prevcnt = 0;
+
 
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
 const char *iso [] = { "auto", "100", "200", "400", "800"};
@@ -420,8 +426,16 @@ void my_preview_callback(const sp<IMemory>& mem) {
 
     printf("PREVIEW Callback 0x%x", mem->pointer());
     if (dump_preview) {
+
+        if(prevcnt==50)
         saveFile(mem);
-        dump_preview = 0;
+
+        prevcnt++;
+
+        uint8_t *ptr = (uint8_t*) mem->pointer();
+
+        printf("PRV_CB: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x", ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7], ptr[8], ptr[9]);
+
     }
 
     debugShowFPS();
@@ -505,8 +519,22 @@ void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const 
 {
     printf("Recording cb: %d %lld %p\n", msgType, timestamp, dataPtr.get());
 
-    camera->stopRecording();
+    static uint32_t count = 0;
+    if(count>200)
+        {
+        camera->stopRecording();
+        count = 0;
+        }
+
+    if(count==100)
     saveFile(dataPtr);
+
+    count++;
+
+    uint8_t *ptr = (uint8_t*) dataPtr->pointer();
+
+    printf("VID_CB: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x", ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7], ptr[8], ptr[9]);
+
     camera->releaseRecordingFrame(dataPtr);
 }
 
@@ -791,6 +819,8 @@ int startPreview() {
 
         params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
         params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
+        if(dump_preview)
+            camera->setPreviewCallbackFlags(FRAME_CALLBACK_FLAG_ENABLE_MASK);
 
         camera->setParameters(params.flatten());
 
@@ -809,6 +839,8 @@ int startPreview() {
 
 
         camera->setPreviewDisplay(overlaySurface);
+
+        prevcnt = 0;
 
         camera->startPreview();
 
@@ -1040,6 +1072,7 @@ int functional_menu() {
         printf("   d. Audio Codec:    %s\n", audioCodecs[audioCodecIDX].desc);
         printf("   v. Output Format:  %s\n", outputFormat[outputFormatIDX].desc);
         printf("   r. Framerate:     %3d\n", frameRate[frameRateIDX].fps);
+        printf("   ?. Setup Video Recording Mode\n");
         printf("   *. Start Video Recording dump ( 1 raw frame ) \n");
 
         printf(" \n\n 3A SETTING SUB MENU \n");
@@ -1209,6 +1242,15 @@ int functional_menu() {
         case '9':
             videoCodecIDX++;
             videoCodecIDX %= ARRAY_SIZE(videoCodecs);
+            break;
+
+        case '?' :
+            ///Set mode=3 to select video mode
+            params.set(KEY_MODE, 3);
+            params.set(KEY_VNF, 1);
+            params.set(KEY_VSTAB, 1);
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
             break;
 
         case '*':
@@ -1480,6 +1522,7 @@ int functional_menu() {
         case '&':
             printf("Enabling Preview Callback");
             dump_preview = 1;
+            if ( hardwareActive )
             camera->setPreviewCallbackFlags(FRAME_CALLBACK_FLAG_ENABLE_MASK);
             break;
 

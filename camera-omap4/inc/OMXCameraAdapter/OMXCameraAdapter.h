@@ -147,6 +147,7 @@ public:
         {
         HIGH_SPEED = 1,
         HIGH_QUALITY = 2,
+        VIDEO_MODE = 3,
         };
 
     ///Parameters specific to any port of the OMX Camera component

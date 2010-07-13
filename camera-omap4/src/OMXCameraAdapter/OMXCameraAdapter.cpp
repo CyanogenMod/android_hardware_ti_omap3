@@ -195,7 +195,7 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
     if ( NO_ERROR == res)
         {
 
-        if ( CameraFrame::VIDEO_FRAME_SYNC == frameType )
+        if ( (CameraFrame::VIDEO_FRAME_SYNC == frameType) && mRecording )
             {
 
                 {
@@ -212,13 +212,10 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
 
                 refCount--;
                 mVideoBuffersAvailable.replaceValueFor(  ( unsigned int ) frameBuf, refCount);
-                }
 
-            if ( mRecording )
-                {
                 //Query preview subscribers for this buffer
-                Mutex::Autolock lock(mVideoBufferLock);
                 refCount += mPreviewBuffersAvailable.valueFor( ( unsigned int ) frameBuf);
+
                 }
 
             port = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
@@ -1032,22 +1029,24 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-    ///Enable/Disable Video Noise Filter
-    ret = enableVideoNoiseFilter(mVnfEnabled);
-    if ( NO_ERROR != ret)
+    if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
         {
-        CAMHAL_LOGEB("Error configuring VNF %x", ret);
-        return ret;
-        }
+        ///Enable/Disable Video Noise Filter
+        ret = enableVideoNoiseFilter(mVnfEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VNF %x", ret);
+            return ret;
+            }
 
-    ///Enable/Disable Video Stabilization
-    ret = enableVideoStabilization(mVstabEnabled);
-    if ( NO_ERROR != ret)
-        {
-        CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
-        return ret;
+        ///Enable/Disable Video Stabilization
+        ret = enableVideoStabilization(mVstabEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
+            return ret;
+            }
         }
-
 
     ///Register for IDLE state switch event
     ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
@@ -1263,28 +1262,6 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                         for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
                             {
                             mPreviewBuffersAvailable.add(mPreviewBuffers[i], 0);
-                            }
-                        }
-                    }
-                else if( CameraAdapter::CAMERA_VIDEO == mode )
-                    {
-                    if ( NULL == desc )
-                        {
-                        CAMHAL_LOGEA("Invalid video buffers!");
-                        ret = -1;
-                        }
-                    if ( ret == NO_ERROR )
-                        {
-                        Mutex::Autolock lock(mVideoBufferLock);
-                        mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex].mNumBufs = desc->mCount;
-                        mVideoBuffers = (int *) desc->mBuffers;
-                        mVideoBuffersLength = desc->mLength;
-                        mVideoBuffersAvailable.clear();
-                        mPreviewBuffersAvailable.clear();
-                        for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
-                            {
-                            mVideoBuffersAvailable.add(mVideoBuffers[i], 0);
-                            mPreviewBuffersAvailable.add(mVideoBuffers[i], 0);
                             }
                         }
                     }
@@ -1758,11 +1735,22 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             CAMHAL_LOGDA("Camera mode: HIGH SPEED");
             camMode.eCamOperatingMode = OMX_CaptureImageHighSpeedTemporalBracketing;
             }
-        else
+        else if( OMXCameraAdapter::HIGH_QUALITY == mode )
             {
             CAMHAL_LOGDA("Camera mode: HIGH QUALITY");
             camMode.eCamOperatingMode = OMX_CaptureImageProfileBase;
             }
+        else if( OMXCameraAdapter::VIDEO_MODE == mode )
+            {
+            CAMHAL_LOGDA("Camera mode: VIDEO MODE");
+            camMode.eCamOperatingMode = OMX_CaptureVideo;
+            }
+        else
+            {
+            CAMHAL_LOGEA("Camera mode: INVALID mode passed!");
+            return BAD_VALUE;
+            }
+
 
         eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexCameraOperatingMode, &camMode);
         if ( OMX_ErrorNone != eError )
@@ -2052,231 +2040,43 @@ status_t OMXCameraAdapter::stopImageCapture()
 
 status_t OMXCameraAdapter::startVideoCapture()
 {
-    status_t ret = NO_ERROR;
-    OMX_ERRORTYPE eError = OMX_ErrorNone;
-    Semaphore eventSem;
-    OMXCameraPortParameters * videoData = NULL;
+    Mutex::Autolock lock(mVideoBufferLock);
 
-    LOG_FUNCTION_NAME
-
-    ret = eventSem.Create(0);
-    if ( ret != NO_ERROR )
+    ///If the capture mode is not video mode, return immediately
+    if((mCapMode != VIDEO_MODE) || (mRecording))
         {
-        CAMHAL_LOGEB("Error in creating semaphore %d", ret);
+        return NO_INIT;
         }
 
-    if ( mComponentState != OMX_StateIdle )
+    for(int i=0;i<mPreviewBuffersAvailable.size();i++)
         {
-        CAMHAL_LOGEA("Calling startVideoCapture() when not in IDLE state");
-
-        ret = -EINVAL;
+        mVideoBuffersAvailable.add(mPreviewBuffersAvailable.keyAt(i), 0);
         }
 
-    if ( NO_ERROR == ret )
-        {
-        videoData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+    ///Do nothing as preview and capture port are one and the same
+    mRecording = true;
 
-        ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                                    OMX_EventCmdComplete,
-                                    OMX_CommandStateSet,
-                                    OMX_StateExecuting,
-                                    eventSem,
-                                    -1 ///Infinite timeout
-                                    );
+    ///@todo implement video port on-the-fly enable to provide the native resolution requested
 
-        if ( ret != NO_ERROR )
-            {
-            CAMHAL_LOGEB("Error in registering for event %d", ret);
-            }
-        }
-
-    if ( NO_ERROR == ret )
-        {
-        eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
-                                    OMX_CommandStateSet,
-                                    OMX_StateExecuting,
-                                    NULL);
-        if ( eError != OMX_ErrorNone )
-            {
-            CAMHAL_LOGEB("OMX_SendCommand(OMX_StateExecuting)- %x", eError);
-            ret = -1;
-            }
-        }
-
-    if ( NO_ERROR == ret )
-        {
-
-        CAMHAL_LOGDA("Before executing state");
-
-        eventSem.Wait();
-
-        CAMHAL_LOGDA("After executing state!");
-
-        for ( int index=0 ; index < videoData->mNumBufs ; index++ )
-            {
-            CAMHAL_LOGDB("Queuing buffer on Preview port - 0x%x",(uint32_t) videoData->mBufferHeader[index]->pBuffer);
-            eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp,
-                        (OMX_BUFFERHEADERTYPE*) videoData->mBufferHeader[index]);
-
-            if( eError != OMX_ErrorNone )
-                {
-                CAMHAL_LOGEB("OMX_FillThisBuffer- %x", eError);
-                }
-
-            GOTO_EXIT_IF(( eError != OMX_ErrorNone ), eError);
-
-            }
-
-        mRecording = true;
-
-        mComponentState = OMX_StateExecuting;
-        }
-
-    LOG_FUNCTION_NAME_EXIT
-
-    return ret;
-
-    EXIT:
-
-    CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
-
-     LOG_FUNCTION_NAME_EXIT
-
-      return (ret | ErrorUtils::omxToAndroidError(eError));
-
+    return NO_ERROR;
 }
 
 status_t OMXCameraAdapter::stopVideoCapture()
 {
+    Mutex::Autolock lock(mVideoBufferLock);
 
-    OMX_ERRORTYPE eError = OMX_ErrorNone;
-    status_t ret = NO_ERROR;
-    OMXCameraPortParameters  *videoData = NULL;
-    Mutex::Autolock lock(mPreviewBufferLock);
-    Semaphore eventSem;
-
-    LOG_FUNCTION_NAME
-
-    videoData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
-
-    ret = eventSem.Create(0);
-    if ( NO_ERROR != ret )
+    if(!mRecording)
         {
-        CAMHAL_LOGEB("Error in creating semaphore %d", ret);
+        return NO_INIT;
         }
 
-    if ( mComponentState != OMX_StateExecuting )
-        {
-        CAMHAL_LOGEA("Calling stopVideoCapture() when not in executing state");
+    mVideoBuffersAvailable.clear();
 
-        ret = -EINVAL;
-        }
+    ///Do nothing as preview and capture port are one and the same
+    mRecording = false;
 
-    if ( NO_ERROR == ret )
-        {
-        ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                                    OMX_EventCmdComplete,
-                                    OMX_CommandStateSet,
-                                    OMX_StateIdle,
-                                    eventSem,
-                                    -1 ///Infinite timeout
-                                    );
+    return NO_ERROR;
 
-        if ( ret != NO_ERROR )
-            {
-            CAMHAL_LOGEB("Error in registering for event %d", ret);
-            }
-        }
-
-
-    if ( NO_ERROR == ret )
-        {
-
-        eError = OMX_SendCommand (mCameraAdapterParameters.mHandleComp,
-                                    OMX_CommandStateSet, OMX_StateIdle, NULL);
-
-        if ( eError != OMX_ErrorNone )
-            {
-            CAMHAL_LOGEB("OMX_SendCommand(OMX_StateIdle) - %x", eError);
-            }
-
-        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
-
-        eventSem.Wait();
-
-       }
-
-    if ( NO_ERROR == ret )
-        {
-
-        ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                                    OMX_EventCmdComplete,
-                                    OMX_CommandStateSet,
-                                    OMX_StateLoaded,
-                                    eventSem,
-                                    -1 ///Infinite timeout
-                                    );
-
-        if ( ret != NO_ERROR )
-            {
-            CAMHAL_LOGEB("Error in registering for event %d", ret);
-            }
-        }
-
-    if ( NO_ERROR == ret )
-        {
-
-        eError = OMX_SendCommand (mCameraAdapterParameters.mHandleComp,
-                                OMX_CommandStateSet, OMX_StateLoaded, NULL);
-
-        if ( eError != OMX_ErrorNone )
-            {
-            CAMHAL_LOGEB("OMX_SendCommand(OMX_StateLoaded) - %x", eError);
-            }
-
-        GOTO_EXIT_IF(( eError != OMX_ErrorNone ), eError);
-
-        for( int i = 0 ; i < videoData->mNumBufs ; i++ )
-            {
-
-            eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
-                                mCameraAdapterParameters.mPrevPortIndex,
-                                videoData->mBufferHeader[i]);
-
-            if( eError != OMX_ErrorNone )
-                {
-                CAMHAL_LOGEB("OMX_FreeBuffer - %x", eError);
-                }
-
-            GOTO_EXIT_IF(( eError != OMX_ErrorNone ), eError);
-
-            }
-
-        ///Wait for the IDLE -> LOADED transition to arrive
-        eventSem.Wait();
-
-        mComponentState = OMX_StateLoaded;
-
-        ///Clear all the available preview buffers
-        mVideoBuffersAvailable.clear();
-
-        mRecording = false;
-
-        }
-
-    LOG_FUNCTION_NAME_EXIT
-
-    CAMHAL_LOGEB("Average framerate: %f", mFPS);
-
-    return (ret | ErrorUtils::omxToAndroidError(eError));
-
-    EXIT:
-
-        CAMHAL_LOGEB("Exiting function because of eError= %x", eError);
-
-        LOG_FUNCTION_NAME_EXIT
-
-        return (ret | ErrorUtils::omxToAndroidError(eError));
 }
 
 
@@ -2328,6 +2128,31 @@ void OMXCameraAdapter::getFrameSize(int &width, int &height)
             }
         }
 
+    if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
+        {
+        if ( NO_ERROR == ret )
+            {
+            ///Enable/Disable Video Noise Filter
+            ret = enableVideoNoiseFilter(mVnfEnabled);
+            }
+
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VNF %x", ret);
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            ///Enable/Disable Video Stabilization
+            ret = enableVideoStabilization(mVstabEnabled);
+            }
+
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
+            }
+        }
+
     if ( NO_ERROR == ret )
         {
         eError = OMX_GetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexParam2DBufferAllocDimension, &tFrameDim);
@@ -2367,6 +2192,8 @@ OMX_ERRORTYPE OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETYPE hComponent,
                                           OMX_IN OMX_PTR pEventData)
 {
     LOG_FUNCTION_NAME
+
+    CAMHAL_LOGDB("Event %d", eEvent);
 
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     OMXCameraAdapter *oca = (OMXCameraAdapter*)pAppData;
