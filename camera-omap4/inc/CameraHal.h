@@ -69,13 +69,38 @@
 #define KEY_VSTAB       "vstab"
 #define KEY_VNF       "vnf"
 
+#define KEY_SATURATION      "saturation"
+#define KEY_BRIGHTNESS      "brightness"
+#define KEY_EXPOSURE        "exposure"
+#define KEY_ZOOM            "zoom"
+#define KEY_ZOOM_SPEED      "zoom-speed"
+#define KEY_CONTRAST        "contrast"
+#define KEY_SHARPNESS       "sharpness"
+#define KEY_ISO             "iso"
+#define KEY_CAF             "caf"
+#define KEY_COMPENSATION    "compensation"
+#define KEY_ROTATION        "picture-rotation"
+#define KEY_BUFF_STARV      "buff-starvation"
+#define KEY_MAN_EXPOSURE    "manual-exposure"
+#define KEY_METERING_MODE   "meter-mode"
+#define KEY_SCENE_MODE    "scene-mode"
+
+#define KEY_SUPPORTED_EXPOSURE "exposure-mode-values"
+#define KEY_SUPPORTED_SCENE_MODE "scene-mode-values"
+#define KEY_SUPPORTED_EV_COMPENSATION "ev-compensation-values"
+#define KEY_SUPPORTED_ISO_VALUES "iso-mode-values"
+
+#define SATURATION_OFFSET 100
+#define SHARPNESS_OFFSET 100
+#define CONTRAST_OFFSET 100
+#define COMPENSATION_OFFSET 30
 
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
 
 #define DEBUG_LOG 1
 ///Camera HAL Logging Functions
-#ifndef DEBUG_LOG
+#if DEBUG_LOG
 
 #define CAMHAL_LOGDA(str)
 #define CAMHAL_LOGDB(str, ...)
@@ -584,7 +609,7 @@ public:
 
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params) = 0;
-    virtual CameraParameters getParameters() const = 0;
+    virtual void getParameters(CameraParameters& params) const = 0;
 
     //API to get the caps
     virtual status_t getCaps() = 0;

@@ -31,6 +31,8 @@
 #include "OMX_TI_Index.h"
 #include "OMX_TI_IVCommon.h"
 #include "OMX_TI_Common.h"
+#include "General3A_Settings.h"
+
 #include "BaseCameraAdapter.h"
 #include "DebugUtils.h"
 
@@ -101,6 +103,23 @@ namespace android {
     }                                                                           \
 }
 
+const char * exposureKey        = KEY_EXPOSURE;
+const char * manualExposureKey  = KEY_MAN_EXPOSURE;
+const char * zoomKey            = KEY_ZOOM;
+const char * zoomSpeedKey       = KEY_ZOOM_SPEED;
+const char * isoKey             = KEY_ISO;
+const char * cafKey             = KEY_CAF;
+const char * compensationKey    = KEY_COMPENSATION;
+const char * rotationKey        = KEY_ROTATION;
+const char * contrastKey        = KEY_CONTRAST;
+const char * sharpnessKey       = KEY_SHARPNESS;
+const char * saturationKey      = KEY_SATURATION;
+const char * brightnessKey      = KEY_BRIGHTNESS;
+const char * sceneKey           = KEY_SCENE_MODE;
+const char * antibandingKey     = CameraParameters::KEY_ANTIBANDING;
+const char * focusModeKey       = CameraParameters::KEY_FOCUS_MODE;
+const char * whiteBalKey        = CameraParameters::KEY_WHITE_BALANCE;
+const char * effectKey          = CameraParameters::KEY_EFFECT;
 
 ///OMX Specific Functions
 static OMX_ERRORTYPE OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETYPE hComponent,
@@ -197,7 +216,7 @@ public:
 
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params);
-    virtual CameraParameters getParameters() const;
+    virtual void getParameters(CameraParameters& params) const;
 
     virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
 
@@ -292,6 +311,9 @@ private:
     ///Send the frame to subscribers
     status_t  sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame,  OMXCameraPortParameters *port);
 
+    const char* getLUTvalue_OMXtoHAL(int OMXValue, LUTtype LUT);
+    int getLUTvalue_HALtoOMX(const char * HalValue, LUTtype LUT);
+    OMX_ERRORTYPE Apply3Asettings( Gen3A_settings& Gen3A );
 
 
 public:
@@ -325,6 +347,11 @@ private:
     unsigned int mFocusThreshold;
 
      //local copy
+    OMX_VERSIONTYPE mLocalVersionParam;
+
+    unsigned int mPending3Asettings;
+    Gen3A_settings mParameters3A;
+
     CameraParameters mParams;
     unsigned int mPictureRotation;
     bool mFocusStarted;

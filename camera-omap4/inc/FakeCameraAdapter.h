@@ -50,7 +50,7 @@ public:
 
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params);
-    virtual CameraParameters getParameters() const;
+    virtual void getParameters(CameraParameters& params) const;
 
     //API to get the caps
     virtual status_t getCaps();

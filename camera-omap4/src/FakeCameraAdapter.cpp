@@ -128,10 +128,10 @@ status_t FakeCameraAdapter::setParameters(const CameraParameters& params)
     return NO_ERROR;
 }
 
-CameraParameters FakeCameraAdapter::getParameters() const
+void FakeCameraAdapter::getParameters(CameraParameters& params) const
 {
     LOG_FUNCTION_NAME
-    return mParameters;
+    LOG_FUNCTION_NAME_EXIT
 }
 
 //API to send a command to the camera
@@ -558,7 +558,9 @@ status_t FakeCameraAdapter::takePicture()
         //Use the focus event subscribers as shutter event subscribers also
         //TODO: handle the different event types separately
         if ( mFocusSubscribers.size() == 0 )
+            {
             CAMHAL_LOGDA("No Shutter Subscribers!");
+            }
 
         for (unsigned int i = 0 ; i < mFocusSubscribers.size(); i++ )
             {
@@ -578,7 +580,9 @@ status_t FakeCameraAdapter::takePicture()
         Mutex::Autolock lock(mSubscriberLock);
 
             if ( mRawSubscribers.size() == 0 )
+                {
                 CAMHAL_LOGDA("No RAW Subscribers!");
+                }
 
             for (unsigned int i = 0 ; i < mRawSubscribers.size(); i++ )
                 {
@@ -613,7 +617,9 @@ status_t FakeCameraAdapter::takePicture()
 
 
             if ( mImageSubscribers.size() == 0 )
+                {
                 CAMHAL_LOGDA("No Image Subscribers!");
+                }
 
             for (unsigned int i = 0 ; i < mImageSubscribers.size(); i++ )
                 {
@@ -670,7 +676,9 @@ status_t FakeCameraAdapter::doAutofocus()
         Mutex::Autolock lock(mSubscriberLock);
 
             if ( mFocusSubscribers.size() == 0 )
+                {
                 CAMHAL_LOGDA("No Focus Subscribers!");
+                }
 
             for (unsigned int i = 0 ; i < mFocusSubscribers.size(); i++ )
                 {
