@@ -26,6 +26,7 @@ LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../inc \
     $(LOCAL_PATH)/../../../tiler/memmgr \
     $(LOCAL_PATH)/../../../../../external/libxml2/include \
+    external/icu4c/common \
 
 
 LOCAL_SHARED_LIBRARIES:= \
@@ -36,6 +37,8 @@ LOCAL_SHARED_LIBRARIES:= \
     libcutils \
     libtiutils \
     libmemmgr \
+    libicuuc \
+    libcamera_client \
 
 LOCAL_STATIC_LIBRARIES:= \
     libxml2 \
@@ -70,6 +73,7 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../inc \
+    external/icu4c/common \
 
 LOCAL_SHARED_LIBRARIES:= \
     libdl \
@@ -79,7 +83,8 @@ LOCAL_SHARED_LIBRARIES:= \
     libcutils \
     libtiutils \
     libcamera \
-
+    libicuuc \
+    libcamera_client \
 
 LOCAL_C_INCLUDES += \
         kernel/android-2.6.29/include \
@@ -113,6 +118,7 @@ LOCAL_SRC_FILES:= \
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../inc/ \
     $(LOCAL_PATH)/../inc/OMXCameraAdapter \
+    external/icu4c/common \
 
 LOCAL_SHARED_LIBRARIES:= \
     libdl \
@@ -127,13 +133,9 @@ LOCAL_SHARED_LIBRARIES:= \
     librcm \
     libipc \
     libcamera \
-
-
-
-LOCAL_STATIC_LIBRARIES:= \
-	libomx_rpc \
-
-
+    libicuuc \
+    libcamera_client \
+    libomx_rpc \
 
 LOCAL_C_INCLUDES += \
     kernel/android-2.6.29/include \

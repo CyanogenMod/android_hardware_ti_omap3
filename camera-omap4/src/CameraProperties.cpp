@@ -26,7 +26,6 @@
 
 #include "CameraHal.h"
 #include "CameraProperties.h"
-#include "CameraParameters.h"
 
 #define CAMERA_ROOT         "CameraRoot"
 #define CAMERA_INSTANCE     "CameraInstance"
