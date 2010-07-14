@@ -531,17 +531,15 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
-    if ( 0 < params.getInt(compensationKey) )
+    if ( mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION) )
         {
-        if ( mParameters3A.EVCompensation != params.getInt(compensationKey) )
+        mParameters3A.EVCompensation = params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION);
+        if ( 0 < mParameters3A.EVCompensation )
             {
-            mParameters3A.EVCompensation = params.getInt( compensationKey );
-            if ( 0 < mParameters3A.EVCompensation )
-                {
-                mPending3Asettings |= SetEVCompensation;
-                }
+            mPending3Asettings |= SetEVCompensation;
             }
         }
+
     str = params.get(sceneKey);
     mode = getLUTvalue_HALtoOMX( str, SceneLUT);
     if ( ( str != NULL ) && ( mParameters3A.SceneMode != mode ) )
@@ -564,9 +562,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
-    if ( params.getInt(rotationKey) != -1 )
+    if ( params.getInt(CameraParameters::KEY_ROTATION) != -1 )
         {
-        mPictureRotation = params.getInt(rotationKey);
+        mPictureRotation = params.getInt(CameraParameters::KEY_ROTATION);
         }
     else
         {
@@ -810,6 +808,7 @@ void saveFile(unsigned char   *buff, int width, int height, int format) {
 
 void OMXCameraAdapter::getParameters(CameraParameters& params) const
 {
+
     LOG_FUNCTION_NAME
 
     OMX_CONFIG_EXPOSURECONTROLTYPE exp;
@@ -880,7 +879,6 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
     OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonImageFilter, &effect);
     OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focus);
 
-
     char * str = NULL;
 
     for(int i = 0; i < ExpLUT.size; i++)
@@ -920,8 +918,8 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
 
     params.set( isoKey , str );
 
-    int comp = ((expValues.xEVCompensation * 10) >> Q16_OFFSET) + COMPENSATION_OFFSET;
-    params.set(compensationKey, comp );
+    int comp = ((expValues.xEVCompensation * 10) >> Q16_OFFSET);
+    params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, comp );
 
     params.set(manualExposureKey, expValues.nShutterSpeedMsec);
     params.set(brightnessKey, brightness.nBrightness);
@@ -3169,7 +3167,7 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     CAMHAL_LOGEB("old EV Compensation for OMX = 0x%x", (int)expValues.xEVCompensation);
                     CAMHAL_LOGEB("EV Compensation for HAL = %d", Gen3A.EVCompensation);
 
-                    expValues.xEVCompensation = ((Gen3A.EVCompensation - COMPENSATION_OFFSET) << Q16_OFFSET ) / 10;/// Q16
+                    expValues.xEVCompensation = ((Gen3A.EVCompensation) << Q16_OFFSET ) / 10;/// Q16
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
                     CAMHAL_LOGEB("new EV Compensation for OMX = 0x%x", (int)expValues.xEVCompensation);
                     break;

@@ -63,7 +63,6 @@
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
 
-#define KEY_ROTATION    "picture-rotation"
 #define KEY_BURST           "burst-capture"
 #define KEY_CAP_MODE   "mode"
 #define KEY_VSTAB       "vstab"
@@ -79,21 +78,17 @@
 #define KEY_ISO             "iso"
 #define KEY_CAF             "caf"
 #define KEY_COMPENSATION    "compensation"
-#define KEY_ROTATION        "picture-rotation"
 #define KEY_BUFF_STARV      "buff-starvation"
 #define KEY_MAN_EXPOSURE    "manual-exposure"
 #define KEY_METERING_MODE   "meter-mode"
 #define KEY_SCENE_MODE    "scene-mode"
 
 #define KEY_SUPPORTED_EXPOSURE "exposure-mode-values"
-#define KEY_SUPPORTED_SCENE_MODE "scene-mode-values"
-#define KEY_SUPPORTED_EV_COMPENSATION "ev-compensation-values"
 #define KEY_SUPPORTED_ISO_VALUES "iso-mode-values"
 
 #define SATURATION_OFFSET 100
 #define SHARPNESS_OFFSET 100
 #define CONTRAST_OFFSET 100
-#define COMPENSATION_OFFSET 30
 
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1

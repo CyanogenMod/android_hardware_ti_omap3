@@ -47,7 +47,9 @@ const char CameraProperties::PROP_KEY_SUPPORTED_WHITE_BALANCE[] = "whitebalance-
 const char CameraProperties::PROP_KEY_SUPPORTED_EFFECTS[] = "effect-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_ANTIBANDING[] = "antibanding-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_EXPOSURE_MODES[] = "exposure-mode-values";
-const char CameraProperties::PROP_KEY_SUPPORTED_EV_COMPENSATION[] = "ev-compensation-values";
+const char CameraProperties::PROP_KEY_SUPPORTED_EV_MAX[] = "ev-compensation-max";
+const char CameraProperties::PROP_KEY_SUPPORTED_EV_MIN[] = "ev-compensation-min";
+const char CameraProperties::PROP_KEY_SUPPORTED_EV_STEP[] = "ev-compensation-step";
 const char CameraProperties::PROP_KEY_SUPPORTED_ISO_VALUES[] = "iso-mode-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_SCENE_MODES[] = "scene-mode-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_FLASH_MODES[] = "flash-mode-values";
@@ -590,11 +592,23 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_INDEX_SUPPORTED_EXPOSURE_MODES;
             }
-        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_COMPENSATION))
+        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_MIN))
             {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_COMPENSATION");
+            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_MIN");
             LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_EV_COMPENSATION;
+            return CameraProperties::PROP_INDEX_SUPPORTED_EV_MIN;
+            }
+        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_MAX))
+            {
+            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_MAX");
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_INDEX_SUPPORTED_EV_MAX;
+            }
+        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_STEP))
+            {
+            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_STEP");
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_INDEX_SUPPORTED_EV_STEP;
             }
         else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_ISO_VALUES))
             {
@@ -700,10 +714,20 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_SUPPORTED_EXPOSURE_MODES;
 
-        case CameraProperties::PROP_INDEX_SUPPORTED_EV_COMPENSATION:
-            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_EV_COMPENSATION );
+        case CameraProperties::PROP_INDEX_SUPPORTED_EV_MIN:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_EV_MIN );
             LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_SUPPORTED_EV_COMPENSATION;
+            return CameraProperties::PROP_KEY_SUPPORTED_EV_MIN;
+
+        case CameraProperties::PROP_INDEX_SUPPORTED_EV_MAX:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_EV_MAX );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_EV_MAX;
+
+        case CameraProperties::PROP_INDEX_SUPPORTED_EV_STEP:
+            CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_EV_STEP );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_EV_STEP;
 
         case CameraProperties::PROP_INDEX_SUPPORTED_ISO_VALUES:
             CAMHAL_LOGDB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_ISO_VALUES );
