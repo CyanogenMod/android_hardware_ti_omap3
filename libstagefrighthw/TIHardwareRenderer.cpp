@@ -185,14 +185,17 @@ TIHardwareRenderer::TIHardwareRenderer(
 
 TIHardwareRenderer::~TIHardwareRenderer() {
     sp<IMemory> mem;
+    unsigned int sz = mOverlayAddresses.size();
 
     if (mOverlay.get() != NULL) {
 
-        for (size_t i = 0; i < mOverlayAddresses.size(); ++i) {
-            //(mOverlayAddresses[i]).clear();
+        for (size_t i = 0; i < sz; ++i) {
+            mem = mOverlayAddresses[i];
+            mem.clear();
             mVideoHeaps[i].clear();
         }
 
+        mOverlayAddresses.clear();
         mOverlay->destroy();
         mOverlay.clear();
 
