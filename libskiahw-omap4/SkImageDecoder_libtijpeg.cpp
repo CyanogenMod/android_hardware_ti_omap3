@@ -589,20 +589,20 @@ bool SkTIJPEGImageDecoder::IsHwFormat(SkStream* stream)
 }
 
 ///LIBSKIA decode top level method - this call further branches into ARM or SIMCOP decode based on decision engine
-bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, Mode mode)
+bool SkTIJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* bm, Mode mode)
 {
     LOG_FUNCTION_NAME
     LIBSKIAHW_LOGEB ("Process %x calling onDecode", getpid());
     if(IsHwFormat(stream) && IsHwAvailable())
         {
         LOG_FUNCTION_NAME_EXIT
-        return onDecodeOmx(stream, bm, prefConfig, mode);
+        return onDecodeOmx(stream, bm, mode);
 
         }
     else
         {
         LOG_FUNCTION_NAME_EXIT
-        return onDecodeArm(stream, bm, prefConfig, mode);
+        return onDecodeArm(stream, bm, mode);
         }
 }
 
@@ -645,7 +645,7 @@ bool SkTIJPEGImageDecoder::IsHwAvailable()
 
 
 ///Method for decoding using ARM decoder
-bool SkTIJPEGImageDecoder::onDecodeArm(SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, Mode mode)
+bool SkTIJPEGImageDecoder::onDecodeArm(SkStream* stream, SkBitmap* bm, Mode mode)
 {
     if(!pARMHandle)
         {
@@ -656,11 +656,11 @@ bool SkTIJPEGImageDecoder::onDecodeArm(SkStream* stream, SkBitmap* bm, SkBitmap:
             }
         }
     stream->rewind();
-    return pARMHandle->decode(stream,bm, prefConfig,mode);
+    return pARMHandle->decode(stream, bm, mode);
 }
 
 ///Method for decoding using SIMCOP decoder
-bool SkTIJPEGImageDecoder::onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap::Config prefConfig, Mode mode)
+bool SkTIJPEGImageDecoder::onDecodeOmx(SkStream* stream, SkBitmap* bm, Mode mode)
     {
     LOG_FUNCTION_NAME
 
@@ -692,10 +692,10 @@ bool SkTIJPEGImageDecoder::onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap:
 
     bitmap = bm;
     inStream = stream;
-    SkBitmap::Config config = prefConfig;
+    SkBitmap::Config config = this->getPrefConfig(k32Bit_SrcDepth, false);
     scaleFactor = this->getSampleSize();
 
-    LIBSKIAHW_LOGDB("prefConfig = %d\n", prefConfig);
+    LIBSKIAHW_LOGDB("Config = %d\n", config);
     LIBSKIAHW_LOGDB("mode = %d\n", mode);
     LIBSKIAHW_LOGDB("scaleFactor = %d ", scaleFactor);
 
@@ -1180,9 +1180,9 @@ public:
 
 protected:
     virtual bool onDecode(SkStream* stream, SkBitmap* bm,
-                          SkBitmap::Config pref, Mode mode)
+                          Mode mode)
         {
-            return mPtr->decode(stream, bm, pref, mode);
+            return mPtr->decode(stream, bm, mode);
         }
 public:
     SkImageDecoder *mPtr;

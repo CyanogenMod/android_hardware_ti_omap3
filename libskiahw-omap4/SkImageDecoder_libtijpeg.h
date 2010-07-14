@@ -120,14 +120,14 @@ public:
 
 protected:
     virtual bool onDecode(SkStream* stream, SkBitmap* bm,
-                          SkBitmap::Config pref, Mode);
+                          Mode);
 };
 
 
 class SkTIJPEGImageDecoder :public SkImageDecoder
 {
 protected:
-    virtual bool onDecode(SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, Mode);
+    virtual bool onDecode(SkStream* stream, SkBitmap* bm, Mode);
 
 public:
 
@@ -191,8 +191,8 @@ private:
     void FixFrameSize(JPEG_HEADER_INFO* JpegHeaderInfo);
     bool IsHwFormat(SkStream* stream);
     bool IsHwAvailable();
-    bool onDecodeOmx(SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, Mode);
-    bool onDecodeArm(SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, Mode);
+    bool onDecodeOmx(SkStream* stream, SkBitmap* bm, Mode);
+    bool onDecodeArm(SkStream* stream, SkBitmap* bm, Mode);
 
 public:
     sem_t *semaphore;
