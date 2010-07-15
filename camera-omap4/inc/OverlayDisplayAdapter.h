@@ -149,6 +149,14 @@ private:
     KeyedVector<int, int> mPreviewBufferMap;
     KeyedVector<int, int> mFramesWithDisplayMap;
 
+    uint32_t mFrameWidth;
+    uint32_t mFrameHeight;
+
+    uint32_t mXOff;
+    uint32_t mYOff;
+
+    const char *mPixelFormat;
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     //Used for calculating standby to first shot
     struct timeval mStandbyToShot;

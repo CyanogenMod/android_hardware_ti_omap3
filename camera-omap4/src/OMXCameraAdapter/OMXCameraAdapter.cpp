@@ -2552,7 +2552,6 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
                     cFrame.mCookie = (void *) mVideoSubscribers.keyAt(i);
                     callback = (frame_callback) mVideoSubscribers.valueAt(i);
                     callback(&cFrame);
-
                     }
                 }
             else
@@ -2566,6 +2565,11 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
             cFrame.mWidth = cap->mWidth;
             cFrame.mHeight = cap->mHeight;
+
+            /*static int bufCount =0;
+            if((bufCount>100) && (bufCount<103))
+            saveFile(( unsigned char*) cFrame.mBuffer, cFrame.mWidth, cFrame.mHeight, 0);
+            bufCount++;*/
 
             if ( 0 < mFrameSubscribers.size() )
                 {
