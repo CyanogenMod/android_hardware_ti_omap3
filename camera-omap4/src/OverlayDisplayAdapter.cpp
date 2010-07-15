@@ -408,8 +408,9 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
         {
         ///Set the number of buffers to be created by overlay
         mOverlay->setParameter(OVERLAY_NUM_BUFFERS, numBufs);
-        mOverlay->resizeInput(width, height);
         }
+
+    mOverlay->resizeInput(width, height);
 
     CAMHAL_LOGDB("Configuring %d buffers for overlay", numBufs);
 
