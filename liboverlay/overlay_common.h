@@ -29,14 +29,16 @@
 * this will break arm based video codecs, and is acceptable as ducati codecs are
 * enabled in the system bydefault.
 */
-#define NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE    4
-#define NUM_OVERLAY_BUFFERS_REQUESTED  (20)
+#define NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE    2
+#define NUM_OVERLAY_BUFFERS_REQUESTED  (2)
 /* These values should come from Surface Flinger */
 #define LCD_WIDTH 864
 #define LCD_HEIGHT 480
 #define MAX_NUM_OVERLAYS 3
 #define FULLHD_WIDTH 1920
 #define FULLHD_HEIGHT 1080
+#define NUM_OVERLAY_BUFFERS_MAX (32)
+
 #else
 #define NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE    3
 #define NUM_OVERLAY_BUFFERS_REQUESTED  (6)
@@ -44,6 +46,8 @@
 #define LCD_WIDTH 800
 #define LCD_HEIGHT 480
 #define MAX_NUM_OVERLAYS 2
+#define NUM_OVERLAY_BUFFERS_MAX NUM_OVERLAY_BUFFERS_REQUESTED
+
 #endif
 /** As the PV ARM Codecs are using only two output buffers, we can't have
 * more than 2 buffers queued in the DSS queue

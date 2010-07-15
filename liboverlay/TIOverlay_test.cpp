@@ -68,8 +68,8 @@ class OverlayTest : public Test
 {
 public:
     sp<ProcessState> mProc;
-    void* mBuffers1[NUM_OVERLAY_BUFFERS_REQUESTED];
-    void* mBuffers2[NUM_OVERLAY_BUFFERS_REQUESTED];
+    void* mBuffers1[NUM_OVERLAY_BUFFERS_MAX];
+    void* mBuffers2[NUM_OVERLAY_BUFFERS_MAX];
     int   mNumBuffers;
 
     //surface flinger client data structures
@@ -105,7 +105,7 @@ public:
 
     int win_x;
     int win_y;
-    
+
     int zOrder1;
     int zOrder2;
 
@@ -135,7 +135,7 @@ public:
 
     win_x = 100;
     win_y = 100;
-    
+
     zOrder1 = -1;
     zOrder2 = -1;
 
@@ -264,9 +264,12 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     }
     mOverlay1->resizeInput(w1/2, h1/2);
 
-    mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, 30);
+    mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, 40);
     mOverlay1->resizeInput(w1, h1);
     }
+
+    mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, 10);
+    mOverlay1->resizeInput(w1, h1);
 
     if (img2 != NULL)
     {
@@ -793,7 +796,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         firstClient->setOrientation(panel1,ISurfaceComposer::eOrientationDefault,0);
         firstClient->closeTransaction();
     }
-    
+
     printf("\n\nPlayback Done\n\n");
     //resetParams();
     if (mOverlay1 != NULL)
@@ -826,7 +829,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
 */
 void OverlayTest::testErrorScenarios()
 {
-    /** the test scenarios to be tested
+    /** the error scenarios to be tested
     *<1>Passing NULL arguments
     *<2>passing Invalid argumnets
     *<3>requesting for que buffers beyond max
@@ -857,7 +860,7 @@ void OverlayTest::testErrorScenarios()
     ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL*2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref1, NULL, __LINE__);
     //Invalid width x height
-    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_RGB_565, 0);
+    ref1 = firstSurface->createOverlay(MAX_OVERLAY_WIDTH_VAL+1, MAX_OVERLAY_HEIGHT_VAL+1, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref1, NULL, __LINE__);
     //ZERO size
     ref1 = firstSurface->createOverlay(0, MAX_OVERLAY_HEIGHT_VAL, OVERLAY_FORMAT_DEFAULT, 0);
@@ -897,7 +900,14 @@ void OverlayTest::testErrorScenarios()
     RET_CHECK_EQ(ret, 0 , __LINE__);
 
     ret = mOverlay1->getBufferCount();
-    RET_CHECK_EQ(ret, NUM_OVERLAY_BUFFERS_REQUESTED, __LINE__);
+    RET_CHECK_EQ(ret, NUM_OVERLAY_BUFFERS_MAX, __LINE__);
+
+    ret = mOverlay1->setParameter(OVERLAY_NUM_BUFFERS, 10);
+    RET_CHECK_EQ(ret, 0 , __LINE__);
+
+    ret = mOverlay1->getBufferCount();
+    int buffercnt = (ret < NUM_OVERLAY_BUFFERS_MAX)? ret : NUM_OVERLAY_BUFFERS_MAX;
+    RET_CHECK_EQ(ret, buffercnt, __LINE__);
 
     ret = mOverlay1->resizeInput(200, 200);
     RET_CHECK_EQ(ret, 0, __LINE__);
@@ -912,7 +922,7 @@ void OverlayTest::testErrorScenarios()
     RET_CHECK_NOTEQ(ret, 0, __LINE__);
 
     ret = mOverlay1->resizeInput(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL);
-    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+    RET_CHECK_EQ(ret, 0, __LINE__);
 
     ret = mOverlay1->resizeInput(0, MAX_OVERLAY_HEIGHT_VAL);
     RET_CHECK_NOTEQ(ret, 0, __LINE__);
@@ -993,14 +1003,15 @@ void OverlayTest::testErrorScenarios()
     ret = mOverlay1->setCrop(10,10, MAX_OVERLAY_WIDTH_VAL*2,MAX_OVERLAY_HEIGHT_VAL*2);
     RET_CHECK_NOTEQ(ret, 0, __LINE__);
 
-    //Call Sequence: resizeInput cannot be called after setCrop()
+    //Call Sequence: resizeInput can be called after setCrop(), but only
+    //buffer flush should happen in this case.
     ret = mOverlay1->resizeInput(200, 200);
-    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+    RET_CHECK_EQ(ret, 0, __LINE__);
 
     //get buffer addresses beyond the max buffer cnt
     int numBuffers1 = mOverlay1->getBufferCount();
     mapping_data_t* data1;
-    void* mBuffers1[NUM_OVERLAY_BUFFERS_REQUESTED*2];
+    void* mBuffers1[NUM_OVERLAY_BUFFERS_MAX*2];
 
     for (int i1 = 0; i1 < numBuffers1*2; i1++) {
         data1 = (mapping_data_t *)mOverlay1->getBufferAddress((void*)i1);
@@ -1027,9 +1038,10 @@ void OverlayTest::testErrorScenarios()
         }
     }
 
-    //Call Sequence: resizeInput cannot be called after queueBuffer()
+    //Call Sequence: resizeInput can be called after queueBuffer(), but only
+    //buffer flush should happen in this case.
     ret = mOverlay1->resizeInput(200, 200);
-    RET_CHECK_NOTEQ(ret, 0, __LINE__);
+    RET_CHECK_EQ(ret, 0, __LINE__);
 
     //set invalid screen ID
     // create pushbuffer surface for Invalid screen and virtual sink
@@ -1174,7 +1186,7 @@ void printUsage()
     printf("\n\nUsage: for multiple overlay");
     printf("\noverlay_test <single/multi ovly> <test scenario> <file1> <w1> <h1> <format1> <panel1> <file2> <w2> <h2> <format2> <panel2>");
     printf("\nExample: ./system/bin/overlay_test M 5 test1.yuv 320 240 2 0 test2.rgb 640 480 1 1");
-    
+
     printf("\n\nTest Scenarios");
     printf("\n0 -\tDefalut playback");
     printf("\n1 -\tTo test Alpha Blend");
@@ -1207,7 +1219,7 @@ void printUsage()
     printf("\n\nOptional Arguments");
     printf("\n-x val : win x");
     printf("\n-y val : win y");
-    printf("\n-i val : Repeat test 'val' times");    
+    printf("\n-i val : Repeat test 'val' times");
 
     printf("\n\n");
 }
@@ -1222,7 +1234,7 @@ int main (int argc, char* argv[])
     const struct option long_options[] = {
         {"win_x",           1, NULL, 'x'},
         {"win_y",           1, NULL, 'y'},
-        {"iterations",      1, NULL, 'i'},        
+        {"iterations",      1, NULL, 'i'},
         {NULL,               0, NULL, 0}
     };
 
@@ -1242,7 +1254,7 @@ int main (int argc, char* argv[])
         printf("Overlay Test Init failed\n");
         return 0;
     }
-   
+
     int val = -1;
     int stressTest = 1;
     bool cmp1 = strcmp(argv[1], "S");
@@ -1311,7 +1323,7 @@ int main (int argc, char* argv[])
         h1 = atoi(argv[5]);
         fmt1 = atoi(argv[6]);
         panel1 = atoi(argv[7]);
-        
+
         while((opt = getopt_long(argc, argv, short_options, long_options, NULL)) != -1) {
             switch(opt) {
                 case 'x':
@@ -1321,8 +1333,8 @@ int main (int argc, char* argv[])
                     test.win_y = atoi(optarg);
                     break;
                 case 'i':
-                    stressTest = MIN(5000, atoi(optarg)); 
-                    break;                
+                    stressTest = MIN(5000, atoi(optarg));
+                    break;
                 case ':':
                     LOGE("\nError - Option `%c' needs a value\n\n", optopt);
                     return -1;
@@ -1331,7 +1343,7 @@ int main (int argc, char* argv[])
                     return -1;
             }
         }
-        
+
         for (int i = 0; i < stressTest; i ++)
         {
             LOGD("\n\n---------------------Iteration %d ------------------------------\n\n", i);
@@ -1344,7 +1356,7 @@ int main (int argc, char* argv[])
             printUsage();
             return 0;
         }
-    
+
         LOGD("Testing Multiple Overlays");
         switch(atoi(argv[2]))
         {
