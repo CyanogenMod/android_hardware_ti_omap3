@@ -9,7 +9,6 @@
 namespace android {
 
 ///Maintain a separate tag for OMXCameraAdapter logs to isolate issues OMX specific
-#undef LOG_TAG
 #define LOG_TAG "OMXCameraAdapter"
 
 //frames skipped before recalculating the framerate
@@ -457,6 +456,50 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     return ret;
 }
 
+void saveFile(unsigned char   *buff, int width, int height, int format) {
+    static int      counter = 1;
+    int             size;
+    int             fd = -1;
+    char            fn[256];
+
+    LOG_FUNCTION_NAME
+
+    fn[0] = 0;
+    sprintf(fn, "/preview%03d.yuv", counter);
+    fd = open(fn, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
+    if(fd < 0) {
+        LOGE("Unable to open file %s: %s", fn, strerror(fd));
+        return;
+    }
+
+    CAMHAL_LOGDB("Copying from 0x%x, size=%d x %d", buff, width, height);
+
+    //method currently supports only nv12 dumping
+    int stride = width;
+    uint8_t *bf = (uint8_t*) buff;
+    for(int i=0;i<height;i++)
+        {
+        write(fd, bf, width);
+        bf += 4096;
+        }
+
+    for(int i=0;i<height/2;i++)
+        {
+        write(fd, bf, stride);
+        bf += 4096;
+        }
+
+
+
+
+    counter++;
+    printf("%s: buffer=%08X, size=%d\n",
+           __FUNCTION__, (int)buff, size);
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+
 status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &portParams)
 {
     size_t bufferCount;
@@ -492,6 +535,7 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         {
         portCheck.format.image.nFrameWidth      = portParams.mWidth;
         portCheck.format.image.nFrameHeight     = portParams.mHeight;
+        //@todo Need to check if this is correct when the preview format is NV12
         portCheck.format.image.eColorFormat     = OMX_COLOR_FormatCbYCrY;
         portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
         portCheck.format.image.nStride          = portParams.mStride * portParams.mWidth;
@@ -2347,17 +2391,17 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             //CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mFrameSubscribers.size());
             }
 
-            {
-            Mutex::Autolock lock(mPreviewBufferLock);
-            mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) pBuffHeader->pBuffer, mFrameSubscribers.size());
-            }
+                {
+                Mutex::Autolock lock(mPreviewBufferLock);
+                ///CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer,(int) mFrameSubscribers.size());
+                mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) pBuffHeader->pBuffer, mFrameSubscribers.size());
+                }
 
-        res1 = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
+            res1 = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
 
         if ( mRecording )
             {
             typeOfFrame = CameraFrame::VIDEO_FRAME_SYNC;
-
                 {
                 Mutex::Autolock lock(mVideoBufferLock);
                 //CAMHAL_LOGDB("Video Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mVideoSubscribers.size());
@@ -2479,7 +2523,10 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
         cFrame.mBuffer = pBuffHeader->pBuffer;
         cFrame.mLength = pBuffHeader->nFilledLen;
         cFrame.mAlignment =port->mStride;
-        cFrame.mTimestamp = pBuffHeader->nTimeStamp;
+        cFrame.mOffset = pBuffHeader->nOffset;
+
+        //@todo Do timestamp correction by subtracting IPC delay using timestamp driver
+        cFrame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);;
         cFrame.mOffset = pBuffHeader->nOffset;
 
         if(CameraFrame::IMAGE_FRAME == typeOfFrame )
@@ -2493,9 +2540,13 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             }
         else if ( CameraFrame::VIDEO_FRAME_SYNC == typeOfFrame )
             {
+            OMXCameraPortParameters *cap;
+            cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+            cFrame.mWidth = cap->mWidth;
+            cFrame.mHeight = cap->mHeight;
+
             if ( 0 < mVideoSubscribers.size() )
                 {
-
                 for(uint32_t i = 0 ; i < mVideoSubscribers.size(); i++ )
                     {
                     cFrame.mCookie = (void *) mVideoSubscribers.keyAt(i);
@@ -2511,6 +2562,11 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             }
         else if ( ( CameraFrame::PREVIEW_FRAME_SYNC == typeOfFrame ) || ( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ) )
             {
+            OMXCameraPortParameters *cap;
+            cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+            cFrame.mWidth = cap->mWidth;
+            cFrame.mHeight = cap->mHeight;
+
             if ( 0 < mFrameSubscribers.size() )
                 {
                 for(uint32_t i = 0 ; i < mFrameSubscribers.size(); i++ )

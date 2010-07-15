@@ -109,7 +109,7 @@ void AppCallbackNotifier::notificationThread()
 
     while(shouldLive)
         {
-        CAMHAL_LOGDA("Notification Thread waiting for message");
+        //CAMHAL_LOGDA("Notification Thread waiting for message");
         if(mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED)
             {
         ret = MessageQueue::waitForMsg(&mNotificationThread->msgQ()
@@ -126,7 +126,7 @@ void AppCallbackNotifier::notificationThread()
 
             }
 
-        CAMHAL_LOGDA("Notification Thread received message");
+        //CAMHAL_LOGDA("Notification Thread received message");
 
         if(!mNotificationThread->msgQ().isEmpty())
             {
@@ -147,7 +147,7 @@ void AppCallbackNotifier::notificationThread()
         else if(!mFrameQ.isEmpty())
             {
             ///Received a frame from one of the frame providers
-            CAMHAL_LOGDA("Notification Thread received a frame from frame provider (CameraAdapter)");
+            //CAMHAL_LOGDA("Notification Thread received a frame from frame provider (CameraAdapter)");
             notifyFrame();
             }
         else
@@ -246,41 +246,39 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
 {
     unsigned int alignedRow, row;
     unsigned char *bufferDst, *bufferSrc;
-    uint16_t *bufferDst_UV;
-
+    uint16_t *bufferDst_UV, *bufferSrc_UV;
 
     if(pixelFormat!=NULL)
         {
         if(strcmp(pixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
             {
-            CAMHAL_LOGDA("YUV422I");
             bytesPerPixel = 2;
             }
         else if(strcmp(pixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
             {
             //Convert here from NV12 to NV21 and return
             bytesPerPixel = 1;
-    bufferDst = ( unsigned char * ) dst;
-    bufferSrc = ( unsigned char * ) src;
-    row = width*bytesPerPixel;
-    alignedRow = ( row + ( stride -1 ) ) & ( ~ ( stride -1 ) );
+            bufferDst = ( unsigned char * ) dst;
+            bufferSrc = ( unsigned char * ) src;
+            row = width*bytesPerPixel;
+            alignedRow = stride-width;
 
-    //iterate through each row
-    for ( int i = 0 ; i < height ; i++,  bufferSrc += alignedRow, bufferDst += row)
-        {
-        memcpy(bufferDst, bufferSrc, row);
-        }
-
+            //iterate through each row
+            for ( int i = 0 ; i < height ; i++,  bufferSrc += stride, bufferDst += row)
+                {
+                memcpy(bufferDst, bufferSrc, row);
+                }
             ///Convert NV21 to NV12 by swapping U & V
-            bufferDst_UV = (uint16_t *) bufferDst;
+            bufferDst_UV = (uint16_t *) ((uint8_t*)dst+row*height);
+            bufferSrc_UV = ( uint16_t * ) ((uint8_t*)src+stride*height);
             for(int i = 0 ; i < height/2 ; i++)
                 {
                 for(int j=0;j<width/2;j++)
                     {
-                    *bufferDst_UV++ = (*bufferSrc<<16) | *(bufferSrc+1);
-                     bufferSrc +=2;
+                    *bufferDst_UV++ = ((*bufferSrc_UV & 0xFF)<<16) | ((*bufferSrc_UV >> 16) & 0xFF) ;
+                    bufferSrc_UV++;
                     }
-                bufferSrc += alignedRow;
+                bufferSrc_UV += alignedRow/2;
                 }
             return ;
 
@@ -289,7 +287,7 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
             {
             bytesPerPixel = 2;
             }
-}
+    }
 
     bufferDst = ( unsigned char * ) dst;
     bufferSrc = ( unsigned char * ) src;
@@ -301,7 +299,6 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
         {
         memcpy(bufferDst, bufferSrc, row);
         }
-
 }
 
 void AppCallbackNotifier::notifyFrame()
@@ -310,7 +307,7 @@ void AppCallbackNotifier::notifyFrame()
     Message msg;
     CameraFrame *frame;
     MemoryHeapBase *heap;
-    MemoryBase *buffer;
+    MemoryBase *buffer = NULL;
     sp<MemoryBase> memBase;
 
     LOG_FUNCTION_NAME
@@ -380,6 +377,7 @@ void AppCallbackNotifier::notifyFrame()
                         CAMHAL_LOGDA("Error! One of the video buffer is NULL");
                         break;
                         }
+
                     mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie);
 
                     }
@@ -388,12 +386,40 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME)  ))
                     {
-                    memBase = mPreviewBuffers.valueFor( ( unsigned int ) frame->mBuffer );
 
-                    if( (NULL == memBase.get() ) || ( NULL == frame->mBuffer) )
+                    if(!mAppSupportsStride)
                         {
-                        CAMHAL_LOGDA("Error! One of the preview buffer is NULL");
-                        break;
+                        buffer = mPreviewBuffers[mPreviewBufCount].get();
+                        if(!buffer || !frame->mBuffer)
+                            {
+                            CAMHAL_LOGDA("Error! One of the buffer is NULL");
+                            break;
+                            }
+                        }
+                    else
+                        {
+
+                        memBase = mSharedPreviewBuffers.valueFor( ( unsigned int ) frame->mBuffer );
+
+                        if( (NULL == memBase.get() ) || ( NULL == frame->mBuffer) )
+                            {
+                            CAMHAL_LOGDA("Error! One of the preview buffer is NULL");
+                            break;
+                            }
+                        }
+
+                    if(!mAppSupportsStride)
+                        {
+                        ///CAMHAL_LOGDB("+Copy 0x%x to 0x%x frame-%dx%d", frame->mBuffer, buffer->pointer(), frame->mWidth,frame->mHeight );
+                        ///Copy the data into 1-D buffer
+                        copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                                    mPreviewPixelFormat);
+                        ///CAMHAL_LOGDA("-Copy");
+
+                        //Increment the buffer count
+                        mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
+
+                        memBase = buffer;
                         }
 
                     ///Give preview callback to app
@@ -656,7 +682,7 @@ void AppCallbackNotifier::setFrameProvider(FrameNotifier *frameNotifier)
     LOG_FUNCTION_NAME_EXIT
 }
 
-status_t AppCallbackNotifier::startPreviewCallbacks(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count)
+status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params, void *buffers, uint32_t *offsets, int fd, size_t length, size_t count)
 {
     sp<MemoryHeapBase> heap;
     sp<MemoryBase> buffer;
@@ -679,11 +705,49 @@ status_t AppCallbackNotifier::startPreviewCallbacks(void *buffers, uint32_t *off
         return -1;
         }
 
-    if ( NO_ERROR == ret )
+    CAMHAL_LOGDB("app-stride-aware %d", params.getInt("app-stride-aware"));
+
+     if(params.getInt("app-stride-aware")!=-1)
+         {
+         CAMHAL_LOGDA("App is stride aware");
+         mAppSupportsStride = true;
+         }
+     else
+         {
+         CAMHAL_LOGDA("App is not stride aware");
+         mAppSupportsStride = false;
+         }
+
+
+    int w,h;
+    ///Get preview size
+    params.getPreviewSize(&w, &h);
+
+   if(!mAppSupportsStride)
+       {
+        mPreviewHeap = new MemoryHeapBase(w*h*2*AppCallbackNotifier::MAX_BUFFERS);
+        if(!mPreviewHeap.get())
+            {
+            return NO_MEMORY;
+            }
+
+        for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
+            {
+            mPreviewBuffers[i] = new MemoryBase(mPreviewHeap,(w*h*2)*i, (w*h*2));
+            if(!mPreviewBuffers[i].get())
+                {
+                for(int j=0;j<i-1;j++)
+                    {
+                    mPreviewBuffers[j].clear();
+                    }
+                mPreviewHeap.clear();
+                return NO_MEMORY;
+                }
+            }
+        }
+    else
         {
-
         bufArr = ( unsigned int * ) buffers;
-
         for ( unsigned int i = 0 ; i < count ; i ++ )
             {
             heap = new MemoryHeapBase(fd, length, 0, offsets[i]);
@@ -716,15 +780,20 @@ status_t AppCallbackNotifier::startPreviewCallbacks(void *buffers, uint32_t *off
 
 #endif
 
-            mPreviewHeaps.add( bufArr[i], heap);
-            mPreviewBuffers.add( bufArr[i], buffer);
+            mSharedPreviewHeaps.add( bufArr[i], heap);
+            mSharedPreviewBuffers.add( bufArr[i], buffer);
             }
         }
+
+   //Get the preview pixel format
+    mPreviewPixelFormat = params.getPreviewFormat();
 
     if ( NO_ERROR == ret )
         {
          mFrameProvider->enableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
         }
+
+    mPreviewBufCount = 0;
 
     mPreviewing = true;
 
@@ -740,8 +809,14 @@ sp<IMemoryHeap> AppCallbackNotifier::getPreviewHeap()
 {
 
     CAMHAL_LOGDA("getPreviewHeap");
-
-    return NULL; //mPreviewHeap; We dont have one single heap
+    if(mAppSupportsStride)
+        {
+        return NULL; //mPreviewHeap; We dont have one single heap
+        }
+    else
+        {
+        return mPreviewHeap;
+        }
 }
 
 
@@ -771,22 +846,36 @@ status_t AppCallbackNotifier::stopPreviewCallbacks()
 
     bool alreadyStopped = false;
 
-    for ( unsigned int i = 0 ; i < mPreviewHeaps.size() ; i++ )
+    if(mAppSupportsStride)
         {
-        //Delete the instance
-        heap = mPreviewHeaps.valueAt(i);
-        buffer = mPreviewBuffers.valueAt(i);
-        heap.clear();
-        buffer.clear();
-        }
+        for ( unsigned int i = 0 ; i < mSharedPreviewHeaps.size() ; i++ )
+            {
+            //Delete the instance
+            heap = mSharedPreviewHeaps.valueAt(i);
+            buffer = mSharedPreviewBuffers.valueAt(i);
+            heap.clear();
+            buffer.clear();
+            }
 
-    mPreviewHeaps.clear();
-    mPreviewBuffers.clear();
+        mSharedPreviewHeaps.clear();
+        mSharedPreviewBuffers.clear();
+        }
+    else
+        {
+        for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
+            {
+            //Delete the instance
+            mPreviewBuffers[i].clear();
+            }
+
+        mPreviewHeap.clear();
+        }
 
     mPreviewing = false;
 
     LOG_FUNCTION_NAME_EXIT
 
+    CAMHAL_LOGDA("- Exiting stopPreviewCallbacks");
     return ret;
 
 }
@@ -830,20 +919,21 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
         heap = new MemoryHeapBase(fd, length, 0, offsets[i]);
         if ( NULL == heap )
             {
-            CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x",  ( unsigned int ) bufArr[i]);
+            CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x", bufArr[i]);
             ret = -1;
             goto exit;
             }
 
 #ifdef DEBUG_LOG
 
-        CAMHAL_LOGEB("New memory heap 0x%x for frame 0x%x", ( unsigned int ) heap, ( unsigned int ) bufArr[i]);
+        CAMHAL_LOGEB("New memory heap 0x%x for frame 0x%x", (unsigned int)heap, bufArr[i]);
 
 #endif
 
         buffer = new MemoryBase(heap, 0, length);
         if ( NULL == buffer )
             {
+            CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", bufArr[i]);
             CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", ( unsigned int ) bufArr[i]);
             heap->dispose();
             ret = -1;
@@ -852,7 +942,7 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
 
 #ifdef DEBUG_LOG
 
-        CAMHAL_LOGEB("New memory buffer 0x%x for frame 0x%x ", ( unsigned int ) buffer, ( unsigned int ) bufArr[i]);
+        CAMHAL_LOGEB("New memory buffer 0x%x for frame 0x%x ", (unsigned int)buffer, bufArr[i]);
 
 #endif
 

@@ -309,7 +309,7 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
       */
 
     ///If overlay is initialized, allocate buffer using overlay
-    if(mDisplayAdapter.get())
+    if(mDisplayAdapter.get() != NULL)
         {
         CAMHAL_LOGDA("DisplayAdapter present. Choosing DisplayAdapter as buffer allocator");
         newBufProvider = (BufferProvider*) mDisplayAdapter.get();
@@ -530,7 +530,7 @@ status_t CameraHal::startPreview()
 
     LOG_FUNCTION_NAME
 
-    if( ( !mPreviewEnabled ) && ( mDisplayPaused ) )
+    if( (mDisplayAdapter.get() != NULL) && ( !mPreviewEnabled ) && ( mDisplayPaused ) )
         {
         CAMHAL_LOGDA("Preview is in paused state");
 
@@ -559,7 +559,9 @@ status_t CameraHal::startPreview()
         }
 
     ///If we don't have the preview callback enabled and display adapter,
-    ///@todo add check for preview callback, once it is supported
+    ///@todo we dont support changing the overlay dynamically when preview is ongoing nor set the overlay object dynamically
+    ///@remarks We support preview without overlay. setPreviewDisplay() should be passed with NULL overlay for this path
+    ///                 to work
     if(//!(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) &&
          (!mSetOverlayCalled))
         {
@@ -569,8 +571,12 @@ status_t CameraHal::startPreview()
         }
 
     /// Ensure that buffers for preview are allocated before we start the camera
-    //mParameters.getPreviewSize(&w, &h);
+    ///Get the updated size from Camera Adapter, to account for padding etc
     mCameraAdapter->getFrameSize(w, h);
+
+    ///Update the current preview width and height
+    mPreviewWidth = w;
+    mPreviewHeight = h;
 
     ///Allocate the preview buffers
     ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
@@ -612,7 +618,7 @@ status_t CameraHal::startPreview()
 
     if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
         {
-        mAppCallbackNotifier->startPreviewCallbacks(mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+        mAppCallbackNotifier->startPreviewCallbacks(mParameters, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
         }
 
     ///Start the callback notifier
@@ -627,7 +633,7 @@ status_t CameraHal::startPreview()
     CAMHAL_LOGDA("Started AppCallbackNotifier..");
 
     ///Enable the display adapter if present, actual overlay enable happens when we post the buffer
-    if(mDisplayAdapter.get())
+    if(mDisplayAdapter.get() != NULL)
         {
         CAMHAL_LOGDA("Enabling display");
 
@@ -672,7 +678,10 @@ status_t CameraHal::startPreview()
         //Do all the cleanup
         freePreviewBufs();
         mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
-        mDisplayAdapter->disableDisplay();
+        if(mDisplayAdapter.get() != NULL)
+            {
+            mDisplayAdapter->disableDisplay();
+            }
         mAppCallbackNotifier->stop();
         mPreviewStartInProgress = false;
         mPreviewEnabled = false;
@@ -702,23 +711,24 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
    ///If the Camera service passes a null overlay, we destroy existing overlay and free the DisplayAdapter
     if(!overlay.get())
         {
-        if(mDisplayAdapter.get())
+        if(mDisplayAdapter.get() != NULL)
             {
             ///NULL overlay passed, destroy the display adapter if present
             CAMHAL_LOGEA("NULL Overlay passed to setOverlay, destroying display adapter");
             mDisplayAdapter.clear();
+            ///@remarks If there was an overlay previously existing, we usually expect another valid overlay to be passed by the client
+            ///@remarks so, we will wait until it passes a valid overlay to begin the preview again
             mSetOverlayCalled = false;
             }
+        CAMHAL_LOGEA("NULL Overlay passed to setOverlay");
         // Setting the buffer provider to memory manager
         mBufProvider = (BufferProvider*) mMemoryManager.get();
         return ret;
         }
 
-    ///CameraService passed a valid overlay
-    if ( mDisplayAdapter.get() )
-        {
-        mDisplayAdapter.clear();
-        }
+    ///Destroy existing display adapter, if present
+    mDisplayAdapter.clear();
+
 
     ///Need to create the display adapter since it has not been created
     /// Create display adapter
@@ -834,8 +844,11 @@ void CameraHal::stopPreview()
         return;
         }
 
-    ///Stop the buffer display first
-    mDisplayAdapter->disableDisplay();
+    if(mDisplayAdapter.get() != NULL)
+        {
+        ///Stop the buffer display first
+        mDisplayAdapter->disableDisplay();
+        }
 
     //Stop the callback sending
     mAppCallbackNotifier->stop();
@@ -906,7 +919,7 @@ bool CameraHal::previewEnabled()
  */
 status_t CameraHal::startRecording( )
 {
-    int w, h;
+    uint32_t w, h;
     status_t ret = NO_ERROR;
 
     LOG_FUNCTION_NAME
@@ -930,23 +943,28 @@ status_t CameraHal::startRecording( )
         ret= -1;
         }
 
-    mPreviewStateOld = previewEnabled();
 
-    //Stop preview if it was running
-    if ( mPreviewStateOld )
-        {
-        stopPreview();
-        }
+    mParameters.getPreviewSize((int32_t *)&w, (int32_t *)&h);
 
-    mParameters.getPreviewSize(&w, &h);
-    if ( NO_ERROR == ret )
+    if((w!=mPreviewWidth) || (h!=mPreviewHeight))
         {
-        ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
-        }
+            mPreviewStateOld = previewEnabled();
 
-    if ( NO_ERROR == ret )
-        {
-        ret = mAppCallbackNotifier->start();
+            //Stop preview if it was running
+            if ( mPreviewStateOld )
+                {
+                stopPreview();
+                }
+
+            if ( NO_ERROR == ret )
+                {
+                ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
+                }
+
+            if ( NO_ERROR == ret )
+                {
+                ret = mAppCallbackNotifier->start();
+                }
         }
 
     if ( NO_ERROR == ret )
@@ -959,9 +977,12 @@ status_t CameraHal::startRecording( )
          ret = mAppCallbackNotifier->startRecording();
         }
 
-    if ( NO_ERROR == ret )
+    if((w!=mPreviewWidth) || (h!=mPreviewHeight))
         {
-         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+        if ( NO_ERROR == ret )
+            {
+             ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+            }
         }
 
     if ( NO_ERROR == ret )
@@ -969,20 +990,26 @@ status_t CameraHal::startRecording( )
          ret =  mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_VIDEO);
         }
 
-    if ( NO_ERROR == ret )
+    if((w!=mPreviewWidth) || (h!=mPreviewHeight))
         {
+        if ( (mDisplayAdapter.get() != NULL) && (NO_ERROR == ret) )
+            {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-        ret = mDisplayAdapter->enableDisplay(&mStartPreview);
+            ret = mDisplayAdapter->enableDisplay(&mStartPreview);
 
 #else
 
-        ret = mDisplayAdapter->enableDisplay();
+            ret = mDisplayAdapter->enableDisplay();
 
 #endif
 
+            }
         }
+
+    mPreviewWidth = w;
+    mPreviewHeight = h;
 
     if ( NO_ERROR == ret )
         {
@@ -1016,7 +1043,10 @@ void CameraHal::stopRecording()
         mAppCallbackNotifier->stop();
         }
 
-    mDisplayAdapter->disableDisplay();
+    if(mDisplayAdapter.get() != NULL)
+        {
+        mDisplayAdapter->disableDisplay();
+        }
 
     if ( ( NULL != mCameraAdapter.get() ) )
         {
@@ -1787,7 +1817,7 @@ void CameraHal::initDefaultParameters()
 
     p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
     p.setPreviewFrameRate(30);
-    p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV422I);
+    p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
 
     ///@todo set the maximum capture size from property class based on camera selected
     p.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
