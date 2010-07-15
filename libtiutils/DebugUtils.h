@@ -23,6 +23,8 @@
 #define DEBUG_UTILS_H
 
 ///Defines for debug statements - Macro LOG_TAG needs to be defined in the respective files
+#define DBGUTILS_LOGVA(str)         LOGV("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
+#define DBGUTILS_LOGVB(str,...)    LOGV("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
 #define DBGUTILS_LOGDA(str)         LOGD("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
 #define DBGUTILS_LOGDB(str, ...)    LOGD("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
 #define DBGUTILS_LOGEA(str)         LOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__);

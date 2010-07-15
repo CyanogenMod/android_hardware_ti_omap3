@@ -919,7 +919,7 @@ bool CameraHal::previewEnabled()
  */
 status_t CameraHal::startRecording( )
 {
-    uint32_t w, h;
+    int w, h;
     status_t ret = NO_ERROR;
 
     LOG_FUNCTION_NAME
@@ -943,11 +943,6 @@ status_t CameraHal::startRecording( )
         ret= -1;
         }
 
-
-    mParameters.getPreviewSize((int32_t *)&w, (int32_t *)&h);
-
-    if((w!=mPreviewWidth) || (h!=mPreviewHeight))
-        {
             mPreviewStateOld = previewEnabled();
 
             //Stop preview if it was running
@@ -956,6 +951,7 @@ status_t CameraHal::startRecording( )
                 stopPreview();
                 }
 
+    mParameters.getPreviewSize(&w, &h);
             if ( NO_ERROR == ret )
                 {
                 ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
@@ -965,7 +961,6 @@ status_t CameraHal::startRecording( )
                 {
                 ret = mAppCallbackNotifier->start();
                 }
-        }
 
     if ( NO_ERROR == ret )
         {
@@ -977,22 +972,17 @@ status_t CameraHal::startRecording( )
          ret = mAppCallbackNotifier->startRecording();
         }
 
-    if((w!=mPreviewWidth) || (h!=mPreviewHeight))
-        {
         if ( NO_ERROR == ret )
             {
              ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_VIDEO, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
             }
-        }
 
     if ( NO_ERROR == ret )
         {
          ret =  mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_VIDEO);
         }
 
-    if((w!=mPreviewWidth) || (h!=mPreviewHeight))
-        {
-        if ( (mDisplayAdapter.get() != NULL) && (NO_ERROR == ret) )
+    if ( NO_ERROR == ret )
             {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
@@ -1006,11 +996,7 @@ status_t CameraHal::startRecording( )
 #endif
 
             }
-        }
-
-    mPreviewWidth = w;
-    mPreviewHeight = h;
-
+ 
     if ( NO_ERROR == ret )
         {
         mRecordingEnabled = true;
