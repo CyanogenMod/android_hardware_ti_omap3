@@ -146,10 +146,6 @@ int OverlayDisplayAdapter::setOverlay(const sp<Overlay> &overlay)
     ///Move to new overlay obj
     mOverlay = overlay;
 
-    ///Set the optimal buffer count to 0 since we have a display thread which monitors the
-    ///fd of overlay
-    mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
-
     LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
@@ -234,6 +230,25 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
 
         return NO_ERROR;
         }
+
+    ///Set the optimal buffer count to 0 since we have a display thread which monitors the
+    ///fd of overlay
+    mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
+
+    if(mOverlay->getWidth()>=1920)
+        {
+        CAMHAL_LOGDA("1080p enabled!! Setting crop");
+        status_t ret = mOverlay->setCrop(0, 0, 1860, 1046);
+        if(ret!=NO_ERROR)
+            {
+            CAMHAL_LOGEB("Overlay setCrop API returned error %d", ret);
+            }
+        else
+            {
+            CAMHAL_LOGDA("setCrop API succeeded");
+            }
+        }
+
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
