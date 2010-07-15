@@ -61,7 +61,7 @@ private:
     Vector< sp<IMemory> > mOverlayAddresses;
     bool mIsFirstFrame;
     size_t mIndex;
-    sp<MemoryHeapBase> mVideoHeaps[NUM_OVERLAY_BUFFERS_REQUESTED];
+    sp<MemoryHeapBase> mVideoHeaps[NUM_OVERLAY_BUFFERS_MAX];
     release_rendered_buffer_callback release_frame_cb;
     void  *cookie;
 

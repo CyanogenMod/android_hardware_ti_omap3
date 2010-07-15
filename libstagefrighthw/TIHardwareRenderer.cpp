@@ -58,6 +58,35 @@ static void debugShowFPS()
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static int Calculate_TotalRefFrames(int nWidth, int nHeight)
+{
+    LOGD("Calculate_TotalRefFrames");
+    int ref_frames = 0;
+    int spec_computation;
+    if(nWidth > MAX_OVERLAY_WIDTH_VAL || nHeight > MAX_OVERLAY_HEIGHT_VAL)
+    {
+       return 0;
+    }
+    nWidth = nWidth - 128 - 2 * 36;
+
+    if (nWidth > 1280) {
+        nWidth = 1920;
+    } else if (nWidth > 720) {
+        nWidth = 1280;
+    } else {
+        nWidth = (nWidth + 16) & ~12;
+    }
+
+    nHeight = nHeight - 4 * 24;
+
+    /* 12288 is the value for Profile 4.1 */
+    spec_computation = ((1024 * 12288)/((nWidth/16)*(nHeight/16)*384));
+    ref_frames = (spec_computation > 16)?16:(spec_computation/1);
+    ref_frames = ref_frames + 1 + NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE;
+    LOGD("**Calculated buf %d",ref_frames);
+    return ref_frames;
+}
+
 TIHardwareRenderer::TIHardwareRenderer(
         const sp<ISurface> &surface,
         size_t displayWidth, size_t displayHeight,
@@ -115,6 +144,21 @@ TIHardwareRenderer::TIHardwareRenderer(
     }
 
     mOverlay = new Overlay(ref);
+
+#ifdef TARGET_OMAP4
+	/* Calculate the number of overlay buffers required, based on the video resolution
+	* and resize the overlay for the new number of buffers
+	*/
+    int overlaybuffcnt = Calculate_TotalRefFrames(mDecodedWidth, mDecodedHeight);
+    if (overlaybuffcnt < 20) {
+        overlaybuffcnt = 20;
+    }
+    int initialcnt = mOverlay->getBufferCount();
+    if (overlaybuffcnt != initialcnt) {
+        mOverlay->setParameter(OVERLAY_NUM_BUFFERS, overlaybuffcnt);
+        mOverlay->resizeInput(mDecodedWidth, mDecodedHeight);
+    }
+#endif
 
     for (size_t i = 0; i < (size_t)mOverlay->getBufferCount(); ++i) {
         data = (mapping_data_t *)mOverlay->getBufferAddress((void *)i);
