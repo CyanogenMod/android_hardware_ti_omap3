@@ -127,6 +127,12 @@ public:
     char overlayzorderpath[PATH_MAX];
     char overlayenabled[PATH_MAX];
 
+	struct displayMetaData {
+		int mPanelIndex;
+		int mManagerIndex;
+		int mTobeDisabledPanelIndex;
+		};
+	displayMetaData mDisplayMetaData;
     static overlay_handle_t getHandleRef(struct overlay_t* overlay) {
         /* returns a reference to the handle, caller doesn't take ownership */
         return &(static_cast<overlay_object *>(overlay)->mControlHandle);
@@ -197,6 +203,8 @@ public:
     static void destroy_shared_overlayobj(overlay_object *overlayobj, bool isCtrlpath = true);
     static overlay_object* open_shared_overlayobj(int ovlyfd, int ovlysize);
     static void close_shared_overlayobj(overlay_object *overlayobj);
+	static void calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow);
+	static void calculateDisplayMetaData(overlay_object *overlayobj);
 
 public:
     /**

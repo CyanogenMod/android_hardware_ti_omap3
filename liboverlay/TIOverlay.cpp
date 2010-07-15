@@ -170,8 +170,8 @@ int overlay_control_context_t::create_shared_overlayobj(overlay_object** overlay
     LOG_FUNCTION_NAME_ENTRY
     int fd;
     int ret = 0;
-    // NOTE: assuming sizeof(overlay_object) < two pages
-    int size = getpagesize()*3;
+    // NOTE: assuming sizeof(overlay_object) < four pages
+    int size = getpagesize()*4;
     overlay_object *p;
 
     if ((fd = ashmem_create_region("overlay_data", size)) < 0) {
@@ -285,6 +285,133 @@ overlay_object* overlay_control_context_t::open_shared_overlayobj(int ovlyfd, in
     {
         return NULL;
     }
+}
+
+
+/**
+* Precondition:
+* This function has to be called after setting the crop window parameters
+*/
+void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow)
+{
+    LOG_FUNCTION_NAME_ENTRY
+    overlay_ctrl_t   *stage  = overlayobj->staging();
+    /*
+    * If default UI is on TV, android UI will receive 1920x1080 for screen size, and w & h will be 1920x1080 by default.
+    * It will remain 1920x1080 even if overlay is requested on LCD. A better choice would be to query the display size:
+    * and use the full resolution only for TV, for LCD lets respect whatever surface flinger asks for: this is required to
+    * maintain the aspect ratio decided by media player
+    */
+    uint32_t dummy, w2, h2;
+    if (sscanf(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
+        &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
+        w2 = finalWindow->posW;
+        h2 = finalWindow->posH; /* use default value, if could not read timings */
+    }
+    switch (stage->panel) {
+        case OVERLAY_ON_PRIMARY:
+        case OVERLAY_ON_SECONDARY:
+        case OVERLAY_ON_PICODLP:
+            LOGE("Nothing to Adjust");
+            //This is  added as a place holder for future enhancements if any required
+            break;
+        case OVERLAY_ON_TV:
+            {
+                finalWindow->posX = 0;
+                finalWindow->posY= 0;
+                if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
+                    finalWindow->posW= w2;
+                    finalWindow->posH= overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
+                    finalWindow->posY = (h2 - finalWindow->posH) / 2;
+                } else {
+                    finalWindow->posH = h2;
+                    finalWindow->posW = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
+                    finalWindow->posX = (w2 - finalWindow->posW) / 2;
+                }
+            }
+            break;
+        default:
+            LOGE("Leave the default  values");
+        };
+        LOG_FUNCTION_NAME_EXIT
+}
+
+void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlayobj)
+{
+    LOG_FUNCTION_NAME_ENTRY
+    const char* paneltobeDisabled = NULL;
+    static const char* panelname = "lcd";
+    static const char* managername = "lcd";
+    overlay_ctrl_t   *stage  = overlayobj->staging();
+
+    switch(stage->panel){
+        case OVERLAY_ON_PRIMARY: {
+            LOGD("REQUEST FOR LCD1");
+            panelname = "lcd";
+            managername = "lcd";
+        }
+        break;
+        case OVERLAY_ON_SECONDARY: {
+            LOGD("REQUEST FOR LCD2");
+            panelname = "2lcd";
+            managername ="2lcd";
+            paneltobeDisabled = "pico_DLP";
+        }
+        break;
+        case OVERLAY_ON_TV: {
+            LOGD("REQUEST FOR TV");
+            panelname = "hdmi";
+            managername = "tv";
+        }
+        break;
+        case OVERLAY_ON_PICODLP: {
+            LOGD("REQUEST FOR PICO DLP");
+            panelname = "pico_DLP";
+            managername = "2lcd";
+            paneltobeDisabled = "2lcd";
+        }
+        break;
+        case OVERLAY_ON_VIRTUAL_SINK:
+            LOGD("REQUEST FOR VIRTUAL SINK: Setting the Default display for now");
+        default: {
+            panelname = "lcd";
+            managername = "lcd";
+        }
+        break;
+    };
+    for (int i = 0; i < MAX_DISPLAY_CNT; i++) {
+        LOGD("Display id [%s]", screenMetaData[i].displayname);
+        LOGD("dst id [%s]", panelname);
+        if (strcmp(screenMetaData[i].displayname, panelname) == 0) {
+            LOGD("found Panel Id @ [%d]", i);
+            overlayobj->mDisplayMetaData.mPanelIndex = i;
+            break;
+        }
+    }
+    for (int i = 0; i < MAX_MANAGER_CNT; i++) {
+        LOGD("managername name [%s]", managerMetaData[i].managername);
+        LOGD("dst name [%s]", managername);
+
+        if (strcmp(managerMetaData[i].managername, managername) == 0) {
+        LOGD("found Display Manager @ [%d]", i);
+        overlayobj->mDisplayMetaData.mManagerIndex = i;
+        break;
+        }
+    }
+    overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex = -1;
+    if (paneltobeDisabled != NULL) {
+        //since we are switching to the pico_DLP/2LCD, switch off the 2LCD/pico_DLP first
+        for (int i = 0; i < MAX_DISPLAY_CNT; i++) {
+            LOGD("Display id [%s]", screenMetaData[i].displayname);
+            LOGD("Display to be disabled id [%s]", paneltobeDisabled);
+            if (strcmp(screenMetaData[i].displayname, paneltobeDisabled) == 0) {
+                LOGD("found to be disabled Panel Id @ [%d]", i);
+                overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex = i;
+                break;
+            }
+        }
+        }
+        LOG_FUNCTION_NAME_EXIT
 }
 
 void overlay_control_context_t::close_shared_overlayobj(overlay_object *overlayobj)
@@ -781,12 +908,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     overlay_ctrl_t   *stage  = overlayobj->staging();
 
     int ret = 0;
-    int x,y,w,h;
-    int panelIdx = 0;
-    int managerIndx = 0;
-    const char* paneltobeDisabled = NULL;
-    static const char* panelname = "lcd";
-    static const char* managername = "lcd";
+    overlay_ctrl_t finalWindow;
     char overlaymanagername[PATH_MAX];
     int strmatch;
     int fd = overlayobj->getctrl_videofd();
@@ -829,28 +951,28 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     // Adjust the coordinate system to match the V4L change
     switch ( data->rotation ) {
     case 90:
-        x = data->posY;
-        y = data->posX;
-        w = data->posH;
-        h = data->posW;
+        finalWindow.posX = data->posY;
+        finalWindow.posY = data->posX;
+        finalWindow.posW = data->posH;
+        finalWindow.posH = data->posW;
         break;
     case 180:
-        x = ((overlayobj->dispW - data->posX) - data->posW);
-        y = ((overlayobj->dispH - data->posY) - data->posH);
-        w = data->posW;
-        h = data->posH;
+        finalWindow.posX = ((overlayobj->dispW - data->posX) - data->posW);
+        finalWindow.posY = ((overlayobj->dispH - data->posY) - data->posH);
+        finalWindow.posW = data->posW;
+        finalWindow.posH = data->posH;
         break;
     case 270:
-        x = data->posY;
-        y = data->posX;
-        w = data->posH;
-        h = data->posW;
+        finalWindow.posX = data->posY;
+        finalWindow.posY = data->posX;
+        finalWindow.posW = data->posH;
+        finalWindow.posH = data->posW;
         break;
     default: // 0
-        x = data->posX;
-        y = data->posY;
-        w = data->posW;
-        h = data->posH;
+        finalWindow.posX = data->posX;
+        finalWindow.posY = data->posY;
+        finalWindow.posW = data->posW;
+        finalWindow.posH = data->posH;
         break;
     }
 
@@ -860,108 +982,12 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     if (!strmatch) {
         stage->panel = OVERLAY_ON_TV;
     }
-
-    if (stage->panel != data->panel) {
-        switch(stage->panel){
-            case OVERLAY_ON_PRIMARY: {
-                LOGD("REQUEST FOR LCD1");
-                panelname = "lcd";
-                managername = "lcd";
-            }
-            break;
-            case OVERLAY_ON_SECONDARY: {
-                LOGD("REQUEST FOR LCD2");
-                panelname = "2lcd";
-                managername ="2lcd";
-                paneltobeDisabled = "pico_DLP";
-            }
-            break;
-            case OVERLAY_ON_TV: {
-                LOGD("REQUEST FOR TV");
-                panelname = "hdmi";
-                managername = "tv";
-            }
-            break;
-            case OVERLAY_ON_PICODLP: {
-                LOGD("REQUEST FOR PICO DLP");
-                panelname = "pico_DLP";
-                managername = "2lcd";
-                paneltobeDisabled = "2lcd";
-            }
-            break;
-            case OVERLAY_ON_VIRTUAL_SINK:
-                LOGD("REQUEST FOR VIRTUAL SINK: Setting the Default display for now");
-            default: {
-                panelname = "lcd";
-                managername = "lcd";
-            }
-            break;
-        };
-    }
-
-        for (int i = 0; i < MAX_DISPLAY_CNT; i++) {
-            LOGD("Display id [%s]", screenMetaData[i].displayname);
-            LOGD("dst id [%s]", panelname);
-            if (strcmp(screenMetaData[i].displayname, panelname) == 0) {
-                LOGD("found Panel Id @ [%d]", i);
-                panelIdx = i;
-                break;
-            }
-        }
-        for (int i = 0; i < MAX_MANAGER_CNT; i++) {
-            LOGD("managername name [%s]", managerMetaData[i].managername);
-            LOGD("dst name [%s]", managername);
-
-            if (strcmp(managerMetaData[i].managername, managername) == 0) {
-                LOGD("found Display Manager @ [%d]", i);
-                managerIndx = i;
-                break;
-            }
-        }
-    /*
-    * If default UI is on TV, android UI will receive 1920x1080 for screen size, and w & h will be 1920x1080 by default.
-    * It will remain 1920x1080 even if overlay is requested on LCD. A better choice would be to query the display size:
-    * and use the full resolution only for TV, for LCD lets respect whatever surface flinger asks for: this is required to
-    * maintain the aspect ratio decided by media player
-    */
-    uint32_t dummy, w2, h2;
-    if (sscanf(screenMetaData[panelIdx].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
-        &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
-        w2 = w;
-        h2 = h; /* leave w/h unchanged (default) if could not read timings */
-    }
-    switch (stage->panel) {
-        case OVERLAY_ON_PRIMARY:
-        case OVERLAY_ON_SECONDARY:
-        case OVERLAY_ON_PICODLP:
-            {
-                if (overlayobj->mData.cropW <= w2 &&
-                overlayobj->mData.cropH <= h2) {
-                    LOGE("Nothing to Adjust");
-                    break;
-                }
-            } //fall through in case of width or height beyond the limits
-        case OVERLAY_ON_TV:
-            {
-                x = 0;
-                y = 0;
-                if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
-                    w = w2;
-                    h = overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
-                    y = (h2 - h) / 2;
-                } else {
-                    h = h2;
-                    w = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
-                    x = (w2 - w) / 2;
-                }
-            }
-            break;
-        default:
-            LOGE("Leave the default  values");
-        };
+    calculateDisplayMetaData(overlayobj);
+    //Calculate window size. As of now this is applicable only for non-LCD panels
+    calculateWindow(overlayobj, &finalWindow);
 #endif
     LOGI("Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
-    LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", x, y, w, h );
+    LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
     LOGI("Rotation/%d\n", data->rotation );
     LOGI("alpha/%d\n", data->alpha );
     LOGI("zorder/%d\n", stage->zorder );
@@ -990,7 +1016,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 
-    if ((ret = v4l2_overlay_set_position(fd, x, y, w, h))) {
+    if ((ret = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
         LOGE("Set Position Failed!/%d\n", ret);
         goto end;
     }
@@ -1022,32 +1048,21 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
         if (data->panel != stage->panel) {
         data->panel = stage->panel;
-        LOGD("Panel path [%s]", screenMetaData[panelIdx].displayenabled);
-        LOGD("Manager display [%s]", managerMetaData[managerIndx].managerdisplay);
 
+        LOGD("Panel path [%s]", screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled);
+        LOGD("Manager display [%s]", managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managerdisplay);
         LOGD("manager path [%s]", overlayobj->overlaymanagerpath);
-        LOGD("manager name [%s]", managerMetaData[managerIndx].managername);
-        if (paneltobeDisabled != NULL) {
-            //since we are switching to the pico_DLP/2LCD, switch off the 2LCD/pico_DLP first
-            int tbdindx = -1;
-            for (int i = 0; i < MAX_DISPLAY_CNT; i++) {
-                LOGD("Display id [%s]", screenMetaData[i].displayname);
-                LOGD("Display to be disabled id [%s]", paneltobeDisabled);
-                if (strcmp(screenMetaData[i].displayname, paneltobeDisabled) == 0) {
-                    LOGD("found to be disabled Panel Id @ [%d]", i);
-                    tbdindx = i;
-                    break;
-                }
-            }
-            if (tbdindx != -1) {
+        LOGD("manager name [%s]", managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername);
+
+            if (overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex != -1) {
                 char disablepanelpath[PATH_MAX];
-                sprintf(disablepanelpath, "/sys/devices/platform/omapdss/display%d/enabled", tbdindx);
+                sprintf(disablepanelpath, "/sys/devices/platform/omapdss/display%d/enabled", \
+                    overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex);
                 if (sysfile_write(disablepanelpath, "0", sizeof("0")) < 0) {
                     LOGE("panel disable failed");
                     return -1;
                 }
             }
-        }
         /** Even thought stream is already off in the beginning, there are chances that, buffer que can happen from
           * media process and enable the pipeline. hence read the current status here and resume to that
           * after the manager is changed
@@ -1062,19 +1077,21 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
             return -1;
         }
         /* and the manager to the overlay */
-        if (sysfile_write(overlayobj->overlaymanagerpath, &managerMetaData[managerIndx].managername, PATH_MAX) < 0) {
+        if (sysfile_write(overlayobj->overlaymanagerpath, \
+            &managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername, PATH_MAX) < 0) {
             LOGE("Unable to set the overlay->manager");
             return -1;
         }
 
         /** set the manager display to the panel*/
-        if (sysfile_write(managerMetaData[managerIndx].managerdisplay, panelname, sizeof(panelname)) < 0) {
+        if (sysfile_write(managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managerdisplay, \
+            screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayname, PATH_MAX) < 0) {
             LOGE("Unable to set the manager->display");
             return -1;
         }
 
         //enable the requested panel here
-        if (sysfile_write(screenMetaData[panelIdx].displayenabled, "1", sizeof("1")) < 0) {
+        if (sysfile_write(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled, "1", sizeof("1")) < 0) {
             LOGE("Panel enable failed");
             return -1;
         }
@@ -1193,7 +1210,7 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
     ctx->omap_overlay->mappedbufcount = ctx->omap_overlay->num_buffers;
     LOG_FUNCTION_NAME_EXIT;
     LOGE("Initialize ret = %d", rc);
-
+    InitDisplayManagerMetaData();
     return ( rc );
 }
 
@@ -1241,14 +1258,13 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     int fd = ctx->omap_overlay->getdata_videofd();
     overlay_ctrl_t *stage = ctx->omap_overlay->staging();
 
-    if (ctx->omap_overlay->dataReady) {
-        LOGE("Either setCrop() or queueBuffer() was called prior to this!"
-             "Therefore failing this call.\n");
-        return -1;
-    }
-
     if ((ctx->omap_overlay->w == (int)w) && (ctx->omap_overlay->h == (int)h) && (ctx->omap_overlay->attributes_changed == 0)){
         LOGE("Same as current width and height. Attributes did not change either. So do nothing.");
+        //Lets reset the statemachine and disable the stream
+        ctx->omap_overlay->dataReady = 0;
+        if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay))) {
+            return -1;
+        }
         return 0;
     }
 
@@ -1316,6 +1332,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     }
 
     ctx->omap_overlay->mappedbufcount = ctx->omap_overlay->num_buffers;
+    ctx->omap_overlay->dataReady = 0;
 
     /* The control pameters just got set */
     ctx->omap_overlay->controlReady = 1;
@@ -1384,7 +1401,8 @@ int overlay_data_context_t::overlay_data_setParameter(struct overlay_data_device
 
 int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, uint32_t x,
                            uint32_t y, uint32_t w, uint32_t h) {
-    LOG_FUNCTION_NAME_ENTRY;
+    //LOG_FUNCTION_NAME_ENTRY;
+    //This print is commented as part of on-the-fly crop support
     if (dev == NULL) {
         LOGE("Null Arguments[%d]", __LINE__);
         return -1;
@@ -1396,10 +1414,17 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
     }
 
     int rc = 0;
+    overlay_ctrl_t finalWindow;
+    int _x, _y, _w, _h;
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
     if (ctx->omap_overlay == NULL) {
         LOGI("Shared Data Not Init'd!\n");
         return -1;
+    }
+    if (ctx->omap_overlay->mData.cropX == x && ctx->omap_overlay->mData.cropY == y && ctx->omap_overlay->mData.cropW == w
+        && ctx->omap_overlay->mData.cropH == h) {
+        //LOGI("Nothing to do!\n");
+        return 0;
     }
     int fd = ctx->omap_overlay->getdata_videofd();
 
@@ -1407,26 +1432,19 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
 
     ctx->omap_overlay->dataReady = 1;
 
-    if (ctx->omap_overlay->mData.cropX == x && ctx->omap_overlay->mData.cropY == y && ctx->omap_overlay->mData.cropW == w
-        && ctx->omap_overlay->mData.cropH == h) {
-        LOGI("Nothing to do!\n");
+    if ((rc = v4l2_overlay_get_position(fd, &_x,  &_y, &_w, &_h))) {
+        LOGD(" Could not get the position when setting the crop \n");
         goto end;
     }
+    finalWindow.posX = _x;
+    finalWindow.posY = _y;
+    finalWindow.posW = _w;
+    finalWindow.posH = _h;
 
 #ifndef TARGET_OMAP4
-    if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay)))
-        goto end;
-#else
-    /** since OMAP4 V4L2 driver does support on-the-fly crop functionality to change
-    * the crop window position, we needn't disable the stream, if the change is only in the
-    * co-ordinates. but if the setCrop involves chnage in Window size, we have call stream off first
-    */
-    if ((ctx->omap_overlay->mData.cropW != w) ||
-        (ctx->omap_overlay->mData.cropH != h)){
-        if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay)))
+    if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay))){
         goto end;
     }
-#endif
     ctx->omap_overlay->mData.cropX = x;
     ctx->omap_overlay->mData.cropY = y;
     ctx->omap_overlay->mData.cropW = w;
@@ -1438,6 +1456,55 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
     if (rc) {
         LOGE("Set Crop Window Failed!/%d\n", rc);
     }
+
+    overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow);
+    if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
+        LOGD(" Could not set the position when setting the crop \n");
+        goto end;
+    }
+#else
+    if((ctx->omap_overlay->mData.cropW != w) ||(ctx->omap_overlay->mData.cropH != h)) {
+        /** Since setCrop is called with crop window change, hence disable the stream first
+        * and set the final window as well
+        */
+        if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay))){
+            goto end;
+        }
+        ctx->omap_overlay->mData.cropX = x;
+        ctx->omap_overlay->mData.cropY = y;
+        ctx->omap_overlay->mData.cropW = w;
+        ctx->omap_overlay->mData.cropH = h;
+
+        LOGE("Crop Win/X%d/Y%d/W%d/H%d\n", x, y, w, h );
+        rc = v4l2_overlay_set_crop(fd, x, y, w, h);
+        if (rc) {
+            LOGE("Set Crop Window Failed!/%d\n", rc);
+            goto end;
+        }
+        overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow);
+        if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
+            LOGD(" Could not set the position when setting the crop \n");
+            goto end;
+        }
+    }
+    else {
+        /** setCrop is called only with the crop co-ordinates change and
+        * is allowed on-the-fly. Hence no need of disabling the stream and
+        * the final window remains the same
+        */
+        ctx->omap_overlay->mData.cropX = x;
+        ctx->omap_overlay->mData.cropY = y;
+        ctx->omap_overlay->mData.cropW = w;
+        ctx->omap_overlay->mData.cropH = h;
+
+        LOGE("Crop Win/X%d/Y%d/W%d/H%d\n", x, y, w, h );
+
+        rc = v4l2_overlay_set_crop(fd, x, y, w, h);
+        if (rc) {
+            LOGE("Set Crop Window Failed!/%d\n", rc);
+        }
+    }
+#endif
 
     LOG_FUNCTION_NAME_EXIT;
 end:
