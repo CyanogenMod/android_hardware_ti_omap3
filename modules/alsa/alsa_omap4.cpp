@@ -475,25 +475,25 @@ LOGV("%s", __FUNCTION__);
         if (devices & AudioSystem::DEVICE_OUT_SPEAKER) {
             control.set("DL2 Mixer Multimedia", 1);          // on
             control.set("Handsfree Playback Volume", 29);    // set Volume
-            control.set("HFDAC Left Playback Switch", 1);    // on
-            control.set("HFDAC Right Playback Switch", 1);   // on
+            control.set("HF Left Playback", 1);    // on
+            control.set("HF Right Playback", 1);   // on
         } else {
             control.set("DL2 Mixer Multimedia", (unsigned int)0);          // off
             control.set("Handsfree Playback Volume", (unsigned int)25);    // off
-            control.set("HFDAC Left Playback Switch", (unsigned int)0);    // off
-            control.set("HFDAC Right Playback Switch", (unsigned int)0);   // off
+            control.set("HF Left Playback", (unsigned int)0);    // off
+            control.set("HF Right Playback", (unsigned int)0);   // off
         }
 
         if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
             control.set("DL1 Mixer Multimedia", 1);        // on
             control.set("Headset Playback Volume", 15);    // on
-            control.set("HSDAC Left Playback Switch", 1);  // on
-            control.set("HSDAC Right Playback Switch", 1); // on
+            control.set("HS Left Playback", 1);  // on
+            control.set("HS Right Playback", 1); // on
         } else {
             control.set("DL1 Mixer Multimedia", (unsigned int)0);        // on
             control.set("Headset Playback Volume", (unsigned int)0);     // off
-            control.set("HSDAC Left Playback Switch", (unsigned int)0);  // off
-            control.set("HSDAC Right Playback Switch", (unsigned int)0); // off
+            control.set("HS Left Playback", (unsigned int)0);  // off
+            control.set("HS Right Playback", (unsigned int)0); // off
         }
     }
 
