@@ -1,12 +1,16 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
+ifeq ($(TARGET_BOARD_PLATFORM),omap4)
+LOCAL_CFLAGS := -DTARGET_OMAP4
+endif
+
 LOCAL_SRC_FILES := \
     stagefright_overlay_output.cpp \
     TIHardwareRenderer.cpp \
     TIOMXPlugin.cpp
 
-LOCAL_CFLAGS := $(PV_CFLAGS_MINUS_VISIBILITY)
+LOCAL_CFLAGS +:= $(PV_CFLAGS_MINUS_VISIBILITY)
 
 LOCAL_C_INCLUDES:= \
         $(TOP)/external/opencore/extern_libs_v2/khronos/openmax/include \

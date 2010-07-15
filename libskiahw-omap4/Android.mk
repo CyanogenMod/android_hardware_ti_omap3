@@ -1,4 +1,4 @@
-ifdef HARDWARE_OMX
+ifdef HARDWARE_OMX_NOT
 ifeq ($(TARGET_BOARD_PLATFORM),omap4)
 
 LOCAL_PATH:= $(call my-dir)

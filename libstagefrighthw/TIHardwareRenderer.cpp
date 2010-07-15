@@ -78,8 +78,39 @@ TIHardwareRenderer::TIHardwareRenderer(
     CHECK(mDecodedWidth > 0);
     CHECK(mDecodedHeight > 0);
 
+
+	int videoFormat = OVERLAY_FORMAT_CbYCrY_422_I;
+    if ((colorFormat == OMX_COLOR_FormatYUV420PackedSemiPlanar)||(colorFormat == OMX_COLOR_FormatYUV420SemiPlanar))
+   {
+    videoFormat = OVERLAY_FORMAT_YCbCr_420_SP;
+    iBytesperPixel = 1;
+   }
+    else if(colorFormat == OMX_COLOR_FormatCbYCrY)
+   {
+   videoFormat =  OVERLAY_FORMAT_CbYCrY_422_I;
+   iBytesperPixel = 2;
+   }
+    else if (colorFormat == OMX_COLOR_FormatYCbYCr)
+   {
+   videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
+   iBytesperPixel = 2;
+   }
+    else if (colorFormat == OMX_COLOR_FormatYUV420Planar)
+   {
+   videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
+   LOGI("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter or RGB565 converter needed");
+   mConvert = true;
+   mOptimalQBufCnt = NUM_BUFFERS_TO_BE_QUEUED_FOR_ARM_CODECS;
+   iBytesperPixel = 1;
+    }
+    else
+   {
+   LOGI("Not Supported format, and no coverter available");
+   return;
+    }
+
     sp<OverlayRef> ref = mISurface->createOverlay(
-            mDecodedWidth, mDecodedHeight, OVERLAY_FORMAT_CbYCrY_422_I, 0);
+            mDecodedWidth, mDecodedHeight, videoFormat, 0);
 
     if (ref.get() == NULL) {
         return;
@@ -129,6 +160,44 @@ static inline const void *byteOffset(const void* p, size_t offset) {
 
 static void convertYuv420ToYuv422(
         int width, int height, const void *src, void *dst) {
+
+#ifdef TARGET_OMAP4
+  // calculate total number of pixels, and offsets to U and V planes
+    uint32_t pixelCount =  height * width;
+
+    uint8_t* ySrc = (uint8_t*) src;
+    uint8_t* uSrc = (uint8_t*) ((uint8_t*)src + pixelCount);
+    uint8_t* vSrc = (uint8_t*) ((uint8_t*)src + pixelCount + pixelCount/4);
+    uint8_t *p = (uint8_t*) dst;
+    uint32_t page_width = (width * 2   + 4096 -1) & ~(4096 -1);  // width rounded to the 4096 bytes
+
+   //LOGI("Coverting YUV420 to YUV422 - Height %d and Width %d", height, width);
+
+     // convert lines
+    for (int i = 0; i < height  ; i += 2) {
+        for (int j = 0; j < width; j+= 2) {
+
+         //  These Y have the same CR and CRB....
+         //  Y0 Y01......
+         //  Y1 Y11......
+
+         // SRC buffer from the algorithm might be giving YVU420 as well
+         *(uint32_t *)(p) = (   ((uint32_t)(ySrc[1] << 16)   | (uint32_t)(ySrc[0]))  & 0x00ff00ff ) |
+                                    (  ((uint32_t)(*uSrc << 8) | (uint32_t)(*vSrc << 24))  & 0xff00ff00 ) ;
+
+         *(uint32_t *)(p + page_width) = (   ((uint32_t)(ySrc[width +1] << 16)   | (uint32_t)(ySrc[width]))    & 0x00ff00ff ) |
+                                                            (  ((uint32_t)(*uSrc++ << 8) | (uint32_t)(*vSrc++ << 24))   & 0xff00ff00 );
+
+            p += 4;
+            ySrc += 2;
+         }
+
+        // skip the next y line, we already converted it
+        ySrc += width;     // skip the next row as it was already filled above
+        p    += 2* page_width - width * 2; //go to the beginning of the next row
+    }
+
+#else
     // calculate total number of pixels, and offsets to U and V planes
     int pixelCount = height * width;
     int srcLineLength = width / 4;
@@ -176,6 +245,7 @@ static void convertYuv420ToYuv422(
         ySrc += srcLineLength;
         p += destLineLength;
     }
+#endif
 }
 
 void TIHardwareRenderer::render(
