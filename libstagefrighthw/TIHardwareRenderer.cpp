@@ -54,6 +54,10 @@ static void debugShowFPS()
     // XXX: mFPS has the value we want
 }
 
+#define ARMPAGESIZE 4096
+
+////////////////////////////////////////////////////////////////////////////////
+
 TIHardwareRenderer::TIHardwareRenderer(
         const sp<ISurface> &surface,
         size_t displayWidth, size_t displayHeight,
@@ -69,8 +73,9 @@ TIHardwareRenderer::TIHardwareRenderer(
       mFrameSize(mDecodedWidth * mDecodedHeight * 2),
       mIsFirstFrame(true),
       mIndex(0),
-      release_frame_cb(0) {
-
+      release_frame_cb(0),
+      mCropX(-1),
+      mCropY(-1) {
     sp<IMemory> mem;
     mapping_data_t *data;
 
@@ -78,30 +83,23 @@ TIHardwareRenderer::TIHardwareRenderer(
     CHECK(mDecodedWidth > 0);
     CHECK(mDecodedHeight > 0);
 
-
-	int videoFormat = OVERLAY_FORMAT_CbYCrY_422_I;
+    int videoFormat = OVERLAY_FORMAT_CbYCrY_422_I;
     if ((colorFormat == OMX_COLOR_FormatYUV420PackedSemiPlanar)||(colorFormat == OMX_COLOR_FormatYUV420SemiPlanar))
    {
     videoFormat = OVERLAY_FORMAT_YCbCr_420_SP;
-    iBytesperPixel = 1;
    }
     else if(colorFormat == OMX_COLOR_FormatCbYCrY)
    {
    videoFormat =  OVERLAY_FORMAT_CbYCrY_422_I;
-   iBytesperPixel = 2;
    }
     else if (colorFormat == OMX_COLOR_FormatYCbYCr)
    {
    videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
-   iBytesperPixel = 2;
    }
     else if (colorFormat == OMX_COLOR_FormatYUV420Planar)
    {
    videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
    LOGI("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter or RGB565 converter needed");
-   mConvert = true;
-   mOptimalQBufCnt = NUM_BUFFERS_TO_BE_QUEUED_FOR_ARM_CODECS;
-   iBytesperPixel = 1;
     }
     else
    {
@@ -117,9 +115,10 @@ TIHardwareRenderer::TIHardwareRenderer(
     }
 
     mOverlay = new Overlay(ref);
-    
+
     for (size_t i = 0; i < (size_t)mOverlay->getBufferCount(); ++i) {
         data = (mapping_data_t *)mOverlay->getBufferAddress((void *)i);
+        CHECK(data != NULL);
         mVideoHeaps[i] = new MemoryHeapBase(data->fd,data->length, 0, data->offset);
         mem = new MemoryBase(mVideoHeaps[i], 0, data->length);
         CHECK(mem.get() != NULL);
@@ -258,20 +257,34 @@ void TIHardwareRenderer::render(
     overlay_buffer_t overlay_buffer;
     size_t i = 0;
     int err;
-    
+    int cropX = 0;
+    int cropY = 0;
+
     if (mOverlay.get() == NULL) {
         return;
     }
 
     if (mColorFormat == OMX_COLOR_FormatYUV420Planar) {
         convertYuv420ToYuv422(mDecodedWidth, mDecodedHeight, data, mOverlayAddresses[mIndex]->pointer());
-    } 
+    }
     else {
-
-        CHECK_EQ(mColorFormat, OMX_COLOR_FormatCbYCrY);
-
         for (; i < mOverlayAddresses.size(); ++i) {
-            if (mOverlayAddresses[i]->pointer() == data) {
+            /**
+            *In order to support the offset from the decoded buffers, we have to check for
+            * the range of offset with in the buffer. Here we can't check for the base address
+            * and also, the offset should be used for crop window position calculation
+            * we are getting the Baseaddress + offset
+            **/
+            int offsetinPixels = (char*)data - (char*)mOverlayAddresses[i]->pointer();
+            if(offsetinPixels < size){
+                cropY = (offsetinPixels)/ARMPAGESIZE;
+                cropX = (offsetinPixels)%ARMPAGESIZE;
+                if( (cropY != mCropY) || (cropX != mCropX))
+                {
+                    mCropY = cropY;
+                    mCropX = cropX;
+                    mOverlay->setCrop((uint32_t)cropX, (uint32_t)cropY, mDisplayWidth, mDisplayWidth);
+                }
                 break;
             }
         }

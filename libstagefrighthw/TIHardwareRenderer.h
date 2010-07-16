@@ -68,11 +68,8 @@ private:
     TIHardwareRenderer(const TIHardwareRenderer &);
     TIHardwareRenderer &operator=(const TIHardwareRenderer &);
 
-    bool  mConvert;
-    int   mOptimalQBufCnt;
-	int iBytesperPixel;
-	int icropY;
-	int icropX;
+    int mCropX;
+    int mCropY;
 };
 
 }  // namespace android
