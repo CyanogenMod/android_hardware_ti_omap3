@@ -33,6 +33,9 @@
 // support for shared contiguous physical memory
 #include <ui/Overlay.h>
 
+using namespace android;
+
+
 class AndroidSurfaceOutputOmap34xx : public AndroidSurfaceOutput
 {
 public:
@@ -43,25 +46,27 @@ public:
     virtual void setParametersSync(PvmiMIOSession aSession, PvmiKvp* aParameters, int num_elements, PvmiKvp * & aRet_kvp);
     virtual PVMFStatus getParametersSync(PvmiMIOSession aSession, PvmiKeyType aIdentifier,
             PvmiKvp*& aParameters, int& num_parameter_elements, PvmiCapabilityContext aContext);
-    virtual PVMFStatus writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info);
+    virtual PVMFStatus writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info, int aIndex);
     virtual PVMFCommandId writeAsync(uint8 aFormatType, int32 aFormatIndex, uint8* aData, uint32 aDataLen,
             const PvmiMediaXferHeader& data_header_info, OsclAny* aContext);
     virtual void closeFrameBuf();
     virtual void postLastFrame();
     OSCL_IMPORT_REF ~AndroidSurfaceOutputOmap34xx();
 
-    BufferAllocOmap34xx			mbufferAlloc;
+    BufferAllocOmap34xx   mbufferAlloc;
     
 private:
-    bool						mUseOverlay;
-    sp<Overlay> 				mOverlay; 
-    int 						bufEnc;
-    int32 iNumberOfBuffers;
-    int32 iBufferSize;
-    bool                    mIsFirstFrame;
-
-    bool                    mConvert;
-
+    bool            mUseOverlay;
+    sp<Overlay>     mOverlay;
+    int             bufEnc;
+    int32           iNumberOfBuffers;
+    int32           iBufferSize;
+    bool            mConvert;
+    int             mOptimalQBufCnt;
+    PVMFFormatType  iVideoCompressionFormat;
+    int             iBytesperPixel;
+    int             icropY;
+    int             icropX;
 };
 
 #endif // ANDROID_SURFACE_OUTPUT_OMAP34XX_H_INCLUDED

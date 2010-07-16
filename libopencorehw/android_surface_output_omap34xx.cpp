@@ -23,7 +23,6 @@
  * Author: Michael Barabanov <michael.barabanov@windriver.com>
  */
 
-
 //#define LOG_NDEBUG 0
 #ifdef LOG_NDEBUG
 #warning LOG_NDEBUG ##LOG_NDEBUG##
@@ -40,13 +39,11 @@ static int mDebugFps = 0;
 #include "pv_mime_string_utils.h"
 #include "pvmf_video.h"
 #include <media/PVPlayer.h>
-
-extern "C" {
 #include "v4l2_utils.h"
-}
 
 using namespace android;
 
+#define ARMPAGESIZE 4096
 typedef struct WriteResponseData{
      PvmiCapabilityContext aContext;
      PVMFTimestamp aTimestamp;
@@ -60,39 +57,72 @@ typedef struct WriteResponseData{
 
 static void convertYuv420pToYuv422i(int width, int height, void* src, void* dst);
 
+static int Calculate_TotalRefFrames(int nWidth, int nHeight)
+{
+    LOGD("Calculate_TotalRefFrames");
+    int ref_frames = 0;
+    int spec_computation;
+    if(nWidth > MAX_OVERLAY_WIDTH_VAL || nHeight > MAX_OVERLAY_HEIGHT_VAL)
+    {
+       return 0;
+    }
+    nWidth = nWidth - 128 - 2 * 36;
 
-OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
+    if (nWidth > 1280) {
+        nWidth = 1920;
+    } else if (nWidth > 720) {
+        nWidth = 1280;
+    } else {
+        nWidth = (nWidth + 16) & ~12;
+    }
+
+    nHeight = nHeight - 4 * 24;
+
+    /* 12288 is the value for Profile 4.1 */
+    spec_computation = ((1024 * 12288)/((nWidth/16)*(nHeight/16)*384));
+    ref_frames = (spec_computation > 16)?16:(spec_computation/1);
+    ref_frames = ref_frames + 1 + NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE;
+    LOGD("**Calculated buf %d",ref_frames);
+    return ref_frames;
+}
+
+AndroidSurfaceOutputOmap34xx::AndroidSurfaceOutputOmap34xx() :
     AndroidSurfaceOutput()
 {
     mUseOverlay = true;
     mOverlay = NULL;
-    mIsFirstFrame = true;
-    mbufferAlloc.buffer_address = NULL;
     mConvert = false;
+    /**
+    * Initialize cropx/cropy to negative values to allow setcrop to get called
+    * at least once, even for the cases where offset is zero.
+    */
+    icropX = -1;
+    icropY = -1;
+    /**In the base class, this variable is initilized to 2, which is required for
+    * surface flinger based rendering. But on overlay-based platforms, its value should be overwritten.
+    * In order to get the same behavior as the previous releases, lets reset it to 0.
+    */
+    mNumberOfFramesToHold = 0;
 }
 
-OSCL_EXPORT_REF AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
+AndroidSurfaceOutputOmap34xx::~AndroidSurfaceOutputOmap34xx()
 {
     mUseOverlay = false;
     mInitialized = false;
-    
-    if(mOverlay != NULL){
+    if(mOverlay.get() != NULL){
         mOverlay->destroy();
-        mOverlay = NULL;
-    }
-    if (mbufferAlloc.buffer_address) {
-        delete [] mbufferAlloc.buffer_address;
-        mbufferAlloc.buffer_address = NULL;
+        mOverlay.clear();
     }
 }
 
-OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
+bool AndroidSurfaceOutputOmap34xx::initCheck()
 {
-    LOGV("Calling Vendor(34xx) Specific initCheck");
+    LOGD("Calling Vendor(34xx) Specific initCheck");
      mInitialized = false;
     // reset flags in case display format changes in the middle of a stream
     resetVideoParameterFlags();
     bufEnc = 0;
+    mOptimalQBufCnt = NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE;
 
     // copy parameters in case we need to adjust them
     int displayWidth = iVideoDisplayWidth;
@@ -101,50 +131,44 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
     int frameHeight = iVideoHeight;
     int frameSize;
     int videoFormat = OVERLAY_FORMAT_CbYCrY_422_I;
-
-#ifdef TARGET_OMAP4
     //as the sub format is a string, switch case logic cant be used here
     if ((iVideoSubFormat == PVMF_MIME_YUV420_SEMIPLANAR)||(iVideoSubFormat == PVMF_MIME_YUV420_PACKEDSEMIPLANAR))
-	{
-	videoFormat = OVERLAY_FORMAT_YCbCr_420_SP;
-	}
+   {
+    videoFormat = OVERLAY_FORMAT_YCbCr_420_SP;
+    iBytesperPixel = 1;
+    mOptimalQBufCnt = 4;
+   }
     else if(iVideoSubFormat == PVMF_MIME_YUV422_INTERLEAVED_UYVY)
-	{
-	videoFormat =  OVERLAY_FORMAT_CbYCrY_422_I;
-	}
+   {
+   videoFormat =  OVERLAY_FORMAT_CbYCrY_422_I;
+   iBytesperPixel = 2;
+   }
     else if (iVideoSubFormat == PVMF_MIME_YUV422_INTERLEAVED_YUYV)
-	{
-	videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
-	}
+   {
+   videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
+   iBytesperPixel = 2;
+   }
     else if (iVideoSubFormat == PVMF_MIME_YUV420_PLANAR)
-	{
-	videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
-	LOGI("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter or RGB565 converter needed");
-	mConvert = true;
-	}
+   {
+   videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
+   LOGI("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter or RGB565 converter needed");
+   mConvert = true;
+   mOptimalQBufCnt = NUM_BUFFERS_TO_BE_QUEUED_FOR_ARM_CODECS;
+   iBytesperPixel = 1;
+    }
     else
-	{
-	LOGI("Not Supported format, and no coverter available");
-	return mInitialized;
-	}
-#endif
+   {
+   LOGI("Not Supported format, and no coverter available");
+   return mInitialized;
+    }
+
     mapping_data_t *data;
     if (mUseOverlay) {
-        if(mOverlay == NULL){
-            LOGV("using Vendor Specific(34xx) codec");
-            sp<OverlayRef> ref = NULL;
-            // FIXME:
-            // Surfaceflinger may hold onto the previous overlay reference for some
-            // time after we try to destroy it. retry a few times. In the future, we
-            // should make the destroy call block, or possibly specify that we can
-            // wait in the createOverlay call if the previous overlay is in the
-            // process of being destroyed.
-            for (int retry = 0; retry < 50; ++retry) {
-                ref = mSurface->createOverlay(displayWidth, displayHeight, videoFormat, 0);
-                if (ref != NULL) break;
-                LOGD("Overlay create failed - retrying");
-                usleep(100000);
-            }
+        if(mOverlay.get() == NULL){
+            LOGV("using Vendor Speicifc(34xx) codec");
+            sp<OverlayRef> ref = mSurface->createOverlay(frameWidth, frameHeight,videoFormat,0);
+            if(ref != NULL)LOGV("Vendor Speicifc(34xx)MIO: overlay created ");
+            else LOGV("Vendor Speicifc(34xx)MIO: Creating overlay failed");
             if ( ref.get() == NULL )
             {
                 LOGE("Overlay Creation Failed!");
@@ -153,9 +177,29 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
             mOverlay = new Overlay(ref);
 
             mOverlay->setParameter(CACHEABLE_BUFFERS, 0);
+            mOverlay->setParameter(OPTIMAL_QBUF_CNT, mOptimalQBufCnt);
+#ifdef TARGET_OMAP4
+            //calculate the number of buffers to be allocated for overlay
+            int overlaybuffcnt = Calculate_TotalRefFrames(frameWidth, frameHeight);
+            overlaybuffcnt = (overlaybuffcnt > iNumberOfBuffers) ? overlaybuffcnt : iNumberOfBuffers;
+            if (overlaybuffcnt < 20) {
+                overlaybuffcnt = 20;
+            }
+            int initialcnt = mOverlay->getBufferCount();
+            if (overlaybuffcnt != initialcnt) {
+                mOverlay->setParameter(OVERLAY_NUM_BUFFERS, overlaybuffcnt);
+                mOverlay->resizeInput(frameWidth, frameHeight);
+            }
+#endif
         }
         else
         {
+            LOGD("Before resizeInput()");
+            LOGD("sWriteRespData[0].inQ = %d", sWriteRespData[0].bInDSSQueue);
+            LOGD("sWriteRespData[1].inQ = %d", sWriteRespData[1].bInDSSQueue);
+            LOGD("sWriteRespData[2].inQ = %d", sWriteRespData[2].bInDSSQueue);
+            LOGD("sWriteRespData[3].inQ = %d", sWriteRespData[3].bInDSSQueue);
+
             mOverlay->resizeInput(frameWidth, frameHeight);
         }
         LOGI("Actual resolution: %dx%d", frameWidth, frameHeight);
@@ -163,36 +207,32 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutputOmap34xx::initCheck()
 
         mbufferAlloc.maxBuffers = mOverlay->getBufferCount();
         mbufferAlloc.bufferSize = iBufferSize;
-        if (mbufferAlloc.buffer_address) {
-            delete [] mbufferAlloc.buffer_address;
-        }
-        mbufferAlloc.buffer_address = new uint8*[mbufferAlloc.maxBuffers];
-        if (mbufferAlloc.buffer_address == NULL) {
-            LOGE("unable to allocate mem for overlay addresses");
-            return mInitialized;
-        }
-        LOGV("number of buffers = %d\n", mbufferAlloc.maxBuffers);
+        LOGD("number of buffers = %d\n", mbufferAlloc.maxBuffers);
+        if (mbufferAlloc.maxBuffers < 0)
+        {
+            LOGE("problem with bufferallocations\n");
+             return mInitialized;
+   }
         for (int i = 0; i < mbufferAlloc.maxBuffers; i++) {
             data = (mapping_data_t *)mOverlay->getBufferAddress((void*)i);
-            mbufferAlloc.buffer_address[i] = (uint8*)data->ptr;
+            mbufferAlloc.buffer_address[i] = data->ptr;
             strcpy((char *)mbufferAlloc.buffer_address[i], "hello");
             if (strcmp((char *)mbufferAlloc.buffer_address[i], "hello")) {
                 LOGI("problem with buffer\n");
                 return mInitialized;
             }else{
-                LOGV("buffer = %d allocated addr=%#lx\n", i, (unsigned long) mbufferAlloc.buffer_address[i]);
+                LOGD("buffer = %d allocated addr=%#lx\n", i, (unsigned long) mbufferAlloc.buffer_address[i]);
             }
-        }        
+        }
     }
     mInitialized = true;
     LOGV("sendEvent(MEDIA_SET_VIDEO_SIZE, %d, %d)", iVideoDisplayWidth, iVideoDisplayHeight);
     mPvPlayer->sendEvent(MEDIA_SET_VIDEO_SIZE, iVideoDisplayWidth, iVideoDisplayHeight);
-
     char value[PROPERTY_VALUE_MAX];
     property_get("debug.video.showfps", value, "0");
     mDebugFps = atoi(value);
     LOGD_IF(mDebugFps, "showfps enabled");
- 	
+
     return mInitialized;
 }
 
@@ -213,14 +253,16 @@ static void debugShowFPS()
     }
     // XXX: mFPS has the value we want
 }
- 
+
 PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32 aFormatIndex, uint8* aData, uint32 aDataLen,
                                          const PvmiMediaXferHeader& data_header_info, OsclAny* aContext)
 {
-     bool bDequeueFail = false;
-     bool bQueueFail = false;
-     //LOGD("Calling Vendor(34xx) Specific writeAsync");
-     
+    bool bDequeueFail = false;
+    bool bQueueFail = false;
+    int cropX = 0;
+    int cropY = 0;
+     //LOGD("Calling Vendor(34xx) Specific writeAsync[%d]", aData);
+
      // Do a leave if MIO is not configured except when it is an EOS
      if (!iIsMIOConfigured
              &&
@@ -231,19 +273,19 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
          OSCL_LEAVE(OsclErrInvalidState);
          return -1;
      }
- 
+
      uint32 aSeqNum=data_header_info.seq_num;
      PVMFTimestamp aTimestamp=data_header_info.timestamp;
      uint32 flags=data_header_info.flags;
      PVMFCommandId cmdid=iCommandCounter++;
- 
+
      if (aSeqNum < 6)
      {
          LOGV("AndroidSurfaceOutputOmap34xx::writeAsync() seqnum %d ts %d context %d",aSeqNum,aTimestamp, (int)aContext);
- 
+
          LOGV("AndroidSurfaceOutputOmap34xx::writeAsync() Format Type %d Format Index %d length %d",aFormatType,aFormatIndex,aDataLen);
      }
- 
+
      PVMFStatus status=PVMFFailure;
 
      switch(aFormatType)
@@ -253,7 +295,7 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
          //ignore
          status= PVMFSuccess;
          break;
- 
+
      case PVMI_MEDIAXFER_FMT_TYPE_NOTIFICATION :
          LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() called with Notification info.");
          switch(aFormatIndex)
@@ -267,14 +309,14 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
          //ignore
          status= PVMFSuccess;
          break;
- 
+
      case PVMI_MEDIAXFER_FMT_TYPE_DATA :
          switch(aFormatIndex)
          {
          case PVMI_MEDIAXFER_FMT_INDEX_FMT_SPECIFIC_INFO:
              //format-specific info contains codec headers.
              LOGD("AndroidSurfaceOutputOmap34xx::writeAsync() called with format-specific info.");
- 
+
              if (iState<STATE_INITIALIZED)
              {
                  LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - Invalid state");
@@ -284,57 +326,71 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
              {
                  status= PVMFSuccess;
              }
- 
+
              break;
- 
+
          case PVMI_MEDIAXFER_FMT_INDEX_DATA:
              //data contains the media bitstream.
- 
+
              //Verify the state
              if (iState!=STATE_STARTED)
              {
                  LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - Invalid state");
                  status=PVMFErrInvalidState;
              }
-			else
-			{
-				//printf("V WriteAsync { seq=%d, ts=%d }\n", data_header_info.seq_num, data_header_info.timestamp);
+             else
+             {
+                 //printf("V WriteAsync { seq=%d, ts=%d }\n", data_header_info.seq_num, data_header_info.timestamp);
 
-				// Call playback to send data to IVA for Color Convert
-				if(mUseOverlay)
-				{
-					// Convert from YUV420 to YUV422 for software codec
-					if (mConvert) {
-						convertYuv420pToYuv422i(iVideoWidth, iVideoHeight, aData, mbufferAlloc.buffer_address[bufEnc]);
-					} else {
-						int i;
-						for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
-						if (mbufferAlloc.buffer_address[i] == aData) {
-							break;
-							}
-						}
-						LOGI("queueBuffer %d\n", i);
-						bufEnc = i;
-					}
-					if (bufEnc == mbufferAlloc.maxBuffers) {
-						LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: aData does not match any v4l buffer address\n");
-						status = PVMFFailure;
-						WriteResponse resp(status, cmdid, aContext, aTimestamp);
-						iWriteResponseQueue.push_back(resp);
-						RunIfNotReady();
-						return cmdid;
-					}
-					LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", i);
-					sWriteRespData[bufEnc].aContext = aContext;
-					sWriteRespData[bufEnc].aTimestamp  = aTimestamp;
-					sWriteRespData[bufEnc].cmdid = cmdid;
-					sWriteRespData[bufEnc].bInDSSQueue = true;
-				}
-				bDequeueFail = false;
-		                bQueueFail = false;
-				status = writeFrameBuf((uint8*)mbufferAlloc.buffer_address[bufEnc], aDataLen, data_header_info);
-				switch (status)
-				{
+                 // Call playback to send data to IVA for Color Convert
+                 if(mUseOverlay)
+                 {
+            // Convert from YUV420 to YUV422 for software codec
+            if (mConvert) {
+                convertYuv420pToYuv422i(iVideoWidth, iVideoHeight, aData, mbufferAlloc.buffer_address[bufEnc]);
+            } else {
+                int i;
+                for (i = 0; i < mbufferAlloc.maxBuffers; i++) {
+                    /**
+                    *In order to support the offset from the decoded buffers, we have to check for
+                    * the range of offset with in the buffer. Here we can't check for the base address
+                    * and also, the offset should be used for crop window position calculation
+                    **/
+                    uint32 offsetinPixels = data_header_info.nOffset;
+                    if(mbufferAlloc.buffer_address[i] == aData - offsetinPixels){
+                        cropY = (offsetinPixels)/ARMPAGESIZE;
+                        cropX = (offsetinPixels)%ARMPAGESIZE;
+                        if( (cropY != icropY) || (cropX != icropX))
+                        {
+                            icropY = cropY;
+                            icropX = cropX;
+                            mOverlay->setCrop((uint32_t)cropX, (uint32_t)cropY, iVideoDisplayWidth, iVideoDisplayHeight);
+                        }
+                        break;
+                    }
+                }
+            bufEnc = i;
+            }
+            if (bufEnc == mbufferAlloc.maxBuffers) {
+                LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: aData does not match any v4l buffer address\n");
+                status = PVMFFailure;
+                WriteResponse resp(status, cmdid, aContext, aTimestamp);
+                iWriteResponseQueue.push_back(resp);
+                RunIfNotReady();
+                return cmdid;
+            }
+            LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Saving context, index=%d", bufEnc);
+
+            sWriteRespData[bufEnc].aContext = aContext;
+            sWriteRespData[bufEnc].aTimestamp  = aTimestamp;
+            sWriteRespData[bufEnc].cmdid = cmdid;
+            sWriteRespData[bufEnc].bInDSSQueue = true;
+            }
+                bDequeueFail = false;
+                bQueueFail = false;
+                 status = writeFrameBuf((uint8*)mbufferAlloc.buffer_address[bufEnc], aDataLen, data_header_info, bufEnc);
+                 switch (status)
+                 {
                      case PVMFSuccess:
                          LOGV("writeFrameBuf Success");
                      break;
@@ -360,20 +416,20 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
                  LOGV("AndroidSurfaceOutputOmap34xx::writeAsync: Playback Progress - frame %lu",iFrameNumber++);
              }
              break;
- 
+
          default:
              LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - unrecognized format index");
              status= PVMFFailure;
              break;
          }
          break;
- 
+
      default:
          LOGE("AndroidSurfaceOutputOmap34xx::writeAsync: Error - unrecognized format type");
          status= PVMFFailure;
          break;
      }
- 
+
      //Schedule asynchronous response
      if(iEosReceived){
          int i;
@@ -408,18 +464,27 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
          RunIfNotReady();
          return cmdid;
      }
+
+     if(iEosReceived) LOGD("iEosReceived - line %d", __LINE__);
+
      WriteResponse resp(status, cmdid, aContext, aTimestamp);
+     if(iEosReceived) LOGD("iEosReceived - line %d", __LINE__);
+
      iWriteResponseQueue.push_back(resp);
+     if(iEosReceived) LOGD("iEosReceived - line %d", __LINE__);
+
      RunIfNotReady();
+     if(iEosReceived) LOGD("iEosReceived - line %d", __LINE__);
+
      return cmdid;
  }
- 
 
 
-PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info)
+
+PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info, int aIndex)
 {
     //LOGD(" calling Vendor Speicifc(34xx) writeFrameBuf call");
-    static int nBuffToStartDQ = NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE; /*DSS2: At least 2 buffers need to be queue before enable streaming*/
+    static int nBuffToStartDQ = mOptimalQBufCnt; /*DSS2: At least 2 buffers need to be queue before enable streaming*/
     PVMFStatus eStatus = PVMFSuccess;
     int nBufIndex = 0;
     int nReturnDSSBufIndex = 0;
@@ -432,11 +497,7 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
     }
 
     if (mUseOverlay) {
-    for (nBufIndex = 0; nBufIndex < mbufferAlloc.maxBuffers; nBufIndex++) {
-        if (mbufferAlloc.buffer_address[nBufIndex] == aData) {
-            break;
-        }
-    }
+    nBufIndex = aIndex;
     if (nBufIndex == mbufferAlloc.maxBuffers) {
         LOGE("aData does not match any v4l buffer address\n");
             return PVMFSuccess;
@@ -474,10 +535,10 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::writeFrameBuf(uint8* aData, uint32 aDat
                     eStatus = PVMFFailure; //Queue & Dequeue fail
                 }
                 else{
-                    /* This code will make sure that whenever a Stream OFF occurs in overlay... 
+                    /* This code will make sure that whenever a Stream OFF occurs in overlay...
                        a response is sent for each of the buffer.. so that buffers are not lost */
                     if(nError == -2 ){
-                        nBuffToStartDQ = NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE -1; // Subtract one, as buffer is already queued
+                        nBuffToStartDQ = mOptimalQBufCnt -1; // Subtract one, as buffer is already queued
                         LOGV("Handle dq error: EPERM");
                         for(nReturnDSSBufIndex = 0; nReturnDSSBufIndex < mbufferAlloc.maxBuffers; nReturnDSSBufIndex++){
                             if(nReturnDSSBufIndex == nBufIndex){
@@ -575,7 +636,8 @@ void AndroidSurfaceOutputOmap34xx::setParametersSync(PvmiMIOSession aSession,
     /* Copy Code from base class. Ideally we'd just call base class's setParametersSync, but we can't as it will not get to initCheck if it encounters an unrecognized parameter such as the one we're handling here */
     uint32 mycache = iVideoParameterFlags ;
     if( checkVideoParameterFlags() ) {
-	initCheck();
+   // CloseFrameBuf();
+   initCheck();
     }
     iVideoParameterFlags = mycache;
     if(!iIsMIOConfigured && checkVideoParameterFlags() )
@@ -600,8 +662,8 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::getParametersSync(PvmiMIOSession aSessi
     if (strcmp(aIdentifier, PVMF_BUFFER_ALLOCATOR_KEY) == 0)
     {
         if((iVideoSubFormat != PVMF_MIME_YUV422_INTERLEAVED_UYVY) && (iVideoSubFormat != PVMF_MIME_YUV422_INTERLEAVED_YUYV) \
-	   && (iVideoSubFormat != PVMF_MIME_YUV420_SEMIPLANAR) && (iVideoSubFormat != PVMF_MIME_YUV420_PACKEDSEMIPLANAR))
-	 {
+      && (iVideoSubFormat != PVMF_MIME_YUV420_SEMIPLANAR)&&(iVideoSubFormat != PVMF_MIME_YUV420_PACKEDSEMIPLANAR))
+    {
             LOGI("Ln %d iVideoSubFormat %s. do NOT allocate decoder buffer from overlay", __LINE__, iVideoSubFormat.getMIMEStrPtr() );
             OSCL_LEAVE(OsclErrNotSupported);
             return PVMFErrNotSupported;
@@ -683,7 +745,10 @@ static void convertYuv420pToYuv422i (int width, int height, void* src, void* dst
 // factory function for playerdriver linkage
 extern "C" AndroidSurfaceOutputOmap34xx* createVideoMio()
 {
-    LOGV("Creating Vendor(34xx) Specific MIO component");
+    LOGD("Creating Vendor(34xx) Specific MIO component");
     return new AndroidSurfaceOutputOmap34xx();
 }
+
+
+
 
