@@ -25,9 +25,8 @@ LOCAL_C_INCLUDES += \
         kernel/android-2.6.29/include \
 	frameworks/base/include/utils \
 	bionic/libc/include \
-	hardware/ti/omx/ducati/domx/mmplatform \
-	hardware/ti/omx/ducati/system-omx/system/omx_core/inc \
-	hardware/ti/omx/ducati/system-omx/system/mm_osal/inc \
+	hardware/ti/omx/ducati/domx/system/omx_core/inc \
+	hardware/ti/omx/ducati/domx/system/mm_osal/inc \
 	
 
 LOCAL_CFLAGS += -fno-short-enums 
