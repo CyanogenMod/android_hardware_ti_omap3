@@ -23,7 +23,7 @@ do
 		 globalObj=$1
 		 ;;
 	esac
-done < "/inst2/baseimage.map"
+done < "/system/lib/dsp/baseimage.map"
 
 #informative prints
 echo phys_mempool_base offset: $mempoolOffset;
@@ -32,5 +32,5 @@ echo _tInstGlobal_Obj: $globalObj;
 echo LOG table address: $logaddr count: $loglen;
 
 #Run INST2
-/inst2/instutility.out $GppPaOffset 0x$globalObj 0xffffffff 0x4000 0x48320010 0x48320010 $mempoolOffset 0x$logaddr $loglen /mnt/rd/${file}log.txt 0x8000 2>/mnt/rd/dbg-${file}.txt
+/system/bin/instutility.out $GppPaOffset 0x$globalObj 0xffffffff 0x4000 0x48320010 0x48320010 $mempoolOffset 0x$logaddr $loglen /mnt/${file}log.bin 0x8000 2>/mnt/dbg-${file}.txt
 
