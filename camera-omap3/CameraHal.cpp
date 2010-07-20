@@ -1299,8 +1299,8 @@ int CameraHal::CameraStart()
             LOGE("Error while applying zoom");
 
         mZoomCurrentIdx = mZoomTargetIdx;
-        mParameters.set("zoom", ((int) zoom_step[mZoomCurrentIdx]));
-        mNotifyCb(CAMERA_MSG_ZOOM, ((int) zoom_step[mZoomCurrentIdx] - 1), 1, mCallbackCookie);
+        mParameters.set("zoom", (int) mZoomCurrentIdx);
+        mNotifyCb(CAMERA_MSG_ZOOM, (int) mZoomCurrentIdx, 1, mCallbackCookie);
     }
 
     LOG_FUNCTION_NAME_EXIT
