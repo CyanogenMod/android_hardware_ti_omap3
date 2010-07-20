@@ -974,9 +974,6 @@ void CameraHal::previewThread()
                    err = -1;
                }
 
-                // Release constraint to DSP OPP by setting lowest Hz
-                SetDSPHz(DSP3630_HZ_MIN);
-
                 if( err )
                    LOGE("Capture failed.");
 
@@ -2345,6 +2342,9 @@ int CameraHal::ICapturePerform(){
 
     }
 
+    // Release constraint to DSP OPP by setting lowest Hz
+    SetDSPHz(DSP3630_HZ_MIN);
+
     mPictureBuffer.clear();
     mPictureHeap.clear();
 
@@ -2965,6 +2965,9 @@ void CameraHal::procThread()
 
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
+
+                // Release constraint to DSP OPP by setting lowest Hz
+                SetDSPHz(DSP3630_HZ_MIN);
 
             } else if( procMessage[0] == PROC_THREAD_EXIT ) {
                 LOGD("PROC_THREAD_EXIT_RECEIVED");
