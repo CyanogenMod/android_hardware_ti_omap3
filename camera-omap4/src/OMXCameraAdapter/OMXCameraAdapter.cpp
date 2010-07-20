@@ -271,7 +271,7 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
 
                 if ( port->mBufferHeader[i]->pBuffer == frameBuf )
                     {
-                    //CAMHAL_LOGDB("Sending Frame 0x%x back to Ducati for filling", frameBuf);
+                    //CAMHAL_LOGDB("Sending Frame 0x%x back to Ducati for filling", (unsigned int) frameBuf);
                     eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp, port->mBufferHeader[i]);
                     if ( eError != OMX_ErrorNone )
                         {
@@ -2894,17 +2894,17 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             {
             typeOfFrame = CameraFrame::SNAPSHOT_FRAME;
             mSnapshotCount++;
-            CAMHAL_LOGDB("Snapshot Frame 0x%x refCount start %d", (unsigned int)pBuffHeader->pBuffer, mFrameSubscribers.size());
+            //CAMHAL_LOGDB("Snapshot Frame 0x%x refCount start %d", (unsigned int) pBuffHeader->pBuffer, mFrameSubscribers.size());
             }
         else
             {
             typeOfFrame = CameraFrame::PREVIEW_FRAME_SYNC;
-            //CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mFrameSubscribers.size());
+            //CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", (unsigned int) pBuffHeader->pBuffer, mFrameSubscribers.size());
             }
 
                 {
                 Mutex::Autolock lock(mPreviewBufferLock);
-                ///CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer,(int) mFrameSubscribers.size());
+                //CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer,(int) mFrameSubscribers.size());
                 mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) pBuffHeader->pBuffer, mFrameSubscribers.size());
                 }
 
@@ -3320,7 +3320,7 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                         }
                     CAMHAL_LOGDB("Shutter Speed for Hal and OMX= %d", (int)Gen3A.ShutterSpeed);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
-                    CAMHAL_LOGDB("OMX_SetConfig()returned  %d", i);
+                    CAMHAL_LOGDB("OMX_SetConfig()returned  %d", ret);
                     }
                     break;
 
