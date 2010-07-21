@@ -174,9 +174,9 @@ const struct {
     const char *zoom_description;
 } zoom [] = {
     { 0, "1x"},
-    { 1, "2x"},
-    { 2, "3x"},
-    { 3, "4x"},
+    { 20, "2x"},
+    { 40, "4x"},
+    { 60, "8x"},
 };
 
 const struct {
