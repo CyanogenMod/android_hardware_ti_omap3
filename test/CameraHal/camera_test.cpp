@@ -165,8 +165,8 @@ const char *focus[] = {
     "macro",
 };
 int focus_mode = 0;
-const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg"};
-int pictureFormat = ARRAY_SIZE(pixelformat) - 1;
+const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw"};
+int pictureFormat = ARRAY_SIZE(pixelformat) - 2;
 const char *exposure[] = {"Auto", "Macro", "Portrait", "Landscape", "Sports", "Night", "Night Portrait", "Backlighting", "Manual"};
 const char *capture[] = { "High Performance", "High Quality", "Video Mode" };
 const struct {
@@ -356,7 +356,7 @@ void my_raw_callback(const sp<IMemory>& mem) {
         goto out;
 
     fn[0] = 0;
-    sprintf(fn, "/img%03d.yuv", counter);
+    sprintf(fn, "/sdcard/img%03d.raw", counter);
     fd = open(fn, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
 
     if (fd < 0)
@@ -376,8 +376,8 @@ void my_raw_callback(const sp<IMemory>& mem) {
         printf("Bad Write int a %s error (%d)%s\n", fn, errno, strerror(errno));
 
     counter++;
-    printf("%s: buffer=%08X, size=%d\n",
-           __FUNCTION__, (int)buff, size);
+    printf("%s: buffer=%08X, size=%d stored at %s\n",
+           __FUNCTION__, (int)buff, size, fn);
 
 out:
 
@@ -985,7 +985,7 @@ void initDefaults() {
     bufferStarvationTest = 0;
     meter_mode = 0;
     previewFormat = 0;
-    pictureFormat = ARRAY_SIZE(pixelformat) - 1;
+    pictureFormat = ARRAY_SIZE(pixelformat) - 2;
 
     params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
     params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
