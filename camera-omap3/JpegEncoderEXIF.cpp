@@ -18,22 +18,22 @@ void exif_buf_free (exif_buffer * buf)
 exif_buffer *exif_new_buf(unsigned char *data, unsigned int size)
 {
     exif_buffer *res;
-    
+
     res = (exif_buffer *) malloc(sizeof (exif_buffer));
-    
+
     if( res == NULL)
         return NULL;
-        
+
     res->data = (unsigned char *) malloc(size);
     if( res->data == NULL){
        free(res);
-        
+
         return NULL;
     }
-    
-    memcpy ((void *) res->data, (void *) data, size);   
+
+    memcpy ((void *) res->data, (void *) data, size);
     res->size = size;
-    
+
     return res;
 }
 
@@ -86,12 +86,15 @@ void  exif_entry_set_byte(ExifData * pEdata, ExifIfd eEifd, ExifTag eEtag,
     ExifByte n)
 {
     ExifEntry *pE;
-    
+    unsigned char *pData;
+
     pE = exif_entry_new ();
     exif_content_add_entry (pEdata->ifd[eEifd], pE);
     exif_entry_initialize (pE, eEtag);
-    if (pE->data) {
-      pE->data = (unsigned char *) n;
+
+    pData = (unsigned char *) (pE->data);
+    if (pData) {
+      *pData = n;
     } else {
       printf ("ERROR: unallocated e->data Tag %d\n", eEtag);
     }
@@ -344,10 +347,10 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
 
     switch( par->metering_mode ) {
         case EXIF_CENTER:
-            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_METERING_MODE, 2);
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_METERING_MODE, 1);
             break;
         case EXIF_AVERAGE:
-            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_METERING_MODE, 1);
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_METERING_MODE, 2);
             break;
     };
 
@@ -364,10 +367,22 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
         case EXIF_ISO_400:
             exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 400);
             break;
+        case EXIF_ISO_800:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 800);
+            break;
+        case EXIF_ISO_1000:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 1000);
+            break;
+        case EXIF_ISO_1200:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 1200);
+            break;
+        case EXIF_ISO_1600:
+            exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, 1600);
+            break;
     };
 
-    sR.numerator = par->zoom;
-    sR.denominator = 1;
+    sR.numerator = par->zoom*100;
+    sR.denominator = 100;
     exif_entry_set_rational (pEd, EXIF_IFD_EXIF, EXIF_TAG_DIGITAL_ZOOM_RATIO, sR);
 
     if ( EXIF_WB_AUTO == par->wb )
@@ -376,7 +391,7 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
         exif_entry_set_short (pEd, EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, 1);
 
     sR.numerator = par->exposure;
-    sR.denominator = 1000;
+    sR.denominator = 1000000;
     exif_entry_set_rational (pEd, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME, sR);
 
     /* resolution */
@@ -393,25 +408,25 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
 
     /* flashpix version */
     exif_entry_set_undefined(pEd, EXIF_IFD_EXIF, EXIF_TAG_FLASH_PIX_VERSION, NULL);
-    
+
     /* file source */
     exif_entry_set_undefined(pEd, EXIF_IFD_EXIF, EXIF_TAG_FILE_SOURCE, NULL);
-    
+
     /* file name */
     exif_entry_set_undefined(pEd, EXIF_IFD_EXIF, EXIF_TAG_DOCUMENT_NAME, NULL);
-    
+
     /* scene type */
     exif_entry_set_undefined(pEd, EXIF_IFD_EXIF, EXIF_TAG_SCENE_TYPE, NULL);
 
     /* Color Components */
     exif_entry_set_undefined(pEd, EXIF_IFD_EXIF, EXIF_TAG_COMPONENTS_CONFIGURATION, NULL);
-    
+
     /* Bits per sample */
     exif_entry_set_undefined (pEd, EXIF_IFD_0, EXIF_TAG_BITS_PER_SAMPLE, NULL);
-    
+
     /* Color space */
    exif_entry_set_short (pEd, EXIF_IFD_EXIF, EXIF_TAG_COLOR_SPACE, 1);
-    
+
     /* Interoperability index */
     exif_entry_set_string(pEd, EXIF_IFD_INTEROPERABILITY, EXIF_TAG_INTEROPERABILITY_INDEX, "R98");
 

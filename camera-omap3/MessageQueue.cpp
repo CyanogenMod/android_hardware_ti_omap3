@@ -34,7 +34,7 @@ int MessageQueue::get(Message* msg)
     while( read_bytes  < sizeof(msg) )
     {
         int err = read(this->fd_read, p, sizeof(*msg) - read_bytes);
-        
+
         if( err < 0 ) {
             LOGE("read() error: %s", strerror(errno));
             return -1;
@@ -45,7 +45,7 @@ int MessageQueue::get(Message* msg)
 
 #ifdef DEBUG_LOG
 
-    LOGD("MQ.get(%d,%p,%p,%p,%p)", msg->command, msg->arg1,msg->arg2,msg->arg3,msg->arg4);    
+    LOGD("MQ.get(%d,%p,%p,%p,%p)", msg->command, msg->arg1,msg->arg2,msg->arg3,msg->arg4);
 
 #endif
 
@@ -71,7 +71,7 @@ int MessageQueue::put(Message* msg)
     while( bytes  < sizeof(msg) )
     {
         int err = write(this->fd_write, p, sizeof(*msg) - bytes);
-    	 
+
         if( err < 0 ) {
             LOGE("write() error: %s", strerror(errno));
             return -1;
@@ -86,7 +86,7 @@ int MessageQueue::put(Message* msg)
 
 #endif
 
-    return 0;    
+    return 0;
 }
 
 

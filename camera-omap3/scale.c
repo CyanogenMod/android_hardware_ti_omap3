@@ -451,7 +451,7 @@ int scale_init(int inWidth, int inHeight, int outWidth, int outHeight, int inFmt
 
     if( pLCML == NULL )
     {
-        LOGV("Cannot get LCML handle.\n");
+        LOGE("Cannot get LCML handle.\n");
         return -1;
     }
 
@@ -464,14 +464,14 @@ int scale_init(int inWidth, int inHeight, int outWidth, int outHeight, int inFmt
     err = LCML_InitMMCodec( pLCML->pCodecinterfacehandle, p, &pLCML, (void*)p, &cb );
     if( err != OMX_ErrorNone )
     {
-        LOGV("LCML_InitMMCodec error = 0x%08x", err);
+        LOGE("LCML_InitMMCodec error = 0x%08x", err);
         return -1;
     }
 
     err = LCML_ControlCodec( pLCML->pCodecinterfacehandle, EMMCodecControlStart, "damedesuStr" );
     if( err != OMX_ErrorNone )
     {
-        LOGV("LCML_ControlCodec(EMMCodecControlStart) error = 0x%08x\n", err);
+        LOGE("LCML_ControlCodec(EMMCodecControlStart) error = 0x%08x\n", err);
         return -1;
     }
 

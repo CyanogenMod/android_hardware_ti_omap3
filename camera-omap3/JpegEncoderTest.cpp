@@ -4,27 +4,27 @@
 
 int main(int argc, char **argv)
 {
-    char inFilename[50]; 
+    char inFilename[50];
     const char *inputfilename = "JPGE_CONF_003.yuv";
     char outFilename[50];
     const char *outputfilename= "/E";
-    char path[50];	
+    char path[50];
     int w = 176;
     int h= 144;
     int count = 1;
     int quality = 100;
     int inbufferlen = 0;
     int outbufferlen;
-    FILE* f = NULL;    
+    FILE* f = NULL;
     JpegEncoder *JpegEnc = new JpegEncoder();
 
 
     if (argc == 2){
         printf("\n\nUsage: ./system/bin/JpegEncoderTest <count> <input filename> <output filename> <width> <height> <quality>\n\n");
-        count = atoi(argv[1]);        
+        count = atoi(argv[1]);
         strcpy(inFilename, inputfilename);
         strcpy(outFilename, outputfilename);
-        printf("\nCount = %d", count);		
+        printf("\nCount = %d", count);
         printf("\nUsing Default Parameters for the rest");
         printf("\nInput Filename = %s", inFilename);
         printf("\nOutput Filename = %s", outFilename);
@@ -37,7 +37,7 @@ int main(int argc, char **argv)
         strcpy(inFilename, inputfilename);
         strcpy(outFilename, outputfilename);
         printf("\nUsing Default Parameters");
-        printf("\nCount: Single Encode");		
+        printf("\nCount: Single Encode");
         printf("\nInput Filename = %s", inFilename);
         printf("\nOutput Filename = %s", outFilename);
         printf("\nw = %d", w);
@@ -51,9 +51,9 @@ int main(int argc, char **argv)
         w = atoi(argv[4]);
         h = atoi(argv[5]);
         quality = atoi(argv[6]);
-    }		
-    
-    FILE* fIn = NULL;    
+    }
+
+    FILE* fIn = NULL;
     fIn = fopen(inFilename, "r");
     if ( fIn == NULL ) {
         printf("\nError: failed to open the file %s for reading", inFilename);
@@ -90,20 +90,20 @@ int main(int argc, char **argv)
             }
 
             fwrite(outBuffer,  1, JpegEnc->jpegSize, f);
-            
+
             if ( f != NULL ) fclose(f);
 
             printf("Test Successful\n");
         }
-        else 
-        {   
+        else
+        {
             printf("Test UnSuccessful\n");
             break;
         }
-    }    
-	
+    }
+
     inBuffer = (void*)((int)inBuffer - 128);
-    outBuffer = (void*)((int)outBuffer - 128);    
+    outBuffer = (void*)((int)outBuffer - 128);
     free(inBuffer);
     free(outBuffer);
     delete JpegEnc;

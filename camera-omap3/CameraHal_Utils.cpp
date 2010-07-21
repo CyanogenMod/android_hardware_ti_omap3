@@ -325,12 +325,18 @@ int aspect_ratio_calc(
 fail:
     return error;
 }
+
+
 #ifdef FW3A
 int CameraHal::FW3A_Create()
 {
     int err = 0;
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME
+
+#endif
 
     fobj = (lib3atest_obj*)malloc(sizeof(*fobj));
     memset(fobj, 0 , sizeof(*fobj));
@@ -339,65 +345,19 @@ int CameraHal::FW3A_Create()
         goto exit;
     }
 
-    ancillary_buffer = (uint8_t *) malloc(ancillary_len);
-    if (!ancillary_buffer) {
-        LOGE("cannot alloc ancillary_buffer");
-        goto exit;
-    }
-    memset(ancillary_buffer, 0, ancillary_len);
-
-    LOGE("dlopen MMS 3a Library Enter");
-  	fobj->lib.lib_handle = dlopen(LIB3AFW, RTLD_LAZY);
-  	LOGE("dlopen MMS 3a Library Exit");
-    if (NULL == fobj->lib.lib_handle) {
-		LOGE("A dynamic linking error occurred: (%s)", dlerror());
-        LOGE("ERROR - at dlopen for %s", LIB3AFW);
-        goto exit;
-    }
-
-    /* get Create2A symbol */
-    fobj->lib.Create2A = (int (*)(Camera2AInterface**)) dlsym(fobj->lib.lib_handle, "Create2A");
-    if (NULL == fobj->lib.Create2A) {
-        LOGE("ERROR - can't get dlsym \"Create2A\"");
-        goto exit;
-    }
- 
-    /* get Destroy2A symbol */
-    fobj->lib.Destroy2A = (int (*)(Camera2AInterface**)) dlsym(fobj->lib.lib_handle, "Destroy2A");
-    if (NULL == fobj->lib.Destroy2A) {
-        LOGE("ERROR - can't get dlsym \"Destroy2A\"");
-        goto exit;
-    }
-
-    /* get Init2A symbol */
-    LOGE("dlsym MMS 3a Init2A Enter");
-    fobj->lib.Init2A = (int (*)(Camera2AInterface*, int, uint8)) dlsym(fobj->lib.lib_handle, "Init2A");
-    LOGE("dlsym MMS 3a Init2A Exit");
-    if (NULL == fobj->lib.Init2A) {
-        LOGE("ERROR - can't get dlsym \"Init2A\"");
-        goto exit;
-    }
-
-    /* get Release2A symbol */
-    LOGE("dlsym MMS 3a Release2A Enter");
-    fobj->lib.Release2A = (int (*)(Camera2AInterface*)) dlsym(fobj->lib.lib_handle, "Release2A");
-    LOGE("dlsym MMS 3a Release2A Exit");
-    if (NULL == fobj->lib.Release2A) {
-       LOGE( "ERROR - can't get dlsym \"Release2A\"");
-       goto exit;
-    }
-
-    fobj->cam_dev = 0;
-    /* Create 2A framework */
-    err = fobj->lib.Create2A(&fobj->cam_iface_2a);
+    err = ICam_Create(&fobj->hnd);
     if (err < 0) {
         LOGE("Can't Create2A");
         goto exit;
     }
 
+#ifdef DEBUG_LOG
+
     LOGD("FW3A Create - %d   fobj=%p", err, fobj);
 
     LOG_FUNCTION_NAME_EXIT
+
+#endif
 
     return 0;
 
@@ -410,29 +370,38 @@ int CameraHal::FW3A_Init()
 {
     int err = 0;
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME
 
-    err = fobj->lib.Init2A(fobj->cam_iface_2a, fobj->cam_dev, 0);
-    if (err < 0) {
-        LOGE("Can't Init2A, will try to release first");
-        err = fobj->lib.Release2A(fobj->cam_iface_2a);
-        if (!err) {
-            err = fobj->lib.Init2A(fobj->cam_iface_2a, fobj->cam_dev, 0);
-            if (err < 0) {
-                LOGE("Can't Init2A");
+#endif
 
-                err = fobj->lib.Destroy2A(&fobj->cam_iface_2a);
+    /* Init 2A framework */
+    err = ICam_Init(fobj->hnd);
+    if (err < 0) {
+        LOGE("Can't ICam_Init, will try to release first");
+        err = ICam_Release(fobj->hnd, ICAM_RELEASE);
+        if (!err) {
+            err = ICam_Init(fobj->hnd);
+            if (err < 0) {
+                LOGE("Can't ICam_Init");
+
+                err = ICam_Destroy(fobj->hnd);
                 goto exit;
             }
         }
     }
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME_EXIT
+
+#endif
 
     return 0;
 
 exit:
-
+    LOGE("Can't init 3A FW");
     return -1;
 }
 
@@ -440,9 +409,13 @@ int CameraHal::FW3A_Release()
 {
     int ret;
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME
 
-    ret = fobj->lib.Release2A(fobj->cam_iface_2a);
+#endif
+
+    ret = ICam_Release(fobj->hnd, ICAM_RESTART);
     if (ret < 0) {
         LOGE("Cannot Release2A");
         goto exit;
@@ -450,7 +423,11 @@ int CameraHal::FW3A_Release()
         LOGD("2A released");
     }
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME_EXIT
+
+#endif
 
     return 0;
 
@@ -463,21 +440,29 @@ int CameraHal::FW3A_Destroy()
 {
     int ret;
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME
 
-    ret = fobj->lib.Destroy2A(&fobj->cam_iface_2a);
+#endif
+
+    ret = ICam_Destroy(fobj->hnd);
     if (ret < 0) {
         LOGE("Cannot Destroy2A");
     } else {
         LOGD("2A destroyed");
     }
 
-   	dlclose(fobj->lib.lib_handle);
+    free(fobj->mnote.buffer);
   	free(fobj);
-  	free(ancillary_buffer);
+
     fobj = NULL;
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME_EXIT
+
+#endif
 
     return 0;
 }
@@ -486,14 +471,19 @@ int CameraHal::FW3A_Start()
 {
     int ret;
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME
+
+#endif
 
     if (isStart_FW3A!=0) {
         LOGE("3A FW is already started");
         return -1;
     }
+
     //Start 3AFW
-    ret = fobj->cam_iface_2a->Start2A(fobj->cam_iface_2a->pPrivateHandle);
+    ret = ICam_ViewFinder(fobj->hnd, ICAM_ENABLE);
     if (0 > ret) {
         LOGE("Cannot Start 2A");
         return -1;
@@ -501,7 +491,11 @@ int CameraHal::FW3A_Start()
         LOGE("3A FW Start - success");
     }
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME_EXIT
+
+#endif
 
     isStart_FW3A = 1;
     return 0;
@@ -523,7 +517,7 @@ int CameraHal::FW3A_Stop()
     }
 
     //Stop 3AFW
-    ret = fobj->cam_iface_2a->Stop2A(fobj->cam_iface_2a->pPrivateHandle);
+    ret = ICam_ViewFinder(fobj->hnd, ICAM_DISABLE);
     if (0 > ret) {
         LOGE("Cannot Stop 3A");
         return -1;
@@ -547,32 +541,40 @@ int CameraHal::FW3A_Stop()
 int CameraHal::FW3A_Start_CAF()
 {
     int ret;
-    
+
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME
+
+#endif
 
     if (isStart_FW3A_CAF!=0) {
         LOGE("3A FW CAF is already started");
         return -1;
     }
 
-    if (fobj->settings_2a.af.focus_mode != FOCUS_MODE_AF_CONTINUOUS_NORMAL) {
-      FW3A_GetSettings();
-      fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_CONTINUOUS_NORMAL;
-      ret = FW3A_SetSettings();
-      if (0 > ret) {
-          LOGE("Cannot Start CAF");
-          return -1;
-      } else {
-          LOGE("3A FW CAF Start - success");
-      }
-    }
-    if (ret == 0) {
-      ret = fobj->cam_iface_2a->StartAF(fobj->cam_iface_2a->pPrivateHandle);
+    if (isStart_FW3A == 0) {
+        LOGE("3A FW is not started");
+        return -1;
     }
 
-    isStart_FW3A_CAF = 1;
+    ret = ICam_CFocus(fobj->hnd, ICAM_ENABLE);
+
+    if (ret != 0) {
+        LOGE("Cannot Start CAF");
+        return -1;
+    } else {
+        isStart_FW3A_CAF = 1;
+#ifdef DEBUG_LOG
+        LOGD("3A FW CAF Start - success");
+#endif
+    }
+
+#ifdef DEBUG_LOG
 
     LOG_FUNCTION_NAME_EXIT
+
+#endif
 
     return 0;
 }
@@ -592,22 +594,25 @@ int CameraHal::FW3A_Stop_CAF()
         return prev;
     }
 
-    ret = fobj->cam_iface_2a->StopAF(fobj->cam_iface_2a->pPrivateHandle);
+    ret = ICam_CFocus(fobj->hnd, ICAM_DISABLE);
     if (0 > ret) {
         LOGE("Cannot Stop CAF");
         return -1;
     }
 
-#ifdef DEBUG_LOG
+
      else {
-        LOGE("3A FW CAF Start - success");
-    }
+        isStart_FW3A_CAF = 0;
+#ifdef DEBUG_LOG
+        LOGD("3A FW CAF Stop - success");
 #endif
+    }
 
-    isStart_FW3A_CAF = 0;
 
 #ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME_EXIT
+
 #endif
 
     return prev;
@@ -617,33 +622,38 @@ int CameraHal::FW3A_Stop_CAF()
 int CameraHal::FW3A_Start_AF()
 {
     int ret = 0;
-    
+
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME
+
+#endif
+    if (isStart_FW3A == 0) {
+        LOGE("3A FW is not started");
+        return -1;
+    }
 
     if (isStart_FW3A_AF!=0) {
         LOGE("3A FW AF is already started");
         return -1;
     }
 
-    if (fobj->settings_2a.af.focus_mode != FOCUS_MODE_AF_AUTO) {
-      FW3A_GetSettings();
-      fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_AUTO;
-      ret = FW3A_SetSettings();
-    }
-    
-    if (ret == 0) {
-      ret = fobj->cam_iface_2a->StartAF(fobj->cam_iface_2a->pPrivateHandle);
-    }
-    if (0 > ret) {
+    ret = ICam_AFocus(fobj->hnd, ICAM_ENABLE);
+
+    if (0 != ret) {
         LOGE("Cannot Start AF");
         return -1;
     } else {
-        LOGE("3A FW AF Start - success");
+        isStart_FW3A_AF = 1;
+        LOGD("3A FW AF Start - success");
     }
+
+#ifdef DEBUG_LOG
 
     LOG_FUNCTION_NAME_EXIT
 
-    isStart_FW3A_AF = 1;
+#endif
+
     return 0;
 }
 
@@ -663,27 +673,25 @@ int CameraHal::FW3A_Stop_AF()
     }
 
     //Stop 3AFW
-    ret = fobj->cam_iface_2a->StopAF(fobj->cam_iface_2a->pPrivateHandle);
+    ret = ICam_AFocus(fobj->hnd, ICAM_DISABLE);
     if (0 > ret) {
         LOGE("Cannot Stop AF");
         return -1;
-    }
-
-#ifdef DEBUG_LOG
-    else {
+    } else {
+        isStart_FW3A_AF = 0;
         LOGE("3A FW AF Stop - success");
     }
-#endif
-
-    isStart_FW3A_AF = 0;
 
 #ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME_EXIT
+
 #endif
+
     return prev;
 }
 
-int CameraHal::FW3A_GetSettings()
+int CameraHal::FW3A_GetSettings() const
 {
     int err = 0;
 
@@ -693,11 +701,11 @@ int CameraHal::FW3A_GetSettings()
 
 #endif
 
-    err = fobj->cam_iface_2a->ReadSettings(fobj->cam_iface_2a->pPrivateHandle, &fobj->settings_2a);
+    err = ICam_ReadSettings(fobj->hnd, &fobj->settings);
 
 #ifdef DEBUG_LOG
 
-    LOG_FUNCTION_NAME_EXIT  
+    LOG_FUNCTION_NAME_EXIT
 
 #endif
 
@@ -708,14 +716,23 @@ int CameraHal::FW3A_SetSettings()
 {
     int err = 0;
 
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME
 
-    err = fobj->cam_iface_2a->WriteSettings(fobj->cam_iface_2a->pPrivateHandle, &fobj->settings_2a);
-  
+#endif
+
+    err = ICam_WriteSettings(fobj->hnd, &fobj->settings);
+
+#ifdef DEBUG_LOG
+
     LOG_FUNCTION_NAME_EXIT
+
+#endif
 
     return err;
 }
+
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -774,7 +791,7 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
     eError = IPP_SetProcessingConfiguration(pIPP.hIPP, pIPP.ippconfig);
 	if(eError != 0){
 		LOGE("ERROR IPP_SetProcessingConfiguration");
-	}	
+	}
 
 	if(ippMode == IPP_CromaSupression_Mode ){
 		pIPP.CRCBptr.size = sizeof(IPP_CRCBSAlgoCreateParams);
@@ -854,7 +871,7 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 	if( !(pIPP.ippconfig.isINPLACE) ){
 		pIPP.pIppOutputBuffer= (unsigned char*)DSP_CACHE_ALIGN_MEM_ALLOC(pIPP.outputBufferSize); // TODO make it dependent on the output format
 	}
-    
+
     return eError;
 }
 /*-------------------------------------------------------------------*/
@@ -888,7 +905,7 @@ int CameraHal::DeInitIPP(int ippMode)
 
     free(((char*)pIPP.iStarInArgs));
     free(((char*)pIPP.iStarOutArgs));
-	
+
 	if(ippMode == IPP_CromaSupression_Mode ){
         free(((char*)pIPP.iCrcbsInArgs));
         free(((char*)pIPP.iCrcbsOutArgs));
@@ -903,7 +920,7 @@ int CameraHal::DeInitIPP(int ippMode)
     free(((char*)pIPP.iYuvcOutArgs1));
     free(((char*)pIPP.iYuvcInArgs2));
     free(((char*)pIPP.iYuvcOutArgs2));
-	
+
 	if(ippMode == IPP_EdgeEnhancement_Mode){
         free(((char*)pIPP.dynEENF));
 	}
@@ -913,14 +930,14 @@ int CameraHal::DeInitIPP(int ippMode)
 	}
 
     LOGD("Terminating IPP");
-    
+
     return eError;
 }
 
 int CameraHal::PopulateArgsIPP(int w, int h, int fmt, int ippMode)
 {
     int eError = 0;
-    
+
     LOGD("IPP: PopulateArgs ENTER");
 
 	//configuring size of input and output structures
@@ -931,7 +948,7 @@ int CameraHal::PopulateArgsIPP(int w, int h, int fmt, int ippMode)
 	if(ippMode == IPP_EdgeEnhancement_Mode){
 	    pIPP.iEenfInArgs->size = sizeof(IPP_EENFAlgoInArgs);
 	}
-	
+
     pIPP.iYuvcInArgs1->size = sizeof(IPP_YUVCAlgoInArgs);
     pIPP.iYuvcInArgs2->size = sizeof(IPP_YUVCAlgoInArgs);
 
@@ -942,14 +959,14 @@ int CameraHal::PopulateArgsIPP(int w, int h, int fmt, int ippMode)
 	if(ippMode == IPP_EdgeEnhancement_Mode){
     	pIPP.iEenfOutArgs->size = sizeof(IPP_EENFAlgoOutArgs);
 	}
-	
+
     pIPP.iYuvcOutArgs1->size = sizeof(IPP_YUVCAlgoOutArgs);
     pIPP.iYuvcOutArgs2->size = sizeof(IPP_YUVCAlgoOutArgs);
-    
+
 	//Configuring specific data of algorithms
 	if(ippMode == IPP_CromaSupression_Mode ){
 	    pIPP.iCrcbsInArgs->inputHeight = h;
-	    pIPP.iCrcbsInArgs->inputWidth = w;	
+	    pIPP.iCrcbsInArgs->inputWidth = w;
 	    pIPP.iCrcbsInArgs->inputChromaFormat = IPP_YUV_420P;
 	}
 
@@ -1001,14 +1018,14 @@ int CameraHal::PopulateArgsIPP(int w, int h, int fmt, int ippMode)
 	if(ippMode == IPP_EdgeEnhancement_Mode){
 	    pIPP.statusDesc.statusPtr[1] = &(pIPP.EENFStatus);
 	}
-	
+
     pIPP.statusDesc.numParams = 2;
     pIPP.statusDesc.algoNum[0] = 0;
     pIPP.statusDesc.algoNum[1] = 1;
     pIPP.statusDesc.algoNum[1] = 1;
 
     LOGD("IPP: PopulateArgs EXIT");
-    
+
     return eError;
 }
 
@@ -1100,13 +1117,13 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
         LOGD("\tShading Gain Max Val = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainMaxValue);
         LOGD("\tRatio Downsample CbCr = %d", (int)IPPEENFAlgoDynamicParamsCfg.ratioDownsampleCbCr);
 
-		    
+
 		/*Set Dynamic Parameter*/
 		memcpy(pIPP.dynEENF,
 		       (void*)&IPPEENFAlgoDynamicParamsCfg,
 		       sizeof(IPPEENFAlgoDynamicParamsCfg));
 
-	
+
 		LOGD("IPP_SetAlgoConfig");
 		eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_EENF_DYNPRMS_CFGID, (void*)pIPP.dynEENF);
 		if( eError != 0){
@@ -1124,7 +1141,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
 	if(!(pIPP.ippconfig.isINPLACE)){
 		pIPP.iOutputBufferDesc.numBuffers = 1;
 		pIPP.iOutputBufferDesc.bufPtr[0] = pIPP.pIppOutputBuffer;						/*TODO, depend on pix format*/
-		pIPP.iOutputBufferDesc.bufSize[0] = pIPP.outputBufferSize; 
+		pIPP.iOutputBufferDesc.bufSize[0] = pIPP.outputBufferSize;
 		pIPP.iOutputBufferDesc.usedSize[0] = pIPP.outputBufferSize;
 		pIPP.iOutputBufferDesc.port[0] = 1;
 		pIPP.iOutputBufferDesc.reuseAllowed[0] = 0;
@@ -1175,14 +1192,14 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
         }
         pIPP.iOutputArgs.argsArray[2] = pIPP.iYuvcOutArgs2;
     }
-   
+
     LOGD("IPP_ProcessImage");
 	if((pIPP.ippconfig.isINPLACE)){
 		eError = IPP_ProcessImage(pIPP.hIPP, &(pIPP.iInputBufferDesc), &(pIPP.iInputArgs), NULL, &(pIPP.iOutputArgs));
 	}
 	else{
 		eError = IPP_ProcessImage(pIPP.hIPP, &(pIPP.iInputBufferDesc), &(pIPP.iInputArgs), &(pIPP.iOutputBufferDesc),&(pIPP.iOutputArgs));
-	}    
+	}
     if( eError != 0){
 		LOGE("ERROR IPP_ProcessImage");
 	}
@@ -1194,7 +1211,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
     }
 
 	LOGD("IPP_ProcessImage Done");
-    
+
     return eError;
 }
 
@@ -1223,11 +1240,11 @@ int CameraHal::CorrectPreview()
         return EINVAL;
     }
 
-    if (aspect_ratio_calc(cropcap.bounds.width - 8, cropcap.bounds.height - 8,
+    if (aspect_ratio_calc(cropcap.bounds.width, cropcap.bounds.height,
                          cropcap.pixelaspect.numerator, cropcap.pixelaspect.denominator,
-                         cropcap.bounds.width - 8, cropcap.bounds.height - 8,
+                         cropcap.bounds.width, cropcap.bounds.height,
                          dst_width, dst_height,
-                         2, 2, 1, 1,
+                         1, 1, 1, 1,
                          (int *) &crop.c.left, (int *) &crop.c.top,
                          (int *) &crop.c.width, (int *) &crop.c.height,
                          &pos_l, &pos_t, &pos_w, &pos_h,
@@ -1237,7 +1254,6 @@ int CameraHal::CorrectPreview()
 
         return -1;
     }
-
 
     ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
     if (ret < 0) {
@@ -1279,7 +1295,7 @@ int CameraHal::ZoomPerform(float zoom)
 
     delta_x = crop.c.width - (crop.c.width /zoom);
     delta_y = crop.c.height - (crop.c.height/zoom);
- 
+
     crop.c.width -= delta_x;
     crop.c.height -= delta_y;
     crop.c.left += delta_x >> 1;

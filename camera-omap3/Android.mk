@@ -22,7 +22,6 @@ LOCAL_SHARED_LIBRARIES:= \
     libsurfaceflinger_client
 
 LOCAL_C_INCLUDES += \
-    kernel/android-2.6.29/include \
     frameworks/base/include/camera \
     frameworks/base/include/binder \
     hardware/ti/omap3/liboverlay
@@ -60,10 +59,13 @@ endif
 ifdef FW3A
 
 LOCAL_C_INCLUDES += \
-	hardware/ti/omap3/fw3A/include
+    hardware/ti/omap3/fw3A/include/ \
+	hardware/ti/omap3/fw3A/include/fw/api/linux/
 
 LOCAL_SHARED_LIBRARIES += \
     libdl \
+    libicamera \
+    libicapture \
 
 LOCAL_CFLAGS += -O0 -g3 -DIPP_LINUX -D___ANDROID___ -DFW3A -DICAP
 

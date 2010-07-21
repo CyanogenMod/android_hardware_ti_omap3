@@ -45,6 +45,7 @@
 #include <camera/CameraHardwareInterface.h>
 #include "MessageQueue.h"
 #include "overlay_common.h"
+#include "CameraHalParams.h"
 
 #ifdef HARDWARE_OMX
 #include <JpegEncoderEXIF.h>
@@ -55,16 +56,19 @@
 #define VPP 1
 
 #define PPM_INSTRUMENTATION 1
+#define ICAP_EXPERIMENTAL 1
+
+#define DEBUG_LOG 1
 
 //#undef FW3A
 //#undef ICAP
 //#undef IMAGE_PROCESSING_PIPELINE
 
 #ifdef FW3A
-#include "osal/osal_stdtypes.h"
-#include "osal/osal_sysdep.h"
-#include "fw/api/linux/camera_2A/camera_alg.h"
-#include "fw/api/linux/camera_2A/icapture_interface.h"
+extern "C" {
+#include "icam_icap/icamera.h"
+#include "icam_icap/icapture_v2.h"
+}
 #endif
 
 #ifdef HARDWARE_OMX
@@ -79,17 +83,19 @@
 #define MAXIPPDynamicParams 10
 
 #endif
-
+#define MAX_BURST 15
 #define DSP_CACHE_ALIGNMENT 128
 #define BUFF_MAP_PADDING_TEST 256
 #define DSP_CACHE_ALIGN_MEM_ALLOC(__size__) \
     memalign(DSP_CACHE_ALIGNMENT, __size__ + BUFF_MAP_PADDING_TEST)
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #define VIDEO_DEVICE        "/dev/video5"
 #define MIN_WIDTH           128
 #define MIN_HEIGHT          96
-#define PICTURE_WIDTH   3296 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
-#define PICTURE_HEIGHT  2464 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
+#define PICTURE_WIDTH   3264 /* 5mp - 2560. 8mp - 3280 */ /* Make sure it is a multiple of 16. */
+#define PICTURE_HEIGHT  2448 /* 5mp - 2048. 8mp - 2464 */ /* Make sure it is a multiple of 16. */
 #define PREVIEW_WIDTH 176
 #define PREVIEW_HEIGHT 144
 #define CAPTURE_8MP_WIDTH        3280
@@ -99,24 +105,16 @@
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
 #define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
-#define ZOOM_SCALE  100
 #define COMPENSATION_OFFSET 20
 #define CONTRAST_OFFSET 100
 #define BRIGHTNESS_OFFSET 100
 #define THUMB_WIDTH     80
 #define THUMB_HEIGHT    60
 
+#define ZOOM_SCALE (1<<16)
+
 #define PIX_YUV422I 0
 #define PIX_YUV420P 1
-
-#define KEY_GPS_LATITUDE_REF    "gps-latitude-ref"
-#define KEY_GPS_LONGITUDE_REF   "gps-longitude-ref"
-#define KEY_GPS_ALTITUDE_REF    "gps-altitude-ref"
-#define KEY_GPS_VERSION         "gps-version"
-#define KEY_GPS_MAPDATUM        "gps-mapdatum"
-#define KEY_SHUTTER_ENABLE      "shutter-enable"
-#define EFFECT_COOL             "cool"
-#define EFFECT_EMBOSS           "emboss"
 #define KEY_ROTATION_TYPE       "rotation-type"
 #define ROTATION_PHYSICAL       0
 #define ROTATION_EXIF           1
@@ -170,7 +168,40 @@ typedef struct OMX_IPP
 	unsigned char* pIppOutputBuffer;
 } OMX_IPP;
 
-#endif    
+typedef struct {
+    // Edge Enhancement Parameters
+    uint16_t  EdgeEnhancementStrength;
+    uint16_t  WeakEdgeThreshold;
+    uint16_t  StrongEdgeThreshold;
+
+    // Noise filter parameters
+    // LumaNoiseFilterStrength
+    uint16_t  LowFreqLumaNoiseFilterStrength;
+    uint16_t  MidFreqLumaNoiseFilterStrength;
+    uint16_t  HighFreqLumaNoiseFilterStrength;
+
+    // CbNoiseFilterStrength
+    uint16_t  LowFreqCbNoiseFilterStrength;
+    uint16_t  MidFreqCbNoiseFilterStrength;
+    uint16_t  HighFreqCbNoiseFilterStrength;
+
+    // CrNoiseFilterStrength
+    uint16_t  LowFreqCrNoiseFilterStrength;
+    uint16_t  MidFreqCrNoiseFilterStrength;
+    uint16_t  HighFreqCrNoiseFilterStrength;
+
+    uint16_t  shadingVertParam1;
+    uint16_t  shadingVertParam2;
+    uint16_t  shadingHorzParam1;
+    uint16_t  shadingHorzParam2;
+    uint16_t  shadingGainScale;
+    uint16_t  shadingGainOffset;
+    uint16_t  shadingGainMaxValue;
+
+    uint16_t  ratioDownsampleCbCr;
+} IPP_PARAMS;
+
+#endif
 
 //icapture
 #define DTP_FILE_NAME 	    "/data/dyntunn.enc"
@@ -182,79 +213,53 @@ typedef struct OMX_IPP
 
 #define PHOTO_PATH          "/tmp/photo_%02d.%s"
 
-#define PROC_THREAD_PROCESS     0x5
-#define PROC_THREAD_EXIT        0x6
-#define PROC_THREAD_NUM_ARGS    42
-#define SHUTTER_THREAD_CALL     0x1
-#define SHUTTER_THREAD_EXIT     0x2
-#define SHUTTER_THREAD_NUM_ARGS 3
-#define RAW_THREAD_CALL         0x1
-#define RAW_THREAD_EXIT         0x2
-#define RAW_THREAD_NUM_ARGS     4
-#define SNAPSHOT_THREAD_START   0x1
-#define SNAPSHOT_THREAD_EXIT    0x2
+#define PROC_THREAD_PROCESS         0x5
+#define PROC_THREAD_EXIT            0x6
+#define PROC_THREAD_NUM_ARGS        43
+#define SHUTTER_THREAD_CALL         0x1
+#define SHUTTER_THREAD_EXIT         0x2
+#define SHUTTER_THREAD_NUM_ARGS     3
+#define RAW_THREAD_CALL             0x1
+#define RAW_THREAD_EXIT             0x2
+#define RAW_THREAD_NUM_ARGS         4
+#define SNAPSHOT_THREAD_START       0x1
+#define SNAPSHOT_THREAD_EXIT        0x2
+#define SNAPSHOT_THREAD_START_GEN   0x3
 
 #define PAGE                    0x1000
 #define PARAM_BUFFER            512
 
 #ifdef FW3A
-typedef struct {
-    /* shared library handle */
-    void *lib_handle;
-
-    int (*Create2A) (Camera2AInterface **cam_face);
-
-    /* Init 2A library */
-    int (*Init2A) (Camera2AInterface *cam_face, int dev_cam,
-           uint8 enable3PTuningAlg);
-
-    /* Release 2A library */
-    int (*Release2A) (Camera2AInterface *cam_face);
-
-    int (*Destroy2A) (Camera2AInterface **cam_face);
-} lib3a_interface;
 
 typedef struct {
-    void              *lib_private;
-    lib3a_interface    lib;
+    TICam_Handle hnd;
 
     /* hold 2A settings */
-    Cam2ASettings      settings_2a;
+    SICam_Settings settings;
 
-    /* hold 2A camera interface */
-    Camera2AInterface *cam_iface_2a;
-
-#ifdef EXTEND_TI_3A /* still not supported from TI */
     /* hold 2A status */
-    Cam2AStatus        status_2a;
-#endif
+    SICam_Status   status;
 
-    /* hold camera device descriptor */
-    int                cam_dev;
-
-    struct fw3a_preview_obj *prev_handle;
-
+    /* hold MakerNote */
+    SICam_MakerNote mnote;
 } lib3atest_obj;
 #endif
 
 #ifdef ICAP
 typedef struct{
-	void *lib_handle;
-	int (*Create) (void **lib_private,int camera_device);
-	int (*Delete) (void *lib_private);
-	int (*Config) (void *lib_private, capture_config_t *cfg);
-	int (*Process) (void *lib_private, capture_process_t *proc);
-} libiCaptureInterface;
-
-typedef struct {
-	void	*lib_private;
-	capture_config_t cfg;
-	capture_process_t proc;
-	capture_buffer_t img_buf;
-	capture_buffer_t lsc_buff;
-	libiCaptureInterface lib;
+    void           *lib_private;
+    icap_configure_t    cfg;
+    icap_tuning_params_t tuning_pars;
+    SICap_ManualParameters manual;
+    icap_buffer_t   img_buf;
+    icap_buffer_t   lsc_buf;
 } libtest_obj;
 #endif
+
+typedef struct {
+    size_t width;
+    size_t height;
+} supported_resolution;
 
 class CameraHal : public CameraHardwareInterface {
 public:
@@ -300,8 +305,6 @@ public:
     static sp<CameraHardwareInterface> createInstance();
 
     virtual status_t sendCommand(int32_t cmd, int32_t arg1, int32_t arg2);
-
-//private:
 
     class PreviewThread : public Thread {
         CameraHal* mHardware;
@@ -367,17 +370,30 @@ public:
    CameraHal();
     virtual ~CameraHal();
     void previewThread();
-    int validateSize(int w, int h);
+    bool validateSize(size_t width, size_t height, const supported_resolution *supRes, size_t count);
     void procThread();
     void shutterThread();
     void rawThread();
     void snapshotThread();
-    
+    void *getLastOverlayAddress();
+	size_t getLastOverlayLength();
+
+#ifdef IMAGE_PROCESSING_PIPELINE
+
+    IPP_PARAMS mIPPParams;
+
+#endif
+
 #ifdef FW3A
-    static int onSaveH3A(void *priv, void *buf, int size);
-    static int onSaveLSC(void *priv, void *buf, int size);
-    static int onSaveRAW(void *priv, void *buf, int size);
-    static int onSnapshot(void *priv, void *buf, int width, int height, capture_rect_t snapshot_rect, capture_rect_t aspect_rect);
+
+    static void onIPP(void *priv, icap_ipp_parameters_t *ipp_params);
+    static void onMakernote(void *priv, void *mknote_ptr);
+    static void onShutter(void *priv, icap_image_buffer_t *image_buf);
+    static void onSaveH3A(void *priv, icap_image_buffer_t *buf);
+    static void onSaveLSC(void *priv, icap_image_buffer_t *buf);
+    static void onSaveRAW(void *priv, icap_image_buffer_t *buf);
+    static void onSnapshot(void *priv, icap_image_buffer_t *buf);
+    static void onGeneratedSnapshot(void *priv, icap_image_buffer_t *buf);
 
     int FW3A_Create();
     int FW3A_Init();
@@ -389,8 +405,9 @@ public:
     int FW3A_Stop_CAF();
     int FW3A_Start_AF();
     int FW3A_Stop_AF();
-    int FW3A_GetSettings();
+    int FW3A_GetSettings() const;
     int FW3A_SetSettings();
+
 #endif
 
     int CorrectPreview();
@@ -405,6 +422,7 @@ public:
     status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
 
 #ifdef IMAGE_PROCESSING_PIPELINE
+
     int DeInitIPP(int ippMode);
     int InitIPP(int w, int h, int fmt, int ippMode);
     int PopulateArgsIPP(int w, int h, int fmt, int ippMode);
@@ -417,22 +435,23 @@ public:
                         int shadingGainScale, int shadingGainOffset, int shadingGainMaxValue,
                         int ratioDownsampleCbCr);
     OMX_IPP pIPP;
+
 #endif   
 
     int CameraCreate();
     int CameraDestroy(bool destroyOverlay);
-    int CameraConfigure();	
+    int CameraConfigure();
 	int CameraSetFrameRate();
     int CameraStart();
     int CameraStop();
 
-#ifdef ICAP_EXPIREMENTAL
+#ifdef ICAP_EXPERIMENTAL
 
-    int allocatePictureBuffer(size_t length);
+    int allocatePictureBuffer(size_t length, int burstCount);
 
 #else
 
-    int allocatePictureBuffer(int width, int height);
+    int allocatePictureBuffer(int width, int height, int burstCount, int len);
 
 #endif
 
@@ -445,19 +464,27 @@ public:
     int isStart_VPP;
     int isStart_JPEG;
     int FW3A_AF_TimeOut;
-	    
+
     mutable Mutex mLock;
+    int mBurstShots;
     struct v4l2_crop mInitialCrop;
+
 #ifdef HARDWARE_OMX
+
     gps_data *gpsLocation;
     exif_params mExifParams;
+
 #endif
+
     bool mShutterEnable;
     bool mCAFafterPreview;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
-    int mPictureOffset, mJPEGOffset, mJPEGLength, mPictureLength;
-    void *mYuvBuffer, *mJPEGBuffer;
+    int mPictureOffset[MAX_BURST];
+    int mJPEGOffset, mJPEGLength;
+    int mPictureLength[MAX_BURST];
+    void *mYuvBuffer[MAX_BURST];
+    void *mJPEGBuffer;
     int  mPreviewFrameSize;
     sp<Overlay>  mOverlay;
     sp<PreviewThread>  mPreviewThread;
@@ -487,6 +514,8 @@ public:
 	int mfirstTime;
     static wp<CameraHardwareInterface> singleton;
     static int camera_device;
+    static const supported_resolution supportedPreviewRes[];
+    static const supported_resolution supportedPictureRes[];
     static const char supportedPictureSizes[];
     static const char supportedPreviewSizes[];
     static const char supportedFPS[];

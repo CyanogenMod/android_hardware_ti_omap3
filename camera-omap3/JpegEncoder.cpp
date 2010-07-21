@@ -594,7 +594,7 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
     snprintf(path, sizeof(path), "/temp/JEI_%d_%dx%d.raw", eInputCount, width, height);
 
     PRINTF("\nrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
-    
+
     SkFILEWStream tempFile(path);
     if (tempFile.write(inputBuffer, inBuffSize) == false)
         PRINTF("\nWriting to %s failed\n", path);
@@ -643,7 +643,7 @@ bool JpegEncoder::encodeImage(void* outputBuffer, int outBuffSize, void *inputBu
 
     }
     else
-#endif    
+#endif
     {
         mOutputBuffer = outputBuffer;
         mOutBuffSize = outBuffSize;
@@ -802,7 +802,7 @@ while(1){
             break;
 
         case STATE_EMPTY_BUFFER_DONE_CALLED:
-#if OPTIMIZE        
+#if OPTIMIZE
             // do nothing
 #else
             eError = OMX_SendCommand(pOMXHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
@@ -810,7 +810,7 @@ while(1){
                 PRINTF("Error from SendCommand-Idle(nStop) State function\n");
                 iState = STATE_ERROR;
             }
-#endif        
+#endif
             break;
 
         case STATE_LOADED:
@@ -842,8 +842,8 @@ while(1){
 
     if (iState == STATE_EXIT) break;
 #if OPTIMIZE
-    if (iState == STATE_EMPTY_BUFFER_DONE_CALLED) break ;    
-#endif    
+    if (iState == STATE_EMPTY_BUFFER_DONE_CALLED) break ;
+#endif
 
     }
 

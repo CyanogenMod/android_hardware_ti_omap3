@@ -12,11 +12,16 @@
 #define EXIF_AVERAGE    0x1
 
 #define EXIF_WB_AUTO    0xA
+#define EXIF_WB_MANUAL  0xB
 
 #define EXIF_ISO_AUTO   0x0
 #define EXIF_ISO_100    0x1
 #define EXIF_ISO_200    0x2
 #define EXIF_ISO_400    0x3
+#define EXIF_ISO_800    0x4
+#define EXIF_ISO_1000   0x5
+#define EXIF_ISO_1200   0x6
+#define EXIF_ISO_1600   0x7
 
 typedef struct _exif_buffer
 {
@@ -29,7 +34,7 @@ typedef struct {
     int rotation;
     int metering_mode;
     int iso;
-    int zoom;
+    float zoom;
     int wb;
     int exposure;
 } exif_params;

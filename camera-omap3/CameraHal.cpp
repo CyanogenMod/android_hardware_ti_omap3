@@ -68,11 +68,24 @@ typedef struct {
 
 int CameraHal::camera_device = 0;
 wp<CameraHardwareInterface> CameraHal::singleton;
-const char CameraHal::supportedPictureSizes [] = "3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240";
-const char CameraHal::supportedPreviewSizes [] = "1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96";
+const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,1280x960,800x600,640x480,320x240";
+const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
 const char CameraHal::supprotedThumbnailSizes []= "80x60";
 const char CameraHal::PARAMS_DELIMITER []= ",";
+
+const supported_resolution CameraHal::supportedPictureRes[] = { {3264, 2448} , {2560, 2048} ,
+                                                     {2048, 1536} , {1600, 1200} ,
+                                                     {1280, 1024} , {1152, 964} ,
+                                                     {1280, 960} , {800, 600},
+                                                     {640, 480}   , {320, 240} };
+
+const supported_resolution CameraHal::supportedPreviewRes[] = { {1280, 720}, {800, 480},
+                                                     {720, 576}, {720, 480},
+                                                     {992, 560}, {864, 480}, {848, 480},
+                                                     {768, 576}, {640, 480},
+                                                     {320, 240}, {352, 288},
+                                                     {176, 144}, {128, 96}};
 
 int camerahal_strcat(char *dst, const char *src, size_t size)
 {
@@ -132,11 +145,15 @@ CameraHal::CameraHal()
     mZoomCurrentIdx = 0;
     mReturnZoomStatus = false;
     rotation = 0;
+
 #ifdef HARDWARE_OMX
+
     gpsLocation = NULL;
+
 #endif
+
     mShutterEnable = true;
-    mCAFafterPreview = false;
+    sStart_FW3A_CAF:mCAFafterPreview = false;
     ancillary_len = 8092;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -160,8 +177,6 @@ CameraHal::CameraHal()
     /* Avoiding duplicate call of cameraconfigure(). It is now called in previewstart() */     
     //CameraConfigure();
 
-    allocatePictureBuffer(PICTURE_WIDTH, PICTURE_HEIGHT);
-
 #ifdef FW3A
     FW3A_Create();
     FW3A_Init();
@@ -179,7 +194,7 @@ CameraHal::CameraHal()
     if( pipe(shutterPipe) != 0 ){
         LOGE("Failed creating pipe");
     }
-	
+
     if( pipe(rawPipe) != 0 ){
         LOGE("Failed creating pipe");
     }
@@ -195,7 +210,7 @@ CameraHal::CameraHal()
     mPROCThread = new PROCThread(this);
     mPROCThread->run("CameraPROCThread", PRIORITY_URGENT_DISPLAY);
     LOGD("STARTING PROC THREAD \n");
-    
+
     mShutterThread = new ShutterThread(this);
     mShutterThread->run("CameraShutterThread", PRIORITY_URGENT_DISPLAY);
     LOGD("STARTING Shutter THREAD \n");
@@ -214,6 +229,34 @@ CameraHal::CameraHal()
     LOGD_IF(mDebugFps, "showfps enabled");
 
 
+}
+
+bool CameraHal::validateSize(size_t width, size_t height, const supported_resolution *supRes, size_t count)
+{
+    bool ret = false;
+    status_t stat = NO_ERROR;
+    unsigned int size;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == supRes ) {
+        LOGE("Invalid resolutions array passed");
+        stat = -EINVAL;
+    }
+
+    if ( NO_ERROR == stat ) {
+        for ( unsigned int i = 0 ; i < count; i++ ) {
+            LOGD( "Validating %d, %d and %d, %d", supRes[i].width, width, supRes[i].height, height);
+            if ( ( supRes[i].width == width ) && ( supRes[i].height == height ) ) {
+                ret = true;
+                break;
+            }
+        }
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 void CameraHal::initDefaultParameters()
@@ -247,7 +290,7 @@ void CameraHal::initDefaultParameters()
 
     memset(tmpBuffer, '\0', PARAM_BUFFER);
     for ( int i = 0 ; i < ZOOM_STAGES ; i++ ) {
-        zoomStage =  (unsigned int ) ( zoom_step[i]*ZOOM_SCALE );
+        zoomStage =  (unsigned int ) ( zoom_step[i]*PARM_ZOOM_SCALE );
         snprintf(zoomStageBuffer, PARAM_BUFFER, "%d", zoomStage);
 
         if(camerahal_strcat((char*) tmpBuffer, (const char*) zoomStageBuffer, PARAM_BUFFER)) return;
@@ -362,9 +405,9 @@ CameraHal::~CameraHal()
 	sp<RawThread> rawThread;
 	sp<ShutterThread> shutterThread;
 	sp<SnapshotThread> snapshotThread;
-	  
+
     LOG_FUNCTION_NAME
-	
+
 
     if(mPreviewThread != NULL) {
         Message msg;
@@ -372,9 +415,9 @@ CameraHal::~CameraHal()
         previewThreadCommandQ.put(&msg);
         previewThreadAckQ.get(&msg);
     }
-  
+
     sp<PreviewThread> previewThread;
-    
+
     { // scope for the lock
         Mutex::Autolock lock(mLock);
         previewThread = mPreviewThread;
@@ -499,7 +542,6 @@ CameraHal::~CameraHal()
         mOverlay->destroy();
     }
 
-    free((void *) ( ((unsigned int) mYuvBuffer) - mPictureOffset) );
     singleton.clear();
 
     LOGD("<<< Release");
@@ -515,9 +557,9 @@ void CameraHal::previewThread()
     struct pollfd pfd[2];
 
     LOG_FUNCTION_NAME
-    
+
     while(shouldLive) {
-    
+
         has_message = false;
 
         if( mPreviewRunning )
@@ -542,19 +584,25 @@ void CameraHal::previewThread()
             }
 
 #ifdef FW3A
-            if (isStart_FW3A_AF) {
-                err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
-                if ((err == 0) && (AF_STATUS_RUNNING != fobj->status_2a.af.status)) {
+
+            if ( isStart_FW3A_AF ) {
+                err = ICam_ReadStatus(fobj->hnd, &fobj->status);
+                if ( (err == 0) && ( ICAM_AF_STATUS_RUNNING != fobj->status.af.status ) ) {
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
                     PPM("AF Completed in ",&focus_before);
+
 #endif
+
+                    ICam_ReadMakerNote(fobj->hnd, &fobj->mnote);
 
                     if (FW3A_Stop_AF() < 0){
                         LOGE("ERROR FW3A_Stop_AF()");
                     }
 
                     bool focus_flag;
-                    if ( fobj->status_2a.af.status == AF_STATUS_SUCCESS ) {
+                    if ( fobj->status.af.status == ICAM_AF_STATUS_SUCCESS ) {
                         focus_flag = true;
                         LOGE("AF Success");
                     } else {
@@ -583,7 +631,7 @@ void CameraHal::previewThread()
         {
             case PREVIEW_START:
             {
-                LOGD("Receive Command: PREVIEW_START");              
+                LOGD("Receive Command: PREVIEW_START");
                 err = 0;
 
                 if( ! mPreviewRunning ) {
@@ -598,22 +646,25 @@ void CameraHal::previewThread()
                         LOGE("ERROR CameraConfigure()");
                         err = -1;
                     }
+
 #ifdef FW3A
+
                     if (FW3A_Start() < 0){
                         LOGE("ERROR FW3A_Start()");
                         err = -1;
                     }
+
                     if (FW3A_SetSettings() < 0){
                         LOGE("ERROR FW3A_SetSettings()");
                         err = -1;
                     }
-                    
+
 #endif
 
                     if ( CorrectPreview() < 0 )
                         LOGE("Error during CorrectPreview()");
 
-                    if (CameraStart() < 0){
+                    if ( CameraStart() < 0 ) {
                         LOGE("ERROR CameraStart()");
                         err = -1;
                     }
@@ -629,22 +680,22 @@ void CameraHal::previewThread()
                     if(!mfirstTime){
                         PPM("Standby to first shot");
                         mfirstTime++;
-                    }
-                    else{
+                    } else {
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                         PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
+
 #endif
+
                     }
-                }
-                else
-                {
+                } else {
                     err = -1;
                 }
 
                 LOGD("PREVIEW_START %s", err ? "NACK" : "ACK");
                 msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
 
-                if( !err ){
+                if ( !err ) {
                     LOGD("Preview Started!");
                     mPreviewRunning = true;
                 }
@@ -658,7 +709,9 @@ void CameraHal::previewThread()
                 LOGD("Receive Command: PREVIEW_STOP");
                 err = 0;
                 if( mPreviewRunning ) {
+
 #ifdef FW3A
+
                     if( FW3A_Stop_AF() < 0){
                         LOGE("ERROR FW3A_Stop_AF()");
                         err= -1;
@@ -666,6 +719,8 @@ void CameraHal::previewThread()
                     if( FW3A_Stop_CAF() < 0){
                         LOGE("ERROR FW3A_Stop_CAF()");
                         err= -1;
+                    } else {
+                        mcaf = 0;
                     }
                     if( FW3A_Stop() < 0){
                         LOGE("ERROR FW3A_Stop()");
@@ -675,7 +730,9 @@ void CameraHal::previewThread()
                         LOGE("ERROR FW3A_GetSettings()");
                         err= -1;
                     }
+
 #endif
+
                     if( CameraStop() < 0){
                         LOGE("ERROR CameraStop()");
                         err= -1;
@@ -740,14 +797,12 @@ void CameraHal::previewThread()
                 if( !mPreviewRunning ){
                     LOGD("WARNING PREVIEW NOT RUNNING!");
                     msg.command = PREVIEW_NACK;
-                }
-                else
-                {
+                } else {
 
 //Disable Autofocus in Eclair for now
-#if 1 
+#if 1
 
-#ifdef FW3A   
+#ifdef FW3A
 
                    if (isStart_FW3A_CAF!= 0){
                         if( FW3A_Stop_CAF() < 0){
@@ -761,13 +816,17 @@ void CameraHal::previewThread()
                     gettimeofday(&focus_before, NULL);
 
 #endif
-
+                    if (isStart_FW3A){
                     if (isStart_FW3A_AF == 0){
                         if( FW3A_Start_AF() < 0){
                             LOGE("ERROR FW3A_Start_AF()");
                             err = -1;
                          }
- 
+
+                    }
+                    } else {
+                        if(msgTypeEnabled(CAMERA_MSG_FOCUS))
+                            mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
                     }
 #endif
 
@@ -869,7 +928,20 @@ void CameraHal::previewThread()
                    if( (flg_CAF = FW3A_Stop_CAF()) < 0){
                        LOGE("ERROR FW3A_Stop_CAF()");
                        err = -1;
+                   } else {
+                       mcaf = 0;
                    }
+
+                   if ( ICam_ReadStatus(fobj->hnd, &fobj->status) < 0 ) {
+                   LOGE("ICam_ReadStatus failed");
+                   err = -1;
+                   }
+
+                   if ( ICam_ReadMakerNote(fobj->hnd, &fobj->mnote) < 0 ) {
+                   LOGE("ICam_ReadMakerNote failed");
+                   err = -1;
+                   }
+
                    if( FW3A_Stop() < 0){
                        LOGE("ERROR FW3A_Stop()");
                        err = -1;
@@ -922,6 +994,9 @@ void CameraHal::previewThread()
                if (FW3A_Start() < 0)
                    LOGE("ERROR FW3A_Start()");
 
+               if (FW3A_SetSettings() < 0)
+                   LOGE("ERROR FW3A_SetSettings()");
+
 #endif
 
                if ( CorrectPreview() < 0 )
@@ -937,13 +1012,12 @@ void CameraHal::previewThread()
 
 #endif
 
-#ifdef ICAP_EXPERIMENTAL
+#ifdef FW3A
 
-               allocatePictureBuffer(iobj->cfg.sizeof_img_buf);
-
-#else
-
-               allocatePictureBuffer(PICTURE_WIDTH, PICTURE_HEIGHT);
+                    if ( flg_CAF ) {
+                        if( FW3A_Start_CAF() < 0 )
+                            LOGE("Error while starting CAF");
+                    }
 
 #endif
 
@@ -967,9 +1041,9 @@ void CameraHal::previewThread()
             {
                 LOGD("Receive Command: PREVIEW_KILL");
                 err = 0;
-	
+
                 if (mPreviewRunning) {
-#ifdef FW3A 
+#ifdef FW3A
                    if( FW3A_Stop_AF() < 0){
                         LOGE("ERROR FW3A_Stop_AF()");
                         err = -1;
@@ -982,16 +1056,16 @@ void CameraHal::previewThread()
                         LOGE("ERROR FW3A_Stop()");
                         err = -1;
                    }
-#endif 
+#endif
                    if( CameraStop() < 0){
                         LOGE("ERROR FW3A_Stop()");
                         err = -1;
                    }
                    mPreviewRunning = false;
                 }
-	
+
                 msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
-                LOGD("Receive Command: PREVIEW_CAF_STOP %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK"); 
+                LOGD("Receive Command: PREVIEW_CAF_STOP %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK");
 
                 previewThreadAckQ.put(&msg);
                 shouldLive = false;
@@ -1088,18 +1162,18 @@ int CameraHal::CameraConfigure()
     framerate = mParameters.getPreviewFrameRate();
     
     LOGD("CameraConfigure: framerate to set = %d",framerate);
-  
+
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     err = ioctl(camera_device, VIDIOC_G_PARM, &parm);
     if(err != 0) {
         LOGD("VIDIOC_G_PARM ");
         return -1;
     }
-    
+
     LOGD("CameraConfigure: Old frame rate is %d/%d  fps",
     parm.parm.capture.timeperframe.denominator,
     parm.parm.capture.timeperframe.numerator);
-  
+
     parm.parm.capture.timeperframe.numerator = 1;
     parm.parm.capture.timeperframe.denominator = framerate;
     err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
@@ -1107,7 +1181,7 @@ int CameraHal::CameraConfigure()
         LOGE("VIDIOC_S_PARM ");
         return -1;
     }
-    
+
     LOGI("CameraConfigure: New frame rate is %d/%d fps",parm.parm.capture.timeperframe.denominator,parm.parm.capture.timeperframe.numerator);
 
     LOG_FUNCTION_NAME_EXIT
@@ -1129,11 +1203,11 @@ int CameraHal::CameraStart()
 
     LOG_FUNCTION_NAME
 
-    nCameraBuffersQueued = 0;  
+    nCameraBuffersQueued = 0;
 
     mParameters.getPreviewSize(&w, &h);
     LOGD("**CaptureQBuffers: preview size=%dx%d", w, h);
-  
+
     mPreviewFrameSize = w * h * 2;
     if (mPreviewFrameSize & 0xfff)
     {
@@ -1162,7 +1236,7 @@ int CameraHal::CameraStart()
             LOGE("VIDIOC_QUERYBUF Failed");
             goto fail_loop;
         }
-      
+
         mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress((void*)i);
         if ( data == NULL ) {
             LOGE(" getBufferAddress returned NULL");
@@ -1197,7 +1271,7 @@ int CameraHal::CameraStart()
 
         mPreviewHeaps[i] = new MemoryHeapBase(data->fd,mPreviewFrameSize, 0, data->offset);
         mPreviewBuffers[i] = new MemoryBase(mPreviewHeaps[i], 0, mPreviewFrameSize);
-         
+
     }
 
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1215,10 +1289,10 @@ int CameraHal::CameraStart()
     LOGE("Initial Crop: crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d", mInitialCrop.c.top, mInitialCrop.c.left, mInitialCrop.c.width, mInitialCrop.c.height);
 
     if ( mZoomTargetIdx != mZoomCurrentIdx ) {
-        
+
         if( ZoomPerform(zoom_step[mZoomTargetIdx]) < 0 )
-            LOGE("Error while applying zoom");   
-        
+            LOGE("Error while applying zoom");
+
         mZoomCurrentIdx = mZoomTargetIdx;
         mParameters.set("zoom", ((int) zoom_step[mZoomCurrentIdx]));
         mNotifyCb(CAMERA_MSG_ZOOM, ((int) zoom_step[mZoomCurrentIdx] - 1), 1, mCallbackCookie);
@@ -1297,7 +1371,7 @@ static void debugShowFPS()
         mLastFrameCount = mFrameCount;
         LOGD("####### [%d] Frames, %f FPS", mFrameCount, mFps);
     }
- }
+}
 
 void CameraHal::nextPreview()
 {
@@ -1348,19 +1422,17 @@ void CameraHal::nextPreview()
     }
 
 #ifdef FW3A
-
+    if (isStart_FW3A != 0){
     //Low light notification
-    if( ( 0 == fobj->settings_2a.ae.framerate ) && ( ( frame_count % 10) == 0 ) ) {
-
+    if( ( fobj->settings.ae.framerate == 0 ) && ( ( frame_count % 10) == 0 ) ) {
 #if ( PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS ) && DEBUG_LOG
 
         gettimeofday(&lowLightTime, NULL);
 
 #endif
-
-        err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
+        err = ICam_ReadStatus(fobj->hnd, &fobj->status);
         if (err == 0) {
-            if (fobj->status_2a.ae.camera_shake == SHAKE_HIGH_RISK) {
+            if (fobj->status.ae.camera_shake == ICAM_SHAKE_HIGH_RISK2) {
                 mParameters.set("low-light", "1");
             } else {
                 mParameters.set("low-light", "0");
@@ -1374,7 +1446,7 @@ void CameraHal::nextPreview()
 #endif
 
     }
-
+    }
 #endif
 
     /* De-queue the next avaliable buffer */
@@ -1412,13 +1484,13 @@ void CameraHal::nextPreview()
         buffers_queued_to_dss[cfilledbuffer.index] = 1; //queued
         if (nBuffers_queued_to_dss != nOverlayBuffersQueued)
         {
-            LOGD("nBuffers_queued_to_dss = %d, nOverlayBuffersQueued = %d", nBuffers_queued_to_dss, nOverlayBuffersQueued);
-            LOGD("buffers in DSS \n %d %d %d  %d %d %d", buffers_queued_to_dss[0], buffers_queued_to_dss[1],
+            LOGV("nBuffers_queued_to_dss = %d, nOverlayBuffersQueued = %d", nBuffers_queued_to_dss, nOverlayBuffersQueued);
+            LOGV("buffers in DSS \n %d %d %d  %d %d %d", buffers_queued_to_dss[0], buffers_queued_to_dss[1],
             buffers_queued_to_dss[2], buffers_queued_to_dss[3], buffers_queued_to_dss[4], buffers_queued_to_dss[5]);
             if (nBuffers_queued_to_dss != 0)
             {
                 buffers_queued_to_dss_after_stream_off[cfilledbuffer.index] = 1;
-                LOGD("buffers_queued_to_dss_after_stream_off[%d] = 1", cfilledbuffer.index);
+                LOGV("buffers_queued_to_dss_after_stream_off[%d] = 1", cfilledbuffer.index);
             }
         }
     }
@@ -1442,7 +1514,7 @@ void CameraHal::nextPreview()
                             LOGE("VIDIOC_QBUF Failed, line=%d. Buffer lost forever.",__LINE__);
                         }else{
                             nCameraBuffersQueued++;
-                            LOGD("Reclaiming the buffer [%d] from Overlay", k);
+                            LOGV("Reclaiming the buffer [%d] from Overlay", k);
                         }
                     }
                     buffers_queued_to_dss_after_stream_off[k] = 0;
@@ -1520,21 +1592,24 @@ int  CameraHal::ICapturePerform()
     int err;
     int status = 0;
     int jpegSize;
-    void *outBuffer;  
+    uint32_t fixedZoom;
+    void *outBuffer;
     unsigned long base, offset, jpeg_offset;
-    int image_width, image_height;
-    struct manual_parameters  manual_config;
+    unsigned int preview_width, preview_height;
+    icap_buffer_t snapshotBuffer;
+    unsigned int image_width, image_height;
+    SICap_ManualParameters  manual_config;
+    SICam_Settings config;
+    icap_tuning_params_t cap_tuning;
+    icap_resolution_cap_t spec_res;
+    icap_buffer_t capture_buffer;
+    icap_process_mode_e mode;
     unsigned int procMessage[PROC_THREAD_NUM_ARGS],
             shutterMessage[SHUTTER_THREAD_NUM_ARGS],
             rawMessage[RAW_THREAD_NUM_ARGS];
-    int pixelFormat;
-    unsigned short EdgeEnhancementStrength, WeakEdgeThreshold, StrongEdgeThreshold,
-                   LowFreqLumaNoiseFilterStrength, MidFreqLumaNoiseFilterStrength, HighFreqLumaNoiseFilterStrength,
-                   LowFreqCbNoiseFilterStrength, MidFreqCbNoiseFilterStrength, HighFreqCbNoiseFilterStrength,
-                   LowFreqCrNoiseFilterStrength, MidFreqCrNoiseFilterStrength, HighFreqCrNoiseFilterStrength,
-                   shadingVertParam1, shadingVertParam2, shadingHorzParam1, shadingHorzParam2, shadingGainScale,
-                   shadingGainOffset, shadingGainMaxValue, ratioDownsampleCbCr;
+	int pixelFormat;
     exif_buffer *exif_buf;
+    mode = ICAP_PROCESS_MODE_CONTINUOUS;
 
 #ifdef DEBUG_LOG
 
@@ -1544,7 +1619,8 @@ int  CameraHal::ICapturePerform()
 
 #endif
 
-    mParameters.getPictureSize(&image_width, &image_height);
+    mParameters.getPictureSize((int *) &image_width, (int *) &image_height);
+    mParameters.getPreviewSize((int *) &preview_width,(int *) &preview_height);
 
 #ifdef DEBUG_LOG
 
@@ -1556,80 +1632,114 @@ int  CameraHal::ICapturePerform()
 
 #ifdef DEBUG_LOG
 
-	LOGD("ICapturePerform beforeReadStatus");
-
-#endif
-
-    err = fobj->cam_iface_2a->ReadSatus(fobj->cam_iface_2a->pPrivateHandle, &fobj->status_2a);
-
-#ifdef DEBUG_LOG
+	LOGD("MakerNote 0x%x, size %d", ( unsigned int ) fobj->mnote.buffer,fobj->mnote.filled_size);
 
     LOGD("shutter_cap = %d ; again_cap = %d ; awb_index = %d; %d %d %d %d\n",
-        (int)fobj->status_2a.ae.shutter_cap, (int)fobj->status_2a.ae.again_cap,
-        (int)fobj->status_2a.awb.awb_index, (int)fobj->status_2a.awb.gain_Gr,
-        (int)fobj->status_2a.awb.gain_R, (int)fobj->status_2a.awb.gain_B,
-        (int)fobj->status_2a.awb.gain_Gb);
+        (int)fobj->status.ae.shutter_cap, (int)fobj->status.ae.again_cap,
+        (int)fobj->status.awb.awb_index, (int)fobj->status.awb.gain_Gr,
+        (int)fobj->status.awb.gain_R, (int)fobj->status.awb.gain_B,
+        (int)fobj->status.awb.gain_Gb);
 
 #endif
 
-    manual_config.shutter_usec      = fobj->status_2a.ae.shutter_cap;
-    manual_config.analog_gain       = fobj->status_2a.ae.again_cap;
-    manual_config.color_temparature = fobj->status_2a.awb.awb_index;
-    manual_config.gain_Gr           = fobj->status_2a.awb.gain_Gr;
-    manual_config.gain_R            = fobj->status_2a.awb.gain_R;
-    manual_config.gain_B            = fobj->status_2a.awb.gain_B;
-    manual_config.gain_Gb           = fobj->status_2a.awb.gain_Gb;
-    manual_config.digital_gain      = fobj->status_2a.awb.dgain;   
-    manual_config.scene             = fobj->settings_2a.general.scene;
-    manual_config.effect            = fobj->settings_2a.general.effects;
-    manual_config.awb_mode          = fobj->settings_2a.awb.mode;
-    manual_config.sharpness         = fobj->settings_2a.general.sharpness;
-    manual_config.brightness        = fobj->settings_2a.general.brightness;
-    manual_config.contrast          = fobj->settings_2a.general.contrast;
-    manual_config.saturation        = fobj->settings_2a.general.saturation;
-
-
-#ifdef DEBUG_LOG
-
-    PPM("SETUP SOME 3A STUFF");
-
-#endif
-
-    iobj->cfg.lsc_type      = LSC_UPSAMPLED_BY_SOFTWARE;
-    iobj->cfg.mknote        = ancillary_buffer;
-    iobj->cfg.manual        = &manual_config;
-    iobj->cfg.priv          = this;
-    iobj->cfg.cb_write_h3a  = NULL;//onSaveH3A;
-    iobj->cfg.cb_write_lsc  = NULL;//onSaveLSC;
-    iobj->cfg.cb_write_raw  = NULL;//onSaveRAW;
-    iobj->cfg.cb_picture_done = onSnapshot;
-    iobj->cfg.preview_rect.top = fobj->status_2a.preview.top;
-    iobj->cfg.preview_rect.left = fobj->status_2a.preview.left;
-    iobj->cfg.preview_rect.width = fobj->status_2a.preview.width;
-    iobj->cfg.preview_rect.height = fobj->status_2a.preview.height;
-    iobj->cfg.capture_format = CAPTURE_FORMAT_UYVY;
-    manual_config.pre_flash = 0;
-
-    if(mcapture_mode == 1)
-    {
-        iobj->cfg.capture_mode  =  CAPTURE_MODE_HI_PERFORMANCE;
-        iobj->cfg.image_width   = image_width;
-        iobj->cfg.image_height  = image_height;
-    }else
-    {
-        iobj->cfg.capture_mode  =  CAPTURE_MODE_HI_QUALITY;
-        iobj->cfg.image_width   = PICTURE_WIDTH;
-        iobj->cfg.image_height  = PICTURE_HEIGHT;
+    snapshotBuffer.buffer = NULL;
+    snapshotBuffer.alloc_size = 0;
+    LOGE("mBurstShots %d", mBurstShots);
+    if ( 1 >= mBurstShots ) {
+        if ( mcapture_mode == 1 ) {
+            spec_res.capture_mode = ICAP_CAPTURE_MODE_HP;
+            iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
+            iobj->cfg.notify.cb_capture = onSnapshot;
+        } else {
+            snapshotBuffer.buffer = getLastOverlayAddress();
+            snapshotBuffer.alloc_size = getLastOverlayLength();
+            spec_res.capture_mode = ICAP_CAPTURE_MODE_HQ;
+            iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HQ;
+            iobj->cfg.notify.cb_snapshot = onGeneratedSnapshot;
+            iobj->cfg.snapshot_width = preview_width;
+            iobj->cfg.snapshot_height = preview_height;
+        }
+        iobj->cfg.notify.cb_mknote = onMakernote;
+        iobj->cfg.notify.cb_ipp = onIPP;
+    } else {
+        spec_res.capture_mode  = ICAP_CAPTURE_MODE_HP;
+        iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
+        iobj->cfg.notify.cb_capture = onSnapshot;
     }
+    iobj->cfg.notify.cb_shutter = onShutter;
+    spec_res.res.width = image_width;
+    spec_res.res.height = image_height;
+    spec_res.capture_format = ICAP_CAPTURE_FORMAT_UYVY;
+
+
+    status = icap_query_resolution(iobj->lib_private, 0, &spec_res);
+
+    if( ICAP_STATUS_FAIL == status){
+        LOGE ("First icapture query resolution failed");
+
+        int tmp_width, tmp_height;
+        tmp_width = image_width;
+        tmp_height = image_height;
+        status = icap_query_enumerate(iobj->lib_private, 0, &spec_res);
+        if ( ICAP_STATUS_FAIL == status ) {
+            LOGE("icapture enumerate failed");
+            goto fail_config;
+        }
+
+        if ( image_width  < spec_res.res_range.width_min )
+            tmp_width = spec_res.res_range.width_min;
+
+        if ( image_height < spec_res.res_range.height_min )
+            tmp_height = spec_res.res_range.height_min;
+
+        if ( image_width > spec_res.res_range.width_max )
+            tmp_width = spec_res.res_range.width_max;
+
+        if ( image_height > spec_res.res_range.height_max )
+            tmp_height = spec_res.res_range.height_max;
+
+        spec_res.res.width = tmp_width;
+        spec_res.res.height = tmp_height;
+        status = icap_query_resolution(iobj->lib_private, 0, &spec_res);
+        if ( ICAP_STATUS_FAIL == status ) {
+            LOGE("icapture query failed again, giving up");
+            goto fail_config;
+        }
+    }
+
+    iobj->cfg.notify.priv   = this;
+
+    iobj->cfg.crop.enable = ICAP_ENABLE;
+    iobj->cfg.crop.top = fobj->status.preview.top;
+    iobj->cfg.crop.left = fobj->status.preview.left;
+    iobj->cfg.crop.width = fobj->status.preview.width;
+    iobj->cfg.crop.height = fobj->status.preview.height;
+
+    fixedZoom = (uint32_t) (zoom_step[mZoomTargetIdx]*ZOOM_SCALE);
+
+    iobj->cfg.zoom.enable = ICAP_ENABLE;
+    iobj->cfg.zoom.vertical = fixedZoom;
+    iobj->cfg.zoom.horizontal = fixedZoom;
+
+    iobj->cfg.capture_format = ICAP_CAPTURE_FORMAT_UYVY;
+    iobj->cfg.width = spec_res.res.width;
+    iobj->cfg.height = spec_res.res.height;
+
+    iobj->cfg.notify.cb_h3a  = NULL; //onSaveH3A;
+    iobj->cfg.notify.cb_lsc  = NULL; //onSaveLSC;
+    iobj->cfg.notify.cb_raw  = NULL; //onSaveRAW;
+
 #if DEBUG_LOG
 
 	PPM("Before ICapture Config");
 
 #endif
 
-    status = (capture_status_t) iobj->lib.Config(iobj->lib_private, &iobj->cfg);
+    LOGE("Zoom set to %d", fixedZoom);
 
-    if( ICAPTURE_FAIL == status){
+    status = icap_config_common(iobj->lib_private, &iobj->cfg);
+
+    if( ICAP_STATUS_FAIL == status){
         LOGE ("ICapture Config function failed");
         goto fail_config;
     }
@@ -1638,17 +1748,42 @@ int  CameraHal::ICapturePerform()
 
     PPM("ICapture config OK");
 
-	LOGD("iobj->cfg.image_width = %d = 0x%x iobj->cfg.image_height=%d = 0x%x , iobj->cfg.sizeof_img_buf = %d", (int)iobj->cfg.image_width, (int)iobj->cfg.image_width, (int)iobj->cfg.image_height, (int)iobj->cfg.image_height, (int)iobj->cfg.sizeof_img_buf);
+	LOGD("iobj->cfg.image_width = %d = 0x%x iobj->cfg.image_height=%d = 0x%x , iobj->cfg.sizeof_img_buf = %d", (int)iobj->cfg.width, (int)iobj->cfg.width, (int)iobj->cfg.height, (int)iobj->cfg.height, (int) spec_res.buffer_size);
 
 #endif
 
-    yuv_buffer = (uint8_t *) mYuvBuffer;
-    offset = mPictureOffset;
-    yuv_len = mPictureLength;
+    cap_tuning.icam_makernote = ( void * ) &fobj->mnote;
+    cap_tuning.icam_settings = ( void * ) &fobj->settings;
+    cap_tuning.icam_status = ( void * ) &fobj->status;
 
-    iobj->proc.img_buf[0].start = yuv_buffer; 
-    iobj->proc.img_buf[0].length = iobj->cfg.sizeof_img_buf;
-    iobj->proc.img_bufs_count = 1;
+#ifdef DEBUG_LOG
+
+    PPM("SETUP SOME 3A STUFF");
+
+#endif
+
+    status = icap_config_tuning(iobj->lib_private, &cap_tuning);
+    if( ICAP_STATUS_FAIL == status){
+        LOGE ("ICapture tuning function failed");
+        goto fail_config;
+    }
+
+    allocatePictureBuffer(spec_res.buffer_size, mBurstShots);
+
+    for ( int i = 0; i < mBurstShots; i++ ) {
+        capture_buffer.buffer = mYuvBuffer[i];
+        capture_buffer.alloc_size = spec_res.buffer_size;
+
+        LOGE ("ICapture push buffer 0x%x, len %d", ( unsigned int ) mYuvBuffer[i], spec_res.buffer_size);
+        status = icap_push_buffer(iobj->lib_private, &capture_buffer, &snapshotBuffer);
+        if( ICAP_STATUS_FAIL == status){
+            LOGE ("ICapture push buffer function failed");
+            goto fail_config;
+        }
+
+    }
+
+    for ( int i = 0; i < mBurstShots; i++ ) {
 
 #if DEBUG_LOG
 
@@ -1656,9 +1791,9 @@ int  CameraHal::ICapturePerform()
 
 #endif
 
-    status = (capture_status_t) iobj->lib.Process(iobj->lib_private, &iobj->proc);
+        status = icap_process(iobj->lib_private, mode, NULL);
 
-    if( ICAPTURE_FAIL == status){
+    if( ICAP_STATUS_FAIL == status ) {
         LOGE("ICapture Process failed");
         goto fail_process;
     }
@@ -1669,8 +1804,8 @@ int  CameraHal::ICapturePerform()
         PPM("ICapture process OK");
     }
 
-    LOGD("iobj->proc.out_img_w = %d = 0x%x iobj->proc.out_img_h=%u = 0x%x", (int)iobj->proc.out_img_w,(int)iobj->proc.out_img_w, (int)iobj->proc.out_img_h,(int)iobj->proc.out_img_h);
-    
+    LOGD("iobj->proc.out_img_w = %d = 0x%x iobj->proc.out_img_h=%u = 0x%x", (int) iobj->cfg.width,(int) iobj->cfg.width, (int) iobj->cfg.height,(int)iobj->cfg.height);
+
 #endif
 
     pixelFormat = PIX_YUV422I;
@@ -1698,15 +1833,18 @@ int  CameraHal::ICapturePerform()
 
     if(FD_ISSET(snapshotReadyPipe[0], &descriptorSet))
         read(snapshotReadyPipe[0], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
-//
+
+    }
+
+    for ( int i = 0; i < mBurstShots; i++ ) {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-        PPM("SENDING MESSAGE TO PROCESSING THREAD");
+    PPM("SENDING MESSAGE TO PROCESSING THREAD");
 
 #endif
 
-    mExifParams.exposure = fobj->status_2a.ae.shutter_cap;
+    mExifParams.exposure = fobj->status.ae.shutter_cap;
     mExifParams.zoom = zoom_step[mZoomTargetIdx];
     exif_buf = get_exif_buffer(&mExifParams, gpsLocation);
 
@@ -1715,112 +1853,55 @@ int  CameraHal::ICapturePerform()
         gpsLocation = NULL;
     }
 
-    if (  iobj->proc.ipp.type == ICAP_IMAGEPOSTPROC_VER1_9 ) {
-        EdgeEnhancementStrength = iobj->proc.ipp.ipp19.EdgeEnhancementStrength;
-        WeakEdgeThreshold = iobj->proc.ipp.ipp19.WeakEdgeThreshold;
-        StrongEdgeThreshold = iobj->proc.ipp.ipp19.StrongEdgeThreshold;
-        LowFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqLumaNoiseFilterStrength;
-        MidFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqLumaNoiseFilterStrength;
-        HighFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqLumaNoiseFilterStrength;
-        LowFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqCbNoiseFilterStrength;
-        MidFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqCbNoiseFilterStrength;
-        HighFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqCbNoiseFilterStrength;
-        LowFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.LowFreqCrNoiseFilterStrength;
-        MidFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.MidFreqCrNoiseFilterStrength;
-        HighFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp19.HighFreqCrNoiseFilterStrength;
-        shadingVertParam1 = iobj->proc.ipp.ipp19.shadingVertParam1;
-        shadingVertParam2 = iobj->proc.ipp.ipp19.shadingVertParam2;
-        shadingHorzParam1 = iobj->proc.ipp.ipp19.shadingHorzParam1;
-        shadingHorzParam2 = iobj->proc.ipp.ipp19.shadingHorzParam2;
-        shadingGainScale = iobj->proc.ipp.ipp19.shadingGainScale;
-        shadingGainOffset = iobj->proc.ipp.ipp19.shadingGainOffset;
-        shadingGainMaxValue = iobj->proc.ipp.ipp19.shadingGainMaxValue;
-        ratioDownsampleCbCr = iobj->proc.ipp.ipp19.ratioDownsampleCbCr;
-    } else if ( iobj->proc.ipp.type == ICAP_IMAGEPOSTPROC_VER1_8 ) {
-            EdgeEnhancementStrength = iobj->proc.ipp.ipp18.ee_q;
-            WeakEdgeThreshold = iobj->proc.ipp.ipp18.ew_ts;
-            StrongEdgeThreshold = iobj->proc.ipp.ipp18.es_ts;
-            LowFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp18.luma_nf;
-            MidFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp18.luma_nf;
-            HighFreqLumaNoiseFilterStrength = iobj->proc.ipp.ipp18.luma_nf;
-            LowFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
-            MidFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
-            HighFreqCbNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
-            LowFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
-            MidFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
-            HighFreqCrNoiseFilterStrength = iobj->proc.ipp.ipp18.chroma_nf;
-            shadingVertParam1 = -1;
-            shadingVertParam2 = -1;
-            shadingHorzParam1 = -1;
-            shadingHorzParam2 = -1;
-            shadingGainScale = -1;
-            shadingGainOffset = -1;
-            shadingGainMaxValue = -1;
-            ratioDownsampleCbCr = -1;
-    } else {
-            EdgeEnhancementStrength = 220;
-            WeakEdgeThreshold = 8;
-            StrongEdgeThreshold = 200;
-            LowFreqLumaNoiseFilterStrength = 5;
-            MidFreqLumaNoiseFilterStrength = 10;
-            HighFreqLumaNoiseFilterStrength = 15;
-            LowFreqCbNoiseFilterStrength = 20;
-            MidFreqCbNoiseFilterStrength = 30;
-            HighFreqCbNoiseFilterStrength = 10;
-            LowFreqCrNoiseFilterStrength = 10;
-            MidFreqCrNoiseFilterStrength = 25;
-            HighFreqCrNoiseFilterStrength = 15;
-            shadingVertParam1 = 10;
-            shadingVertParam2 = 400;
-            shadingHorzParam1 = 10;
-            shadingHorzParam2 = 400;
-            shadingGainScale = 128;
-            shadingGainOffset = 2048;
-            shadingGainMaxValue = 16384;
-            ratioDownsampleCbCr = 1;
-    }
-
     procMessage[0] = PROC_THREAD_PROCESS;
-    procMessage[1] = iobj->proc.out_img_w;
-    procMessage[2] = __ALIGN(iobj->proc.out_img_h, 16);
+    procMessage[1] = iobj->cfg.width;
+    procMessage[2] = iobj->cfg.height;
     procMessage[3] = image_width;
     procMessage[4] = image_height;
     procMessage[5] = pixelFormat;
-    procMessage[6]  = EdgeEnhancementStrength;
-    procMessage[7]  = WeakEdgeThreshold;
-    procMessage[8]  = StrongEdgeThreshold;
-    procMessage[9]  = LowFreqLumaNoiseFilterStrength;
-    procMessage[10] = MidFreqLumaNoiseFilterStrength;
-    procMessage[11] = HighFreqLumaNoiseFilterStrength;
-    procMessage[12] = LowFreqCbNoiseFilterStrength;
-    procMessage[13] = MidFreqCbNoiseFilterStrength;
-    procMessage[14] = HighFreqCbNoiseFilterStrength;
-    procMessage[15] = LowFreqCrNoiseFilterStrength;
-    procMessage[16] = MidFreqCrNoiseFilterStrength;
-    procMessage[17] = HighFreqCrNoiseFilterStrength;
-    procMessage[18] = shadingVertParam1;
-    procMessage[19] = shadingVertParam2;
-    procMessage[20] = shadingHorzParam1;
-    procMessage[21] = shadingHorzParam2;
-    procMessage[22] = shadingGainScale;
-    procMessage[23] = shadingGainOffset;
-    procMessage[24] = shadingGainMaxValue;
-    procMessage[25] = ratioDownsampleCbCr;
-    procMessage[26] = (unsigned int) yuv_buffer;
-    procMessage[27] = offset;
-    procMessage[28] = yuv_len;
+
+#ifdef IMAGE_PROCESSING_PIPELINE
+
+    procMessage[6]  = mIPPParams.EdgeEnhancementStrength;
+    procMessage[7]  = mIPPParams.WeakEdgeThreshold;
+    procMessage[8]  = mIPPParams.StrongEdgeThreshold;
+    procMessage[9]  = mIPPParams.LowFreqLumaNoiseFilterStrength;
+    procMessage[10] = mIPPParams.MidFreqLumaNoiseFilterStrength;
+    procMessage[11] = mIPPParams.HighFreqLumaNoiseFilterStrength;
+    procMessage[12] = mIPPParams.LowFreqCbNoiseFilterStrength;
+    procMessage[13] = mIPPParams.MidFreqCbNoiseFilterStrength;
+    procMessage[14] = mIPPParams.HighFreqCbNoiseFilterStrength;
+    procMessage[15] = mIPPParams.LowFreqCrNoiseFilterStrength;
+    procMessage[16] = mIPPParams.MidFreqCrNoiseFilterStrength;
+    procMessage[17] = mIPPParams.HighFreqCrNoiseFilterStrength;
+    procMessage[18] = mIPPParams.shadingVertParam1;
+    procMessage[19] = mIPPParams.shadingVertParam2;
+    procMessage[20] = mIPPParams.shadingHorzParam1;
+    procMessage[21] = mIPPParams.shadingHorzParam2;
+    procMessage[22] = mIPPParams.shadingGainScale;
+    procMessage[23] = mIPPParams.shadingGainOffset;
+    procMessage[24] = mIPPParams.shadingGainMaxValue;
+    procMessage[25] = mIPPParams.ratioDownsampleCbCr;
+
+#endif
+
+    procMessage[26] = (unsigned int) mYuvBuffer[i];
+    procMessage[27] = mPictureOffset[i];
+    procMessage[28] = mPictureLength[i];
     procMessage[29] = rotation;
-    procMessage[30] = mZoomTargetIdx;
+    procMessage[30] = /*mZoomTargetIdx*/ 0;
     procMessage[31] = mippMode;
     procMessage[32] = mIPPToEnable;
     procMessage[33] = quality;
     procMessage[34] = (unsigned int) mDataCb;
     procMessage[35] = 0;
     procMessage[36] = (unsigned int) mCallbackCookie;
-    procMessage[37] = iobj->proc.aspect_rect.top;
-    procMessage[38] = iobj->proc.aspect_rect.left;
-    procMessage[39] = iobj->proc.aspect_rect.width;
-    procMessage[40] = iobj->proc.aspect_rect.height;
+    procMessage[37] = 0;
+    procMessage[38] = 0;
+    procMessage[39] = iobj->cfg.width;
+    procMessage[40] = iobj->cfg.height;
+
+
     procMessage[41] = (unsigned int) exif_buf;
 
     write(procPipe[1], &procMessage, sizeof(procMessage));
@@ -1830,24 +1911,6 @@ int  CameraHal::ICapturePerform()
 #ifdef DEBUG_LOG
 
     LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
-
-#endif
-
-    if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && (mShutterEnable) ) {
-
-#ifdef DEBUG_LOG
-
-        PPM("SENDING MESSAGE TO SHUTTER THREAD");
-
-#endif
-
-        shutterMessage[0] = SHUTTER_THREAD_CALL;
-        shutterMessage[1] = (unsigned int) mNotifyCb;
-        shutterMessage[2] = (unsigned int) mCallbackCookie;
-        write(shutterPipe[1], &shutterMessage, sizeof(shutterMessage));
-    }
-
-#ifdef DEBUG_LOG
 
     PPM("IMAGE CAPTURED");
 
@@ -1867,7 +1930,7 @@ int  CameraHal::ICapturePerform()
         rawMessage[3] = (unsigned int) NULL;
         write(rawPipe[1], &rawMessage, sizeof(rawMessage));
     }
-
+    }
 #ifdef DEBUG_LOG
 
     LOG_FUNCTION_NAME_EXIT
@@ -2076,7 +2139,7 @@ int CameraHal::ICapturePerform(){
         scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
 
         err = scale_process(yuv_buffer, image_width, image_height,
-                             snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[mZoomTargetIdx], 0, 0, image_width, image_height);
+                             snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[/*mZoomTargetIdx*/ 0], 0, 0, image_width, image_height);
 
 #ifdef DEBUG_LOG
        PPM("After vpp downscales:");
@@ -2092,7 +2155,7 @@ int CameraHal::ICapturePerform(){
         scale_deinit();
 
         err = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
-        if (err < 0) {
+        if (err) {
             LOGE("mOverlay->queueBuffer() failed!!!!");
         } else {
             buffers_queued_to_dss[lastOverlayBufferDQ]=1;
@@ -2285,6 +2348,38 @@ int CameraHal::ICapturePerform(){
 
 #endif
 
+void *CameraHal::getLastOverlayAddress()
+{
+    void *res = NULL;
+
+    mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
+    if ( data == NULL ) {
+        LOGE(" getBufferAddress returned NULL");
+    } else {
+        res = data->ptr;
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return res;
+}
+
+size_t CameraHal::getLastOverlayLength()
+{
+    size_t res = 0;
+
+    mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
+    if ( data == NULL ) {
+        LOGE(" getBufferAddress returned NULL");
+    } else {
+        res = data->length;
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return res;
+}
+
 void CameraHal::snapshotThread()
 {
     fd_set descriptorSet;
@@ -2347,21 +2442,22 @@ void CameraHal::snapshotThread()
 
 #endif
 
-                mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
-                if ( data == NULL ) {
-                    LOGE(" getBufferAddress returned NULL");
-		    snapshot_buffer = NULL;	
+                snapshot_buffer = getLastOverlayAddress();
+                if ( NULL == snapshot_buffer )
+                    continue;
+
+                LOGE("Snapshot buffer 0x%x, yuv_buffer = 0x%x, zoomTarget = %5.2f", ( unsigned int ) snapshot_buffer, ( unsigned int ) yuv_buffer, ZoomTarget);
+
+                status = scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
+
+                if ( status < 0 ) {
+                    LOGE("VPP init failed");
+                    goto EXIT;
                 }
-		else
-		{
-                snapshot_buffer = data->ptr;
-		}		
-#ifdef HARDWARE_OMX
-                scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
 
                 status = scale_process(yuv_buffer, image_width, image_height,
                          snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, 1, crop_top, crop_left, crop_width, crop_height);
-#endif
+
 #ifdef DEBUG_LOG
 
                PPM("After vpp downscales:");
@@ -2378,16 +2474,46 @@ void CameraHal::snapshotThread()
                PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 
 #endif
-#ifdef HARDWARE_OMX
                 scale_deinit();
-#endif
+
                 status = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
-                if (status < 0) {
+                if (status) {
                      LOGE("mOverlay->queueBuffer() failed!!!!");
                 } else {
                      buffers_queued_to_dss[lastOverlayBufferDQ]=1;
                      nOverlayBuffersQueued++;
                 }
+
+                status = mOverlay->dequeueBuffer(&overlaybuffer);
+                if (status) {
+                    LOGE("mOverlay->dequeueBuffer() failed!!!!");
+                } else {
+                    nOverlayBuffersQueued--;
+                    buffers_queued_to_dss[(int)overlaybuffer] = 0;
+                    lastOverlayBufferDQ = (int)overlaybuffer;
+                }
+
+EXIT:
+
+                write(snapshotReadyPipe[1], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
+          } else if (snapshotMessage[0] == SNAPSHOT_THREAD_START_GEN) {
+
+                status = mOverlay->queueBuffer((void*)(lastOverlayBufferDQ));
+                if (status) {
+                     LOGE("mOverlay->queueBuffer() failed!!!!");
+                } else {
+                     buffers_queued_to_dss[lastOverlayBufferDQ]=1;
+                     nOverlayBuffersQueued++;
+                }
+
+                mParameters.getPreviewSize(&preview_width, &preview_height);
+			    SaveFile(NULL, (char*)"snp", getLastOverlayAddress(), preview_width*preview_height*2);
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+               PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
+
+#endif
 
                 status = mOverlay->dequeueBuffer(&overlaybuffer);
                 if (status) {
@@ -2560,9 +2686,13 @@ void CameraHal::procThread()
     data_callback JpegPictureCallback;
     void *yuv_buffer, *outBuffer, *PictureCallbackCookie;
     int thumb_width, thumb_height;
+
 #ifdef HARDWARE_OMX
+
     exif_buffer *exif_buf;
+
 #endif
+
     unsigned short EdgeEnhancementStrength, WeakEdgeThreshold, StrongEdgeThreshold,
                    LowFreqLumaNoiseFilterStrength, MidFreqLumaNoiseFilterStrength, HighFreqLumaNoiseFilterStrength,
                    LowFreqCbNoiseFilterStrength, MidFreqCbNoiseFilterStrength, HighFreqCbNoiseFilterStrength,
@@ -2573,10 +2703,6 @@ void CameraHal::procThread()
     void* input_buffer;
     unsigned int input_length;
 
-    sp<MemoryHeapBase> tmpHeap;
-    unsigned int tmpLength, tmpOffset;
-    void *tmpBuffer;
-
     max_fd = procPipe[0] + 1;
 
     FD_ZERO(&descriptorSet);
@@ -2585,22 +2711,7 @@ void CameraHal::procThread()
     mJPEGLength  = PICTURE_WIDTH*PICTURE_HEIGHT + ((2*PAGE) - 1);
     mJPEGLength &= ~((2*PAGE) - 1);
     mJPEGLength  += 2*PAGE;
-    mJPEGPictureHeap = new MemoryHeapBase(mJPEGLength);
-
-    base = (unsigned long) mJPEGPictureHeap->getBase();
-    base = (base + 0xfff) & 0xfffff000;
-    mJPEGOffset = base - (unsigned long) mJPEGPictureHeap->getBase();
-    mJPEGBuffer = (void *) base;
-
-    tmpLength  = PICTURE_WIDTH*PICTURE_HEIGHT*2 + ((2*PAGE) - 1);
-    tmpLength &= ~((2*PAGE) - 1);
-    tmpLength  += 2*PAGE;
-
-    base = (unsigned int) malloc(tmpLength);
-    tmpBase = base;
-    base = (base + 0xfff) & 0xfffff000;
-    tmpOffset = base - tmpBase;
-    tmpBuffer = (void *) base;
+    JPEGPictureHeap = new MemoryHeapBase(mJPEGLength);
 
     while(1){
 
@@ -2619,13 +2730,13 @@ void CameraHal::procThread()
         if(FD_ISSET(procPipe[0], &descriptorSet)){
 
             read(procPipe[0], &procMessage, sizeof(procMessage));
-			
+
             if(procMessage[0] == PROC_THREAD_PROCESS){
 
 #ifdef DEBUG_LOG
 
                 LOGD("PROC_THREAD_PROCESS_RECEIVED\n");
-				
+
 #endif
 
                 capture_width = procMessage[1];
@@ -2668,13 +2779,27 @@ void CameraHal::procThread()
                 crop_left = procMessage[38];
                 crop_width = procMessage[39];
                 crop_height = procMessage[40];
+
 #ifdef HARDWARE_OMX
+
                 exif_buf = (exif_buffer *) procMessage[41];
+
 #endif
+
+                LOGD("JPEGPictureHeap->getStrongCount() = %d, base = 0x%x", JPEGPictureHeap->getStrongCount(), ( unsigned int ) JPEGPictureHeap->getBase());
                 jpegSize = mJPEGLength;
-                JPEGPictureHeap = mJPEGPictureHeap;
-                outBuffer = mJPEGBuffer;
-                offset = mJPEGOffset;
+
+                if(JPEGPictureHeap->getStrongCount() > 1 )
+                {
+                    JPEGPictureHeap.clear();
+                    JPEGPictureHeap = new MemoryHeapBase(jpegSize);
+                }
+
+                base = (unsigned long) JPEGPictureHeap->getBase();
+                base = (base + 0xfff) & 0xfffff000;
+                offset = base - (unsigned long) JPEGPictureHeap->getBase();
+                outBuffer = (void *) base;
+
                 thumb_width = THUMB_WIDTH;
                 thumb_height = THUMB_HEIGHT;
                 pixelFormat = PIX_YUV422I;
@@ -2699,12 +2824,14 @@ void CameraHal::procThread()
 
 #endif
 
-	        if( (ippMode == IPP_CromaSupression_Mode) || (ippMode == IPP_EdgeEnhancement_Mode) ){
+               if( (ippMode == IPP_CromaSupression_Mode) || (ippMode == IPP_EdgeEnhancement_Mode) ){
 
                     if(ipp_to_enable) {
 
 #ifdef DEBUG_LOG
+
                          PPM("Before init IPP");
+
 #endif
 
                          err = InitIPP(capture_width, capture_height, pixelFormat, ippMode);
@@ -2791,7 +2918,7 @@ void CameraHal::procThread()
                 JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, offset, jpegEncoder->jpegSize);
 #endif
                 /* Disable the jpeg message enabled check for now */
-                if( /*msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) && */ JpegPictureCallback ) {
+                if(/*JpegPictureCallback*/ true) {
 
 #if JPEG
 
@@ -2810,20 +2937,20 @@ void CameraHal::procThread()
                 LOGD("jpegEncoder->jpegSize=%d jpegSize=%d", jpegEncoder->jpegSize, jpegSize);
 
 #endif
+
 #ifdef HARDWARE_OMX
+
                 if((exif_buf != NULL) && (exif_buf->data != NULL))
                     exif_buf_free(exif_buf);
+
 #endif
+
                 JPEGPictureMemBase.clear();
                 free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
 
             } else if( procMessage[0] == PROC_THREAD_EXIT ) {
                 LOGD("PROC_THREAD_EXIT_RECEIVED");
-
-                mJPEGPictureHeap->dispose();
-                mJPEGPictureHeap.clear();
-                free((void *) ( ((unsigned int) tmpBuffer) - tmpOffset) );
-
+                JPEGPictureHeap.clear();
                 break;
             }
         }
@@ -2836,42 +2963,54 @@ void CameraHal::procThread()
 
 #ifdef ICAP_EXPERIMENTAL
 
-int CameraHal::allocatePictureBuffer(size_t length)
+int CameraHal::allocatePictureBuffer(size_t length, int burstCount)
 {
     unsigned int base, tmpBase;
 
-    mPictureLength  = length + ((2*PAGE) - 1) + 10*PAGE;
-    mPictureLength &= ~((2*PAGE) - 1);
-    mPictureLength  += 2*PAGE;
+    length  += ((2*PAGE) - 1) + 10*PAGE;
+    length &= ~((2*PAGE) - 1);
+    length  += 2*PAGE;
 
-    base = (unsigned int) malloc(mPictureLength);
-    tmpBase = base;
-    base = (base + 0xfff) & 0xfffff000;
-    mPictureOffset = base - tmpBase;
-    mYuvBuffer = (uint8_t *) base;
-    mPictureLength -= mPictureOffset;
+    //allocate new buffers
+    for ( int i = 0; i < burstCount; i++) {
+        base = (unsigned int) malloc(length);
+        if ( ((void *) base ) == NULL )
+            return -1;
 
-    return 0;
+        tmpBase = base;
+        base = (base + 0xfff) & 0xfffff000;
+        mPictureOffset[i] = base - tmpBase;
+        mYuvBuffer[i] = (uint8_t *) base;
+        mPictureLength[i] = length - mPictureOffset[i];
+    }
+
+    return NO_ERROR;
 }
 
 #else
 
-int CameraHal::allocatePictureBuffer(int width, int height)
+int CameraHal::allocatePictureBuffer(int width, int height, int burstCount)
 {
-    unsigned int base, tmpBase;
+    unsigned int base, tmpBase, length;
 
-    mPictureLength  = width*height*2 + ((2*PAGE) - 1) + 10*PAGE;
-    mPictureLength &= ~((2*PAGE) - 1);
-    mPictureLength  += 2*PAGE;
+    length  = width*height*2 + ((2*PAGE) - 1) + 10*PAGE;
+    length &= ~((2*PAGE) - 1);
+    length  += 2*PAGE;
 
-    base = (unsigned int) malloc(mPictureLength);
+    //allocate new buffers
+    for ( int i = 0; i < burstCount; i++) {
+        base = (unsigned int) malloc(length);
+        if ( ((void *) base ) == NULL )
+            return -1;
+
     tmpBase = base;
     base = (base + 0xfff) & 0xfffff000;
-    mPictureOffset = base - tmpBase;
-    mYuvBuffer = (uint8_t *) base;
-    mPictureLength -= mPictureOffset;
+        mPictureOffset[i] = base - tmpBase;
+        mYuvBuffer[i] = (uint8_t *) base;
+        mPictureLength[i] = length - mPictureOffset[i];
+    }
 
-    return 0;
+    return NO_ERROR;
 }
 
 #endif
@@ -2879,64 +3018,31 @@ int CameraHal::allocatePictureBuffer(int width, int height)
 int CameraHal::ICaptureCreate(void)
 {
     int res;
-    overlay_buffer_t overlaybuffer;
-    int image_width, image_height;
+
+#ifdef DEBUG_LOG
 
     LOG_FUNCTION_NAME
-    
+
+#endif
+
     res = 0;
+
 #ifdef ICAP
+
     iobj = (libtest_obj *) malloc( sizeof( *iobj));
     if( NULL == iobj) {
         LOGE("libtest_obj malloc failed");
         goto exit;
     }
-#endif
 
-    mParameters.getPictureSize(&image_width, &image_height);
-    LOGD("ICaptureCreate: Picture Size %d x %d", image_width, image_height);
-#ifdef ICAP
     memset(iobj, 0 , sizeof(*iobj));
 
-    iobj->lib.lib_handle = dlopen(LIBICAPTURE_NAME, RTLD_LAZY);
-    if( NULL == iobj->lib.lib_handle){
-        LOGE("Can not open ICapture Library: %s", dlerror());
-        res = -1;
-    }
-
-    if( res >= 0){
-        iobj->lib.Create = ( int (*) (void **, int) ) dlsym(iobj->lib.lib_handle, "capture_create");
-        if(NULL == iobj->lib.Create){
-            res = -1;
-        }
-    }
-
-    if( res >= 0){
-        iobj->lib.Delete = ( int (*) (void *) ) dlsym(iobj->lib.lib_handle, "capture_delete");
-        if( NULL == iobj->lib.Delete){
-            res = -1;
-        }
-    }
-
-    if( res >= 0){
-        iobj->lib.Config = ( int (*) (void *, capture_config_t *) ) dlsym(iobj->lib.lib_handle, "capture_config");
-        if( NULL == iobj->lib.Config){
-            res = -1;
-        }
-    }
-
-    if( res >= 0){
-        iobj->lib.Process = ( int (*) (void *, capture_process_t *) ) dlsym(iobj->lib.lib_handle, "capture_process");
-        if( NULL == iobj->lib.Process){
-            res = -1;
-        }
-    }
-
-    res = (capture_status_t) iobj->lib.Create(&iobj->lib_private, camera_device);
-    if( ( ICAPTURE_FAIL == res) || NULL == iobj->lib_private){
+    res = icap_create(&iobj->lib_private);
+    if ( ICAP_STATUS_FAIL == res) {
         LOGE("ICapture Create function failed");
         goto fail_icapture;
     }
+
     LOGD("ICapture create OK");
 
 #endif
@@ -2949,10 +3055,12 @@ int CameraHal::ICaptureCreate(void)
 #endif
 
 #if JPEG
+
     jpegEncoder = new JpegEncoder;
 
     if( NULL != jpegEncoder )
         isStart_JPEG = true;
+
 #endif
 #endif
 
@@ -2965,16 +3073,16 @@ fail_init:
 
 #ifdef HARDWARE_OMX
 #if JPEG
+
     delete jpegEncoder;
+
 #endif
-#endif    
-
-#ifdef HARDWARE_OMX
-
 #endif
 
 #ifdef ICAP
-    iobj->lib.Delete(&iobj->lib_private);
+
+   icap_destroy(iobj->lib_private);
+
 #endif
 
 fail_icapture:
@@ -2985,28 +3093,27 @@ exit:
 int CameraHal::ICaptureDestroy(void)
 {
     int err;
+
 #ifdef HARDWARE_OMX
 #if JPEG
+
     if( isStart_JPEG )
         delete jpegEncoder;
+
 #endif
 #endif
 
 #ifdef ICAP
-    if (iobj->lib_private) {
-        err = (capture_status_t) iobj->lib.Delete(iobj->lib_private);
-        if(ICAPTURE_FAIL == err){
-            LOGE("ICapture Delete failed");
-        } else {
-            LOGD("ICapture delete OK");
-        }
-    }
 
-    iobj->lib_private = NULL;
+    err = icap_destroy(iobj->lib_private);
+    if ( ICAP_STATUS_FAIL == err )
+        LOGE("ICapture Delete failed");
+    else
+        LOGD("ICapture delete OK");
 
-    dlclose(iobj->lib.lib_handle);
     free(iobj);
     iobj = NULL;
+
 #endif
 
     return 0;
@@ -3171,7 +3278,7 @@ status_t CameraHal::startRecording( )
         LOGV("mVideoHeaps[%d]: ID:%d,Base:[%p],size:%d", i, mVideoHeaps[i]->getHeapID(), mVideoHeaps[i]->getBase() ,mVideoHeaps[i]->getSize());
         LOGV("mVideoBuffer[%d]: Pointer[%p]", i, mVideoBuffer[i]->pointer());
     }
-    
+
     mRecordEnabled =true;
     mRecordingLock.unlock();
     return NO_ERROR;
@@ -3269,14 +3376,6 @@ status_t CameraHal::cancelPicture( )
     return -1;
 }
 
-int CameraHal::validateSize(int w, int h)
-{
-    if ((w < MIN_WIDTH) || (h < MIN_HEIGHT)){
-        return false;
-    }
-    return true;
-}
-
 status_t CameraHal::convertGPSCoord(double coord, int *deg, int *min, int *sec)
 {
     double tmp;
@@ -3318,9 +3417,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     int w, h;
     int w_orig, h_orig, rot_orig;
     int framerate;
-    int iso, af, mode, zoom, wb, exposure, scene;
-    int effects, compensation, saturation, sharpness;
-    int contrast, brightness, flash, caf;
+    int zoom, compensation, saturation, sharpness;
+    int contrast, brightness, caf;
 	int error;
 	int base;
     const char *valstr;
@@ -3334,35 +3432,37 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     if ( params.getPreviewFormat() != NULL ) {
         if (strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) != 0) {
             LOGE("Only yuv422i preview is supported");
-            return -1;
+            return -EINVAL;
         }
     }
-    
+
     LOGD("PictureFormat %s", params.getPictureFormat());
     if ( params.getPictureFormat() != NULL ) {
         if (strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_JPEG) != 0) {
             LOGE("Only jpeg still pictures are supported");
-            return -1;
+            return -EINVAL;
         }
     }
 
     params.getPreviewSize(&w, &h);
-    if (!validateSize(w, h)) {
+    if ( validateSize(w, h, supportedPreviewRes, ARRAY_SIZE(supportedPreviewRes)) == false ) {
         LOGE("Preview size not supported");
-        return -1;
+        return -EINVAL;
     }
     LOGD("PreviewResolution by App %d x %d", w, h);
 
     params.getPictureSize(&w, &h);
-    if (!validateSize(w, h)) {
+    if (validateSize(w, h, supportedPictureRes, ARRAY_SIZE(supportedPictureRes)) == false ) {
         LOGE("Picture size not supported");
-        return -1;
+        return -EINVAL;
     }
     LOGD("Picture Size by App %d x %d", w, h);
 
 #ifdef HARDWARE_OMX
+
     mExifParams.width = w;
     mExifParams.height = h;
+
 #endif
 
     framerate = params.getPreviewFrameRate();
@@ -3377,7 +3477,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
-    if((mippMode != mParameters.getInt("ippMode")) || (w != w_orig) || (h != h_orig) ||
+    if((mippMode != mParameters.getInt(KEY_IPP)) || (w != w_orig) || (h != h_orig) ||
             ((rot_orig != 180) && (rotation == 180)) ||
             ((rot_orig == 180) && (rotation != 180))) // in the current setup, IPP uses a different setup when rotation is 180 degrees
     {
@@ -3388,7 +3488,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             pIPP.hIPP = NULL;
         }
 
-        mippMode = mParameters.getInt("ippMode");
+        mippMode = mParameters.getInt(KEY_IPP);
         LOGD("mippMode=%d", mippMode);
 
         mIPPToEnable = true;
@@ -3407,21 +3507,26 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         quality = 100;
     } 
 
-    zoom = mParameters.getInt("zoom");
+    zoom = mParameters.getInt(CameraParameters::KEY_ZOOM);
     if( (zoom >= 0) && ( zoom <= ZOOM_STAGES) ){
         mZoomTargetIdx = zoom;
     } else {
         mZoomTargetIdx = 0;
     }
     LOGD("Zoom by App %d", zoom);
+
 #ifdef HARDWARE_OMX
+
     mExifParams.zoom = zoom;
+
 #endif
+
     if ( ( params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL )) {
 
         double gpsCoord;
 
 #ifdef HARDWARE_OMX
+
         if( NULL == gpsLocation )
             gpsLocation = (gps_data *) malloc( sizeof(gps_data));
 
@@ -3451,7 +3556,9 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         } else {
             LOGE("Not enough memory to allocate gps_data structure");
         }
+
 #endif
+
     }
 
     if ( params.get(KEY_SHUTTER_ENABLE) != NULL ) {
@@ -3463,60 +3570,95 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #ifdef FW3A
 
+    if ( params.get(KEY_CAPTURE_MODE) != NULL ) {
+        if (strcmp(params.get(KEY_CAPTURE_MODE), (const char *) HIGH_QUALITY) == 0) {
+            mcapture_mode = 2;
+        } else if (strcmp(params.get(KEY_CAPTURE_MODE), (const char *) HIGH_PERFORMANCE) == 0) {
+            mcapture_mode = 1;
+        } else {
+            mcapture_mode = 1;
+        }
+    } else {
+        mcapture_mode = 1;
+    }
+
+    int burst_capture = params.getInt(KEY_BURST);
+    if ( ( 0 >= burst_capture ) ){
+        mBurstShots = 1;
+    } else {
+        // hardcoded in HP mode
+        mcapture_mode = 1;
+        mBurstShots = burst_capture;
+    }
+
+    LOGD("Capture Mode set %d, Burst Shots set %d", mcapture_mode, burst_capture);
+    LOGD("mBurstShots %d", mBurstShots);
+
     if ( NULL != fobj ){
 
-        if ( params.get("meter-mode") != NULL ) {
-            if (strcmp(params.get("meter-mode"), (const char *) "center") == 0) {
-                    fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_SINGLE_CENTER;
-                    fobj->settings_2a.ae.spot_weighting = EXPOSURE_SPOT_CENTER;
-                    mExifParams.metering_mode = EXIF_CENTER;
-            } else if (strcmp(params.get("meter-mode"), (const char *) "average") == 0) {
-                fobj->settings_2a.af.spot_weighting = FOCUS_SPOT_MULTI_AVERAGE;
-                fobj->settings_2a.ae.spot_weighting = EXPOSURE_SPOT_WIDE;
-                 mExifParams.metering_mode = EXIF_AVERAGE;
-            }
-        } 
+        if ( params.get(KEY_METER_MODE) != NULL ) {
+            if (strcmp(params.get(KEY_METER_MODE), (const char *) METER_MODE_CENTER) == 0) {
+                fobj->settings.af.spot_weighting = ICAM_FOCUS_SPOT_SINGLE_CENTER;
+                fobj->settings.ae.spot_weighting = ICAM_EXPOSURE_SPOT_CENTER;
 
-        if ( params.get("capture") != NULL ) {
-            if (strcmp(params.get("capture"), (const char *) "still") == 0) {
-                //Set 3A config to enable variable fps
-                fobj->settings_2a.ae.framerate = 0;
-            } else if (strcmp(params.get("capture"), (const char *) "video") == 0) {
-                //Set 3A config to disable variable fps
-                fobj->settings_2a.ae.framerate = framerate;
+#ifdef HARDWARE_OMX
+
+                mExifParams.metering_mode = EXIF_CENTER;
+
+#endif
+
+            } else if (strcmp(params.get(KEY_METER_MODE), (const char *) METER_MODE_AVERAGE) == 0) {
+                fobj->settings.af.spot_weighting = ICAM_FOCUS_SPOT_MULTI_AVERAGE;
+                fobj->settings.ae.spot_weighting = ICAM_EXPOSURE_SPOT_WIDE;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.metering_mode = EXIF_AVERAGE;
+
+#endif
+
             }
-        }else {
-            //disable variable fps by default
-            fobj->settings_2a.ae.framerate = framerate;
+        }
+
+        if ( params.get(KEY_CAPTURE) != NULL ) {
+            if (strcmp(params.get(KEY_CAPTURE), (const char *) CAPTURE_STILL) == 0) {
+                //Set 3A config to enable variable fps
+                fobj->settings.ae.framerate = 0;
+                fobj->settings.general.view_finder_mode = ICAM_VFMODE_STILL_CAPTURE;
+            } else if (strcmp(params.get(KEY_CAPTURE), (const char *) CAPTURE_VIDEO) == 0) {
+                //Set 3A config to disable variable fps
+                fobj->settings.ae.framerate = framerate;
+                fobj->settings.general.view_finder_mode = ICAM_VFMODE_VIDEO_RECORD;
+            }
         }
 
         if ( params.get(CameraParameters::KEY_SCENE_MODE) != NULL ) {
             if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_AUTO) == 0) {
-                fobj->settings_2a.general.scene = CONFIG_SCENE_MODE_MANUAL;
+                fobj->settings.general.scene = ICAM_SCENE_MODE_MANUAL;
 
             } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_PORTRAIT) == 0) {
 
-                fobj->settings_2a.general.scene = CONFIG_SCENE_MODE_PORTRAIT;
+                fobj->settings.general.scene = ICAM_SCENE_MODE_PORTRAIT;
 
             } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_LANDSCAPE) == 0) {
 
-                fobj->settings_2a.general.scene = CONFIG_SCENE_MODE_LANDSCAPE;
+                fobj->settings.general.scene = ICAM_SCENE_MODE_LANDSCAPE;
 
             } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_NIGHT) == 0) {
 
-                fobj->settings_2a.general.scene = CONFIG_SCENE_MODE_NIGHT;
+                fobj->settings.general.scene = ICAM_SCENE_MODE_NIGHT;
 
             } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_NIGHT_PORTRAIT) == 0) {
 
-                fobj->settings_2a.general.scene = CONFIG_SCENE_MODE_NIGHT_PORTRAIT;
+                fobj->settings.general.scene = ICAM_SCENE_MODE_NIGHT_PORTRAIT;
 
             } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_FIREWORKS) == 0) {
 
-                fobj->settings_2a.general.scene = CONFIG_SCENE_MODE_FIREWORKS;
+                fobj->settings.general.scene = ICAM_SCENE_MODE_FIREWORKS;
 
             } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_SPORTS) == 0) {
 
-                fobj->settings_2a.general.scene = CONFIG_SCENE_MODE_SPORT;
+                fobj->settings.general.scene = ICAM_SCENE_MODE_SPORT;
 
             }
         }
@@ -3524,23 +3666,63 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         if ( params.get(CameraParameters::KEY_WHITE_BALANCE) != NULL ) {
             if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) CameraParameters::WHITE_BALANCE_AUTO ) == 0) {
 
-                fobj->settings_2a.awb.mode = WHITE_BALANCE_MODE_WB_AUTO;
-                 mExifParams.wb = EXIF_WB_AUTO;
+                fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_AUTO;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.wb = EXIF_WB_AUTO;
+
+#endif
+
             } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) CameraParameters::WHITE_BALANCE_INCANDESCENT) == 0) {
 
-                 fobj->settings_2a.awb.mode = WHITE_BALANCE_MODE_WB_INCANDESCENT;
+                fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_INCANDESCENT;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.wb = EXIF_WB_MANUAL;
+
+#endif
 
             } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) CameraParameters::WHITE_BALANCE_FLUORESCENT) == 0) {
 
-                fobj->settings_2a.awb.mode = WHITE_BALANCE_MODE_WB_FLUORESCENT;
+                fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_FLUORESCENT;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.wb = EXIF_WB_MANUAL;
+
+#endif
 
             } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) CameraParameters::WHITE_BALANCE_DAYLIGHT) == 0) {
 
-                fobj->settings_2a.awb.mode = WHITE_BALANCE_MODE_WB_DAYLIGHT;
+                fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_DAYLIGHT;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.wb = EXIF_WB_MANUAL;
+
+#endif
+
+            } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) CameraParameters::WHITE_BALANCE_CLOUDY_DAYLIGHT) == 0) {
+
+                fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_CLOUDY;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.wb = EXIF_WB_MANUAL;
+
+#endif
 
             } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) CameraParameters::WHITE_BALANCE_SHADE) == 0) {
 
-                fobj->settings_2a.awb.mode = WHITE_BALANCE_MODE_WB_SHADOW;
+                fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_SHADOW;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.wb = EXIF_WB_MANUAL;
+
+#endif
 
             }
         }
@@ -3548,39 +3730,39 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         if ( params.get(CameraParameters::KEY_EFFECT) != NULL ) {
             if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_NONE ) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_NORMAL;
+                fobj->settings.general.effects = ICAM_EFFECT_NORMAL;
 
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_MONO) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_GRAYSCALE;
+                fobj->settings.general.effects = ICAM_EFFECT_GRAYSCALE;
 
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_NEGATIVE) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_NEGATIVE;
+                fobj->settings.general.effects = ICAM_EFFECT_NEGATIVE;
 
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_SOLARIZE) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_SOLARIZE;
+                fobj->settings.general.effects = ICAM_EFFECT_SOLARIZE;
 
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_SEPIA) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_SEPIA;
+                fobj->settings.general.effects = ICAM_EFFECT_SEPIA;
 
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_WHITEBOARD) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_WHITEBOARD;
+                fobj->settings.general.effects = ICAM_EFFECT_WHITEBOARD;
 
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) CameraParameters::EFFECT_BLACKBOARD) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_BLACKBOARD;
+                fobj->settings.general.effects = ICAM_EFFECT_BLACKBOARD;
 
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) EFFECT_COOL) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_COOL;
+                fobj->settings.general.effects = ICAM_EFFECT_COOL;
 
             } else if (strcmp(params.get(CameraParameters::KEY_EFFECT), (const char *) EFFECT_EMBOSS) == 0) {
 
-                fobj->settings_2a.general.effects = CONFIG_EFFECT_EMBOSS;
+                fobj->settings.general.effects = ICAM_EFFECT_EMBOSS;
 
             }
         }
@@ -3588,15 +3770,15 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         if ( params.get(CameraParameters::KEY_ANTIBANDING) != NULL ) {
             if (strcmp(params.get(CameraParameters::KEY_ANTIBANDING), (const char *) CameraParameters::ANTIBANDING_50HZ ) == 0) {
 
-                fobj->settings_2a.general.flicker_avoidance = CONFIG_FLICKER_AVOIDANCE_50HZ;
+                fobj->settings.general.flicker_avoidance = ICAM_FLICKER_AVOIDANCE_50HZ;
 
             } else if (strcmp(params.get(CameraParameters::KEY_ANTIBANDING), (const char *) CameraParameters::ANTIBANDING_60HZ) == 0) {
 
-                fobj->settings_2a.general.flicker_avoidance = CONFIG_FLICKER_AVOIDANCE_60HZ;
+                fobj->settings.general.flicker_avoidance = ICAM_FLICKER_AVOIDANCE_60HZ;
 
             } else if (strcmp(params.get(CameraParameters::KEY_ANTIBANDING), (const char *) CameraParameters::ANTIBANDING_OFF) == 0) {
 
-                fobj->settings_2a.general.flicker_avoidance = CONFIG_FLICKER_AVOIDANCE_NO;
+                fobj->settings.general.flicker_avoidance = ICAM_FLICKER_AVOIDANCE_NO;
 
             }
         }
@@ -3604,26 +3786,26 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         if ( params.get(CameraParameters::KEY_FOCUS_MODE) != NULL ) {
             if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_AUTO ) == 0) {
 
-                fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_AUTO;
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_AUTO;
 
             } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_INFINITY) == 0) {
 
-                fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_INFINY;
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_INFINY;
 
             } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_MACRO) == 0) {
 
-                fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_MACRO;
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_MACRO;
 
             } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_FIXED) == 0) {
 
-                fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_MANUAL;
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_MANUAL;
 
             }
         }
 
-        valstr = mParameters.get("touch-focus");
+        valstr = mParameters.get(KEY_TOUCH_FOCUS);
         if( NULL != valstr ){
-            if ( strcmp(valstr, (const char *) "disabled") != 0) {
+            if ( strcmp(valstr, (const char *) TOUCH_FOCUS_DISABLED) != 0) {
 
                 int af_x = 0;
                 int af_y = 0;
@@ -3640,77 +3822,203 @@ status_t CameraHal::setParameters(const CameraParameters &params)
                     af_y = atoi(af_coord);
                 }
 
-                fobj->settings_2a.general.face_tracking.enable = 1;
-                fobj->settings_2a.general.face_tracking.count = 1;
-                fobj->settings_2a.general.face_tracking.update = 1;
-                fobj->settings_2a.general.face_tracking.faces[0].top = af_y;
-                fobj->settings_2a.general.face_tracking.faces[0].left = af_x;
-                fobj->settings_2a.af.focus_mode = FOCUS_MODE_AF_EXTENDED;
+                fobj->settings.general.face_tracking.enable = 1;
+                fobj->settings.general.face_tracking.count = 1;
+                fobj->settings.general.face_tracking.update = 1;
+                fobj->settings.general.face_tracking.faces[0].top = af_y;
+                fobj->settings.general.face_tracking.faces[0].left = af_x;
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_EXTENDED;
 
                 LOGD("NEW PARAMS: af_x = %d, af_y = %d", af_x, af_y);
             }
         }
 
+        if ( params.get(KEY_ISO) != NULL ) {
+            if (strcmp(params.get(KEY_ISO), (const char *) ISO_AUTO ) == 0) {
 
-        iso = mParameters.getInt("iso");
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_AUTO;
 
-        switch ( iso ) {
-            case EXPOSURE_ISO_AUTO:
+#ifdef HARDWARE_OMX
+
                 mExifParams.iso = EXIF_ISO_AUTO;
-                break;
-            case EXPOSURE_ISO_100:
+
+#endif
+
+            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_100 ) == 0) {
+
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_100;
+
+#ifdef HARDWARE_OMX
+
                 mExifParams.iso = EXIF_ISO_100;
-                break;
-            case EXPOSURE_ISO_200:
+
+#endif
+
+            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_200 ) == 0) {
+
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_200;
+
+#ifdef HARDWARE_OMX
+
                 mExifParams.iso = EXIF_ISO_200;
-                break;
-            case EXPOSURE_ISO_400:
+
+#endif
+
+            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_400 ) == 0) {
+
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_400;
+
+#ifdef HARDWARE_OMX
+
                 mExifParams.iso = EXIF_ISO_400;
-                break;
-        };
 
-        mcapture_mode = mParameters.getInt("mode");        
-        exposure = mParameters.getInt("exposure");
-        compensation = mParameters.getInt("compensation");
-        saturation = mParameters.getInt("saturation");
-        sharpness = mParameters.getInt("sharpness");
-        contrast = mParameters.getInt("contrast");
-        brightness = mParameters.getInt("brightness");
-        caf = mParameters.getInt("caf");
+#endif
 
-        if(contrast != -1)
-        {
+            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_800 ) == 0) {
+
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_800;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.iso = EXIF_ISO_800;
+
+#endif
+
+            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_1000 ) == 0) {
+
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_1000;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.iso = EXIF_ISO_1000;
+
+#endif
+
+            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_1200 ) == 0) {
+
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_1600;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.iso = EXIF_ISO_1200;
+
+#endif
+
+            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_1600 ) == 0) {
+
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_1600;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.iso = EXIF_ISO_1600;
+
+#endif
+
+            } else {
+
+                fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_AUTO;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.iso = EXIF_ISO_AUTO;
+
+#endif
+
+            }
+        } else {
+
+            fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_AUTO;
+
+#ifdef HARDWARE_OMX
+
+            mExifParams.iso = EXIF_ISO_AUTO;
+
+#endif
+
+        }
+
+        if ( params.get(KEY_EXPOSURE_MODE) != NULL ) {
+            if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_AUTO ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_AUTO;
+
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_MACRO ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_MACRO;
+
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_PORTRAIT ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_PORTRAIT;
+
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_LANDSCAPE ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_LANDSCAPE;
+
+            } else if (strcmp(params.get(KEY_ISO), (const char *) EXPOSURE_SPORTS ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_SPORTS;
+
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_NIGHT ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_NIGHT;
+
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_NIGHT_PORTRAIT ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_NIGHT_PORTRAIT;
+
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_BACKLIGHTING ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_BACKLIGHTING;
+
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_MANUAL ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_MANUAL;
+
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_VERYLONG ) == 0) {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_VERYLONG;
+
+            } else {
+
+                fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_AUTO;
+
+            }
+        } else {
+
+            fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_AUTO;
+
+        }
+
+        compensation = mParameters.getInt(KEY_EV_COMPENSATION);
+        saturation = mParameters.getInt(KEY_SATURATION);
+        sharpness = mParameters.getInt(KEY_SHARPNESS);
+        contrast = mParameters.getInt(KEY_CONTRAST);
+        brightness = mParameters.getInt(KEY_BRIGHTNESS);
+        caf = mParameters.getInt(KEY_CAF);
+
+        if(contrast != -1) {
             contrast -= CONTRAST_OFFSET;
-            fobj->settings_2a.general.contrast = contrast;
+            fobj->settings.general.contrast = contrast;
         }
 
-        if(brightness != -1) 
-        {
+        if(brightness != -1) {
             brightness -= BRIGHTNESS_OFFSET;
-            fobj->settings_2a.general.brightness = brightness;
+            fobj->settings.general.brightness = brightness;
+            LOGE("Brightness passed to 3A %d", brightness);
         }
 
-        if(saturation != -1)
-            fobj->settings_2a.general.saturation = saturation;
-        
+        if(saturation!= -1) {
+            saturation -= SATURATION_OFFSET;
+            fobj->settings.general.saturation = saturation;
+            LOGE("Saturation passed to 3A %d", saturation);
+        }
         if(sharpness != -1)
-            fobj->settings_2a.general.sharpness = sharpness;
+            fobj->settings.general.sharpness = sharpness;
 
-        if(iso != -1)
-            fobj->settings_2a.ae.iso = (EXPOSURE_ISO_VALUES) iso;
-
-        if(exposure != -1)
-            fobj->settings_2a.ae.mode = (EXPOSURE_MODE_VALUES) exposure;
-
-        if(compensation != -1) {
-
-            compensation -= COMPENSATION_OFFSET;
-            fobj->settings_2a.ae.compensation = compensation;
-
-        }
+        if(compensation!= -1)
+            fobj->settings.ae.compensation = compensation - COMPENSATION_OFFSET;
 
         FW3A_SetSettings();
-        LOGD("mcapture_mode = %d", mcapture_mode);
 
         if(mParameters.getInt(KEY_ROTATION_TYPE) == ROTATION_EXIF) {
             mExifParams.rotation = rotation;
@@ -3728,6 +4036,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             return msg.command == PREVIEW_ACK ? NO_ERROR : INVALID_OPERATION;
         }
     }
+
 #endif
     
     LOG_FUNCTION_NAME_EXIT
@@ -3736,17 +4045,261 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 CameraParameters CameraHal::getParameters() const
 {
-    LOG_FUNCTION_NAME
     CameraParameters params;
-    int iso, af, wb, exposure, scene, effects, compensation;
-    int saturation, sharpness, contrast, brightness;
+
+    LOG_FUNCTION_NAME
 
     {
         Mutex::Autolock lock(mLock);
         params = mParameters;
     }
 
+#ifdef FW3A
+
+    if ( isStart_FW3A ) {
+
+        if( FW3A_GetSettings() < 0 ) {
+            LOGE("ERROR FW3A_GetSettings()");
+            goto exit;
+        }
+
+        switch ( fobj->settings.general.scene ) {
+            case ICAM_SCENE_MODE_MANUAL:
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_AUTO);
+                break;
+            case ICAM_SCENE_MODE_PORTRAIT:
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_PORTRAIT);
+                break;
+            case ICAM_SCENE_MODE_LANDSCAPE:
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_LANDSCAPE);
+                break;
+            case ICAM_SCENE_MODE_NIGHT:
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_NIGHT);
+                break;
+            case ICAM_SCENE_MODE_FIREWORKS:
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_FIREWORKS);
+                break;
+            case ICAM_SCENE_MODE_SPORT:
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_SPORTS);
+                break;
+            //TODO: Extend support for those
+            case ICAM_SCENE_MODE_CLOSEUP:
+                break;
+            case ICAM_SCENE_MODE_UNDERWATER:
+                break;
+            case ICAM_SCENE_MODE_SNOW_BEACH:
+                break;
+            case ICAM_SCENE_MODE_MOOD:
+                break;
+            case ICAM_SCENE_MODE_NIGHT_INDOOR:
+                break;
+            case ICAM_SCENE_MODE_NIGHT_PORTRAIT:
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_NIGHT_PORTRAIT);
+                break;
+            case ICAM_SCENE_MODE_INDOOR:
+                break;
+            case ICAM_SCENE_MODE_AUTO:
+                break;
+        };
+
+        switch ( fobj->settings.ae.mode ) {
+            case ICAM_EXPOSURE_MODE_EXP_AUTO:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_AUTO);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_MACRO:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_MACRO);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_PORTRAIT:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_PORTRAIT);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_LANDSCAPE:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_LANDSCAPE);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_SPORTS:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_SPORTS);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_NIGHT:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_NIGHT);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_NIGHT_PORTRAIT:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_NIGHT_PORTRAIT);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_BACKLIGHTING:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_BACKLIGHTING);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_MANUAL:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_MANUAL);
+                break;
+            case ICAM_EXPOSURE_MODE_EXP_VERYLONG:
+                params.set(KEY_EXPOSURE_MODE, EXPOSURE_VERYLONG);
+                break;
+        };
+
+        switch ( fobj->settings.ae.iso ) {
+            case ICAM_EXPOSURE_ISO_AUTO:
+                params.set(KEY_ISO, ISO_AUTO);
+                break;
+            case ICAM_EXPOSURE_ISO_100:
+                params.set(KEY_ISO, ISO_100);
+                break;
+            case ICAM_EXPOSURE_ISO_200:
+                params.set(KEY_ISO, ISO_200);
+                break;
+            case ICAM_EXPOSURE_ISO_400:
+                params.set(KEY_ISO, ISO_400);
+                break;
+            case ICAM_EXPOSURE_ISO_800:
+                params.set(KEY_ISO, ISO_800);
+                break;
+            case ICAM_EXPOSURE_ISO_1000:
+                params.set(KEY_ISO, ISO_1000);
+                break;
+            case ICAM_EXPOSURE_ISO_1200:
+                params.set(KEY_ISO, ISO_1200);
+                break;
+            case ICAM_EXPOSURE_ISO_1600:
+                params.set(KEY_ISO, ISO_1600);
+                break;
+        };
+
+        switch ( fobj->settings.af.focus_mode ) {
+            case ICAM_FOCUS_MODE_AF_AUTO:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_AUTO);
+                break;
+            case ICAM_FOCUS_MODE_AF_INFINY:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_INFINITY);
+                break;
+            case ICAM_FOCUS_MODE_AF_MACRO:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_MACRO);
+                break;
+            case ICAM_FOCUS_MODE_AF_MANUAL:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_FIXED);
+                break;
+            //TODO: Extend support for those
+            case ICAM_FOCUS_MODE_AF_CONTINUOUS:
+                break;
+            case ICAM_FOCUS_MODE_AF_CONTINUOUS_NORMAL:
+                break;
+            case ICAM_FOCUS_MODE_AF_PORTRAIT:
+                break;
+            case ICAM_FOCUS_MODE_AF_HYPERFOCAL:
+                break;
+            case ICAM_FOCUS_MODE_AF_EXTENDED:
+                break;
+            case ICAM_FOCUS_MODE_AF_CONTINUOUS_EXTENDED:
+                break;
+        };
+
+        switch ( fobj->settings.general.flicker_avoidance ) {
+            case ICAM_FLICKER_AVOIDANCE_50HZ:
+                params.set(CameraParameters::KEY_ANTIBANDING, CameraParameters::ANTIBANDING_50HZ);
+                break;
+            case ICAM_FLICKER_AVOIDANCE_60HZ:
+                params.set(CameraParameters::KEY_ANTIBANDING, CameraParameters::ANTIBANDING_60HZ);
+                break;
+            case ICAM_FLICKER_AVOIDANCE_NO:
+                params.set(CameraParameters::KEY_ANTIBANDING, CameraParameters::ANTIBANDING_OFF);
+                break;
+        };
+
+        switch ( fobj->settings.general.effects ) {
+            case ICAM_EFFECT_EMBOSS:
+                params.set(CameraParameters::KEY_EFFECT, EFFECT_EMBOSS);
+                break;
+            case ICAM_EFFECT_COOL:
+                params.set(CameraParameters::KEY_EFFECT, EFFECT_COOL);
+                break;
+            case ICAM_EFFECT_BLACKBOARD:
+                params.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_BLACKBOARD);
+                break;
+            case ICAM_EFFECT_WHITEBOARD:
+                params.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_WHITEBOARD);
+                break;
+            case ICAM_EFFECT_SEPIA:
+                params.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_SEPIA);
+                break;
+            case ICAM_EFFECT_SOLARIZE:
+                params.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_SOLARIZE);
+                break;
+            case ICAM_EFFECT_NEGATIVE:
+                params.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_NEGATIVE);
+                break;
+            case ICAM_EFFECT_GRAYSCALE:
+                params.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_MONO);
+                break;
+            case ICAM_EFFECT_NORMAL:
+                params.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_NONE);
+                break;
+            //TODO: Add support for those
+            case ICAM_EFFECT_NATURAL:
+                break;
+            case ICAM_EFFECT_VIVID:
+                break;
+            case ICAM_EFFECT_COLORSWAP:
+                break;
+            case ICAM_EFFECT_OUT_OF_FOCUS:
+                break;
+            case ICAM_EFFECT_NEGATIVE_SEPIA:
+                break;
+        };
+
+        switch ( fobj->settings.awb.mode ) {
+            case ICAM_WHITE_BALANCE_MODE_WB_SHADOW:
+                params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_SHADE);
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_CLOUDY:
+                params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_CLOUDY_DAYLIGHT);
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_DAYLIGHT:
+                params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_DAYLIGHT);
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_FLUORESCENT:
+                params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_FLUORESCENT);
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_INCANDESCENT:
+                params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_INCANDESCENT);
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_AUTO:
+                params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_AUTO);
+                break;
+            //TODO: Extend support for those
+            case ICAM_WHITE_BALANCE_MODE_WB_MANUAL:
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_TUNGSTEN:
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_OFFICE:
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_FLASH:
+                break;
+            case ICAM_WHITE_BALANCE_MODE_WB_HORIZON:
+                break;
+        };
+
+        switch ( fobj->settings.ae.spot_weighting ) {
+            case ICAM_EXPOSURE_SPOT_WIDE:
+                params.set(KEY_METER_MODE, METER_MODE_AVERAGE);
+                break;
+            case ICAM_EXPOSURE_SPOT_CENTER:
+                params.set(KEY_METER_MODE, METER_MODE_CENTER);
+                break;
+            //TODO: support this also
+            case ICAM_EXPOSURE_SPOT_NORMAL:
+                break;
+        };
+
+        params.set(KEY_EV_COMPENSATION, ( fobj->settings.ae.compensation + COMPENSATION_OFFSET ));
+        params.set(KEY_SATURATION, ( fobj->settings.general.saturation + SATURATION_OFFSET ));
+        params.set(KEY_SHARPNESS, fobj->settings.general.sharpness);
+        params.set(KEY_CONTRAST, ( fobj->settings.general.contrast + CONTRAST_OFFSET ));
+        params.set(KEY_BRIGHTNESS, ( fobj->settings.general.brightness + BRIGHTNESS_OFFSET ));
+
+    }
+#endif
+
+exit:
+
     LOG_FUNCTION_NAME_EXIT
+
     return params;
 }
 
@@ -3764,7 +4317,7 @@ void CameraHal::dumpFrame(void *buffer, int size, char *path)
         LOGE("\n\n\n\nError: failed to open the file %s for writing\n\n\n\n", path);
         return;
     }
-    
+
     fwrite((void *)buffer, 1, size, fIn);
     fclose(fIn);
 
@@ -3776,7 +4329,99 @@ void CameraHal::release()
 
 #ifdef FW3A
 
-int CameraHal::onSnapshot(void *priv, void *buf, int width, int height, capture_rect_t snapshot_rect, capture_rect_t aspect_rect)
+void CameraHal::onIPP(void *priv, icap_ipp_parameters_t *ipp_params)
+{
+    CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
+
+    LOG_FUNCTION_NAME
+
+#ifdef IMAGE_PROCESSING_PIPELINE
+
+    if ( ipp_params->type == ICAP_IPP_PARAMETERS_VER1_9 ) {
+        camHal->mIPPParams.EdgeEnhancementStrength = ipp_params->ipp19.EdgeEnhancementStrength;
+        camHal->mIPPParams.WeakEdgeThreshold = ipp_params->ipp19.WeakEdgeThreshold;
+        camHal->mIPPParams.StrongEdgeThreshold = ipp_params->ipp19.StrongEdgeThreshold;
+        camHal->mIPPParams.LowFreqLumaNoiseFilterStrength = ipp_params->ipp19.LowFreqLumaNoiseFilterStrength;
+        camHal->mIPPParams.MidFreqLumaNoiseFilterStrength = ipp_params->ipp19.MidFreqLumaNoiseFilterStrength;
+        camHal->mIPPParams.HighFreqLumaNoiseFilterStrength = ipp_params->ipp19.HighFreqLumaNoiseFilterStrength;
+        camHal->mIPPParams.LowFreqCbNoiseFilterStrength = ipp_params->ipp19.LowFreqCbNoiseFilterStrength;
+        camHal->mIPPParams.MidFreqCbNoiseFilterStrength = ipp_params->ipp19.MidFreqCbNoiseFilterStrength;
+        camHal->mIPPParams.HighFreqCbNoiseFilterStrength = ipp_params->ipp19.HighFreqCbNoiseFilterStrength;
+        camHal->mIPPParams.LowFreqCrNoiseFilterStrength = ipp_params->ipp19.LowFreqCrNoiseFilterStrength;
+        camHal->mIPPParams.MidFreqCrNoiseFilterStrength = ipp_params->ipp19.MidFreqCrNoiseFilterStrength;
+        camHal->mIPPParams.HighFreqCrNoiseFilterStrength = ipp_params->ipp19.HighFreqCrNoiseFilterStrength;
+        camHal->mIPPParams.shadingVertParam1 = ipp_params->ipp19.shadingVertParam1;
+        camHal->mIPPParams.shadingVertParam2 = ipp_params->ipp19.shadingVertParam2;
+        camHal->mIPPParams.shadingHorzParam1 = ipp_params->ipp19.shadingHorzParam1;
+        camHal->mIPPParams.shadingHorzParam2 = ipp_params->ipp19.shadingHorzParam2;
+        camHal->mIPPParams.shadingGainScale = ipp_params->ipp19.shadingGainScale;
+        camHal->mIPPParams.shadingGainOffset = ipp_params->ipp19.shadingGainOffset;
+        camHal->mIPPParams.shadingGainMaxValue = ipp_params->ipp19.shadingGainMaxValue;
+        camHal->mIPPParams.ratioDownsampleCbCr = ipp_params->ipp19.ratioDownsampleCbCr;
+    } else if ( ipp_params->type == ICAP_IPP_PARAMETERS_VER1_8 ) {
+        camHal->mIPPParams.EdgeEnhancementStrength = ipp_params->ipp18.ee_q;
+        camHal->mIPPParams.WeakEdgeThreshold = ipp_params->ipp18.ew_ts;
+        camHal->mIPPParams.StrongEdgeThreshold = ipp_params->ipp18.es_ts;
+        camHal->mIPPParams.LowFreqLumaNoiseFilterStrength = ipp_params->ipp18.luma_nf;
+        camHal->mIPPParams.MidFreqLumaNoiseFilterStrength = ipp_params->ipp18.luma_nf;
+        camHal->mIPPParams.HighFreqLumaNoiseFilterStrength = ipp_params->ipp18.luma_nf;
+        camHal->mIPPParams.LowFreqCbNoiseFilterStrength = ipp_params->ipp18.chroma_nf;
+        camHal->mIPPParams.MidFreqCbNoiseFilterStrength = ipp_params->ipp18.chroma_nf;
+        camHal->mIPPParams.HighFreqCbNoiseFilterStrength = ipp_params->ipp18.chroma_nf;
+        camHal->mIPPParams.LowFreqCrNoiseFilterStrength = ipp_params->ipp18.chroma_nf;
+        camHal->mIPPParams.MidFreqCrNoiseFilterStrength = ipp_params->ipp18.chroma_nf;
+        camHal->mIPPParams.HighFreqCrNoiseFilterStrength = ipp_params->ipp18.chroma_nf;
+        camHal->mIPPParams.shadingVertParam1 = -1;
+        camHal->mIPPParams.shadingVertParam2 = -1;
+        camHal->mIPPParams.shadingHorzParam1 = -1;
+        camHal->mIPPParams.shadingHorzParam2 = -1;
+        camHal->mIPPParams.shadingGainScale = -1;
+        camHal->mIPPParams.shadingGainOffset = -1;
+        camHal->mIPPParams.shadingGainMaxValue = -1;
+        camHal->mIPPParams.ratioDownsampleCbCr = -1;
+    } else {
+        camHal->mIPPParams.EdgeEnhancementStrength = 220;
+        camHal->mIPPParams.WeakEdgeThreshold = 8;
+        camHal->mIPPParams.StrongEdgeThreshold = 200;
+        camHal->mIPPParams.LowFreqLumaNoiseFilterStrength = 5;
+        camHal->mIPPParams.MidFreqLumaNoiseFilterStrength = 10;
+        camHal->mIPPParams.HighFreqLumaNoiseFilterStrength = 15;
+        camHal->mIPPParams.LowFreqCbNoiseFilterStrength = 20;
+        camHal->mIPPParams.MidFreqCbNoiseFilterStrength = 30;
+        camHal->mIPPParams.HighFreqCbNoiseFilterStrength = 10;
+        camHal->mIPPParams.LowFreqCrNoiseFilterStrength = 10;
+        camHal->mIPPParams.MidFreqCrNoiseFilterStrength = 25;
+        camHal->mIPPParams.HighFreqCrNoiseFilterStrength = 15;
+        camHal->mIPPParams.shadingVertParam1 = 10;
+        camHal->mIPPParams.shadingVertParam2 = 400;
+        camHal->mIPPParams.shadingHorzParam1 = 10;
+        camHal->mIPPParams.shadingHorzParam2 = 400;
+        camHal->mIPPParams.shadingGainScale = 128;
+        camHal->mIPPParams.shadingGainOffset = 2048;
+        camHal->mIPPParams.shadingGainMaxValue = 16384;
+        camHal->mIPPParams.ratioDownsampleCbCr = 1;
+    }
+
+#endif
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+void CameraHal::onGeneratedSnapshot(void *priv, icap_image_buffer_t *buf)
+{
+    unsigned int snapshotMessage[1];
+
+    CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
+
+    LOG_FUNCTION_NAME
+
+    snapshotMessage[0] = SNAPSHOT_THREAD_START_GEN;
+    write(camHal->snapshotPipe[1], &snapshotMessage, sizeof(snapshotMessage));
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+void CameraHal::onSnapshot(void *priv, icap_image_buffer_t *buf)
 {
     unsigned int snapshotMessage[9];
 
@@ -3785,50 +4430,83 @@ int CameraHal::onSnapshot(void *priv, void *buf, int width, int height, capture_
     LOG_FUNCTION_NAME
 
     snapshotMessage[0] = SNAPSHOT_THREAD_START;
-    snapshotMessage[1] = (unsigned int) buf;
-    snapshotMessage[2] = width;
-    snapshotMessage[3] = __ALIGN(height, 16);
+    snapshotMessage[1] = (unsigned int) buf->buffer.buffer;
+    snapshotMessage[2] = buf->width;
+    snapshotMessage[3] = buf->height;
     snapshotMessage[4] = camHal->mZoomTargetIdx;
-    snapshotMessage[5] = snapshot_rect.top;
-    snapshotMessage[6] = snapshot_rect.left;
-    snapshotMessage[7] = snapshot_rect.width;
-    snapshotMessage[8] = snapshot_rect.height;
+    snapshotMessage[5] = 0;
+    snapshotMessage[6] = 0;
+    snapshotMessage[7] = buf->width;
+    snapshotMessage[8] = buf->height;
 
     write(camHal->snapshotPipe[1], &snapshotMessage, sizeof(snapshotMessage));
 
     LOG_FUNCTION_NAME_EXIT
-
-    return 0;
 }
 
-int CameraHal::onSaveH3A(void *priv, void *buf, int size)
+void CameraHal::onShutter(void *priv, icap_image_buffer_t *image_buf)
+{
+    LOG_FUNCTION_NAME
+
+    unsigned int shutterMessage[3];
+
+    CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
+
+    if( ( camHal->msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && (camHal->mShutterEnable) ) {
+
+#ifdef DEBUG_LOG
+
+        camHal->PPM("SENDING MESSAGE TO SHUTTER THREAD");
+
+#endif
+
+        shutterMessage[0] = SHUTTER_THREAD_CALL;
+        shutterMessage[1] = (unsigned int) camHal->mNotifyCb;
+        shutterMessage[2] = (unsigned int) camHal->mCallbackCookie;
+        write(camHal->shutterPipe[1], &shutterMessage, sizeof(shutterMessage));
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+void CameraHal::onMakernote(void *priv, void *mknote_ptr)
+{
+    LOG_FUNCTION_NAME
+
+    CameraHal *camHal = reinterpret_cast<CameraHal *>(priv);
+    SICam_MakerNote *makerNote = reinterpret_cast<SICam_MakerNote *>(mknote_ptr);
+
+#ifdef DUMP_MAKERNOTE
+
+    camHal->SaveFile(NULL, (char*)"mnt", makerNote->buffer, makerNote->filled_size);
+
+#endif
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+void CameraHal::onSaveH3A(void *priv, icap_image_buffer_t *buf)
 {
     CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
 
     LOGD("Observer onSaveH3A\n");
-    camHal->SaveFile(NULL, (char*)"h3a", buf, size);
-
-    return 0;
+    camHal->SaveFile(NULL, (char*)"h3a", buf->buffer.buffer, buf->buffer.filled_size);
 }
 
-int CameraHal::onSaveLSC(void *priv, void *buf, int size)
+void CameraHal::onSaveLSC(void *priv, icap_image_buffer_t *buf)
 {
     CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
 
     LOGD("Observer onSaveLSC\n");
-    camHal->SaveFile(NULL, (char*)"lsc", buf, size);
-
-    return 0;
+    camHal->SaveFile(NULL, (char*)"lsc", buf->buffer.buffer, buf->buffer.filled_size);
 }
 
-int CameraHal::onSaveRAW(void *priv, void *buf, int size)
+void CameraHal::onSaveRAW(void *priv, icap_image_buffer_t *buf)
 {
     CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
 
     LOGD("Observer onSaveRAW\n");
-    camHal->SaveFile(NULL, (char*)"raw", buf, size);
-
-    return 0;
+    camHal->SaveFile(NULL, (char*)"raw", buf->buffer.buffer, buf->buffer.filled_size);
 }
 
 #endif
@@ -3852,18 +4530,18 @@ int CameraHal::SaveFile(char *filename, char *ext, void *buffer, int size)
         LOGE("Cannot open file %s : %s", fn, strerror(errno));
         return -1;
     } else {
-    
+
         int written = 0;
         int page_block, page = 0;
         int cnt = 0;
         int nw;
         char *wr_buff = (char*)buffer;
-        LOGD("Jpeg size %d", size);
+        LOGD("Jpeg size %d buffer 0x%x", size, ( unsigned int ) buffer);
         page_block = size / 20;
         while (written < size ) {
           nw = size - written;
           nw = (nw>512*1024)?8*1024:nw;
-          
+
           nw = ::write(fd, wr_buff, nw);
           if (nw<0) {
               LOGD("write fail nw=%d, %s", nw, strerror(errno));
@@ -3872,17 +4550,17 @@ int CameraHal::SaveFile(char *filename, char *ext, void *buffer, int size)
           wr_buff += nw;
           written += nw;
           cnt++;
-          
+
           page    += nw;
           if (page>=page_block){
               page = 0;
-              LOGD("Percent %6.2f, wn=%5d, total=%8d, jpeg_size=%8d", 
+              LOGD("Percent %6.2f, wn=%5d, total=%8d, jpeg_size=%8d",
                   ((float)written)/size, nw, written, size);
           }
         }
 
         close(fd);
-     
+
         return 0;
     }
 }
@@ -3909,7 +4587,7 @@ sp<CameraHardwareInterface> CameraHal::createInstance()
 
     singleton = hardware;
     return hardware;
-} 
+}
 
 /*--------------------Eclair HAL---------------------------------------*/
 void CameraHal::setCallbacks(notify_callback notify_cb,
@@ -3996,3 +4674,4 @@ extern "C" sp<CameraHardwareInterface> openCameraHardware()
 
 
 }; // namespace android
+
