@@ -56,6 +56,10 @@ const char CameraProperties::PROP_KEY_SUPPORTED_FLASH_MODES[] = "flash-mode-valu
 const char CameraProperties::PROP_KEY_SUPPORTED_FOCUS_MODES[] = "focus-mode-values";
 const char CameraProperties::PROP_KEY_REQUIRED_PREVIEW_BUFS[] = "required-preview-bufs";
 const char CameraProperties::PROP_KEY_REQUIRED_IMAGE_BUFS[] = "required-image-bufs";
+const char CameraProperties::PROP_KEY_SUPPORTED_ZOOM_RATIOS[] = "zoom-ratios";
+const char CameraProperties::PROP_KEY_SUPPORTED_ZOOM_STAGES[] = "zoom-stages";
+const char CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED[] = "smooth-zoom-supported";
+const char CameraProperties::PROP_KEY_ZOOM_SUPPORTED[] = "zoom-supported";
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
 
@@ -586,54 +590,80 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         CAMHAL_LOGVA("Returning PROP_INDEX_REQUIRED_IMAGE_BUFS");
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_REQUIRED_IMAGE_BUFS;
-        }else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EXPOSURE_MODES))
-            {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EXPOSURE_MODES");
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_EXPOSURE_MODES;
-            }
-        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_MIN))
-            {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_MIN");
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_EV_MIN;
-            }
-        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_MAX))
-            {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_MAX");
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_EV_MAX;
-            }
-        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_STEP))
-            {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_STEP");
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_EV_STEP;
-            }
-        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_ISO_VALUES))
-            {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_ISO_VALUES");
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_ISO_VALUES;
-            }
-        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_SCENE_MODES))
-            {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_SCENE_MODES");
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES;
-            }
-        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_FLASH_MODES))
-            {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_FLASH_MODES");
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES;
-            }
-        else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_FOCUS_MODES))
-            {
-            CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_FOCUS_MODES");
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES;
-            }
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EXPOSURE_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EXPOSURE_MODES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_EXPOSURE_MODES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_MIN))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_MIN");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_EV_MIN;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_MAX))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_MAX");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_EV_MAX;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_EV_STEP))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_EV_STEP");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_EV_STEP;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_ISO_VALUES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_ISO_VALUES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_ISO_VALUES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_SCENE_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_SCENE_MODES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_FLASH_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_FLASH_MODES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_FOCUS_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_FOCUS_MODES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_ZOOM_RATIOS))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_SUPPORTED_ZOOM_RATIOS");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_RATIOS;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_ZOOM_STAGES))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_SUPPORTED_ZOOM_STAGES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_STAGES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_ZOOM_SUPPORTED))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_ZOOM_SUPPORTED");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_ZOOM_SUPPORTED;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_SMOOTH_ZOOM_SUPPORTED");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SMOOTH_ZOOM_SUPPORTED;
+        }
+
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
     LOG_FUNCTION_NAME_EXIT
@@ -758,6 +788,26 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_REQUIRED_IMAGE_BUFS );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_REQUIRED_IMAGE_BUFS;
+
+        case CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_RATIOS:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_ZOOM_RATIOS );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_ZOOM_RATIOS;
+
+        case CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_STAGES:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_ZOOM_STAGES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_ZOOM_STAGES;
+
+        case CameraProperties::PROP_INDEX_ZOOM_SUPPORTED:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_ZOOM_SUPPORTED );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_ZOOM_SUPPORTED;
+
+        case CameraProperties::PROP_INDEX_SMOOTH_ZOOM_SUPPORTED:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED;
 
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );

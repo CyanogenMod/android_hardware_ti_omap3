@@ -222,12 +222,11 @@ void AppCallbackNotifier::notifyEvent()
 
                     break;
 
-                case CameraHalEvent::EVENT_ZOOM_LEVEL_REACHED:
+                case CameraHalEvent::EVENT_ZOOM_INDEX_REACHED:
 
                     zoomEvtData = &evt->mEventData.zoomEvent;
-                    ///@todo Send callback to application for zoom level
-                    ///zoomEvtData.currentZoomValue;
-                    ///zoomEvtData.targetZoomLevelReached;
+
+                    mNotifyCb(CAMERA_MSG_ZOOM, zoomEvtData->currentZoomIndex, zoomEvtData->targetZoomIndexReached, mCallbackCookie);
 
                     break;
 

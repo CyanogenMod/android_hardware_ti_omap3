@@ -18,6 +18,31 @@ namespace android {
 
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
+#ifdef SMOOTH_ZOOM
+
+const int32_t OMXCameraAdapter::ZOOM_STEPS [ZOOM_STAGES] =  {   65536, 67847, 70240, 72717,
+                                                                75281, 77936, 80684, 83530,
+                                                                86475, 89525, 92682, 95950,
+                                                                99334, 102837, 106464, 110218,
+                                                                114105, 118129, 122295, 126607,
+                                                                131072, 135694, 140479, 145433,
+                                                                150562, 155872, 161369, 167059,
+                                                                172951, 179050, 185364, 191901,
+                                                                198668, 205674, 212927, 220436,
+                                                                228210, 236257, 244589, 253214,
+                                                                262144, 271388, 280959, 290867,
+                                                                301124, 311744, 322737, 334118,
+                                                                345901, 358099, 370728, 383801,
+                                                                397336, 411348, 425854, 440872,
+                                                                456419, 472515, 489178, 506429,
+                                                                524288 };
+
+#else
+
+const int32_t OMXCameraAdapter::ZOOM_STEPS [ZOOM_STAGES] =  { 65536, 131072, 262144, 524288 };
+
+#endif
+
 status_t OMXCameraAdapter::initialize()
 {
     LOG_FUNCTION_NAME
@@ -136,6 +161,9 @@ status_t OMXCameraAdapter::initialize()
     mBurstFrames = 1;
     mCapturedFrames = 0;
     mPictureQuality = 100;
+    mCurrentZoomIdx = 0;
+    mTargetZoomIdx = 0;
+    mReturnZoomStatus = false;
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
 
@@ -769,6 +797,14 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("Thumbnail Quality set %d", mThumbQuality);
 
+    int zoom = params.getInt(KEY_ZOOM);
+    if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
+        mTargetZoomIdx = zoom;
+    } else {
+        mTargetZoomIdx = 0;
+    }
+    CAMHAL_LOGDB("Zoom by App %d", zoom);
+
     LOG_FUNCTION_NAME_EXIT
     return ret;
 }
@@ -933,6 +969,7 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
     params.set(contrastKey, contrast.nContrast );
     params.set( sharpnessKey, procSharpness.nLevel);
     params.set(saturationKey, saturation.nSaturation);
+    params.set(KEY_ZOOM, mCurrentZoomIdx);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -1661,16 +1698,42 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                 break;
             }
 
-        case CameraAdapter::CAMERA_START_PREVIEW:
+        case CameraAdapter::CAMERA_START_SMOOTH_ZOOM:
+            {
+            CAMHAL_LOGDA("Start smooth zoom");
+
+            if ( ( value1 >= 0 ) && ( value1 < ZOOM_STAGES ) )
                 {
-                CAMHAL_LOGDA("Start Preview");
+                mTargetZoomIdx = value1;
+                }
+            else
+                {
+                ret = -EINVAL;
+                }
 
-                if( mPending3Asettings )
-                    Apply3Asettings(mParameters3A);
+            break;
+            }
 
-                ret = startPreview();
+        case CameraAdapter::CAMERA_STOP_SMOOTH_ZOOM:
+            {
+            CAMHAL_LOGDA("Stop smooth zoom");
 
-                break;
+            mTargetZoomIdx = mCurrentZoomIdx;
+            mReturnZoomStatus = true;
+
+            break;
+            }
+
+        case CameraAdapter::CAMERA_START_PREVIEW:
+            {
+            CAMHAL_LOGDA("Start Preview");
+
+            if( mPending3Asettings )
+                Apply3Asettings(mParameters3A);
+
+            ret = startPreview();
+
+            break;
             }
 
         case CameraAdapter::CAMERA_STOP_PREVIEW:
@@ -2157,6 +2220,57 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
     return ret;
 }
 
+status_t OMXCameraAdapter::doZoom(int index)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_SCALEFACTORTYPE zoomControl;
+    static int prevIndex = 0;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component not in executing state");
+        ret = -1;
+        }
+
+    if (  ( 0 > index) || ( ( ZOOM_STAGES - 1 ) < index ) )
+        {
+        CAMHAL_LOGEB("Zoom index %d out of range", index);
+        ret = -EINVAL;
+        }
+
+    if ( prevIndex == index )
+        {
+        return NO_ERROR;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&zoomControl, OMX_CONFIG_SCALEFACTORTYPE);
+        zoomControl.nPortIndex = OMX_ALL;
+        zoomControl.xHeight = ZOOM_STEPS[index];
+        zoomControl.xWidth = ZOOM_STEPS[index];
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonDigitalZoom, &zoomControl);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while applying digital zoom 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Digital zoom applied successfully");
+            prevIndex = index;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::doAutoFocus()
 {
     status_t ret = NO_ERROR;
@@ -2273,6 +2387,42 @@ status_t OMXCameraAdapter::checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus)
     if ( NO_ERROR == ret )
         {
         CAMHAL_LOGDB("Focus Status: %d", eFocusStatus->eFocusStatus);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::notifyZoomSubscribers(int zoomIdx, bool targetReached)
+{
+    event_callback eventCb;
+    CameraHalEvent zoomEvent;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    zoomEvent.mEventType = CameraHalEvent::EVENT_ZOOM_INDEX_REACHED;
+    zoomEvent.mEventData.zoomEvent.currentZoomIndex = zoomIdx;
+    zoomEvent.mEventData.zoomEvent.targetZoomIndexReached = targetReached;
+
+        //Start looking for zoom subscribers
+        {
+        Mutex::Autolock lock(mSubscriberLock);
+
+        if ( mZoomSubscribers.size() == 0 )
+            {
+            CAMHAL_LOGDA("No Focus Subscribers!");
+            }
+
+        for (unsigned int i = 0 ; i < mZoomSubscribers.size(); i++ )
+            {
+            zoomEvent.mCookie = (void *) mZoomSubscribers.keyAt(i);
+            eventCb = (event_callback) mZoomSubscribers.valueAt(i);
+
+            eventCb ( &zoomEvent );
+            }
+
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -2886,6 +3036,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
     OMXCameraPortParameters  *pPortParam;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     CameraFrame::FrameType typeOfFrame = CameraFrame::ALL_FRAMES;
+    unsigned int zoomInc;
 
     res1 = res2 = -1;
     pPortParam = &(mCameraAdapterParameters.mCameraPortParams[pBuffHeader->nOutputPortIndex]);
@@ -2893,6 +3044,45 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
         {
         notifyFocusSubscribers();
         recalculateFPS();
+
+        if ( mCurrentZoomIdx != mTargetZoomIdx )
+            {
+            if ( mCurrentZoomIdx < mTargetZoomIdx )
+                {
+                zoomInc = 1;
+                }
+            else
+                {
+                zoomInc = -1;
+                }
+
+#ifdef SMOOTH_ZOOM
+
+            mCurrentZoomIdx += zoomInc;
+
+#else
+
+            mCurrentZoomIdx = mTargetZoomIdx;
+
+#endif
+
+            ret = doZoom(mCurrentZoomIdx);
+
+            if ( mCurrentZoomIdx == mTargetZoomIdx )
+                {
+                notifyZoomSubscribers(mCurrentZoomIdx, true);
+                }
+            else
+                {
+                notifyZoomSubscribers(mCurrentZoomIdx, false);
+                }
+            }
+
+        if ( mReturnZoomStatus )
+            {
+            notifyZoomSubscribers(mCurrentZoomIdx, true);
+            mReturnZoomStatus = false;
+            }
 
         if( mPending3Asettings )
             Apply3Asettings(mParameters3A);

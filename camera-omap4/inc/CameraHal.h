@@ -239,7 +239,7 @@ public:
         {
         EVENT_FOCUS_LOCKED = 0x1,
         EVENT_FOCUS_ERROR = 0x2,
-        EVENT_ZOOM_LEVEL_REACHED = 0x4,
+        EVENT_ZOOM_INDEX_REACHED = 0x4,
         EVENT_SHUTTER = 0x8,
         ///@remarks Future enum related to display, like frame displayed event, could be added here
         ALL_EVENTS = 0xFFFF ///Maximum of 16 event types supported
@@ -266,8 +266,8 @@ public:
     ///Zoom specific event data
     typedef struct ZoomEventData_t
         {
-            int currentZoomValue;
-            bool targetZoomLevelReached;
+            int currentZoomIndex;
+            bool targetZoomIndexReached;
         } ZoomEventData;
 
     typedef union
@@ -580,6 +580,8 @@ public:
         CAMERA_STOP_IMAGE_CAPTURE,
         CAMERA_PERFORM_AUTOFOCUS,
         CAMERA_PREVIEW_FLUSH_BUFFERS,
+        CAMERA_START_SMOOTH_ZOOM,
+        CAMERA_STOP_SMOOTH_ZOOM,
         CAMERA_USE_BUFFERS
         };
 

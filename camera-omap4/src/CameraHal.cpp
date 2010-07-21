@@ -1198,9 +1198,45 @@ CameraParameters CameraHal::getParameters() const
  */
 status_t CameraHal::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2)
 {
+    status_t ret = NO_ERROR;
+
     LOG_FUNCTION_NAME
-    ///@todo Implement this when smooth zoom feature will be supported
-    return NO_ERROR;
+
+
+    if ( ( NO_ERROR == ret ) && ( NULL == mCameraAdapter.get() ) )
+        {
+        CAMHAL_LOGEA("No CameraAdapter instance");
+        ret = -EINVAL;
+        }
+
+    if ( ( NO_ERROR == ret ) && ( !previewEnabled() ))
+        {
+        CAMHAL_LOGEA("Preview is not running");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        switch(cmd)
+            {
+            case CAMERA_CMD_START_SMOOTH_ZOOM:
+
+                ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_SMOOTH_ZOOM, arg1);
+
+                break;
+            case CAMERA_CMD_STOP_SMOOTH_ZOOM:
+
+                ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_SMOOTH_ZOOM);
+
+                break;
+            default:
+                break;
+            };
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 /**
@@ -1722,6 +1758,10 @@ void CameraHal::insertSupportedParams(CameraParameters &p)
     p.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES]->mPropValue);
     p.set(KEY_SUPPORTED_EXPOSURE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EXPOSURE_MODES]->mPropValue);
     p.set(KEY_SUPPORTED_ISO_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ISO_VALUES]->mPropValue);
+    p.set(CameraParameters::KEY_ZOOM_RATIOS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_RATIOS]->mPropValue);
+    p.set(CameraParameters::KEY_MAX_ZOOM, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_STAGES]->mPropValue);
+    p.set(CameraParameters::KEY_ZOOM_SUPPORTED, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ZOOM_SUPPORTED]->mPropValue);
+    p.set(CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SMOOTH_ZOOM_SUPPORTED]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }

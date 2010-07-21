@@ -55,6 +55,16 @@ namespace android {
 #define DEFAULT_THUMB_WIDTH     160
 #define DEFAULT_THUMB_HEIGHT    120
 
+#ifdef SMOOTH_ZOOM
+
+#define ZOOM_STAGES 61
+
+#else
+
+#define ZOOM_STAGES 4
+
+#endif
+
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
 
@@ -287,9 +297,12 @@ private:
     status_t enableVideoNoiseFilter(bool enable);
     status_t enableVideoStabilization(bool enable);
 
+    //Digital zoom
+    status_t doZoom(int index);
+    status_t notifyZoomSubscribers(int zoomIdx, bool targetReached);
+
     // Preview Service
     status_t startPreview();
-
     status_t stopPreview();
 
     //Video recording service
@@ -343,6 +356,11 @@ private:
 
     //automatically disable AF after a given amount of frames
     unsigned int mFocusThreshold;
+
+    //current zoom
+    unsigned int mCurrentZoomIdx, mTargetZoomIdx;
+    bool mReturnZoomStatus;
+    static const int32_t ZOOM_STEPS [];
 
      //local copy
     OMX_VERSIONTYPE mLocalVersionParam;
