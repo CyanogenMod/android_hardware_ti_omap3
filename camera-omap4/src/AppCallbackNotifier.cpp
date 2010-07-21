@@ -351,9 +351,23 @@ void AppCallbackNotifier::notifyFrame()
                     ( NULL != mDataCb) &&
                     ( mCameraHal->msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ) )
                     {
-                    //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
-                    //Send NULL for now
-                    mDataCb(CAMERA_MSG_RAW_IMAGE, NULL,mCallbackCookie);
+
+#ifdef COPY_IMAGE_BUFFER
+
+                        sp<MemoryHeapBase> RAWPictureHeap = new MemoryHeapBase(frame->mLength);
+                        sp<MemoryBase> RAWPictureMemBase = new MemoryBase(RAWPictureHeap, 0, frame->mLength);
+                        memcpy(RAWPictureMemBase->pointer(), ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
+
+                        mDataCb(CAMERA_MSG_RAW_IMAGE, RAWPictureMemBase, mCallbackCookie);
+
+#else
+
+                     //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
+
+#endif
+
+                        mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
+
                     }
                 else if ( ( CameraFrame::IMAGE_FRAME == frame->mFrameType ) &&
                              ( NULL != mCameraHal.get() ) &&
@@ -361,14 +375,19 @@ void AppCallbackNotifier::notifyFrame()
                     {
 
 #ifdef COPY_IMAGE_BUFFER
+
                         sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase(frame->mLength);
                         sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, frame->mLength);
                         memcpy(JPEGPictureMemBase->pointer(), ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
 
                         mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+
 #else
-                     //TODO: Find a way to map a Tiler buffer to a MemoryHeapBases
+
+                     //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
+
 #endif
+
                         mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
 
                     }

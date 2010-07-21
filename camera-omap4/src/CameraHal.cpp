@@ -389,7 +389,7 @@ status_t CameraHal::freePreviewBufs()
     }
 
 
-status_t CameraHal::allocImageBufs(size_t size, const char* previewFormat)
+status_t CameraHal::allocImageBufs(unsigned int width, unsigned int height, size_t size, const char* previewFormat)
 {
     status_t ret = NO_ERROR;
     int bytes;
@@ -410,12 +410,17 @@ status_t CameraHal::allocImageBufs(size_t size, const char* previewFormat)
 
     if ( NO_ERROR == ret )
         {
-        CAMHAL_LOGDB("Size of Image cap buffer = %d", bytes);
         mImageBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, previewFormat, bytes, CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
+
+        CAMHAL_LOGEB("Size of Image cap buffer = %d", bytes);
         if( NULL == mImageBufs )
             {
             CAMHAL_LOGEA("Couldn't allocate image buffers using memory manager");
             ret = -NO_MEMORY;
+            }
+        else
+            {
+            bytes = size;
             }
         }
 
@@ -1069,6 +1074,7 @@ status_t CameraHal::cancelAutoFocus()
 status_t CameraHal::takePicture( )
 {
     status_t ret = NO_ERROR;
+    int width, height;
     size_t pictureBufferLength;
 
     Mutex::Autolock lock(mLock);
@@ -1114,7 +1120,9 @@ status_t CameraHal::takePicture( )
 
     if ( NO_ERROR == ret )
         {
-        ret = allocImageBufs(pictureBufferLength, mParameters.getPictureFormat());
+        mParameters.getPictureSize(&width, &height);
+
+        ret = allocImageBufs(width, height, pictureBufferLength, mParameters.getPictureFormat());
         if ( NO_ERROR != ret )
             {
             CAMHAL_LOGEB("allocImageBufs returned error 0x%x", ret);

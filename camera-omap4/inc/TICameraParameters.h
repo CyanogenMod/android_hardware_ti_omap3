@@ -38,7 +38,7 @@ public:
 static const char KEY_SUPPORTED_CAMERAS[];
 // Select logical Camera index
 static const char KEY_CAMERA[];
-
+static const char PIXEL_FORMAT_RAW[];
 };
 
 };

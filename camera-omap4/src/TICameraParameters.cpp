@@ -32,6 +32,6 @@ namespace android {
 
 const char TICameraParameters::KEY_SUPPORTED_CAMERAS[] = "camera-indexes";
 const char TICameraParameters::KEY_CAMERA[] = "camera-index";
-
+const char TICameraParameters::PIXEL_FORMAT_RAW[] = "raw";
 };
 

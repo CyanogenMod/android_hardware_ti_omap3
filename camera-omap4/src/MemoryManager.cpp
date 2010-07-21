@@ -23,6 +23,7 @@
 
 
 #include "CameraHal.h"
+#include "TICameraParameters.h"
 
 extern "C" {
 
@@ -148,6 +149,13 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
             else if(!strcmp(format,(const char *) CameraParameters::PIXEL_FORMAT_RGB565))
                 {
                 ///RGB 565 format
+                pixelFormat[0] = PIXEL_FMT_16BIT;
+                stride[0] = STRIDE_16BIT;
+                numAllocs = 1;
+                }
+            else if(!strcmp(format,(const char *) TICameraParameters::PIXEL_FORMAT_RAW))
+                {
+                ///RAW format
                 pixelFormat[0] = PIXEL_FMT_16BIT;
                 stride[0] = STRIDE_16BIT;
                 numAllocs = 1;

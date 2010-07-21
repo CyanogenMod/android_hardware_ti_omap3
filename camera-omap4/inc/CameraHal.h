@@ -884,7 +884,7 @@ private:
             status_t allocVideoBufs(int width, int height, const char* previewFormat);
 
             /** Allocate image capture buffers */
-            status_t allocImageBufs(size_t length, const char* previewFormat);
+            status_t allocImageBufs(unsigned int width, unsigned int height, size_t length, const char* previewFormat);
 
             /** Free preview buffers */
             status_t freePreviewBufs();

@@ -1,6 +1,7 @@
 #include "CameraHal.h"
 #include "OMXCameraAdapter.h"
 #include "ErrorUtils.h"
+#include "TICameraParameters.h"
 
 #define Q16_OFFSET 16
 
@@ -169,7 +170,8 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
         return;
         }
 
-    if ( CameraFrame::IMAGE_FRAME == frameType )
+    if ( ( CameraFrame::IMAGE_FRAME == frameType ) ||
+         ( CameraFrame::RAW_FRAME == frameType ) )
         {
         if ( 1 > mCapturedFrames )
             {
@@ -414,15 +416,20 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             CAMHAL_LOGDA("JPEG format selected");
             pixFormat = OMX_COLOR_FormatUnused;
             }
+        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_RAW) == 0)
+            {
+            CAMHAL_LOGDA("RAW Picture format selected");
+            pixFormat = OMX_COLOR_FormatRawBayer10bit;
+            }
         else
             {
-            CAMHAL_LOGDA("Invalid format, JPEG format selected as default");
+            CAMHAL_LOGEA("Invalid format, JPEG format selected as default");
             pixFormat = OMX_COLOR_FormatUnused;
             }
         }
     else
         {
-        CAMHAL_LOGEA("Preview format is NULL, defaulting to JPEG");
+        CAMHAL_LOGEA("Picture format is NULL, defaulting to JPEG");
         pixFormat = OMX_COLOR_FormatUnused;
         }
 
@@ -2943,7 +2950,14 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
         mCapturedFrames--;
 
-        typeOfFrame = CameraFrame::IMAGE_FRAME;
+        if ( OMX_COLOR_FormatUnused == mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex].mColorFormat )
+            {
+            typeOfFrame = CameraFrame::IMAGE_FRAME;
+            }
+        else
+            {
+            typeOfFrame = CameraFrame::RAW_FRAME;
+            }
 
         ret = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
         }
@@ -3040,7 +3054,8 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
         cFrame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);;
         cFrame.mOffset = pBuffHeader->nOffset;
 
-        if(CameraFrame::IMAGE_FRAME == typeOfFrame )
+        if( ( CameraFrame::IMAGE_FRAME == typeOfFrame ) ||
+            ( CameraFrame::RAW_FRAME == typeOfFrame ) )
             {
             for (uint32_t i = 0 ; i < mImageSubscribers.size(); i++ )
                 {
