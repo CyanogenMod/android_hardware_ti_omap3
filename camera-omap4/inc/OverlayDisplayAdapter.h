@@ -137,7 +137,6 @@ private:
 private:
     bool mPaused; //Pause state
     sp<Overlay>  mOverlay;
-    ErrorNotifier *mErrorNotifier;
     sp<DisplayThread> mDisplayThread;
     FrameProvider *mFrameProvider; ///Pointer to the frame provider interface
     MessageQueue mDisplayQ;
@@ -148,6 +147,7 @@ private:
     bool mDisplayEnabled;
     KeyedVector<int, int> mPreviewBufferMap;
     KeyedVector<int, int> mFramesWithDisplayMap;
+    sp<ErrorNotifier> mErrorNotifier;
 
     uint32_t mFrameWidth;
     uint32_t mFrameHeight;

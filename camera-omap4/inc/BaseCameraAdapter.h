@@ -34,7 +34,7 @@ public:
     ///Initialzes the camera adapter creates any resources required
     virtual status_t initialize() = 0;
 
-    virtual int setErrorHandler(ErrorNotifier *errorNotifier) = 0;
+    virtual int setErrorHandler(ErrorNotifier *errorNotifier);
 
     //Message/Frame notification APIs
     virtual void enableMsgType(int32_t msgs, frame_callback callback=NULL, event_callback eventCb=NULL, void* cookie=NULL);
@@ -94,7 +94,7 @@ protected:
     MessageQueue mFrameQ;
     MessageQueue mAdapterQ;
     mutable Mutex mSubscriberLock;
-
+    sp<ErrorNotifier> mErrorNotifier;
 };
 
 };

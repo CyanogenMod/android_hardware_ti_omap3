@@ -172,6 +172,15 @@ status_t OMXCameraAdapter::initialize()
     EXIT:
 
     CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
+
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
     if(mCameraAdapterParameters.mHandleComp)
         {
         ///Free the OMX component handle in case of error
@@ -182,6 +191,7 @@ status_t OMXCameraAdapter::initialize()
     OMX_Deinit();
 
     LOG_FUNCTION_NAME_EXIT
+
     return ErrorUtils::omxToAndroidError(eError);
 }
 
@@ -313,14 +323,6 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
             }
         }
 
-}
-
-int OMXCameraAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
-{
-    LOG_FUNCTION_NAME
-    int ret = NO_ERROR;
-    LOG_FUNCTION_NAME_EXIT
-    return ret;
 }
 
 status_t OMXCameraAdapter::getCaps()
@@ -1079,16 +1081,24 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         }
 
     LOG_FUNCTION_NAME_EXIT
+
     return ErrorUtils::omxToAndroidError(eError);
 
-    ///If there is any failure, we reach here.
-    ///Here, we do any resource freeing and convert from OMX error code to Camera Hal error code
     EXIT:
 
     CAMHAL_LOGEB("Exiting function %s because of eError=%x", __FUNCTION__, eError);
-    LOG_FUNCTION_NAME_EXIT
-    return ErrorUtils::omxToAndroidError(eError);
 
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ErrorUtils::omxToAndroidError(eError);
 }
 
 
@@ -1267,7 +1277,15 @@ status_t OMXCameraAdapter::flushBuffers()
     EXIT:
     CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
     LOG_FUNCTION_NAME_EXIT
-    ///@todo Handle both OMX and Camera HAL errors together correctly
+
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
     return (ret | ErrorUtils::omxToAndroidError(eError));
 }
 
@@ -1519,6 +1537,15 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
     EXIT:
     LOG_FUNCTION_NAME_EXIT
     CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
+
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
     return (ret | ErrorUtils::omxToAndroidError(eError));
 }
 
@@ -1621,7 +1648,17 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     mCapturedFrames = mBurstFrames;
 
     EXIT:
+
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
     LOG_FUNCTION_NAME_EXIT
+
     return ret;
 }
 
@@ -1898,12 +1935,23 @@ status_t OMXCameraAdapter::startPreview()
     mLastFPS = 0.0f;
 
     LOG_FUNCTION_NAME_EXIT
+
     return ret;
 
     EXIT:
-      CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
-      LOG_FUNCTION_NAME_EXIT
-      return (ret | ErrorUtils::omxToAndroidError(eError));
+
+    CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
+
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+    return (ret | ErrorUtils::omxToAndroidError(eError));
 
 }
 
@@ -2034,9 +2082,19 @@ status_t OMXCameraAdapter::stopPreview()
     return (ret | ErrorUtils::omxToAndroidError(eError));
 
     EXIT:
-        CAMHAL_LOGEB("Exiting function because of eError= %x", eError);
-        LOG_FUNCTION_NAME_EXIT
-        return (ret | ErrorUtils::omxToAndroidError(eError));
+    CAMHAL_LOGEB("Exiting function because of eError= %x", eError);
+
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return (ret | ErrorUtils::omxToAndroidError(eError));
 
 }
 
@@ -2213,7 +2271,13 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             CAMHAL_LOGDA("Flicker cancel set successfully");
             }
 
-
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -2559,6 +2623,14 @@ status_t OMXCameraAdapter::startImageCapture()
 
     EXIT:
 
+    if ( eError != OMX_ErrorNone )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
     return ret;
 }
 
@@ -2629,11 +2701,17 @@ status_t OMXCameraAdapter::stopImageCapture()
     return ret;
 
     EXIT:
-        if(eError != OMX_ErrorNone)
+
+    if(eError != OMX_ErrorNone)
+        {
+        CAMHAL_LOGEB("Error occured when disabling image capture port %x",eError);
+
+        if ( NULL != mErrorNotifier.get() )
             {
-            CAMHAL_LOGEB("Error occured when disabling image capture port %x",eError);
+            mErrorNotifier->errorNotify(eError);
             }
 
+        }
 
     return ret;
 }
@@ -2776,8 +2854,15 @@ exit:
 
     CAMHAL_LOGDB("Required frame size %dx%d", width, height);
 
-    LOG_FUNCTION_NAME_EXIT
+    if ( OMX_ErrorNone != eError )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
 
+    LOG_FUNCTION_NAME_EXIT
 }
 
 status_t OMXCameraAdapter::getPictureBufferSize(size_t &length)
@@ -3037,6 +3122,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     CameraFrame::FrameType typeOfFrame = CameraFrame::ALL_FRAMES;
     unsigned int zoomInc;
+    unsigned int refCount = 0;
 
     res1 = res2 = -1;
     pPortParam = &(mCameraAdapterParameters.mCameraPortParams[pBuffHeader->nOutputPortIndex]);
@@ -3101,7 +3187,8 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
                 {
                 Mutex::Autolock lock(mPreviewBufferLock);
-                //CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer,(int) mFrameSubscribers.size());
+                refCount += mFrameSubscribers.size();
+                ///CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", (uint32_t)pBuffHeader->pBuffer,(int) mFrameSubscribers.size());
                 mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) pBuffHeader->pBuffer, mFrameSubscribers.size());
                 }
 
@@ -3112,6 +3199,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             typeOfFrame = CameraFrame::VIDEO_FRAME_SYNC;
                 {
                 Mutex::Autolock lock(mVideoBufferLock);
+                refCount += mVideoSubscribers.size();
                 //CAMHAL_LOGDB("Video Frame 0x%x refCount start %d", pBuffHeader->pBuffer, mVideoSubscribers.size());
                 mVideoBuffersAvailable.replaceValueFor( ( unsigned int ) pBuffHeader->pBuffer, mVideoSubscribers.size());
                 }
@@ -3163,14 +3251,26 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
         CAMHAL_LOGEA("Error in sending frames to subscribers");
         CAMHAL_LOGDB("sendFrameToSubscribers error: %d", ret);
 
-        returnFrame(pBuffHeader->pBuffer, typeOfFrame);
-
+        if ( 1 <= refCount )
+            {
+            returnFrame(pBuffHeader->pBuffer, typeOfFrame);
+            }
         }
+
     return eError;
 
     EXIT:
 
     CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
+
+    if ( NO_ERROR != ret )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(eError);
+            }
+        }
+
     return eError;
 }
 
@@ -3261,18 +3361,11 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             cFrame.mWidth = cap->mWidth;
             cFrame.mHeight = cap->mHeight;
 
-            if ( 0 < mVideoSubscribers.size() )
+            for(uint32_t i = 0 ; i < mVideoSubscribers.size(); i++ )
                 {
-                for(uint32_t i = 0 ; i < mVideoSubscribers.size(); i++ )
-                    {
-                    cFrame.mCookie = (void *) mVideoSubscribers.keyAt(i);
-                    callback = (frame_callback) mVideoSubscribers.valueAt(i);
-                    callback(&cFrame);
-                    }
-                }
-            else
-                {
-                ret = -EINVAL;
+                cFrame.mCookie = (void *) mVideoSubscribers.keyAt(i);
+                callback = (frame_callback) mVideoSubscribers.valueAt(i);
+                callback(&cFrame);
                 }
             }
         else if ( ( CameraFrame::PREVIEW_FRAME_SYNC == typeOfFrame ) || ( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ) )
@@ -3307,20 +3400,12 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
                         saveFile(( unsigned char*) cFrame.mBuffer, cFrame.mWidth, cFrame.mHeight, 0);
                         bufCount++;*/
 
-            if ( 0 < mFrameSubscribers.size() )
+            for(uint32_t i = 0 ; i < mFrameSubscribers.size(); i++ )
                 {
-                for(uint32_t i = 0 ; i < mFrameSubscribers.size(); i++ )
-                    {
-                    cFrame.mCookie = (void *) mFrameSubscribers.keyAt(i);
-                    callback = (frame_callback) mFrameSubscribers.valueAt(i);
-                    callback(&cFrame);
-                    }
+                cFrame.mCookie = (void *) mFrameSubscribers.keyAt(i);
+                callback = (frame_callback) mFrameSubscribers.valueAt(i);
+                callback(&cFrame);
                 }
-            else
-                {
-                ret = -EINVAL;
-                }
-
             }
         else
             {
@@ -3329,6 +3414,14 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
         }
 
 //    LOG_FUNCTION_NAME_EXIT
+
+    if ( NO_ERROR != ret )
+        {
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(ret);
+            }
+        }
 
     return ret;
 }
@@ -3591,7 +3684,14 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
         if( ret )
             {
             CAMHAL_LOGEB("returned error code 0x%x", ret);
+
+            if ( NULL != mErrorNotifier.get() )
+                {
+                mErrorNotifier->errorNotify(ret);
+                }
+
             }
+
         return ret;
 }
 
@@ -3653,13 +3753,10 @@ extern "C" CameraAdapter* CameraAdapter_Factory() {
 
     ca = new OMXCameraAdapter();
 
-
     LOG_FUNCTION_NAME_EXIT
+
     return ca;
 }
-
-
-
 
 };
 
