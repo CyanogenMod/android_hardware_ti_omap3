@@ -327,7 +327,7 @@ void TIHardwareRenderer::render(
                 {
                     mCropY = cropY;
                     mCropX = cropX;
-                    mOverlay->setCrop((uint32_t)cropX, (uint32_t)cropY, mDisplayWidth, mDisplayWidth);
+                    mOverlay->setCrop((uint32_t)cropX, (uint32_t)cropY, mDisplayWidth, mDisplayHeight);
                 }
                 break;
             }
