@@ -127,8 +127,12 @@ TIHardwareRenderer::TIHardwareRenderer(
    }
     else if (colorFormat == OMX_COLOR_FormatYUV420Planar)
    {
-   videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
-   LOGI("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter or RGB565 converter needed");
+#ifdef TARGET_OMAP4
+   videoFormat = OVERLAY_FORMAT_YCbCr_420_SP;
+#else
+    videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
+#endif
+   LOGI("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter or NV-12 converter needed");
     }
     else
    {
@@ -200,6 +204,45 @@ TIHardwareRenderer::~TIHardwareRenderer() {
 // return a byte offset from any pointer
 static inline const void *byteOffset(const void* p, size_t offset) {
     return ((uint8_t*)p + offset);
+}
+
+static void convertYuv420ToNV12(
+        int width, int height, const void *src, void *dst) {
+    LOGI("Coverting YUV420 to NV-12 height %d and Width %d", height, width);
+   uint32_t stride = 4096;
+    //copy y-buffer, almost bytewise copy, except for stride jumps.
+    {
+        uint8_t* p1y = (uint8_t*) src;
+        uint8_t* p2y = (uint8_t*) dst;
+        for(int i=0;i<height;i++)
+        {
+            //copy whole row of Y pixels. source and desination will point to new row each time.
+            memcpy(p2y+i*stride, p1y+i*width,width);
+        }
+    }
+
+//copy uv buffers
+//rearrange from  planar [uuu][vvvv] to packed planar [uvuvuv]  packages pixel wise
+    {
+        uint8_t* p2uv  = NULL;
+        p2uv  = (uint8_t*) dst;
+        p2uv  += stride * height;
+
+        uint8_t* p1u = ((uint8_t*) src + (width*height));
+        uint8_t* p1v = ((uint8_t*) p1u + ((width/2)*(height/2)));
+
+        for(int i=0;(i<height/2);i++)
+        {
+            for(int j=0,j1=0;(j<width/2);j++,j1+=2)
+            {
+                p2uv[j1] = p1u[j];
+                p2uv[j1+1] = p1v[j];
+            }
+            p2uv+=stride;
+            p1u+=width/2;
+            p1v+=width/2;
+        }
+    }
 }
 
 static void convertYuv420ToYuv422(
@@ -310,7 +353,11 @@ void TIHardwareRenderer::render(
     }
 
     if (mColorFormat == OMX_COLOR_FormatYUV420Planar) {
+#ifdef TARGET_OMAP4
+        convertYuv420ToNV12(mDecodedWidth, mDecodedHeight, data, mOverlayAddresses[mIndex]->pointer());
+#else
         convertYuv420ToYuv422(mDecodedWidth, mDecodedHeight, data, mOverlayAddresses[mIndex]->pointer());
+#endif
     }
     else {
         for (; i < mOverlayAddresses.size(); ++i) {
