@@ -146,9 +146,9 @@ TIHardwareRenderer::TIHardwareRenderer(
     mOverlay = new Overlay(ref);
 
 #ifdef TARGET_OMAP4
-	/* Calculate the number of overlay buffers required, based on the video resolution
-	* and resize the overlay for the new number of buffers
-	*/
+    /* Calculate the number of overlay buffers required, based on the video resolution
+    * and resize the overlay for the new number of buffers
+    */
     int overlaybuffcnt = Calculate_TotalRefFrames(mDecodedWidth, mDecodedHeight);
     if (overlaybuffcnt < 20) {
         overlaybuffcnt = 20;
@@ -158,6 +158,7 @@ TIHardwareRenderer::TIHardwareRenderer(
         mOverlay->setParameter(OVERLAY_NUM_BUFFERS, overlaybuffcnt);
         mOverlay->resizeInput(mDecodedWidth, mDecodedHeight);
     }
+    mOverlay->setParameter(OPTIMAL_QBUF_CNT, 4);
 #endif
 
     for (size_t i = 0; i < (size_t)mOverlay->getBufferCount(); ++i) {
