@@ -4000,7 +4000,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_LANDSCAPE;
 
-            } else if (strcmp(params.get(KEY_ISO), (const char *) EXPOSURE_SPORTS ) == 0) {
+            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_SPORTS ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_SPORTS;
 
