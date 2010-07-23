@@ -1059,6 +1059,32 @@ status_t OMXCameraAdapter::enableVideoStabilization(bool enable)
 
     if ( NO_ERROR == ret )
         {
+        OMX_CONFIG_BOOLEANTYPE vstabp;
+        OMX_INIT_STRUCT_PTR (&vstabp, OMX_CONFIG_BOOLEANTYPE);
+        if(enable)
+            {
+            vstabp.bEnabled = OMX_TRUE;
+            }
+        else
+            {
+            vstabp.bEnabled = OMX_FALSE;
+            }
+
+        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamFrameStabilisation, &vstabp);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring video stabilization param 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("Video stabilization param configured successfully");
+            }
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
 
         OMX_INIT_STRUCT_PTR (&frameStabCfg, OMX_CONFIG_FRAMESTABTYPE);
 
@@ -1290,7 +1316,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
     mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
     mPreviewData->mNumBufs = num ;
     uint32_t *buffers = (uint32_t*)bufArr;
-
     Semaphore eventSem;
     ret = eventSem.Create(0);
     if(ret!=NO_ERROR)
@@ -1306,7 +1331,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         LOG_FUNCTION_NAME_EXIT
         return BAD_VALUE;
         }
-
     ///If preview is ongoing
     if(mPreviewing)
         {
@@ -1371,7 +1395,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         ///Return from here
         return ret;
         }
-
     ret = setCaptureMode(mCapMode);
     if ( NO_ERROR != ret )
         {
@@ -1379,6 +1402,8 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         LOG_FUNCTION_NAME_EXIT
         return ret;
         }
+
+    CAMHAL_LOGDB("Camera Mode = %d", mCapMode);
 
     ret = setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData);
     if ( ret != NO_ERROR )
@@ -1409,6 +1434,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
+
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
         {
         ///Enable/Disable Video Noise Filter
@@ -1427,7 +1453,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
             return ret;
             }
         }
-
     ///Register for IDLE state switch event
     ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
                                 OMX_EventCmdComplete,
@@ -1698,6 +1723,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                 }
             else
                 {
+                CAMHAL_LOGEA("No frame subscribers!!");
                 ret = -EINVAL;
                 }
 
@@ -3375,7 +3401,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             if( (CameraFrame::SNAPSHOT_FRAME == typeOfFrame) && (mSnapshotCount==1) ){
                 if ( mShutterSubscribers.size() == 0 )
                     {
-                    CAMHAL_LOGDA("No shutter Subscribers!");
+                    CAMHAL_LOGEA("No shutter Subscribers!");
                     }
 
                 CameraHalEvent shutterEvent;
