@@ -309,6 +309,9 @@ const char *metering[] = {
 };
 int meter_mode = 0;
 
+//forward declarations
+int closeCamera();
+
 namespace android {
 
     class Test {
@@ -473,7 +476,7 @@ void debugShowFPS()
 /** Callback for startPreview() */
 void my_preview_callback(const sp<IMemory>& mem) {
 
-    printf("PREVIEW Callback 0x%x", mem->pointer());
+    printf("PREVIEW Callback 0x%x", ( unsigned int ) mem->pointer());
     if (dump_preview) {
 
         if(prevcnt==50)
@@ -548,6 +551,14 @@ void CameraHandler::notify(int32_t msgType, int32_t ext1, int32_t ext2) {
 
     if ( msgType & CAMERA_MSG_SHUTTER )
         printf("Shutter done in %llu us\n", timeval_delay(&picture_start));
+
+    if ( msgType & CAMERA_MSG_ERROR ) {
+        printf("Camera error 0x%x received\n", ext1);
+
+        closeCamera();
+
+        exit(ext1);
+    }
 
 }
 
@@ -1822,7 +1833,7 @@ int execute_functional_script(char *script) {
                 tLen = strlen(cycle_cmd);
                 temp_cmd = new char[tLen+1];
 
-                for (unsigned ind = 0; ind < cycleCounter; ind++) {
+                for (int ind = 0; ind < cycleCounter; ind++) {
                     strcpy(temp_cmd, cycle_cmd);
                     execute_functional_script(temp_cmd);
                     temp_cmd[0] = '\0';
@@ -1945,7 +1956,7 @@ int execute_functional_script(char *script) {
                         break;
                 }
 
-                if ( ( i >= 0 ) && ( i < ARRAY_SIZE(captureSize) ) )
+                if (  i < ARRAY_SIZE(captureSize) )
                     params.setPictureSize(captureSize[i].width, captureSize[i].height);
 
                 if ( hardwareActive )
@@ -2282,8 +2293,8 @@ int execute_functional_script(char *script) {
                 if ( hardwareActive )
                     ret = camera->takePicture();
 
-                if(ret!=NO_ERROR)
-                    printf("Error returned while taking a picture", ret);
+                if ( ret != NO_ERROR )
+                    printf("Error returned while taking a picture\n");
 
                 break;
 
