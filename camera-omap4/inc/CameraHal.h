@@ -220,7 +220,7 @@ class CameraFrame
     void *mCookie;
     void *mBuffer;
     int mFrameType;
-    unsigned int mTimestamp;
+    nsecs_t mTimestamp;
     unsigned int mWidth, mHeight;
     uint32_t mOffset;
     unsigned int mAlignment;

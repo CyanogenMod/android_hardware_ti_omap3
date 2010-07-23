@@ -604,7 +604,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         }
     else
         {
-        mCapMode = OMXCameraAdapter::HIGH_QUALITY;
+        mCapMode = OMXCameraAdapter::VIDEO_MODE;
         }
 
     CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
