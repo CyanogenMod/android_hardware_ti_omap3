@@ -504,21 +504,17 @@ LOGV("%s", __FUNCTION__);
             control.set("Analog Right Capture Route", 1);  // on
             control.set("Capture Preamplifier Volume", 1); // on
             control.set("Capture Volume", 4);              // set to max capture volume
+        } else if (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) {
+            control.set("Analog Left Capture Route", (unsigned int)0);   // on
+            control.set("Analog Right Capture Route", (unsigned int)0);  // on
+            control.set("Capture Preamplifier Volume", 1); // on
+            control.set("Capture Volume", 4);              // set to max capture volume
         } else {
-            control.set("Analog Left Capture Route", (unsigned int)0);   // off
-            control.set("Analog Right Capture Route", (unsigned int)0);  // off
+            control.set("Analog Left Capture Route", 3);   // off
+            control.set("Analog Right Capture Route", 3);  // off
             control.set("Capture Preamplifier Volume", (unsigned int)0); // off
             control.set("Capture Volume", (unsigned int)0);              // set to min capture volume
         }
-
-        //Capture using a headset is currently disabled due to ABE limitations in OMAP4
-        /*
-        if (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) {
-            control.set("Analog Left Capture Route Headset mic", 1); // on
-        } else {
-            control.set("Analog Left Capture Route Headset mic", (unsigned int)0); // off
-        }
-       */
     }
 }
 
