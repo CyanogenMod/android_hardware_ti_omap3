@@ -317,7 +317,7 @@ public:
     virtual ~MessageNotifier() {};
 };
 
-class ErrorNotifier
+class ErrorNotifier : public virtual RefBase
 {
 public:
     virtual void errorNotify(int error) = 0;
@@ -544,10 +544,15 @@ public:
     ///Initializes the display adapter creates any resources required
     status_t initialize(){ return NO_ERROR; }
 
+    virtual status_t setErrorHandler(ErrorNotifier *errorNotifier);
     virtual void* allocateBuffer(int width, int height, const char* format, int &bytes, int numBufs);
     virtual uint32_t * getOffsets();
     virtual int getFd() ;
     virtual int freeBuffer(void* buf);
+
+private:
+
+    sp<ErrorNotifier> mErrorNotifier;
 };
 
 
@@ -596,8 +601,7 @@ public:
     ///Initialzes the camera adapter creates any resources required
     virtual status_t initialize() = 0;
 
-    ///@todo Change the signature to return status_t or void
-    virtual int setErrorHandler(ErrorNotifier *errorNotifier) = 0;
+    virtual status_t setErrorHandler(ErrorNotifier *errorNotifier) = 0;
 
     //Message/Frame notification APIs
     virtual void enableMsgType(int32_t msgs, frame_callback callback=NULL, event_callback eventCb=NULL, void* cookie=NULL) = 0;
@@ -657,7 +661,7 @@ public:
 
     virtual int setOverlay(const sp<Overlay> &overlay) = 0;
     virtual int setFrameProvider(FrameNotifier *frameProvider) = 0;
-    virtual int setErrorHandler(ErrorNotifier *errorNotifier) = 0;
+    virtual status_t setErrorHandler(ErrorNotifier *errorNotifier) = 0;
     virtual int enableDisplay(struct timeval *refTime = NULL) = 0;
     virtual int disableDisplay() = 0;
     //Used for Snapshot review temp. pause

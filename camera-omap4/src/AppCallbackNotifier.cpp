@@ -226,7 +226,12 @@ void AppCallbackNotifier::notifyEvent()
 
                     zoomEvtData = &evt->mEventData.zoomEvent;
 
-                    mNotifyCb(CAMERA_MSG_ZOOM, zoomEvtData->currentZoomIndex, zoomEvtData->targetZoomIndexReached, mCallbackCookie);
+                    if ( ( NULL != mCameraHal.get() ) &&
+                         ( NULL != mNotifyCb) &&
+                         ( mCameraHal->msgTypeEnabled(CAMERA_MSG_ZOOM) ) )
+                        {
+                        mNotifyCb(CAMERA_MSG_ZOOM, zoomEvtData->currentZoomIndex, zoomEvtData->targetZoomIndexReached, mCallbackCookie);
+                        }
 
                     break;
 
@@ -237,9 +242,18 @@ void AppCallbackNotifier::notifyEvent()
                 }
 
             break;
+
         case AppCallbackNotifier::NOTIFIER_CMD_PROCESS_ERROR:
-            ///@todo send error notification to the app, if error notification flag is enabled
+
+            if (  ( NULL != mCameraHal.get() ) &&
+                  ( NULL != mNotifyCb ) &&
+                  ( mCameraHal->msgTypeEnabled(CAMERA_MSG_ERROR) ) )
+                {
+                mNotifyCb(CAMERA_MSG_ERROR, CAMERA_ERROR_UKNOWN, 0, mCallbackCookie);
+                }
+
             break;
+
         }
 
     if ( NULL != evt )

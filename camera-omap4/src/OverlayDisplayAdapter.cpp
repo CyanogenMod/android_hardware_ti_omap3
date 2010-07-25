@@ -184,23 +184,24 @@ int OverlayDisplayAdapter::setFrameProvider(FrameNotifier *frameProvider)
 
 int OverlayDisplayAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
 {
+    status_t ret = NO_ERROR;
+
     LOG_FUNCTION_NAME
 
-    //Check for NULL pointer
-    if ( !mErrorNotifier )
+    if ( NULL == errorNotifier )
         {
-        CAMHAL_LOGEA("NULL passed for error handler");
-        LOG_FUNCTION_NAME_EXIT
-
-        return BAD_VALUE;
+        CAMHAL_LOGEA("Invalid Error Notifier reference");
+        ret = -EINVAL;
         }
 
-    //Save the error notifier pointer to give notifications when the errors occur
-    mErrorNotifier = errorNotifier;
+    if ( NO_ERROR == ret )
+        {
+        mErrorNotifier = errorNotifier;
+        }
 
     LOG_FUNCTION_NAME_EXIT
 
-    return NO_ERROR;
+    return ret;
 }
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
@@ -439,6 +440,11 @@ fail_loop:
         delete [] buffers;
         }
 
+    if ( NULL != mErrorNotifier.get() )
+        {
+        mErrorNotifier->errorNotify(-ENOMEM);
+        }
+
     LOG_FUNCTION_NAME_EXIT
     return NULL;
 
@@ -488,6 +494,11 @@ fail:
     if ( NULL != offsets )
         {
         delete [] offsets;
+        }
+
+    if ( NULL != mErrorNotifier.get() )
+        {
+        mErrorNotifier->errorNotify(-ENOSYS);
         }
 
     LOG_FUNCTION_NAME_EXIT

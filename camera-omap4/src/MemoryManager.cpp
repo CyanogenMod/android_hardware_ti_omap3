@@ -205,6 +205,12 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
         LOGE("Freeing buffers already allocated after error occurred");
         freeBuffer(bufsArr);
         free(tMemBlock);
+
+        if ( NULL != mErrorNotifier.get() )
+            {
+            mErrorNotifier->errorNotify(-ENOMEM);
+            }
+
         LOG_FUNCTION_NAME_EXIT
         return NULL;
 }
@@ -253,6 +259,28 @@ int MemoryManager::freeBuffer(void* buf)
     delete [] bufArr;
 
     LOG_FUNCTION_NAME_EXIT
+    return ret;
+}
+
+status_t MemoryManager::setErrorHandler(ErrorNotifier *errorNotifier)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == errorNotifier )
+        {
+        CAMHAL_LOGEA("Invalid Error Notifier reference");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        mErrorNotifier = errorNotifier;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
     return ret;
 }
 

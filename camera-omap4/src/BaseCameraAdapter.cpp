@@ -28,6 +28,28 @@ namespace android {
 
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
+status_t BaseCameraAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == errorNotifier )
+        {
+        CAMHAL_LOGEA("Invalid Error Notifier reference");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        mErrorNotifier = errorNotifier;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 void BaseCameraAdapter::enableMsgType(int32_t msgs, frame_callback callback, event_callback eventCb, void* cookie)
 {
     LOG_FUNCTION_NAME

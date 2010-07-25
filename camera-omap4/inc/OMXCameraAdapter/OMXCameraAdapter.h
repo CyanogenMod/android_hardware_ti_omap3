@@ -220,8 +220,6 @@ public:
     ///Initialzes the camera adapter creates any resources required
     virtual status_t initialize();
 
-    virtual int setErrorHandler(ErrorNotifier *errorNotifier);
-
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params);
     virtual void getParameters(CameraParameters& params) const;
@@ -389,7 +387,6 @@ private:
     size_t mVideoBuffersLength;
     mutable Mutex mVideoBufferLock;
 
-    ErrorNotifier *mErrorNotifier;
     CameraParameters mParameters;
     OMXCameraAdapterComponentContext mCameraAdapterParameters;
 
