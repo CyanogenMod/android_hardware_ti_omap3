@@ -6,25 +6,13 @@
 *   Effect string constants
 */
 const char * effNone = "none";
-const char * effNoise = "noise";
-const char * effEmboss = "emboss";
 const char * effNegative = "negative";
-const char * effSketch = "sketch";
-const char * effOilPaint = "oilpaint";
-const char * effHatch = "hatch";
-const char * effGpen = "gpen";
-const char * effAntialias = "antialias";
-const char * effDeRing = "dering";
 const char * effSolarize = "solarize";
 const char * effSepia = "sepia";
-const char * effGrayScale = "grayscale";
+const char * effMono = "mono";
 const char * effNatural = "natural";
 const char * effVivid = "vivid";
 const char * effColourSwap = "colourswap";
-const char * effOutOfFocus = "outoffocus";
-const char * effWaterColour = "watercolour";
-const char * effPastel = "pastel";
-const char * effFilm = "film";
 
 /*
 *
@@ -34,6 +22,9 @@ const char * iso100 = "100";
 const char * iso200 = "200";
 const char * iso400 = "400";
 const char * iso800 = "800";
+const char * iso1000 = "1000";
+const char * iso1200 = "1200";
+const char * iso1600 = "1600";
 
 /*
 *
@@ -60,15 +51,13 @@ const char * vidSceneOldFilm = "oldfilm";
 /*
 *
 */
-const char * whihteBalOff = "off";
 const char * whihteBalAuto = "auto";
-const char * whihteBalSunlight = "sunlight";
-const char * whihteBalCloudy = "cloudy";
+const char * whihteBalDaylight = "daylight";
+const char * whihteBalCloudy = "cloudy-daylight";
 const char * whihteBalShade = "shade";
 const char * whihteBalTungsteen = "tungsten";
 const char * whihteBalFluorescent = "fluorescent";
 const char * whihteBalIncandescent = "incandescent";
-const char * whihteBalFlash = "flash";
 const char * whihteBalHorizon = "horizon";
 
 /*
@@ -85,8 +74,9 @@ const char * antibanding60hz = "60hz";
 const char * focusAuto = "auto";
 const char * focusInfinity = "infinity";
 const char * focusMacro = "macro";
-const char * focusFixed = "fixed";
-const char * focusOff = "off";
+const char * focusPortrait = "portrait";
+const char * focusExtended = "extended";
+const char * focusCAF = "caf";
 
 /*
 *
@@ -117,30 +107,21 @@ userToOMX_LUT isoUserToOMX[] = {
     {iso100, 100},
     {iso200, 200},
     {iso400, 400},
-    {iso800, 800}
+    {iso800, 800},
+    {iso1000, 1000},
+    {iso1200, 1200},
+    {iso1600, 1600},
 };
 
 userToOMX_LUT effects_UserToOMX [] = {
     {  effNone,            OMX_ImageFilterNone         },
-    {  effNoise,           OMX_ImageFilterNoise        },
-    {  effEmboss,          OMX_ImageFilterEmboss       },
     {  effNegative,        OMX_ImageFilterNegative     },
-    {  effSketch,          OMX_ImageFilterSketch       },
-    {  effOilPaint,        OMX_ImageFilterOilPaint     },
-    {  effHatch,           OMX_ImageFilterHatch        },
-    {  effGpen,            OMX_ImageFilterGpen         },
-    {  effAntialias,       OMX_ImageFilterAntialias    },
-    {  effDeRing,          OMX_ImageFilterDeRing       },
     {  effSolarize,        OMX_ImageFilterSolarize     },
     {  effSepia,           OMX_ImageFilterSepia        },
-    {  effGrayScale,       OMX_ImageFilterGrayScale    },
+    {  effMono,            OMX_ImageFilterGrayScale    },
     {  effNatural,         OMX_ImageFilterNatural      },
     {  effVivid,           OMX_ImageFilterVivid        },
     {  effColourSwap,      OMX_ImageFilterColourSwap   },
-    {  effOutOfFocus,      OMX_ImageFilterOutOfFocus   },
-    {  effWaterColour,     OMX_ImageFilterWaterColour  },
-    {  effPastel,          OMX_ImageFilterPastel       },
-    {  effFilm,            OMX_ImageFilterFilm         }
 };
 
 userToOMX_LUT scene_UserToOMX [] = {
@@ -163,15 +144,13 @@ userToOMX_LUT scene_UserToOMX [] = {
 };
 
 userToOMX_LUT whiteBal_UserToOMX [] = {
-    { whihteBalOff            ,OMX_WhiteBalControlOff           },
     { whihteBalAuto           ,OMX_WhiteBalControlAuto          },
-    { whihteBalSunlight       ,OMX_WhiteBalControlSunLight      },
+    { whihteBalDaylight       ,OMX_WhiteBalControlSunLight      },
     { whihteBalCloudy         ,OMX_WhiteBalControlCloudy        },
     { whihteBalShade          ,OMX_WhiteBalControlShade         },
     { whihteBalTungsteen      ,OMX_WhiteBalControlTungsten      },
     { whihteBalFluorescent    ,OMX_WhiteBalControlFluorescent   },
     { whihteBalIncandescent   ,OMX_WhiteBalControlIncandescent  },
-    { whihteBalFlash          ,OMX_WhiteBalControlFlash         },
     { whihteBalHorizon        ,OMX_WhiteBalControlHorizon       }
 };
 
@@ -187,8 +166,9 @@ userToOMX_LUT focus_UserToOMX [] = {
     { focusAuto     ,OMX_IMAGE_FocusControlAuto         },
     { focusInfinity ,OMX_IMAGE_FocusControlAutoInfinity },
     { focusMacro    ,OMX_IMAGE_FocusControAutoMacro     },
-    { focusFixed    ,OMX_IMAGE_FocusControlAutoLock     },
-    { focusOff      ,OMX_IMAGE_FocusControlOff          }
+    { focusPortrait ,OMX_IMAGE_FocusControlPortrait     },
+    { focusExtended ,OMX_IMAGE_FocusControlExtended     },
+    { focusCAF      ,OMX_IMAGE_FocusControlContinousNormal },
 };
 
 userToOMX_LUT exposure_UserToOMX [] = {
@@ -268,8 +248,6 @@ class Gen3A_settings{
     int ISO;
 
     unsigned int Brightness;
-    unsigned int ApertureFNumber;
-    unsigned int ShutterSpeed;
 };
 
 /*
@@ -285,12 +263,10 @@ enum E3ASettingsFlags
     SetSharpness            = 1 << 5,
     SetBrightness           = 1 << 6,
     SetContrast             = 1 << 7,
-    SetAperture             = 1 << 8,
-    SetShutterSpeed         = 1 << 9,
-    SetISO                  = 1 << 10,
-    SetSaturaion            = 1 << 11,
-    SetEffect               = 1 << 12,
-    SetFocus                = 1 << 13,
+    SetISO                  = 1 << 8,
+    SetSaturation           = 1 << 9,
+    SetEffect               = 1 << 10,
+    SetFocus                = 1 << 11,
 
     E3aSettingMax,
     E3AsettingsAll = ( ((E3aSettingMax -1 ) << 1) -1 ) /// all possible flags raised

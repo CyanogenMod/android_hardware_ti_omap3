@@ -470,21 +470,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.Exposure != mode ) )
         {
         mParameters3A.Exposure = mode;
-        if ( 0 < mParameters3A.Exposure )
+        if ( 0 <= mParameters3A.Exposure )
             {
             mPending3Asettings |= SetExposure;
-            }
-        }
-
-    if ( 0 < params.getInt(manualExposureKey) )
-        {
-        if ( mParameters3A.ShutterSpeed != (unsigned int ) params.getInt(manualExposureKey) )
-            {
-            mParameters3A.ShutterSpeed = params.getInt(manualExposureKey);
-            if ( 0 < mParameters3A.ShutterSpeed )
-                {
-                mPending3Asettings |= SetShutterSpeed;
-                }
             }
         }
 
@@ -493,13 +481,13 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mode != mParameters3A.WhiteBallance ) )
         {
         mParameters3A.WhiteBallance = mode;
-        if ( 0 < mParameters3A.WhiteBallance )
+        if ( 0 <= mParameters3A.WhiteBallance )
             {
             mPending3Asettings |= SetWhiteBallance;
             }
         }
 
-    if ( 0 < params.getInt(contrastKey) )
+    if ( 0 <= params.getInt(contrastKey) )
         {
         if ( (mParameters3A.Contrast  + CONTRAST_OFFSET) != params.getInt(contrastKey) )
             {
@@ -507,7 +495,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             mPending3Asettings |= SetContrast;
             }
         }
-    if ( 0 < params.getInt(sharpnessKey) )
+    if ( 0 <= params.getInt(sharpnessKey) )
         {
         if ( (mParameters3A.Sharpness + SHARPNESS_OFFSET) != params.getInt(sharpnessKey) )
             {
@@ -516,16 +504,16 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
-    if ( 0 < params.getInt(saturationKey) )
+    if ( 0 <= params.getInt(saturationKey) )
         {
         if ( (mParameters3A.Saturation + SATURATION_OFFSET) != params.getInt(saturationKey) )
             {
             mParameters3A.Saturation = params.getInt(saturationKey) - SATURATION_OFFSET;
-            mPending3Asettings |= SetSaturaion;
+            mPending3Asettings |= SetSaturation;
             }
         }
 
-    if ( 0 < params.getInt(brightnessKey) )
+    if ( 0 <= params.getInt(brightnessKey) )
         {
         if ( mParameters3A.Brightness !=  ( unsigned int ) params.getInt(brightnessKey) )
             {
@@ -539,7 +527,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.Flicker != mode ) )
         {
         mParameters3A.Flicker = mode;
-        if ( 0 < mParameters3A.Flicker )
+        if ( 0 <= mParameters3A.Flicker )
             {
             mPending3Asettings |= SetFlicker;
             }
@@ -551,7 +539,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.ISO != mode ) )
         {
         mParameters3A.ISO = mode;
-        if ( 0 < mParameters3A.ISO )
+        if ( 0 <= mParameters3A.ISO )
             {
             mPending3Asettings |= SetISO;
             }
@@ -562,7 +550,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.Focus != mode ) )
         {
         mParameters3A.Focus = mode;
-        if ( 0 < mParameters3A.Focus )
+        if ( 0 <= mParameters3A.Focus )
             {
             mPending3Asettings |= SetFocus;
             }
@@ -571,20 +559,20 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION) )
         {
         mParameters3A.EVCompensation = params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION);
-        if ( 0 < mParameters3A.EVCompensation )
-            {
-            mPending3Asettings |= SetEVCompensation;
-            }
+        mPending3Asettings |= SetEVCompensation;
         }
 
     str = params.get(sceneKey);
     mode = getLUTvalue_HALtoOMX( str, SceneLUT);
     if ( ( str != NULL ) && ( mParameters3A.SceneMode != mode ) )
         {
-        mParameters3A.SceneMode = mode;
-        if ( 0 < mParameters3A.SceneMode )
+        if ( 0 <= mode )
             {
-            mPending3Asettings |= SetSceneMode;
+            mParameters3A.SceneMode = mode;
+            }
+        else
+            {
+            mParameters3A.SceneMode = OMX_Manual;
             }
         }
 
@@ -593,7 +581,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.Effect != mode ) )
         {
         mParameters3A.Effect = mode;
-        if ( 0 < mParameters3A.Effect )
+        if ( 0 <= mParameters3A.Effect )
             {
             mPending3Asettings |= SetEffect;
             }
@@ -1456,6 +1444,13 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
+    ret = setScene(mParameters3A);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("Error configuring scene mode %x", ret);
+        return ret;
+        }
+
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
         {
         ///Enable/Disable Video Noise Filter
@@ -2174,6 +2169,43 @@ status_t OMXCameraAdapter::setImageQuality(unsigned int quality)
     return ret;
 }
 
+status_t OMXCameraAdapter::setScene(Gen3A_settings& Gen3A)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_SCENEMODETYPE scene;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in loaded state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&scene, OMX_CONFIG_SCENEMODETYPE);
+        scene.nPortIndex = OMX_ALL;
+        scene.eSceneMode = ( OMX_SCENEMODETYPE ) Gen3A.SceneMode;
+
+        CAMHAL_LOGEB("Configuring scene mode 0x%x", scene.eSceneMode);
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamSceneMode, &scene);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring scene mode 0x%x", eError);
+            }
+        else
+            {
+            CAMHAL_LOGDA("Camera scene configured successfully");
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
 {
     status_t ret = NO_ERROR;
@@ -2206,6 +2238,8 @@ status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
 
     return ret;
 }
+
+
 
 status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
 {
@@ -3448,8 +3482,8 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
 
                     exp.eExposureControl = (OMX_EXPOSURECONTROLTYPE)Gen3A.Exposure;
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposure, &exp);
-                    CAMHAL_LOGEB("Exposure for Hal = %d", Gen3A.Exposure);
-                    CAMHAL_LOGEB("Exposure for OMX = 0x%x", (int)exp.eExposureControl);
+                    CAMHAL_LOGDB("Exposure for Hal = %d", Gen3A.Exposure);
+                    CAMHAL_LOGDB("Exposure for OMX = 0x%x", (int)exp.eExposureControl);
                     break;
                     }
 
@@ -3462,12 +3496,12 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     mPending3Asettings &= !currSett;
 
                     OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
-                    CAMHAL_LOGEB("old EV Compensation for OMX = 0x%x", (int)expValues.xEVCompensation);
-                    CAMHAL_LOGEB("EV Compensation for HAL = %d", Gen3A.EVCompensation);
+                    CAMHAL_LOGDB("old EV Compensation for OMX = 0x%x", (int)expValues.xEVCompensation);
+                    CAMHAL_LOGDB("EV Compensation for HAL = %d", Gen3A.EVCompensation);
 
-                    expValues.xEVCompensation = ((Gen3A.EVCompensation) << Q16_OFFSET ) / 10;/// Q16
+                    expValues.xEVCompensation = ( Gen3A.EVCompensation * ( 1 << Q16_OFFSET ) )  / 10;
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
-                    CAMHAL_LOGEB("new EV Compensation for OMX = 0x%x", (int)expValues.xEVCompensation);
+                    CAMHAL_LOGDB("new EV Compensation for OMX = 0x%x", (int)expValues.xEVCompensation);
                     break;
                     }
 
@@ -3480,8 +3514,8 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     wb.eWhiteBalControl = (OMX_WHITEBALCONTROLTYPE)Gen3A.WhiteBallance;
                     mPending3Asettings &= !currSett;
 
-                    CAMHAL_LOGEB("White Ballance for Hal = %d", Gen3A.WhiteBallance);
-                    CAMHAL_LOGEB("White Ballance for OMX = %d", (int)wb.eWhiteBalControl);
+                    CAMHAL_LOGDB("White Ballance for Hal = %d", Gen3A.WhiteBallance);
+                    CAMHAL_LOGDB("White Ballance for OMX = %d", (int)wb.eWhiteBalControl);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonWhiteBalance, &wb);
                     break;
                     }
@@ -3495,24 +3529,9 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     flicker.eFlickerCancel = (OMX_COMMONFLICKERCANCELTYPE)Gen3A.Flicker;
                     mPending3Asettings &= !currSett;
 
-                    CAMHAL_LOGEB("Flicker for Hal = %d", Gen3A.Flicker);
-                    CAMHAL_LOGEB("Flicker for  OMX= %d", (int)flicker.eFlickerCancel);
+                    CAMHAL_LOGDB("Flicker for Hal = %d", Gen3A.Flicker);
+                    CAMHAL_LOGDB("Flicker for  OMX= %d", (int)flicker.eFlickerCancel);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexConfigFlickerCancel, &flicker );
-                    break;
-                    }
-
-                case SetSceneMode:
-                    {
-                    OMX_CONFIG_SCENEMODETYPE scene;
-                    scene.nSize = sizeof(OMX_CONFIG_SCENEMODETYPE);
-                    scene.nVersion = mLocalVersionParam;
-                    scene.eSceneMode = (OMX_SCENEMODETYPE)Gen3A.SceneMode;
-                    scene.nPortIndex = OMX_ALL;
-                    mPending3Asettings &= !currSett;
-
-                    CAMHAL_LOGEB("scene.eSceneMode for Hal = %d", Gen3A.SceneMode);
-                    CAMHAL_LOGEB("scene.eSceneMode for OMX = %d", (int)scene.eSceneMode);
-                    ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamSceneMode, &scene);
                     break;
                     }
 
@@ -3525,7 +3544,7 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     brightness.nBrightness = Gen3A.Brightness;
                     mPending3Asettings &= !currSett;
 
-                    CAMHAL_LOGEB("Brightness for Hal and OMX= %d", (int)Gen3A.Brightness);
+                    CAMHAL_LOGDB("Brightness for Hal and OMX= %d", (int)Gen3A.Brightness);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonBrightness, &brightness);
                     break;
                     }
@@ -3539,7 +3558,7 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     contrast.nContrast = Gen3A.Contrast;
                     mPending3Asettings &= !currSett;
 
-                    CAMHAL_LOGEB("Contrast for Hal and OMX= %d", (int)Gen3A.Contrast);
+                    CAMHAL_LOGDB("Contrast for Hal and OMX= %d", (int)Gen3A.Contrast);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonContrast, &contrast);
                     break;
                     }
@@ -3557,12 +3576,12 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                         procSharpness.bAuto = OMX_TRUE;
 
                     procSharpness.bAuto = OMX_FALSE;
-                    CAMHAL_LOGEB("Sharpness for Hal and OMX= %d", (int)Gen3A.Sharpness);
+                    CAMHAL_LOGDB("Sharpness for Hal and OMX= %d", (int)Gen3A.Sharpness);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexConfigSharpeningLevel, &procSharpness);
                     break;
                     }
 
-                case SetSaturaion:
+                case SetSaturation:
                     {
                     OMX_CONFIG_SATURATIONTYPE saturation;
                     saturation.nSize = sizeof(OMX_CONFIG_SATURATIONTYPE);
@@ -3571,56 +3590,10 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     saturation.nSaturation = Gen3A.Saturation;
                     mPending3Asettings &= !currSett;
 
-                    CAMHAL_LOGEB("Saturation for Hal and OMX= %d", (int)Gen3A.Saturation);
+                    CAMHAL_LOGDB("Saturation for Hal and OMX= %d", (int)Gen3A.Saturation);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonSaturation, &saturation);
                     break;
                     }
-
-                case SetAperture:
-                    {
-                    OMX_CONFIG_EXPOSUREVALUETYPE expValues;
-                    expValues.nSize = sizeof(OMX_CONFIG_EXPOSUREVALUETYPE);
-                    expValues.nVersion = mLocalVersionParam;
-                    expValues.nPortIndex = OMX_ALL;
-                    OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
-                    mPending3Asettings &= !currSett;
-                    if( 0 == Gen3A.ShutterSpeed )
-                        {
-                            expValues.bAutoAperture = OMX_TRUE;
-                        }
-                    else
-                        {
-                            expValues.bAutoAperture  = OMX_FALSE;
-                            expValues.nApertureFNumber = Gen3A.ApertureFNumber;
-                        }
-                    CAMHAL_LOGEB("Aperture F Number for Hal and OMX= %d", (int)Gen3A.ApertureFNumber);
-                    ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
-                    }
-                    break;
-
-                case SetShutterSpeed:
-                    {
-                    OMX_CONFIG_EXPOSUREVALUETYPE expValues;
-                    expValues.nSize = sizeof(OMX_CONFIG_EXPOSUREVALUETYPE);
-                    expValues.nVersion = mLocalVersionParam;
-                    expValues.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
-                    mPending3Asettings &= !currSett;
-                    OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
-                    if( 0 == Gen3A.ShutterSpeed )
-                        {
-                            expValues.bAutoShutterSpeed = OMX_TRUE;
-                            expValues.nShutterSpeedMsec = 0;
-                        }
-                    else
-                        {
-                            expValues.bAutoShutterSpeed  = OMX_FALSE;
-                            expValues.nShutterSpeedMsec = Gen3A.ShutterSpeed;
-                        }
-                    CAMHAL_LOGDB("Shutter Speed for Hal and OMX= %d", (int)Gen3A.ShutterSpeed);
-                    ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
-                    CAMHAL_LOGDB("OMX_SetConfig()returned  %d", ret);
-                    }
-                    break;
 
                 case SetISO:
                     {
@@ -3640,7 +3613,7 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                         expValues.bAutoSensitivity = OMX_FALSE;
                         expValues.nSensitivity = Gen3A.ISO;
                         }
-                    CAMHAL_LOGEB("ISO for Hal and OMX= %d", (int)Gen3A.ISO);
+                    CAMHAL_LOGDB("ISO for Hal and OMX= %d", (int)Gen3A.ISO);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
                     }
                     break;
@@ -3655,8 +3628,8 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     mPending3Asettings &= !currSett;
 
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonImageFilter, &effect);
-                    CAMHAL_LOGEB("effect for OMX = 0x%x", (int)effect.eImageFilter);
-                    CAMHAL_LOGEB("effect for Hal = %d", Gen3A.Effect);
+                    CAMHAL_LOGDB("effect for OMX = 0x%x", (int)effect.eImageFilter);
+                    CAMHAL_LOGDB("effect for Hal = %d", Gen3A.Effect);
                     break;
                     }
 
@@ -3671,7 +3644,7 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     focus.eFocusControl = (OMX_IMAGE_FOCUSCONTROLTYPE)Gen3A.Focus;
 
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focus);
-                    CAMHAL_LOGEB("Focus type in hal , OMX : %d , 0x%x", Gen3A.Focus, focus.eFocusControl );
+                    CAMHAL_LOGDB("Focus type in hal , OMX : %d , 0x%x", Gen3A.Focus, focus.eFocusControl );
                     break;
                     }
                 default:
