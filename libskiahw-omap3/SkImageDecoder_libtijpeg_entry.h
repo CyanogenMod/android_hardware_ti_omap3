@@ -84,11 +84,31 @@ protected:
 	virtual bool onDecode(SkStream* stream, SkBitmap* bm, Mode);
 
 public:
+    typedef struct JpegDecoderParams
+    {
+        // Quatization Table
+        // Huffman Table
+        // SectionDecode;
+        // SubRegionDecode
+        OMX_U32 nXOrg;         /* X origin*/
+        OMX_U32 nYOrg;         /* Y origin*/
+        OMX_U32 nXLength;      /* X length*/
+        OMX_U32 nYLength;      /* Y length*/
+
+    }JpegDecoderParams;
+
     SkTIJPEGImageDecoderEntry();
     ~SkTIJPEGImageDecoderEntry();
     virtual Format getFormat() const { return kJPEG_Format; }
 
+    bool SetJpegDecParams(JpegDecoderParams * jdp) {
+        memcpy(&jpegDecParams, jdp, sizeof(JpegDecoderParams));
+        return true;
+    }
+
+
 private:
+    JpegDecoderParams jpegDecParams;
     bool WatchdogCallback(void* param);
 };
 
@@ -98,3 +118,4 @@ extern "C" SkImageDecoder* SkImageDecoder_HWJPEG_Factory() {
 }
 
 #endif
+

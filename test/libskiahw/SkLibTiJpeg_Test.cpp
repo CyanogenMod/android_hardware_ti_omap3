@@ -494,6 +494,9 @@ int runJPEGDecoderTest(int argc, char** argv) {
     int nReqHeight = 0;
     int result = PASS;
     char* cmd = NULL;
+    JpegDecoderParams jpegDecParams;
+
+    memset((void*)&jpegDecParams, 0, sizeof(JpegDecoderParams) );
 
     /*check the parameter counts*/
     if (argc < 4) {
@@ -569,6 +572,16 @@ int runJPEGDecoderTest(int argc, char** argv) {
 
    /*Sub Region Decode*/
     if (argc == 11) {
+        jpegDecParams.nXOrg = atoi(argv[7]);
+        jpegDecParams.nYOrg = atoi(argv[8]);
+        jpegDecParams.nXLength = atoi(argv[9]);
+        jpegDecParams.nYLength = atoi(argv[10]);
+
+        /* Check for the co-ordinates multiples */
+        /* TI DSP SN has contraint on the multiples of the co-ori\dinates */
+        // Allow the users input. Libskiahw should take care in case of errors.
+        DBGPRINT("%s():%d:: NOTE: Refer the Codec guide for the constraints on X & Y origin values.\n",__FUNCTION__,__LINE__);
+
     }
     else{
     }
@@ -593,6 +606,13 @@ int runJPEGDecoderTest(int argc, char** argv) {
 
     /*set the scale factor */
     skJpegDec->setSampleSize(reSize);
+
+#ifndef TARGET_OMAP4
+    /*set the subregion decode parameters*/
+    if ( ((SkTIJPEGImageDecoderEntry*)skJpegDec)->SetJpegDecParams((SkTIJPEGImageDecoderEntry::JpegDecoderParams*) &jpegDecParams ) == false ) {
+        PRINT("%s():%d:: !!!! skJpegDec->SetJpegDecodeParameters returned false..\n",__FUNCTION__,__LINE__);
+    }
+#endif
 
     /*call decode*/
     if (skJpegDec->decode(&inStream, &skBM, prefConfig, SkImageDecoder::kDecodePixels_Mode) == false) {
