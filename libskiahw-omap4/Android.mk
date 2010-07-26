@@ -23,11 +23,10 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_C_INCLUDES += \
         external/skia/include/core \
         external/skia/include/images \
-	    external/skia/src/images \
-        hardware/ti/omx/ducati/system-omx/system/omx_core/inc \
-        hardware/ti/omx/ducati/domx/mmplatform \
+	external/skia/src/images \
+        hardware/ti/omx/ducati/domx/system/omx_core/inc \
         hardware/ti/tiler/memmgr \
-        hardware/ti/omx/ducati/system-omx/system/mm_osal/inc \
+        hardware/ti/omx/ducati/domx/system/mm_osal/inc \
         $(OMX_VENDOR_INCLUDES)
 
 LOCAL_CFLAGS += -fpic -fstrict-aliasing
