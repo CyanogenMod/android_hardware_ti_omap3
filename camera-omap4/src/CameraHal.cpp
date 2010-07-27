@@ -712,6 +712,33 @@ status_t CameraHal::startPreview()
         return ALREADY_EXISTS;
         }
 
+    //This can only happen when there is a mismatch
+    //between the Camera application default
+    //CameraHal's own default at the start
+    if ( mReloadAdapter )
+        {
+         if ( NULL != mCameraAdapter.get() )
+            {
+              // Free the camera adapter
+             mCameraAdapter.clear();
+
+             //Close the camera adapter DLL
+             ::dlclose(mCameraAdapterHandle);
+            }
+
+        if ( reloadAdapter() < 0 )
+            {
+            CAMHAL_LOGEA("CameraAdapter reload failed")
+            }
+        else
+            {
+            insertSupportedParams();
+            }
+
+        mReloadAdapter = false;
+        }
+
+
     ///If we don't have the preview callback enabled and display adapter,
     ///@todo we dont support changing the overlay dynamically when preview is ongoing nor set the overlay object dynamically
     ///@remarks We support preview without overlay. setPreviewDisplay() should be passed with NULL overlay for this path
@@ -739,33 +766,6 @@ status_t CameraHal::startPreview()
         CAMHAL_LOGEA("Couldn't allocate buffers for Preview");
         goto error;
         }
-
-    //This can only happen when there is a mismatch
-    //between the Camera application default
-    //CameraHal's own default at the start
-    if ( mReloadAdapter )
-        {
-         if ( NULL != mCameraAdapter.get() )
-            {
-              // Free the camera adapter
-             mCameraAdapter.clear();
-
-             //Close the camera adapter DLL
-             ::dlclose(mCameraAdapterHandle);
-            }
-
-        if ( reloadAdapter() < 0 )
-            {
-            CAMHAL_LOGEA("CameraAdapter reload failed")
-            }
-        else
-            {
-            insertSupportedParams();
-            }
-
-        mReloadAdapter = false;
-        }
-
 
     ///Pass the buffers to Camera Adapter
     mCameraAdapter->useBuffers(CameraAdapter::CAMERA_PREVIEW, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
@@ -1746,7 +1746,7 @@ status_t CameraHal::reloadAdapter()
         f = (CameraAdapterFactory) ::dlsym(mCameraAdapterHandle, "CameraAdapter_Factory");
         if(f)
             {
-        mCameraAdapter = f();
+            mCameraAdapter = f();
             if((NULL != mCameraAdapter.get())
                     && (NO_ERROR != mCameraAdapter->initialize(sensor_index)))
                 {
@@ -1759,7 +1759,12 @@ status_t CameraHal::reloadAdapter()
             }
         }
 
-    if ( ( NULL != mAppCallbackNotifier.get() ) &&
+    if( 0 == ret)
+        {
+        ret = mCameraAdapter->setParameters(mParameters);
+        }
+
+    if ( (0 == ret) && ( NULL != mAppCallbackNotifier.get() ) &&
            ( NULL !=  mCameraAdapter.get() ) )
         {
         mAppCallbackNotifier->setEventProvider(CameraHalEvent::ALL_EVENTS, mCameraAdapter.get());
@@ -1767,7 +1772,7 @@ status_t CameraHal::reloadAdapter()
         mCameraAdapter->setErrorHandler(mAppCallbackNotifier.get());
         }
 
-    if ( ( NULL != mDisplayAdapter.get() ) &&
+    if ( (0 == ret) && ( NULL != mDisplayAdapter.get() ) &&
            ( NULL !=  mCameraAdapter.get() ) )
         {
         mDisplayAdapter->setFrameProvider(mCameraAdapter.get());
