@@ -1174,10 +1174,12 @@ fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 	FMAPP_BEGIN();
 
 	FMAPP_MSG("Powering on FM RX... (this might take awhile)");
-
+#ifdef TARGET_BOARD_OMAP3
 	/* Configure the Analog Loopback settings */
 	set_fmapp_audio_routing(fm_context);
-
+#else
+	/* do nothing as of now..*/
+#endif
 	ret = FM_RX_Init();
 	if (ret) {
 		FMAPP_ERROR("failed to initialize FM rx stack");
@@ -1220,9 +1222,12 @@ fm_status deinit_rx_stack(fm_rx_context_s **fm_context)
 	FMAPP_BEGIN();
 
 	g_fmapp_now_initializing = 0;
-
+#ifdef TARGET_BOARD_OMAP3
 	/* Revert the analog loopback settings */
 	unset_fmapp_audio_routing(fm_context);
+#else
+	/* do nothing */
+#endif
 	/* power off FM core */
 	ret = FM_RX_Disable(*fm_context);
 	if (ret != FMC_STATUS_PENDING && ret != FMC_STATUS_SUCCESS)
