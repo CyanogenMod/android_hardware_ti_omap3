@@ -999,9 +999,6 @@ void CameraHal::previewThread()
                if (FW3A_Start() < 0)
                    LOGE("ERROR FW3A_Start()");
 
-               if (FW3A_SetSettings() < 0)
-                   LOGE("ERROR FW3A_SetSettings()");
-
 #endif
 
                if ( CorrectPreview() < 0 )
@@ -1656,6 +1653,11 @@ int  CameraHal::ICapturePerform()
             spec_res.capture_mode = ICAP_CAPTURE_MODE_HP;
             iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
             iobj->cfg.notify.cb_capture = onSnapshot;
+            fixedZoom = (uint32_t) (zoom_step[0]*ZOOM_SCALE);
+
+            iobj->cfg.zoom.enable = ICAP_ENABLE;
+            iobj->cfg.zoom.vertical = fixedZoom;
+            iobj->cfg.zoom.horizontal = fixedZoom;
         } else {
             snapshotBuffer.buffer = getLastOverlayAddress();
             snapshotBuffer.alloc_size = getLastOverlayLength();
@@ -1664,6 +1666,11 @@ int  CameraHal::ICapturePerform()
             iobj->cfg.notify.cb_snapshot = onGeneratedSnapshot;
             iobj->cfg.snapshot_width = preview_width;
             iobj->cfg.snapshot_height = preview_height;
+            fixedZoom = (uint32_t) (zoom_step[mZoomTargetIdx]*ZOOM_SCALE);
+
+            iobj->cfg.zoom.enable = ICAP_ENABLE;
+            iobj->cfg.zoom.vertical = fixedZoom;
+            iobj->cfg.zoom.horizontal = fixedZoom;
         }
         iobj->cfg.notify.cb_mknote = onMakernote;
         iobj->cfg.notify.cb_ipp = onIPP;
@@ -1671,6 +1678,11 @@ int  CameraHal::ICapturePerform()
         spec_res.capture_mode  = ICAP_CAPTURE_MODE_HP;
         iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
         iobj->cfg.notify.cb_capture = onSnapshot;
+        fixedZoom = (uint32_t) (zoom_step[0]*ZOOM_SCALE);
+
+        iobj->cfg.zoom.enable = ICAP_ENABLE;
+        iobj->cfg.zoom.vertical = fixedZoom;
+        iobj->cfg.zoom.horizontal = fixedZoom;
     }
     iobj->cfg.notify.cb_shutter = onShutter;
     spec_res.res.width = image_width;
@@ -1719,12 +1731,6 @@ int  CameraHal::ICapturePerform()
     iobj->cfg.crop.left = fobj->status.preview.left;
     iobj->cfg.crop.width = fobj->status.preview.width;
     iobj->cfg.crop.height = fobj->status.preview.height;
-
-    fixedZoom = (uint32_t) (zoom_step[mZoomTargetIdx]*ZOOM_SCALE);
-
-    iobj->cfg.zoom.enable = ICAP_ENABLE;
-    iobj->cfg.zoom.vertical = fixedZoom;
-    iobj->cfg.zoom.horizontal = fixedZoom;
 
     iobj->cfg.capture_format = ICAP_CAPTURE_FORMAT_UYVY;
     iobj->cfg.width = spec_res.res.width;
@@ -1894,7 +1900,13 @@ int  CameraHal::ICapturePerform()
     procMessage[27] = mPictureOffset[i];
     procMessage[28] = mPictureLength[i];
     procMessage[29] = rotation;
-    procMessage[30] = /*mZoomTargetIdx*/ 0;
+
+    if ( mcapture_mode == 1 ) {
+        procMessage[30] = mZoomTargetIdx;
+    } else {
+        procMessage[30] = 0;
+    }
+
     procMessage[31] = mippMode;
     procMessage[32] = mIPPToEnable;
     procMessage[33] = quality;
@@ -2461,7 +2473,7 @@ void CameraHal::snapshotThread()
                 }
 
                 status = scale_process(yuv_buffer, image_width, image_height,
-                         snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, 1, crop_top, crop_left, crop_width, crop_height);
+                         snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, ZoomTarget, crop_top, crop_left, crop_width, crop_height);
 
 #ifdef DEBUG_LOG
 
