@@ -1661,7 +1661,6 @@ int functional_menu() {
 
         case 'p':
 
-            camera->setParameters(params.flatten());
             gettimeofday(&picture_start, 0);
 
             if ( hardwareActive )
@@ -2287,7 +2286,6 @@ int execute_functional_script(char *script) {
                 break;
 
             case 'p':
-                camera->setParameters(params.flatten());
                 gettimeofday(&picture_start, 0);
 
                 if ( hardwareActive )
