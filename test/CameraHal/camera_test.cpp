@@ -727,6 +727,14 @@ int configureRecorder() {
 
     camera->unlock();
 
+    sprintf(vbit_string,"video-param-encoding-bitrate=%u", VbitRate[VbitRateIDX].bit_rate);
+    String8 bit_rate(vbit_string);
+    if ( recorder->setParameters(bit_rate) < 0 ) {
+        printf("error while configuring bit rate\n");
+
+        return -1;
+    }
+
     if ( recorder->setCamera(camera->remote()) < 0 ) {
         printf("error while setting the camera\n");
 
@@ -795,16 +803,6 @@ int configureRecorder() {
 
         return -1;
     }
-
-    sprintf(vbit_string,"video-param-encoding-bitrate=%u", VbitRate[VbitRateIDX].bit_rate);
-    String8 bit_rate(vbit_string);
-    if ( recorder->setParameters(bit_rate) < 0 ) {
-        printf("error while configuring bit rate\n");
-
-        return -1;
-    }
-
-
 
     if ( recorder->setPreviewSurface( overlayControl->getSurface() ) < 0 ) {
         printf("error while configuring preview surface\n");
@@ -2014,8 +2012,16 @@ int execute_functional_script(char *script) {
                 break;
 
             case '9':
-                videoCodecIDX++;
-                videoCodecIDX %= ARRAY_SIZE(videoCodecs);
+                for(i = 0; i < ARRAY_SIZE(videoCodecs); i++)
+                {
+                    if( strcmp((cmd + 1), videoCodecs[i].desc) == 0)
+                    {
+                        videoCodecIDX = i;
+                        printf("Video Codec Selected: %s\n",
+                                videoCodecs[i].desc);
+                        break;
+                    }
+                }
                 break;
 
             case '~':
@@ -2031,7 +2037,40 @@ int execute_functional_script(char *script) {
                     camera->setParameters(params.flatten());
 
                 break;
-
+            case '-':
+                for(i = 0; i < ARRAY_SIZE(audioCodecs); i++)
+                {
+                    if( strcmp((cmd + 1), audioCodecs[i].desc) == 0)
+                    {
+                        audioCodecIDX = i;
+                        printf("Selected Audio: %s\n", audioCodecs[i].desc);
+                        break;
+                    }
+                }
+                break;
+            case 'l':
+            case 'L':
+                for(i = 0; i < ARRAY_SIZE(VcaptureSize); i++)
+                {
+                    if( strcmp((cmd + 1), VcaptureSize[i].desc) == 0)
+                    {
+                        VcaptureSizeIDX = i;
+                        printf("Video Capture Size: %s\n", VcaptureSize[i].desc);
+                        break;
+                    }
+                }
+                break;
+            case ']':
+                for(i = 0; i < ARRAY_SIZE(VbitRate); i++)
+                {
+                    if( strcmp((cmd + 1), VbitRate[i].desc) == 0)
+                    {
+                        VbitRateIDX = i;
+                        printf("Video Bit Rate: %s\n", VbitRate[i].desc);
+                        break;
+                    }
+                }
+                break;
             case ':':
                 int width, height;
                 for(i = 0; i < ARRAY_SIZE(previewSize); i++)
