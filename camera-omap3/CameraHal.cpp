@@ -1243,6 +1243,7 @@ int CameraHal::CameraStart()
         }
 
         v4l2_cam_buffer[i].m.userptr = (unsigned long) data->ptr;
+        v4l2_cam_buffer[i].length = data->length;
 
         strcpy((char *)v4l2_cam_buffer[i].m.userptr, "hello");
         if (strcmp((char *)v4l2_cam_buffer[i].m.userptr, "hello")) {
