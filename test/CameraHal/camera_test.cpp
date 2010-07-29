@@ -32,7 +32,6 @@
 #define KEY_BRIGHTNESS      "brightness"
 #define KEY_BURST           "burst-capture"
 #define KEY_EXPOSURE        "exposure"
-#define KEY_ZOOM            "zoom"
 #define KEY_CONTRAST        "contrast"
 #define KEY_SHARPNESS       "sharpness"
 #define KEY_ISO             "iso"
@@ -43,7 +42,6 @@
 
 
 #define KEY_COMPENSATION    "compensation"
-#define KEY_ROTATION        "picture-rotation"
 #define KEY_IPP             "ippMode"
 #define KEY_BUFF_STARV      "buff-starvation"
 #define KEY_METERING_MODE   "meter-mode"
@@ -93,6 +91,7 @@ bool hardwareActive = false;
 bool recordingMode = false;
 bool previewRunning = false;
 int saturation = 0;
+int zoomMAX = 0;
 int zoomIDX = 0;
 int videoCodecIDX = 0;
 int audioCodecIDX = 0;
@@ -175,9 +174,9 @@ const struct {
     const char *zoom_description;
 } zoom [] = {
     { 0, "1x"},
-    { 20, "2x"},
-    { 40, "4x"},
-    { 60, "8x"},
+    { 1, "2x"},
+    { 2, "3x"},
+    { 3, "4x"},
 };
 
 const struct {
@@ -762,9 +761,9 @@ int configureRecorder() {
         return -1;
     }
 
-    if(mkdir("/system/media/videos",0777) == -1)
+    if(mkdir("/data/videos",0777) == -1)
          printf("\n Directory --videos-- was not created \n");
-    sprintf(videoFile, "/system/media/videos/video%d.%s", recording_counter,outputFormat[outputFormatIDX].desc);
+    sprintf(videoFile, "/data/videos/video%d.%s", recording_counter,outputFormat[outputFormatIDX].desc);
 
     fd = open(videoFile, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
 
@@ -884,60 +883,47 @@ int closeCamera() {
 }
 
 int startPreview() {
-    if ( reSizePreview && !hardwareActive ) {
+    int previewWidth, previewHeight;
+    if (reSizePreview) {
+        if(!hardwareActive)
+        {
+            if ( openCamera() < 0 ) {
+                printf("Camera initialization failed\n");
 
-        if ( openCamera() < 0 ) {
-            printf("Camera initialization failed\n");
+                return -1;
+            }
 
-            return -1;
+            params.unflatten(camera->getParameters());
+
         }
 
-        camera->setParameters(params.flatten());
-
-        if(!nullOverlay) {
-            printf("Creating preview surface...\n");
-            if ( createPreviewSurface(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height ) < 0 ) {
-                printf("Error while creating preview surface\n");
-               return -1;
-                }
-
-        } else {
-            printf("Not creating preview surface...\n");
-            overlaySurface = NULL;
+        if(recordingMode)
+        {
+            previewWidth = VcaptureSize[VcaptureSizeIDX].width;
+            previewHeight = VcaptureSize[VcaptureSizeIDX].height;
+        }else
+        {
+            previewWidth = previewSize[previewSizeIDX].width;
+            previewHeight = previewSize[previewSizeIDX].height;
         }
-
-
-
-        camera->setPreviewDisplay(overlaySurface);
-
-        prevcnt = 0;
-
-        camera->startPreview();
-
-        previewRunning = true;
-        reSizePreview = false;
-        hardwareActive = true;
-    } else if ( reSizePreview && hardwareActive ) {
-
-        params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
+        params.setPreviewSize(previewWidth, previewHeight);
         params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
 
         camera->setParameters(params.flatten());
 
         if(!nullOverlay) {
-            if ( createPreviewSurface(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height ) < 0 ) {
+            if ( createPreviewSurface(previewWidth, previewHeight ) < 0 ) {
                 printf("Error while creating preview surface\n");
-
-
-                    return -1;
-                }
-
+                return -1;
+            }
         } else {
             overlaySurface = NULL;
         }
 
 
         camera->setPreviewDisplay(overlaySurface);
+
+        if(!hardwareActive) prevcnt = 0;
 
         camera->startPreview();
 
@@ -997,10 +983,10 @@ void initDefaults() {
     meter_mode = 0;
     previewFormat = 0;
     pictureFormat = ARRAY_SIZE(pixelformat) - 2;
-
+    zoomMAX = params.getInt(CameraParameters::KEY_MAX_ZOOM);
     params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
     params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
-    params.set(KEY_ROTATION, rotation);
+    params.set(CameraParameters::KEY_ROTATION, rotation);
     params.set(KEY_COMPENSATION, compensation);
     params.set(params.KEY_WHITE_BALANCE, strawb_mode[awb_mode]);
     params.set(KEY_MODE, (capture_mode + 1));
@@ -1009,7 +995,7 @@ void initDefaults() {
     params.set(KEY_ISO, iso_mode);
     params.set(KEY_SHARPNESS, sharpness);
     params.set(KEY_CONTRAST, contrast);
-    params.set(KEY_ZOOM, zoom[zoomIDX].idx);
+    params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx);
     params.set(KEY_EXPOSURE, exposure_mode);
     params.set(KEY_BRIGHTNESS, brightness);
     params.set(KEY_SATURATION, saturation);
@@ -1231,7 +1217,7 @@ int functional_menu() {
         case '3':
             rotation += 90;
             rotation %= 360;
-            params.set(KEY_ROTATION, rotation);
+            params.set(CameraParameters::KEY_ROTATION, rotation);
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
 
@@ -1278,6 +1264,8 @@ int functional_menu() {
 
             if ( !recordingMode ) {
 
+                recordingMode = true;
+
                 if ( startPreview() < 0 ) {
                     printf("Error while starting preview\n");
 
@@ -1301,8 +1289,6 @@ int functional_menu() {
 
                     return -1;
                 }
-
-                recordingMode = true;
             }
 
             break;
@@ -1543,7 +1529,8 @@ int functional_menu() {
         case 'z':
             zoomIDX++;
             zoomIDX %= ARRAY_SIZE(zoom);
-            params.set(KEY_ZOOM, zoom[zoomIDX].idx);
+            printf("sizeof(zoom)/sizeof(zoom[0]) %d",sizeof(zoom)/sizeof(zoom[0]));
+            params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx * zoomMAX/(sizeof(zoom)/sizeof(zoom[0])-1) - 1);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1895,7 +1882,7 @@ int execute_functional_script(char *script) {
 
             case '3':
                 rotation = atoi(cmd + 1);
-                params.set(KEY_ROTATION, rotation);
+                params.set(CameraParameters::KEY_ROTATION, rotation);
 
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
@@ -1960,6 +1947,8 @@ int execute_functional_script(char *script) {
 
                 if ( !recordingMode ) {
 
+                    recordingMode = true;
+
                     if ( startPreview() < 0 ) {
                         printf("Error while starting preview\n");
 
@@ -1984,7 +1973,6 @@ int execute_functional_script(char *script) {
                         return -1;
                     }
 
-                    recordingMode = true;
                 }
 
                 break;
@@ -2242,7 +2230,8 @@ int execute_functional_script(char *script) {
                 break;
 
             case 'z':
-                params.set(KEY_ZOOM, atoi(cmd + 1) - 1);
+            case 'Z':
+                params.set(CameraParameters::KEY_ZOOM, (atoi(cmd + 1) - 1) * zoomMAX/(sizeof(zoom)/sizeof(zoom[0])-1) - 1);
 
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
@@ -2456,6 +2445,8 @@ int execute_error_script(char *script) {
 
                 if ( !recordingMode ) {
 
+                    recordingMode = true;
+
                     if ( startPreview() < 0 ) {
                         printf("Error while starting preview\n");
 
@@ -2480,7 +2471,6 @@ int execute_error_script(char *script) {
                         return -1;
                     }
 
-                    recordingMode = true;
                 }
 
                 usleep(1000000);//1s
@@ -2670,7 +2660,7 @@ int error_scenario() {
             params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
 
             if ( !recordingMode ) {
-
+                recordingMode = true;
                 if ( startPreview() < 0 ) {
                     printf("Error while starting preview\n");
 
@@ -2695,7 +2685,6 @@ int error_scenario() {
                     return -1;
                 }
 
-                recordingMode = true;
             }
 
             usleep(1000000);//1s
