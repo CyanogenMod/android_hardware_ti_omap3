@@ -3641,15 +3641,15 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             }
         }
 
+        //Set 3A config to disable variable fps
+        fobj->settings.ae.framerate = framerate;
+        fobj->settings.general.view_finder_mode = ICAM_VFMODE_VIDEO_RECORD;
+
         if ( params.get(KEY_CAPTURE) != NULL ) {
             if (strcmp(params.get(KEY_CAPTURE), (const char *) CAPTURE_STILL) == 0) {
                 //Set 3A config to enable variable fps
                 fobj->settings.ae.framerate = 0;
                 fobj->settings.general.view_finder_mode = ICAM_VFMODE_STILL_CAPTURE;
-            } else if (strcmp(params.get(KEY_CAPTURE), (const char *) CAPTURE_VIDEO) == 0) {
-                //Set 3A config to disable variable fps
-                fobj->settings.ae.framerate = framerate;
-                fobj->settings.general.view_finder_mode = ICAM_VFMODE_VIDEO_RECORD;
             }
         }
 
