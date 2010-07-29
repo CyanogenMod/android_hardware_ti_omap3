@@ -46,6 +46,7 @@
 #define KEY_ROTATION        "picture-rotation"
 #define KEY_IPP             "ippMode"
 #define KEY_BUFF_STARV      "buff-starvation"
+#define KEY_METERING_MODE   "meter-mode"
 
 #define SDCARD_PATH "/"
 
@@ -76,7 +77,7 @@ CameraParameters params;
 float compensation = 0.0;
 double latitude = 0.0;
 double longitude = 0.0;
-double degree_by_step = 17.56097560975609756097;
+double degree_by_step = 17.5609756;//..0975609756097;
 double altitude = 0.0;
 int awb_mode = 0;
 int effects_mode = 0;
@@ -209,6 +210,7 @@ const struct {
     { 176, 144, "QCIF" },
     { 352, 288, "CIF" },
     { 320, 240, "QVGA" },
+    { 352, 288, "CIF" },
     { 640, 480, "VGA" },
     { 720, 486, "NTSC" },
     { 720, 576, "PAL" },
@@ -1029,9 +1031,9 @@ int menu_gps() {
 
     if (print_menu) {
         printf("\n\n== GPS MENU ============================\n\n");
-        printf("   e. Latitude:       %.20lf\n", latitude);
-        printf("   d. Longitude:      %.20lf\n", longitude);
-        printf("   c. Altitude:       %.20lf\n", altitude);
+        printf("   e. Latitude:       %.7lf\n", latitude);
+        printf("   d. Longitude:      %.7lf\n", longitude);
+        printf("   c. Altitude:       %.7lf\n", altitude);
         printf("\n");
         printf("   q. Return to main menu\n");
         printf("\n");
@@ -1052,7 +1054,7 @@ int menu_gps() {
                 latitude -= 180.0;
             }
 
-            snprintf(coord_str, 100, "%.20lf", latitude);
+            snprintf(coord_str, 7, "%.7lf", latitude);
             params.set(params.KEY_GPS_LATITUDE, coord_str);
 
             if ( hardwareActive )
@@ -1067,7 +1069,7 @@ int menu_gps() {
                 longitude -= 360.0;
             }
 
-            snprintf(coord_str, 100, "%.20lf", longitude);
+            snprintf(coord_str, 7, "%.7lf", longitude);
             params.set(params.KEY_GPS_LONGITUDE, coord_str);
 
             if ( hardwareActive )
@@ -1399,12 +1401,6 @@ int functional_menu() {
                 camera->setParameters(params.flatten());
             break;
 
-
-        case 'D':
-            if ( hardwareActive )
-                camera->stopRecording();
-            break;
-
         case 'E':
             if(hardwareActive)
                 params.unflatten(camera->getParameters());
@@ -1530,18 +1526,7 @@ int functional_menu() {
                 camera->setParameters(params.flatten());
             break;
 
-        case 'c':
-            if ( contrast >= 100) {
-                contrast = -100;
-            } else {
-                contrast += 10;
-            }
-            params.set(KEY_CONTRAST, contrast);
-            if ( hardwareActive )
-                camera->setParameters(params.flatten());
-            break;
-
-        case 'd':
+        case 'D':
         {
             audioCodecIDX++;
             audioCodecIDX %= ARRAY_SIZE(audioCodecs);
@@ -1575,6 +1560,16 @@ int functional_menu() {
 
             break;
 
+        case 'c':
+            if( contrast >= 200){
+                contrast = 0;
+            } else {
+                contrast += 10;
+            }
+            params.set(KEY_CONTRAST, contrast);
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+            break;
         case 'b':
             if ( brightness >= 200) {
                 brightness = 0;
@@ -1590,9 +1585,9 @@ int functional_menu() {
             break;
 
         case 's':
-
+        case 'S':
             if ( saturation >= 100) {
-                saturation = -100;
+                saturation = 0;
             } else {
                 saturation += 10;
             }
@@ -2361,9 +2356,60 @@ int execute_functional_script(char *script) {
                 iteration++;
                 break;
 
+            case 'M':
             case 'm':
             {
                 params.set(KEY_METERING_MODE, (cmd + 1));
+                if ( hardwareActive )
+                {
+                    camera->setParameters(params.flatten());
+                }
+                break;
+            }
+            case '<':
+            {
+                char coord_str[8];
+                latitude += degree_by_step;
+                if (latitude > 90.0)
+                {
+                    latitude -= 180.0;
+                }
+                snprintf(coord_str, 7, "%.7lf", latitude);
+                params.set(params.KEY_GPS_LATITUDE, coord_str);
+                if ( hardwareActive )
+                {
+                    camera->setParameters(params.flatten());
+                }
+                break;
+            }
+
+            case '=':
+            {
+                char coord_str[8];
+                longitude += degree_by_step;
+                if (longitude > 180.0)
+                {
+                    longitude -= 360.0;
+                }
+                snprintf(coord_str, 7, "%.7lf", longitude);
+                params.set(params.KEY_GPS_LONGITUDE, coord_str);
+                if ( hardwareActive )
+                {
+                    camera->setParameters(params.flatten());
+                }
+                break;
+            }
+
+            case '>':
+            {
+                char coord_str[8];
+                altitude += 12345.67890123456789;
+                if (altitude > 100000.0)
+                {
+                    altitude -= 200000.0;
+                }
+                snprintf(coord_str, 7, "%.7lf", altitude);
+                params.set(params.KEY_GPS_ALTITUDE, coord_str);
                 if ( hardwareActive )
                 {
                     camera->setParameters(params.flatten());
