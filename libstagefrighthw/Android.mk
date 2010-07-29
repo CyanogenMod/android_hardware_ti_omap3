@@ -24,6 +24,10 @@ LOCAL_SHARED_LIBRARIES :=       \
         libdl					\
         libsurfaceflinger_client
 
+ifneq (,$(findstring omap, $(TARGET_BOARD_PLATFORM)))
+LOCAL_CFLAGS += -DOMAP_ENHANCEMENT
+endif
+
 LOCAL_MODULE := libstagefrighthw
 
 include $(BUILD_SHARED_LIBRARY)
