@@ -39,9 +39,7 @@
 #define KEY_MODE            "mode"
 #define KEY_VNF             "vnf"
 #define KEY_VSTAB           "vstab"
-
-
-#define KEY_COMPENSATION    "compensation"
+#define KEY_COMPENSATION    "exposure-compensation"
 #define KEY_IPP             "ippMode"
 #define KEY_BUFF_STARV      "buff-starvation"
 #define KEY_METERING_MODE   "meter-mode"
@@ -91,7 +89,6 @@ bool hardwareActive = false;
 bool recordingMode = false;
 bool previewRunning = false;
 int saturation = 0;
-int zoomMAX = 0;
 int zoomIDX = 0;
 int videoCodecIDX = 0;
 int audioCodecIDX = 0;
@@ -118,7 +115,7 @@ char dir_path[40] = SDCARD_PATH;
 const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Secondary Camera 2", "Stereo Camera"};
 
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
-const char *iso [] = { "auto", "100", "200", "400", "800"};
+const char *iso [] = { "auto", "100", "200", "400", "800", "1200", "1600"};
 const char *effects [] = {
     "none",
     "mono",
@@ -167,16 +164,20 @@ const char *focus[] = {
 int focus_mode = 0;
 const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw"};
 int pictureFormat = ARRAY_SIZE(pixelformat) - 2;
-const char *exposure[] = {"Auto", "Macro", "Portrait", "Landscape", "Sports", "Night", "Night Portrait", "Backlighting", "Manual"};
-const char *capture[] = { "High Performance", "High Quality", "Video Mode" };
+const char *exposure[] = {"auto", "macro", "portrait", "landscape", "sports", "night", "night-portrait", "backlighting", "manual"};
+const char *capture[] = { "high-performance", "high-quality", "Video Mode" };
 const struct {
     int idx;
     const char *zoom_description;
 } zoom [] = {
-    { 0, "1x"},
-    { 1, "2x"},
-    { 2, "3x"},
-    { 3, "4x"},
+    { 0,  "1x"},
+    { 12, "1.5x"},
+    { 20, "2x"},
+    { 27, "2.5x"},
+    { 32, "3x"},
+    { 36, "3.5x"},
+    { 40, "4x"},
+    { 60, "8x"},
 };
 
 const struct {
@@ -211,7 +212,7 @@ const struct {
     { 320, 240, "QVGA" },
     { 352, 288, "CIF" },
     { 640, 480, "VGA" },
-    { 720, 486, "NTSC" },
+    { 720, 480, "NTSC" },
     { 720, 576, "PAL" },
     { 800, 480, "WVGA" },
     { 848, 480, "WVGA2"},
@@ -983,20 +984,19 @@ void initDefaults() {
     meter_mode = 0;
     previewFormat = 0;
     pictureFormat = ARRAY_SIZE(pixelformat) - 2;
-    zoomMAX = params.getInt(CameraParameters::KEY_MAX_ZOOM);
     params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
     params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
     params.set(CameraParameters::KEY_ROTATION, rotation);
-    params.set(KEY_COMPENSATION, compensation);
+    params.set(KEY_COMPENSATION, (int) (compensation * 10));
     params.set(params.KEY_WHITE_BALANCE, strawb_mode[awb_mode]);
-    params.set(KEY_MODE, (capture_mode + 1));
+    params.set(KEY_MODE, (capture[capture_mode]));
     params.set(params.KEY_SCENE_MODE, scene[scene_mode]);
     params.set(KEY_CAF, caf_mode);
     params.set(KEY_ISO, iso_mode);
     params.set(KEY_SHARPNESS, sharpness);
     params.set(KEY_CONTRAST, contrast);
     params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx);
-    params.set(KEY_EXPOSURE, exposure_mode);
+    params.set(KEY_EXPOSURE, exposure[exposure_mode]);
     params.set(KEY_BRIGHTNESS, brightness);
     params.set(KEY_SATURATION, saturation);
     params.set(params.KEY_EFFECT, effects[effects_mode]);
@@ -1301,7 +1301,7 @@ int functional_menu() {
                 compensation += 0.1;
             }
 
-            params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
+            params.set(KEY_COMPENSATION, (int) (compensation * 10));
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1434,7 +1434,7 @@ int functional_menu() {
             break;
 
         case '@':
-            if ( hardwareActive && !previewRunning ) {
+            if ( hardwareActive ) {
 
                 closeCamera();
 
@@ -1465,7 +1465,7 @@ int functional_menu() {
         case 'u':
             capture_mode++;
             capture_mode %= ARRAY_SIZE(capture);
-            params.set(KEY_MODE, (capture_mode + 1));
+            params.set(KEY_MODE, (capture[capture_mode]));
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1495,7 +1495,7 @@ int functional_menu() {
         case 'i':
             iso_mode++;
             iso_mode %= ARRAY_SIZE(iso);
-            params.set(KEY_ISO, iso_mode);
+            params.set(KEY_ISO, iso[iso_mode]);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1529,8 +1529,7 @@ int functional_menu() {
         case 'z':
             zoomIDX++;
             zoomIDX %= ARRAY_SIZE(zoom);
-            printf("sizeof(zoom)/sizeof(zoom[0]) %d",sizeof(zoom)/sizeof(zoom[0]));
-            params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx * zoomMAX/(sizeof(zoom)/sizeof(zoom[0])-1) - 1);
+            params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1540,7 +1539,7 @@ int functional_menu() {
         case 'j':
             exposure_mode++;
             exposure_mode %= ARRAY_SIZE(exposure);
-            params.set(KEY_EXPOSURE, exposure_mode);
+            params.set(KEY_EXPOSURE, exposure[exposure_mode]);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1979,7 +1978,7 @@ int execute_functional_script(char *script) {
 
             case '7':
                 compensation = atof(cmd + 1);
-                params.set(KEY_COMPENSATION, (int) (compensation * 10) + COMPENSATION_OFFSET);
+                params.set(KEY_COMPENSATION, (int) (compensation * 10));
 
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
@@ -2205,7 +2204,7 @@ int execute_functional_script(char *script) {
                 break;
 
             case '@':
-                if ( hardwareActive && !previewRunning ) {
+                if ( hardwareActive ) {
 
                     closeCamera();
 
@@ -2231,7 +2230,7 @@ int execute_functional_script(char *script) {
 
             case 'z':
             case 'Z':
-                params.set(CameraParameters::KEY_ZOOM, (atoi(cmd + 1) - 1) * zoomMAX/(sizeof(zoom)/sizeof(zoom[0])-1) - 1);
+                params.set(CameraParameters::KEY_ZOOM, (atoi(cmd + 1) - 1));
 
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
@@ -2315,8 +2314,7 @@ int execute_functional_script(char *script) {
                     ret = camera->takePicture();
 
                 if ( ret != NO_ERROR )
-                    printf("Error returned while taking a picture\n");
-
+                    printf("Error returned while taking a picture");
                 break;
 
             case 'd':
