@@ -465,7 +465,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     cap->mColorFormat = pixFormat;
 
-    str = params.get(TICameraParameters::KEY_EXPOSURE);
+    str = params.get(TICameraParameters::KEY_EXPOSURE_MODE);
     mode = getLUTvalue_HALtoOMX( str, ExpLUT);
     if ( ( str != NULL ) && ( mParameters3A.Exposure != mode ) )
         {
@@ -842,7 +842,7 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
     for(int i = 0; i < ExpLUT.size; i++)
         if( ExpLUT.Table[i].omxDefinition == exp.eExposureControl )
             str = (char*)ExpLUT.Table[i].userDefinition;
-    params.set( TICameraParameters::KEY_EXPOSURE , str);
+    params.set( TICameraParameters::KEY_EXPOSURE_MODE , str);
 
     for(int i = 0; i < WBalLUT.size; i++)
         if( WBalLUT.Table[i].omxDefinition == wb.eWhiteBalControl )

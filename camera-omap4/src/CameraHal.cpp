@@ -297,12 +297,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     CAMHAL_LOGDB("FRAMERATE %d", framerate);
 
     ///Update the current parameter set
-    if((params.get(TICameraParameters::KEY_EXPOSURE)!=NULL)
-        && isParameterValid(params.get(TICameraParameters::KEY_EXPOSURE),
+    if((params.get(TICameraParameters::KEY_EXPOSURE_MODE)!=NULL)
+        && isParameterValid(params.get(TICameraParameters::KEY_EXPOSURE_MODE),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EXPOSURE_MODES]->mPropValue))
         {
         CAMHAL_LOGDA("Exposure set");
-        mParameters.set(TICameraParameters::KEY_EXPOSURE, params.get(TICameraParameters::KEY_EXPOSURE));
+        mParameters.set(TICameraParameters::KEY_EXPOSURE_MODE, params.get(TICameraParameters::KEY_EXPOSURE_MODE));
         }
 
     if((params.get(CameraParameters::KEY_WHITE_BALANCE)!=NULL)
@@ -1896,6 +1896,54 @@ exit:
     return ret;
 }
 
+status_t CameraHal::parseResolution(const char *resStr, int &width, int &height)
+{
+    status_t ret = NO_ERROR;
+    char *ctx, *pWidth, *pHeight;
+    const char *sep = "x";
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == resStr )
+        {
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        pWidth = strtok_r( (char *) resStr, sep, &ctx);
+
+        if ( NULL != pWidth )
+            {
+            width = atoi(pWidth);
+            }
+        else
+            {
+            CAMHAL_LOGEB("Invalid input resolution %s", resStr);
+            ret = -EINVAL;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        pHeight = strtok_r(NULL, sep, &ctx);
+
+        if ( NULL != pHeight )
+            {
+            height = atoi(pHeight);
+            }
+        else
+            {
+            CAMHAL_LOGEB("Invalid input resolution %s", resStr);
+            ret = -EINVAL;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 void CameraHal::insertSupportedParams()
 {
     CameraProperties::CameraProperty **currentProp;
@@ -1924,9 +1972,11 @@ void CameraHal::insertSupportedParams()
         }
     p.set(TICameraParameters::KEY_SUPPORTED_CAMERAS, tmpBuffer);
     p.set(TICameraParameters::KEY_CAMERA, mCameraIndex);
-    //
 
-    //Eclair extended parameters
+    ///Set the name of the camera
+    p.set(TICameraParameters::KEY_CAMERA_NAME, mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue);
+
+
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue);
@@ -1959,26 +2009,72 @@ void CameraHal::initDefaultParameters()
 {
     //Purpose of this function is to initialize the default current and supported parameters for the currently
     //selected camera.
-    //@todo Should query from a CameraProperties class which is maintained per camera supported on the
-    //        platform
+
     CameraParameters &p = mParameters;
+    status_t ret = NO_ERROR;
+    int width, height;
+
 
     LOG_FUNCTION_NAME
 
-    p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
-    p.setPreviewFrameRate(30);
-    p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
+    ret = parseResolution((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PREVIEW_SIZE]->mPropValue, width, height);
 
-    ///@todo set the maximum capture size from property class based on camera selected
-    p.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
-    p.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
-    p.set(CameraParameters::KEY_JPEG_QUALITY, 100);
+    if ( NO_ERROR == ret )
+        {
+        p.setPreviewSize(width, height);
+        }
+    else
+        {
+        p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
+        }
+
+    p.setPreviewFrameRate(atoi((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PREVIEW_FRAME_RATE]->mPropValue));
+    p.setPreviewFormat((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PREVIEW_FORMAT]->mPropValue);
+
+    ret = parseResolution((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PICTURE_SIZE]->mPropValue, width, height);
+
+    if ( NO_ERROR == ret )
+        {
+        p.setPictureSize(width, height);
+        }
+    else
+        {
+        p.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
+        }
+
+    p.setPictureFormat((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PICTURE_FORMAT]->mPropValue);
+    p.set(CameraParameters::KEY_JPEG_QUALITY, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_JPEG_QUALITY]->mPropValue);
+
+    ret = parseResolution((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_JPEG_THUMBNAIL_SIZE]->mPropValue, width, height);
+
+    if ( NO_ERROR == ret )
+        {
+        p.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, width);
+        p.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, height);
+        }
+    else
+        {
+        p.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, MIN_WIDTH);
+        p.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, MIN_HEIGHT);
+        }
+
+    p.set(CameraParameters::KEY_JPEG_QUALITY, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_JPEG_QUALITY]->mPropValue);
+    p.set(CameraParameters::KEY_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_WHITEBALANCE]->mPropValue);
+    p.set(CameraParameters::KEY_EFFECT,  (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EFFECT]->mPropValue);
+    p.set(CameraParameters::KEY_ANTIBANDING, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ANTIBANDING]->mPropValue);
+    p.set(CameraParameters::KEY_FLASH_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_FLASH_MODE]->mPropValue);
+    p.set(CameraParameters::KEY_FOCUS_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_FOCUS_MODE]->mPropValue);
+    p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EV_COMPENSATION]->mPropValue);
+    p.set(CameraParameters::KEY_SCENE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SCENE_MODE]->mPropValue);
+    p.set(CameraParameters::KEY_ZOOM, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ZOOM]->mPropValue);
+    p.set(TICameraParameters::KEY_CONTRAST, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_CONTRAST]->mPropValue);
+    p.set(TICameraParameters::KEY_SATURATION, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SATURATION]->mPropValue);
+    p.set(TICameraParameters::KEY_BRIGHTNESS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_BRIGHTNESS]->mPropValue);
+    p.set(TICameraParameters::KEY_SHARPNESS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SHARPNESS]->mPropValue);
+    p.set(TICameraParameters::KEY_EXPOSURE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXPOSURE_MODE]->mPropValue);
+    p.set(TICameraParameters::KEY_ISO, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ISO_MODE]->mPropValue);
 
     insertSupportedParams();
-
-    //@todo Define constants for these custom parameters instead of hard-coding them
-    //p.set("max-zoom" , MAX_ZOOM);
-    //p.set("zoom", 0);
 
     if ( setParameters(p) != NO_ERROR )
         {

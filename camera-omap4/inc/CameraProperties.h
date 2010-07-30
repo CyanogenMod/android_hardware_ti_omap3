@@ -74,6 +74,27 @@ public:
         PROP_INDEX_SUPPORTED_ZOOM_STAGES,
         PROP_INDEX_ZOOM_SUPPORTED,
         PROP_INDEX_SMOOTH_ZOOM_SUPPORTED,
+        PROP_INDEX_PREVIEW_SIZE,
+        PROP_INDEX_PREVIEW_FORMAT,
+        PROP_INDEX_PREVIEW_FRAME_RATE,
+        PROP_INDEX_ZOOM,
+        PROP_INDEX_PICTURE_SIZE,
+        PROP_INDEX_PICTURE_FORMAT,
+        PROP_INDEX_JPEG_THUMBNAIL_SIZE,
+        PROP_INDEX_WHITEBALANCE,
+        PROP_INDEX_EFFECT,
+        PROP_INDEX_ANTIBANDING,
+        PROP_INDEX_EXPOSURE_MODE,
+        PROP_INDEX_EV_COMPENSATION,
+        PROP_INDEX_ISO_MODE,
+        PROP_INDEX_FOCUS_MODE,
+        PROP_INDEX_SCENE_MODE,
+        PROP_INDEX_FLASH_MODE,
+        PROP_INDEX_JPEG_QUALITY,
+        PROP_INDEX_CONTRAST,
+        PROP_INDEX_SATURATION,
+        PROP_INDEX_BRIGHTNESS,
+        PROP_INDEX_SHARPNESS,
         PROP_INDEX_MAX
         };
 
@@ -103,6 +124,27 @@ public:
     static const char PROP_KEY_SUPPORTED_ZOOM_STAGES[];
     static const char PROP_KEY_SMOOTH_ZOOM_SUPPORTED[];
     static const char PROP_KEY_ZOOM_SUPPORTED[];
+    static const char PROP_KEY_PREVIEW_SIZE[];
+    static const char PROP_KEY_PREVIEW_FORMAT[];
+    static const char PROP_KEY_PREVIEW_FRAME_RATE[];
+    static const char PROP_KEY_ZOOM[];
+    static const char PROP_KEY_PICTURE_SIZE[];
+    static const char PROP_KEY_PICTURE_FORMAT[];
+    static const char PROP_KEY_JPEG_THUMBNAIL_SIZE[];
+    static const char PROP_KEY_WHITEBALANCE[];
+    static const char PROP_KEY_EFFECT[];
+    static const char PROP_KEY_ANTIBANDING[];
+    static const char PROP_KEY_EXPOSURE_MODE[];
+    static const char PROP_KEY_EV_COMPENSATION[];
+    static const char PROP_KEY_ISO_MODE[];
+    static const char PROP_KEY_FOCUS_MODE[];
+    static const char PROP_KEY_SCENE_MODE[];
+    static const char PROP_KEY_FLASH_MODE[];
+    static const char PROP_KEY_JPEG_QUALITY[];
+    static const char PROP_KEY_BRIGHTNESS[];
+    static const char PROP_KEY_SATURATION[];
+    static const char PROP_KEY_SHARPNESS[];
+    static const char PROP_KEY_CONTRAST[];
     static const char PARAMS_DELIMITER [];
 
     static const char TICAMERA_FILE_PREFIX[];

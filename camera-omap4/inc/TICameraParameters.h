@@ -38,6 +38,8 @@ public:
 static const  char KEY_SUPPORTED_CAMERAS[];
 // Select logical Camera index
 static const char KEY_CAMERA[];
+static const char KEY_CAMERA_NAME[];
+
 
 static const char KEY_BURST[];
 static const  char KEY_CAP_MODE[];
@@ -45,7 +47,7 @@ static const  char KEY_VSTAB[];
 static const  char KEY_VNF[];
 static const  char KEY_SATURATION[];
 static const  char KEY_BRIGHTNESS[];
-static const  char KEY_EXPOSURE[];
+static const  char KEY_EXPOSURE_MODE[];
 static const  char KEY_SUPPORTED_EXPOSURE[];
 static const  char KEY_CONTRAST[];
 static const  char KEY_SHARPNESS[];
@@ -106,9 +108,6 @@ static const char ISO_MODE_1600[];
 static const char EFFECT_NATURAL[];
 static const char EFFECT_VIVID[];
 static const char EFFECT_COLOR_SWAP[];
-
-
-
 
 };
 

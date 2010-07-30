@@ -33,13 +33,14 @@ namespace android {
 // TI extensions to standard android Parameters
 const char TICameraParameters::KEY_SUPPORTED_CAMERAS[] = "camera-indexes";
 const char TICameraParameters::KEY_CAMERA[] = "camera-index";
+const char TICameraParameters::KEY_CAMERA_NAME[] = "camera-name";
 const char TICameraParameters::KEY_BURST[] = "burst-capture";
 const char TICameraParameters::KEY_CAP_MODE[] = "mode";
 const char TICameraParameters::KEY_VSTAB[] = "vstab";
 const char TICameraParameters::KEY_VNF[] = "vnf";
 const char TICameraParameters::KEY_SATURATION[] = "saturation";
 const char TICameraParameters::KEY_BRIGHTNESS[] = "brightness";
-const char TICameraParameters::KEY_EXPOSURE[] = "exposure";
+const char TICameraParameters::KEY_EXPOSURE_MODE[] = "exposure";
 const char TICameraParameters::KEY_SUPPORTED_EXPOSURE[] = "exposure-mode-values";
 const char TICameraParameters::KEY_CONTRAST[] = "contrast";
 const char TICameraParameters::KEY_SHARPNESS[] = "sharpness";
@@ -102,9 +103,5 @@ const char TICameraParameters::ISO_MODE_800[] = "800";
 const char TICameraParameters::ISO_MODE_1000[] = "1000";
 const char TICameraParameters::ISO_MODE_1200[] = "1200";
 const char TICameraParameters::ISO_MODE_1600[] = "1600";
-
-
-
-
 };
 

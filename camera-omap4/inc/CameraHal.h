@@ -857,7 +857,8 @@ private:
             //Reloads the CameraAdapter
             status_t reloadAdapter();
 
-            //Inserts the currently supported CameraAdapter parameters
+            status_t parseResolution(const char *resStr, int &width, int &height);
+
             void insertSupportedParams();
 
             /** Allocate preview buffers */

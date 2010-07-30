@@ -60,6 +60,27 @@ const char CameraProperties::PROP_KEY_SUPPORTED_ZOOM_RATIOS[] = "zoom-ratios";
 const char CameraProperties::PROP_KEY_SUPPORTED_ZOOM_STAGES[] = "zoom-stages";
 const char CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED[] = "smooth-zoom-supported";
 const char CameraProperties::PROP_KEY_ZOOM_SUPPORTED[] = "zoom-supported";
+const char CameraProperties::PROP_KEY_PREVIEW_SIZE[] = "preview-size";
+const char CameraProperties::PROP_KEY_PREVIEW_FORMAT[] = "preview-format";
+const char CameraProperties::PROP_KEY_PREVIEW_FRAME_RATE[] = "preview-frame-rate";
+const char CameraProperties::PROP_KEY_ZOOM[] = "zoom";
+const char CameraProperties::PROP_KEY_PICTURE_SIZE[] = "picture-size";
+const char CameraProperties::PROP_KEY_PICTURE_FORMAT[] = "picture-format";
+const char CameraProperties::PROP_KEY_JPEG_THUMBNAIL_SIZE[] = "jpeg-thumbnail-size";
+const char CameraProperties::PROP_KEY_WHITEBALANCE[] = "whitebalance";
+const char CameraProperties::PROP_KEY_EFFECT[] = "effect";
+const char CameraProperties::PROP_KEY_ANTIBANDING[] = "antibanding";
+const char CameraProperties::PROP_KEY_EXPOSURE_MODE[] = "exposure-mode";
+const char CameraProperties::PROP_KEY_EV_COMPENSATION[] = "ev-compensation";
+const char CameraProperties::PROP_KEY_ISO_MODE[] = "iso-mode";
+const char CameraProperties::PROP_KEY_FOCUS_MODE[] = "focus-mode";
+const char CameraProperties::PROP_KEY_SCENE_MODE[] = "scene-mode";
+const char CameraProperties::PROP_KEY_FLASH_MODE[] = "flash-mode";
+const char CameraProperties::PROP_KEY_JPEG_QUALITY[] = "jpeg-quality";
+const char CameraProperties::PROP_KEY_CONTRAST[] = "contrast";
+const char CameraProperties::PROP_KEY_BRIGHTNESS[] = "brightness";
+const char CameraProperties::PROP_KEY_SATURATION[] = "saturation";
+const char CameraProperties::PROP_KEY_SHARPNESS[] = "sharpness";
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
 
@@ -663,7 +684,126 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_SMOOTH_ZOOM_SUPPORTED;
         }
-
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_PREVIEW_SIZE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_PREVIEW_SIZE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_PREVIEW_SIZE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_PREVIEW_FORMAT))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_PREVIEW_FORMAT");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_PREVIEW_FORMAT;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_PREVIEW_FRAME_RATE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_PREVIEW_FRAME_RATE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_PREVIEW_FRAME_RATE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_ZOOM))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_ZOOM");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_ZOOM;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_PICTURE_SIZE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_PICTURE_SIZE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_PICTURE_SIZE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_PICTURE_FORMAT))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_PICTURE_FORMAT");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_PICTURE_FORMAT;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_JPEG_THUMBNAIL_SIZE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_JPEG_THUMBNAIL_SIZE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_JPEG_THUMBNAIL_SIZE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_WHITEBALANCE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_WHITEBALANCE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_WHITEBALANCE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_EFFECT))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_EFFECT");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_EFFECT;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_ANTIBANDING))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_ANTIBANDING");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_ANTIBANDING;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_EXPOSURE_MODE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_EXPOSURE_MODE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_EXPOSURE_MODE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_EV_COMPENSATION))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_EV_COMPENSATION");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_EV_COMPENSATION;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_ISO_MODE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_ISO_MODE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_ISO_MODE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_FOCUS_MODE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_FOCUS_MODE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_FOCUS_MODE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SCENE_MODE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_SCENE_MODE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SCENE_MODE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_FLASH_MODE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_FLASH_MODE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_FLASH_MODE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_CONTRAST))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_CONTRAST");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_CONTRAST;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_BRIGHTNESS))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_BRIGHTNESS");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_BRIGHTNESS;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SATURATION))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_SATURATION");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SATURATION;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SHARPNESS))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_SHARPNESS");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SHARPNESS;
+        }
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
     LOG_FUNCTION_NAME_EXIT
@@ -808,6 +948,106 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED;
+
+        case CameraProperties::PROP_INDEX_PREVIEW_FORMAT:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_PREVIEW_FORMAT );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_PREVIEW_FORMAT;
+
+        case CameraProperties::PROP_INDEX_PREVIEW_FRAME_RATE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_PREVIEW_FRAME_RATE );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_PREVIEW_FRAME_RATE;
+
+        case CameraProperties::PROP_INDEX_ZOOM:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_ZOOM );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_ZOOM;
+
+        case CameraProperties::PROP_INDEX_PICTURE_SIZE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_PICTURE_SIZE );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_PICTURE_SIZE;
+
+        case CameraProperties::PROP_INDEX_PICTURE_FORMAT:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_PICTURE_FORMAT );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_PICTURE_FORMAT;
+
+        case CameraProperties::PROP_INDEX_JPEG_THUMBNAIL_SIZE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_JPEG_THUMBNAIL_SIZE );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_JPEG_THUMBNAIL_SIZE;
+
+        case CameraProperties::PROP_INDEX_WHITEBALANCE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_WHITEBALANCE );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_WHITEBALANCE;
+
+        case CameraProperties::PROP_INDEX_EFFECT:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_EFFECT );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_EFFECT;
+
+        case CameraProperties::PROP_INDEX_ANTIBANDING:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_ANTIBANDING );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_ANTIBANDING;
+
+        case CameraProperties::PROP_INDEX_EXPOSURE_MODE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_EXPOSURE_MODE );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_EXPOSURE_MODE;
+
+        case CameraProperties::PROP_INDEX_EV_COMPENSATION:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_EV_COMPENSATION );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_EV_COMPENSATION;
+
+        case CameraProperties::PROP_INDEX_ISO_MODE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_ISO_MODE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_ISO_MODE;
+
+        case CameraProperties::PROP_INDEX_FOCUS_MODE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_FOCUS_MODE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_FOCUS_MODE;
+
+        case CameraProperties::PROP_INDEX_SCENE_MODE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SCENE_MODE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SCENE_MODE;
+
+        case CameraProperties::PROP_INDEX_FLASH_MODE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_FLASH_MODE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_FLASH_MODE;
+
+        case CameraProperties::PROP_INDEX_JPEG_QUALITY:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_JPEG_QUALITY);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_JPEG_QUALITY;
+
+        case CameraProperties::PROP_INDEX_CONTRAST:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_CONTRAST);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_CONTRAST;
+
+        case CameraProperties::PROP_INDEX_BRIGHTNESS:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_BRIGHTNESS);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_BRIGHTNESS;
+
+        case CameraProperties::PROP_INDEX_SHARPNESS:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SHARPNESS);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SHARPNESS;
+
+        case CameraProperties::PROP_INDEX_SATURATION:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SATURATION);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SATURATION;
 
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );
