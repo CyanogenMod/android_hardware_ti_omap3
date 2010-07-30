@@ -324,6 +324,10 @@ void CameraHal::initDefaultParameters()
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_DAYLIGHT, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_SHADE, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_CLOUDY_DAYLIGHT, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) WHITE_BALANCE_HORIZON, PARAM_BUFFER)) return;
     p.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE, tmpBuffer);
     p.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_AUTO);
 
@@ -1469,6 +1473,7 @@ void CameraHal::nextPreview()
         mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewBuffers[cfilledbuffer.index], mCallbackCookie);
 
     nBuffers_queued_to_dss = mOverlay->queueBuffer((void*)cfilledbuffer.index);
+
     if (nBuffers_queued_to_dss < 0)
     {
         LOGE("nextPreview(): mOverlay->queueBuffer(%d) failed",cfilledbuffer.index);
@@ -3746,7 +3751,17 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
+            } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) WHITE_BALANCE_HORIZON) == 0) {
+
+                fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_HORIZON;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.wb = EXIF_WB_MANUAL;
+
+#endif
             }
+
         }
 
         if ( params.get(CameraParameters::KEY_EFFECT) != NULL ) {
@@ -4283,6 +4298,9 @@ CameraParameters CameraHal::getParameters() const
             case ICAM_WHITE_BALANCE_MODE_WB_AUTO:
                 params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_AUTO);
                 break;
+            case ICAM_WHITE_BALANCE_MODE_WB_HORIZON:
+                params.set(CameraParameters::KEY_WHITE_BALANCE, WHITE_BALANCE_HORIZON);
+                break;
             //TODO: Extend support for those
             case ICAM_WHITE_BALANCE_MODE_WB_MANUAL:
                 break;
@@ -4291,8 +4309,6 @@ CameraParameters CameraHal::getParameters() const
             case ICAM_WHITE_BALANCE_MODE_WB_OFFICE:
                 break;
             case ICAM_WHITE_BALANCE_MODE_WB_FLASH:
-                break;
-            case ICAM_WHITE_BALANCE_MODE_WB_HORIZON:
                 break;
         };
 
