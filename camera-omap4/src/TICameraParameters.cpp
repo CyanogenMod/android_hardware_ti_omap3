@@ -30,6 +30,11 @@
 
 namespace android {
 
+//TI extensions to camera mode
+const char TICameraParameters::HIGH_PERFORMANCE_MODE[] = "high-performance";
+const char TICameraParameters::HIGH_QUALITY_MODE[] = "high-quality";
+const char TICameraParameters::VIDEO_MODE[] = "video-mode";
+
 // TI extensions to standard android Parameters
 const char TICameraParameters::KEY_SUPPORTED_CAMERAS[] = "camera-indexes";
 const char TICameraParameters::KEY_CAMERA[] = "camera-index";

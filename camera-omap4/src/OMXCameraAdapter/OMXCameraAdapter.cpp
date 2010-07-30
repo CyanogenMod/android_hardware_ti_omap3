@@ -614,9 +614,24 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Picture Rotation set %d", mPictureRotation);
 
-    if ( params.getInt(TICameraParameters::KEY_CAP_MODE) != -1 )
+    if ( NULL != params.get(TICameraParameters::KEY_CAP_MODE) )
         {
-        mCapMode = ( OMXCameraAdapter::CaptureMode ) params.getInt(TICameraParameters::KEY_CAP_MODE);
+        if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::HIGH_PERFORMANCE_MODE) == 0)
+            {
+            mCapMode = OMXCameraAdapter::HIGH_SPEED;
+            } 
+        else if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::HIGH_QUALITY_MODE) == 0)
+            {
+            mCapMode = OMXCameraAdapter::HIGH_QUALITY;
+            }
+        else if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::VIDEO_MODE) == 0)
+            {
+            mCapMode = OMXCameraAdapter::VIDEO_MODE;
+            }
+        else
+            {
+            mCapMode = OMXCameraAdapter::HIGH_QUALITY;
+            }
         }
     else
         {

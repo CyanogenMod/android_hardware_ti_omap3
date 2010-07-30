@@ -56,6 +56,10 @@ static const  char KEY_SUPPORTED_ISO_VALUES[];
 static const  char KEY_MAN_EXPOSURE[];
 static const  char KEY_METERING_MODE[];
 
+//TI extensions to camera mode
+static const char HIGH_PERFORMANCE_MODE[];
+static const char HIGH_QUALITY_MODE[];
+static const char VIDEO_MODE[];
 
 // TI extensions to standard android pixel formats
 static const  char PIXEL_FORMAT_RAW[];
