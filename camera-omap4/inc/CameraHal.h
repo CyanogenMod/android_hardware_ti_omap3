@@ -70,9 +70,9 @@
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
 
-#define DEBUG_LOG 1
+#define DEBUG_LOG 0
 ///Camera HAL Logging Functions
-#if DEBUG_LOG
+#ifndef DEBUG_LOG
 
 #define CAMHAL_LOGDA(str)
 #define CAMHAL_LOGDB(str, ...)
@@ -858,7 +858,7 @@ private:
             status_t reloadAdapter();
 
             //Inserts the currently supported CameraAdapter parameters
-            void insertSupportedParams(CameraParameters &p);
+            void insertSupportedParams();
 
             /** Allocate preview buffers */
             status_t allocPreviewBufs(int width, int height, const char* previewFormat);

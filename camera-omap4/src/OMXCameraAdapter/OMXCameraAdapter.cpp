@@ -660,6 +660,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mThumbWidth = DEFAULT_THUMB_WIDTH;
         }
 
+
     CAMHAL_LOGVB("Picture Thumb width set %d", mThumbWidth);
 
     if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT)  > 0 )
@@ -671,101 +672,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mThumbHeight = DEFAULT_THUMB_HEIGHT;
         }
 
-    CAMHAL_LOGVB("Picture Rotation set %d", mPictureRotation);
 
-    if ( params.getInt(TICameraParameters::KEY_CAP_MODE) != -1 )
-        {
-        mCapMode = ( OMXCameraAdapter::CaptureMode ) params.getInt(TICameraParameters::KEY_CAP_MODE);
-        }
-    else
-        {
-        mCapMode = OMXCameraAdapter::HIGH_QUALITY;
-        }
+    CAMHAL_LOGVB("Picture Thumb width set %d", mThumbWidth);
 
-    CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
-
-    if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
-        {
-        mBurstFrames = params.getInt(TICameraParameters::KEY_BURST);
-
-        //always use high speed when doing burst
-        mCapMode = OMXCameraAdapter::HIGH_SPEED;
-        }
-    else
-        {
-        mBurstFrames = 1;
-        }
-
-    CAMHAL_LOGVB("Burst Frames set %d", mBurstFrames);
-
-    if ( ( params.getInt(CameraParameters::KEY_JPEG_QUALITY)  >= MIN_JPEG_QUALITY ) &&
-         ( params.getInt(CameraParameters::KEY_JPEG_QUALITY)  <= MAX_JPEG_QUALITY ) )
-        {
-        mPictureQuality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
-        }
-    else
-        {
-        mPictureQuality = MAX_JPEG_QUALITY;
-        }
-
-    CAMHAL_LOGVB("Picture Quality set %d", mPictureQuality);
-
-    if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH)  > 0 )
-        {
-        mThumbWidth = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
-        }
-    else
-        {
-        mThumbWidth = DEFAULT_THUMB_WIDTH;
-        }
-
-    if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT)  > 0 )
-        {
-        mThumbHeight = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
-        }
-    else
-        {
-        mThumbHeight = DEFAULT_THUMB_HEIGHT;
-        }
-
-    CAMHAL_LOGDB("Picture Thumb size set %d x %d", mThumbWidth, mThumbHeight);
-
-
-    ///Set VNF Configuration
-    if ( params.getInt(TICameraParameters::KEY_VNF)  > 0 )
-        {
-        CAMHAL_LOGDA("VNF Enabled");
-        mVnfEnabled = true;
-        }
-    else
-        {
-        CAMHAL_LOGDA("VNF Disabled");
-        mVnfEnabled = false;
-        }
-
-    ///Set VSTAB Configuration
-    if ( params.getInt(TICameraParameters::KEY_VSTAB)  > 0 )
-        {
-        CAMHAL_LOGDA("VSTAB Enabled");
-        mVstabEnabled = true;
-        }
-    else
-        {
-        CAMHAL_LOGDA("VSTAB Disabled");
-        mVstabEnabled = false;
-        }
-
-    if ( ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY)  >= MIN_JPEG_QUALITY ) &&
-         ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY)  <= MAX_JPEG_QUALITY ) )
-        {
-        mThumbQuality = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY);
-        }
-    else
-        {
-        mThumbQuality = MAX_JPEG_QUALITY;
-        }
-
-    CAMHAL_LOGDB("Thumbnail Quality set %d", mThumbQuality);
 
     ///Set VNF Configuration
     if ( params.getInt(TICameraParameters::KEY_VNF)  > 0 )
@@ -2139,6 +2048,8 @@ status_t OMXCameraAdapter::setThumbnailParams(unsigned int width, unsigned int h
         thumbConf.nHeight = height;
         thumbConf.nQuality = quality;
 
+        CAMHAL_LOGDB("Thumbnail width = %d, Thumbnail Height = %d", width, height);
+
         eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexParamThumbnail, &thumbConf);
         if ( OMX_ErrorNone != eError )
             {
@@ -3220,8 +3131,9 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             mReturnZoomStatus = false;
             }
 
+        ///On the fly update to 3A settings not working
         //if( mPending3Asettings )
-        //    Apply3Asettings(mParameters3A);
+          //  Apply3Asettings(mParameters3A);
 
         if( mWaitingForSnapshot )
             {
