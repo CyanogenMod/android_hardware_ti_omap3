@@ -113,22 +113,6 @@ namespace android {
     }                                                                           \
 }
 
-const char * exposureKey        = KEY_EXPOSURE;
-const char * manualExposureKey  = KEY_MAN_EXPOSURE;
-const char * zoomKey            = KEY_ZOOM;
-const char * zoomSpeedKey       = KEY_ZOOM_SPEED;
-const char * isoKey             = KEY_ISO;
-const char * cafKey             = KEY_CAF;
-const char * contrastKey        = KEY_CONTRAST;
-const char * sharpnessKey       = KEY_SHARPNESS;
-const char * saturationKey      = KEY_SATURATION;
-const char * brightnessKey      = KEY_BRIGHTNESS;
-const char * sceneKey           = KEY_SCENE_MODE;
-const char * antibandingKey     = CameraParameters::KEY_ANTIBANDING;
-const char * focusModeKey       = CameraParameters::KEY_FOCUS_MODE;
-const char * whiteBalKey        = CameraParameters::KEY_WHITE_BALANCE;
-const char * effectKey          = CameraParameters::KEY_EFFECT;
-
 ///OMX Specific Functions
 static OMX_ERRORTYPE OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETYPE hComponent,
                                         OMX_IN OMX_PTR pAppData,

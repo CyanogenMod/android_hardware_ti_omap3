@@ -465,7 +465,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     cap->mColorFormat = pixFormat;
 
-    str = params.get(exposureKey);
+    str = params.get(TICameraParameters::KEY_EXPOSURE);
     mode = getLUTvalue_HALtoOMX( str, ExpLUT);
     if ( ( str != NULL ) && ( mParameters3A.Exposure != mode ) )
         {
@@ -477,7 +477,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
-    str = params.get(whiteBalKey);
+    str = params.get(CameraParameters::KEY_WHITE_BALANCE);
     mode = getLUTvalue_HALtoOMX( str, WBalLUT);
     if ( ( str != NULL ) && ( mode != mParameters3A.WhiteBallance ) )
         {
@@ -489,47 +489,47 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
-    if ( 0 <= params.getInt(contrastKey) )
+    if ( 0 <= params.getInt(TICameraParameters::KEY_CONTRAST) )
         {
-        if ( (mParameters3A.Contrast  + CONTRAST_OFFSET) != params.getInt(contrastKey) )
+        if ( (mParameters3A.Contrast  + CONTRAST_OFFSET) != params.getInt(TICameraParameters::KEY_CONTRAST) )
             {
-            mParameters3A.Contrast = params.getInt(contrastKey) - CONTRAST_OFFSET;
+            mParameters3A.Contrast = params.getInt(TICameraParameters::KEY_CONTRAST) - CONTRAST_OFFSET;
             CAMHAL_LOGEB("Contrast %d", mParameters3A.Contrast);
             mPending3Asettings |= SetContrast;
             }
         }
 
-    if ( 0 <= params.getInt(sharpnessKey) )
+    if ( 0 <= params.getInt(TICameraParameters::KEY_SHARPNESS) )
         {
-        if ( (mParameters3A.Sharpness + SHARPNESS_OFFSET) != params.getInt(sharpnessKey) )
+        if ( (mParameters3A.Sharpness + SHARPNESS_OFFSET) != params.getInt(TICameraParameters::KEY_SHARPNESS) )
             {
-            mParameters3A.Sharpness = params.getInt(sharpnessKey) - SHARPNESS_OFFSET;
+            mParameters3A.Sharpness = params.getInt(TICameraParameters::KEY_SHARPNESS) - SHARPNESS_OFFSET;
             CAMHAL_LOGEB("Sharpness %d", mParameters3A.Sharpness);
             mPending3Asettings |= SetSharpness;
             }
         }
 
-    if ( 0 <= params.getInt(saturationKey) )
+    if ( 0 <= params.getInt(TICameraParameters::KEY_SATURATION) )
         {
-        if ( (mParameters3A.Saturation + SATURATION_OFFSET) != params.getInt(saturationKey) )
+        if ( (mParameters3A.Saturation + SATURATION_OFFSET) != params.getInt(TICameraParameters::KEY_SATURATION) )
             {
-            mParameters3A.Saturation = params.getInt(saturationKey) - SATURATION_OFFSET;
+            mParameters3A.Saturation = params.getInt(TICameraParameters::KEY_SATURATION) - SATURATION_OFFSET;
             CAMHAL_LOGEB("Saturation %d", mParameters3A.Saturation);
             mPending3Asettings |= SetSaturation;
             }
         }
 
-    if ( 0 <= params.getInt(brightnessKey) )
+    if ( 0 <= params.getInt(TICameraParameters::KEY_BRIGHTNESS) )
         {
-        if ( mParameters3A.Brightness !=  ( unsigned int ) params.getInt(brightnessKey) )
+        if ( mParameters3A.Brightness !=  ( unsigned int ) params.getInt(TICameraParameters::KEY_BRIGHTNESS) )
             {
-            mParameters3A.Brightness = (unsigned)params.getInt(brightnessKey);
+            mParameters3A.Brightness = (unsigned)params.getInt(TICameraParameters::KEY_BRIGHTNESS);
             CAMHAL_LOGEB("Brightness %d", mParameters3A.Brightness);
             mPending3Asettings |= SetBrightness;
             }
         }
 
-    str = params.get(antibandingKey);
+    str = params.get(CameraParameters::KEY_ANTIBANDING);
     mode = getLUTvalue_HALtoOMX(str,FlickerLUT);
     if ( ( str != NULL ) && ( mParameters3A.Flicker != mode ) )
         {
@@ -541,7 +541,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
-    str = params.get(isoKey);
+    str = params.get(TICameraParameters::KEY_ISO);
     mode = getLUTvalue_HALtoOMX(str, IsoLUT);
     CAMHAL_LOGEB("ISO mode arrived in HAL : %s", str);
     if ( ( str != NULL ) && ( mParameters3A.ISO != mode ) )
@@ -554,7 +554,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
-    str = params.get(focusModeKey);
+    str = params.get(CameraParameters::KEY_FOCUS_MODE);
     mode = getLUTvalue_HALtoOMX(str, FocusLUT);
     if ( ( str != NULL ) && ( mParameters3A.Focus != mode ) )
         {
@@ -575,7 +575,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mPending3Asettings |= SetEVCompensation;
         }
 
-    str = params.get(sceneKey);
+    str = params.get(CameraParameters::KEY_SCENE_MODE);
     mode = getLUTvalue_HALtoOMX( str, SceneLUT);
     if ( ( str != NULL ) && ( mParameters3A.SceneMode != mode ) )
         {
@@ -591,7 +591,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         CAMHAL_LOGEB("SceneMode %d", mParameters3A.SceneMode);
         }
 
-    str = params.get(effectKey);
+    str = params.get(CameraParameters::KEY_EFFECT);
     mode = getLUTvalue_HALtoOMX( str, EffLUT);
     if ( ( str != NULL ) && ( mParameters3A.Effect != mode ) )
         {
@@ -614,9 +614,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Picture Rotation set %d", mPictureRotation);
 
-    if ( params.getInt(KEY_CAP_MODE) != -1 )
+    if ( params.getInt(TICameraParameters::KEY_CAP_MODE) != -1 )
         {
-        mCapMode = ( OMXCameraAdapter::CaptureMode ) params.getInt(KEY_CAP_MODE);
+        mCapMode = ( OMXCameraAdapter::CaptureMode ) params.getInt(TICameraParameters::KEY_CAP_MODE);
         }
     else
         {
@@ -625,9 +625,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
 
-    if ( params.getInt(KEY_BURST)  >= 1 )
+    if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
         {
-        mBurstFrames = params.getInt(KEY_BURST);
+        mBurstFrames = params.getInt(TICameraParameters::KEY_BURST);
 
         //always use high speed when doing burst
         mCapMode = OMXCameraAdapter::HIGH_SPEED;
@@ -673,9 +673,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Picture Rotation set %d", mPictureRotation);
 
-    if ( params.getInt(KEY_CAP_MODE) != -1 )
+    if ( params.getInt(TICameraParameters::KEY_CAP_MODE) != -1 )
         {
-        mCapMode = ( OMXCameraAdapter::CaptureMode ) params.getInt(KEY_CAP_MODE);
+        mCapMode = ( OMXCameraAdapter::CaptureMode ) params.getInt(TICameraParameters::KEY_CAP_MODE);
         }
     else
         {
@@ -684,9 +684,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
 
-    if ( params.getInt(KEY_BURST)  >= 1 )
+    if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
         {
-        mBurstFrames = params.getInt(KEY_BURST);
+        mBurstFrames = params.getInt(TICameraParameters::KEY_BURST);
 
         //always use high speed when doing burst
         mCapMode = OMXCameraAdapter::HIGH_SPEED;
@@ -732,7 +732,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
 
     ///Set VNF Configuration
-    if ( params.getInt(KEY_VNF)  > 0 )
+    if ( params.getInt(TICameraParameters::KEY_VNF)  > 0 )
         {
         CAMHAL_LOGDA("VNF Enabled");
         mVnfEnabled = true;
@@ -744,7 +744,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         }
 
     ///Set VSTAB Configuration
-    if ( params.getInt(KEY_VSTAB)  > 0 )
+    if ( params.getInt(TICameraParameters::KEY_VSTAB)  > 0 )
         {
         CAMHAL_LOGDA("VSTAB Enabled");
         mVstabEnabled = true;
@@ -768,7 +768,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     CAMHAL_LOGDB("Thumbnail Quality set %d", mThumbQuality);
 
     ///Set VNF Configuration
-    if ( params.getInt(KEY_VNF)  > 0 )
+    if ( params.getInt(TICameraParameters::KEY_VNF)  > 0 )
         {
         CAMHAL_LOGDA("VNF Enabled");
         mVnfEnabled = true;
@@ -780,7 +780,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         }
 
     ///Set VSTAB Configuration
-    if ( params.getInt(KEY_VSTAB)  > 0 )
+    if ( params.getInt(TICameraParameters::KEY_VSTAB)  > 0 )
         {
         CAMHAL_LOGDA("VSTAB Enabled");
         mVstabEnabled = true;
@@ -803,7 +803,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("Thumbnail Quality set %d", mThumbQuality);
 
-    int zoom = params.getInt(KEY_ZOOM);
+    int zoom = params.getInt(CameraParameters::KEY_ZOOM);
     if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
         mTargetZoomIdx = zoom;
     } else {
@@ -933,49 +933,49 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
     for(int i = 0; i < ExpLUT.size; i++)
         if( ExpLUT.Table[i].omxDefinition == exp.eExposureControl )
             str = (char*)ExpLUT.Table[i].userDefinition;
-    params.set( exposureKey , str);
+    params.set( TICameraParameters::KEY_EXPOSURE , str);
 
     for(int i = 0; i < WBalLUT.size; i++)
         if( WBalLUT.Table[i].omxDefinition == wb.eWhiteBalControl )
             str = (char*)WBalLUT.Table[i].userDefinition;
-    params.set( whiteBalKey , str );
+    params.set( CameraParameters::KEY_WHITE_BALANCE , str );
 
     for(int i = 0; i < FlickerLUT.size; i++)
         if( FlickerLUT.Table[i].omxDefinition == flicker.eFlickerCancel )
             str = (char*)FlickerLUT.Table[i].userDefinition;
-    params.set( antibandingKey , str );
+    params.set( CameraParameters::KEY_ANTIBANDING , str );
 
     for(int i = 0; i < SceneLUT.size; i++)
         if( SceneLUT.Table[i].omxDefinition == scene.eSceneMode )
             str = (char*)SceneLUT.Table[i].userDefinition;
-    params.set( sceneKey , str );
+    params.set( CameraParameters::KEY_SCENE_MODE , str );
 
     for(int i = 0; i < EffLUT.size; i++)
         if( EffLUT.Table[i].omxDefinition == effect.eImageFilter )
             str = (char*)EffLUT.Table[i].userDefinition;
-    params.set( effectKey , str );
+    params.set( CameraParameters::KEY_EFFECT , str );
 
     for(int i = 0; i < FocusLUT.size; i++)
         if( FocusLUT.Table[i].omxDefinition == focus.eFocusControl )
             str = (char*)FocusLUT.Table[i].userDefinition;
 
-    params.set( focusModeKey , str );
+    params.set( CameraParameters::KEY_FOCUS_MODE , str );
 
     for(int i = 0; i < IsoLUT.size; i++)
         if( IsoLUT.Table[i].omxDefinition == ( int ) expValues.nSensitivity )
             str = (char*)IsoLUT.Table[i].userDefinition;
 
-    params.set( isoKey , str );
+    params.set( TICameraParameters::KEY_ISO , str );
 
     int comp = ((expValues.xEVCompensation * 10) >> Q16_OFFSET);
     params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, comp );
 
-    params.set(manualExposureKey, expValues.nShutterSpeedMsec);
-    params.set(brightnessKey, brightness.nBrightness);
-    params.set(contrastKey, contrast.nContrast );
-    params.set( sharpnessKey, procSharpness.nLevel);
-    params.set(saturationKey, saturation.nSaturation);
-    params.set(KEY_ZOOM, mCurrentZoomIdx);
+    params.set( TICameraParameters::KEY_MAN_EXPOSURE, expValues.nShutterSpeedMsec);
+    params.set( TICameraParameters::KEY_BRIGHTNESS, brightness.nBrightness);
+    params.set( TICameraParameters::KEY_CONTRAST, contrast.nContrast );
+    params.set( TICameraParameters::KEY_SHARPNESS, procSharpness.nLevel);
+    params.set( TICameraParameters::KEY_SATURATION, saturation.nSaturation);
+    params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx);
 
     LOG_FUNCTION_NAME_EXIT
 }

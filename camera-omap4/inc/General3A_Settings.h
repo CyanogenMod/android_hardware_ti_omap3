@@ -1,96 +1,105 @@
 #include "OMX_TI_IVCommon.h"
 #include "OMX_TI_Common.h"
 #include "OMX_TI_Index.h"
+#include "TICameraParameters.h"
+#include "CameraHal.h"
+
+#ifndef GENERAL_3A_SETTINGS_H
+#define GENERAL_3A_SETTINGS_H
+
+namespace android {
 
 /*
 *   Effect string constants
 */
-const char * effNone = "none";
-const char * effNegative = "negative";
-const char * effSolarize = "solarize";
-const char * effSepia = "sepia";
-const char * effMono = "mono";
-const char * effNatural = "natural";
-const char * effVivid = "vivid";
-const char * effColourSwap = "colourswap";
+const char * effNone 				= CameraParameters::EFFECT_NONE;
+const char * effNegative 			= CameraParameters::EFFECT_NEGATIVE;
+const char * effSolarize 			= CameraParameters::EFFECT_SOLARIZE;
+const char * effSepia 				= CameraParameters::EFFECT_SEPIA;
+const char * effMono 				= CameraParameters::EFFECT_MONO;
+const char * effNatural 			= TICameraParameters::EFFECT_NATURAL;
+const char * effVivid 				= TICameraParameters::EFFECT_VIVID;
+const char * effColourSwap 			= TICameraParameters::EFFECT_COLOR_SWAP;
 
 /*
-*
+* ISO Modes
 */
-const char * isoAuto = "auto";
-const char * iso100 = "100";
-const char * iso200 = "200";
-const char * iso400 = "400";
-const char * iso800 = "800";
-const char * iso1000 = "1000";
-const char * iso1200 = "1200";
-const char * iso1600 = "1600";
+const char * isoAuto 				= TICameraParameters::ISO_MODE_AUTO;
+const char * iso100 				= TICameraParameters::ISO_MODE_100;
+const char * iso200 				= TICameraParameters::ISO_MODE_200;
+const char * iso400 				= TICameraParameters::ISO_MODE_400;
+const char * iso800 				= TICameraParameters::ISO_MODE_800;
+const char * iso1000 				= TICameraParameters::ISO_MODE_1000;
+const char * iso1200 				= TICameraParameters::ISO_MODE_1200;
+const char * iso1600 				= TICameraParameters::ISO_MODE_1600;
 
 /*
-*
+* Scene modes
 */
-const char * sceneManual = "auto";
-const char * sceneCloseup = "closeup";
-const char * scenePortrait = "portrait";
-const char * sceneLandscape = "landscape";
-const char * sceneUnderwater = "aqua";
-const char * sceneSport = "action";
-const char * sceneSnowBeach = "snowbeach";
-const char * sceneMood = "mood";
-const char * sceneNoghtPortrait = "nightportrait";
-const char * sceneNightIndoor = "nightindoor";
-const char * sceneFireworks = "fireworks";
+const char * sceneManual 			= CameraParameters::SCENE_MODE_AUTO;
+const char * scenePortrait 			= CameraParameters::SCENE_MODE_PORTRAIT;
+const char * sceneLandscape 		= CameraParameters::SCENE_MODE_LANDSCAPE;
+const char * sceneSport 			= CameraParameters::SCENE_MODE_ACTION;
+const char * sceneSnow 				= CameraParameters::SCENE_MODE_SNOW;
+const char * sceneBeach 			= CameraParameters::SCENE_MODE_BEACH;
+const char * sceneNoghtPortrait 	= CameraParameters::SCENE_MODE_NIGHT_PORTRAIT;
+const char * sceneFireworks 		= CameraParameters::SCENE_MODE_FIREWORKS;
 
-const char * imgSceneDocument = "document";
-const char * imgSceneBarcode = "barcode";
-
-const char * vidSceneSuperNight = "supernight";
-const char * vidSceneCine = "cine";
-const char * vidSceneOldFilm = "oldfilm";
+const char * sceneCloseup 			= TICameraParameters::SCENE_MODE_CLOSEUP;
+const char * sceneUnderwater 		= TICameraParameters::SCENE_MODE_AQUA;
+const char * sceneMood 				= TICameraParameters::SCENE_MODE_MOOD;
+const char * sceneNightIndoor 		= TICameraParameters::SCENE_MODE_NIGHT_INDOOR;
+const char * imgSceneDocument 		= TICameraParameters::SCENE_MODE_DOCUMENT;
+const char * imgSceneBarcode 		= TICameraParameters::SCENE_MODE_BARCODE;
+const char * vidSceneSuperNight 	= TICameraParameters::SCENE_MODE_VIDEO_SUPER_NIGHT;
+const char * vidSceneCine 			= TICameraParameters::SCENE_MODE_VIDEO_CINE;
+const char * vidSceneOldFilm 		= TICameraParameters::SCENE_MODE_VIDEO_OLD_FILM;
 
 /*
-*
+* Whitebalance modes
 */
-const char * whihteBalAuto = "auto";
-const char * whihteBalDaylight = "daylight";
-const char * whihteBalCloudy = "cloudy-daylight";
-const char * whihteBalShade = "shade";
-const char * whihteBalTungsteen = "tungsten";
-const char * whihteBalFluorescent = "fluorescent";
-const char * whihteBalIncandescent = "incandescent";
-const char * whihteBalHorizon = "horizon";
+const char * whiteBalAuto 			= CameraParameters::WHITE_BALANCE_AUTO;
+const char * whiteBalDaylight 		= CameraParameters::WHITE_BALANCE_DAYLIGHT;
+const char * whiteBalCloudy 		= CameraParameters::WHITE_BALANCE_CLOUDY_DAYLIGHT;
+const char * whiteBalShade 			= CameraParameters::WHITE_BALANCE_SHADE;
+const char * whiteBalFluorescent 	= CameraParameters::WHITE_BALANCE_FLUORESCENT;
+const char * whiteBalIncandescent 	= CameraParameters::WHITE_BALANCE_INCANDESCENT;
+
+const char * whiteBalHorizon 		= TICameraParameters::WHITE_BALANCE_HORIZON;
+const char * whiteBalTungsten 		= TICameraParameters::WHITE_BALANCE_TUNGSTEN;
 
 /*
-*
+* Antibanding modes
 */
-const char * antibandingOff = "off";
-const char * antibandingAuto = "auto";
-const char * antibanding50hz = "50hz";
-const char * antibanding60hz = "60hz";
+const char * antibandingOff 		= CameraParameters::ANTIBANDING_OFF;
+const char * antibandingAuto 		= CameraParameters::ANTIBANDING_AUTO;
+const char * antibanding50hz 		= CameraParameters::ANTIBANDING_50HZ;
+const char * antibanding60hz 		= CameraParameters::ANTIBANDING_60HZ;
 
 /*
-*
+* Focus modes
 */
-const char * focusAuto = "auto";
-const char * focusInfinity = "infinity";
-const char * focusMacro = "macro";
-const char * focusPortrait = "portrait";
-const char * focusExtended = "extended";
-const char * focusCAF = "caf";
+const char * focusAuto 				= CameraParameters::FOCUS_MODE_AUTO;
+const char * focusInfinity 			= CameraParameters::FOCUS_MODE_INFINITY;
+const char * focusMacro 			= CameraParameters::FOCUS_MODE_MACRO;
+
+const char * focusPortrait 			= TICameraParameters::FOCUS_MODE_PORTRAIT;
+const char * focusExtended 			= TICameraParameters::FOCUS_MODE_EXTENDED;
+const char * focusCAF 				= TICameraParameters::FOCUS_MODE_CAF;
 
 /*
-*
+* Exposure modes
 */
-const char * exposureOff = "off";
-const char * exposureAuto = "auto";
-const char * exposureNight = "night";
-const char * exposureBackLight = "backlighting";
-const char * exposureSpotLight = "spotlight";
-const char * exposureSports = "sports";
-const char * exposureSnow = "snow";
-const char * exposureBeach = "beach";
-const char * exposureAperture = "aperture";
-const char * exposureSmallAperture = "smallaperture";
+const char * exposureOff 			= TICameraParameters::EXPOSURE_MODE_OFF;
+const char * exposureAuto 			= TICameraParameters::EXPOSURE_MODE_AUTO;
+const char * exposureNight 			= TICameraParameters::EXPOSURE_MODE_NIGHT;
+const char * exposureBackLight 		= TICameraParameters::EXPOSURE_MODE_BACKLIGHT;
+const char * exposureSpotLight 		= TICameraParameters::EXPOSURE_MODE_SPOTLIGHT;
+const char * exposureSports			= TICameraParameters::EXPOSURE_MODE_SPORTS;
+const char * exposureSnow 			= TICameraParameters::EXPOSURE_MODE_SNOW;
+const char * exposureBeach 			= TICameraParameters::EXPOSURE_MODE_BEACH;
+const char * exposureAperture 		= TICameraParameters::EXPOSURE_MODE_APERTURE;
+const char * exposureSmallAperture 	= TICameraParameters::EXPOSURE_MODE_SMALL_APERTURE;
 
 struct userToOMX_LUT{
     const char * userDefinition;
@@ -131,7 +140,8 @@ userToOMX_LUT scene_UserToOMX [] = {
     {  sceneLandscape     ,OMX_Landscape    },
     {  sceneUnderwater    ,OMX_Underwater   },
     {  sceneSport         ,OMX_Sport        },
-    {  sceneSnowBeach     ,OMX_SnowBeach    },
+    {  sceneBeach		  ,OMX_SnowBeach    },
+    {  sceneSnow		  ,OMX_SnowBeach    },
     {  sceneMood          ,OMX_Mood         },
     {  sceneNoghtPortrait ,OMX_NightPortrait},
     {  sceneNightIndoor   ,OMX_NightIndoor  },
@@ -144,14 +154,14 @@ userToOMX_LUT scene_UserToOMX [] = {
 };
 
 userToOMX_LUT whiteBal_UserToOMX [] = {
-    { whihteBalAuto           ,OMX_WhiteBalControlAuto          },
-    { whihteBalDaylight       ,OMX_WhiteBalControlSunLight      },
-    { whihteBalCloudy         ,OMX_WhiteBalControlCloudy        },
-    { whihteBalShade          ,OMX_WhiteBalControlShade         },
-    { whihteBalTungsteen      ,OMX_WhiteBalControlTungsten      },
-    { whihteBalFluorescent    ,OMX_WhiteBalControlFluorescent   },
-    { whihteBalIncandescent   ,OMX_WhiteBalControlIncandescent  },
-    { whihteBalHorizon        ,OMX_WhiteBalControlHorizon       }
+    { whiteBalAuto           ,OMX_WhiteBalControlAuto          },
+    { whiteBalDaylight       ,OMX_WhiteBalControlSunLight      },
+    { whiteBalCloudy         ,OMX_WhiteBalControlCloudy        },
+    { whiteBalShade          ,OMX_WhiteBalControlShade         },
+    { whiteBalTungsten       ,OMX_WhiteBalControlTungsten      },
+    { whiteBalFluorescent    ,OMX_WhiteBalControlFluorescent   },
+    { whiteBalIncandescent   ,OMX_WhiteBalControlIncandescent  },
+    { whiteBalHorizon        ,OMX_WhiteBalControlHorizon       }
 };
 
 userToOMX_LUT antibanding_UserToOMX [] = {
@@ -271,3 +281,7 @@ enum E3ASettingsFlags
     E3aSettingMax,
     E3AsettingsAll = ( ((E3aSettingMax -1 ) << 1) -1 ) /// all possible flags raised
 };
+
+};
+
+#endif //GENERAL_3A_SETTINGS_H
