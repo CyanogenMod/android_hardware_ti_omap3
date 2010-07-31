@@ -2497,7 +2497,13 @@ status_t OMXCameraAdapter::notifyFocusSubscribers()
                 frameCounter = 0;
                 focusStatus = true;
                 }
-            else if ( frameCounter > mFocusThreshold )
+            else if((OMX_FocusStatusOff == eFocusStatus.eFocusStatus) || (OMX_FocusStatusUnableToReach == eFocusStatus.eFocusStatus))
+                {
+                stopAutoFocus();
+                frameCounter = 0;
+                focusStatus = false;
+                }
+            else if ( (OMX_FocusStatusRequest == eFocusStatus.eFocusStatus) && (frameCounter > mFocusThreshold) )
                 {
                 stopAutoFocus();
                 frameCounter = 0;
