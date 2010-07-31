@@ -3204,8 +3204,8 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             mReturnZoomStatus = false;
             }
 
-        if( mPending3Asettings )
-            Apply3Asettings(mParameters3A);
+        //if( mPending3Asettings )
+        //    Apply3Asettings(mParameters3A);
 
         if( mWaitingForSnapshot )
             {
@@ -3478,7 +3478,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     exp.nSize = sizeof(OMX_CONFIG_EXPOSURECONTROLTYPE);
                     exp.nVersion = mLocalVersionParam;
                     exp.nPortIndex = OMX_ALL;
-                    mPending3Asettings &= !currSett;
 
                     exp.eExposureControl = (OMX_EXPOSURECONTROLTYPE)Gen3A.Exposure;
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposure, &exp);
@@ -3493,7 +3492,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     expValues.nSize = sizeof(OMX_CONFIG_EXPOSUREVALUETYPE);
                     expValues.nVersion = mLocalVersionParam;
                     expValues.nPortIndex = OMX_ALL;
-                    mPending3Asettings &= !currSett;
 
                     OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
                     CAMHAL_LOGDB("old EV Compensation for OMX = 0x%x", (int)expValues.xEVCompensation);
@@ -3512,7 +3510,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     wb.nVersion = mLocalVersionParam;
                     wb.nPortIndex = OMX_ALL;
                     wb.eWhiteBalControl = (OMX_WHITEBALCONTROLTYPE)Gen3A.WhiteBallance;
-                    mPending3Asettings &= !currSett;
 
                     CAMHAL_LOGDB("White Ballance for Hal = %d", Gen3A.WhiteBallance);
                     CAMHAL_LOGDB("White Ballance for OMX = %d", (int)wb.eWhiteBalControl);
@@ -3527,7 +3524,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     flicker.nVersion = mLocalVersionParam;
                     flicker.nPortIndex = OMX_ALL;
                     flicker.eFlickerCancel = (OMX_COMMONFLICKERCANCELTYPE)Gen3A.Flicker;
-                    mPending3Asettings &= !currSett;
 
                     CAMHAL_LOGDB("Flicker for Hal = %d", Gen3A.Flicker);
                     CAMHAL_LOGDB("Flicker for  OMX= %d", (int)flicker.eFlickerCancel);
@@ -3542,7 +3538,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     brightness.nVersion = mLocalVersionParam;
                     brightness.nPortIndex = OMX_ALL;
                     brightness.nBrightness = Gen3A.Brightness;
-                    mPending3Asettings &= !currSett;
 
                     CAMHAL_LOGDB("Brightness for Hal and OMX= %d", (int)Gen3A.Brightness);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonBrightness, &brightness);
@@ -3556,7 +3551,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     contrast.nVersion = mLocalVersionParam;
                     contrast.nPortIndex = OMX_ALL;
                     contrast.nContrast = Gen3A.Contrast;
-                    mPending3Asettings &= !currSett;
 
                     CAMHAL_LOGDB("Contrast for Hal and OMX= %d", (int)Gen3A.Contrast);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonContrast, &contrast);
@@ -3570,7 +3564,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     procSharpness.nVersion = mLocalVersionParam;
                     procSharpness.nPortIndex = OMX_ALL;
                     procSharpness.nLevel = Gen3A.Sharpness;
-                    mPending3Asettings &= !currSett;
 
                     if( procSharpness.nLevel == 0 )
                         procSharpness.bAuto = OMX_TRUE;
@@ -3588,7 +3581,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     saturation.nVersion = mLocalVersionParam;
                     saturation.nPortIndex = OMX_ALL;
                     saturation.nSaturation = Gen3A.Saturation;
-                    mPending3Asettings &= !currSett;
 
                     CAMHAL_LOGDB("Saturation for Hal and OMX= %d", (int)Gen3A.Saturation);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonSaturation, &saturation);
@@ -3601,7 +3593,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     expValues.nSize = sizeof(OMX_CONFIG_EXPOSUREVALUETYPE);
                     expValues.nVersion = mLocalVersionParam;
                     expValues.nPortIndex = OMX_ALL;
-                    mPending3Asettings &= !currSett;
 
                     OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
                     if( 0 == Gen3A.ISO )
@@ -3625,7 +3616,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     effect.nVersion = mLocalVersionParam;
                     effect.nPortIndex = OMX_ALL;
                     effect.eImageFilter = (OMX_IMAGEFILTERTYPE)Gen3A.Effect;
-                    mPending3Asettings &= !currSett;
 
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonImageFilter, &effect);
                     CAMHAL_LOGDB("effect for OMX = 0x%x", (int)effect.eImageFilter);
@@ -3639,7 +3629,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     focus.nSize = sizeof(OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
                     focus.nVersion = mLocalVersionParam;
                     focus.nPortIndex = OMX_ALL;
-                    mPending3Asettings &= !currSett;
 
                     focus.eFocusControl = (OMX_IMAGE_FOCUSCONTROLTYPE)Gen3A.Focus;
 
