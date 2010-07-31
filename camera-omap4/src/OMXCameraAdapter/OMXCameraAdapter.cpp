@@ -251,7 +251,7 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
                 //Update refCount accordingly
                 Mutex::Autolock lock(mVideoBufferLock);
                 refCount = mVideoBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
-                //CAMHAL_LOGDB("Video Frame 0x%x returned refCount %d -> %d", frameBuf, refCount, refCount-1);
+                //CAMHAL_LOGEB("Video Frame 0x%x returned refCount %d -> %d", frameBuf, refCount, refCount-1);
 
                 if ( 0 >= refCount )
                     {
@@ -470,6 +470,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.Exposure != mode ) )
         {
         mParameters3A.Exposure = mode;
+        CAMHAL_LOGEB("Exposure mode %d", mode);
         if ( 0 <= mParameters3A.Exposure )
             {
             mPending3Asettings |= SetExposure;
@@ -481,6 +482,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mode != mParameters3A.WhiteBallance ) )
         {
         mParameters3A.WhiteBallance = mode;
+        CAMHAL_LOGEB("Whitebalance mode %d", mode);
         if ( 0 <= mParameters3A.WhiteBallance )
             {
             mPending3Asettings |= SetWhiteBallance;
@@ -492,14 +494,17 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         if ( (mParameters3A.Contrast  + CONTRAST_OFFSET) != params.getInt(contrastKey) )
             {
             mParameters3A.Contrast = params.getInt(contrastKey) - CONTRAST_OFFSET;
+            CAMHAL_LOGEB("Contrast %d", mParameters3A.Contrast);
             mPending3Asettings |= SetContrast;
             }
         }
+
     if ( 0 <= params.getInt(sharpnessKey) )
         {
         if ( (mParameters3A.Sharpness + SHARPNESS_OFFSET) != params.getInt(sharpnessKey) )
             {
             mParameters3A.Sharpness = params.getInt(sharpnessKey) - SHARPNESS_OFFSET;
+            CAMHAL_LOGEB("Sharpness %d", mParameters3A.Sharpness);
             mPending3Asettings |= SetSharpness;
             }
         }
@@ -509,6 +514,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         if ( (mParameters3A.Saturation + SATURATION_OFFSET) != params.getInt(saturationKey) )
             {
             mParameters3A.Saturation = params.getInt(saturationKey) - SATURATION_OFFSET;
+            CAMHAL_LOGEB("Saturation %d", mParameters3A.Saturation);
             mPending3Asettings |= SetSaturation;
             }
         }
@@ -518,6 +524,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         if ( mParameters3A.Brightness !=  ( unsigned int ) params.getInt(brightnessKey) )
             {
             mParameters3A.Brightness = (unsigned)params.getInt(brightnessKey);
+            CAMHAL_LOGEB("Brightness %d", mParameters3A.Brightness);
             mPending3Asettings |= SetBrightness;
             }
         }
@@ -527,6 +534,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.Flicker != mode ) )
         {
         mParameters3A.Flicker = mode;
+        CAMHAL_LOGEB("Flicker %d", mParameters3A.Flicker);
         if ( 0 <= mParameters3A.Flicker )
             {
             mPending3Asettings |= SetFlicker;
@@ -535,10 +543,11 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(isoKey);
     mode = getLUTvalue_HALtoOMX(str, IsoLUT);
-    CAMHAL_LOGDB("ISO mode arrived in HAL : %s", str);
+    CAMHAL_LOGEB("ISO mode arrived in HAL : %s", str);
     if ( ( str != NULL ) && ( mParameters3A.ISO != mode ) )
         {
         mParameters3A.ISO = mode;
+        CAMHAL_LOGEB("ISO %d", mParameters3A.ISO);
         if ( 0 <= mParameters3A.ISO )
             {
             mPending3Asettings |= SetISO;
@@ -550,14 +559,18 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.Focus != mode ) )
         {
         mParameters3A.Focus = mode;
+        CAMHAL_LOGEB("Focus %d", mParameters3A.Focus);
         if ( 0 <= mParameters3A.Focus )
             {
             mPending3Asettings |= SetFocus;
             }
         }
 
-    if ( mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION) )
+    str = params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION);
+    if ( ( str != NULL ) && (mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION) ))
         {
+        CAMHAL_LOGEB("Setting EV Compensation to %d", params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION));
+
         mParameters3A.EVCompensation = params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION);
         mPending3Asettings |= SetEVCompensation;
         }
@@ -574,6 +587,8 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             {
             mParameters3A.SceneMode = OMX_Manual;
             }
+
+        CAMHAL_LOGEB("SceneMode %d", mParameters3A.SceneMode);
         }
 
     str = params.get(effectKey);
@@ -581,6 +596,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( ( str != NULL ) && ( mParameters3A.Effect != mode ) )
         {
         mParameters3A.Effect = mode;
+        CAMHAL_LOGEB("Effect %d", mParameters3A.Effect);
         if ( 0 <= mParameters3A.Effect )
             {
             mPending3Asettings |= SetEffect;
