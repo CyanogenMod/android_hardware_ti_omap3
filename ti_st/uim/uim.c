@@ -439,8 +439,16 @@ int st_sig_handler(int signo)
 int remove_modules()
 {
 	int err = 0;
-	UIM_VER(" Removing fm_drv ");
 
+	UIM_VER(" Removing gps_drv ");
+	if (rmmod("gps_drv") != 0) {
+		UIM_ERR(" Error removing gps_drv module");
+		err = -1;
+	} else {
+		UIM_DBG(" Removed gps_drv module");
+	}
+
+	UIM_VER(" Removing fm_drv ");
 	if (rmmod("fm_drv") != 0) {
 		UIM_ERR(" Error removing fm_drv module");
 		err = -1;
@@ -589,7 +597,6 @@ int main(int argc, char *argv[])
 			return -1;
 		}
 	}
-	UIM_DBG(" Inserted st_drv module");
 
 	if (change_rfkill_perms() < 0) {
 		/* possible error condition */
@@ -606,7 +613,6 @@ int main(int argc, char *argv[])
 		UIM_DBG("BT driver module un-available... ");
 		UIM_DBG("BT driver built into the kernel ?");
 	}
-	UIM_DBG(" Inserted bt_drv module");
 
 	if (0 == lstat("/fm_drv.ko", &file_stat)) {
 		if (insmod("/fm_drv.ko", "") < 0) {
@@ -618,7 +624,18 @@ int main(int argc, char *argv[])
 		UIM_DBG("FM driver module un-available... ");
 		UIM_DBG("FM driver built into the kernel ?");
 	}
-	UIM_DBG(" Inserted fm_drv module");
+
+	if (0 == lstat("/gps_drv.ko", &file_stat)) {
+		if (insmod("/gps_drv.ko", "") < 0) {
+			UIM_ERR(" Error inserting gps_drv module, NO GPS? ");
+		} else {
+			UIM_DBG(" Inserted gps_drv module");
+		}
+	} else {
+		UIM_DBG("GPS driver module un-available... ");
+		UIM_DBG("GPS driver built into the kernel ?");
+	}
+
 
 	/* Open the sysfs entry created by KIM.
 	 * And share the pid with the KIM
