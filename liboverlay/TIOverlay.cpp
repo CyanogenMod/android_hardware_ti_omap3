@@ -76,6 +76,8 @@ struct overlay_module_t HAL_MODULE_INFO_SYM = {
         name: "Sample Overlay module",
         author: "The Android Open Source Project",
         methods: &overlay_module_methods,
+        dso: NULL, /* remove compilation warnings */
+        reserved: {0}, /* remove compilation warnings */
     }
 };
 
@@ -1258,7 +1260,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     int fd = ctx->omap_overlay->getdata_videofd();
     overlay_ctrl_t *stage = ctx->omap_overlay->staging();
 
-    if ((ctx->omap_overlay->w == (int)w) && (ctx->omap_overlay->h == (int)h) && (ctx->omap_overlay->attributes_changed == 0)){
+    if ((ctx->omap_overlay->w == (unsigned int)w) && (ctx->omap_overlay->h == (unsigned int)h) && (ctx->omap_overlay->attributes_changed == 0)){
         LOGE("Same as current width and height. Attributes did not change either. So do nothing.");
         //Lets reset the statemachine and disable the stream
         ctx->omap_overlay->dataReady = 0;

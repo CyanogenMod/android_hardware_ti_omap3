@@ -28,6 +28,7 @@
 #include <linux/videodev.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <stdlib.h>
 #include "v4l2_utils.h"
 #include <cutils/properties.h>
 
