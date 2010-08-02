@@ -554,14 +554,6 @@ void CameraHandler::notify(int32_t msgType, int32_t ext1, int32_t ext2) {
     if ( msgType & CAMERA_MSG_SHUTTER )
         printf("Shutter done in %llu us\n", timeval_delay(&picture_start));
 
-    if ( msgType & CAMERA_MSG_ERROR ) {
-        printf("Camera error 0x%x received\n", ext1);
-
-        closeCamera();
-
-        exit(ext1);
-    }
-
 }
 
 void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr) {
