@@ -301,7 +301,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         && isParameterValid(params.get(TICameraParameters::KEY_EXPOSURE_MODE),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EXPOSURE_MODES]->mPropValue))
         {
-        CAMHAL_LOGDA("Exposure set");
+        CAMHAL_LOGDB("Exposure set = %s", params.get(TICameraParameters::KEY_EXPOSURE_MODE));
         mParameters.set(TICameraParameters::KEY_EXPOSURE_MODE, params.get(TICameraParameters::KEY_EXPOSURE_MODE));
         }
 
@@ -309,35 +309,35 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         && isParameterValid(params.get(CameraParameters::KEY_WHITE_BALANCE),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE]->mPropValue))
         {
-        CAMHAL_LOGDA("White balance set");
+        CAMHAL_LOGDB("White balance set %s", params.get(CameraParameters::KEY_WHITE_BALANCE));
         mParameters.set(CameraParameters::KEY_WHITE_BALANCE, params.get(CameraParameters::KEY_WHITE_BALANCE));
         }
 
     if((params.get(TICameraParameters::KEY_CONTRAST) != NULL)
-            && (params.getInt(TICameraParameters::KEY_CONTRAST)>=0))
+            && (params.getInt(TICameraParameters::KEY_CONTRAST) >= 0 ))
         {
-        CAMHAL_LOGDA("Contrast set");
+        CAMHAL_LOGDB("Contrast set %s", params.get(TICameraParameters::KEY_CONTRAST));
         mParameters.set(TICameraParameters::KEY_CONTRAST, params.get(TICameraParameters::KEY_CONTRAST));
         }
 
-     if((params.get(TICameraParameters::KEY_SHARPNESS) != NULL) && params.getInt(TICameraParameters::KEY_SHARPNESS)>=0 )
+     if((params.get(TICameraParameters::KEY_SHARPNESS) != NULL) && params.getInt(TICameraParameters::KEY_SHARPNESS) > 0 )
         {
-        CAMHAL_LOGDA("Sharpness set");
+        CAMHAL_LOGDB("Sharpness set %s", params.get(TICameraParameters::KEY_SHARPNESS));
         mParameters.set(TICameraParameters::KEY_SHARPNESS, params.get(TICameraParameters::KEY_SHARPNESS));
         }
 
 
     if((params.get(TICameraParameters::KEY_SATURATION) != NULL)
-        && (params.getInt(TICameraParameters::KEY_SATURATION)>=0) )
+        && (params.getInt(TICameraParameters::KEY_SATURATION) > 0 ) )
         {
-        CAMHAL_LOGDA("Saturation set");
+        CAMHAL_LOGDB("Saturation set %s", params.get(TICameraParameters::KEY_SATURATION));
         mParameters.set(TICameraParameters::KEY_SATURATION, params.get(TICameraParameters::KEY_SATURATION));
         }
 
     if((params.get(TICameraParameters::KEY_BRIGHTNESS) != NULL)
-        && (params.getInt(TICameraParameters::KEY_BRIGHTNESS) >=0))
+        && (params.getInt(TICameraParameters::KEY_BRIGHTNESS) > 0 ))
         {
-        CAMHAL_LOGDA("Brightness set");
+        CAMHAL_LOGDB("Brightness set %s", params.get(TICameraParameters::KEY_BRIGHTNESS));
         mParameters.set(TICameraParameters::KEY_BRIGHTNESS, params.get(TICameraParameters::KEY_BRIGHTNESS));
         }
 
@@ -346,7 +346,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         && isParameterValid(params.get(CameraParameters::KEY_ANTIBANDING),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING]->mPropValue))
         {
-        CAMHAL_LOGDA("Antibanding set");
+        CAMHAL_LOGDB("Antibanding set %s", params.get(CameraParameters::KEY_ANTIBANDING));
         mParameters.set(CameraParameters::KEY_ANTIBANDING, params.get(CameraParameters::KEY_ANTIBANDING));
         }
 
@@ -354,7 +354,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         && isParameterValid(params.get(TICameraParameters::KEY_ISO),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ISO_VALUES]->mPropValue))
         {
-        CAMHAL_LOGDA("ISO set");
+        CAMHAL_LOGDB("ISO set %s", params.get(TICameraParameters::KEY_ISO));
         mParameters.set(TICameraParameters::KEY_ISO, params.get(TICameraParameters::KEY_ISO));
         }
 
@@ -362,22 +362,23 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         && isParameterValid(params.get(CameraParameters::KEY_FOCUS_MODE),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES]->mPropValue))
         {
-        CAMHAL_LOGDA("Focus mode set");
+        CAMHAL_LOGDB("Focus mode set %s", params.get(CameraParameters::KEY_FOCUS_MODE));
         mParameters.set(CameraParameters::KEY_FOCUS_MODE, params.get(CameraParameters::KEY_FOCUS_MODE));
         }
 
     if((params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION) != NULL)
         && (params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION)>=0 ))
         {
-        CAMHAL_LOGDA("Exposure compensation set");
+        CAMHAL_LOGDB("Exposure compensation set %s", params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION));
         mParameters.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION));
         }
+
 
     if((params.get(CameraParameters::KEY_SCENE_MODE) != NULL)
         && isParameterValid(params.get(CameraParameters::KEY_SCENE_MODE),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES]->mPropValue))
         {
-        CAMHAL_LOGDA("Scene mode set");
+        CAMHAL_LOGDB("Scene mode set %s", params.get(CameraParameters::KEY_SCENE_MODE));
         mParameters.set(CameraParameters::KEY_SCENE_MODE, params.get(CameraParameters::KEY_SCENE_MODE));
         }
 
@@ -385,75 +386,76 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         && isParameterValid(params.get(CameraParameters::KEY_EFFECT),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue))
         {
-        CAMHAL_LOGDA("Effect set");
+        CAMHAL_LOGDB("Effect set %s", params.get(CameraParameters::KEY_EFFECT));
         mParameters.set(CameraParameters::KEY_EFFECT, params.get(CameraParameters::KEY_EFFECT));
         }
 
     if((params.get(CameraParameters::KEY_ROTATION) != NULL)
         && (params.getInt(CameraParameters::KEY_ROTATION) >=0))
         {
-        CAMHAL_LOGDA("Rotation set");
+        CAMHAL_LOGDB("Rotation set %s", params.get(CameraParameters::KEY_ROTATION));
         mParameters.set(CameraParameters::KEY_ROTATION, params.get(CameraParameters::KEY_ROTATION));
         }
 
     if(params.get(TICameraParameters::KEY_CAP_MODE) != NULL)
         {
+        CAMHAL_LOGDB("Capture mode set %s", params.get(TICameraParameters::KEY_CAP_MODE));
         mParameters.set(TICameraParameters::KEY_CAP_MODE, params.get(TICameraParameters::KEY_CAP_MODE));
         }
 
     if((params.get(TICameraParameters::KEY_BURST) != NULL)
         && (params.getInt(TICameraParameters::KEY_BURST) >=0))
         {
-        CAMHAL_LOGDA("Burst set");
+        CAMHAL_LOGDB("Burst set %s", params.get(TICameraParameters::KEY_BURST));
         mParameters.set(TICameraParameters::KEY_BURST, params.get(TICameraParameters::KEY_BURST));
         }
 
     if((params.get(CameraParameters::KEY_JPEG_QUALITY) != NULL)
         && (params.getInt(CameraParameters::KEY_JPEG_QUALITY) >=0))
         {
-        CAMHAL_LOGDA("Jpeg quality set");
+        CAMHAL_LOGDB("Jpeg quality set %s", params.get(CameraParameters::KEY_JPEG_QUALITY));
         mParameters.set(CameraParameters::KEY_JPEG_QUALITY, params.get(CameraParameters::KEY_JPEG_QUALITY));
         }
 
     if((params.get(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH) != NULL)
         && (params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH) >=0))
         {
-        CAMHAL_LOGDA("Thumbnail width set");
+        CAMHAL_LOGDB("Thumbnail width set %s", params.get(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH));
         mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, params.get(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH));
         }
 
     if((params.get(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT) != NULL)
         && (params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT) >=0))
         {
-        CAMHAL_LOGDA("Thumbnail width set");
+        CAMHAL_LOGDB("Thumbnail width set %s", params.get(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT));
         mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, params.get(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT));
         }
 
     if((params.get(TICameraParameters::KEY_VNF) != NULL)
         && ((params.getInt(TICameraParameters::KEY_VNF)==0) || (params.getInt(TICameraParameters::KEY_VNF)==1)))
         {
-        CAMHAL_LOGDA("VNF set");
+        CAMHAL_LOGDB("VNF set %s", params.get(TICameraParameters::KEY_VNF));
         mParameters.set(TICameraParameters::KEY_VNF, params.get(TICameraParameters::KEY_VNF));
         }
 
     if((params.get(TICameraParameters::KEY_VSTAB) != NULL)
          && ((params.getInt(TICameraParameters::KEY_VSTAB)==0) || (params.getInt(TICameraParameters::KEY_VSTAB)==1)))
         {
-        CAMHAL_LOGDA("VSTAB set");
+        CAMHAL_LOGDB("VSTAB set %s", params.get(TICameraParameters::KEY_VSTAB));
         mParameters.set(TICameraParameters::KEY_VSTAB, params.get(TICameraParameters::KEY_VSTAB));
         }
 
     if((params.get(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY) != NULL )
         && (params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY) >=0))
         {
-        CAMHAL_LOGDA("Thumbnail quality set");
+        CAMHAL_LOGDB("Thumbnail quality set %s", params.get(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY));
         mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, params.get(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY));
         }
 
     if((params.get(CameraParameters::KEY_ZOOM) != NULL )
         && (params.getInt(CameraParameters::KEY_ZOOM) >=0))
         {
-        CAMHAL_LOGDA("Zoom set");
+        CAMHAL_LOGDB("Zoom set %s", params.get(CameraParameters::KEY_ZOOM));
         mParameters.set(CameraParameters::KEY_ZOOM, params.get(CameraParameters::KEY_ZOOM));
         }
 
@@ -1369,7 +1371,7 @@ CameraParameters CameraHal::getParameters() const
 {
     LOG_FUNCTION_NAME
 
-    mCameraAdapter->getParameters((CameraParameters&)mParameters);
+
     LOG_FUNCTION_NAME_EXIT
     ///Return the current set of parameters
     return mParameters;
@@ -1989,8 +1991,6 @@ void CameraHal::insertSupportedParams()
     p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_ANTIBANDING, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue);
-    p.set(CameraParameters::KEY_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE]->mPropValue);
-    p.set(CameraParameters::KEY_EFFECT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue);
     p.set(CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EV_MAX]->mPropValue);
     p.set(CameraParameters::KEY_MIN_EXPOSURE_COMPENSATION, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EV_MIN]->mPropValue);
     p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EV_STEP]->mPropValue);
@@ -2058,6 +2058,9 @@ void CameraHal::initDefaultParameters()
         p.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, MIN_HEIGHT);
         }
 
+    insertSupportedParams();
+
+    //Insert default values
     p.set(CameraParameters::KEY_JPEG_QUALITY, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_JPEG_QUALITY]->mPropValue);
     p.set(CameraParameters::KEY_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_WHITEBALANCE]->mPropValue);
     p.set(CameraParameters::KEY_EFFECT,  (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EFFECT]->mPropValue);
@@ -2073,8 +2076,6 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_SHARPNESS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SHARPNESS]->mPropValue);
     p.set(TICameraParameters::KEY_EXPOSURE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXPOSURE_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_ISO, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ISO_MODE]->mPropValue);
-
-    insertSupportedParams();
 
     if ( setParameters(p) != NO_ERROR )
         {
