@@ -394,6 +394,7 @@ public:
     static void onSaveRAW(void *priv, icap_image_buffer_t *buf);
     static void onSnapshot(void *priv, icap_image_buffer_t *buf);
     static void onGeneratedSnapshot(void *priv, icap_image_buffer_t *buf);
+    static void onCrop(void *priv,  icap_crop_rect_t *crop_rect);
 
     int FW3A_Create();
     int FW3A_Init();
@@ -572,6 +573,7 @@ public:
     unsigned int sensor_height;
     unsigned int zoom_width;
     unsigned int zoom_height;
+    int32_t mImageCropTop, mImageCropLeft, mImageCropWidth, mImageCropHeight;
     int mflash;
     int mred_eye;
     int mcapture_mode;

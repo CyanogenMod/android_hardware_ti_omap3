@@ -1656,6 +1656,7 @@ int  CameraHal::ICapturePerform()
             spec_res.capture_mode = ICAP_CAPTURE_MODE_HP;
             iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
             iobj->cfg.notify.cb_capture = onSnapshot;
+            iobj->cfg.notify.cb_snapshot_crop = onCrop;
             fixedZoom = (uint32_t) (zoom_step[0]*ZOOM_SCALE);
 
             iobj->cfg.zoom.enable = ICAP_ENABLE;
@@ -1681,6 +1682,7 @@ int  CameraHal::ICapturePerform()
         spec_res.capture_mode  = ICAP_CAPTURE_MODE_HP;
         iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
         iobj->cfg.notify.cb_capture = onSnapshot;
+        iobj->cfg.notify.cb_snapshot_crop = onCrop;
         fixedZoom = (uint32_t) (zoom_step[0]*ZOOM_SCALE);
 
         iobj->cfg.zoom.enable = ICAP_ENABLE;
@@ -1738,6 +1740,10 @@ int  CameraHal::ICapturePerform()
     iobj->cfg.capture_format = ICAP_CAPTURE_FORMAT_UYVY;
     iobj->cfg.width = spec_res.res.width;
     iobj->cfg.height = spec_res.res.height;
+    mImageCropTop = 0;
+    mImageCropLeft = 0;
+    mImageCropWidth = spec_res.res.width;
+    mImageCropHeight = spec_res.res.height;
 
     iobj->cfg.notify.cb_h3a  = NULL; //onSaveH3A;
     iobj->cfg.notify.cb_lsc  = NULL; //onSaveLSC;
@@ -2452,8 +2458,8 @@ void CameraHal::snapshotThread()
                 image_width = snapshotMessage[2];
                 image_height = snapshotMessage[3];
                 ZoomTarget = zoom_step[snapshotMessage[4]];
-                crop_top = snapshotMessage[5];
-                crop_left = snapshotMessage[6];
+                crop_left = snapshotMessage[5];
+                crop_top = snapshotMessage[6];
                 crop_width = snapshotMessage[7];
                 crop_height = snapshotMessage[8];
 
@@ -2479,7 +2485,7 @@ void CameraHal::snapshotThread()
                 }
 
                 status = scale_process(yuv_buffer, image_width, image_height,
-                         snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, ZoomTarget, crop_top, crop_left, crop_width, crop_height);
+                         snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[0], crop_top, crop_left, crop_width, crop_height);
 
 #ifdef DEBUG_LOG
 
@@ -2799,8 +2805,8 @@ void CameraHal::procThread()
                 JpegPictureCallback = (data_callback) procMessage[34];
                 RawPictureCallback = (data_callback) procMessage[35];
                 PictureCallbackCookie = (void *) procMessage[36];
-                crop_top = procMessage[37];
-                crop_left = procMessage[38];
+                crop_left = procMessage[37];
+                crop_top = procMessage[38];
                 crop_width = procMessage[39];
                 crop_height = procMessage[40];
 
@@ -4471,10 +4477,10 @@ void CameraHal::onSnapshot(void *priv, icap_image_buffer_t *buf)
     snapshotMessage[2] = buf->width;
     snapshotMessage[3] = buf->height;
     snapshotMessage[4] = camHal->mZoomTargetIdx;
-    snapshotMessage[5] = 0;
-    snapshotMessage[6] = 0;
-    snapshotMessage[7] = buf->width;
-    snapshotMessage[8] = buf->height;
+    snapshotMessage[5] = camHal->mImageCropLeft;
+    snapshotMessage[6] = camHal->mImageCropTop;
+    snapshotMessage[7] = camHal->mImageCropWidth;
+    snapshotMessage[8] = camHal->mImageCropHeight;
 
     write(camHal->snapshotPipe[1], &snapshotMessage, sizeof(snapshotMessage));
 
@@ -4502,6 +4508,20 @@ void CameraHal::onShutter(void *priv, icap_image_buffer_t *image_buf)
         shutterMessage[2] = (unsigned int) camHal->mCallbackCookie;
         write(camHal->shutterPipe[1], &shutterMessage, sizeof(shutterMessage));
     }
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+void CameraHal::onCrop(void *priv,  icap_crop_rect_t *crop_rect)
+{
+    LOG_FUNCTION_NAME
+
+    CameraHal *camHal = reinterpret_cast<CameraHal *> (priv);
+
+    camHal->mImageCropTop = crop_rect->top;
+    camHal->mImageCropLeft = crop_rect->left;
+    camHal->mImageCropWidth = crop_rect->width;
+    camHal->mImageCropHeight = crop_rect->height;
 
     LOG_FUNCTION_NAME_EXIT
 }
