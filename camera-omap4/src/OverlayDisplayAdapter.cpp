@@ -809,6 +809,8 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
 #endif
             if(actualFramesWithDisplay!=mFramesWithDisplay)
                 {
+                CAMHAL_LOGEB("Stream off happened actualFramesWithDisplay=%d mFramesWithDisplay=%d",
+                                actualFramesWithDisplay, mFramesWithDisplay);
                 ///Skew detected. Overlay has gone through a stream off sequence due to trigger from Surface flinger
                 /// Reclaim all the buffers back except the one we posted
                 for(unsigned int i=0;i<mFramesWithDisplayMap.size();i++)
@@ -816,10 +818,14 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
                     ///Return the reclaimed frames back to the provider (Camera Adapter)
                     mFrameProvider->returnFrame( (void *) mFramesWithDisplayMap.keyAt(i), CameraFrame::PREVIEW_FRAME_SYNC);
                     }
-                ///Update the mFramesWithDisplay with the updated count.
-                ///Note that actualFramesWithDisplay will always be 1 with the first queueBuffer after stream off
-                mFramesWithDisplay = actualFramesWithDisplay;
+
+                ///Clear the frames with display map
+                mFramesWithDisplayMap.clear();
                 }
+
+            ///Update the mFramesWithDisplay with the updated count.
+            ///Note that actualFramesWithDisplay will always be 1 with the first queueBuffer after stream off
+            mFramesWithDisplay = actualFramesWithDisplay;
 
             mFramesWithDisplayMap.add((int) dispFrame.mBuffer, mFramesWithDisplay);
             ret = NO_ERROR;

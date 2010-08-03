@@ -619,7 +619,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::HIGH_PERFORMANCE_MODE) == 0)
             {
             mCapMode = OMXCameraAdapter::HIGH_SPEED;
-            } 
+            }
         else if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::HIGH_QUALITY_MODE) == 0)
             {
             mCapMode = OMXCameraAdapter::HIGH_QUALITY;
