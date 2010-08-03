@@ -202,7 +202,7 @@ public:
 
 
     ///Initialzes the camera adapter creates any resources required
-    virtual status_t initialize();
+    virtual status_t initialize(int sensor_index=0);
 
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params);

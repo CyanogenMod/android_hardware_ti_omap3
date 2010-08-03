@@ -43,13 +43,14 @@ const int32_t OMXCameraAdapter::ZOOM_STEPS [ZOOM_STAGES] =  { 65536, 131072, 262
 
 #endif
 
-status_t OMXCameraAdapter::initialize()
+status_t OMXCameraAdapter::initialize(int sensor_index)
 {
     LOG_FUNCTION_NAME
 
     TIMM_OSAL_ERRORTYPE osalError = OMX_ErrorNone;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     status_t ret = NO_ERROR;
+
 
     mLocalVersionParam.s.nVersionMajor = 0x1;
     mLocalVersionParam.s.nVersionMinor = 0x1;
@@ -132,7 +133,7 @@ status_t OMXCameraAdapter::initialize()
         goto EXIT;
         }
 
-    ///Enable PREVIEW Port
+   ///Enable PREVIEW Port
     eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
                                 OMX_CommandPortEnable,
                                 mCameraAdapterParameters.mPrevPortIndex,
@@ -149,6 +150,23 @@ status_t OMXCameraAdapter::initialize()
     eventSem.Wait();
 
     CAMHAL_LOGDA("-Port enable event arrived");
+
+
+    ///Select the sensor
+    OMX_CONFIG_SENSORSELECTTYPE sensorSelect;
+    OMX_INIT_STRUCT_PTR (&sensorSelect, OMX_CONFIG_SENSORSELECTTYPE);
+    sensorSelect.eSensor = (OMX_SENSORSELECT)sensor_index;
+    eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamSensorSelect, &sensorSelect);
+
+    if ( OMX_ErrorNone != eError )
+        {
+        CAMHAL_LOGEB("Error while selecting the sensor index as %d - 0x%x", sensor_index, eError);
+        ret = -1;
+        }
+    else
+        {
+        CAMHAL_LOGEB("Sensor %d selected successfully", sensor_index);
+        }
 
     mPreviewing = false;
     mCapturing = false;

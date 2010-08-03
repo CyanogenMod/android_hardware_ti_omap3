@@ -42,7 +42,7 @@ public:
     ~FakeCameraAdapter();
 
     ///Initialzes the camera adapter creates any resources required
-    virtual status_t initialize();
+    virtual status_t initialize(int sensor_index=0);
 
     virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
 

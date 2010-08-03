@@ -1545,6 +1545,7 @@ status_t CameraHal::initialize()
     CameraAdapterFactory f = NULL;
 
     int numCameras = 0;
+    int sensor_index = 0;
 
     ///Initialize the event mask used for registering an event provider for AppCallbackNotifier
     ///Currently, registering all events as to be coming from CameraAdapter
@@ -1594,6 +1595,13 @@ status_t CameraHal::initialize()
         goto fail_loop;
         }
 
+    if ( NULL != mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_SENSOR_INDEX] )
+        {
+        sensor_index = atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_SENSOR_INDEX]->mPropValue);
+        }
+
+    CAMHAL_LOGEB("Sensor index %d", sensor_index);
+
     /// Create the camera adapter
     /// @todo Incorporate dynamic loading based on cfg file. For now using a constant definition for the adapter dll name
     mCameraAdapterHandle = ::dlopen( ( const char * ) mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue, RTLD_NOW);
@@ -1614,7 +1622,7 @@ status_t CameraHal::initialize()
         }
 
     mCameraAdapter = f();
-    if(!mCameraAdapter.get() || (mCameraAdapter->initialize()!=NO_ERROR))
+    if(!mCameraAdapter.get() || (mCameraAdapter->initialize(sensor_index)!=NO_ERROR))
         {
         CAMHAL_LOGEA("Unable to create or initialize CameraAdapter");
         goto fail_loop;
@@ -1682,6 +1690,7 @@ status_t CameraHal::reloadAdapter()
     typedef CameraAdapter* (*CameraAdapterFactory)();
     CameraAdapterFactory f = NULL;
     status_t ret = NO_ERROR;
+    int sensor_index = 0;
 
     LOG_FUNCTION_NAME
 
@@ -1716,6 +1725,11 @@ status_t CameraHal::reloadAdapter()
         ret = -1;
         }
 
+    if ( NULL != mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_SENSOR_INDEX] )
+        {
+        sensor_index = atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_SENSOR_INDEX]->mPropValue);
+        }
+
     /// Create the camera adapter
     if ( -1 != ret )
         {
@@ -1734,7 +1748,7 @@ status_t CameraHal::reloadAdapter()
             {
         mCameraAdapter = f();
             if((NULL != mCameraAdapter.get())
-                    && (NO_ERROR != mCameraAdapter->initialize()))
+                    && (NO_ERROR != mCameraAdapter->initialize(sensor_index)))
                 {
                 ret = -1;
                 }

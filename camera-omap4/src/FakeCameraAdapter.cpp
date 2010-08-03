@@ -75,7 +75,7 @@ status_t FakeCameraAdapter::getCaps()
     return NO_ERROR;
 }
 
-status_t FakeCameraAdapter::initialize()
+status_t FakeCameraAdapter::initialize(int sensor_index)
 {
     LOG_FUNCTION_NAME
 

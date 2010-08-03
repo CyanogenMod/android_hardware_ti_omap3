@@ -37,6 +37,7 @@ namespace android {
 const char CameraProperties::PROP_KEY_INVALID[]="invalid-key";
 const char CameraProperties::PROP_KEY_CAMERA_NAME[]="camera-name";
 const char CameraProperties::PROP_KEY_ADAPTER_DLL_NAME[]="camera-adapter-dll-name";
+const char CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX[]="sensor-index";
 const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_SIZES[] = "preview-size-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FORMATS[] = "preview-format-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FRAME_RATES[] = "preview-frame-rate-values";
@@ -662,25 +663,25 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         }
     else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_ZOOM_RATIOS))
         {
-        CAMHAL_LOGDA("Returning PROP_KEY_SUPPORTED_ZOOM_RATIOS");
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_ZOOM_RATIOS");
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_RATIOS;
         }
     else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_ZOOM_STAGES))
         {
-        CAMHAL_LOGDA("Returning PROP_KEY_SUPPORTED_ZOOM_STAGES");
+        CAMHAL_LOGDA("Returning PROP_INDEX_SUPPORTED_ZOOM_STAGES");
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_STAGES;
         }
     else if(!strcmp(propName,CameraProperties::PROP_KEY_ZOOM_SUPPORTED))
         {
-        CAMHAL_LOGDA("Returning PROP_KEY_ZOOM_SUPPORTED");
+        CAMHAL_LOGDA("Returning PROP_INDEX_ZOOM_SUPPORTED");
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_ZOOM_SUPPORTED;
         }
     else if(!strcmp(propName,CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED))
         {
-        CAMHAL_LOGDA("Returning PROP_KEY_SMOOTH_ZOOM_SUPPORTED");
+        CAMHAL_LOGDA("Returning PROP_INDEX_SMOOTH_ZOOM_SUPPORTED");
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_SMOOTH_ZOOM_SUPPORTED;
         }
@@ -803,6 +804,12 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         CAMHAL_LOGDA("Returning PROP_KEY_SHARPNESS");
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_SHARPNESS;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_CAMERA_SENSOR_INDEX");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_CAMERA_SENSOR_INDEX;
         }
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
@@ -1048,6 +1055,11 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SATURATION);
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_SATURATION;
+
+        case CameraProperties::PROP_INDEX_CAMERA_SENSOR_INDEX:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX;
 
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );
