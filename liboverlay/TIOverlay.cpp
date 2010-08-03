@@ -45,8 +45,16 @@ extern "C" {
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 
+#ifdef TARGET_OMAP4
 #define MAX_DISPLAY_CNT 4
 #define MAX_MANAGER_CNT 3
+#define PANEL_NAME_FOR_TV "hdmi"
+#else
+#define MAX_DISPLAY_CNT 2
+#define MAX_MANAGER_CNT 2
+#define PANEL_NAME_FOR_TV "tv"
+#endif
+
 static displayPanelMetaData screenMetaData[MAX_DISPLAY_CNT];
 static displayManagerMetaData managerMetaData[MAX_MANAGER_CNT];
 
@@ -321,6 +329,7 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
             {
                 finalWindow->posX = 0;
                 finalWindow->posY= 0;
+#ifdef TARGET_OMAP4
                 if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
                     finalWindow->posW= w2;
                     finalWindow->posH= overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
@@ -330,6 +339,23 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                     finalWindow->posW = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
                     finalWindow->posX = (w2 - finalWindow->posW) / 2;
                 }
+#else
+                overlay_ctrl_t   *data   = overlayobj->data();
+                if (data->rotation == 0) {
+                    unsigned int aspect_ratio = 0;
+                    unsigned int w_ar = (TV_WIDTH * 100) / overlayobj->w;
+                    unsigned int h_ar = (TV_HEIGHT * 100) / overlayobj->h;
+                    if (w_ar < h_ar) aspect_ratio = w_ar;
+                    else aspect_ratio = h_ar;
+
+                    finalWindow->posW = (overlayobj->w * aspect_ratio) / 100;
+                    finalWindow->posH = (overlayobj->h * aspect_ratio) / 100;
+                    if (finalWindow->posW < TV_WIDTH) finalWindow->posX = (TV_WIDTH - finalWindow->posW) / 2;
+                    if (finalWindow->posH < TV_HEIGHT) finalWindow->posY = (TV_HEIGHT - finalWindow->posH) / 2;
+                    LOGD("Maximize the window. Maintain aspect ratio.");
+                }
+                else LOGD("Window settings not changed bcos Rotation != 0. Wouldnt rotation be zero when watching on TV???");
+#endif
             }
             break;
         default:
@@ -362,7 +388,7 @@ void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlay
         break;
         case OVERLAY_ON_TV: {
             LOGD("REQUEST FOR TV");
-            panelname = "hdmi";
+            panelname = PANEL_NAME_FOR_TV;
             managername = "tv";
         }
         break;
@@ -381,6 +407,7 @@ void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlay
         }
         break;
     };
+    overlayobj->mDisplayMetaData.mPanelIndex = -1;
     for (int i = 0; i < MAX_DISPLAY_CNT; i++) {
         LOGD("Display id [%s]", screenMetaData[i].displayname);
         LOGD("dst id [%s]", panelname);
@@ -390,6 +417,11 @@ void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlay
             break;
         }
     }
+    if (overlayobj->mDisplayMetaData.mPanelIndex == -1) {
+        LOGE("The screenMetaData was not populated correctly. Could not find panel id. ");
+    }
+
+    overlayobj->mDisplayMetaData.mManagerIndex = -1;
     for (int i = 0; i < MAX_MANAGER_CNT; i++) {
         LOGD("managername name [%s]", managerMetaData[i].managername);
         LOGD("dst name [%s]", managername);
@@ -400,6 +432,10 @@ void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlay
         break;
         }
     }
+    if (overlayobj->mDisplayMetaData.mManagerIndex == -1) {
+        LOGE("The managerMetaData was not populated correctly. Could not find manager  id. ");
+    }
+
     overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex = -1;
     if (paneltobeDisabled != NULL) {
         //since we are switching to the pico_DLP/2LCD, switch off the 2LCD/pico_DLP first
@@ -412,8 +448,8 @@ void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlay
                 break;
             }
         }
-        }
-        LOG_FUNCTION_NAME_EXIT
+    }
+    LOG_FUNCTION_NAME_EXIT
 }
 
 void overlay_control_context_t::close_shared_overlayobj(overlay_object *overlayobj)
@@ -616,17 +652,6 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-#ifndef TARGET_OMAP4
-    if (v4l2_overlay_set_colorkey(fd, 1, 0)){
-        LOGE("Failed enabling color key\n");
-        goto error1;
-    }
-#else
-    if (v4l2_overlay_set_global_alpha(fd, 1, 1)){
-        LOGE("Failed enabling alpha\n");
-        goto error1;
-    }
-
     if (v4l2_overlay_getId(fd, &pipelineId)) {
         LOGE("Failed: getting overlay Id");
         goto error1;
@@ -639,6 +664,18 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
     sprintf(overlayobj->overlayzorderpath, "/sys/devices/platform/omapdss/overlay%d/zorder", pipelineId);
     sprintf(overlayobj->overlayenabled, "/sys/devices/platform/omapdss/overlay%d/enabled", pipelineId);
+
+#ifndef TARGET_OMAP4
+    if (v4l2_overlay_set_colorkey(fd, 1, 0)){
+        LOGE("Failed enabling color key\n");
+        goto error1;
+    }
+#else
+    if (v4l2_overlay_set_global_alpha(fd, 1, 1)){
+        LOGE("Failed enabling alpha\n");
+        goto error1;
+    }
+
 
     /* Enable the video zorder and video transparency
     * for the controls to be visible on top of video, give the graphics highest zOrder
@@ -729,12 +766,10 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
 
     overlay_data_context_t::disable_streaming(overlayobj, false);
 
-#ifdef TARGET_OMAP4
     //lets reset the manager to the lcd
     if (sysfile_write(overlayobj->overlaymanagerpath, "lcd", sizeof("lcd")) < 0) {
         LOGE("Overlay Manager reset failed, but proceed anyway");
     }
-#endif
     LOGI("Destroying overlay/fd=%d/obj=%08lx", fd, (unsigned long)overlay);
 
     if (close(fd)) {
@@ -916,7 +951,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     int fd = overlayobj->getctrl_videofd();
     overlay_data_t eCropData;
 
-#ifdef TARGET_OMAP4
     /** NOTE: In order to support HDMI without app explicitly requesting for
     * the screen ID, this is the alternative path
     * check for the overlay manager (here assumption is that: overlay manager
@@ -927,7 +961,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         return -1;
     }
     strtok(overlaymanagername, "\n");
-#endif
 
     pthread_mutex_lock(&overlayobj->lock);
 
@@ -978,21 +1011,20 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         break;
     }
 
-#ifdef TARGET_OMAP4
-
     strmatch = strcmp(overlaymanagername, "tv");
     if (!strmatch) {
         stage->panel = OVERLAY_ON_TV;
     }
-    calculateDisplayMetaData(overlayobj);
+
     //Calculate window size. As of now this is applicable only for non-LCD panels
     calculateWindow(overlayobj, &finalWindow);
-#endif
+
     LOGI("Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
     LOGI("Rotation/%d\n", data->rotation );
     LOGI("alpha/%d\n", data->alpha );
-    LOGI("zorder/%d\n", stage->zorder );
+    LOGI("zorder/%d\n", data->zorder );
+    LOGI("data->panel/0x%x/stage->panel/0x%x\n", data->panel, stage->panel );    
 
     if ((ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
         LOGE("commit:Get crop value Failed!/%d\n", ret);
@@ -1023,6 +1055,10 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 
+    //unlock the mutex here as the subsequent operations are file operations
+    //otherwise it may hang
+    pthread_mutex_unlock(&overlayobj->lock);
+
 #ifndef TARGET_OMAP4
     if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00))) {
         LOGE("Failed enabling color key\n");
@@ -1033,9 +1069,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGE("Failed enabling alpha\n");
         goto end;
     }
-    //unlock the mutex here as the subsequent operations are file operations
-    //otherwise it may hang
-    pthread_mutex_unlock(&overlayobj->lock);
     if (data->zorder != stage->zorder) {
         data->zorder = stage->zorder;
         //Set up the z-order for the overlay:
@@ -1048,42 +1081,38 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
             return -1;
         }
     }
-        if (data->panel != stage->panel) {
-        data->panel = stage->panel;
+#endif
 
+    if (data->panel != stage->panel) {
+        data->panel = stage->panel;
+        calculateDisplayMetaData(overlayobj);
         LOGD("Panel path [%s]", screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled);
         LOGD("Manager display [%s]", managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managerdisplay);
         LOGD("manager path [%s]", overlayobj->overlaymanagerpath);
         LOGD("manager name [%s]", managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername);
 
-            if (overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex != -1) {
-                char disablepanelpath[PATH_MAX];
-                sprintf(disablepanelpath, "/sys/devices/platform/omapdss/display%d/enabled", \
-                    overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex);
-                if (sysfile_write(disablepanelpath, "0", sizeof("0")) < 0) {
-                    LOGE("panel disable failed");
-                    return -1;
-                }
+        if (overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex != -1) {
+            char disablepanelpath[PATH_MAX];
+            sprintf(disablepanelpath, "/sys/devices/platform/omapdss/display%d/enabled", \
+                overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex);
+            if (sysfile_write(disablepanelpath, "0", sizeof("0")) < 0) {
+                LOGE("panel disable failed");
+                return -1;
             }
-        /** Even thought stream is already off in the beginning, there are chances that, buffer que can happen from
-          * media process and enable the pipeline. hence read the current status here and resume to that
-          * after the manager is changed
-          */
-        int ovlyEn;
-        if (sysfile_read(overlayobj->overlayenabled, (void*)(&ovlyEn), sizeof(int)) < 0) {
-            LOGE("Failed: overlay Enable Read");
-            return -1;
         }
         if (sysfile_write(overlayobj->overlayenabled, "0", sizeof("0")) < 0) {
             LOGE("Failed: overlay Disable");
             return -1;
         }
-        /* and the manager to the overlay */
+
+        /* Set the manager to the overlay */
         if (sysfile_write(overlayobj->overlaymanagerpath, \
             &managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername, PATH_MAX) < 0) {
             LOGE("Unable to set the overlay->manager");
             return -1;
         }
+
+#ifdef TARGET_OMAP4
 
         /** set the manager display to the panel*/
         if (sysfile_write(managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managerdisplay, \
@@ -1091,21 +1120,32 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
             LOGE("Unable to set the manager->display");
             return -1;
         }
+#else
+        char displaytimings[PATH_MAX];
+        sprintf(displaytimings, "/sys/devices/platform/omapdss/display%d/timings", overlayobj->mDisplayMetaData.mPanelIndex);
+        if (!strcmp(managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername, "tv")) {
+            if (sysfile_write(displaytimings, "ntsc", sizeof("ntsc")) < 0) {
+                LOGE("Setting display timings failed");
+                return -1;
+            }
+        }
 
+#endif
         //enable the requested panel here
         if (sysfile_write(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled, "1", sizeof("1")) < 0) {
             LOGE("Panel enable failed");
             return -1;
         }
-        if (sysfile_write(overlayobj->overlayenabled, (void*)(&ovlyEn), sizeof("0")) < 0) {
-            LOGE("Failed: overlay restore");
-            return -1;
+
+        // Disable streaming to ensure that stream_on is called again which indirectly sets overlayenabled to 1
+        if ((ret = overlay_data_context_t::disable_streaming(overlayobj, false))) {
+            LOGE("Stream Off Failed!/%d\n", ret);
+            goto end;
         }
     }
     LOG_FUNCTION_NAME_EXIT;
     return 0;
 
-#endif
 end:
     pthread_mutex_unlock(&overlayobj->lock);
     LOG_FUNCTION_NAME_EXIT;
@@ -1211,8 +1251,7 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
     }
     ctx->omap_overlay->mappedbufcount = ctx->omap_overlay->num_buffers;
     LOG_FUNCTION_NAME_EXIT;
-    LOGE("Initialize ret = %d", rc);
-    InitDisplayManagerMetaData();
+    LOGD("Initialize ret = %d", rc);
     return ( rc );
 }
 
@@ -1769,11 +1808,8 @@ static int overlay_device_open(const struct hw_module_t* module,
             dev->mOmapOverlays[i] = NULL;
         }
         TheOverlayControlDevice = dev;
-#ifdef TARGET_OMAP4
-        status = InitDisplayManagerMetaData();
-#else
-        status = 0;
-#endif
+
+        status =  InitDisplayManagerMetaData();
     } else {
             /* Error: no memory available*/
             status = -ENOMEM;
