@@ -961,12 +961,20 @@ void initDefaults() {
     vnf_mode = 0;
     vstab_mode = 0;
     rotation = 0;
-    saturation = 0;
     zoomIDX = 0;
     videoCodecIDX = 0;
+#ifdef TARGET_OMAP4
+    ///Temporary fix until OMAP3 and OMAP4 3A values are synced
+    contrast = 90;
+    brightness = 50;
+    sharpness = 0;
+    saturation = 50;
+#else
     contrast = 0;
     brightness = 100;
     sharpness = 0;
+    saturation = 0;
+#endif
     iso_mode = 0;
     capture_mode = 1;
     exposure_mode = 0;
@@ -1135,7 +1143,7 @@ int functional_menu() {
         printf("   v. Output Format:  %s\n", outputFormat[outputFormatIDX].desc);
         printf("   r. Framerate:     %3d\n", frameRate[frameRateIDX].fps);
         printf("   *. Start Video Recording dump ( 1 raw frame ) \n");
-        printf("   B  VNF              %s", vnf[vnf_mode]);
+        printf("   B  VNF              %s \n", vnf[vnf_mode]);
         printf("   C  VSTAB              %s", vstab[vstab_mode]);
 
         printf(" \n\n 3A SETTING SUB MENU \n");
@@ -1368,7 +1376,7 @@ int functional_menu() {
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
-
+            break;
 
         case 'C' :
             vstab_mode++;

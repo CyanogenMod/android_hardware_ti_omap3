@@ -26,6 +26,10 @@ LOCAL_MODULE:= camera_test
 
 LOCAL_CFLAGS += -Wall -fno-short-enums -O0 -g -D___ANDROID___
 
+ifeq ($(TARGET_BOARD_PLATFORM),omap4)
+    LOCAL_CFLAGS += -DTARGET_OMAP4
+endif
+
 include $(BUILD_EXECUTABLE)
 
 endif # BOARD_USES_TI_CAMERA_HAL
