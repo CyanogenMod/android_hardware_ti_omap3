@@ -234,18 +234,82 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     Mutex::Autolock lock(mLock);
 
-    CAMHAL_LOGDB("PreviewFormat %s", params.getPreviewFormat());
-
-    if ( !isParameterValid(params.getPreviewFormat(), (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue))
+    ///Ensure that preview is not enabled when the below parameters are changed.
+    if(!previewEnabled())
         {
-        CAMHAL_LOGEB("Invalid preview format %s",  (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue);
-        return -EINVAL;
-        }
-    else
-        {
-         mParameters.setPreviewFormat(params.getPreviewFormat());
+        CAMHAL_LOGDB("PreviewFormat %s", params.getPreviewFormat());
+
+        if ( !isParameterValid(params.getPreviewFormat(), (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue))
+            {
+            CAMHAL_LOGEB("Invalid preview format %s",  (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue);
+            return -EINVAL;
+            }
+        else
+            {
+             mParameters.setPreviewFormat(params.getPreviewFormat());
+            }
+
+        params.getPreviewSize(&w, &h);
+        if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
+            {
+            CAMHAL_LOGEA("Invalid preview resolution");
+            return -EINVAL;
+            }
+        else
+            {
+            mParameters.setPreviewSize(w, h);
+            }
+
+        CAMHAL_LOGDB("PreviewResolution by App %d x %d", w, h);
+
+        if((params.get(TICameraParameters::KEY_VNF) != NULL)
+            && ((params.getInt(TICameraParameters::KEY_VNF)==0) || (params.getInt(TICameraParameters::KEY_VNF)==1)))
+            {
+            CAMHAL_LOGDB("VNF set %s", params.get(TICameraParameters::KEY_VNF));
+            mParameters.set(TICameraParameters::KEY_VNF, params.get(TICameraParameters::KEY_VNF));
+            }
+
+        if((params.get(TICameraParameters::KEY_VSTAB) != NULL)
+             && ((params.getInt(TICameraParameters::KEY_VSTAB)==0) || (params.getInt(TICameraParameters::KEY_VSTAB)==1)))
+            {
+            CAMHAL_LOGDB("VSTAB set %s", params.get(TICameraParameters::KEY_VSTAB));
+            mParameters.set(TICameraParameters::KEY_VSTAB, params.get(TICameraParameters::KEY_VSTAB));
+            }
+
+        if(params.get(TICameraParameters::KEY_CAP_MODE) != NULL)
+            {
+            CAMHAL_LOGDB("Capture mode set %s", params.get(TICameraParameters::KEY_CAP_MODE));
+            mParameters.set(TICameraParameters::KEY_CAP_MODE, params.get(TICameraParameters::KEY_CAP_MODE));
+            }
+
+        if((params.get(TICameraParameters::KEY_BURST) != NULL)
+            && (params.getInt(TICameraParameters::KEY_BURST) >=0))
+            {
+            CAMHAL_LOGDB("Burst set %s", params.get(TICameraParameters::KEY_BURST));
+            mParameters.set(TICameraParameters::KEY_BURST, params.get(TICameraParameters::KEY_BURST));
+            }
+
+        if((params.get(TICameraParameters::KEY_CAMERA) != NULL)
+            && (params.getInt(TICameraParameters::KEY_CAMERA) >=0)
+            && (params.getInt(TICameraParameters::KEY_CAMERA) < mCameraProperties->camerasSupported() ))
+            {
+            mParameters.set(TICameraParameters::KEY_CAMERA, params.get(TICameraParameters::KEY_CAMERA));
+            }
+
+        int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
+
+        CAMHAL_LOGDB("Camera Selected %s",mParameters.get(TICameraParameters::KEY_CAMERA));
+        CAMHAL_LOGDB("camera_index %d, mCameraIndex %d", camera_index, mCameraIndex);
+
+        if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
+            {
+            mCameraIndex = camera_index;
+            mReloadAdapter = true;
+            }
+
         }
 
+    ///Below parameters can be changed when the preview is running
     if ( !isParameterValid(params.getPictureFormat(),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue))
         {
@@ -256,19 +320,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         {
         mParameters.setPictureFormat(params.getPictureFormat());
         }
-
-    params.getPreviewSize(&w, &h);
-    if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
-        {
-        CAMHAL_LOGEA("Invalid preview resolution");
-        return -EINVAL;
-        }
-    else
-        {
-        mParameters.setPreviewSize(w, h);
-        }
-
-    CAMHAL_LOGDB("PreviewResolution by App %d x %d", w, h);
 
     params.getPictureSize(&w, &h);
     if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue))
@@ -397,18 +448,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_ROTATION, params.get(CameraParameters::KEY_ROTATION));
         }
 
-    if(params.get(TICameraParameters::KEY_CAP_MODE) != NULL)
-        {
-        CAMHAL_LOGDB("Capture mode set %s", params.get(TICameraParameters::KEY_CAP_MODE));
-        mParameters.set(TICameraParameters::KEY_CAP_MODE, params.get(TICameraParameters::KEY_CAP_MODE));
-        }
-
-    if((params.get(TICameraParameters::KEY_BURST) != NULL)
-        && (params.getInt(TICameraParameters::KEY_BURST) >=0))
-        {
-        CAMHAL_LOGDB("Burst set %s", params.get(TICameraParameters::KEY_BURST));
-        mParameters.set(TICameraParameters::KEY_BURST, params.get(TICameraParameters::KEY_BURST));
-        }
 
     if((params.get(CameraParameters::KEY_JPEG_QUALITY) != NULL)
         && (params.getInt(CameraParameters::KEY_JPEG_QUALITY) >=0))
@@ -431,20 +470,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, params.get(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT));
         }
 
-    if((params.get(TICameraParameters::KEY_VNF) != NULL)
-        && ((params.getInt(TICameraParameters::KEY_VNF)==0) || (params.getInt(TICameraParameters::KEY_VNF)==1)))
-        {
-        CAMHAL_LOGDB("VNF set %s", params.get(TICameraParameters::KEY_VNF));
-        mParameters.set(TICameraParameters::KEY_VNF, params.get(TICameraParameters::KEY_VNF));
-        }
-
-    if((params.get(TICameraParameters::KEY_VSTAB) != NULL)
-         && ((params.getInt(TICameraParameters::KEY_VSTAB)==0) || (params.getInt(TICameraParameters::KEY_VSTAB)==1)))
-        {
-        CAMHAL_LOGDB("VSTAB set %s", params.get(TICameraParameters::KEY_VSTAB));
-        mParameters.set(TICameraParameters::KEY_VSTAB, params.get(TICameraParameters::KEY_VSTAB));
-        }
-
     if((params.get(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY) != NULL )
         && (params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY) >=0))
         {
@@ -457,24 +482,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         {
         CAMHAL_LOGDB("Zoom set %s", params.get(CameraParameters::KEY_ZOOM));
         mParameters.set(CameraParameters::KEY_ZOOM, params.get(CameraParameters::KEY_ZOOM));
-        }
-
-    if((params.get(TICameraParameters::KEY_CAMERA) != NULL)
-        && (params.getInt(TICameraParameters::KEY_CAMERA) >=0)
-        && (params.getInt(TICameraParameters::KEY_CAMERA) < mCameraProperties->camerasSupported() ))
-        {
-        mParameters.set(TICameraParameters::KEY_CAMERA, params.get(TICameraParameters::KEY_CAMERA));
-        }
-
-    int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
-
-    CAMHAL_LOGDB("Camera Selected %s",mParameters.get(TICameraParameters::KEY_CAMERA));
-    CAMHAL_LOGDB("camera_index %d, mCameraIndex %d", camera_index, mCameraIndex);
-
-    if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
-        {
-        mCameraIndex = camera_index;
-        mReloadAdapter = true;
         }
 
     if ( NULL != mCameraAdapter.get() )
@@ -760,6 +767,8 @@ status_t CameraHal::startPreview()
     mPreviewWidth = w;
     mPreviewHeight = h;
 
+
+
     ///Allocate the preview buffers
     ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
     if ( NO_ERROR != ret )
@@ -818,6 +827,10 @@ status_t CameraHal::startPreview()
         goto error;
         }
     CAMHAL_LOGDA("Started preview");
+
+    //Update the padded width and height - required for VNF and VSTAB
+    mParameters.setPreviewSize(mPreviewWidth,mPreviewHeight);
+
 
     mPreviewEnabled = true;
     mPreviewStartInProgress = false;
