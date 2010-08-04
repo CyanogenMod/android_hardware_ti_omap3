@@ -1499,7 +1499,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         mPreviewData->mBufferHeader[index] = pBufferHdr;
         }
 
-    CAMHAL_LOGDA("LOADED->IDLE state changed");
+    CAMHAL_LOGDA("Waiting LOADED->IDLE state transition");
     ///Wait for state to switch to idle
     eventSem.Wait();
     CAMHAL_LOGDA("LOADED->IDLE state changed");

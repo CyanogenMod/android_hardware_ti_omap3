@@ -1590,7 +1590,7 @@ status_t CameraHal::initialize()
     ///Get the default Camera
     mCameraPropertiesArr = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(mCameraIndex);
 
-#if DEBUG_LOG
+#ifdef DEBUG_LOG
 
     if(!mCameraPropertiesArr)
         {
@@ -1725,7 +1725,7 @@ status_t CameraHal::reloadAdapter()
         CAMHAL_LOGEB("getProperties() returned a NULL property set for Camera index %d", mCameraIndex);
         return NO_INIT;
         }
-#if DEBUG_LOG
+#ifdef DEBUG_LOG
 
         ///Dump the properties of this Camera
         dumpProperties(mCameraPropertiesArr);
