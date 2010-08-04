@@ -165,7 +165,7 @@ int focus_mode = 0;
 const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw"};
 int pictureFormat = ARRAY_SIZE(pixelformat) - 2;
 const char *exposure[] = {"auto", "macro", "portrait", "landscape", "sports", "night", "night-portrait", "backlighting", "manual"};
-const char *capture[] = { "high-performance", "high-quality", "Video Mode" };
+const char *capture[] = { "high-performance", "high-quality", "video-mode" };
 const struct {
     int idx;
     const char *zoom_description;
@@ -900,8 +900,6 @@ int startPreview() {
                 return -1;
             }
 
-            params.unflatten(camera->getParameters());
-
         }
 
         if(recordingMode)
@@ -1360,6 +1358,8 @@ int functional_menu() {
             params.set(KEY_MODE, 3);
             params.set(KEY_VNF, 1);
             params.set(KEY_VSTAB, 1);
+            break;
+
         case ':':
             thumbSizeIDX += 1;
             thumbSizeIDX %= ARRAY_SIZE(previewSize);
