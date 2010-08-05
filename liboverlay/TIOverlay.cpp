@@ -467,23 +467,22 @@ int overlay_data_context_t::enable_streaming_locked(overlay_object* overlayobj, 
         return -1;
     }
 
-    if (!overlayobj->controlReady || !overlayobj->dataReady) {
-        LOGI("Postponing Stream Enable/%d/%d\n", overlayobj->controlReady,
-                overlayobj->dataReady);
-    } else {
-        overlayobj->streamEn = 1;
-        int fd;
-        if (isDatapath) {
-            fd = overlayobj->getdata_videofd();
-        }
-        else {
-            fd = overlayobj->getctrl_videofd();
-        }
-        rc = v4l2_overlay_stream_on(fd);
-        if (rc) {
-            LOGE("Stream Enable Failed!/%d\n", rc);
-            overlayobj->streamEn = 0;
-        }
+    if (!overlayobj->dataReady) {
+        LOGI("Cannot enable stream without queuing at least one buffer");
+        return -1;
+    }
+    overlayobj->streamEn = 1;
+    int fd;
+    if (isDatapath) {
+        fd = overlayobj->getdata_videofd();
+    }
+    else {
+        fd = overlayobj->getctrl_videofd();
+    }
+    rc = v4l2_overlay_stream_on(fd);
+    if (rc) {
+        LOGE("Stream Enable Failed!/%d\n", rc);
+        overlayobj->streamEn = 0;
     }
     LOG_FUNCTION_NAME_EXIT
     return rc;
@@ -1632,7 +1631,9 @@ int overlay_data_context_t::overlay_queueBuffer(struct overlay_data_device_t *de
     }
     int fd = ctx->omap_overlay->getdata_videofd();
 
-if ( !ctx->omap_overlay->controlReady ) return -1;
+    if ( !ctx->omap_overlay->controlReady ) {
+        LOGI("Control not ready but queue buffer requested!!!\n");
+    }
 
 #ifdef __FILE_DUMP__
    if(noofbuffer > 10) {
