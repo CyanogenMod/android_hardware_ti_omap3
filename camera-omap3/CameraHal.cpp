@@ -4073,7 +4073,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mExifParams.rotation = -1;
         }
 
-        if(mcaf != caf){
+        if ((caf != -1) && (mcaf != caf)){
             mcaf = caf;
             Message msg;
             msg.command = mcaf ? PREVIEW_CAF_START : PREVIEW_CAF_STOP;
