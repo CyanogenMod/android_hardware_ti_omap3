@@ -392,6 +392,11 @@ private:
     bool mVnfEnabled;
     bool mVstabEnabled;
 
+    int mFrameCount;
+    int mLastFrameCount;
+    unsigned int mIter;
+    nsecs_t mLastFPSTime;
+
 };
 }; //// namespace
 #endif //OMX_CAMERA_ADAPTER_H

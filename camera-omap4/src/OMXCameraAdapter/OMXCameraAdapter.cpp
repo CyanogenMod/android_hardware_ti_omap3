@@ -1912,6 +1912,10 @@ status_t OMXCameraAdapter::startPreview()
     //reset frame rate estimates
     mFPS = 0.0f;
     mLastFPS = 0.0f;
+    mFrameCount = 0;
+    mLastFrameCount = 0;
+    mIter = 1;
+    mLastFPSTime = systemTime();
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -3303,34 +3307,30 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
 status_t OMXCameraAdapter::recalculateFPS()
 {
-    static int frameCount = 0;
-    static unsigned int iter = 1;
-    static int lastFrameCount = 0;
-    static nsecs_t lastFPSTime = 0;
     float currentFPS;
 
-    frameCount++;
+    mFrameCount++;
 
-    if ( ( frameCount % FPS_PERIOD ) == 0 )
+    if ( ( mFrameCount % FPS_PERIOD ) == 0 )
         {
         nsecs_t now = systemTime();
-        nsecs_t diff = now - lastFPSTime;
-        currentFPS =  ((frameCount - lastFrameCount) * float(s2ns(1))) / diff;
-        lastFPSTime = now;
-        lastFrameCount = frameCount;
+        nsecs_t diff = now - mLastFPSTime;
+        currentFPS =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        mLastFPSTime = now;
+        mLastFrameCount = mFrameCount;
 
-        if ( 1 == iter )
+        if ( 1 == mIter )
             {
             mFPS = currentFPS;
             }
         else
             {
             //cumulative moving average
-            mFPS = mLastFPS + (currentFPS - mLastFPS)/iter;
+            mFPS = mLastFPS + (currentFPS - mLastFPS)/mIter;
             }
 
         mLastFPS = mFPS;
-        iter++;
+        mIter++;
         }
 
     return NO_ERROR;
