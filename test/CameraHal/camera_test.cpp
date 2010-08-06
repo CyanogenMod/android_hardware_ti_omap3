@@ -329,7 +329,12 @@ class CameraHandler: public CameraListener {
     public:
         virtual void notify(int32_t msgType, int32_t ext1, int32_t ext2);
         virtual void postData(int32_t msgType, const sp<IMemory>& dataPtr);
+#ifdef OMAP_ENHANCEMENT
+        virtual void postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr
+                , uint32_t offset, uint32_t stride);
+#else
         virtual void postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr);
+#endif
 };
 
 /** Calculate delay from a reference time */
@@ -577,7 +582,12 @@ void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr) {
     }
 }
 
+#ifdef OMAP_ENHANCEMENT
+void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr
+                                    , uint32_t offset, uint32_t stride)
+#else
 void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr)
+#endif
 {
     printf("Recording cb: %d %lld %p\n", msgType, timestamp, dataPtr.get());
 
