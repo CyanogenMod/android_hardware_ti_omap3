@@ -70,7 +70,8 @@
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
 
-#define DEBUG_LOG 0
+//#define DEBUG_LOG
+
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG
 

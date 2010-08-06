@@ -1,15 +1,11 @@
 <?xml version="1.0"?>
 <CameraRoot>
 <CameraInstance>
-<camera-name>Primary Camera</camera-name>
+<camera-name>PrimaryCamera</camera-name>
 <camera-adapter-dll-name>libomxcameraadapter.so</camera-adapter-dll-name>
-<<<<<<< HEAD:camera-omap4/data/TICameraCameraProperties.xml
-<preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,704x576,704x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
-=======
 <sensor-index>0</sensor-index>
 <preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
 <preview-size>640x480</preview-size>
->>>>>>> e4ce7aa... OMAP4 Camera HAL: Support for sensor selection inside CameraAdapter:camera-omap4/data/TICameraCameraProperties.xml
 <preview-format-values>yuv422i-yuyv,yuv420sp,rgb565</preview-format-values>
 <preview-format>yuv420sp</preview-format>
 <preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
@@ -56,7 +52,7 @@
 <sharpness>0</sharpness>
 </CameraInstance>
 <CameraInstance>
-<camera-name>Secondary Camera</camera-name>
+<camera-name>SecondaryCamera</camera-name>
 <camera-adapter-dll-name>libomxcameraadapter.so</camera-adapter-dll-name>
 <sensor-index>1</sensor-index>
 <preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
@@ -86,7 +82,7 @@
 <required-image-bufs>1</required-image-bufs>
 </CameraInstance>
 <CameraInstance>
-<camera-name>Dual Camera</camera-name>
+<camera-name>DualCamera</camera-name>
 <camera-adapter-dll-name>libfakecameraadapter.so</camera-adapter-dll-name>
 <sensor-index>1</sensor-index>
 <preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
