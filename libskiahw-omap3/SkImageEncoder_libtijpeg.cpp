@@ -38,7 +38,7 @@
 #define PRINTF // SkDebugf
 //#define PRINTF printf
 #define TIME_ENCODE
-
+#define EVEN_RES_ONLY 1   //true if odd resolution encode support enabled using SW codec
 #define MULTIPLE 2 //image width must be a multiple of this number
 
 #define JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT 0
@@ -142,12 +142,12 @@ void SkTIJPEGImageEncoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 size)
 {
 
 #if JPEG_ENCODER_DUMP_INPUT_AND_OUTPUT
-    
+
     char path[50];
     snprintf(path, sizeof(path), "/temp/JEO_%d.jpg", eOutputCount);
 
     PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
-    
+
     SkFILEWStream tempFile(path);
     if (tempFile.write(pBuffer, size) == false)
         PRINTF("Writing to %s failed\n", path);
@@ -238,9 +238,37 @@ void SkTIJPEGImageEncoder::EventHandler(OMX_HANDLETYPE hComponent,
 }
 
 
+bool SkTIJPEGImageEncoder::onEncodeSW(SkWStream* stream, const SkBitmap& bm, int quality) {
+
+    bool result = false;
+    SkJPEGImageEncoder* pSWJPGEHandle = new SkJPEGImageEncoder;
+    if (!pSWJPGEHandle) {
+        PRINTF("\nERROR:: !!Could not get the SW codec handle!!\n");
+        return false;
+    }
+
+    PRINTF("\n#### Using SW(ARM) Image Encoder ####\n\n");
+    result = pSWJPGEHandle->encodeStream(stream, bm, quality);
+    delete pSWJPGEHandle;
+    return result;
+}
 
 bool SkTIJPEGImageEncoder::onEncode(SkImageEncoder* enc_impl, SkWStream* stream, const SkBitmap& bm, int quality)
 {
+
+    int w, h, nWidthNew, nHeightNew, nMultFactor, nBytesPerPixel;
+    OMX_U32 inBuffSize;
+
+    w = bm.width();
+    h = bm.height();
+
+    PRINTF("\n******* WxH = %d x %d ******\n",w,h);
+    /*decide to choose the codec based on resolution W*H */
+    //If W or H is ODD or W*H < WVGA resolution then invoke SW codec (ARM)
+    if ( (w % 2) || (h % 2) || (w * h <= WVGA_RESOLUTION) ) {
+
+        return onEncodeSW (stream, bm, quality);
+    }
 
     PRINTF("\nUsing TI Image Encoder.\n");
     AutoTrackLoad autotrack(mLoad); //increase load here, should be fine even though it's done outside of critical section as long as we keep it 1 to 1 in this function
@@ -249,12 +277,6 @@ bool SkTIJPEGImageEncoder::onEncode(SkImageEncoder* enc_impl, SkWStream* stream,
     if (NULL == bm.getPixels()) {
         return false;
     }
-
-    int w, h, nWidthNew, nHeightNew, nMultFactor, nBytesPerPixel;
-    OMX_U32 inBuffSize;
-
-    w = bm.width();
-    h = bm.height();
 
 #ifdef TIME_ENCODE
     AutoTimeMicros atm("TI JPEG Encode");
@@ -279,17 +301,19 @@ bool SkTIJPEGImageEncoder::onEncode(SkImageEncoder* enc_impl, SkWStream* stream,
     inBuffSize = nWidthNew * nHeightNew * nBytesPerPixel;
     if (inBuffSize < 1600)
         inBuffSize = 1600;
-	
+
     inBuffSize = (OMX_U32)((inBuffSize + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
     void *inputBuffer = memalign(ALIGN_128_BYTE, inBuffSize);
     if ( inputBuffer == NULL) {
         PRINTF("\n %s():%d:: ERROR:: inputBuffer Allocation Failed. \n", __FUNCTION__,__LINE__);
         return false;
     }
-    
-#if OLD_WAY
+
+#if EVEN_RES_ONLY
     memcpy(inputBuffer, bm.getPixels(), bm.getSize());
 #else
+    //This padding logic can be used for the odd sized image encoding
+    //when TI DSP codec used
     int pad_width = w%MULTIPLE;
     int pad_height = h%2;
     int pixels_to_pad = 0;
@@ -301,8 +325,8 @@ bool SkTIJPEGImageEncoder::onEncode(SkImageEncoder* enc_impl, SkWStream* stream,
     int dst = (int)bm.getPixels();
     int i, j;
     int row = w * nBytesPerPixel;
-    
-    if (pad_height && pad_width) 
+
+    if (pad_height && pad_width)
     {
         printf("\ndealing with pad_width");
         for(i = 0; i < h; i++)
@@ -315,24 +339,24 @@ bool SkTIJPEGImageEncoder::onEncode(SkImageEncoder* enc_impl, SkWStream* stream,
                 src++;
             }
         }
-        
+
         printf("\ndealing with odd height");
-        memset((void *)src, 0, row+bytes_to_pad); 
+        memset((void *)src, 0, row+bytes_to_pad);
 
         w+=pixels_to_pad;
         h++;
     }
-    else if (pad_height) 
+    else if (pad_height)
     {
         memcpy((void *)src, (void*)dst, (w*h*nBytesPerPixel));
         printf("\nadding one line and making it zero");
-        memset((void *)(src + (w*h*nBytesPerPixel)), 0, row); 
+        memset((void *)(src + (w*h*nBytesPerPixel)), 0, row);
         h++;
     }
     else if (pad_width)
     {
         printf("\ndealing with odd width");
-    
+
         for(i = 0; i < h; i++)
         {
             memcpy((void *)src, (void *)dst, row);
@@ -345,7 +369,7 @@ bool SkTIJPEGImageEncoder::onEncode(SkImageEncoder* enc_impl, SkWStream* stream,
         }
         w+=pixels_to_pad;
     }
-    else 
+    else
     {
         printf("\nno padding");
         memcpy((void *)src, (void*)dst, (w*h*nBytesPerPixel));
@@ -367,8 +391,8 @@ bool SkTIJPEGImageEncoder::onEncode(SkImageEncoder* enc_impl, SkWStream* stream,
     if (encodeImage(outBuffSize,inputBuffer, inBuffSize, w, h, quality, bm.config())){
         stream->write(pEncodedOutputBuffer, nEncodedOutputFilledLen);
         free(inputBuffer);
-        return true;        
-    }            
+        return true;
+    }
 
     free(inputBuffer);
     return false;
@@ -417,7 +441,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
     snprintf(path, sizeof(path), "/temp/JEI_%d_%d_%dx%d.raw", eInputCount, config, width, height);
 
     PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
-    
+
     SkFILEWStream tempFile(path);
     if (tempFile.write(inputBuffer, inBuffSize) == false)
         PRINTF("Writing to %s failed\n", path);
@@ -625,7 +649,7 @@ bool SkTIJPEGImageEncoder::encodeImage(int outBuffSize, void *inputBuffer, int i
         iState = STATE_ERROR;
         goto EXIT;
     }
-    
+
     eError = OMX_SetConfig (pOMXHandle, nCustomIndex, &QfactorType);
     if ( eError != OMX_ErrorNone ) {
         PRINTF("%d::APP_Error at function call: %x\n", __LINE__, eError);
