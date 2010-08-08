@@ -614,6 +614,8 @@ typedef struct VIDENC_COMPONENT_PRIVATE
     OMX_U32 nMIRRate;
     OMX_U8  ucUnrestrictedMV;
     OMX_BOOL bSentFirstSpsPps;
+    unsigned char *sps;
+    OMX_U32  spsLen;
 
     OMX_U32 nInBufferSize;
     OMX_U32 nOutBufferSize;
