@@ -58,7 +58,7 @@ public:
         fNow = SkTime::GetMSecs();
     }
     ~AutoTimeMillis() {
-		SkDebugf("---- Input file Resolution :%dx%d",width,height); 
+		SkDebugf("---- Input file Resolution :%dx%d",width,height);
         SkDebugf("---- TI JPEG Decode Time (ms): %s %d\n", fLabel, SkTime::GetMSecs() - fNow);
     }
 
@@ -74,11 +74,21 @@ private:
 	int height;
 };
 
-typedef struct OMX_CUSTOM_RESOLUTION 
+typedef struct OMX_CUSTOM_RESOLUTION
 {
 	OMX_U32 nWidth;
 	OMX_U32 nHeight;
 } OMX_CUSTOM_RESOLUTION;
+
+typedef struct OMX_CUSTOM_IMAGE_DECODE_SUBREGION
+{
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nXOrg;         /*Sectional decoding: X origin*/
+    OMX_U32 nYOrg;         /*Sectional decoding: Y origin*/
+    OMX_U32 nXLength;      /*Sectional decoding: X length*/
+    OMX_U32 nYLength;      /*Sectional decoding: Y length*/
+}OMX_CUSTOM_IMAGE_DECODE_SUBREGION;
 
 void* ThreadDecoderWrapper(void* me)
 {
@@ -162,6 +172,11 @@ SkTIJPEGImageDecoder::SkTIJPEGImageDecoder()
     pOMXHandle = NULL;
     mProgressive = 0;
     semaphore = NULL;
+    nSubRegDecode = false;
+
+    //Initialize JpegDecoderParams structure
+    memset((void*)&jpegDecParams, 0, sizeof(JpegDecoderParams));
+
     semaphore = (sem_t*)malloc(sizeof(sem_t)) ;
     sem_init(semaphore, 0x00, 0x00);
 
@@ -304,7 +319,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
                 free(data);
                 data=NULL;
             }
-            return 0;           
+            return 0;
         }
 
         //PRINTF("Jpeg section marker 0x%02x size %d\n",marker, itemlen);
@@ -452,12 +467,12 @@ OMX_U32 SkTIJPEGImageDecoder::JpegHeader_GetMarkerInfo (OMX_U32 Marker, OMX_U8* 
 void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
 {
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
-    
+
     char path[50];
     snprintf(path, sizeof(path), "/temp/JDO_%d_%d_%dx%d.raw", dOutputCount, bitmap->config(), bitmap->width(), bitmap->height());
 
     PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
-    
+
     SkFILEWStream tempFile(path);
     if (tempFile.write(pBuffer, nFilledLen) == false)
         PRINTF("Writing to %s failed\n", path);
@@ -561,7 +576,7 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_U8* pBuf, SkStream* stream, OMX_S32 
     snprintf(path, sizeof(path), "/temp/JDI_%d.jpg", dInputCount);
 
     PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
-    
+
     SkFILEWStream tempFile(path);
     if (tempFile.write(pBuf, nFilledLen) == false)
         PRINTF("Writing to %s failed\n", path);
@@ -571,7 +586,7 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_U8* pBuf, SkStream* stream, OMX_S32 
     dInputCount++;
     PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
 #endif
-    
+
     return nFilledLen;
 }
 
@@ -594,6 +609,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     int scaleFactor;
     int bitsPerPixel;
     int nRead = 0;
+    int nOutWidth;
+    int nOutHeight;
     OMX_S32 inputFileSize;
     OMX_S32 nCompId = 100;
     OMX_U32 outBuffSize;
@@ -602,12 +619,14 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     OMX_PORT_PARAM_TYPE PortType;
     OMX_CUSTOM_RESOLUTION MaxResolution;
     OMX_CONFIG_SCALEFACTORTYPE ScaleFactor;
+    OMX_CUSTOM_IMAGE_DECODE_SUBREGION SubRegionDecode;
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
     void* inputBuffer = NULL;
     char strTIJpegDec[] = "OMX.TI.JPEG.decoder";
     char strColorFormat[] = "OMX.TI.JPEG.decoder.Config.OutputColorFormat";
     char strProgressive[] = "OMX.TI.JPEG.decoder.Config.ProgressiveFactor";
     char strMaxResolution[] = "OMX.TI.JPEG.decoder.Param.SetMaxResolution";
+    char strSubRegionDecode[] = "OMX.TI.JPEG.decoder.Param.SubRegionDecode";
 
     OMX_CALLBACKTYPE JPEGCallBack ={OMX_EventHandler, OMX_EmptyBufferDone, OMX_FillBufferDone};
 
@@ -617,7 +636,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     inStream = stream;
     SkBitmap::Config config = prefConfig;
     scaleFactor = dec_impl->getSampleSize();
-    
+
     PRINTF("config = %d\n", config);
     PRINTF("mode = %d\n", mode);
     PRINTF("scaleFactor = %d ", scaleFactor);
@@ -629,7 +648,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     	scaleFactor = 4;
     else if (scaleFactor > 8)
     	scaleFactor = 8;
-    	
+
     PRINTF ("Modified scaleFactor = %d\n", scaleFactor);
     if (SkImageDecoder::kDecodeBounds_Mode == mode) {
         inputFileSize = ParseJpegHeader(stream , &JpegHeaderInfo);
@@ -662,7 +681,30 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     if (config == SkBitmap::kNo_Config)
         config = SkImageDecoder::GetDeviceConfig();
 
-    bm->setConfig(config, JpegHeaderInfo.nWidth/scaleFactor, JpegHeaderInfo.nHeight/scaleFactor);
+    //Configure the bitmap with the required W x H
+    if (jpegDecParams.nXOrg || jpegDecParams.nYOrg ||
+        jpegDecParams.nXLength || jpegDecParams.nYLength ) {
+
+        PRINTF ("\njpegDecParams.nXOrg = %d\n",jpegDecParams.nXOrg);
+        PRINTF ("jpegDecParams.nYOrg = %d\n",jpegDecParams.nYOrg);
+        PRINTF ("jpegDecParams.nXLength = %d\n",jpegDecParams.nXLength);
+        PRINTF ("jpegDecParams.nYLength = %d\n",jpegDecParams.nYLength);
+
+        nOutWidth = jpegDecParams.nXLength/scaleFactor;
+        nOutHeight = jpegDecParams.nYLength/scaleFactor;
+        bm->setConfig(config, nOutWidth, nOutHeight);
+
+        //set the subregion decode flag So that the current decode will create a new OMX handle.
+        //This is required because the Subregion Decode parameters can't be changed in Execute
+        //state of the OMX component.
+        nSubRegDecode = true;
+    }
+    else {
+        nOutWidth = JpegHeaderInfo.nWidth/scaleFactor;
+        nOutHeight = JpegHeaderInfo.nHeight/scaleFactor;
+        bm->setConfig(config, nOutWidth, nOutHeight);
+    }
+
     if (bm->config() == SkBitmap::kARGB_8888_Config)
         bm->setIsOpaque(false);
     else
@@ -679,6 +721,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         if(inputBuffer != NULL)
             free(inputBuffer);
         gTIJpegDecMutex.unlock();
+        PRINTF("Jpeg Header Parsing Done.\n");
         PRINTF("Leaving Critical Section 1 \n");
         return true;
     }
@@ -698,10 +741,11 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         bitsPerPixel = 2;
     }
 
-    outBuffSize = (JpegHeaderInfo.nWidth / scaleFactor ) * (JpegHeaderInfo.nHeight / scaleFactor) * bitsPerPixel;
+    outBuffSize = (nOutWidth * nOutHeight) * bitsPerPixel ;
 
 #if OPTIMIZE
     if(pOMXHandle == NULL ||
+            nSubRegDecode == true ||
             (OMX_U32) JpegHeaderInfo.nWidth > InPortDef.format.image.nFrameWidth ||
             (OMX_U32) JpegHeaderInfo.nHeight > InPortDef.format.image.nFrameHeight ||
             OutPortDef.format.image.eColorFormat != SkBitmapToOMXColorFormat(bm->config()) ||
@@ -710,6 +754,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
             outBuffSize > OutPortDef.nBufferSize ||
             (OMX_U32) inputFileSize > InPortDef.nBufferSize)
     {
+        //reset the subregion decode flag for next decode to use the current OMX handle
+        nSubRegDecode = false;
 #endif
         if (pOMXHandle != NULL) {
             eError = TIOMX_FreeHandle(pOMXHandle);
@@ -873,6 +919,40 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
             PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         iState = STATE_ERROR;
             goto EXIT;
+        }
+
+        if (jpegDecParams.nXOrg || jpegDecParams.nYOrg ||
+            jpegDecParams.nXLength || jpegDecParams.nYLength ) {
+
+            eError = OMX_GetExtensionIndex(pOMXHandle, strSubRegionDecode, (OMX_INDEXTYPE*)&nCustomIndex);
+            if ( eError != OMX_ErrorNone ) {
+                PRINTF ("JPEGDec:: %d:Error received from OMX_GetExtensionIndex(): error= %x\n", __LINE__, eError);
+                iState = STATE_ERROR;
+                goto EXIT;
+            }
+
+            SubRegionDecode.nSize = sizeof(OMX_CUSTOM_IMAGE_DECODE_SUBREGION);
+            eError = OMX_GetParameter (pOMXHandle, nCustomIndex, &SubRegionDecode);
+            if ( eError != OMX_ErrorNone ) {
+                PRINTF ("JPEGDec::%d:Error received from OMX_GetParameter(): error= %x\n", __LINE__, eError);
+                iState = STATE_ERROR;
+                goto EXIT;
+            }
+            SubRegionDecode.nXOrg = jpegDecParams.nXOrg;
+            SubRegionDecode.nYOrg = jpegDecParams.nYOrg;
+            SubRegionDecode.nXLength = jpegDecParams.nXLength;
+            SubRegionDecode.nYLength = jpegDecParams.nYLength;
+
+            eError = OMX_SetParameter (pOMXHandle, nCustomIndex, &SubRegionDecode);
+            if ( eError != OMX_ErrorNone ) {
+                PRINTF ("JPEGDec::%d:Error received from OMX_SetParameter(): error= %x\n", __LINE__, eError);
+                iState = STATE_ERROR;
+                goto EXIT;
+            }
+            //set the subregion decode flag So that next decode will create a new OMX handle. This is required
+            //because the Subregion Decode parameters can't be changed in Execute state of the OMX component.
+            nSubRegDecode = true;
+            PRINTF ("JPEGDec::%d:SubRegionDecode is set.\n", __LINE__ );
         }
 
 #if USE_OMX_UseBuffer

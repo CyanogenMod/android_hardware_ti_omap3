@@ -92,24 +92,34 @@ public:
 		// Huffman Table
 		// SectionDecode;
 		// SubRegionDecode
+        OMX_U32 nXOrg;         /* X origin*/
+        OMX_U32 nYOrg;         /* Y origin*/
+        OMX_U32 nXLength;      /* X length*/
+        OMX_U32 nYLength;      /* Y length*/
+
 	}JpegDecoderParams;
 
-       sem_t *semaphore;
+    sem_t *semaphore;
 	JPEGDEC_State iState;
 	JPEGDEC_State iLastState;
 
-        SkTIJPEGImageDecoder();
-        ~SkTIJPEGImageDecoder();
+    SkTIJPEGImageDecoder();
+    ~SkTIJPEGImageDecoder();
     bool onDecode(SkImageDecoder* dec_impl, SkStream* stream, SkBitmap* bm, SkBitmap::Config pref, SkImageDecoder::Mode);
-        bool SetJpegDecodeParameters(JpegDecoderParams * jdp) {memcpy(&jpegDecParams, jdp, sizeof(JpegDecoderParams)); return true;}
-        void Run();
-        void PrintState();
-        void FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen);
-        void EventHandler(OMX_HANDLETYPE hComponent,
-        									OMX_EVENTTYPE eEvent,
-        									OMX_U32 nData1,
-        									OMX_U32 nData2,
-        									OMX_PTR pEventData);
+
+    bool SetJpegDecodeParameters(void *jdp) {
+         memcpy((void*)&jpegDecParams, jdp, sizeof(JpegDecoderParams));
+         return true;
+    }
+
+    void Run();
+    void PrintState();
+    void FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen);
+    void EventHandler(OMX_HANDLETYPE hComponent,
+    									OMX_EVENTTYPE eEvent,
+    									OMX_U32 nData1,
+    									OMX_U32 nData2,
+    									OMX_PTR pEventData);
     int GetLoad(){ return mLoad; }
     void IncDeleteAttempts() {mDeleteAttempts++;}
     void ResetDeleteAttempts() {mDeleteAttempts = 0;}
@@ -138,6 +148,7 @@ private:
     int mLoad;
     int mDeleteAttempts;
     int mProgressive;
+    bool nSubRegDecode;
 	OMX_S16 GetYUVformat(OMX_U8 * Data);
 	OMX_S16 Get16m(const void * Short);
 	OMX_S32 ParseJpegHeader (SkStream* stream, JPEG_HEADER_INFO* JpegHeaderInfo);

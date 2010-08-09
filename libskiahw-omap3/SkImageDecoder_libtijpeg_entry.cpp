@@ -50,7 +50,8 @@ SkTIJPEGImageDecoderEntry::~SkTIJPEGImageDecoderEntry()
 
 SkTIJPEGImageDecoderEntry::SkTIJPEGImageDecoderEntry()
 {
-
+    //Initialize JpegDecoderParams structure
+    memset((void*)&jpegDecParams, 0, sizeof(JpegDecoderParams));
 }
 
 bool SkTIJPEGImageDecoderEntry::WatchdogCallback(void* __item)
@@ -138,5 +139,7 @@ bool SkTIJPEGImageDecoderEntry::onDecode(SkStream* stream, SkBitmap* bm, Mode mo
         }
     } //SkTIJPEGImageDecoderListLock
 
+    //propagate the decoder parameters to the decoder object.
+    static_cast<SkTIJPEGImageDecoderList_Item*>(*iter)->Decoder->SetJpegDecodeParameters((void*)&jpegDecParams);
     return static_cast<SkTIJPEGImageDecoderList_Item*>(*iter)->Decoder->onDecode(this, stream, bm, prefConfig, mode);
 }
