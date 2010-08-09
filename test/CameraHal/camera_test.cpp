@@ -589,7 +589,11 @@ void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const 
 void CameraHandler::postDataTimestamp(nsecs_t timestamp, int32_t msgType, const sp<IMemory>& dataPtr)
 #endif
 {
-    printf("Recording cb: %d %lld %p\n", msgType, timestamp, dataPtr.get());
+#ifdef OMAP_ENHANCEMENT
+    printf("Recording cb: %d %lld %p Offset:%d Stride:%d\n", msgType, timestamp, dataPtr.get(), offset, stride);
+#else
+    printf("Recording cb: %d %lld %p Offset:%d Stride:%d\n", msgType, timestamp, dataPtr.get());
+#endif
 
     static uint32_t count = 0;
 
