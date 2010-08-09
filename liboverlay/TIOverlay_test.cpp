@@ -159,12 +159,20 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
 #ifdef TARGET_OMAP4
     if ((w1 > FULLHD_WIDTH )||(w2 > FULLHD_WIDTH)||(h1 > FULLHD_HEIGHT)||(h2 > FULLHD_HEIGHT))
 #else
-    if ((w1 > 1280)||(w2 > 1280)||(h1 > 720)||(h2 > 720))
+    if (w1 > MAX_OVERLAY_WIDTH_VAL ||
+        h1 > MAX_OVERLAY_HEIGHT_VAL ||
+        w2 > MAX_OVERLAY_WIDTH_VAL ||
+        h2 > MAX_OVERLAY_HEIGHT_VAL ||
+        w1*h1 > MAX_OVERLAY_RESOLUTION ||
+        w2*h2 > MAX_OVERLAY_RESOLUTION)
 #endif
         {
         LOGE("Invalid Image resolution");
         return;
         }
+
+    int bytesPerPixel1 = 2;
+    int bytesPerPixel2 = 2;
 
     // now request an overlay
     sp<ISurface> firstSurface;
@@ -210,12 +218,15 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     {
     case 0:
         format = OVERLAY_FORMAT_RGB_565;
+        bytesPerPixel1 = 2;
         break;
     case 1:
         format = OVERLAY_FORMAT_RGBA_8888;
+        bytesPerPixel1 = 4;
         break;
     case 2:
         format = OVERLAY_FORMAT_BGRA_8888;
+        bytesPerPixel1 = 4;
         break;
     case 3:
         format = OVERLAY_FORMAT_YCbCr_422_SP;
@@ -306,12 +317,15 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     {
     case 0:
         format = OVERLAY_FORMAT_RGB_565;
+        bytesPerPixel2 = 2;
         break;
     case 1:
         format = OVERLAY_FORMAT_RGBA_8888;
+        bytesPerPixel2 = 4;
         break;
     case 2:
         format = OVERLAY_FORMAT_BGRA_8888;
+        bytesPerPixel2 = 4;
         break;
     case 3:
         format = OVERLAY_FORMAT_YCbCr_422_SP;
@@ -434,7 +448,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     overlay_buffer_t buffer1;
     int numBuffers1;
     uint32_t page_width1 = (w1 * 2   + 4096 -1) & ~(4096 -1);  // width rounded to the 4096 bytes
-    uint32_t framesize1 = w1*h1*2;
+    uint32_t framesize1 = w1*h1*bytesPerPixel1;
     uint8_t* localbuffer1 = new uint8_t [framesize1];
 
     int filedes2 = -1;
@@ -444,7 +458,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     overlay_buffer_t buffer2;
     int numBuffers2;
     uint32_t page_width2 = (w2 * 2   + 4096 -1) & ~(4096 -1);  // width rounded to the 4096 bytes
-    uint32_t framesize2 = w2*h2*2;
+    uint32_t framesize2 = w2*h2*bytesPerPixel2;
     uint8_t* localbuffer2 = new uint8_t [framesize2];
 
     filedes1 = open(img1, O_RDONLY);

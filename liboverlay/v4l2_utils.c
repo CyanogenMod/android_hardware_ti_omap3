@@ -107,6 +107,8 @@ void dump_pixfmt(struct v4l2_pix_format *pix)
         case V4L2_PIX_FMT_NV12:
             LOGI ("NV12\n");
             break;
+        case V4L2_PIX_FMT_RGB32:
+            LOGI ("RGB32\n");
         default:
             LOGI("not supported\n");
     }
