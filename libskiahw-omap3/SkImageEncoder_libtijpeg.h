@@ -45,6 +45,12 @@ extern "C" {
 }
 
 #define OPTIMIZE 1
+#define WVGA_RESOLUTION (854*480)
+
+class SkJPEGImageEncoder : public SkImageEncoder {
+protected:
+virtual bool onEncode(SkWStream* stream, const SkBitmap& bm, int quality);
+};
 
 class SkTIJPEGImageEncoder
 {
@@ -114,6 +120,8 @@ private:
     android::Mutex gTIJpegEncMutex;
     int mLoad;
     int mDeleteAttempts;
+
+     bool onEncodeSW(SkWStream* stream, const SkBitmap& bm, int quality);
 
 };
 
