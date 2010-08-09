@@ -672,11 +672,6 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         goto EXIT;
     }
 
-    if (JpegHeaderInfo.nWidth * JpegHeaderInfo.nHeight > 12000000) {
-        PRINTF ("%s():%d::Unsupported Resolution ( larger than 12MP) \n",__FUNCTION__,__LINE__);
-        goto EXIT;
-    }
-
     // if no user preference, see what the device recommends
     if (config == SkBitmap::kNo_Config)
         config = SkImageDecoder::GetDeviceConfig();
@@ -692,7 +687,6 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
 
         nOutWidth = jpegDecParams.nXLength/scaleFactor;
         nOutHeight = jpegDecParams.nYLength/scaleFactor;
-        bm->setConfig(config, nOutWidth, nOutHeight);
 
         //set the subregion decode flag So that the current decode will create a new OMX handle.
         //This is required because the Subregion Decode parameters can't be changed in Execute
@@ -702,8 +696,39 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     else {
         nOutWidth = JpegHeaderInfo.nWidth/scaleFactor;
         nOutHeight = JpegHeaderInfo.nHeight/scaleFactor;
-        bm->setConfig(config, nOutWidth, nOutHeight);
     }
+
+    /*check for the maximum resolution and set to its upper limit which is supported by the codec.
+      So that TI DSP Codec will take care of scaling down before decoding and updates the
+      outputresolution parameter in UALGOutParams structure.
+    */
+    if(JpegHeaderInfo.nProgressive &&
+        (nOutWidth * nOutHeight > JPEGDEC_PROG_MAXRESOLUTION)) //progressive
+    {
+        if(nOutWidth > nOutHeight)
+        {
+            nOutWidth = PROG_WIDTH;
+            nOutHeight = PROG_HEIGHT;
+        }else
+        {
+            nOutWidth = PROG_HEIGHT;
+            nOutHeight = PROG_WIDTH;
+        }
+    }
+    else if(!JpegHeaderInfo.nProgressive &&
+        (nOutWidth * nOutHeight > JPEGDEC_BASELINE_MAXRESOLUTION)) //sequential image
+    {
+        if(nOutWidth > nOutHeight)
+        {
+            nOutWidth = SEQ_WIDTH;
+            nOutHeight = SEQ_HEIGHT;
+        }else
+        {
+            nOutWidth = SEQ_HEIGHT;
+            nOutHeight = SEQ_WIDTH;
+        }
+    }
+    bm->setConfig(config, nOutWidth, nOutHeight);
 
     if (bm->config() == SkBitmap::kARGB_8888_Config)
         bm->setIsOpaque(false);

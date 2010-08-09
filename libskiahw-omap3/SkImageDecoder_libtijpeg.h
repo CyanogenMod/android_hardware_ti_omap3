@@ -69,6 +69,12 @@ extern "C" {
 #define M_DHT   0xC4
 #define M_DRI   0xDD
 
+#define JPEGDEC_PROG_MAXRESOLUTION 12032000       //(4000*3008)
+#define JPEGDEC_BASELINE_MAXRESOLUTION 25044736   //(5776*4336)
+#define PROG_WIDTH	4000
+#define PROG_HEIGHT 3008
+#define SEQ_WIDTH   5776
+#define SEQ_HEIGHT  4336
 
 class SkTIJPEGImageDecoder
 {
