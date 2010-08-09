@@ -173,8 +173,8 @@ CameraHal::CameraHal()
     CameraCreate();
 
     initDefaultParameters();
-     
-    /* Avoiding duplicate call of cameraconfigure(). It is now called in previewstart() */     
+
+    /* Avoiding duplicate call of cameraconfigure(). It is now called in previewstart() */
     //CameraConfigure();
 
 #ifdef FW3A
@@ -264,7 +264,7 @@ void CameraHal::initDefaultParameters()
     CameraParameters p;
     char tmpBuffer[PARAM_BUFFER], zoomStageBuffer[PARAM_BUFFER];
     unsigned int zoomStage;
- 
+
     LOG_FUNCTION_NAME
 
     p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
@@ -481,7 +481,7 @@ CameraHal::~CameraHal()
         close(shutterPipe[0]);
         close(shutterPipe[1]);
     }
-    
+
     procMessage[0] = RAW_THREAD_EXIT;
     write(rawPipe[1], procMessage, sizeof(unsigned int));
 
@@ -562,7 +562,7 @@ void CameraHal::previewThread()
     int parm;
     bool  shouldLive = true;
     bool has_message;
-    int err; 
+    int err;
     struct pollfd pfd[2];
 
     LOG_FUNCTION_NAME
@@ -851,11 +851,11 @@ void CameraHal::previewThread()
 #endif
 
                 }
-                LOGD("Receive Command: PREVIEW_AF_START %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK"); 
+                LOGD("Receive Command: PREVIEW_AF_START %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK");
                 previewThreadAckQ.put(&msg);
             }
             break;
-		
+
             case PREVIEW_CAF_START:
             {
                 LOGD("Receive Command: PREVIEW_CAF_START");
@@ -867,7 +867,7 @@ void CameraHal::previewThread()
                 }
                 else
                 {
-#ifdef FW3A    
+#ifdef FW3A
                     if( FW3A_Start_CAF() < 0){
                         LOGE("ERROR FW3A_Start_CAF()");
                         err = -1;
@@ -875,7 +875,7 @@ void CameraHal::previewThread()
 #endif
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
                 }
-                LOGD("Receive Command: PREVIEW_CAF_START %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK"); 
+                LOGD("Receive Command: PREVIEW_CAF_START %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK");
                 previewThreadAckQ.put(&msg);
             }
             break;
@@ -889,7 +889,7 @@ void CameraHal::previewThread()
                     msg.command = PREVIEW_ACK;
                 else
                 {
-#ifdef FW3A    
+#ifdef FW3A
                     if( FW3A_Stop_CAF() < 0){
                          LOGE("ERROR FW3A_Stop_CAF()");
                          err = -1;
@@ -897,7 +897,7 @@ void CameraHal::previewThread()
 #endif
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
                 }
-                LOGD("Receive Command: PREVIEW_CAF_STOP %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK"); 
+                LOGD("Receive Command: PREVIEW_CAF_STOP %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK");
                 previewThreadAckQ.put(&msg);
            }
            break;
@@ -1147,7 +1147,7 @@ int CameraHal::CameraConfigure()
     LOG_FUNCTION_NAME
 
     mParameters.getPreviewSize(&w, &h);
-   
+
     /* Set preview format */
     format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     format.fmt.pix.width = w;
@@ -1160,10 +1160,10 @@ int CameraHal::CameraConfigure()
         goto s_fmt_fail;
     }
 
-    LOGI("CameraConfigure PreviewFormat: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);	
+    LOGI("CameraConfigure PreviewFormat: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);
 
     framerate = mParameters.getPreviewFrameRate();
-    
+
     LOGD("CameraConfigure: framerate to set = %d",framerate);
 
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1223,7 +1223,7 @@ int CameraHal::CameraStart()
 
     creqbuf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     creqbuf.memory = V4L2_MEMORY_USERPTR;
-    creqbuf.count  =  buffer_count ; 
+    creqbuf.count  =  buffer_count ;
     if (ioctl(camera_device, VIDIOC_REQBUFS, &creqbuf) < 0) {
         LOGE ("VIDIOC_REQBUFS Failed. %s", strerror(errno));
         goto fail_reqbufs;
@@ -1390,7 +1390,7 @@ void CameraHal::nextPreview()
     overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
     int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
     int index;
-    
+
     mParameters.getPreviewSize(&w, &h);
 
     //Zoom
@@ -1458,7 +1458,7 @@ void CameraHal::nextPreview()
     {
         LOGD("Camera has 0 buffers at the moment.");
     }
-    
+
     if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
         LOGE("VIDIOC_DQBUF Failed!!!");
         goto EXIT;
@@ -1499,7 +1499,7 @@ void CameraHal::nextPreview()
             }
         }
     }
-    
+
     if (nOverlayBuffersQueued >= NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
     {
         dequeue_from_dss_failed = mOverlay->dequeueBuffer(&overlaybuffer);
@@ -1530,7 +1530,7 @@ void CameraHal::nextPreview()
             overlaybufferindex = (int)overlaybuffer;
             nOverlayBuffersQueued--;
             buffers_queued_to_dss[(int)overlaybuffer] = 0;
-            lastOverlayBufferDQ = (int)overlaybuffer;	
+            lastOverlayBufferDQ = (int)overlaybuffer;
         }
     }
 
@@ -1561,14 +1561,18 @@ void CameraHal::nextPreview()
                     //LOGW("Had to adjust the timestamp. Clock went back in time. mCurrentTime = %lld, mPrevTime = %llu", mCurrentTime[(int)overlaybuffer], mPrevTime);
                     mCurrentTime[(int)overlaybuffer] = mPrevTime + frameInterval;
                 }
+#ifdef OMAP_ENHANCEMENT
+                mDataCbTimestamp(mCurrentTime[(int)overlaybuffer], CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie, 0, 0);
+#else
                 mDataCbTimestamp(mCurrentTime[(int)overlaybuffer], CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[(int)overlaybuffer], mCallbackCookie);
+#endif
                 mPrevTime = mCurrentTime[(int)overlaybuffer];
             }
         }
-    } 
-    else 
+    }
+    else
     {
-        if (overlaybufferindex != -1) {	// dequeued a valid buffer from overlay	
+        if (overlaybufferindex != -1) {	// dequeued a valid buffer from overlay
             if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[(int)overlaybuffer]) < 0) {
                 LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
             }else{
@@ -1588,7 +1592,7 @@ EXIT:
 
     return ;
 }
-	
+
 #ifdef ICAP
 
 int  CameraHal::ICapturePerform()
@@ -3162,7 +3166,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     if ( mOverlay.get() != NULL )
     {
         LOGD("Destroying current overlay");
-        
+
         int buffer_count = mOverlay->getBufferCount();
         for(int i =0; i < buffer_count ; i++){
             // need to free buffers and heaps mapped using overlay fd before it is destroyed
@@ -3332,7 +3336,7 @@ void CameraHal::stopRecording()
             }
             else nCameraBuffersQueued++;
             buffers_queued_to_ve[i] = 0;
-            LOGD("Buffer #%d was not returned by VE. Reclaiming it !!!!!!!!!!!!!!!!!!!!!!!!", i);        
+            LOGD("Buffer #%d was not returned by VE. Reclaiming it !!!!!!!!!!!!!!!!!!!!!!!!", i);
         }
     }
 
@@ -3359,14 +3363,14 @@ void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
         LOGD("Encoder returned wrong buffer address");
         return;
     }
-    
+
     debugShowFPS();
-    
-    if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[index]) < 0) 
+
+    if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[index]) < 0)
     {
         LOGE("VIDIOC_QBUF Failed, index [%d] line=%d",index,__LINE__);
-    } 
-    else 
+    }
+    else
     {
         nCameraBuffersQueued++;
     }
@@ -3412,13 +3416,13 @@ status_t CameraHal::cancelPicture( )
 status_t CameraHal::convertGPSCoord(double coord, int *deg, int *min, int *sec)
 {
     double tmp;
-    
+
     LOG_FUNCTION_NAME
 
     if ( coord == 0 ) {
-        
+
         LOGE("Invalid GPS coordinate");
-        
+
         return EINVAL;
     }
 
@@ -3439,7 +3443,7 @@ status_t CameraHal::convertGPSCoord(double coord, int *deg, int *min, int *sec)
     }
 
     LOG_FUNCTION_NAME_EXIT
-    
+
     return NO_ERROR;
 }
 
@@ -3459,7 +3463,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     Message msg;
 
     Mutex::Autolock lock(mLock);
-      
+
     LOGD("PreviewFormat %s", params.getPreviewFormat());
 
     if ( params.getPreviewFormat() != NULL ) {
@@ -3538,7 +3542,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     quality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
     if ( ( quality < 0 ) || (quality > 100) ){
         quality = 100;
-    } 
+    }
 
     zoom = mParameters.getInt(CameraParameters::KEY_ZOOM);
     if( (zoom >= 0) && ( zoom <= ZOOM_STAGES) ){
@@ -3570,7 +3574,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
             gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_LATITUDE), NULL);
             convertGPSCoord(gpsCoord, &gpsLocation->latDeg, &gpsLocation->latMin, &gpsLocation->latSec);
-            
+
             gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_LONGITUDE), NULL);
             convertGPSCoord(gpsCoord, &gpsLocation->longDeg, &gpsLocation->longMin, &gpsLocation->longSec);
 
@@ -4080,7 +4084,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     }
 
 #endif
-    
+
     LOG_FUNCTION_NAME_EXIT
     return NO_ERROR;
 }
