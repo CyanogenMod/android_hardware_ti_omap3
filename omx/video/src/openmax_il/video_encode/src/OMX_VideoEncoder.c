@@ -384,6 +384,8 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
     pComponentPrivate->bUnresponsiveDsp     = OMX_FALSE;
     pComponentPrivate->bCodecLoaded         = OMX_FALSE;
     pComponentPrivate->cComponentName       = "OMX.TI.Video.encoder";
+    pComponentPrivate->sps = NULL;
+    pComponentPrivate->spsLen = 0;
 
 #ifdef __KHRONOS_CONF__
     pComponentPrivate->bPassingIdleToLoaded = OMX_FALSE;

@@ -1328,6 +1328,12 @@ OMX_ERRORTYPE OMX_VIDENC_HandleCommandStateSetIdle(VIDENC_COMPONENT_PRIVATE* pCo
                    pComponentPrivate->pLCML = NULL;
                 }
 
+                if (pComponentPrivate->sps) {
+                    free(pComponentPrivate->sps);
+                    pComponentPrivate->sps = NULL;
+                    pComponentPrivate->spsLen = 0;
+                }
+
                 pComponentPrivate->bCodecStarted = OMX_FALSE;
                 pComponentPrivate->bCodecLoaded = OMX_FALSE;
             }
@@ -2809,6 +2815,8 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledOutBuf(VIDENC_COMPONENT_PRIVATE* pCompone
 
         if (pPortDefOut->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC)
         {
+            pBufHead->nFlags &= ~OMX_BUFFERFLAG_CODECCONFIG;
+
         /*Copy Buffer Data to be propagated*/
         if((pComponentPrivate->AVCNALFormat == VIDENC_AVC_NAL_SLICE) &&
                 (pSNPrivateParams->ulNALUnitsPerFrame != (pSNPrivateParams->ulNALUnitIndex+1)) &&
@@ -2828,6 +2836,7 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledOutBuf(VIDENC_COMPONENT_PRIVATE* pCompone
             pBufHead->nFlags |= OMX_BUFFERFLAG_ENDOFFRAME;
         }
 
+
             /* Set lFrameType*/
             if (((H264VE_GPP_SN_UALGOutputParams*)pBufferPrivate->pUalgParam)->lFrameType == OMX_LFRAMETYPE_H264 ||
                  ((H264VE_GPP_SN_UALGOutputParams*)pBufferPrivate->pUalgParam)->lFrameType == OMX_LFRAMETYPE_IDR_H264)
@@ -2838,9 +2847,35 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledOutBuf(VIDENC_COMPONENT_PRIVATE* pCompone
                     /* Need to drop subsequent SPS or PPS NAL unit since opencore does not
                      * correctly handle storage */
                     if (!pComponentPrivate->bSentFirstSpsPps) {
+                        if (nalType == SPS_CODE_PREFIX) {
+                            // Save SPS and send it along with PPS later in a single buffer
+                            // Workaround to send a 0-length buffer first.
+                            // Ideally, we should not send a buffer at all.
+                            pComponentPrivate->sps = malloc(4 + pBufHead->nFilledLen);
+                            pComponentPrivate->spsLen = 4 + pBufHead->nFilledLen;
+                            memcpy(pComponentPrivate->sps, "\x00\x00\x00\x01", 4);
+                            memcpy(pComponentPrivate->sps + 4, pBufHead->pBuffer, pBufHead->nFilledLen);
+                            pBufHead->nFilledLen = 0;
+                        }
+
                         /* we can assume here that PPS always comes second */
-                        if (nalType == PPS_CODE_PREFIX)
+                        if (nalType == PPS_CODE_PREFIX) {
                             pComponentPrivate->bSentFirstSpsPps = OMX_TRUE;
+                            if (pComponentPrivate->sps == NULL ||
+                                pComponentPrivate->spsLen == 0) {
+                                OMX_CONF_SET_ERROR_BAIL(eError, OMX_ErrorUndefined);
+                            }
+                            memmove(pBufHead->pBuffer + pComponentPrivate->spsLen + 4,
+                                    pBufHead->pBuffer, pBufHead->nFilledLen);
+                            memmove(pBufHead->pBuffer,
+                                    pComponentPrivate->sps, pComponentPrivate->spsLen);
+                            memcpy(pBufHead->pBuffer + pComponentPrivate->spsLen, "\x00\x00\x00\x01", 4);
+                            pBufHead->nFilledLen += pComponentPrivate->spsLen + 4;
+                            pBufHead->nFlags |= OMX_BUFFERFLAG_CODECCONFIG;
+                            free(pComponentPrivate->sps);
+                            pComponentPrivate->sps = NULL;
+                            pComponentPrivate->spsLen = 0;
+                        }
                     } else {
                         pBufHead->nFilledLen = 0;
                     }
@@ -2894,6 +2929,8 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledOutBuf(VIDENC_COMPONENT_PRIVATE* pCompone
         else if (pPortDefOut->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4 ||
                  pPortDefOut->format.video.eCompressionFormat == OMX_VIDEO_CodingH263)
         {
+            pBufHead->nFlags &= ~OMX_BUFFERFLAG_CODECCONFIG;
+
             /*We ignore the first Mpeg4 buffer which contains VOL Header since we did not add it to the circular list*/
             if(pComponentPrivate->bWaitingForVOLHeaderBuffer == OMX_FALSE)
             {
@@ -2903,6 +2940,7 @@ OMX_ERRORTYPE OMX_VIDENC_Process_FilledOutBuf(VIDENC_COMPONENT_PRIVATE* pCompone
             else
             {
                 pComponentPrivate->bWaitingForVOLHeaderBuffer = OMX_FALSE;
+                pBufHead->nFlags |= OMX_BUFFERFLAG_CODECCONFIG;
             }
 
             pBufHead->nFlags |= OMX_BUFFERFLAG_ENDOFFRAME;
