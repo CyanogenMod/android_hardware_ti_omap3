@@ -1233,6 +1233,8 @@ void printUsage()
     printf("\n\nOptional Arguments");
     printf("\n-x val : win x");
     printf("\n-y val : win y");
+    printf("\n-w val : New Width");
+    printf("\n-h val : New Height");    
     printf("\n-i val : Repeat test 'val' times");
 
     printf("\n\n");
@@ -1244,10 +1246,12 @@ int main (int argc, char* argv[])
 {
 
     int opt;
-    const char* const short_options = "x:y:p:n:i:";
+    const char* const short_options = "x:y:w:h:p:n:i:";
     const struct option long_options[] = {
         {"win_x",           1, NULL, 'x'},
         {"win_y",           1, NULL, 'y'},
+        {"newwidth1",       1, NULL, 'w'},
+        {"newheight1",      1, NULL, 'h'},
         {"iterations",      1, NULL, 'i'},
         {NULL,               0, NULL, 0}
     };
@@ -1345,6 +1349,12 @@ int main (int argc, char* argv[])
                     break;
                 case 'y':
                     test.win_y = atoi(optarg);
+                    break;
+                case 'w':
+                    test.newwidth1 = atoi(optarg);
+                    break;
+                case 'h':
+                    test.newheight1 = atoi(optarg);
                     break;
                 case 'i':
                     stressTest = MIN(5000, atoi(optarg));
