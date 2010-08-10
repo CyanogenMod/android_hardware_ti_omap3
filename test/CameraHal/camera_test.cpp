@@ -44,7 +44,7 @@
 #define KEY_BUFF_STARV      "buff-starvation"
 #define KEY_METERING_MODE   "meter-mode"
 
-#define SDCARD_PATH "/"
+#define SDCARD_PATH "/sdcard/"
 
 #define MAX_BURST   15
 #define BURST_INC     5
@@ -1731,11 +1731,10 @@ char *load_script(char *config) {
     printf("\n COMPLETE FOLDER PATH : %s \n",dir_path);
     if(mkdir(dir_path,0777) == -1) {
         printf("\n Directory %s was not created \n",dir_path);
-        strncpy(dir_path, SDCARD_PATH, strlen(SDCARD_PATH) + 1);
     } else {
         printf("\n Directory %s was created \n",dir_path);
-        printf("\n DIRECTORY CREATED FOR TEST RESULT IMAGES IN MMC CARD : %s \n",dir_name);
     }
+    printf("\n DIRECTORY CREATED FOR TEST RESULT IMAGES IN MMC CARD : %s \n",dir_name);
 
     if( (NULL == infile)){
         printf("Error while opening script file %s!\n", config);
@@ -1768,7 +1767,7 @@ char *load_script(char *config) {
 
     if(!sprintf(log_cmd,"logcat > /sdcard/%s/log.txt &",dir_name))
           printf(" Sprintf Error");
-    if(!system(log_cmd))
+    if(system(log_cmd))
           printf("\nCould not execute %s command\n",log_cmd);
 
     return script;
@@ -2019,6 +2018,19 @@ int execute_functional_script(char *script) {
                     }
                 }
                 break;
+
+            case 'v':
+                for(i = 0; i < ARRAY_SIZE(outputFormat); i++)
+                {
+                    if( strcmp((cmd + 1), outputFormat[i].desc) == 0)
+                    {
+                        outputFormatIDX = i;
+                        printf("Video Codec Selected: %s\n",
+                                videoCodecs[i].desc);
+                        break;
+                    }
+                }
+            break;
 
             case '~':
                 params.setPreviewFormat(cmd + 1);
@@ -2426,6 +2438,17 @@ int execute_functional_script(char *script) {
                 {
                     camera->setParameters(params.flatten());
                 }
+                break;
+            }
+
+            case 'X':
+            {
+                char rem_str[50];
+                printf("Deleting images from %s \n", dir_path);
+                if(!sprintf(rem_str,"rm %s/*.jpg",dir_path))
+                    printf("Sprintf Error");
+                if(system(rem_str))
+                    printf("Images were not deleted\n");
                 break;
             }
 
