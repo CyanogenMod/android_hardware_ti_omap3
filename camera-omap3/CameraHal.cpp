@@ -808,9 +808,6 @@ void CameraHal::previewThread()
                     msg.command = PREVIEW_NACK;
                 } else {
 
-//Disable Autofocus in Eclair for now
-#if 1
-
 #ifdef FW3A
 
                    if (isStart_FW3A_CAF!= 0){
@@ -837,7 +834,6 @@ void CameraHal::previewThread()
                         if(msgTypeEnabled(CAMERA_MSG_FOCUS))
                             mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
                     }
-#endif
 
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
 
