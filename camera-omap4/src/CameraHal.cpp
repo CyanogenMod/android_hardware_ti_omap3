@@ -767,7 +767,8 @@ status_t CameraHal::startPreview()
     mPreviewWidth = w;
     mPreviewHeight = h;
 
-
+    //Update the padded width and height - required for VNF and VSTAB
+    mParameters.setPreviewSize(mPreviewWidth,mPreviewHeight);
 
     ///Allocate the preview buffers
     ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
@@ -827,9 +828,6 @@ status_t CameraHal::startPreview()
         goto error;
         }
     CAMHAL_LOGDA("Started preview");
-
-    //Update the padded width and height - required for VNF and VSTAB
-    mParameters.setPreviewSize(mPreviewWidth,mPreviewHeight);
 
 
     mPreviewEnabled = true;
@@ -1044,7 +1042,7 @@ void CameraHal::stopPreview()
 
         if ( reloadAdapter() < 0 )
             {
-            CAMHAL_LOGEA("CameraAdapter reload failed")
+            CAMHAL_LOGEA("CameraAdapter reload failed");
             }
         else
             {

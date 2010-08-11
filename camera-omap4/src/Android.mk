@@ -96,7 +96,7 @@ LOCAL_C_INCLUDES += \
 
 
 
-LOCAL_CFLAGS += -fno-short-enums
+LOCAL_CFLAGS += -fno-short-enums -DTARGET_OMAP4
 
 LOCAL_MODULE:= libfakecameraadapter
 
@@ -149,7 +149,7 @@ LOCAL_C_INCLUDES += \
 
 
 
-LOCAL_CFLAGS += -fno-short-enums
+LOCAL_CFLAGS += -fno-short-enums -DTARGET_OMAP4
 
 LOCAL_MODULE:= libomxcameraadapter
 
