@@ -1426,14 +1426,14 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         CAMHAL_LOGEB("Error configuring thumbnail size %x", ret);
         return ret;
         }
-
+#if 0
     ret = setScene(mParameters3A);
     if ( NO_ERROR != ret )
         {
         CAMHAL_LOGEB("Error configuring scene mode %x", ret);
         return ret;
         }
-
+#endif
 
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
         {
@@ -1445,6 +1445,26 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
             return ret;
             }
 
+        ///Enable/Disable Video Stabilization
+        ret = enableVideoStabilization(mVstabEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
+            return ret;
+            }
+        }
+    else
+        {
+        mVnfEnabled = false;
+        ///Enable/Disable Video Noise Filter
+        ret = enableVideoNoiseFilter(mVnfEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VNF %x", ret);
+            return ret;
+            }
+
+        mVstabEnabled = false;
         ///Enable/Disable Video Stabilization
         ret = enableVideoStabilization(mVstabEnabled);
         if ( NO_ERROR != ret)
@@ -2851,6 +2871,32 @@ void OMXCameraAdapter::getFrameSize(int &width, int &height)
 
         if ( NO_ERROR == ret )
             {
+            ///Enable/Disable Video Stabilization
+            ret = enableVideoStabilization(mVstabEnabled);
+            }
+
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
+            }
+        }
+    else
+        {
+        if ( NO_ERROR == ret )
+            {
+            mVnfEnabled = false;
+            ///Enable/Disable Video Noise Filter
+            ret = enableVideoNoiseFilter(mVnfEnabled);
+            }
+
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VNF %x", ret);
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            mVstabEnabled = false;
             ///Enable/Disable Video Stabilization
             ret = enableVideoStabilization(mVstabEnabled);
             }
