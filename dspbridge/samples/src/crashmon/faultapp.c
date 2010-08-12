@@ -69,6 +69,8 @@
 #define DMM_WRITEREADY      0xADDD
 
 UINT g_dwDSPWordSize = 1;	// default for 2430
+#define CACHE_ALIGN_MASK		0xffffff80
+#define CACHE_ALIGN_UNMASK	0x0000007f
 
 /* dmmcopy task context data structure. */
 struct DMMCOPY_TASK {
@@ -263,6 +265,10 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 	/* Actual MPU Buffer addresses */
 	ULONG aBufferSend = 0;
 	ULONG aBufferRecv = 0;
+
+	ULONG aBufferRecv1 = 0;
+	ULONG aBufferSend1 = 0;
+
 	/* Reserved buffer DSP virtual addresses (bytes) */
 	PVOID aDspSendBuffer = NULL;
 	PVOID aDspRecvBuffer = NULL;
@@ -281,15 +287,19 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 	INT j;
 	INT i = 0;
 
+
 	/* Allocate MPU Buffers */
-	aBufferSend = (ULONG) malloc(ulSendBufferSize);
-	aBufferRecv = (ULONG) malloc(ulRecvBufferSize);
+	aBufferSend = (unsigned long) (char *)calloc(ulSendBufferSize + ((CACHE_ALIGN_UNMASK + 1) << 1),1);
+	aBufferSend1 = (aBufferSend + CACHE_ALIGN_UNMASK) & CACHE_ALIGN_MASK;
+	aBufferRecv = (unsigned long) (char *)calloc(ulRecvBufferSize + ((CACHE_ALIGN_UNMASK + 1) << 1),1);
+	aBufferRecv1 = (aBufferRecv + CACHE_ALIGN_UNMASK) & CACHE_ALIGN_MASK;
+
 	/* Initialize buffers */
 	for (i = 0;i < ulSendBufferSize;i++) {
-		((PSTR) aBufferSend)[i] = 0;
-		((PSTR) aBufferRecv)[i] = 0;
+		((PSTR) aBufferSend1)[i] = 0;
+		((PSTR) aBufferRecv1)[i] = 0;
 	}
-	if (!aBufferSend || !aBufferRecv) {
+	if (!aBufferSend1 || !aBufferRecv1) {
 		fprintf(stdout, "Failed to allocate MPU buffers.\n");
 		status = DSP_EMEMORY;
 	} else {
@@ -318,7 +328,7 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 	}
 	if (DSP_SUCCEEDED(status)) {
 		/* Map MPU "send buffer" to DSP "receive buffer" virtual address */
-		status = DSPProcessor_Map(copyTask->hProcessor, (PVOID)aBufferSend,
+		status = DSPProcessor_Map(copyTask->hProcessor, (PVOID)aBufferSend1,
 										ulSendBufferSize, dspAddrSend,
 												&aDspRecvBuffer, 0);
 		if (DSP_SUCCEEDED(status)) {
@@ -330,7 +340,7 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 	}
 	if (DSP_SUCCEEDED(status)) {
 		/* Map MPU "receive buffer" to DSP "send buffer" virtual address */
-		status = DSPProcessor_Map(copyTask->hProcessor, (PVOID)aBufferRecv,
+		status = DSPProcessor_Map(copyTask->hProcessor, (PVOID)aBufferRecv1,
 										ulRecvBufferSize, dspAddrRecv,
 													&aDspSendBuffer,0);
 		if (DSP_SUCCEEDED(status)) {
@@ -347,8 +357,8 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 		msgToDsp.dwArg2 = 0xffff8000;
 		status = DSPNode_PutMessage(copyTask->hNode, &msgToDsp, DSP_FOREVER);
 		fprintf(stdout, "Sending DMM BUFs to DSP cmd=SETUP, DspRecvBuf=0x%x, "
-								"DspSendBuf=0x%x \n",(UINT)aBufferRecv,
-														(UINT)aBufferSend);
+								"DspSendBuf=0x%x \n",(UINT)aBufferRecv1,
+														(UINT)aBufferSend1);
 		if (DSP_FAILED(status)) {
 			fprintf(stdout, "DSPProcessor_PutMessage failed. Status = 0x%x\n",
 																(UINT)status);
