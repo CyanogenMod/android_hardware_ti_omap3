@@ -2541,7 +2541,10 @@ EXIT:
                 }
 
                 mParameters.getPreviewSize(&preview_width, &preview_height);
-			    SaveFile(NULL, (char*)"snp", getLastOverlayAddress(), preview_width*preview_height*2);
+
+#ifdef DUMP_SNAPSHOT
+                SaveFile(NULL, (char*)"snp", getLastOverlayAddress(), preview_width*preview_height*2);
+#endif
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
