@@ -572,6 +572,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
+#ifdef FOCUS_MODE_ISSUE_FIXED
     str = params.get(CameraParameters::KEY_FOCUS_MODE);
     mode = getLUTvalue_HALtoOMX(str, FocusLUT);
     if ( ( str != NULL ) && ( mParameters3A.Focus != mode ) )
@@ -583,6 +584,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             mPending3Asettings |= SetFocus;
             }
         }
+#endif
 
     str = params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION);
     if ( ( str != NULL ) && (mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION) ))
@@ -2287,21 +2289,67 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             }
 
 
-        eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexCameraOperatingMode, &camMode);
-        if ( OMX_ErrorNone != eError )
+        OMX_CONFIG_BOOLEANTYPE bOMX;
+        OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
+        OMX_PARAM_ISONOISEFILTERTYPE nsf;
+        OMX_INIT_STRUCT_PTR (&nsf, OMX_PARAM_ISONOISEFILTERTYPE);
+
+
+        if(OMXCameraAdapter::HIGH_QUALITY == mode)
             {
-            CAMHAL_LOGEB("Error while configuring camera mode 0x%x", eError);
-            ret = -1;
+            bOMX.bEnabled = OMX_TRUE;
+            nsf.eMode = OMX_ISONoiseFilterModeOn;
             }
         else
             {
-            CAMHAL_LOGDA("Camera mode configured successfully");
+            bOMX.bEnabled = OMX_FALSE;
+            nsf.eMode = OMX_ISONoiseFilterModeOff;
+            }
+
+        /// Enabing LDC
+        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamLensDistortionCorrection, &bOMX);
+
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Enabing LDC - 0x%x", eError);
+            ret = -1;
+            }
+
+        if(ret != -1)
+            {
+            nsf.nPortIndex = OMX_ALL;
+
+            /// Enabing NSF2
+            eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp,
+            (OMX_INDEXTYPE)OMX_IndexParamHighISONoiseFiler, &nsf);
+
+            if ( OMX_ErrorNone != eError )
+                {
+                CAMHAL_LOGEB("Enabing NSF2 - 0x%x", eError);
+                ret = -1;
+                }
+            }
+
+        if(ret != -1)
+            {
+            eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexCameraOperatingMode, &camMode);
+            if ( OMX_ErrorNone != eError )
+                {
+                CAMHAL_LOGEB("Error while configuring camera mode 0x%x", eError);
+                ret = -1;
+                }
+            else
+                {
+                CAMHAL_LOGDA("Camera mode configured successfully");
+                }
             }
         }
 
-    OMX_CONFIG_FLICKERCANCELTYPE flickerCfg;
+    if(ret != -1)
+        {
+        OMX_CONFIG_FLICKERCANCELTYPE flickerCfg;
 
-     OMX_INIT_STRUCT_PTR (&flickerCfg, OMX_CONFIG_FLICKERCANCELTYPE);
+        OMX_INIT_STRUCT_PTR (&flickerCfg, OMX_CONFIG_FLICKERCANCELTYPE);
         flickerCfg.eFlickerCancel = OMX_FlickerCancel60;
 
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE )OMX_IndexConfigFlickerCancel, &flickerCfg);
@@ -2314,6 +2362,7 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             {
             CAMHAL_LOGDA("Flicker cancel set successfully");
             }
+        }
 
     if ( eError != OMX_ErrorNone )
         {
