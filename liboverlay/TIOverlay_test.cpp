@@ -1348,6 +1348,7 @@ int main (int argc, char* argv[])
         {
             LOGD("\n\n---------------------Iteration %d ------------------------------\n\n", i);
             test.testOverlay(img1, w1, h1, fmt1, panel1);
+            sleep(2); //Sleep for 2 seconds. Give SF time to destroy overlay
         }
     }
     else
@@ -1439,6 +1440,7 @@ int main (int argc, char* argv[])
         {
             LOGD("\n\n---------------------Iteration %d ------------------------------\n\n", i);
             test.testOverlay(argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), atoi(argv[7]), argv[8], atoi(argv[9]), atoi(argv[10]), atoi(argv[11]), atoi(argv[12]));
+            sleep(2); //Sleep for 2 seconds. Give SF time to destroy overlay            
         }
 
     }
