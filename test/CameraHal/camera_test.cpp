@@ -1926,7 +1926,7 @@ int execute_functional_script(char *script) {
                     height = atoi(res);
                 }
 
-                printf("Resolution: %d x %d", width, height);
+                printf("Resolution: %d x %d\n", width, height);
 
                 params.setPreviewSize(width, height);
                 reSizePreview = true;
@@ -2044,6 +2044,17 @@ int execute_functional_script(char *script) {
                     }
                 }
                 break;
+
+            case 'A':
+                camera_index=atoi(cmd+1);
+                camera_index %= ARRAY_SIZE(cameras);
+                params.set(KEY_CAMERA, camera_index);
+                printf("%s selected.\n", cameras[camera_index]);
+
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+                break;
+
             case 'l':
             case 'L':
                 for(i = 0; i < ARRAY_SIZE(VcaptureSize); i++)
