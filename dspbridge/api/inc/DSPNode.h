@@ -421,11 +421,6 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  */
 	extern DBAPI DSPNode_Terminate(DSP_HNODE hNode, DSP_STATUS * pStatus);
 
-int insert_mmapelement(struct mmap_element *elem, struct mmap_element **mmaplist);
-
-int delete_mmapelement(BYTE *vb, struct mmap_element **mmaplist);
-
-void munmap_all(void);
 /*
  *  ======== DSPNode_GetUUIDProps ========
  *  Purpose:

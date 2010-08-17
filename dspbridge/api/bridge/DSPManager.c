@@ -88,6 +88,9 @@ static bool bridge_sem_initialized = false;
 #define RETENTION		0x8
 #define MPU_HIB			0x7
 #define SLEEP_TRANSITION	0x6
+
+extern void munmap_all(void);
+
 /*
  *  ======== DspManager_Open ========
  *  Purpose:
@@ -96,9 +99,6 @@ static bool bridge_sem_initialized = false;
 DBAPI DspManager_Open(UINT argc, PVOID argp)
 {
 	int status = 0;
-	unsigned int drv_state;
-	FILE *file;
-	char line[4];
 
 	if (!bridge_sem_initialized) {
 		if (sem_init(&semOpenClose, 0, 1) == -1) {

@@ -103,6 +103,10 @@ static sem_t sem_mmap;
 extern int hMediaFile;		/* class driver handle */
 
 static void start(void) __attribute__((constructor));
+int insert_mmapelement(struct mmap_element *elem,
+			struct mmap_element **mmaplist);
+int delete_mmapelement(BYTE *vb, struct mmap_element **mmaplist);
+
 
 void start(void)
 {
