@@ -59,9 +59,10 @@ private:
     size_t mFrameSize;
     sp<Overlay> mOverlay;
     Vector< sp<IMemory> > mOverlayAddresses;
-    bool mIsFirstFrame;
+    int nOverlayBuffersQueued;
     size_t mIndex;
     sp<MemoryHeapBase> mVideoHeaps[NUM_OVERLAY_BUFFERS_MAX];
+    int buffers_queued_to_dss[NUM_OVERLAY_BUFFERS_MAX];
     release_rendered_buffer_callback release_frame_cb;
     void  *cookie;
 
