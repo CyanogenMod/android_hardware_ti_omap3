@@ -2166,7 +2166,7 @@ int execute_functional_script(char *script) {
                 break;
 
             case 'u':
-                params.set(KEY_MODE, atoi(cmd + 1));
+                params.set(KEY_MODE, (cmd + 1));
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
 
