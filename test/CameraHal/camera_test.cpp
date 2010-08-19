@@ -1193,8 +1193,10 @@ int functional_menu() {
             camera->setParameters(params.flatten());
         break;
     case '[':
-        if ( hardwareActive )
+        if ( hardwareActive ) {
+            camera->setParameters(params.flatten());
             camera->startPreview();
+        }
         break;
 
     case '0':
@@ -1807,6 +1809,9 @@ int execute_functional_script(char *script) {
             case '[':
                 if ( hardwareActive )
                     {
+
+                    camera->setParameters(params.flatten());
+
                     printf("starting camera preview..");
                     status_t ret = camera->startPreview();
                     if(ret !=NO_ERROR)
