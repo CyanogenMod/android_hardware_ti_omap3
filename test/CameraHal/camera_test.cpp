@@ -950,9 +950,6 @@ void stopPreview() {
         previewRunning  = false;
         reSizePreview = true;
         hardwareActive = false;
-
-        ///Reset preview size back to default
-        previewSizeIDX = ARRAY_SIZE(previewSize) - 5;
     }
 }
 
