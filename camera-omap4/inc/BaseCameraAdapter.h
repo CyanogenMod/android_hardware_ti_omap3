@@ -31,6 +31,8 @@ class BaseCameraAdapter : public CameraAdapter
 
 public:
 
+    BaseCameraAdapter();
+
     ///Initialzes the camera adapter creates any resources required
     virtual status_t initialize(int sensor_index=0) = 0;
 
@@ -60,6 +62,7 @@ public:
 
     virtual status_t getPictureBufferSize(size_t &length) = 0;
 
+    virtual status_t registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data);
 
 protected:
 
@@ -95,6 +98,8 @@ protected:
     MessageQueue mAdapterQ;
     mutable Mutex mSubscriberLock;
     sp<ErrorNotifier> mErrorNotifier;
+    release_image_buffers_callback mReleaseImageBuffersCallback;
+    void *mReleaseData;
 };
 
 };

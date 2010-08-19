@@ -2795,6 +2795,11 @@ status_t OMXCameraAdapter::stopImageCapture()
 
     mCapturing = false;
 
+    if ( NULL != mReleaseImageBuffersCallback )
+        {
+        mReleaseImageBuffersCallback(mReleaseData);
+        }
+
     LOG_FUNCTION_NAME_EXIT
 
     return ret;
