@@ -639,6 +639,20 @@ status_t CameraHal::allocImageBufs(unsigned int width, unsigned int height, size
     return ret;
 }
 
+void releaseImageBuffers(void *userData)
+{
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL != userData )
+        {
+        CameraHal *c = reinterpret_cast<CameraHal *>(userData);
+        c->freeImageBufs();
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
 status_t CameraHal::freeImageBufs()
 {
     status_t ret = NO_ERROR;
@@ -1639,6 +1653,7 @@ status_t CameraHal::initialize()
         CAMHAL_LOGEA("Unable to create or initialize CameraAdapter");
         goto fail_loop;
         }
+    mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
 
     /// Create the callback notifier
     mAppCallbackNotifier = new AppCallbackNotifier();
@@ -1763,6 +1778,10 @@ status_t CameraHal::reloadAdapter()
                     && (NO_ERROR != mCameraAdapter->initialize(sensor_index)))
                 {
                 ret = -1;
+                }
+            else
+                {
+                mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
                 }
             }
         else

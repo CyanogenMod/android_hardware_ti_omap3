@@ -28,6 +28,25 @@ namespace android {
 
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
+BaseCameraAdapter::BaseCameraAdapter()
+{
+    mReleaseImageBuffersCallback = NULL;
+}
+
+status_t BaseCameraAdapter::registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    mReleaseImageBuffersCallback = callback;
+    mReleaseData = user_data;
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t BaseCameraAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
 {
     status_t ret = NO_ERROR;

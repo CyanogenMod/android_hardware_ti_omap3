@@ -273,8 +273,11 @@ public:
 
 ///@todo See if we can club these type declarations into a namespace
 ///      Have a generic callback class based on template - to adapt CameraFrame and Event
-typedef void (*frame_callback)(CameraFrame *cameraFrame);
+typedef void (*frame_callback) (CameraFrame *cameraFrame);
 typedef void (*event_callback) (CameraHalEvent *event);
+
+//signals CameraHAL to relase image buffers
+typedef void (*release_image_buffers_callback) (void *userData);
 
 /**
   * Interface class implemented by classes that have some events to communicate to dependendent classes
@@ -614,6 +617,9 @@ public:
         return sendCommand(CameraAdapter::CAMERA_PREVIEW_FLUSH_BUFFERS);
         }
 
+    //Registers callback for returning image buffers back to CameraHAL
+    virtual status_t registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data) = 0;
+
     //API to send a command to the camera
     virtual status_t sendCommand(int operation, int value1=0, int value2=0, int value3=0) = 0;
 
@@ -659,6 +665,7 @@ public:
 
 };
 
+static void releaseImageBuffers();
 
  /**
     Implementation of the Android Camera hardware abstraction layer
@@ -842,6 +849,9 @@ public:
 
 #endif
 
+        /** Free image bufs */
+        status_t freeImageBufs();
+
      //@}
 
 /*--------------------Internal Member functions - Private---------------------------------*/
@@ -877,9 +887,6 @@ private:
 
             /** Free video bufs */
             status_t freeVideoBufs();
-
-            /** Free image bufs */
-            status_t freeImageBufs();
 
             //Check if a given resolution is supported by the current camera
             //instance
