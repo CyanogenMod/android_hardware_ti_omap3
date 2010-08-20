@@ -69,7 +69,7 @@ typedef struct {
 int CameraHal::camera_device = 0;
 wp<CameraHardwareInterface> CameraHal::singleton;
 const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240";
-const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96";
+const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
 const char CameraHal::supprotedThumbnailSizes []= "80x60";
 const char CameraHal::PARAMS_DELIMITER []= ",";
@@ -84,7 +84,7 @@ const supported_resolution CameraHal::supportedPreviewRes[] = { {1280, 720}, {80
                                                      {720, 576}, {720, 480},
                                                      {992, 560}, {864, 480}, {848, 480},
                                                      {768, 576}, {640, 480},
-                                                     {320, 240}, {352, 288},
+                                                     {320, 240}, {352, 288}, {240, 160},
                                                      {176, 144}, {128, 96}};
 
 int camerahal_strcat(char *dst, const char *src, size_t size)
