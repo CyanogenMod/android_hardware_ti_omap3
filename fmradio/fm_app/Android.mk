@@ -28,23 +28,30 @@ LOCAL_C_INCLUDES:=\
  	$(FM_STACK_PATH)/HSW_FMStack/stack/inc \
 	external/bluetooth/bluez/include 	\
 	$(FM_STACK_PATH)/fm_app		\
-	$(ALSA_PATH)/include 
+	$(ALSA_PATH)/include
 
 
-LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE 
+LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE
 
 ifdef FM_CHR_DEV_ST
 LOCAL_C_INCLUDES+= $(FM_STACK_PATH)/../fm_chrlib
 LOCAL_CFLAGS+= -DFM_CHR_DEV_ST
 endif
 
+ifeq ($(strip $(TARGET_BOARD_PLATFORM)), omap3)
+LOCAL_CFLAGS+= -DTARGET_BOARD_OMAP3
+endif
+ifeq ($(strip $(TARGET_BOARD_PLATFORM)), omap4)
+LOCAL_CFLAGS+= -DTARGET_BOARD_OMAP4
+endif
+
+
+
 LOCAL_SRC_FILES:= \
-fm_app.c fm_trace.c						
+fm_app.c fm_trace.c
 
 LOCAL_SHARED_LIBRARIES := \
 	libbluetooth libaudio libfm_stack
-
-LOCAL_STATIC_LIBRARIES := 
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 LOCAL_MODULE_TAGS := eng

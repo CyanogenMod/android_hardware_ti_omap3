@@ -124,6 +124,18 @@ extern int gMcpLogToFile;
 #define RSSI_MAX_LVL 127
 #define RSSI_MIN_LVL 1
 
+/*
+ * On OMAP4 unlike OMAP3, the path taken by FM audio is
+ * FM Analog-OUT --> Phoenix Analog-IN --> OMAP4-ABE McPDM-IN
+ * --> OMAP4-ABE McPDM-OUT --> Phoenix OUT --> headset/speakers
+ * This requires configuration of both playback and capture path
+ * for OMAP4-ABE <-> Phoenix and hence these variables
+ */
+#ifdef TARGET_BOARD_OMAP4
+snd_pcm_t *phandle, *chandle;
+static char *alsa_device = "default";
+#endif
+
 void validate_uint_boundaries(FMC_UINT *variable, FMC_UINT minimum, FMC_UINT maximum)
 {
 	if (*variable < minimum)
@@ -1171,13 +1183,59 @@ out:
 fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 {
 	fm_status ret = FMC_STATUS_SUCCESS;
+	int err; /* can't use ret because it is unsigned */
 	FMAPP_BEGIN();
 
 	FMAPP_MSG("Powering on FM RX... (this might take awhile)");
-
+#ifdef TARGET_BOARD_OMAP3
 	/* Configure the Analog Loopback settings */
 	set_fmapp_audio_routing(fm_context);
+#else
+	/* open alsa pcm device for playback */
+	if ((err = snd_pcm_open(&phandle, alsa_device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
+		FMAPP_ERROR("Playback open error: %s\n", snd_strerror(err));
+		ret = FMC_STATUS_FAILED;
+		goto out;
+	}
+	/* open alsa pcm device for capture */
+	if ((err = snd_pcm_open(&chandle, alsa_device, SND_PCM_STREAM_CAPTURE, 0)) < 0) {
+		FMAPP_ERROR("Capture open error: %s\n", snd_strerror(err));
+		ret = FMC_STATUS_FAILED;
+		goto out;
+	}
+	/* set hw params for alsa device
+	 * this hw params indicate the format, number of bits, rate,
+	 * number of channels, etc.
+	 */
+	if ((err = snd_pcm_set_params(phandle,
+					SND_PCM_FORMAT_S32_LE,
+					SND_PCM_ACCESS_RW_INTERLEAVED,
+					2,
+					48000,
+					1,
+					500000)) < 0) {       /* 0.5sec */
+		FMAPP_ERROR("Playback open error: %s\n", snd_strerror(err));
+		ret = FMC_STATUS_FAILED;
+		goto out;
+	}
 
+	/* this calls prepare() in the driver - use this to start mcpdm downlink*/
+	if ((err = snd_pcm_set_params(chandle,
+					SND_PCM_FORMAT_S32_LE,
+					SND_PCM_ACCESS_RW_INTERLEAVED,
+					2,
+					48000,
+					1,
+					500000)) < 0) { /* 0.5sec */
+		FMAPP_ERROR("Playback open error: %s\n", snd_strerror(err));
+		ret = FMC_STATUS_FAILED;
+		goto out;
+	}
+
+	/* this cals trigger() in the driver - use this to start mcpdm uplink*/
+	snd_pcm_start(phandle);
+	snd_pcm_start(chandle);
+#endif
 	ret = FM_RX_Init();
 	if (ret) {
 		FMAPP_ERROR("failed to initialize FM rx stack");
@@ -1220,9 +1278,16 @@ fm_status deinit_rx_stack(fm_rx_context_s **fm_context)
 	FMAPP_BEGIN();
 
 	g_fmapp_now_initializing = 0;
-
+#ifdef TARGET_BOARD_OMAP3
 	/* Revert the analog loopback settings */
 	unset_fmapp_audio_routing(fm_context);
+#else
+	snd_pcm_drop(phandle);
+	snd_pcm_drop(chandle);
+/* shutdown the link */
+	snd_pcm_close(phandle);
+	snd_pcm_close(chandle);
+#endif
 	/* power off FM core */
 	ret = FM_RX_Disable(*fm_context);
 	if (ret != FMC_STATUS_PENDING && ret != FMC_STATUS_SUCCESS)
@@ -3587,7 +3652,7 @@ int main(int argc, char **argv)
 
 disable:
 	/* deinitialize FM stack */
-	if (g_fmapp_power_mode) {
+	if (g_fmapp_power_mode && (char*)fm_context != NULL ) {
 		ret = fmapp_deinit_stack(&fm_context);
 		if (ret) {
 			FMAPP_ERROR("failed to deinitialize FM stack");
