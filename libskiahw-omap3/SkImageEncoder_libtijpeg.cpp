@@ -203,15 +203,10 @@ void SkTIJPEGImageEncoder::EventHandler(OMX_HANDLETYPE hComponent,
                 iState = STATE_LOADED;
                 sem_post(semaphore) ;
             }
-            break;
-
-        case OMX_EventError:
-            PRINTF ("\n\n\nOMX Component  reported an Error!!!!\n\n\n");
-            if(iState != STATE_ERROR)
+            else if ((nData1 == OMX_CommandStateSet) && (nData2 == OMX_StateInvalid))
             {
-                iLastState = iState;
+                //PRINTF ("Component State Changed To OMX_StateInvalid\n");
                 iState = STATE_ERROR;
-                OMX_SendCommand(hComponent, OMX_CommandStateSet, OMX_StateInvalid, NULL);
                 sem_post(semaphore) ;
 #if OPTIMIZE
                 // Run() is not running under this condition. We won't clean anything without this.
@@ -226,6 +221,17 @@ void SkTIJPEGImageEncoder::EventHandler(OMX_HANDLETYPE hComponent,
                     pthread_attr_destroy(&attr);
                 }
 #endif
+            }
+            break;
+
+        case OMX_EventError:
+            PRINTF ("\n\n\nOMX Component  reported an Error!!!!\n\n\n");
+            if(iState != STATE_ERROR)
+            {
+                iLastState = iState;
+                iState = STATE_ERROR;
+                OMX_SendCommand(hComponent, OMX_CommandStateSet, OMX_StateInvalid, NULL);
+                // call sem_post(semaphore) at OMX_StateInvalid state set event.
             }else{
                 PRINTF ("Libskiahw(encoder) already handling Error!!!");
             }
@@ -247,7 +253,7 @@ bool SkTIJPEGImageEncoder::onEncodeSW(SkWStream* stream, const SkBitmap& bm, int
         return false;
     }
 
-    PRINTF("\n#### Using SW(ARM) Image Encoder ####\n\n");
+    SkDebugf("\n#### Using SW(ARM) Image Encoder ####\n\n");
     result = pSWJPGEHandle->encodeStream(stream, bm, quality);
     delete pSWJPGEHandle;
     return result;
