@@ -67,6 +67,8 @@
 #define SHARPNESS_OFFSET 100
 #define CONTRAST_OFFSET 100
 
+#define SMOOTH_ZOOM 1
+
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
 
