@@ -100,11 +100,12 @@ TIHardwareRenderer::TIHardwareRenderer(
       mColorFormat(colorFormat),
       mInitCheck(NO_INIT),
       mFrameSize(mDecodedWidth * mDecodedHeight * 2),
-      mIsFirstFrame(true),
+      nOverlayBuffersQueued(0),
       mIndex(0),
       release_frame_cb(0),
       mCropX(-1),
       mCropY(-1) {
+
     sp<IMemory> mem;
     mapping_data_t *data;
 
@@ -173,6 +174,7 @@ TIHardwareRenderer::TIHardwareRenderer(
         CHECK(mem.get() != NULL);
         LOGV("mem->pointer[%d] = %p", i, mem->pointer());
         mOverlayAddresses.push(mem);
+        buffers_queued_to_dss[i] = 0;
     }
 
     char value[PROPERTY_VALUE_MAX];
@@ -347,7 +349,6 @@ void TIHardwareRenderer::render(
 
     overlay_buffer_t overlay_buffer;
     size_t i = 0;
-    int err;
     int cropX = 0;
     int cropY = 0;
 
@@ -370,7 +371,7 @@ void TIHardwareRenderer::render(
             * and also, the offset should be used for crop window position calculation
             * we are getting the Baseaddress + offset
             **/
-            int offsetinPixels = (char*)data - (char*)mOverlayAddresses[i]->pointer();
+            unsigned int offsetinPixels = (char*)data - (char*)mOverlayAddresses[i]->pointer();
             if(offsetinPixels < size){
                 cropY = (offsetinPixels)/ARMPAGESIZE;
                 cropX = (offsetinPixels)%ARMPAGESIZE;
@@ -394,14 +395,41 @@ void TIHardwareRenderer::render(
 
     }
 
-    err = mOverlay->queueBuffer((void *)mIndex);
-    if ((err < 0) && (release_frame_cb)){
-        release_frame_cb(mOverlayAddresses[mIndex], cookie);
-    }
-
-    err = mOverlay->dequeueBuffer(&overlay_buffer);
-    if ((err == 0) && (release_frame_cb)){
-        release_frame_cb(mOverlayAddresses[(int)overlay_buffer], cookie);
+    int nBuffers_queued_to_dss = mOverlay->queueBuffer((void *)mIndex);
+    if (release_frame_cb) {
+        if (nBuffers_queued_to_dss < 0){
+            release_frame_cb(mOverlayAddresses[mIndex], cookie);
+        }
+        else
+        {
+            nOverlayBuffersQueued++;
+            buffers_queued_to_dss[mIndex] = 1; 
+            if (nBuffers_queued_to_dss != nOverlayBuffersQueued) // STREAM OFF occurred
+            {
+                LOGD("nBuffers_queued_to_dss = %d, nOverlayBuffersQueued = %d", nBuffers_queued_to_dss, nOverlayBuffersQueued);
+                LOGD("buffers in DSS \n %d %d %d  %d %d %d", buffers_queued_to_dss[0], buffers_queued_to_dss[1],
+                buffers_queued_to_dss[2], buffers_queued_to_dss[3], buffers_queued_to_dss[4], buffers_queued_to_dss[5]);
+                //Release all the buffers that were discarded by DSS upon STREAM OFF.
+                for(unsigned int k = 0; k < (unsigned int)mOverlay->getBufferCount(); k++)
+                {
+                    if ((buffers_queued_to_dss[k] == 1) && (k != mIndex))
+                    {
+                        buffers_queued_to_dss[k] = 0;
+                        nOverlayBuffersQueued--;
+                        release_frame_cb(mOverlayAddresses[k], cookie);
+                        LOGD("Reclaiming the buffer [%d] from Overlay", k);
+                    }
+                }
+            }
+        }
+    }    
+    
+    int err = mOverlay->dequeueBuffer(&overlay_buffer);
+    if (err == 0) {
+        nOverlayBuffersQueued--;
+        buffers_queued_to_dss[(int)overlay_buffer] = 0;
+        if (release_frame_cb)
+            release_frame_cb(mOverlayAddresses[(int)overlay_buffer], cookie);
     }
 
     if (++mIndex == mOverlayAddresses.size()) mIndex = 0;

@@ -967,8 +967,11 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
     if (data->posX == stage->posX && data->posY == stage->posY &&
         data->posW == stage->posW && data->posH == stage->posH &&
-        data->rotation == stage->rotation && data->alpha == stage->alpha
-        && data->panel == stage->panel) {
+        data->rotation == stage->rotation && 
+#ifdef TARGET_OMAP4
+        data->alpha == stage->alpha &&
+#endif
+        data->panel == stage->panel) {
         LOGI("Nothing to do!\n");
         goto end;
     }
@@ -1583,11 +1586,11 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
     pthread_mutex_lock(&ctx->omap_overlay->lock);
     if (ctx->omap_overlay->streamEn == 0) {
         LOGE("Cannot dequeue when streaming is disabled. ctx->omap_overlay->qd_buf_count = %d", ctx->omap_overlay->qd_buf_count);
-        rc = -2; // This error code is specifically checked for in CameraHal. So, do not change it to something generic.
+        rc = -EPERM;
     }
 
-   else if ( ctx->omap_overlay->qd_buf_count <= 1 ) { //dss2 require at least 2 buf queue to perform a dequeue to avoid hang
-        printf("Not enough buffers to dequeue");
+    else if ( ctx->omap_overlay->qd_buf_count < ctx->omap_overlay->optimalQBufCnt ) { 
+        LOGE("Queue more buffers before attempting to dequeue!");
         rc = -EPERM;
     }
 
@@ -1657,9 +1660,7 @@ int overlay_data_context_t::overlay_queueBuffer(struct overlay_data_device_t *de
         ctx->omap_overlay->qd_buf_count ++;
     }
 
-    // Catch the case where the data side had no need to set the crop window
-    LOGV("qd_buf_count = %x", ctx->omap_overlay->qd_buf_count);
-    if ( ctx->omap_overlay->qd_buf_count >= ctx->omap_overlay->optimalQBufCnt && (ctx->omap_overlay->streamEn == 0)) {
+    if (ctx->omap_overlay->streamEn == 0) {
         /*DSS2: 2 buffers need to be queue before enable streaming*/
         ctx->omap_overlay->dataReady = 1;
         ctx->enable_streaming_locked(ctx->omap_overlay);
@@ -1674,7 +1675,6 @@ EXIT:
 void* overlay_data_context_t::overlay_getBufferAddress(struct overlay_data_device_t *dev,
                                overlay_buffer_t buffer)
 {
-    LOG_FUNCTION_NAME_ENTRY;
     if (dev == NULL) {
         LOGE("Null Arguments ");
         return NULL;
@@ -1711,14 +1711,11 @@ void* overlay_data_context_t::overlay_getBufferAddress(struct overlay_data_devic
 
 int overlay_data_context_t::overlay_getBufferCount(struct overlay_data_device_t *dev)
 {
-    LOG_FUNCTION_NAME_ENTRY;
     if (dev == NULL) {
         LOGE("Null Arguments ");
         return -1;
     }
-
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
-
     return (ctx->omap_overlay->num_buffers);
 }
 
