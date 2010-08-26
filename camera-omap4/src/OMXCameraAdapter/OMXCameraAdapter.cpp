@@ -3299,8 +3299,8 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             }
 
         ///On the fly update to 3A settings not working
-        //if( mPending3Asettings )
-          //  Apply3Asettings(mParameters3A);
+        if( mPending3Asettings )
+            Apply3Asettings(mParameters3A);
 
         if( mWaitingForSnapshot )
             {
