@@ -572,7 +572,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
-#ifdef FOCUS_MODE_ISSUE_FIXED
     str = params.get(CameraParameters::KEY_FOCUS_MODE);
     mode = getLUTvalue_HALtoOMX(str, FocusLUT);
     if ( ( str != NULL ) && ( mParameters3A.Focus != mode ) )
@@ -584,7 +583,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             mPending3Asettings |= SetFocus;
             }
         }
-#endif
 
     str = params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION);
     if ( ( str != NULL ) && (mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION) ))
