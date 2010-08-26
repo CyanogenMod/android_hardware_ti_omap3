@@ -365,6 +365,8 @@ void CameraHal::initDefaultParameters()
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::SCENE_MODE_FIREWORKS, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::SCENE_MODE_NIGHT, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::SCENE_MODE_SNOW, PARAM_BUFFER)) return;
     p.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_AUTO);
 
@@ -3600,7 +3602,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
             } else if (strcmp(params.get(KEY_METER_MODE), (const char *) METER_MODE_AVERAGE) == 0) {
                 fobj->settings.af.spot_weighting = ICAM_FOCUS_SPOT_MULTI_AVERAGE;
-                fobj->settings.ae.spot_weighting = ICAM_EXPOSURE_SPOT_WIDE;
+                fobj->settings.ae.spot_weighting = ICAM_EXPOSURE_SPOT_NORMAL;
 
 #ifdef HARDWARE_OMX
 
@@ -3650,6 +3652,11 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_SPORTS) == 0) {
 
                 fobj->settings.general.scene = ICAM_SCENE_MODE_SPORT;
+
+            }
+              else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_SNOW) == 0) {
+
+                fobj->settings.general.scene = ICAM_SCENE_MODE_SNOW_BEACH;
 
             }
         }
@@ -4088,6 +4095,7 @@ CameraParameters CameraHal::getParameters() const
             case ICAM_SCENE_MODE_UNDERWATER:
                 break;
             case ICAM_SCENE_MODE_SNOW_BEACH:
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_SNOW);
                 break;
             case ICAM_SCENE_MODE_MOOD:
                 break;
@@ -4269,6 +4277,7 @@ CameraParameters CameraHal::getParameters() const
             case ICAM_WHITE_BALANCE_MODE_WB_MANUAL:
                 break;
             case ICAM_WHITE_BALANCE_MODE_WB_TUNGSTEN:
+                params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_INCANDESCENT);
                 break;
             case ICAM_WHITE_BALANCE_MODE_WB_OFFICE:
                 break;
@@ -4277,14 +4286,14 @@ CameraParameters CameraHal::getParameters() const
         };
 
         switch ( fobj->settings.ae.spot_weighting ) {
-            case ICAM_EXPOSURE_SPOT_WIDE:
+            case ICAM_EXPOSURE_SPOT_NORMAL:
                 params.set(KEY_METER_MODE, METER_MODE_AVERAGE);
                 break;
             case ICAM_EXPOSURE_SPOT_CENTER:
                 params.set(KEY_METER_MODE, METER_MODE_CENTER);
                 break;
             //TODO: support this also
-            case ICAM_EXPOSURE_SPOT_NORMAL:
+            case ICAM_EXPOSURE_SPOT_WIDE:
                 break;
         };
 
@@ -4293,7 +4302,7 @@ CameraParameters CameraHal::getParameters() const
         params.set(KEY_SHARPNESS, fobj->settings.general.sharpness);
         params.set(KEY_CONTRAST, ( fobj->settings.general.contrast + CONTRAST_OFFSET ));
         params.set(KEY_BRIGHTNESS, ( fobj->settings.general.brightness + BRIGHTNESS_OFFSET ));
-
+        params.setPreviewFrameRate(fobj->settings.ae.framerate);
     }
 #endif
 
