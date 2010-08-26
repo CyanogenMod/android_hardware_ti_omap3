@@ -417,8 +417,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_FOCUS_MODE, params.get(CameraParameters::KEY_FOCUS_MODE));
         }
 
-    if((params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION) != NULL)
-        && (params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION)>=0 ))
+    if(params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION) != NULL)
         {
         CAMHAL_LOGDB("Exposure compensation set %s", params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION));
         mParameters.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION));
