@@ -892,15 +892,6 @@ int closeCamera() {
 int startPreview() {
     int previewWidth, previewHeight;
     if (reSizePreview) {
-        if(!hardwareActive)
-        {
-            if ( openCamera() < 0 ) {
-                printf("Camera initialization failed\n");
-
-                return -1;
-            }
-
-        }
 
         if(recordingMode)
         {
@@ -911,10 +902,6 @@ int startPreview() {
             previewWidth = previewSize[previewSizeIDX].width;
             previewHeight = previewSize[previewSizeIDX].height;
         }
-        params.setPreviewSize(previewWidth, previewHeight);
-        params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
-
-        camera->setParameters(params.flatten());
 
         if(!nullOverlay) {
             if ( createPreviewSurface(previewWidth, previewHeight ) < 0 ) {
@@ -925,7 +912,20 @@ int startPreview() {
             overlaySurface = NULL;
         }
 
+        if(!hardwareActive)
+        {
+            if ( openCamera() < 0 ) {
+                printf("Camera initialization failed\n");
 
+                return -1;
+            }
+
+        }
+
+        params.setPreviewSize(previewWidth, previewHeight);
+        params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
+
+        camera->setParameters(params.flatten());
         camera->setPreviewDisplay(overlaySurface);
 
         if(!hardwareActive) prevcnt = 0;
