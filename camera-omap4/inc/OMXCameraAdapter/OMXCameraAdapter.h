@@ -286,6 +286,9 @@ private:
     //Scenes
     status_t setScene(Gen3A_settings& Gen3A);
 
+    //Exposure Modes
+    status_t setExposureMode(Gen3A_settings& Gen3A);
+
     // Preview Service
     status_t startPreview();
     status_t stopPreview();

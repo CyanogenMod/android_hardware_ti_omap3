@@ -489,10 +489,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         {
         mParameters3A.Exposure = mode;
         CAMHAL_LOGEB("Exposure mode %d", mode);
-        if ( 0 <= mParameters3A.Exposure )
-            {
-            mPending3Asettings |= SetExposure;
-            }
         }
 
     str = params.get(CameraParameters::KEY_WHITE_BALANCE);
@@ -1426,6 +1422,14 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         CAMHAL_LOGEB("Error configuring thumbnail size %x", ret);
         return ret;
         }
+
+    ret = setExposureMode(mParameters3A);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("Error configuring exposure mode %x", ret);
+        return ret;
+        }
+
 #if 0
     ret = setScene(mParameters3A);
     if ( NO_ERROR != ret )
@@ -2171,6 +2175,43 @@ status_t OMXCameraAdapter::setImageQuality(unsigned int quality)
             {
             CAMHAL_LOGEB("Error while configuring jpeg Quality 0x%x", eError);
             ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setExposureMode(Gen3A_settings& Gen3A)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_EXPOSURECONTROLTYPE exp;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in loaded state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&exp, OMX_CONFIG_EXPOSURECONTROLTYPE);
+        exp.nPortIndex = OMX_ALL;
+        exp.eExposureControl = (OMX_EXPOSURECONTROLTYPE)Gen3A.Exposure;
+
+        CAMHAL_LOGEB("Configuring exposure mode 0x%x", exp.eExposureControl);
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonExposure, &exp);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring exposure mode 0x%x", eError);
+            }
+        else
+            {
+            CAMHAL_LOGDA("Camera exposure mode configured successfully");
             }
         }
 
@@ -3563,20 +3604,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
             {
             switch( currSett )
                 {
-                case SetExposure:
-                    {
-                    OMX_CONFIG_EXPOSURECONTROLTYPE exp;
-                    exp.nSize = sizeof(OMX_CONFIG_EXPOSURECONTROLTYPE);
-                    exp.nVersion = mLocalVersionParam;
-                    exp.nPortIndex = OMX_ALL;
-
-                    exp.eExposureControl = (OMX_EXPOSURECONTROLTYPE)Gen3A.Exposure;
-                    ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposure, &exp);
-                    CAMHAL_LOGDB("Exposure for Hal = %d", Gen3A.Exposure);
-                    CAMHAL_LOGDB("Exposure for OMX = 0x%x", (int)exp.eExposureControl);
-                    break;
-                    }
-
                 case SetEVCompensation:
                     {
                     OMX_CONFIG_EXPOSUREVALUETYPE expValues;
@@ -3734,16 +3761,6 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                 mPending3Asettings &= ~currSett;
             }
         }
-        if( ret )
-            {
-            CAMHAL_LOGEB("returned error code 0x%x", ret);
-
-            if ( NULL != mErrorNotifier.get() )
-                {
-                mErrorNotifier->errorNotify(ret);
-                }
-
-            }
 
         return ret;
 }
