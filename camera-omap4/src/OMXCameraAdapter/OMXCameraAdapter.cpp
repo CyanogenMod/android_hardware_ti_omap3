@@ -1430,14 +1430,12 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-#if 0
     ret = setScene(mParameters3A);
     if ( NO_ERROR != ret )
         {
         CAMHAL_LOGEB("Error configuring scene mode %x", ret);
         return ret;
         }
-#endif
 
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
         {
@@ -2241,7 +2239,7 @@ status_t OMXCameraAdapter::setScene(Gen3A_settings& Gen3A)
         scene.eSceneMode = ( OMX_SCENEMODETYPE ) Gen3A.SceneMode;
 
         CAMHAL_LOGEB("Configuring scene mode 0x%x", scene.eSceneMode);
-        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamSceneMode, &scene);
+        eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE) OMX_IndexParamSceneMode, &scene);
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEB("Error while configuring scene mode 0x%x", eError);
