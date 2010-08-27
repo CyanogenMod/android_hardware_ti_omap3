@@ -72,6 +72,7 @@
 #define EXPOSURE_MANUAL         "manual"
 #define EXPOSURE_VERYLONG       "very-long"
 #define WHITE_BALANCE_HORIZON   "horizon"
+#define WHITE_BALANCE_TUNGSTEN  "tungsten"
 
 #define ROTATION_PHYSICAL       0
 #define ROTATION_EXIF           1

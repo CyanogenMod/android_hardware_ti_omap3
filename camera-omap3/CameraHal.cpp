@@ -327,6 +327,8 @@ void CameraHal::initDefaultParameters()
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_CLOUDY_DAYLIGHT, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) WHITE_BALANCE_HORIZON, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) WHITE_BALANCE_TUNGSTEN, PARAM_BUFFER)) return;
     p.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE, tmpBuffer);
     p.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_AUTO);
 
@@ -358,7 +360,7 @@ void CameraHal::initDefaultParameters()
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::SCENE_MODE_LANDSCAPE, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
-    if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::SCENE_MODE_SPORTS, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::SCENE_MODE_ACTION, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::SCENE_MODE_NIGHT_PORTRAIT, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
@@ -3649,7 +3651,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
                 fobj->settings.general.scene = ICAM_SCENE_MODE_FIREWORKS;
 
-            } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_SPORTS) == 0) {
+            } else if (strcmp(params.get(CameraParameters::KEY_SCENE_MODE), (const char *) CameraParameters::SCENE_MODE_ACTION) == 0) {
 
                 fobj->settings.general.scene = ICAM_SCENE_MODE_SPORT;
 
@@ -3725,6 +3727,15 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) WHITE_BALANCE_HORIZON) == 0) {
 
                 fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_HORIZON;
+
+#ifdef HARDWARE_OMX
+
+                mExifParams.wb = EXIF_WB_MANUAL;
+
+#endif
+            } else if (strcmp(params.get(CameraParameters::KEY_WHITE_BALANCE), (const char *) WHITE_BALANCE_TUNGSTEN) == 0) {
+
+                fobj->settings.awb.mode = ICAM_WHITE_BALANCE_MODE_WB_TUNGSTEN;
 
 #ifdef HARDWARE_OMX
 
@@ -4087,7 +4098,7 @@ CameraParameters CameraHal::getParameters() const
                 params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_FIREWORKS);
                 break;
             case ICAM_SCENE_MODE_SPORT:
-                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_SPORTS);
+                params.set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_ACTION);
                 break;
             //TODO: Extend support for those
             case ICAM_SCENE_MODE_CLOSEUP:
@@ -4277,7 +4288,7 @@ CameraParameters CameraHal::getParameters() const
             case ICAM_WHITE_BALANCE_MODE_WB_MANUAL:
                 break;
             case ICAM_WHITE_BALANCE_MODE_WB_TUNGSTEN:
-                params.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_INCANDESCENT);
+                params.set(CameraParameters::KEY_WHITE_BALANCE, WHITE_BALANCE_TUNGSTEN);
                 break;
             case ICAM_WHITE_BALANCE_MODE_WB_OFFICE:
                 break;
