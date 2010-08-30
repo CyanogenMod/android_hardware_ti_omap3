@@ -1,19 +1,19 @@
 /*
- *  FM library, to use TI's FM stack over FM character driver -For shared transport
+ * FM lib, to use TI's FM stack over FM character driver-For shared transport
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * Copyright 2001-2010 Texas Instruments, Inc. - http://www.ti.com/
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program;if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <stdio.h>
@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include <sys/param.h>
 #include <sys/uio.h>
@@ -29,145 +30,118 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <pthread.h>
+
+#include <android/log.h>
+#include <utils/Log.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <bluetooth/hci_lib.h>
 
 #include "fm_chrlib.h"
 
-static int fm_fd = INVALID_DESC;
-static int dev_state = RADIO_DEV_CLOSE;
+/* basically hci_request's response only members..*/
+struct resp {
+	unsigned char rlen;
+	void *rparam;
+} __attribute__ ((packed));
 
-/* HCI functions that require open device
- * dd - Device descriptor returned by hci_open_dev. */
+typedef struct
+{
+	int                     eResult;
+	unsigned char           uEvtParamLen;
+	unsigned char           *pEvtParams;
+} TCmdComplEvent;
+
+void                     *_fmcTransportHciData;
+typedef void             * handle_t;
+typedef void             (*FM_DRV_CmdComplCb)(void*, TCmdComplEvent*);
+FM_DRV_CmdComplCb        fCmdCompCallback;
+typedef void             (*_FM_DRV_IF_InterruptCb) (void);
+_FM_DRV_IF_InterruptCb   fInterruptCallback;
+
 int fm_send_cmd(int dd, uint16_t ogf, uint16_t ocf, uint8_t plen, void *param)
 {
 	hci_command_hdr hc;
-	char *buffer, *ptr;
-	int size;
+	int skb_len = HCI_COMMAND_PKT + HCI_COMMAND_HDR_SIZE + plen;
+	char skb[skb_len];
 
-#ifdef DEBUG
-	int count;
-#endif
 	FM_CHRLIB_DBG("Inside %s", __FUNCTION__);
-
-	buffer = NULL;
-	ptr = NULL;
-	size = 0;
 
 	hc.opcode = htobs(cmd_opcode_pack(ogf, ocf));
 	hc.plen= plen;
 
-	/* for sizeof(HCI_COMMAND_PKT) + HCI_COMMAND_HDR_SIZE + plen */
-	buffer = (void*)malloc(1 + HCI_COMMAND_HDR_SIZE + plen);
-	if (buffer == NULL) {
-		FM_CHRLIB_ERR(" fm_send_cmd() Buffer allocation failed (%d) ", errno);
+	skb[0] = HCI_COMMAND_PKT;
+	memcpy(&skb[1], &hc, HCI_COMMAND_HDR_SIZE);
 
-		return -1;
-	}
+	if (plen)
+		memcpy(&skb[4], param, plen);
 
-	ptr = buffer;
-
-	*ptr = HCI_COMMAND_PKT;
-	ptr += 1;	/* 1 byte 0x01 field */
-	size += 1;
-
-	memcpy(ptr, &hc, HCI_COMMAND_HDR_SIZE);
-	ptr += HCI_COMMAND_HDR_SIZE;	/* 2 bytes sizeof(hci_command_hdr) */
-	size += HCI_COMMAND_HDR_SIZE;
-
-	if (plen) {
-		memcpy(ptr, param, plen);
-		size += plen;
-	}
-
-#ifdef DEBUG
-	ptr = buffer;
-	count = 0;
-	while(count < (plen+4)) {
-		printf(" 0x%02x ", *ptr);
-		ptr++;
-		count++;
-	}
-	printf("\n");
-#endif
-	while (write(dd, buffer, size) < 0) {
+	while (write(dd, skb, skb_len) < 0) {
 		if (errno == EAGAIN || errno == EINTR)
 			continue;
 
 		FM_CHRLIB_ERR("fm_send_cmd() Write failed (%d)", errno);
-		free (buffer);
-
 		return -1;
 	}
-	free (buffer);
-
 	return 0;
 }
 
-/* Function to send the commands from the Stack to the FM character driver*/
-int fm_send_req(int dd, struct hci_request *r, int to)
+int fm_send_req(unsigned short hci_op, unsigned char *cmd_params,
+		unsigned short params_len, unsigned char *user_data)
 {
-	unsigned char buf[HCI_MAX_EVENT_SIZE], *ptr;
-	unsigned int opcode = htobs(cmd_opcode_pack(r->ogf, r->ocf));
-	socklen_t len;
-	hci_event_hdr *hdr;
-	int try;
+	FM_CHRLIB_DBG("Inside %s for 0x%02x ", __FUNCTION__, hci_op);
 
-	FM_CHRLIB_DBG("Inside %s", __FUNCTION__);
-
-	/* Wait fot the device to open before write*/
+	/* Wait for the device to open before write*/
 	while(dev_state != RADIO_DEV_OPEN)
 		usleep(1);
 
-	/* Assign the global opened file descriptor*/
-	dd = fm_fd;
-
-	if (fm_send_cmd(dd, r->ogf, r->ocf, r->clen, r->cparam) < 0) {
+	if (fm_send_cmd(fm_fd, 0x3F, hci_op, params_len, cmd_params) < 0) {
 		FM_CHRLIB_ERR("fm_send_cmd() failed (%d)", errno);
-
 		return -1;
 	}
 	FM_CHRLIB_DBG("Data Sent successfully\n");
+	return 0;
+}
 
-	try = 10;
-	while (try--) {
-		evt_cmd_complete *cc;
-		evt_cmd_status *cs;
-		evt_remote_name_req_complete *rn;
-		remote_name_req_cp *cp;
+void fm_receiver_thread(void)
+{
+	int try = 0, i;
+	unsigned char buf[HCI_MAX_EVENT_SIZE], *ptr;
+	socklen_t len;
+	hci_event_hdr *hdr;
+	TCmdComplEvent *CmdComplEvent;
+	int pollcnt = 10; /* keep the pollcnt minimum till FM ON happens */
 
-		if (to) {
-			struct pollfd p;
+	FM_CHRLIB_DBG(" Inside %s ", __func__);
+
+	evt_cmd_complete *cc;
+	while(dev_state != RADIO_DEV_EXIT) {
+		do {
+			struct pollfd p={0};
 			int n;
 
-			p.fd = dd; p.events = POLLIN;
-			while ((n = poll(&p, 1, to)) < 0) {
+			p.fd = fm_fd; p.events = POLLIN;
+			if ((n = poll(&p, 1, pollcnt)) < 0) {
 				if (errno == EAGAIN || errno == EINTR)
 					continue;
-
-				FM_CHRLIB_ERR(" fm_send_req(): poll failed (%d) ", errno);
-
-				return -1;
+				FM_CHRLIB_ERR(" poll failed (%d) ", errno);
+				continue;
 			}
-
 			if (!n) {
 				errno = ETIMEDOUT;
-				FM_CHRLIB_ERR(" fm_send_req(): Timeout (%d) ", errno);
-
-				return -1;
+				/* no not really a timeout now.. since we run continously..*/
+				continue; // ?
+			} else if (p.revents & POLLIN) {
+				/* proper poll repeatedly somehow? */
+				break;
 			}
-
-			to -= 10;
-			if (to < 0) to = 0;
-
-		}
-
-		FM_CHRLIB_DBG(" Reading. . . ");
-		while ((len = read(dd, buf, sizeof(buf))) < 0) {
+		} while(dev_state != RADIO_DEV_EXIT);
+		if ((len = read(fm_fd, buf, sizeof(buf))) < 0) {
 			if (errno == EAGAIN || errno == EINTR)
 				continue;
-
-			FM_CHRLIB_ERR(" fm_send_req(): Read failed (%d) ", errno);
-
-			return -1;
+			FM_CHRLIB_ERR(" Read failed (%d) ", errno);
+			continue; // to poll?
 		}
 
 		hdr = (void *) (buf + 1);
@@ -179,44 +153,54 @@ int fm_send_req(int dd, struct hci_request *r, int to)
 			FM_CHRLIB_DBG(" Inside EVT_CMD_COMPLETE ");
 			cc = (void *) ptr;
 
-			/* Validate the opceode of the response*/
-			if (cc->opcode != opcode)
-				continue;
-
-
 			ptr += EVT_CMD_COMPLETE_SIZE;
 			len -= EVT_CMD_COMPLETE_SIZE;
 
+			ptr++; //an extra Zero perhaps?
+			len--;
+
+			/* prepare response buffer */
+			struct resp *r = malloc(sizeof(*r));
+			memset(r, 0, sizeof(*r));
+			/* r->rparam to be malloc-ed later..*/
+
 			/* Copy the response parameters*/
-			r->rlen = MIN(len, r->rlen);
-			memcpy(r->rparam, ptr, r->rlen);
+			unsigned short rlen = MIN(len, 1024);
+			r->rparam = malloc(rlen);
+			memcpy(r->rparam, ptr, rlen);
+			/* hopefully mem is being freed inside stack _cb*/
 
+			CmdComplEvent = malloc(sizeof(*CmdComplEvent));
+			CmdComplEvent->eResult = 0; /* Respose is RES_OK*/
+			CmdComplEvent->uEvtParamLen = rlen;
+			CmdComplEvent->pEvtParams = r->rparam;
+
+			fCmdCompCallback(_fmcTransportHciData, CmdComplEvent);
 		} else {
-			FM_CHRLIB_DBG(" Inside default ");
-			if (hdr->evt != r->event)
-				break;
-
-			r->rlen = MIN(len, r->rlen);
-			memcpy(r->rparam, ptr, r->rlen);
+			FM_CHRLIB_DBG(" Not an EVT_CMD_COMPLETE ");
+			pollcnt = 25; /* Increase the poll count after FM ON */
+			fInterruptCallback();
 		}
-		FM_CHRLIB_DBG(" fm_send_req() passed ");
+	}	//end of while (1)
+	FM_CHRLIB_DBG("%s exited...\n", __func__);
+}
 
-		return 0;
+void fm_sig_handler(int sig)
+{
+	if (sig == SIGINT) {
+		FM_CHRLIB_DBG("SIGINT received\n");
+		dev_state = RADIO_DEV_EXIT;
 	}
-	errno = ETIMEDOUT;
-
-	FM_CHRLIB_ERR(" fm_send_req(): Timeout (%d) ",errno);
-	return -1;
-
 }
 
 /* Open FM character device. Returns device descriptor (dd). */
-int fm_open_dev(int dev_id)
+int fm_open_dev(int dev_id, void* fm_interrupt_cb, void* cmd_cmplt_cb, void *hHandle)
 {
 	int oflags, retval;
+	_fmcTransportHciData = hHandle;
 
-	FM_CHRLIB_DBG(" Inside %s ", __FUNCTION__);
-
+	fCmdCompCallback = cmd_cmplt_cb;
+	fInterruptCallback = fm_interrupt_cb;
 	retval = 0;
 
 	/* If not closed, open the device only once. Avoid multiplr open*/
@@ -244,6 +228,11 @@ int fm_open_dev(int dev_id)
 		}
 	}
 
+	signal(SIGINT, fm_sig_handler);
+	/* create a receiver thread */
+	pthread_create(&recv_thread, NULL,
+			fm_receiver_thread, NULL);
+
 	return fm_fd;
 }
 
@@ -259,13 +248,14 @@ int fm_close_dev(int dd)
 	/* Avoid multiple close, i.e close the device only if it is opened*/
 	if(fm_fd != INVALID_DESC) {
 		FM_CHRLIB_DBG("	Closing %s device ", TI_FMRADIO);
-
+		pthread_kill(recv_thread, SIGINT);
 		/* Close /dev/tifm*/
 		ret = close(fm_fd);
 		if(ret < 0) {
 			FM_CHRLIB_ERR("	Closing %s device failed ", TI_FMRADIO);
 			return -1;
 		}
+		pthread_join(recv_thread, NULL);
 		FM_CHRLIB_DBG("	Closed %s device ", TI_FMRADIO);
 
 		/* Update the state of the descripto*/

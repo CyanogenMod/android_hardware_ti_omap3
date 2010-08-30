@@ -6,7 +6,8 @@ include $(CLEAR_VARS)
 # FM Adaptation
 #
 
-LOCAL_C_INCLUDES:= external/bluetooth/bluez/include/
+LOCAL_C_INCLUDES:= system/bluetooth/bluez-clean-headers
+
 
 LOCAL_SRC_FILES:= fm_chrlib.c
 
