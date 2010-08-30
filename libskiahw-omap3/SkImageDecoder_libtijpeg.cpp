@@ -664,6 +664,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         inputFileSize = stream->getLength();
         inputFileSize = (OMX_U32)((inputFileSize + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
         inputBuffer = memalign(ALIGN_128_BYTE, inputFileSize);
+        if (inputBuffer == NULL) {
+            PRINTF("%s():%d::ERROR!!!: Could not allocate memory for inputBuffer.\n",__FUNCTION__,__LINE__);
+            goto EXIT;
+        }
 
         stream->rewind();
         nRead = fill_data((OMX_U8*)inputBuffer, stream, stream->getLength());
