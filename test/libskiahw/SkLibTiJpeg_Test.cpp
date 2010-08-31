@@ -65,6 +65,7 @@ extern "C" {
 #define PASSCOUNT_SIMCOP     2
 #define FAILCOUNT            3
 #define COUNT_MANUALVERIFY   4
+#define COUNT_MAX_INDEX      5
 
 //test case count
 unsigned int nTestCount[5]; //[0]-ARM; [1]-TI;
@@ -369,7 +370,7 @@ void md5SumBuf(unsigned char* md, void* pBuf, unsigned long nBufSize) {
 void updateTestCount(int id) {
 
     android::countMutex.lock();
-    if ( id < 4 ) {
+    if ( id < COUNT_MAX_INDEX ) {
         nTestCount[id] += 1;
     }
     android::countMutex.unlock();
@@ -405,7 +406,12 @@ int verifyMd5Sum( char* InFileName, void *pBuf, unsigned long nBufSize, int flag
 
     if ( flagDumpMd5Sum ) {
         //dump the file name and its md5sum string in to a file
-        fprintf(pFileDump, "%s %s\n",imgFileName,mdString);
+        fprintf(pFileDump, "{\n");
+        fprintf(pFileDump, "\"%s\",\n",imgFileName);
+        fprintf(pFileDump, "\"%s\",\n",mdString);
+        fprintf(pFileDump, "\"0\",\n");
+        fprintf(pFileDump, "\"0\",\n");
+        fprintf(pFileDump, "},\n");
     }
 
     /*comapre the md5sum with the data base */
@@ -421,17 +427,17 @@ int verifyMd5Sum( char* InFileName, void *pBuf, unsigned long nBufSize, int flag
         if ( strcmp ( pMd5SumDBList[i].fileName, imgFileName ) == 0 ) {
             /* File name found.  Now check the md5sum */
             if ( strcmp( pMd5SumDBList[i].md5CheckSumArm , (const char*)mdString ) == 0 ) {
-                PRINT("Md5Sum matches with ARM decoder output.\n");
+                PRINT("Md5Sum matches with ARM Codec output.\n");
                 updateTestCount(PASSCOUNT_ARM);
                 return PASS;
             }
             else if ( strcmp( pMd5SumDBList[i].md5CheckSumTi , (const char*)mdString ) == 0 ) {
-                PRINT("Md5Sum matches with TI decoder output.\n");
+                PRINT("Md5Sum matches with TI Codec output.\n");
                 updateTestCount(PASSCOUNT_TIDSP);
                 return PASS;
             }
             else if ( strcmp( pMd5SumDBList[i].md5CheckSumSimcop , (const char*)mdString ) == 0 ) {
-                PRINT("Md5Sum matches with SIMCOP decoder output.\n");
+                PRINT("Md5Sum matches with SIMCOP Codec output.\n");
                 updateTestCount(PASSCOUNT_SIMCOP);
                 return PASS;
             }
@@ -1176,13 +1182,13 @@ int main(int argc, char** argv) {
     nTotalTests = ( nTestCount[0] + nTestCount[1] + nTestCount[2] + nTestCount[3] + nTestCount[4]);
     if ( nTotalTests ) {
         PRINT("\n|------------------------------------------------------------------------------|\n");
-        PRINT  ("| Total Test cases run           = %d\n\n",nTotalTests );
-        PRINT  ("| Test cases run on ARM          = %d\t (%d %c)\n",nTestCount[0], ((nTestCount[0]/nTotalTests)*100),'%' );
-        PRINT  ("| Test cases run on TI-DSP       = %d\t (%d %c)\n",nTestCount[1], ((nTestCount[1]/nTotalTests)*100),'%' );
-        PRINT  ("| Test cases run on SIMCOP       = %d\t (%d %c)\n",nTestCount[2], ((nTestCount[2]/nTotalTests)*100),'%' );
-        PRINT  ("| Test cases FAILED              = %d\t (%d %c)\n",nTestCount[3], ((nTestCount[3]/nTotalTests)*100),'%' );
-        PRINT  ("| Test cases needs manual check  = %d\t (%d %c)\n",nTestCount[4], ((nTestCount[4]/nTotalTests)*100),'%' );
-        PRINT("\n|------------------------------------------------------------------------------|\n");
+        PRINT  ("| Total Test cases run           = %d\n|\n",nTotalTests );
+        PRINT  ("| Test cases run on ARM          = %d\t (%d %c)\n",nTestCount[0], ((100*nTestCount[0])/nTotalTests),'%' );
+        PRINT  ("| Test cases run on TI-DSP       = %d\t (%d %c)\n",nTestCount[1], ((100*nTestCount[1])/nTotalTests),'%' );
+        PRINT  ("| Test cases run on SIMCOP       = %d\t (%d %c)\n",nTestCount[2], ((100*nTestCount[2])/nTotalTests),'%' );
+        PRINT  ("| Test cases FAILED              = %d\t (%d %c)\n",nTestCount[3], ((100*nTestCount[3])/nTotalTests),'%' );
+        PRINT  ("| Test cases needs manual check  = %d\t (%d %c)\n",nTestCount[4], ((100*nTestCount[4])/nTotalTests),'%' );
+        PRINT("|\n|------------------------------------------------------------------------------|\n");
     }
 
     return 0;
