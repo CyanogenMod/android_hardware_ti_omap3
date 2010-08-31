@@ -322,6 +322,9 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
 
     pEd = exif_data_new ();
 
+    if(pEd == NULL)
+        goto EXIT;
+
     exif_entry_set_string (pEd, EXIF_IFD_0, EXIF_TAG_MAKE, "Zoom");
     exif_entry_set_string (pEd, EXIF_IFD_0, EXIF_TAG_MODEL, "SONY IU046");
 
@@ -521,5 +524,12 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
     exif_data_unref(pEd);
 
     return sEb;
+
+EXIT:
+    if(sEb != NULL)
+        free(sEb);
+
+    return NULL;
+
 }
 
