@@ -3070,21 +3070,26 @@ int CameraHal::ICaptureDestroy(void)
 #if JPEG
 
     if( isStart_JPEG )
+    {
+        isStart_JPEG = false;
         delete jpegEncoder;
-
+        jpegEncoder = NULL;
+    }
 #endif
 #endif
 
 #ifdef ICAP
+    if(iobj != NULL)
+    {
+        err = icap_destroy(iobj->lib_private);
+        if ( ICAP_STATUS_FAIL == err )
+            LOGE("ICapture Delete failed");
+        else
+            LOGD("ICapture delete OK");
 
-    err = icap_destroy(iobj->lib_private);
-    if ( ICAP_STATUS_FAIL == err )
-        LOGE("ICapture Delete failed");
-    else
-        LOGD("ICapture delete OK");
-
-    free(iobj);
-    iobj = NULL;
+        free(iobj);
+        iobj = NULL;
+    }
 
 #endif
 
