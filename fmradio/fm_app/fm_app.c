@@ -1,9 +1,7 @@
 /*
  * Linux FM Sample and Testing Application for TI's FM stack
  *
- * Copyright 2001-2008 Texas Instruments, Inc. - http://www.ti.com/
- *
- * Written by Ohad Ben-Cohen <ohad@bencohen.org>
+ * Copyright 2001-2010 Texas Instruments, Inc. - http://www.ti.com/
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 
 #define _GNU_SOURCE
 
@@ -35,9 +34,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/hci.h>
-#include <bluetooth/hci_lib.h>
 #include <time.h>
 #include <getopt.h>
 
@@ -51,6 +47,7 @@
 #ifdef FM_CHR_DEV_ST
 #include "fm_chrlib.h"
 #endif
+
 #ifdef ANDROID
 /* lib_alsa ALSA Include */
 #include "asoundlib.h"
@@ -61,6 +58,7 @@
 #include "fmc_common.h"
 #include "fm_app.h"
 
+#undef DEBUG
 /* transient stage */
 typedef FmcStatus fm_status;
 typedef FmRxStatus fm_rx_status;
@@ -131,7 +129,7 @@ extern int gMcpLogToFile;
  * This requires configuration of both playback and capture path
  * for OMAP4-ABE <-> Phoenix and hence these variables
  */
-#ifdef TARGET_BOARD_OMAP4
+#if defined TARGET_BOARD_PLATFORM == omap4
 snd_pcm_t *phandle, *chandle;
 static char *alsa_device = "default";
 #endif
@@ -361,33 +359,6 @@ static void fmapp_display_rds_af_switch(FMC_U32 value)
 
 	FMAPP_END();
 }
-
-#if 0
-static void fmapp_display_audio_routing(FMC_U32 value)
-{
-	FMAPP_BEGIN();
-
-	switch (value) {
-	case FMC_AUDIO_ROUTE_MASK_I2S:
-		FMAPP_MSG("FMC_AUDIO_ROUTE_MASK_I2S");
-		break;
-	case FMC_AUDIO_ROUTE_MASK_ANALOG:
-		FMAPP_MSG("FMC_AUDIO_ROUTE_MASK_ANALOG");
-		break;
-	case FMC_AUDIO_ROUTE_MASK_NONE:
-		FMAPP_MSG("FMC_AUDIO_ROUTE_MASK_NONE");
-		break;
-	case FMC_AUDIO_ROUTE_MASK_ALL:
-		FMAPP_MSG("FMC_AUDIO_ROUTE_MASK_ALL");
-		break;
-	default:
-		FMAPP_ERROR("illegal audio routing");
-		break;
-	}
-
-	FMAPP_END();
-}
-#endif
 
 static void fmapp_display_emphasis_filter(FMC_U32 value)
 {
@@ -862,10 +833,6 @@ static void fmapp_rx_cmd_done_handler(fm_rx_status status, FmRxCmdType cmd, FMC_
 		FMAPP_MSG("RSSI level is %d", value);
 		break;
 
-/*	case FM_RX_CMD_GET_PI:
-		FMAPP_MSG("get pi %d", value);
-		break;*/
-
 	case FM_RX_CMD_ENABLE_RDS:
 		g_fmapp_rds = FM_RX_CMD_ENABLE_RDS;
 		FMAPP_MSG("RDS On");
@@ -921,16 +888,6 @@ static void fmapp_rx_cmd_done_handler(fm_rx_status status, FmRxCmdType cmd, FMC_
 	case FM_RX_CMD_CHANGE_DIGITAL_AUDIO_CONFIGURATION:
 		FMAPP_MSG("Digital Audio Configuration Changed");
 		break;
-
-/*
-	case FM_RX_CMD_SET_AUDIO_ROUTING:
-		fmapp_display_audio_routing(g_fmapp_audio_route);
-		break;
-
-	case FM_RX_CMD_GET_AUDIO_ROUTING:
-		fmapp_display_audio_routing(value);
-		break;
-*/
 
 	default:
 		FMAPP_ERROR("Received completion event of unknown FM RX command: %u", cmd);
@@ -1183,11 +1140,12 @@ out:
 fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 {
 	fm_status ret = FMC_STATUS_SUCCESS;
-	int err; /* can't use ret because it is unsigned */
+        int err; /* can't use ret because it is unsigned */
+	void * hMcpf = NULL;
 	FMAPP_BEGIN();
 
 	FMAPP_MSG("Powering on FM RX... (this might take awhile)");
-#ifdef TARGET_BOARD_OMAP3
+#if defined TARGET_BOARD_PLATFORM == omap3
 	/* Configure the Analog Loopback settings */
 	set_fmapp_audio_routing(fm_context);
 #else
@@ -1236,7 +1194,7 @@ fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 	snd_pcm_start(phandle);
 	snd_pcm_start(chandle);
 #endif
-	ret = FM_RX_Init();
+	ret = FM_RX_Init(hMcpf);
 	if (ret) {
 		FMAPP_ERROR("failed to initialize FM rx stack");
 		goto out;
@@ -1278,13 +1236,13 @@ fm_status deinit_rx_stack(fm_rx_context_s **fm_context)
 	FMAPP_BEGIN();
 
 	g_fmapp_now_initializing = 0;
-#ifdef TARGET_BOARD_OMAP3
+#if defined TARGET_BOARD_PLATFORM == omap3
 	/* Revert the analog loopback settings */
 	unset_fmapp_audio_routing(fm_context);
 #else
 	snd_pcm_drop(phandle);
 	snd_pcm_drop(chandle);
-/* shutdown the link */
+	/*shutdown the link */
 	snd_pcm_close(phandle);
 	snd_pcm_close(chandle);
 #endif
@@ -1311,11 +1269,12 @@ fm_status deinit_rx_stack(fm_rx_context_s **fm_context)
 fm_status init_tx_stack(fm_tx_context_s  **fm_context)
 {
 	fm_status ret = FMC_STATUS_SUCCESS;
+	void * hMcpf = NULL;
 	FMAPP_BEGIN();
 
 	FMAPP_MSG("Powering on FM TX... (this might take awhile)");
 
-	ret = FM_TX_Init();
+	ret = FM_TX_Init(hMcpf);
 	if (ret) {
 		FMAPP_ERROR("failed to initialize FM TX stack");
 		goto out;
@@ -1600,56 +1559,6 @@ fm_status fmapp_set_emphasis_filter(void *fm_context)
 	FMAPP_END();
 	return ret;
 }
-
-#if 0
-fm_status fmapp_get_audio_routing(fm_rx_context_s *fm_context)
-{
-	fm_status ret = FMC_STATUS_SUCCESS;
-	FMAPP_BEGIN();
-
-	ret = FM_RX_GetAudioRouting(fm_context);
-	if (ret != FMC_STATUS_PENDING && ret != FMC_STATUS_SUCCESS)
-		FMAPP_ERROR("failed to get audio routing mask (%s)", STATUS_DBG_STR(ret));
-	else
-		ret = FMC_STATUS_SUCCESS;
-
-	FMAPP_END();
-	return ret;
-}
-
-fm_status fmapp_set_audio_routing(fm_rx_context_s *fm_context)
-{
-	fm_status ret = FMC_STATUS_SUCCESS;
-	FMAPP_BEGIN();
-
-	switch (g_fmapp_audio_route) {
-	case FMC_AUDIO_ROUTE_MASK_NONE:
-		g_fmapp_audio_route = FMC_AUDIO_ROUTE_MASK_I2S;
-		break;
-	case FMC_AUDIO_ROUTE_MASK_I2S:
-		g_fmapp_audio_route = FMC_AUDIO_ROUTE_MASK_ANALOG;
-		break;
-	case FMC_AUDIO_ROUTE_MASK_ANALOG:
-		g_fmapp_audio_route = FMC_AUDIO_ROUTE_MASK_ALL;
-		break;
-	case FMC_AUDIO_ROUTE_MASK_ALL:
-	default:
-		g_fmapp_audio_route = FMC_AUDIO_ROUTE_MASK_NONE;
-		break;
-	}
-
-	FMAPP_TRACE("setting %d", g_fmapp_audio_route);
-
-	ret = FM_RX_SetAudioRouting(fm_context, g_fmapp_audio_route);
-	if (ret != FMC_STATUS_PENDING && ret != FMC_STATUS_SUCCESS)
-		FMAPP_ERROR("failed to set audio routing mask (%s)", STATUS_DBG_STR(ret));
-	else
-		ret = FMC_STATUS_SUCCESS;
-
-	FMAPP_END();
-	return ret;
-}
-#endif
 
 fm_status fmapp_get_rds_system(fm_rx_context_s *fm_context)
 {
@@ -2114,27 +2023,6 @@ fm_status fmapp_change_rds_mode(void *fm_context)
 	FMAPP_END();
 	return ret;
 }
-
-#if 0
-fm_status fmapp_change_af_mode(fm_rx_context_s *fm_context)
-{
-	fm_status ret = FMC_STATUS_SUCCESS;
-	FMAPP_BEGIN();
-
-	g_fmapp_af_mode = (g_fmapp_af_mode == FM_RX_RDS_AF_SWITCH_MODE_OFF ?
-						FM_RX_RDS_AF_SWITCH_MODE_ON :
-						FM_RX_RDS_AF_SWITCH_MODE_OFF);
-
-	ret = FM_RX_SetRdsAfSwitchMode(fm_context, g_fmapp_af_mode);
-	if (ret != FMC_STATUS_PENDING && ret != FMC_STATUS_SUCCESS)
-		FMAPP_ERROR("failed to change AF mode (%s)", STATUS_DBG_STR(ret));
-	else
-		ret = FMC_STATUS_SUCCESS;
-
-	FMAPP_END();
-	return ret;
-}
-#endif
 
 fm_status fmapp_rx_stop_seek(fm_rx_context_s *fm_context)
 {
@@ -2912,15 +2800,12 @@ void fmapp_show_rx_functionality(void (*printer)(const char *msg))
 	printer("ge get deemphasis filter");
 	printer("d set rf dependent mute");
 	printer("gd get rf dependent mute");
-//	printer("o set audio routing");
-//	printer("go get audio routing");
 	printer("z set rds system");
 	printer("gz get rds system");
 	printer("x set rds group mask");
 	printer("gx get rds group mask");
 	printer("c set rds af switch");
 	printer("gc get rds af switch");
-//	printer("a turns AF on/off");
 	printer("l prints AF list");
 	printer("< seek down");
 	printer("> seek up");
@@ -3027,9 +2912,6 @@ fm_status fmapp_execute_rx_get_command(char *cmd, int *index, fm_rx_context_s **
 	case 'd':
 		ret = fmapp_get_rfmute(* fm_context);
 		break;
-//	case 'o':
-//		ret = fmapp_get_audio_routing(*fm_context);
-//		break;
 	case 'z':
 		ret = fmapp_get_rds_system(*fm_context);
 		break;
@@ -3085,9 +2967,6 @@ fm_status fmapp_execute_rx_other_command(char *cmd, int *index, fm_rx_context_s 
 	case 'e':
 		ret = fmapp_set_emphasis_filter(*fm_context);
 		break;
-//	case 'o':
-//		ret = fmapp_set_audio_routing(*fm_context);
-//		break;
 	case 'z':
 		ret = fmapp_set_rds_system(*fm_context);
 		break;
@@ -3104,9 +2983,6 @@ fm_status fmapp_execute_rx_other_command(char *cmd, int *index, fm_rx_context_s 
 	case '*':
 		ret = fmapp_change_rxtx_mode();
 		break;
-//	case 'a':
-//		ret = fmapp_change_af_mode(*fm_context);
-//		break;
 	case 'p':
 		ret = fmapp_change_power_mode((void **) fm_context);
 		break;
@@ -3594,8 +3470,9 @@ int main(int argc, char **argv)
     gMcpLogToFile = 1;
     strcpy(gMcpLogFileName, LOG_FILE);
 
+#ifdef DEBUG
 	MCP_HAL_LOG_Init();
-	//FMC_LOG_INFO(("FMAPP"));
+#endif
 
 	ret = fm_trace_init();
 	if (ret)
@@ -3611,26 +3488,11 @@ int main(int argc, char **argv)
 		goto out;
 
 	FMAPP_MSG(FMAPP_WELCOME_STR);
-#ifndef FM_CHR_DEV_ST
-	FMAPP_MSG("attaching FM to hci%d", g_fmapp_hci_dev);
-#else
-	FMAPP_MSG("attaching FM to %s",TI_FMRADIO);
-#endif
 
 	/* register signal handlers */
 	ret = register_sig_handlers();
 	if (ret) {
 		FMAPP_ERROR("failed to register sig handlers");
-		goto out;
-	}
-
-	ret = fm_open_cmd_socket(g_fmapp_hci_dev);
-	if (ret) {
-#ifndef	FM_CHR_DEV_ST
-		FMAPP_ERROR("failed to open cmd socket");
-#else
-		FMAPP_ERROR("failed to open device");
-#endif
 		goto out;
 	}
 
@@ -3652,7 +3514,7 @@ int main(int argc, char **argv)
 
 disable:
 	/* deinitialize FM stack */
-	if (g_fmapp_power_mode && (char*)fm_context != NULL ) {
+	if (g_fmapp_power_mode && (char*)fm_context != NULL) {
 		ret = fmapp_deinit_stack(&fm_context);
 		if (ret) {
 			FMAPP_ERROR("failed to deinitialize FM stack");
@@ -3660,11 +3522,12 @@ disable:
 		}
 	}
 
-	fm_close_cmd_socket();
 out:
 	FMAPP_END();
 	fm_trace_deinit();
+#ifdef DEBUG
 	MCP_HAL_LOG_Deinit();
+#endif
 fastout:
 	exit(ret);
 }
