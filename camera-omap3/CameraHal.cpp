@@ -3250,10 +3250,23 @@ status_t CameraHal::startRecording( )
     for(i = 0; i < mVideoBufferCount; i++)
     {
         mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress((void*)i);
-        mVideoHeaps[i] = new MemoryHeapBase(data->fd,mPreviewFrameSize, 0, data->offset);
-        mVideoBuffer[i] = new MemoryBase(mVideoHeaps[i], 0, mRecordingFrameSize);
-        LOGV("mVideoHeaps[%d]: ID:%d,Base:[%p],size:%d", i, mVideoHeaps[i]->getHeapID(), mVideoHeaps[i]->getBase() ,mVideoHeaps[i]->getSize());
-        LOGV("mVideoBuffer[%d]: Pointer[%p]", i, mVideoBuffer[i]->pointer());
+        // make sure data if valid, if not clear all previously allocated memory and return
+        if(data != NULL)
+        {
+            mVideoHeaps[i] = new MemoryHeapBase(data->fd,mPreviewFrameSize, 0, data->offset);
+            mVideoBuffer[i] = new MemoryBase(mVideoHeaps[i], 0, mRecordingFrameSize);
+            LOGV("mVideoHeaps[%d]: ID:%d,Base:[%p],size:%d", i, mVideoHeaps[i]->getHeapID(), mVideoHeaps[i]->getBase() ,mVideoHeaps[i]->getSize());
+            LOGV("mVideoBuffer[%d]: Pointer[%p]", i, mVideoBuffer[i]->pointer());
+        } else{
+            for(int j = 0; j < i+1; j++)
+            {
+                mVideoHeaps[j].clear();
+                mVideoBuffer[j].clear();
+                buffers_queued_to_ve[j] = 0;
+            }
+            LOGD("Error: data from overlay returned null");
+            return UNKNOWN_ERROR;
+        }
     }
 
     mRecordEnabled =true;
