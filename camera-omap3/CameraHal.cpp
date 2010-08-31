@@ -899,8 +899,8 @@ void CameraHal::previewThread()
 
            case PREVIEW_CAPTURE:
            {
-                int flg_AF;
-                int flg_CAF;
+                int flg_AF = 0;
+                int flg_CAF = 0;
                 err = 0;
 
 #ifdef DEBUG_LOG
