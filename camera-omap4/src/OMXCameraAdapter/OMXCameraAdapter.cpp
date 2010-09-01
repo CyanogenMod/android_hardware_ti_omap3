@@ -976,6 +976,14 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         portCheck.format.video.nFrameHeight     = portParams.mHeight;
         portCheck.format.video.eColorFormat     = portParams.mColorFormat;
         portCheck.format.video.nStride          = portParams.mStride;
+        if((portCheck.format.video.nFrameWidth==1920) && (portCheck.format.video.nFrameHeight==1080))
+            {
+                if(portParams.mFrameRate>=FRAME_RATE_FULL_HD)
+                    {
+                    ///Limit the frame rate at full hd resolution to maximum supported rate.
+                    portParams.mFrameRate = FRAME_RATE_FULL_HD;
+                    }
+            }
         portCheck.format.video.xFramerate       = portParams.mFrameRate<<16;
         portCheck.nBufferSize                   = portParams.mStride * portParams.mHeight;
         portCheck.nBufferCountActual = portParams.mNumBufs;

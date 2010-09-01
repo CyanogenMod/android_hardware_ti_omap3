@@ -56,6 +56,7 @@ namespace android {
 
 #define DEFAULT_THUMB_WIDTH     160
 #define DEFAULT_THUMB_HEIGHT    120
+#define FRAME_RATE_FULL_HD      27
 
 #ifdef SMOOTH_ZOOM
 
