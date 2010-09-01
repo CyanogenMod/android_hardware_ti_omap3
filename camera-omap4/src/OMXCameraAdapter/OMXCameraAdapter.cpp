@@ -886,14 +886,14 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposure, &exp);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonWhiteBalance, &wb);
-    OMX_SetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexConfigFlickerCancel, &flicker );
+    OMX_GetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexConfigFlickerCancel, &flicker );
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamSceneMode, &scene);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonBrightness, &brightness);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonContrast, &contrast);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexConfigSharpeningLevel, &procSharpness);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonSaturation, &saturation);
-    OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonImageFilter, &effect);
-    OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focus);
+    OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonImageFilter, &effect);
+    OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focus);
 
     char * str = NULL;
 
@@ -935,14 +935,14 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
     params.set( TICameraParameters::KEY_ISO , str );
 
     int comp = ((expValues.xEVCompensation * 10) >> Q16_OFFSET);
-    params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, comp );
 
+    params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, comp );
     params.set( TICameraParameters::KEY_MAN_EXPOSURE, expValues.nShutterSpeedMsec);
     params.set( TICameraParameters::KEY_BRIGHTNESS, brightness.nBrightness);
     params.set( TICameraParameters::KEY_CONTRAST, contrast.nContrast );
     params.set( TICameraParameters::KEY_SHARPNESS, procSharpness.nLevel);
     params.set( TICameraParameters::KEY_SATURATION, saturation.nSaturation);
-    params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx); 
+    params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -2479,25 +2479,6 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
                 {
                 CAMHAL_LOGDA("Camera mode configured successfully");
                 }
-            }
-        }
-
-    if(ret != -1)
-        {
-        OMX_CONFIG_FLICKERCANCELTYPE flickerCfg;
-
-        OMX_INIT_STRUCT_PTR (&flickerCfg, OMX_CONFIG_FLICKERCANCELTYPE);
-        flickerCfg.eFlickerCancel = OMX_FlickerCancel60;
-
-        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE )OMX_IndexConfigFlickerCancel, &flickerCfg);
-        if ( OMX_ErrorNone != eError )
-            {
-            CAMHAL_LOGEB("Error while setting flicker cancel 0x%x", eError);
-            ret = -1;
-            }
-        else
-            {
-            CAMHAL_LOGDA("Flicker cancel set successfully");
             }
         }
 
