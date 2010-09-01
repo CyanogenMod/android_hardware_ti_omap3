@@ -41,7 +41,7 @@
 <iso-mode>auto</iso-mode>
 <focus-mode-values>auto,infinity,macro,caf,extended,portrait</focus-mode-values>
 <focus-mode>auto</focus-mode>
-<scene-mode-values>auto,manual,closeup,portrait,landscape,underwater,action,snow-beach,mood,nightportrait,nightindoor,fireworks,document,barcode,supernight,cine,oldfilm</scene-mode-values>
+<scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,nightportrait,nightindoor,fireworks,document,barcode,supernight,cine,oldfilm</scene-mode-values>
 <scene-mode>auto</scene-mode>
 <flash-mode-values>off</flash-mode-values>
 <flash-mode>off</flash-mode>
@@ -80,7 +80,7 @@
 <ev-compensation-step>0.1</ev-compensation-step>
 <iso-mode-values>auto,100,200,400,800,1000,1200,1600</iso-mode-values>
 <focus-mode-values>auto,infinity,macro,caf,extended,portrait</focus-mode-values>
-<scene-mode-values>auto,manual,closeup,portrait,landscape,underwater,action,snow-beach,mood,nightportrait,nightindoor,fireworks,document,barcode,supernight,cine,oldfilm</scene-mode-values>
+<scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,nightportrait,nightindoor,fireworks,document,barcode,supernight,cine,oldfilm</scene-mode-values>
 <flash-mode-values>off</flash-mode-values>
 <required-preview-bufs>8</required-preview-bufs>
 <required-image-bufs>1</required-image-bufs>
