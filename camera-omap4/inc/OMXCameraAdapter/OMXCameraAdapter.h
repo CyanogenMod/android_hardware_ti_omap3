@@ -282,7 +282,7 @@ private:
     //Focus functionality
     status_t doAutoFocus();
     status_t stopAutoFocus();
-    status_t notifyFocusSubscribers();
+    status_t notifyFocusSubscribers(bool override, bool status);
     status_t checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus);
 
     //VSTAB and VNF Functionality

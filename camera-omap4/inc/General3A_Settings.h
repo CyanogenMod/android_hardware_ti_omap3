@@ -173,12 +173,12 @@ userToOMX_LUT antibanding_UserToOMX [] = {
 
 
 userToOMX_LUT focus_UserToOMX [] = {
-    { focusAuto     ,OMX_IMAGE_FocusControlAuto         },
+    { focusAuto     ,OMX_IMAGE_FocusControlAutoLock         },
     { focusInfinity ,OMX_IMAGE_FocusControlAutoInfinity },
     { focusMacro    ,OMX_IMAGE_FocusControAutoMacro     },
     { focusPortrait ,OMX_IMAGE_FocusControlPortrait     },
     { focusExtended ,OMX_IMAGE_FocusControlExtended     },
-    { focusCAF      ,OMX_IMAGE_FocusControlContinousNormal },
+    { focusCAF      ,OMX_IMAGE_FocusControlAuto },
 };
 
 userToOMX_LUT exposure_UserToOMX [] = {

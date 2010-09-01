@@ -574,7 +574,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         {
         mParameters3A.Focus = mode;
         CAMHAL_LOGEB("Focus %d", mParameters3A.Focus);
-        if ( 0 <= mParameters3A.Focus )
+        //Apply focus mode immediatly only if  CAF  or Inifinity are selected
+        if ( ( 0 <= mParameters3A.Focus ) && ( ( mode == OMX_IMAGE_FocusControlAuto ) ||
+                ( mode == OMX_IMAGE_FocusControlAutoInfinity )) )
             {
             mPending3Asettings |= SetFocus;
             }
@@ -2564,7 +2566,7 @@ status_t OMXCameraAdapter::doAutoFocus()
     if ( NO_ERROR == ret )
         {
         OMX_INIT_STRUCT_PTR (&focusControl, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
-        focusControl.eFocusControl = OMX_IMAGE_FocusControlAutoLock;
+        focusControl.eFocusControl = ( OMX_IMAGE_FOCUSCONTROLTYPE ) mParameters3A.Focus;
 
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
         if ( OMX_ErrorNone != eError )
@@ -2579,35 +2581,48 @@ status_t OMXCameraAdapter::doAutoFocus()
             }
         }
 
-    if ( NO_ERROR == ret )
+    if ( (mParameters3A.Focus != OMX_IMAGE_FocusControlAuto )  &&
+                ( mParameters3A.Focus != OMX_IMAGE_FocusControlAutoInfinity) )
         {
-        ret = eventSem.Create(0);
-        }
 
-    if ( NO_ERROR == ret )
-        {
-        ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                                    (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
-                                    OMX_ALL,
-                                    OMX_IndexConfigCommonFocusStatus,
-                                    eventSem,
-                                    -1 );
-        }
+        if ( NO_ERROR == ret )
+            {
+            ret = eventSem.Create(0);
+            }
 
-    if ( NO_ERROR == ret )
-        {
-        ret = setFocusCallback(true);
-        }
+        if ( NO_ERROR == ret )
+            {
+            ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
+                                        (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
+                                        OMX_ALL,
+                                        OMX_IndexConfigCommonFocusStatus,
+                                        eventSem,
+                                        -1 );
+            }
 
-    if ( NO_ERROR == ret )
-        {
-        eventSem.Wait();
-        CAMHAL_LOGDA("Autofocus callback received successfully");
-        }
+        if ( NO_ERROR == ret )
+            {
+            ret = setFocusCallback(true);
+            }
 
-    if ( NO_ERROR == ret )
+        if ( NO_ERROR == ret )
+            {
+            eventSem.Wait();
+            CAMHAL_LOGDA("Autofocus callback received successfully");
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            ret = notifyFocusSubscribers(false, false);
+            }
+
+        }
+    else
         {
-        ret = notifyFocusSubscribers();
+        if ( NO_ERROR == ret )
+            {
+            ret = notifyFocusSubscribers(true, true);
+            }
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -2785,7 +2800,7 @@ status_t OMXCameraAdapter::notifyZoomSubscribers(int zoomIdx, bool targetReached
     return ret;
 }
 
-status_t OMXCameraAdapter::notifyFocusSubscribers()
+status_t OMXCameraAdapter::notifyFocusSubscribers(bool override, bool status)
 {
     static unsigned int frameCounter = 0;
     event_callback eventCb;
@@ -2796,45 +2811,51 @@ status_t OMXCameraAdapter::notifyFocusSubscribers()
 
     LOG_FUNCTION_NAME
 
-    if ( mFocusStarted )
+    if ( !override )
         {
-
-        frameCounter++;
-
-        ret = checkFocus(&eFocusStatus);
-
-        if ( NO_ERROR == ret )
+        if ( mFocusStarted )
             {
 
-            if ( OMX_FocusStatusReached == eFocusStatus.eFocusStatus)
+            frameCounter++;
+
+            ret = checkFocus(&eFocusStatus);
+
+            if ( NO_ERROR == ret )
                 {
-                stopAutoFocus();
-                frameCounter = 0;
-                focusStatus = true;
+
+                if ( OMX_FocusStatusReached == eFocusStatus.eFocusStatus)
+                    {
+                    stopAutoFocus();
+                    frameCounter = 0;
+                    focusStatus = true;
+                    }
+                else if((OMX_FocusStatusOff == eFocusStatus.eFocusStatus) || (OMX_FocusStatusUnableToReach == eFocusStatus.eFocusStatus))
+                    {
+                    stopAutoFocus();
+                    frameCounter = 0;
+                    focusStatus = false;
+                    }
+                else if ( (OMX_FocusStatusRequest == eFocusStatus.eFocusStatus) && (frameCounter > mFocusThreshold) )
+                    {
+                    stopAutoFocus();
+                    frameCounter = 0;
+                    focusStatus = false;
+                    }
+                else
+                    {
+                    return NO_ERROR;
+                    }
                 }
-            else if((OMX_FocusStatusOff == eFocusStatus.eFocusStatus) || (OMX_FocusStatusUnableToReach == eFocusStatus.eFocusStatus))
-                {
-                stopAutoFocus();
-                frameCounter = 0;
-                focusStatus = false;
-                }
-            else if ( (OMX_FocusStatusRequest == eFocusStatus.eFocusStatus) && (frameCounter > mFocusThreshold) )
-                {
-                stopAutoFocus();
-                frameCounter = 0;
-                focusStatus = false;
-                }
-            else
-                {
-                return NO_ERROR;
-                }
+            }
+        else
+            {
+            return NO_ERROR;
             }
         }
     else
         {
-        return NO_ERROR;
+        focusStatus = status;
         }
-
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
      //dump the AF latency
@@ -3308,7 +3329,8 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETY
         break;
 
         case OMX_EventIndexSettingChanged:
-            CAMHAL_LOGDB("OMX_EventIndexSettingChanged event received data1 0x%x, data2 0x%x", nData1, nData2);
+            CAMHAL_LOGDB("OMX_EventIndexSettingChanged event received data1 0x%x, data2 0x%x",
+                            ( unsigned int ) nData1, ( unsigned int ) nData2);
             break;
 
         case OMX_EventError:
