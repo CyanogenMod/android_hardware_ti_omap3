@@ -339,11 +339,11 @@ int CameraHal::FW3A_Create()
 #endif
 
     fobj = (lib3atest_obj*)malloc(sizeof(*fobj));
-    memset(fobj, 0 , sizeof(*fobj));
     if (!fobj) {
         LOGE("cannot alloc fobj");
         goto exit;
     }
+    memset(fobj, 0 , sizeof(*fobj));
 
     err = ICam_Create(&fobj->hnd);
     if (err < 0) {
