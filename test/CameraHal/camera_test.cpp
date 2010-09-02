@@ -27,6 +27,7 @@
 #define PRINTOVER(arg...)     LOGD(#arg)
 #define LOG_FUNCTION_NAME         LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
+#define KEY_POST_PROC   "ipp"
 #define KEY_CAMERA          "camera-index"
 #define KEY_SATURATION      "saturation"
 #define KEY_BRIGHTNESS      "brightness"
@@ -82,7 +83,7 @@ int caf_mode = 0;
 int vnf_mode = 0;
 int vstab_mode = 0;
 
-
+int postProcIDX = 0;
 int rotation = 0;
 bool reSizePreview = true;
 bool hardwareActive = false;
@@ -108,7 +109,6 @@ timeval autofocus_start, picture_start;
 char script_name[25];
 bool nullOverlay = false;
 int prevcnt = 0;
-
 
 char dir_path[40] = SDCARD_PATH;
 
@@ -163,6 +163,7 @@ const char *focus[] = {
 };
 int focus_mode = 0;
 const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw"};
+const char *post_proc[] = {"off", "nsf", "ldc", "ldc-nsf"};
 int pictureFormat = ARRAY_SIZE(pixelformat) - 2;
 const char *exposure[] = {"auto", "macro", "portrait", "landscape", "sports", "night", "night-portrait", "backlighting", "manual"};
 const char *capture[] = { "high-performance", "high-quality", "video-mode" };
@@ -972,6 +973,7 @@ void initDefaults() {
     rotation = 0;
     zoomIDX = 0;
     videoCodecIDX = 0;
+    postProcIDX = 0;
 #ifdef TARGET_OMAP4
     ///Temporary fix until OMAP3 and OMAP4 3A values are synced
     contrast = 90;
@@ -1002,6 +1004,7 @@ void initDefaults() {
     params.set(params.KEY_SCENE_MODE, scene[scene_mode]);
     params.set(KEY_CAF, caf_mode);
     params.set(KEY_ISO, iso_mode);
+    params.set(KEY_POST_PROC, post_proc[postProcIDX]);
     params.set(KEY_SHARPNESS, sharpness);
     params.set(KEY_CONTRAST, contrast);
     params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx);
@@ -1135,6 +1138,7 @@ int functional_menu() {
         printf("   i. ISO mode:       %s\n", iso[iso_mode]);
         printf("   u. Capture Mode:   %s\n", capture[capture_mode]);
         printf("   k. IPP Mode:       %s\n", ipp_mode[ippIDX]);
+        printf("   K. Post-Processing: %s\n", post_proc[postProcIDX]);
         printf("   o. Jpeg Quality:   %d\n", jpegQuality);
         printf("   #. Burst Images:  %3d\n", burst);
         printf("   :. Thumbnail Size:  %4d x %4d - %s\n",previewSize[thumbSizeIDX].width, previewSize[thumbSizeIDX].height, previewSize[thumbSizeIDX].desc);
@@ -1440,6 +1444,16 @@ int functional_menu() {
             ippIDX += 1;
             ippIDX %= ARRAY_SIZE(ipp_mode);
             params.set(KEY_IPP, ippIDX);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'K':
+            postProcIDX+= 1;
+            postProcIDX %= ARRAY_SIZE(post_proc);
+            params.set(KEY_POST_PROC, post_proc[postProcIDX]);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -2160,6 +2174,13 @@ int execute_functional_script(char *script) {
 
             case 'k':
                 params.set(KEY_IPP, atoi(cmd + 1));
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
+                break;
+
+            case 'K':
+                params.set(KEY_POST_PROC, (cmd+1));
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
 
