@@ -2290,7 +2290,16 @@ int execute_functional_script(char *script) {
 
             case 'z':
             case 'Z':
-                params.set(CameraParameters::KEY_ZOOM, (atoi(cmd + 1) - 1));
+                for(i = 0; i < ARRAY_SIZE(zoom); i++)
+                {
+                    if( strcmp((cmd + 1), zoom[i].zoom_description) == 0)
+                    {
+                        zoomIDX = i;
+                        break;
+                    }
+                }
+
+                params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx);
 
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
