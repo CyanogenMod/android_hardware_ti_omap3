@@ -25,9 +25,11 @@
 #include "CameraHal.h"
 #include "OMX_Types.h"
 #include "OMX_Core.h"
+#include "OMX_CoreExt.h"
 #include "OMX_IVCommon.h"
 #include "OMX_Component.h"
 #include "OMX_Index.h"
+#include "OMX_IndexExt.h"
 #include "OMX_TI_Index.h"
 #include "OMX_TI_IVCommon.h"
 #include "OMX_TI_Common.h"
@@ -318,6 +320,10 @@ private:
 public:
 
 private:
+
+    //AF callback
+    status_t setFocusCallback(bool enabled);
+
 
     CaptureMode mCapMode;
     size_t mBurstFrames;

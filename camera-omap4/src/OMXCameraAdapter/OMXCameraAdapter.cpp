@@ -2470,6 +2470,7 @@ status_t OMXCameraAdapter::doAutoFocus()
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE focusControl;
+    Semaphore eventSem;
 
     LOG_FUNCTION_NAME
 
@@ -2495,6 +2496,37 @@ status_t OMXCameraAdapter::doAutoFocus()
             CAMHAL_LOGDA("Autofocus started successfully");
             mFocusStarted = true;
             }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = eventSem.Create(0);
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
+                                    (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
+                                    OMX_ALL,
+                                    OMX_IndexConfigCommonFocusStatus,
+                                    eventSem,
+                                    -1 );
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = setFocusCallback(true);
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        eventSem.Wait();
+        CAMHAL_LOGDA("Autofocus callback received successfully");
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = notifyFocusSubscribers();
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -2539,6 +2571,54 @@ status_t OMXCameraAdapter::stopAutoFocus()
 
     return ret;
 
+}
+
+status_t OMXCameraAdapter::setFocusCallback(bool enabled)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_CALLBACKREQUESTTYPE focusRequstCallback;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component not in executing state");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        OMX_INIT_STRUCT_PTR (&focusRequstCallback, OMX_CONFIG_CALLBACKREQUESTTYPE);
+        focusRequstCallback.nPortIndex = OMX_ALL;
+
+        if ( enabled )
+            {
+            focusRequstCallback.bEnable = OMX_TRUE;
+            focusRequstCallback.nIndex = OMX_IndexConfigCommonFocusStatus;
+            }
+        else
+            {
+            focusRequstCallback.bEnable = OMX_FALSE;
+            focusRequstCallback.nIndex = OMX_IndexConfigCommonFocusStatus;
+            }
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp,  (OMX_INDEXTYPE) OMX_IndexConfigCallbackRequest, &focusRequstCallback);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error registering focus callback 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDB("Autofocus callback for index 0x%x registered successfully", OMX_IndexConfigCommonFocusStatus);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 status_t OMXCameraAdapter::checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus)
@@ -3130,6 +3210,10 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETY
             CAMHAL_LOGDA("-OMX_EventCmdComplete");
         break;
 
+        case OMX_EventIndexSettingChanged:
+            CAMHAL_LOGDB("OMX_EventIndexSettingChanged event received data1 0x%x, data2 0x%x", nData1, nData2);
+            break;
+
         case OMX_EventError:
             CAMHAL_LOGDB("OMX interface failed to execute OMX command %d", (int)nData1);
             CAMHAL_LOGDA("See OMX_INDEXTYPE for reference");
@@ -3295,7 +3379,6 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
     pPortParam = &(mCameraAdapterParameters.mCameraPortParams[pBuffHeader->nOutputPortIndex]);
     if (pBuffHeader->nOutputPortIndex == OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW)
         {
-        notifyFocusSubscribers();
         recalculateFPS();
 
         if ( mCurrentZoomIdx != mTargetZoomIdx )
