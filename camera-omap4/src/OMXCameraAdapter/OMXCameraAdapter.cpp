@@ -654,6 +654,36 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
 
+    if ( NULL != params.get(TICameraParameters::KEY_IPP) )
+        {
+        if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_LDCNSF) == 0)
+            {
+            mIPP = OMXCameraAdapter::IPP_LDCNSF;
+            }
+        else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_LDC) == 0)
+            {
+            mIPP = OMXCameraAdapter::IPP_LDC;
+            }
+        else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_NSF) == 0)
+            {
+            mIPP = OMXCameraAdapter::IPP_NSF;
+            }
+        else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_NONE) == 0)
+            {
+            mIPP = OMXCameraAdapter::IPP_NONE;
+            }
+        else
+            {
+            mIPP = OMXCameraAdapter::IPP_LDCNSF;
+            }
+        }
+    else
+        {
+        mIPP = OMXCameraAdapter::IPP_LDCNSF;
+        }
+
+    CAMHAL_LOGEB("IPP Mode set %d", mIPP);
+
     if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
         {
         mBurstFrames = params.getInt(TICameraParameters::KEY_BURST);
@@ -795,7 +825,6 @@ void saveFile(unsigned char   *buff, int width, int height, int format) {
 
 void OMXCameraAdapter::getParameters(CameraParameters& params) const
 {
-
     LOG_FUNCTION_NAME
 
     OMX_CONFIG_EXPOSURECONTROLTYPE exp;
@@ -913,7 +942,7 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
     params.set( TICameraParameters::KEY_CONTRAST, contrast.nContrast );
     params.set( TICameraParameters::KEY_SHARPNESS, procSharpness.nLevel);
     params.set( TICameraParameters::KEY_SATURATION, saturation.nSaturation);
-    params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx);
+    params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx); 
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -1391,6 +1420,23 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         ///Return from here
         return ret;
         }
+
+    ret = setLDC(mIPP);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("setLDC() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    ret = setNSF(mIPP);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("setNSF() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
     ret = setCaptureMode(mCapMode);
     if ( NO_ERROR != ret )
         {
@@ -2288,7 +2334,103 @@ status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
     return ret;
 }
 
+status_t OMXCameraAdapter::setLDC(OMXCameraAdapter::IPPMode mode)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_BOOLEANTYPE bOMX;
 
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in loaded state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
+
+        switch ( mode )
+            {
+            case OMXCameraAdapter::IPP_LDCNSF:
+            case OMXCameraAdapter::IPP_LDC:
+                {
+                bOMX.bEnabled = OMX_TRUE;
+                break;
+                }
+            case OMXCameraAdapter::IPP_NONE:
+            case OMXCameraAdapter::IPP_NSF:
+            default:
+                {
+                bOMX.bEnabled = OMX_FALSE;
+                break;
+                }
+            }
+
+        CAMHAL_LOGEB("Configuring LDC mode 0x%x", bOMX.bEnabled);
+        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamLensDistortionCorrection, &bOMX);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEA("Error while setting LDC");
+            ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setNSF(OMXCameraAdapter::IPPMode mode)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_PARAM_ISONOISEFILTERTYPE nsf;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in loaded state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&nsf, OMX_PARAM_ISONOISEFILTERTYPE);
+
+        switch ( mode )
+            {
+            case OMXCameraAdapter::IPP_LDCNSF:
+            case OMXCameraAdapter::IPP_NSF:
+                {
+                nsf.eMode = OMX_ISONoiseFilterModeOn;
+                break;
+                }
+            case OMXCameraAdapter::IPP_LDC:
+            case OMXCameraAdapter::IPP_NONE:
+            default:
+                {
+                nsf.eMode = OMX_ISONoiseFilterModeOff;
+                break;
+                }
+            }
+
+        CAMHAL_LOGEB("Configuring NSF mode 0x%x", nsf.eMode);
+        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamHighISONoiseFiler, &nsf);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEA("Error while setting NSF");
+            ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
 
 status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
 {
@@ -2323,48 +2465,6 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             {
             CAMHAL_LOGEA("Camera mode: INVALID mode passed!");
             return BAD_VALUE;
-            }
-
-
-        OMX_CONFIG_BOOLEANTYPE bOMX;
-        OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
-        OMX_PARAM_ISONOISEFILTERTYPE nsf;
-        OMX_INIT_STRUCT_PTR (&nsf, OMX_PARAM_ISONOISEFILTERTYPE);
-
-
-        if(OMXCameraAdapter::HIGH_QUALITY == mode)
-            {
-            bOMX.bEnabled = OMX_TRUE;
-            nsf.eMode = OMX_ISONoiseFilterModeOn;
-            }
-        else
-            {
-            bOMX.bEnabled = OMX_FALSE;
-            nsf.eMode = OMX_ISONoiseFilterModeOff;
-            }
-
-        /// Enabing LDC
-        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamLensDistortionCorrection, &bOMX);
-
-        if ( OMX_ErrorNone != eError )
-            {
-            CAMHAL_LOGEB("Enabing LDC - 0x%x", eError);
-            ret = -1;
-            }
-
-        if(ret != -1)
-            {
-            nsf.nPortIndex = OMX_ALL;
-
-            /// Enabing NSF2
-            eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp,
-            (OMX_INDEXTYPE)OMX_IndexParamHighISONoiseFiler, &nsf);
-
-            if ( OMX_ErrorNone != eError )
-                {
-                CAMHAL_LOGEB("Enabing NSF2 - 0x%x", eError);
-                ret = -1;
-                }
             }
 
         if(ret != -1)
@@ -3006,6 +3106,22 @@ void OMXCameraAdapter::getFrameSize(int &width, int &height)
         CAMHAL_LOGEA("Calling queryBufferPreviewResolution() when not in LOADED state");
         width = -1;
         height = -1;
+        goto exit;
+        }
+
+    ret = setLDC(mIPP);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("setLDC() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        goto exit;
+        }
+
+    ret = setNSF(mIPP);
+    if ( NO_ERROR != ret )
+        {
+        CAMHAL_LOGEB("setNSF() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
         goto exit;
         }
 

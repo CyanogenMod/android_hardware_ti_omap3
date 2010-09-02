@@ -69,7 +69,8 @@ public:
         PROP_INDEX_SUPPORTED_SCENE_MODES,
         PROP_INDEX_SUPPORTED_FLASH_MODES,
         PROP_INDEX_SUPPORTED_FOCUS_MODES,
-        PROP_INDEX_REQUIRED_PREVIEW_BUFS,
+        PROP_INDEX_SUPPORTED_IPP_MODES,
+         PROP_INDEX_REQUIRED_PREVIEW_BUFS,
         PROP_INDEX_REQUIRED_IMAGE_BUFS,
         PROP_INDEX_SUPPORTED_ZOOM_RATIOS,
         PROP_INDEX_SUPPORTED_ZOOM_STAGES,
@@ -96,6 +97,7 @@ public:
         PROP_INDEX_SATURATION,
         PROP_INDEX_BRIGHTNESS,
         PROP_INDEX_SHARPNESS,
+        PROP_INDEX_IPP,
         PROP_INDEX_MAX
         };
 
@@ -124,6 +126,7 @@ public:
     static const char PROP_KEY_REQUIRED_IMAGE_BUFS[];
     static const char PROP_KEY_SUPPORTED_ZOOM_RATIOS[];
     static const char PROP_KEY_SUPPORTED_ZOOM_STAGES[];
+    static const char PROP_KEY_SUPPORTED_IPP_MODES[];
     static const char PROP_KEY_SMOOTH_ZOOM_SUPPORTED[];
     static const char PROP_KEY_ZOOM_SUPPORTED[];
     static const char PROP_KEY_PREVIEW_SIZE[];
@@ -147,6 +150,7 @@ public:
     static const char PROP_KEY_SATURATION[];
     static const char PROP_KEY_SHARPNESS[];
     static const char PROP_KEY_CONTRAST[];
+    static const char PROP_KEY_IPP[];
     static const char PARAMS_DELIMITER [];
 
     static const char TICAMERA_FILE_PREFIX[];

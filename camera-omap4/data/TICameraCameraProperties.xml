@@ -31,6 +31,8 @@
 <antibanding>auto</antibanding>
 <exposure-mode-values>off,auto,night,backlighting,spotlight,sports,snow,beach,aperture,smallaperture</exposure-mode-values>
 <exposure-mode>auto</exposure-mode>
+<ipp-values>ldc-nsf,ldc,nsf,off</ipp-values>
+<ipp>ldc-nsf</ipp>
 <ev-compensation-min>-30</ev-compensation-min>
 <ev-compensation-max>30</ev-compensation-max>
 <ev-compensation-step>0.1</ev-compensation-step>
@@ -71,6 +73,8 @@
 <effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap</effect-values>
 <antibanding-values>off,auto,50hz,60hz</antibanding-values>
 <exposure-mode-values>off,auto,night,backlighting,spotlight,sports,snow,beach,aperture,smallaperture</exposure-mode-values>
+<ipp-values>ldc-nsf,ldc,nsf,off</ipp-values>
+<ipp>ldc-nsf</ipp>
 <ev-compensation-min>-30</ev-compensation-min>
 <ev-compensation-max>30</ev-compensation-max>
 <ev-compensation-step>0.1</ev-compensation-step>

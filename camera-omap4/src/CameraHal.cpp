@@ -282,6 +282,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mParameters.set(TICameraParameters::KEY_CAP_MODE, params.get(TICameraParameters::KEY_CAP_MODE));
             }
 
+        if(params.get(TICameraParameters::KEY_IPP) != NULL)
+            {
+            CAMHAL_LOGDB("IPP mode set %s", params.get(TICameraParameters::KEY_IPP));
+            mParameters.set(TICameraParameters::KEY_IPP, params.get(TICameraParameters::KEY_IPP));
+            }
+
         if((params.get(TICameraParameters::KEY_BURST) != NULL)
             && (params.getInt(TICameraParameters::KEY_BURST) >=0))
             {
@@ -1394,12 +1400,20 @@ status_t CameraHal::cancelPicture( )
  */
 CameraParameters CameraHal::getParameters() const
 {
+    CameraParameters params;
+
     LOG_FUNCTION_NAME
 
+    params = mParameters;
+
+    if( NULL != mCameraAdapter.get() )
+        {
+        mCameraAdapter->getParameters(params);
+        }
 
     LOG_FUNCTION_NAME_EXIT
     ///Return the current set of parameters
-    return mParameters;
+    return params;
 }
 
 /**
@@ -2051,6 +2065,7 @@ void CameraHal::insertSupportedParams()
     p.set(CameraParameters::KEY_MAX_ZOOM, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_STAGES]->mPropValue);
     p.set(CameraParameters::KEY_ZOOM_SUPPORTED, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ZOOM_SUPPORTED]->mPropValue);
     p.set(CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SMOOTH_ZOOM_SUPPORTED]->mPropValue);
+    p.set(TICameraParameters::KEY_SUPPORTED_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_IPP_MODES]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -2126,6 +2141,7 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_SHARPNESS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SHARPNESS]->mPropValue);
     p.set(TICameraParameters::KEY_EXPOSURE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXPOSURE_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_ISO, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ISO_MODE]->mPropValue);
+    p.set(TICameraParameters::KEY_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_IPP]->mPropValue);
 
     if ( setParameters(p) != NO_ERROR )
         {

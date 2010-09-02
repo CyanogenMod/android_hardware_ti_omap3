@@ -164,6 +164,14 @@ public:
         VIDEO_MODE = 3,
         };
 
+    enum IPPMode
+        {
+        IPP_NONE = 0,
+        IPP_NSF,
+        IPP_LDC,
+        IPP_LDCNSF,
+        };
+
     ///Parameters specific to any port of the OMX Camera component
     class OMXCameraPortParameters
     {
@@ -291,6 +299,12 @@ private:
     //Exposure Modes
     status_t setExposureMode(Gen3A_settings& Gen3A);
 
+    //Noise filtering
+    status_t setNSF(OMXCameraAdapter::IPPMode mode);
+
+    //LDC
+    status_t setLDC(OMXCameraAdapter::IPPMode mode);
+
     // Preview Service
     status_t startPreview();
     status_t stopPreview();
@@ -335,6 +349,9 @@ private:
     struct timeval mStartCapture;
 
 #endif
+
+    //Image post-processing
+    IPPMode mIPP;
 
     //jpeg Picture Quality
     unsigned int mPictureQuality;

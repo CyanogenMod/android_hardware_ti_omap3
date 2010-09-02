@@ -53,8 +53,16 @@ static const  char KEY_CONTRAST[];
 static const  char KEY_SHARPNESS[];
 static const  char KEY_ISO[];
 static const  char KEY_SUPPORTED_ISO_VALUES[];
+static const  char KEY_SUPPORTED_IPP[];
+static const  char KEY_IPP[];
 static const  char KEY_MAN_EXPOSURE[];
 static const  char KEY_METERING_MODE[];
+
+//TI extensions to Image post-processing
+static const char IPP_LDCNSF[];
+static const char IPP_LDC[];
+static const char IPP_NSF[];
+static const char IPP_NONE[];
 
 //TI extensions to camera mode
 static const char HIGH_PERFORMANCE_MODE[];

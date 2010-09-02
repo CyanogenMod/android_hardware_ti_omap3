@@ -59,6 +59,7 @@ const char CameraProperties::PROP_KEY_REQUIRED_PREVIEW_BUFS[] = "required-previe
 const char CameraProperties::PROP_KEY_REQUIRED_IMAGE_BUFS[] = "required-image-bufs";
 const char CameraProperties::PROP_KEY_SUPPORTED_ZOOM_RATIOS[] = "zoom-ratios";
 const char CameraProperties::PROP_KEY_SUPPORTED_ZOOM_STAGES[] = "zoom-stages";
+const char CameraProperties::PROP_KEY_SUPPORTED_IPP_MODES[] = "ipp-values";
 const char CameraProperties::PROP_KEY_SMOOTH_ZOOM_SUPPORTED[] = "smooth-zoom-supported";
 const char CameraProperties::PROP_KEY_ZOOM_SUPPORTED[] = "zoom-supported";
 const char CameraProperties::PROP_KEY_PREVIEW_SIZE[] = "preview-size";
@@ -82,6 +83,7 @@ const char CameraProperties::PROP_KEY_CONTRAST[] = "contrast";
 const char CameraProperties::PROP_KEY_BRIGHTNESS[] = "brightness";
 const char CameraProperties::PROP_KEY_SATURATION[] = "saturation";
 const char CameraProperties::PROP_KEY_SHARPNESS[] = "sharpness";
+const char CameraProperties::PROP_KEY_IPP[] = "ipp";
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
 
@@ -811,6 +813,19 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_CAMERA_SENSOR_INDEX;
         }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_IPP_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_SUPPORTED_IPP_MODES)");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_SUPPORTED_IPP_MODES;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_IPP))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_IPP");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_IPP;
+        }
+
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
     LOG_FUNCTION_NAME_EXIT
@@ -1060,6 +1075,18 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX;
+
+        case CameraProperties::PROP_INDEX_SUPPORTED_IPP_MODES:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_IPP_MODES);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_SUPPORTED_IPP_MODES;
+
+        case CameraProperties::PROP_INDEX_IPP:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_IPP );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_IPP;
+
+
 
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );

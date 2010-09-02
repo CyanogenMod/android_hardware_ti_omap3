@@ -51,9 +51,16 @@ const char TICameraParameters::KEY_CONTRAST[] = "contrast";
 const char TICameraParameters::KEY_SHARPNESS[] = "sharpness";
 const char TICameraParameters::KEY_ISO[] = "iso";
 const char TICameraParameters::KEY_SUPPORTED_ISO_VALUES[] = "iso-mode-values";
+const char TICameraParameters::KEY_SUPPORTED_IPP[] = "ipp-values";
+const char TICameraParameters::KEY_IPP[] = "ipp";
 const char TICameraParameters::KEY_MAN_EXPOSURE[] = "manual-exposure";
 const char TICameraParameters::KEY_METERING_MODE[] = "meter-mode";
 
+//TI extensions to Image post-processing
+const char TICameraParameters::IPP_LDCNSF[] = "ldc-nsf";
+const char TICameraParameters::IPP_LDC[] = "ldc";
+const char TICameraParameters::IPP_NSF[] = "nsf";
+const char TICameraParameters::IPP_NONE[] = "off";
 
 // TI extensions to standard android pixel formats
 const char TICameraParameters::PIXEL_FORMAT_RAW[] = "raw";
