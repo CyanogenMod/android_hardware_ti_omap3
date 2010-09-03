@@ -145,7 +145,9 @@ private:
     ///@todo Have a common class for these members
     mutable Mutex mLock;
     bool mDisplayEnabled;
-    KeyedVector<int, int> mPreviewBufferMap;
+    int mBufferCount;
+    //KeyedVector<int, int> mPreviewBufferMap;
+    int *mPreviewBufferMap;
     KeyedVector<int, int> mFramesWithDisplayMap;
     sp<ErrorNotifier> mErrorNotifier;
 

@@ -408,7 +408,9 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
     ///re-allocate buffers using overlay and then get them
     ///@todo - Re-allocate buffers for vnf and vstab using the width, height, format, numBufs etc
     const int lnumBufs = numBufs;
+    mBufferCount = numBufs;
     int32_t *buffers = new int32_t[lnumBufs];
+    mPreviewBufferMap = new int32_t[lnumBufs];
     if ( NULL == buffers )
         {
         CAMHAL_LOGEA("Couldn't create array for overlay buffers");
@@ -425,10 +427,10 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
             CAMHAL_LOGEA(" getBufferAddress returned NULL");
             goto fail_loop;
             }
-
+            mPreviewBufferMap[i] = (int) data->ptr;
             buffers[i] = (int) data->ptr;
             bytes =  data->length;
-            mPreviewBufferMap.add(buffers[i], i);
+            LOGE("Adding buffer index=%d, address=0x%x", i, buffers[i]);
         }
 
     mPixelFormat = format;
@@ -554,7 +556,7 @@ int OverlayDisplayAdapter::freeBuffer(void* buf)
         delete [] buffers;
         }
 
-    mPreviewBufferMap.clear();
+    delete []mPreviewBufferMap;
 
     //We don't have to do anything for free buffer since the buffers are managed by overlay
     return NO_ERROR;
@@ -702,12 +704,20 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
 {
     status_t ret = NO_ERROR;
     uint32_t actualFramesWithDisplay = 0;
+    int i;
 
     ///@todo Do cropping based on the stabilized frame coordinates
     ///@todo Insert logic to drop frames here based on refresh rate of
     ///display or rendering rate whichever is lower
     ///Queue the buffer to overlay
-    overlay_buffer_t buf = (overlay_buffer_t) mPreviewBufferMap.valueFor((int) dispFrame.mBuffer);
+    for ( i = 0; i < mBufferCount; i++ )
+        {
+        if ( ((int) dispFrame.mBuffer ) == mPreviewBufferMap[i] )
+            {
+            break;
+            }
+        }
+    overlay_buffer_t buf = (overlay_buffer_t)  i;// = (overlay_buffer_t) mPreviewBufferMap.valueFor((int) dispFrame.mBuffer);
 
     //If paused state is set, and we have a preview frame, then return buffer
     {
@@ -877,17 +887,17 @@ bool OverlayDisplayAdapter::handleFrameReturn()
         return true;
         }
 
-    if(mFramesWithDisplayMap.indexOfKey(mPreviewBufferMap.keyAt((int) buf))<0)
+    if(mFramesWithDisplayMap.indexOfKey(mPreviewBufferMap[(int)buf])<0)
         {
         CAMHAL_LOGDA("Invalid DQ..Return");
         return true;
         }
 
     ///Return the frame back to the provider (Camera Adapter)
-    mFrameProvider->returnFrame( (void *) mPreviewBufferMap.keyAt((int) buf), CameraFrame::PREVIEW_FRAME_SYNC);
+    mFrameProvider->returnFrame( (void *) mPreviewBufferMap[(int)buf], CameraFrame::PREVIEW_FRAME_SYNC);
 
     ///Remove the frame from the display frame list
-    mFramesWithDisplayMap.removeItem(mPreviewBufferMap.keyAt((int) buf));
+    mFramesWithDisplayMap.removeItem(mPreviewBufferMap[(int)buf]);
 
     mFramesWithDisplay--;
     ///Overlay still holds one buffer back as long as display is enabled
