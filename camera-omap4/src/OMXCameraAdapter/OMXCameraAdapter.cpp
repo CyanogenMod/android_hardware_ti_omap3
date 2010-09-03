@@ -656,35 +656,42 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
 
-    if ( NULL != params.get(TICameraParameters::KEY_IPP) )
+    if(mCapMode == OMXCameraAdapter::HIGH_QUALITY)
         {
-        if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_LDCNSF) == 0)
+        if ( NULL != params.get(TICameraParameters::KEY_IPP) )
             {
-            mIPP = OMXCameraAdapter::IPP_LDCNSF;
-            }
-        else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_LDC) == 0)
-            {
-            mIPP = OMXCameraAdapter::IPP_LDC;
-            }
-        else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_NSF) == 0)
-            {
-            mIPP = OMXCameraAdapter::IPP_NSF;
-            }
-        else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_NONE) == 0)
-            {
-            mIPP = OMXCameraAdapter::IPP_NONE;
+            if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_LDCNSF) == 0)
+                {
+                mIPP = OMXCameraAdapter::IPP_LDCNSF;
+                }
+            else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_LDC) == 0)
+                {
+                mIPP = OMXCameraAdapter::IPP_LDC;
+                }
+            else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_NSF) == 0)
+                {
+                mIPP = OMXCameraAdapter::IPP_NSF;
+                }
+            else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_NONE) == 0)
+                {
+                mIPP = OMXCameraAdapter::IPP_NONE;
+                }
+            else
+                {
+                mIPP = OMXCameraAdapter::IPP_LDCNSF;
+                }
             }
         else
             {
             mIPP = OMXCameraAdapter::IPP_LDCNSF;
             }
+
+        CAMHAL_LOGEB("IPP Mode set %d", mIPP);
         }
     else
         {
-        mIPP = OMXCameraAdapter::IPP_LDCNSF;
+        mIPP = OMXCameraAdapter::IPP_NONE;
         }
-
-    CAMHAL_LOGEB("IPP Mode set %d", mIPP);
 
     if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
         {

@@ -1400,20 +1400,11 @@ status_t CameraHal::cancelPicture( )
  */
 CameraParameters CameraHal::getParameters() const
 {
-    CameraParameters params;
-
     LOG_FUNCTION_NAME
-
-    params = mParameters;
-
-    if( NULL != mCameraAdapter.get() )
-        {
-        mCameraAdapter->getParameters(params);
-        }
 
     LOG_FUNCTION_NAME_EXIT
     ///Return the current set of parameters
-    return params;
+    return mParameters;
 }
 
 /**
