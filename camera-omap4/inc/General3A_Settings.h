@@ -39,7 +39,7 @@ const char * iso1600 				= TICameraParameters::ISO_MODE_1600;
 const char * sceneManual 			= CameraParameters::SCENE_MODE_AUTO;
 const char * scenePortrait 			= CameraParameters::SCENE_MODE_PORTRAIT;
 const char * sceneLandscape 		= CameraParameters::SCENE_MODE_LANDSCAPE;
-const char * sceneSport 			= CameraParameters::SCENE_MODE_ACTION;
+const char * sceneSport 			= TICameraParameters::SCENE_MODE_SPORT;
 const char * sceneSnow 				= CameraParameters::SCENE_MODE_SNOW;
 const char * sceneBeach 			= CameraParameters::SCENE_MODE_BEACH;
 const char * sceneNoghtPortrait 	= CameraParameters::SCENE_MODE_NIGHT_PORTRAIT;
@@ -146,6 +146,7 @@ userToOMX_LUT scene_UserToOMX [] = {
     {  sceneNoghtPortrait ,OMX_NightPortrait},
     {  sceneNightIndoor   ,OMX_NightIndoor  },
     {  sceneFireworks     ,OMX_Fireworks    },
+    {  sceneSport           , OMX_Sport},
     {  imgSceneDocument   ,OMX_Document     },
     {  imgSceneBarcode    ,OMX_Barcode      },
     {  vidSceneSuperNight ,OMX_SuperNight   },
