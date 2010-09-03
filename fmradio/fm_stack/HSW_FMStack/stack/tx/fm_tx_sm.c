@@ -1674,7 +1674,11 @@ void    _FM_TX_SM_InitDefualtConfigValues(void)
 
     _fmTxSmData.context.vacParams.eSampleFreq = CAL_SAMPLE_FREQ_48000;
 
+#ifdef BLUEZ_SOLUTION
+    _fmTxSmData.context.vacParams.audioSource = FM_TX_AUDIO_SOURCE_I2SH;
+#else
     _fmTxSmData.context.vacParams.audioSource = FM_TX_AUDIO_SOURCE_FM_ANALOG;
+#endif
 
     FMC_OS_StrCpy(_fmTxSmData.context.fwCache.psMsg, (const FMC_U8 *)FMC_CONFIG_TX_DEFAULT_RDS_PS_MSG);/*need to configure on startup */
     
@@ -3635,10 +3639,7 @@ void _FM_TX_SM_HandlerChangeMonoStereoMode_FillEventData(FmTxEvent *event, void 
 
 void _FM_TX_SM_HandlerStartTransmission_Start( FMC_UINT event, void *eventData)
 {
-
     TCAL_DigitalConfig ptConfig;
-    
-    
     FMC_UNUSED_PARAMETER(event);    
     FMC_UNUSED_PARAMETER(eventData);
     /* get the digital configuration params*/
@@ -3647,6 +3648,9 @@ void _FM_TX_SM_HandlerStartTransmission_Start( FMC_UINT event, void *eventData)
 
     FMCI_OS_ResetTimer(FM_TX_SM_TIMOUT_TIME_FOR_GENERAL_CMD);
 
+#ifdef BLUEZ_SOLUTION
+    _FM_TX_SM_HandleVacStatusAndMove2NextStage(CCM_VAC_STATUS_SUCCESS, eventData);
+#else
     _FM_TX_SM_HandleVacStatusAndMove2NextStage(CCM_VAC_StartOperation(
                                                     CCM_GetVac(
                                                     _FMC_CORE_GetCcmObjStackHandle()),
@@ -3654,7 +3658,7 @@ void _FM_TX_SM_HandlerStartTransmission_Start( FMC_UINT event, void *eventData)
                                                     &ptConfig,
                                                     &_fmTxSmData.context.vacParams.ptUnavailResources),
                                                     eventData);
-    
+#endif
 }
 void _FM_TX_SM_HandlerStartTransmission_VacStartOperationCmdComplete( FMC_UINT event, void *eventData)
 {
@@ -3739,7 +3743,7 @@ void _FM_TX_SM_HandlerStartTransmission_SendTransmissionOnCmd( FMC_UINT event, v
 void _FM_TX_SM_HandlerStartTransmission_Complete( FMC_UINT event, void *eventData)
 {
     FMC_FUNC_START("_FM_TX_SM_HandlerStartTransmission_Complete");
-        
+
     FMC_UNUSED_PARAMETER(event);    
 
     FMCI_OS_CancelTimer();
