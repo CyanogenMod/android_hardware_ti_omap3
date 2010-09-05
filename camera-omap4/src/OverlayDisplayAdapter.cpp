@@ -245,6 +245,9 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
     ///fd of overlay
     mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
 
+	mFrameWidth = mOverlay->getWidth();
+	mFrameHeight = mOverlay->getHeight();
+
     CAMHAL_LOGDB("mFrameWidth = %d mFrameHeight = %d", mFrameWidth, mFrameHeight);
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
