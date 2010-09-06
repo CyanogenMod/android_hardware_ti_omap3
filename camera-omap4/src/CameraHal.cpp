@@ -252,7 +252,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         params.getPreviewSize(&w, &h);
         if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
             {
-            CAMHAL_LOGEA("Invalid preview resolution");
+            CAMHAL_LOGEB("Invalid preview resolution %d x %d", w, h);
             return -EINVAL;
             }
         else
@@ -1523,6 +1523,7 @@ CameraHal::CameraHal()
     mRecordingEnabled = false;
     mDisplayPaused = false;
     mSetOverlayCalled = false;
+    mMsgEnabled = 0;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 

@@ -784,7 +784,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
             Mutex::Autolock lock(mLock);
             mFramesWithDisplay++;
 
-            if(mFramesWithDisplay>=NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
+            if(mFramesWithDisplay>NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
                 {
                 ///Enough buffers with display. Post a DQ for dequeing a buffer from display
                 Message msg;
