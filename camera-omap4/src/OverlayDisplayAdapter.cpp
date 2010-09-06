@@ -874,13 +874,13 @@ bool OverlayDisplayAdapter::handleFrameReturn()
     if(ret<0)
         {
         CAMHAL_LOGDB("Overlay DQ Error %d", ret);
-        return false;
+        return true;
         }
 
     if(mFramesWithDisplayMap.indexOfKey(mPreviewBufferMap.keyAt((int) buf))<0)
         {
         CAMHAL_LOGDA("Invalid DQ..Return");
-        return false;
+        return true;
         }
 
     ///Return the frame back to the provider (Camera Adapter)
