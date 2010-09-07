@@ -34,6 +34,7 @@
 
 #include <unistd.h>
 #include "SkLibTiJpeg_Test.h"
+#include "SkTime.h"
 
 extern "C" {
 #include "md5.h"
@@ -49,6 +50,7 @@ extern "C" {
 //enable this for additional debug prints.
 //#define DEBUG 1
 
+#define TIME_MEASUREMENT 1
 #ifdef DEBUG
 #define DBGPRINT printf
 #else
@@ -73,6 +75,35 @@ unsigned int nTestCount[5]; //[0]-ARM; [1]-TI;
                             //[4]-manual verification needed
 int flagDumpMd5Sum;
 FILE* pFileDump;            //for dumping the md5sum strings
+
+//------------------------------------------------------------------------------------
+#ifdef TIME_MEASUREMENT
+class AutoTimeMillis {
+public:
+    AutoTimeMillis(const char label[]) : fLabel(label) {
+        if (!fLabel) {
+            fLabel = "";
+        }
+        fNow = SkTime::GetMSecs();
+    }
+
+    ~AutoTimeMillis() {
+        PRINT("---- Input file Resolution :%dx%d",width,height);
+        PRINT("---- JPEG Time (ms): %s %d\n", fLabel, SkTime::GetMSecs() - fNow);
+    }
+
+    void setResolution(int width, int height){
+        this->width=width;
+        this->height=height;
+    }
+
+private:
+    const char* fLabel;
+    SkMSec      fNow;
+    int width;
+    int height;
+};
+#endif
 
 //-----------------------------------------------------------------------------
 void printDecoderTestUsage() {
@@ -620,6 +651,10 @@ int runJPEGDecoderTest(int argc, char** argv) {
     }
 #endif
 
+#ifdef TIME_MEASUREMENT
+   {
+    AutoTimeMillis atm("Decode Measurement");
+#endif 
     /*call decode*/
     if (skJpegDec->decode(&inStream, &skBM, prefConfig, SkImageDecoder::kDecodePixels_Mode) == false) {
         PRINT("%s():%d:: !!!! skJpegDec->decode returned false..\n",__FUNCTION__,__LINE__);
@@ -627,6 +662,10 @@ int runJPEGDecoderTest(int argc, char** argv) {
         delete skJpegDec;
         return FAIL;
     }
+#ifdef TIME_MEASUREMENT
+   atm.setResolution(skBM.width() , skBM.height());
+   }
+#endif
 
     {   //scope to close the output file/stream  handle
         SkFILEWStream   outStream(argv[3]);
