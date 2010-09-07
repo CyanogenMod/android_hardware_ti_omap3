@@ -1027,7 +1027,6 @@ void CameraHal::stopPreview()
         return;
         }
 
-
     if(mDisplayAdapter.get() != NULL)
         {
         ///Stop the buffer display first
@@ -2262,11 +2261,11 @@ void CameraHal::deinitialize()
 
     mSetOverlayCalled = false;
 
-    /// Free the camera adapter
-    mCameraAdapter.clear();
+    ///We dont free the Camera adapter to improve performance
+    //mCameraAdapter.clear();
 
-    ///Close the camera adapter DLL
-    ::dlclose(mCameraAdapterHandle);
+    ///We dont close the camera adapter DLL here inorder to improve performance
+    //::dlclose(mCameraAdapterHandle);
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -2287,6 +2286,7 @@ sp<CameraHardwareInterface> CameraHal::createInstance()
         if (hardware != 0)
             {
             CAMHAL_LOGDA("Duplicate instance of Camera");
+            ((CameraHal *)hardware.get())->initialize();
             return hardware;
             }
         }
