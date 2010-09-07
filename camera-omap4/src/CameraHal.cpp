@@ -34,6 +34,8 @@
 #include <poll.h>
 #include <math.h>
 
+#define ADAPTER_TIMEOUT 5 //[s.]
+
 ///@remarks added for testing purposes
 
 namespace android {
@@ -1571,7 +1573,7 @@ status_t CameraHal::initialize()
 {
     LOG_FUNCTION_NAME
 
-    typedef CameraAdapter* (*CameraAdapterFactory)();
+    typedef sp<CameraAdapter> (*CameraAdapterFactory)();
     CameraAdapterFactory f = NULL;
 
     int numCameras = 0;
@@ -2261,8 +2263,11 @@ void CameraHal::deinitialize()
 
     mSetOverlayCalled = false;
 
-    ///We dont free the Camera adapter to improve performance
-    //mCameraAdapter.clear();
+    if ( NULL != mCameraAdapter.get() )
+        {
+        mCameraAdapter->sendCommand(CameraAdapter::CAMERA_SET_TIMEOUT, ADAPTER_TIMEOUT);
+        mCameraAdapter.clear();
+        }
 
     ///We dont close the camera adapter DLL here inorder to improve performance
     //::dlclose(mCameraAdapterHandle);

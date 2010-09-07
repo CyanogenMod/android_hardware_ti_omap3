@@ -2,6 +2,7 @@
 #include "OMXCameraAdapter.h"
 #include "ErrorUtils.h"
 #include "TICameraParameters.h"
+#include <signal.h>
 
 #include <cutils/properties.h>
 #define UNLIKELY( exp ) (__builtin_expect( (exp) != 0, false ))
@@ -20,29 +21,29 @@ namespace android {
 //frames skipped before recalculating the framerate
 #define FPS_PERIOD 30
 
-static OMXCameraAdapter *gCameraAdapter;
+static sp<OMXCameraAdapter> gCameraAdapter;
 
-/*
-  * Class with a destructor that will be called to cleanup the Camera adapter instance on process exit
-  */
-class CleanupOnExit {
-
-public:
-~CleanupOnExit()
+//Signal handler
+static void SigHandler(int sig)
 {
-    ///Free the handle for the Camera component
-    if(gCameraAdapter)
+    if ( SIGTERM == sig )
         {
-        delete gCameraAdapter;
-        gCameraAdapter = 0;
+        CAMHAL_LOGDA("SIGTERM has been received");
+        if ( NULL != gCameraAdapter.get() )
+            {
+            gCameraAdapter.clear();
+            }
+        exit(0);
         }
-
+    else if (SIGALRM )
+        {
+        CAMHAL_LOGDA("SIGALRM has been received");
+        if ( NULL != gCameraAdapter.get() )
+            {
+            gCameraAdapter.clear();
+            }
+        }
 }
-
-};
-
-///This object's destructor should get called upon exit
-CleanupOnExit gCleanup;
 
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
@@ -1892,6 +1893,18 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
             stopVideoCapture();
             break;
             }
+        case CameraAdapter::CAMERA_SET_TIMEOUT:
+            {
+            CAMHAL_LOGDA("Set time out");
+            setTimeOut(value1);
+            break;
+            }
+        case CameraAdapter::CAMERA_CANCEL_TIMEOUT:
+            {
+            CAMHAL_LOGDA("Cancel time out");
+            cancelTimeOut();
+            break;
+            }
         case CameraAdapter::CAMERA_PREVIEW_FLUSH_BUFFERS:
             {
             flushBuffers();
@@ -2201,6 +2214,32 @@ status_t OMXCameraAdapter::stopPreview()
 
     return (ret | ErrorUtils::omxToAndroidError(eError));
 
+}
+
+status_t OMXCameraAdapter::setTimeOut(unsigned int sec)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    ret = alarm(sec);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::cancelTimeOut()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    ret = alarm(0);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 status_t OMXCameraAdapter::setThumbnailParams(unsigned int width, unsigned int height, unsigned int quality)
@@ -4115,6 +4154,8 @@ OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
     mPictureRotation = 0;
 
     mCameraAdapterParameters.mHandleComp = 0;
+    signal(SIGTERM, SigHandler);
+    signal(SIGALRM, SigHandler);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -4135,18 +4176,18 @@ OMXCameraAdapter::~OMXCameraAdapter()
         OMX_Deinit();
         }
 
-    gCameraAdapter = 0;
+    gCameraAdapter = NULL;
 
     LOG_FUNCTION_NAME_EXIT
 }
 
-extern "C" CameraAdapter* CameraAdapter_Factory() {
+extern "C" sp<CameraAdapter> CameraAdapter_Factory() {
 
-    OMXCameraAdapter *ca;
+    sp<OMXCameraAdapter> ca;
 
     LOG_FUNCTION_NAME
 
-    if(!gCameraAdapter)
+    if ( NULL == gCameraAdapter.get() )
         {
         CAMHAL_LOGDA("Creating new Camera adapter instance");
         ca = new OMXCameraAdapter();

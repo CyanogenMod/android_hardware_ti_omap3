@@ -899,8 +899,8 @@ void FakeCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frame
 
 }
 
-extern "C" CameraAdapter* CameraAdapter_Factory() {
-    FakeCameraAdapter *ret;
+extern "C" sp<CameraAdapter> CameraAdapter_Factory() {
+    sp<FakeCameraAdapter> ret;
 
     LOG_FUNCTION_NAME
 

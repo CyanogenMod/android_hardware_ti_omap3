@@ -571,7 +571,9 @@ public:
         CAMERA_PREVIEW_FLUSH_BUFFERS,
         CAMERA_START_SMOOTH_ZOOM,
         CAMERA_STOP_SMOOTH_ZOOM,
-        CAMERA_USE_BUFFERS
+        CAMERA_USE_BUFFERS,
+        CAMERA_SET_TIMEOUT,
+        CAMERA_CANCEL_TIMEOUT
         };
 
     enum CameraMode

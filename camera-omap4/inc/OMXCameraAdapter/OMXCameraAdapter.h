@@ -276,6 +276,10 @@ private:
                                           OMX_IN Semaphore &semaphore,
                                           OMX_IN OMX_U32 timeout);
 
+    //Instance timeout methods
+    status_t setTimeOut(unsigned int sec);
+    status_t cancelTimeOut();
+
     status_t setPictureRotation(unsigned int degree);
     status_t setImageQuality(unsigned int quality);
     status_t setThumbnailParams(unsigned int width, unsigned int height, unsigned int quality);
