@@ -28,6 +28,7 @@
 
 #define BLUETOOTH_SCO_DEVICE "hw:0,1"
 #define FM_TRANSMIT_DEVICE "hw:0,2"
+#define HDMI_DEVICE "plughw:0,5"
 
 #ifndef ALSA_DEFAULT_SAMPLE_RATE
 #define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
@@ -103,6 +104,7 @@ static const int DEFAULT_SAMPLE_RATE = ALSA_DEFAULT_SAMPLE_RATE;
 
 static void setScoControls(uint32_t devices, int mode);
 static void setFmControls(uint32_t devices, int mode);
+static void setHDMIControls(uint32_t devices, int mode);
 static void setDefaultControls(uint32_t devices, int mode);
 
 typedef void (*AlsaControlSet)(uint32_t devices, int mode);
@@ -122,10 +124,14 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode);
         DEVICE_OUT_FM_HEADPHONE |\
         DEVICE_OUT_FM_SPEAKER)
 
+#define OMAP3_OUT_HDMI        (\
+        AudioSystem::DEVICE_OUT_AUX_DIGITAL)
+
 #define OMAP3_OUT_DEFAULT   (\
         AudioSystem::DEVICE_OUT_ALL &\
         ~OMAP3_OUT_SCO &\
-        ~OMAP3_OUT_FM)
+        ~OMAP3_OUT_FM  &\
+        ~OMAP3_OUT_HDMI)
 
 #define OMAP3_IN_SCO        (\
         AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET)
@@ -160,6 +166,19 @@ static alsa_handle_t _defaults[] = {
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
         modPrivate  : (void *)&setFmControls,
+    },
+    {
+        module      : 0,
+        devices     : OMAP3_OUT_HDMI,
+        curDev      : 0,
+        curMode     : 0,
+        handle      : 0,
+        format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
+        channels    : 2,
+        sampleRate  : DEFAULT_SAMPLE_RATE,
+        latency     : 200000, // Desired Delay in usec
+        bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
+        modPrivate  : (void *)&setHDMIControls,
     },
     {
         module      : 0,
@@ -211,6 +230,9 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
 
     if (device & OMAP3_OUT_FM)
         return FM_TRANSMIT_DEVICE;
+
+    if (device & OMAP3_OUT_HDMI)
+        return HDMI_DEVICE;
 
     return "default";
 }
@@ -456,6 +478,11 @@ LOGV("%s", __FUNCTION__);
 }
 
 void setFmControls(uint32_t devices, int mode)
+{
+LOGV("%s", __FUNCTION__);
+}
+
+void setHDMIControls(uint32_t devices, int mode)
 {
 LOGV("%s", __FUNCTION__);
 }
