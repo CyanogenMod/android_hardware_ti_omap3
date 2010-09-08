@@ -1297,6 +1297,7 @@ status_t CameraHal::takePicture( )
     status_t ret = NO_ERROR;
     int width, height;
     size_t pictureBufferLength;
+    int burst;
 
     Mutex::Autolock lock(mLock);
 
@@ -1314,8 +1315,13 @@ status_t CameraHal::takePicture( )
         return NO_INIT;
         }
 
+     if ( NO_ERROR == ret )
+        {
+        burst = mParameters.getInt(TICameraParameters::KEY_BURST);
+        }
+
     //Pause Preview during capture
-    if ( (NO_ERROR == ret) && ( NULL != mDisplayAdapter.get() ) )
+    if ( (NO_ERROR == ret) && ( NULL != mDisplayAdapter.get() ) && ( burst < 1 ) )
         {
         mDisplayPaused = true;
         mPreviewEnabled = false;
