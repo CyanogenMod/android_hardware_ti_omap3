@@ -57,16 +57,7 @@ namespace android {
 #define DEFAULT_THUMB_WIDTH     160
 #define DEFAULT_THUMB_HEIGHT    120
 #define FRAME_RATE_FULL_HD      27
-
-#ifdef SMOOTH_ZOOM
-
 #define ZOOM_STAGES 61
-
-#else
-
-#define ZOOM_STAGES 4
-
-#endif
 
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
