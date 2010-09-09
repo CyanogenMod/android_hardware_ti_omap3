@@ -55,6 +55,9 @@ const char TICameraParameters::KEY_SUPPORTED_IPP[] = "ipp-values";
 const char TICameraParameters::KEY_IPP[] = "ipp";
 const char TICameraParameters::KEY_MAN_EXPOSURE[] = "manual-exposure";
 const char TICameraParameters::KEY_METERING_MODE[] = "meter-mode";
+const char TICameraParameters::KEY_PADDED_WIDTH[] = "padded-width";
+const char TICameraParameters::KEY_PADDED_HEIGHT[] = "padded-height";
+
 
 //TI extensions to Image post-processing
 const char TICameraParameters::IPP_LDCNSF[] = "ldc-nsf";

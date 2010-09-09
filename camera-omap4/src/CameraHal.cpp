@@ -789,7 +789,9 @@ status_t CameraHal::startPreview()
     mPreviewHeight = h;
 
     //Update the padded width and height - required for VNF and VSTAB
-    mParameters.setPreviewSize(mPreviewWidth,mPreviewHeight);
+    mParameters.set(TICameraParameters::KEY_PADDED_WIDTH, mPreviewWidth);
+    mParameters.set(TICameraParameters::KEY_PADDED_HEIGHT, mPreviewHeight);
+
 
     ///Allocate the preview buffers
     ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
