@@ -47,30 +47,23 @@ static void SigHandler(int sig)
 
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
-#ifdef SMOOTH_ZOOM
 
-const int32_t OMXCameraAdapter::ZOOM_STEPS [ZOOM_STAGES] =  {   65536, 67847, 70240, 72717,
-                                                                75281, 77936, 80684, 83530,
-                                                                86475, 89525, 92682, 95950,
-                                                                99334, 102837, 106464, 110218,
-                                                                114105, 118129, 122295, 126607,
-                                                                131072, 135694, 140479, 145433,
-                                                                150562, 155872, 161369, 167059,
-                                                                172951, 179050, 185364, 191901,
-                                                                198668, 205674, 212927, 220436,
-                                                                228210, 236257, 244589, 253214,
-                                                                262144, 271388, 280959, 290867,
-                                                                301124, 311744, 322737, 334118,
-                                                                345901, 358099, 370728, 383801,
-                                                                397336, 411348, 425854, 440872,
-                                                                456419, 472515, 489178, 506429,
-                                                                524288 };
-
-#else
-
-const int32_t OMXCameraAdapter::ZOOM_STEPS [ZOOM_STAGES] =  { 65536, 131072, 262144, 524288 };
-
-#endif
+const int32_t OMXCameraAdapter::ZOOM_STEPS [ZOOM_STAGES] =  {
+                                                                65536, 67847, 70240, 72717,
+                                                                73216, 75281, 77936, 81000,
+                                                                82032, 85096, 88320, 89192,
+                                                                93288, 97384, 101480, 102837,
+                                                                105800, 111029, 115125, 117500,
+                                                                121960, 124672,130152, 132864,
+                                                                138344, 147200, 150632, 158824,
+                                                                162920, 163840, 171776, 176128,
+                                                                187496, 191592, 195688, 208640,
+                                                                212072, 216168, 229376, 236648,
+                                                                241664, 257128, 261224, 269416,
+                                                                274000, 295000, 302184, 310376,
+                                                                315392, 316000, 343144, 359528,
+                                                                371816, 412776, 425064, 441448,
+                                                                450000, 530000, 550000, 580000 };
 
 status_t OMXCameraAdapter::initialize(int sensor_index)
 {
@@ -3671,16 +3664,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
                 zoomInc = -1;
                 }
 
-#ifdef SMOOTH_ZOOM
-
             mCurrentZoomIdx += zoomInc;
-
-#else
-
-            mCurrentZoomIdx = mTargetZoomIdx;
-
-#endif
-
             ret = doZoom(mCurrentZoomIdx);
 
             if ( mCurrentZoomIdx == mTargetZoomIdx )
