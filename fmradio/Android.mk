@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+ifeq ($(TARGET_BOARD_PLATFORM),omap4)
 ifeq ($(BUILD_FM_RADIO),true)
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 #  include $(all-subdir-makefiles)
@@ -23,5 +24,6 @@ include hardware/ti/omap3/fmradio/fm_stack/Android.mk
 include hardware/ti/omap3/fmradio/fm_app/Android.mk
 #include hardware/ti/omap3/fmradio/sleep_world/Android.mk
 #include hardware/ti/omap3/fmradio/libmysleep/Android.mk
+endif
 endif
 endif
