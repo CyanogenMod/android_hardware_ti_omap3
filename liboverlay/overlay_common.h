@@ -66,7 +66,7 @@
  * by the overlay.
  * 1080p is the max resolution currently supported (1920x1080) + some padding
  * */
-#define MAX_OVERLAY_WIDTH_VAL (2048)
+#define MAX_OVERLAY_WIDTH_VAL (2400)
 #define MAX_OVERLAY_HEIGHT_VAL (2048)
 #define MAX_OVERLAY_RESOLUTION ((2048) * (2048))
 #else
