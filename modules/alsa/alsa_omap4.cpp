@@ -32,7 +32,7 @@
 #define HDMI_DEVICE		"plughw:0,7"
 
 #ifndef ALSA_DEFAULT_SAMPLE_RATE
-#define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
+#define ALSA_DEFAULT_SAMPLE_RATE 48000 // in Hz
 #endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
