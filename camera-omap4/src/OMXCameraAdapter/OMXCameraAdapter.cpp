@@ -22,10 +22,13 @@ namespace android {
 #define FPS_PERIOD 30
 
 static sp<OMXCameraAdapter> gCameraAdapter;
+Mutex gAdapterLock;
 
 //Signal handler
 static void SigHandler(int sig)
 {
+    Mutex::Autolock lock(gAdapterLock);
+
     if ( SIGTERM == sig )
         {
         CAMHAL_LOGDA("SIGTERM has been received");
@@ -4146,6 +4149,8 @@ OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
 
 OMXCameraAdapter::~OMXCameraAdapter()
 {
+    Mutex::Autolock lock(gAdapterLock);
+
     LOG_FUNCTION_NAME
 
    ///Free the handle for the Camera component
@@ -4165,29 +4170,26 @@ OMXCameraAdapter::~OMXCameraAdapter()
     LOG_FUNCTION_NAME_EXIT
 }
 
-extern "C" sp<CameraAdapter> CameraAdapter_Factory() {
-
-    sp<OMXCameraAdapter> ca;
+extern "C" CameraAdapter* CameraAdapter_Factory()
+{
+    Mutex::Autolock lock(gAdapterLock);
 
     LOG_FUNCTION_NAME
 
     if ( NULL == gCameraAdapter.get() )
         {
         CAMHAL_LOGDA("Creating new Camera adapter instance");
-        ca = new OMXCameraAdapter();
-
-        gCameraAdapter = ca;
+        gCameraAdapter= new OMXCameraAdapter();
         }
     else
         {
         CAMHAL_LOGDA("Reusing existing Camera adapter instance");
-        ca = gCameraAdapter;
         }
 
 
     LOG_FUNCTION_NAME_EXIT
 
-    return ca;
+    return gCameraAdapter.get();
 }
 
 };

@@ -749,10 +749,10 @@ status_t CameraHal::startPreview()
          if ( NULL != mCameraAdapter.get() )
             {
               // Free the camera adapter
-             mCameraAdapter.clear();
+             //mCameraAdapter.clear();
 
              //Close the camera adapter DLL
-             ::dlclose(mCameraAdapterHandle);
+             //::dlclose(mCameraAdapterHandle);
             }
 
         if ( reloadAdapter() < 0 )
@@ -1056,10 +1056,10 @@ void CameraHal::stopPreview()
          if ( NULL != mCameraAdapter.get() )
             {
               // Free the camera adapter
-             mCameraAdapter.clear();
+             //mCameraAdapter.clear();
 
              //Close the camera adapter DLL
-             ::dlclose(mCameraAdapterHandle);
+             //::dlclose(mCameraAdapterHandle);
             }
 
         if ( reloadAdapter() < 0 )
@@ -1581,7 +1581,7 @@ status_t CameraHal::initialize()
 {
     LOG_FUNCTION_NAME
 
-    typedef sp<CameraAdapter> (*CameraAdapterFactory)();
+    typedef CameraAdapter* (*CameraAdapterFactory)();
     CameraAdapterFactory f = NULL;
 
     int numCameras = 0;
@@ -1662,6 +1662,7 @@ status_t CameraHal::initialize()
         }
 
     mCameraAdapter = f();
+    mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_TIMEOUT);
     if(!mCameraAdapter.get() || (mCameraAdapter->initialize(sensor_index)!=NO_ERROR))
         {
         CAMHAL_LOGEA("Unable to create or initialize CameraAdapter");
@@ -1728,6 +1729,7 @@ status_t CameraHal::initialize()
 
 status_t CameraHal::reloadAdapter()
 {
+
     typedef CameraAdapter* (*CameraAdapterFactory)();
     CameraAdapterFactory f = NULL;
     status_t ret = NO_ERROR;
@@ -1795,6 +1797,7 @@ status_t CameraHal::reloadAdapter()
                 }
             else
                 {
+                mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_TIMEOUT);
                 mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
                 }
             }
@@ -2274,7 +2277,7 @@ void CameraHal::deinitialize()
     if ( NULL != mCameraAdapter.get() )
         {
         mCameraAdapter->sendCommand(CameraAdapter::CAMERA_SET_TIMEOUT, ADAPTER_TIMEOUT);
-        mCameraAdapter.clear();
+        //mCameraAdapter.clear();
         }
 
     ///We dont close the camera adapter DLL here inorder to improve performance
