@@ -234,6 +234,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
     snd_pcm_uframes_t bufferSize = handle->bufferSize;
     unsigned int requestedRate = handle->sampleRate;
     unsigned int latency = handle->latency;
+    int periodSizeScaleFactor = 0;
 
     // snd_pcm_format_description() and snd_pcm_format_name() do not perform
     // proper bounds checking.
@@ -244,6 +245,15 @@ status_t setHardwareParams(alsa_handle_t *handle)
             handle->format) : "Invalid Format";
     const char *formatName = validFormat ? snd_pcm_format_name(handle->format)
             : "UNKNOWN";
+
+    if (direction(handle)) {
+        /* For playback, configure ALSA use our "standard" period size */
+        periodSizeScaleFactor = 4;
+    } else {
+        /* For recording, configure ALSA to use larger periods
+           to better match AudioFlinger client expected size. */
+        periodSizeScaleFactor = 2;
+    }
 
     if (snd_pcm_hw_params_malloc(&hardwareParams) < 0) {
         LOG_ALWAYS_FATAL("Failed to allocate ALSA hardware parameters!");
@@ -317,7 +327,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
             hardwareParams, &latency, NULL);
     if (err < 0) {
         /* That didn't work, set the period instead */
-        unsigned int periodTime = latency / 4;
+        unsigned int periodTime = latency / periodSizeScaleFactor;
         err = snd_pcm_hw_params_set_period_time_near(handle->handle,
                 hardwareParams, &periodTime, NULL);
         if (err < 0) {
@@ -331,7 +341,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
             LOGE("Unable to get the period size for latency: %s", snd_strerror(err));
             goto done;
         }
-        bufferSize = periodSize * 4;
+        bufferSize = periodSize * periodSizeScaleFactor;
         if (bufferSize < handle->bufferSize) bufferSize = handle->bufferSize;
         err = snd_pcm_hw_params_set_buffer_size_near(handle->handle,
                 hardwareParams, &bufferSize);
@@ -352,7 +362,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
             LOGE("Unable to get the buffer time for latency: %s", snd_strerror(err));
             goto done;
         }
-        unsigned int periodTime = latency / 4;
+        unsigned int periodTime = latency / periodSizeScaleFactor;
         err = snd_pcm_hw_params_set_period_time_near(handle->handle,
                 hardwareParams, &periodTime, NULL);
         if (err < 0) {
