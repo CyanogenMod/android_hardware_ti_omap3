@@ -299,6 +299,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
 
         if ( itemlen < 2 )  {
             PRINTF("invalid marker");
+            return 0;
         }
 
         data = (OMX_U8 *)malloc(itemlen);
@@ -378,6 +379,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (OMX_U8* JpgBuffer, OMX_S32 lSize,
 
         if ( itemlen < 2 )  {
             PRINTF("invalid marker");
+            return 0;
         }
 
         pos += itemlen; /* Move position by the whole section.*/
