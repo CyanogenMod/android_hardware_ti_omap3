@@ -57,6 +57,9 @@ static const  char KEY_SUPPORTED_IPP[];
 static const  char KEY_IPP[];
 static const  char KEY_MAN_EXPOSURE[];
 static const  char KEY_METERING_MODE[];
+static const  char KEY_PADDED_WIDTH[];
+static const  char KEY_PADDED_HEIGHT[];
+
 
 //TI extensions to Image post-processing
 static const char IPP_LDCNSF[];
