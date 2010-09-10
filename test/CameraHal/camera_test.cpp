@@ -293,7 +293,7 @@ const struct {
 
 };
 
-int thumbSizeIDX =  ARRAY_SIZE(previewSize) - 1;
+int thumbSizeIDX =  5;
 int previewSizeIDX = ARRAY_SIZE(previewSize) - 1;
 int captureSizeIDX = ARRAY_SIZE(captureSize) - 1;
 int frameRateIDX = ARRAY_SIZE(frameRate) - 1;
@@ -963,6 +963,7 @@ void initDefaults() {
     frameRateIDX = ARRAY_SIZE(frameRate) - 1;      /* Default frame rate is 30 FPS */
     VcaptureSizeIDX = ARRAY_SIZE(VcaptureSize) - 2;/* Default video record is WVGA */
     VbitRateIDX = ARRAY_SIZE(VbitRate) - 4;        /*Default video bit rate is 4M */
+    thumbSizeIDX = 5;
     compensation = 0.0;
     awb_mode = 0;
     effects_mode = 0;
@@ -1021,6 +1022,8 @@ void initDefaults() {
     params.setPictureFormat(pixelformat[pictureFormat]);
     params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
     params.set(KEY_METERING_MODE, metering[meter_mode]);
+    params.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, previewSize[thumbSizeIDX].width);
+    params.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, previewSize[thumbSizeIDX].height);
 }
 
 int menu_gps() {
