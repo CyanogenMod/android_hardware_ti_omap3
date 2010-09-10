@@ -21,7 +21,7 @@ namespace android {
 //frames skipped before recalculating the framerate
 #define FPS_PERIOD 30
 
-static sp<OMXCameraAdapter> gCameraAdapter;
+static OMXCameraAdapter *gCameraAdapter = NULL;
 Mutex gAdapterLock;
 
 //Signal handler
@@ -32,18 +32,20 @@ static void SigHandler(int sig)
     if ( SIGTERM == sig )
         {
         CAMHAL_LOGDA("SIGTERM has been received");
-        if ( NULL != gCameraAdapter.get() )
+        if ( NULL != gCameraAdapter )
             {
-            gCameraAdapter.clear();
+            delete gCameraAdapter;
+            gCameraAdapter = NULL;
             }
         exit(0);
         }
     else if (SIGALRM )
         {
         CAMHAL_LOGDA("SIGALRM has been received");
-        if ( NULL != gCameraAdapter.get() )
+        if ( NULL != gCameraAdapter )
             {
-            gCameraAdapter.clear();
+            delete gCameraAdapter;
+            gCameraAdapter = NULL;
             }
         }
 }
@@ -4149,8 +4151,6 @@ OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
 
 OMXCameraAdapter::~OMXCameraAdapter()
 {
-    Mutex::Autolock lock(gAdapterLock);
-
     LOG_FUNCTION_NAME
 
    ///Free the handle for the Camera component
@@ -4165,8 +4165,6 @@ OMXCameraAdapter::~OMXCameraAdapter()
         OMX_Deinit();
         }
 
-    gCameraAdapter = NULL;
-
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -4176,7 +4174,7 @@ extern "C" CameraAdapter* CameraAdapter_Factory()
 
     LOG_FUNCTION_NAME
 
-    if ( NULL == gCameraAdapter.get() )
+    if ( NULL == gCameraAdapter )
         {
         CAMHAL_LOGDA("Creating new Camera adapter instance");
         gCameraAdapter= new OMXCameraAdapter();
@@ -4189,7 +4187,7 @@ extern "C" CameraAdapter* CameraAdapter_Factory()
 
     LOG_FUNCTION_NAME_EXIT
 
-    return gCameraAdapter.get();
+    return gCameraAdapter;
 }
 
 };

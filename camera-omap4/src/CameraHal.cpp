@@ -491,7 +491,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_ZOOM, params.get(CameraParameters::KEY_ZOOM));
         }
 
-    if ( NULL != mCameraAdapter.get() )
+    if ( NULL != mCameraAdapter )
         {
         ret = mCameraAdapter->setParameters(mParameters);
         }
@@ -746,7 +746,7 @@ status_t CameraHal::startPreview()
     //CameraHal's own default at the start
     if ( mReloadAdapter )
         {
-         if ( NULL != mCameraAdapter.get() )
+         if ( NULL != mCameraAdapter )
             {
               // Free the camera adapter
              //mCameraAdapter.clear();
@@ -940,7 +940,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
 
     ///DisplayAdapter needs to know where to get the CameraFrames from inorder to display
     ///Since CameraAdapter is the one that provides the frames, set it as the frame provider for DisplayAdapter
-    mDisplayAdapter->setFrameProvider(mCameraAdapter.get());
+    mDisplayAdapter->setFrameProvider(mCameraAdapter);
 
     ///Any dynamic errors that happen during the camera use case has to be propagated back to the application
     ///via CAMERA_MSG_ERROR. AppCallbackNotifier is the class that  notifies such errors to the application
@@ -1053,7 +1053,7 @@ void CameraHal::stopPreview()
 
     if ( mReloadAdapter )
         {
-         if ( NULL != mCameraAdapter.get() )
+         if ( NULL != mCameraAdapter )
             {
               // Free the camera adapter
              //mCameraAdapter.clear();
@@ -1241,7 +1241,7 @@ status_t CameraHal::autoFocus()
 
     LOG_FUNCTION_NAME
 
-    if ( NULL != mCameraAdapter.get() )
+    if ( NULL != mCameraAdapter )
         {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
@@ -1337,7 +1337,7 @@ status_t CameraHal::takePicture( )
 
         }
 
-    if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter.get() ) )
+    if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
         {
         ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength);
 
@@ -1358,7 +1358,7 @@ status_t CameraHal::takePicture( )
             }
         }
 
-    if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter.get() ) )
+    if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
         {
 
         ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, mImageLength, CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
@@ -1431,7 +1431,7 @@ status_t CameraHal::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2)
     LOG_FUNCTION_NAME
 
 
-    if ( ( NO_ERROR == ret ) && ( NULL == mCameraAdapter.get() ) )
+    if ( ( NO_ERROR == ret ) && ( NULL == mCameraAdapter ) )
         {
         CAMHAL_LOGEA("No CameraAdapter instance");
         ret = -EINVAL;
@@ -1670,12 +1670,12 @@ status_t CameraHal::initialize()
         }
 
     mCameraAdapter = f();
-    mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_TIMEOUT);
-    if(!mCameraAdapter.get() || (mCameraAdapter->initialize(sensor_index)!=NO_ERROR))
+    if ( ( NULL == mCameraAdapter ) || (mCameraAdapter->initialize(sensor_index)!=NO_ERROR))
         {
         CAMHAL_LOGEA("Unable to create or initialize CameraAdapter");
         goto fail_loop;
         }
+    mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_TIMEOUT);
     mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
 
     if(!mAppCallbackNotifier.get())
@@ -1714,8 +1714,8 @@ status_t CameraHal::initialize()
     ///@remarks  setEventProvider API takes in a bit mask of events for registering a provider for the different events
     ///         That way, if events can come from DisplayAdapter in future, we will be able to add it as provider
     ///         for any event
-    mAppCallbackNotifier->setEventProvider(eventMask, mCameraAdapter.get());
-    mAppCallbackNotifier->setFrameProvider(mCameraAdapter.get());
+    mAppCallbackNotifier->setEventProvider(eventMask, mCameraAdapter);
+    mAppCallbackNotifier->setFrameProvider(mCameraAdapter);
 
 
 
@@ -1807,7 +1807,7 @@ status_t CameraHal::reloadAdapter()
         if(f)
             {
             mCameraAdapter = f();
-            if((NULL != mCameraAdapter.get())
+            if((NULL != mCameraAdapter)
                     && (NO_ERROR != mCameraAdapter->initialize(sensor_index)))
                 {
                 ret = -1;
@@ -1830,17 +1830,17 @@ status_t CameraHal::reloadAdapter()
         }
 
     if ( (0 == ret) && ( NULL != mAppCallbackNotifier.get() ) &&
-           ( NULL !=  mCameraAdapter.get() ) )
+           ( NULL !=  mCameraAdapter ) )
         {
-        mAppCallbackNotifier->setEventProvider(CameraHalEvent::ALL_EVENTS, mCameraAdapter.get());
-        mAppCallbackNotifier->setFrameProvider(mCameraAdapter.get());
+        mAppCallbackNotifier->setEventProvider(CameraHalEvent::ALL_EVENTS, mCameraAdapter);
+        mAppCallbackNotifier->setFrameProvider(mCameraAdapter);
         mCameraAdapter->setErrorHandler(mAppCallbackNotifier.get());
         }
 
     if ( (0 == ret) && ( NULL != mDisplayAdapter.get() ) &&
-           ( NULL !=  mCameraAdapter.get() ) )
+           ( NULL !=  mCameraAdapter ) )
         {
-        mDisplayAdapter->setFrameProvider(mCameraAdapter.get());
+        mDisplayAdapter->setFrameProvider(mCameraAdapter);
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -2294,10 +2294,10 @@ void CameraHal::deinitialize()
 
     mSetOverlayCalled = false;
 
-    if ( NULL != mCameraAdapter.get() )
+    if ( NULL != mCameraAdapter )
         {
         mCameraAdapter->sendCommand(CameraAdapter::CAMERA_SET_TIMEOUT, ADAPTER_TIMEOUT);
-        //mCameraAdapter.clear();
+        mCameraAdapter = NULL;
         }
 
     ///We dont close the camera adapter DLL here inorder to improve performance

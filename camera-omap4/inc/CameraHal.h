@@ -918,7 +918,7 @@ public:
     bool mFalsePreview;
     bool mPreviewEnabled;
 
-    sp<CameraAdapter> mCameraAdapter;
+    CameraAdapter *mCameraAdapter;
     sp<AppCallbackNotifier> mAppCallbackNotifier;
     sp<DisplayAdapter> mDisplayAdapter;
     sp<MemoryManager> mMemoryManager;
