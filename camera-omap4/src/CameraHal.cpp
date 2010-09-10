@@ -1533,6 +1533,10 @@ CameraHal::CameraHal()
     mDisplayPaused = false;
     mSetOverlayCalled = false;
     mMsgEnabled = 0;
+    mCameraProperties = NULL;
+    mAppCallbackNotifier = NULL;
+    mMemoryManager = NULL;
+    mCameraAdapter = NULL;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -1593,24 +1597,26 @@ status_t CameraHal::initialize()
 
     ///Create the CameraProperties class
     ///We create the default Camera Adapter (The adapter which is selected by default, if no specific camera is chosen using setParameter)
+    if(!mCameraProperties.get())
+        {
+        mCameraProperties = new CameraProperties();
+        if(!mCameraProperties.get() || (mCameraProperties->initialize()!=NO_ERROR))
+            {
+            CAMHAL_LOGEA("Unable to create or initialize CameraProperties");
+            goto fail_loop;
+            }
 
-    mCameraProperties = new CameraProperties();
-    if(!mCameraProperties.get() || (mCameraProperties->initialize()!=NO_ERROR))
-        {
-        CAMHAL_LOGEA("Unable to create or initialize CameraProperties");
-        goto fail_loop;
-        }
-
-    ///Query the number of cameras supported, minimum we expect is one (at least FakeCameraAdapter)
-    numCameras = mCameraProperties->camerasSupported();
-    if ( 0 == numCameras )
-        {
-        CAMHAL_LOGEA("No cameras supported in Camera HAL implementation");
-        goto fail_loop;
-        }
-    else
-        {
-        CAMHAL_LOGDB("Cameras found %d", numCameras);
+        ///Query the number of cameras supported, minimum we expect is one (at least FakeCameraAdapter)
+        numCameras = mCameraProperties->camerasSupported();
+        if ( 0 == numCameras )
+            {
+            CAMHAL_LOGEA("No cameras supported in Camera HAL implementation");
+            goto fail_loop;
+            }
+        else
+            {
+            CAMHAL_LOGDB("Cameras found %d", numCameras);
+            }
         }
 
     ///Get the default Camera
@@ -1642,7 +1648,8 @@ status_t CameraHal::initialize()
 
     CAMHAL_LOGEB("Sensor index %d", sensor_index);
 
-    /// Create the camera adapter
+
+   /// Create the camera adapter
     /// @todo Incorporate dynamic loading based on cfg file. For now using a constant definition for the adapter dll name
     mCameraAdapterHandle = ::dlopen( ( const char * ) mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_ADAPTER_DLL_NAME]->mPropValue, RTLD_NOW);
     if( NULL  == mCameraAdapterHandle )
@@ -1651,6 +1658,7 @@ status_t CameraHal::initialize()
         LOG_FUNCTION_NAME_EXIT
         goto fail_loop;
         }
+
 
     f = (CameraAdapterFactory) ::dlsym(mCameraAdapterHandle, "CameraAdapter_Factory");
     if(!f)
@@ -1670,20 +1678,26 @@ status_t CameraHal::initialize()
         }
     mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
 
-    /// Create the callback notifier
-    mAppCallbackNotifier = new AppCallbackNotifier();
-    if( ( NULL == mAppCallbackNotifier.get() ) || ( mAppCallbackNotifier->initialize() != NO_ERROR))
+    if(!mAppCallbackNotifier.get())
         {
-        CAMHAL_LOGEA("Unable to create or initialize AppCallbackNotifier");
-        goto fail_loop;
+        /// Create the callback notifier
+        mAppCallbackNotifier = new AppCallbackNotifier();
+        if( ( NULL == mAppCallbackNotifier.get() ) || ( mAppCallbackNotifier->initialize() != NO_ERROR))
+            {
+            CAMHAL_LOGEA("Unable to create or initialize AppCallbackNotifier");
+            goto fail_loop;
+            }
         }
 
-    /// Create Memory Manager
-    mMemoryManager = new MemoryManager();
-    if( ( NULL == mMemoryManager.get() ) || ( mMemoryManager->initialize() != NO_ERROR))
+    if(!mMemoryManager.get())
         {
-        CAMHAL_LOGEA("Unable to create or initialize MemoryManager");
-        goto fail_loop;
+        /// Create Memory Manager
+        mMemoryManager = new MemoryManager();
+        if( ( NULL == mMemoryManager.get() ) || ( mMemoryManager->initialize() != NO_ERROR))
+            {
+            CAMHAL_LOGEA("Unable to create or initialize MemoryManager");
+            goto fail_loop;
+            }
         }
 
     ///@remarks Note that the display adapter is not created here because it is dependent on whether overlay
@@ -1783,6 +1797,9 @@ status_t CameraHal::reloadAdapter()
             ret = -1;
             }
         }
+
+    //Delete all existing instances of CameraHAL objects
+    //deinitialize();
 
     if ( -1 != ret )
         {
@@ -2271,6 +2288,9 @@ void CameraHal::deinitialize()
 
     /// Free the display adapter
     mDisplayAdapter.clear();
+
+    // Free the CameraProperties object
+    mCameraProperties.clear();
 
     mSetOverlayCalled = false;
 
