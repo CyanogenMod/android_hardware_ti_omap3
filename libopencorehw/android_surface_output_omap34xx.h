@@ -67,6 +67,7 @@ private:
     int             iBytesperPixel;
     int             icropY;
     int             icropX;
+    int             mBuffersQueuedToDSS;
 };
 
 #endif // ANDROID_SURFACE_OUTPUT_OMAP34XX_H_INCLUDED
