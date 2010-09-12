@@ -26,9 +26,10 @@
 #include "alsa_omap4_modem.h"
 #endif
 
-#define BLUETOOTH_SCO_DEVICE "hw:0,1"
-#define FM_TRANSMIT_DEVICE "hw:0,2"
-#define HDMI_DEVICE "plughw:0,5"
+#define MM_DEFAULT_DEVICE	"plughw:0,0"
+#define BLUETOOTH_SCO_DEVICE	"hw:0,2"
+#define FM_TRANSMIT_DEVICE	"hw:0,2"
+#define HDMI_DEVICE		"plughw:0,7"
 
 #ifndef ALSA_DEFAULT_SAMPLE_RATE
 #define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
@@ -236,7 +237,7 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
     if (device & OMAP4_OUT_HDMI)
         return HDMI_DEVICE;
 
-    return "default";
+    return MM_DEFAULT_DEVICE;
 }
 
 snd_pcm_stream_t direction(alsa_handle_t *handle)
@@ -502,61 +503,133 @@ LOGV("%s", __FUNCTION__);
     /* for output devices */
     if (devices & 0x0000FFFF){
         if (devices & AudioSystem::DEVICE_OUT_SPEAKER) {
-            control.set("DL2 Mixer Multimedia", 1);          // on
-            control.set("Handsfree Playback Volume", 29);    // set Volume
-            control.set("HF Left Playback", 1);    // on
-            control.set("HF Right Playback", 1);   // on
+            /* OMAP4 ABE */
+            control.set("DL2 Media Playback Volume", 118);
+            control.set("DL2 Tones Playback Volume", 118);
+            control.set("DL2 Voice Playback Volume", 118);
+            /* TWL6040 */
+            control.set("HF Left Playback", "HF DAC");		// HFDAC L -> HF Mux
+            control.set("HF Right Playback", "HF DAC");		// HFDAC R -> HF Mux
+            control.set("Handsfree Playback Volume", 29);
         } else {
-            control.set("DL2 Mixer Multimedia", (unsigned int)0);          // off
-            control.set("Handsfree Playback Volume", (unsigned int)25);    // off
-            control.set("HF Left Playback", (unsigned int)0);    // off
-            control.set("HF Right Playback", (unsigned int)0);   // off
+            /* OMAP4 ABE */
+            control.set("DL2 Media Playback Volume", 0, -1);
+            control.set("DL2 Tones Playback Volume", 0, -1);
+            control.set("DL2 Voice Playback Volume", 0, -1);
+            /* TWL6040 */
+            control.set("HF Left Playback", "Off");
+            control.set("HF Right Playback", "Off");
+            control.set("Handsfree Playback Volume", 0, -1);
         }
 
         if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
-            control.set("Headset Playback Volume", 15);    // on
-            control.set("HS Left Playback", 1);  // on
-            control.set("HS Right Playback", 1); // on
+            /* TWL6040 */
+            control.set("HS Left Playback", "HS DAC");		// HSDAC L -> HS Mux
+            control.set("HS Right Playback", "HS DAC");		// HSDAC R -> HS Mux
+            control.set("Headset Playback Volume", 15);
         } else {
-            control.set("Headset Playback Volume", (unsigned int)0);     // off
-            control.set("HS Left Playback", (unsigned int)0);  // off
-            control.set("HS Right Playback", (unsigned int)0); // off
+            /* TWL6040 */
+            control.set("HS Left Playback", "Off");
+            control.set("HS Right Playback", "Off");
+            control.set("Headset Playback Volume", 0, -1);
         }
 
         if (devices & AudioSystem::DEVICE_OUT_EARPIECE) {
-            control.set("Earphone Driver Switch", 1);  // on
-            control.set("Earphone Playback Volume", 15);    // on
+            /* TWL6040 */
+            control.set("Earphone Driver Switch", 1);		// HSDACL -> Earpiece
+            control.set("Earphone Playback Volume", 15);
         } else {
-            control.set("Earphone Playback Volume", (unsigned int)0);     // off
-            control.set("Earphone Driver Switch", (unsigned int)0);  // off
+            /* TWL6040 */
+            control.set("Earphone Driver Switch", 0, 0);
+            control.set("Earphone Playback Volume", 0, -1);
         }
 
-        if ((devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
+	/*
+         * ASoC multicomponent doesn't allow us to enable backends
+         * on-the-fly, so enable handsfree and headset backends
+         * always
+         */
+        if ((devices & AudioSystem::DEVICE_OUT_SPEAKER) ||
+            (devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
             (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
-            control.set("DL1 Mixer Multimedia", 1);        // on
+            /* OMAP4 ABE */
+            /* Headset: DL1 Mixer */
+            control.set("DL1 Mixer Multimedia", 1);		// MM_DL    -> DL1 Mixer
+            control.set("DL1 Mixer Tones", 1);			// TONES_DL -> DL1 Mixer
+            control.set("DL1 Mixer Voice", 1);			// VX_DL    -> DL1 Mixer
+            control.set("Sidetone Mixer Playback", 1);		// DL1 Mixer-> Sidetone Mixer
+            control.set("DL1 PDM Switch", 1);			// Sidetone Mixer -> PDM_DL1
+            control.set("DL1 Media Playback Volume", 118);
+            control.set("DL1 Tones Playback Volume", 118);
+            control.set("DL1 Voice Playback Volume", 118);
+
+            /* Handsfree: DL2 Mixer */
+            control.set("DL2 Mixer Multimedia", 1);		// MM_DL    -> DL2 Mixer
+            control.set("DL2 Mixer Tones", 1);			// TONES_DL -> DL2 Mixer
+            control.set("DL2 Mixer Voice", 1);			// VX_DL    -> DL2 Mixer
         } else {
-            control.set("DL1 Mixer Multimedia", (unsigned int)0);        // on
+            /* OMAP4 ABE */
+            /* Headset: DL1 Mixer */
+            control.set("DL1 Mixer Multimedia", 0, 0);
+            control.set("DL1 Mixer Tones", 0, 0);
+            control.set("DL1 Mixer Voice", 0, 0);
+            control.set("Sidetone Mixer Playback", 0, 0);
+            control.set("DL1 PDM Switch", 0, 0);
+            control.set("DL1 Media Playback Volume", 0, -1);
+            control.set("DL1 Tones Playback Volume", 0, -1);
+            control.set("DL1 Voice Playback Volume", 0, -1);
+
+            /* Handsfree: DL2 Mixer */
+            control.set("DL2 Mixer Multimedia", 0, 0);
+            control.set("DL2 Mixer Tones", 0, 0);
+            control.set("DL2 Mixer Voice", 0, 0);
         }
     }
 
     /* for input devices */
     if (devices >> 16) {
         if (devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) {
-            control.set("Analog Left Capture Route", 1);   // on
-            control.set("Analog Right Capture Route", 1);  // on
-            control.set("Capture Preamplifier Volume", 1); // on
-            control.set("Capture Volume", 4);              // set to max capture volume
+            /* TWL6040 */
+            control.set("Analog Left Capture Route", "Main Mic");	// Main Mic -> Mic Mux
+            control.set("Analog Right Capture Route", "Sub Mic");	// Sub Mic  -> Mic Mux
+            control.set("Capture Preamplifier Volume", 1);
+            control.set("Capture Volume", 4);
         } else if (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) {
-            control.set("Analog Left Capture Route", (unsigned int)0);   // on
-            control.set("Analog Right Capture Route", (unsigned int)0);  // on
-            control.set("Capture Preamplifier Volume", 1); // on
-            control.set("Capture Volume", 4);              // set to max capture volume
+            /* TWL6040 */
+            control.set("Analog Left Capture Route", "Headset Mic");	// Headset Mic -> Mic Mux
+            control.set("Analog Right Capture Route", "Headset Mic");	// Headset Mic -> Mic Mux
+            control.set("Capture Preamplifier Volume", 1);
+            control.set("Capture Volume", 4);
         } else {
-            control.set("Analog Left Capture Route", 3);   // off
-            control.set("Analog Right Capture Route", 3);  // off
-            control.set("Capture Preamplifier Volume", (unsigned int)0); // off
-            control.set("Capture Volume", (unsigned int)0);              // set to min capture volume
+            /* TWL6040 */
+            control.set("Analog Left Capture Route", "Off");
+            control.set("Analog Right Capture Route", "Off");
+            control.set("Capture Preamplifier Volume", 0, -1);
+            control.set("Capture Volume", 0, -1);
         }
+
+        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
+            (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET)) {
+            /* OMAP4 ABE */
+            control.set("AMIC_UL PDM Switch", 1);			// PDM_UL1 -> AMIC_UL
+            control.set("MUX_UL00", "AMic1");				// AMIC_UL -> MM_UL00
+            control.set("MUX_UL01", "AMic0");				// AMIC_UL -> MM_UL01
+            control.set("MUX_UL10", "AMic1");				// AMIC_UL -> MM_UL10
+            control.set("MUX_UL11", "AMic0");				// AMIC_UL -> MM_UL11
+            control.set("Voice Capture Mixer Capture", 1);		// VX_UL   -> VXREC_MIXER
+            control.set("MUX_VX0", "AMic1");				// AMIC_UL -> VX_UL0
+            control.set("MUX_VX1", "AMic0");				// AMIC_UL -> VX_UL1
+	} else {
+            /* OMAP4 ABE */
+            control.set("AMIC_UL PDM Switch", 0, 0);
+            control.set("MUX_UL00", "None");
+            control.set("MUX_UL01", "None");
+            control.set("MUX_UL10", "None");
+            control.set("MUX_UL11", "None");
+            control.set("Voice Capture Mixer Capture", 0, 0);
+            control.set("MUX_VX0", "None");
+            control.set("MUX_VX1", "None");
+	}
     }
 }
 
@@ -610,13 +683,17 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
 
+    // ASoC multicomponent requires a valid path (frontend/backend) for
+    // the device to be opened
+    setAlsaControls(handle, devices, mode);
+
     // The PCM stream is opened in blocking mode, per ALSA defaults.  The
     // AudioFlinger seems to assume blocking mode too, so asynchronous mode
     // should not be used.
     int err = snd_pcm_open(&handle->handle, devName, direction(handle), 0);
 
     if (err < 0) {
-        LOGE("Failed to Initialize any ALSA %s device: %s", stream, strerror(err));
+        LOGE("Failed to initialize ALSA %s device '%s': %s", stream, devName, strerror(err));
         return NO_INIT;
     }
 
@@ -624,9 +701,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 
     if (err == NO_ERROR) err = setSoftwareParams(handle);
 
-    setAlsaControls(handle, devices, mode);
-
-    LOGI("Initialized ALSA %s device %s", stream, devName);
+    LOGI("Initialized ALSA %s device '%s'", stream, devName);
     return err;
 }
 
