@@ -89,7 +89,8 @@ public:
 		STATE_FILL_BUFFER_DONE_CALLED, // 3
 		STATE_EMPTY_BUFFER_DONE_CALLED, // 4
 		STATE_ERROR, // 5
-		STATE_EXIT // 6
+        STATE_INVALID, //6
+		STATE_EXIT // 7
 	};
 
 	typedef struct JpegDecoderParams
@@ -155,6 +156,7 @@ private:
     int mDeleteAttempts;
     int mProgressive;
     bool nSubRegDecode;
+    bool inStateTransition;
 	OMX_S16 GetYUVformat(OMX_U8 * Data);
 	OMX_S16 Get16m(const void * Short);
 	OMX_S32 ParseJpegHeader (SkStream* stream, JPEG_HEADER_INFO* JpegHeaderInfo);
