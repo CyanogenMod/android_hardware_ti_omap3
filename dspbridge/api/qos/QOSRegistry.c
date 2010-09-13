@@ -89,10 +89,10 @@ struct QOSDATA *DSPData_Create(ULONG id)
 	return data;
 }
 
-DSP_STATUS DSPData_Delete(struct QOSDATA *data)
+int DSPData_Delete(struct QOSDATA *data)
 {
 	struct QOSCOMPONENT *comp;
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	struct QOSDATA *temp;
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "DSPData_Delete+\n");
 	/* Note: This routine is recursive. It calls itself to delete lists of
@@ -124,7 +124,7 @@ DSP_STATUS DSPData_Delete(struct QOSDATA *data)
 			break;
 		default:
 			/* We don't know what this is! */
-			status = DSP_EINVALIDARG;
+			status = -EINVAL;
 			break;
 		}
 		if (DSP_SUCCEEDED(status)) {
@@ -136,7 +136,7 @@ DSP_STATUS DSPData_Delete(struct QOSDATA *data)
 		}
 	}
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "DSPData_Delete-\n");
-	return DSP_SOK;
+	return 0;
 }
 
 bool DSPData_IsResource(ULONG Id)
@@ -168,7 +168,7 @@ bool DSPData_IsResource(ULONG Id)
 
 struct QOSREGISTRY *DSPRegistry_Create()
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	struct QOSREGISTRY *registry;
 	struct QOSDATA *data;
 	struct QOSRESOURCE_MEMORY *mem_resource;
@@ -277,7 +277,7 @@ func_end:
 
 void DSPRegistry_Delete(struct QOSREGISTRY *registry)
 {
-	UINT status = DSP_SOK;
+	UINT status = 0;
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "DSPRegistry_Delete+\n");
 	if (registry) {
 		/* Clean-up the resource registry list */
@@ -357,22 +357,22 @@ struct QOSDATA **FindTargetList(struct QOSDATA *listhead, UINT Id)
 	with the function ID QOS_FN_ResourceUpdateInfo to ensure that all
 	resources have current data in their structures.
 	Parameters
-		Id	requested Id
+		Id			requested Id
 		registry		system registry
 		ResultList		ptr to array of QOSDATA pointers
 		Size			ptr to ULONG number of matches found
 	Return
-		DSP_OK			successful
-		DSP_ESIZE		block for results is too small
-		DSP_ENOTFOUND	item not found
+		0			successful
+		-EINVAL			block for results is too small
+		-ENOENT			item not found
 	Requirement Coverage
 		This method addresses requirement(s):  SR10008
 */
 
-DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
+int DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 			struct QOSDATA **ResultList, ULONG *Size)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	struct QOSDATA *target;
 	struct QOSDATA **list_ptr;
 	bool TargetIsResource = false;
@@ -383,7 +383,7 @@ DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 	if  (!list_ptr) {
 		/* Only resources or components can be
 			"found" in the registry */
-		status = DSP_EINVALIDARG;
+		status = -EINVAL;
 		goto func_end;
 	}
 	for (target = *list_ptr; target && DSP_SUCCEEDED(status);
@@ -413,10 +413,10 @@ DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 func_end:
 	if (EntriesFound > *Size) {
 		*Size = EntriesFound;
-		status = DSP_ESIZE;
+		status = -EINVAL;
 	} else if (EntriesFound == 0) {
 		/* None found */
-		status = DSP_ENOTFOUND;
+		status = -ENOENT;
 	}
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "DSPRegistry_Find-\n");
 	return status;
@@ -428,17 +428,17 @@ func_end:
 		Add given resource or component to the list
 	Parameters
 		listhead	ptr to a list container (component or registry)
-		entry			entry to add in list
+		entry		entry to add in list
 	Return
-		DSP_STATUS		Error code or DSP_SOK for success
+		int		Error code or 0 for success
 	Requirement Coverage
 		This method addresses requirement(s):  SR10085
 */
 
-DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry)
+int DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry)
 {
 	struct QOSDATA **target;
-	DSP_STATUS status = DSP_EINVALIDARG;
+	int status = -EINVAL;
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "DSPRegistry_Add+\n");
 	/* First, find the target list */
 	target = FindTargetList(listhead, entry->Id);
@@ -446,7 +446,7 @@ DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry)
 		/* Add to the head of the list */
 		entry->Next = *target;
 		*target = entry;
-		status = DSP_SOK;
+		status = 0;
 	}
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "DSPRegistry_Add-\n");
 	return status;
@@ -458,24 +458,24 @@ DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry)
 		Removes given resource or component from the list
 	Parameters
 		listhead	ptr to a list container (component or registry)
-		entry			resource or component to remove
+		entry		resource or component to remove
 	Return
-		DSP_STATUS	Error code or DSP_SOK for success
+		int		Error code or 0 for success
 	Requirement Coverage
 		This method addresses requirement(s):  SR10085
 */
 
-DSP_STATUS DSPRegistry_Remove(struct QOSDATA *listhead, struct QOSDATA *entry)
+int DSPRegistry_Remove(struct QOSDATA *listhead, struct QOSDATA *entry)
 {
 	struct QOSDATA *target;
 	struct QOSDATA **list_ptr;
-	DSP_STATUS status = DSP_EINVALIDARG;
+	int status = -EINVAL;
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "DSPRegistry_Remove+\n");
 	/* First, find the target list */
 	list_ptr = FindTargetList(listhead, entry->Id);
 	if (list_ptr) {
 		/* Find the item */
-		status = DSP_ENOTFOUND;
+		status = -ENOENT;
 		for (target = *list_ptr; target &&
 				target != entry && target->Next != entry;
 				target = target->Next)
@@ -488,7 +488,7 @@ DSP_STATUS DSPRegistry_Remove(struct QOSDATA *listhead, struct QOSDATA *entry)
 			/* Remove the entry. */
 			target->Next = entry->Next;
 			entry->Next = NULL;
-			status = DSP_SOK;
+			status = 0;
 		}
 	}
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "DSPRegistry_Remove-\n");
@@ -524,10 +524,10 @@ ULONG QOS_Registry_FunctionHandler(struct QOSDATA *DataObject,
 	struct QOSDATA *data;
 	struct QOSREGISTRY *registry;
 	bool TargetIsResource;
-	DSP_STATUS status;
+	int status;
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "QOS_Registry_FunctionHandler+\n");
 	registry = (struct QOSREGISTRY *)DataObject;
-	status = DSP_ENOTIMPL;
+	status = -ENOSYS;
 	switch (FunctionCode) {
 	case QOS_FN_GetNumDynAllocMemHeaps:
 		/* QOS_FN_GetNumDynAllocMemHeaps
@@ -539,7 +539,7 @@ ULONG QOS_Registry_FunctionHandler(struct QOSDATA *DataObject,
 		   UINT *		ptr to storage for number of dynamic
 					heaps available
 		   Return
-		   DSP_STATUS   Error code or DSP_SOK for success
+		   int   		Error code or 0 for success
 		   Requirement Coverage
 		   This method addresses requirement(s):        SR10085
 		 */

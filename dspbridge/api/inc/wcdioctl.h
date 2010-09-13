@@ -296,7 +296,7 @@ typedef union {
 
 	struct {
 		DSP_HNODE hNode;
-		DSP_STATUS *pStatus;
+		int *pStatus;
 	} ARGS_NODE_TERMINATE;
 
 	struct {

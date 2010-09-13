@@ -85,7 +85,7 @@ extern "C" {
 #define PG_ALIGN_HIGH(addr, pg_size) (((addr)+(pg_size)-1) & PG_MASK(pg_size))
 
 /* API return value and calling convention */
-#define DBAPI                       DSP_STATUS CDECL
+#define DBAPI                       int CDECL
 
 /* Infinite time value for the uTimeout parameter to DSPStream_Select() */
 #define DSP_FOREVER                 (-1)
@@ -165,8 +165,6 @@ extern "C" {
 #endif
 
 /* Types defined for 'Bridge API */
-	typedef DWORD DSP_STATUS;	/* API return code type         */
-
 	typedef HANDLE DSP_HNODE;	/* Handle to a DSP Node object  */
 	typedef HANDLE DSP_HPROCESSOR;	/* Handle to a Processor object */
 	typedef HANDLE DSP_HSTREAM;	/* Handle to a Stream object    */

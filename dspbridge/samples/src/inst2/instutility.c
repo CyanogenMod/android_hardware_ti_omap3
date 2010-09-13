@@ -185,7 +185,7 @@ Uint sleepTime = DEF_SLEEP_TIME;
 *********************************************/
 Addr mapAddr(Addr startAddr,Uint size, int prot, int flag);
 
-static DSP_STATUS InitializeProcessor(DMMCOPY_TASK* copyTask);
+static int InitializeProcessor(DMMCOPY_TASK* copyTask);
 
 static Status mapTimerAndBufferToDSPMem(DMMCOPY_TASK* copyTask);
 
@@ -213,7 +213,7 @@ Uint getPrevSeqNum(LogBufInfo * logBufInfoPtr,
 
 int main(int argc, char ** argv)
 {
-    DSP_STATUS status = DSP_SOK;
+    int status = 0;
     DMMCOPY_TASK dmmcopyTask;
     dmmcopyTask.hProcessor = NULL;
     dmmcopyTask.hNode = NULL;
@@ -439,7 +439,7 @@ void checkIpArgs(int argc, char ** argv)
 static Status mapTimerAndBufferToDSPMem(DMMCOPY_TASK * copyTask)
 {
 
-    DSP_STATUS status = DSP_SOK;
+    int status = 0;
     ULONG dspReserveSize = BUFFER_SIZE;
     callocBuffer =(Addr) (char *)calloc(mmBufSize + ((PAGE_ALIGN_UNMASK + 1) << 1),1);
 
@@ -570,10 +570,10 @@ static Status mapTimerAndBufferToDSPMem(DMMCOPY_TASK * copyTask)
 //Args : @copyTask  - Physical address
 //Return :  SUCCESS/FAILURE
 /////////////////////////////////////////////////////////////////////////////
-static DSP_STATUS
+static int
 InitializeProcessor(DMMCOPY_TASK * copyTask)
 {
-    DSP_STATUS status = DSP_EFAIL;
+    int status = -EPERM;
     struct DSP_PROCESSORINFO dspInfo;
     UINT numProcs;
     UINT index = 0;
@@ -601,7 +601,7 @@ InitializeProcessor(DMMCOPY_TASK * copyTask)
 
             printf("DSP device detected !! \n");
             procId = index;
-            status = DSP_SOK;
+            status = 0;
             break;
         }
         index++;
@@ -642,7 +642,7 @@ InitializeProcessor(DMMCOPY_TASK * copyTask)
 
 static Status unMapTimerAndBufferToDSPMem(DMMCOPY_TASK* copyTask)
 {
-    DSP_STATUS status = DSP_EFAIL;
+    int status = -EPERM;
     //Ushort updationTimerCounter=0;
 
     if (adapterAddrMpu)
@@ -986,7 +986,7 @@ Status writeToFile(DMMCOPY_TASK * copyTask,LogBufInfo * logBufInfo, Addr startAd
     Addr endOfBufAddr =0;
     Uint indexNumBytes[2]={0,0};
     Uint  tempSize=0;
-    DSP_STATUS status = DSP_SOK;
+    int status = 0;
 
     if (logDataFilePtr==NULL)
     {

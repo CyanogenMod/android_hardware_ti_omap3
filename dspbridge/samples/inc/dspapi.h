@@ -43,7 +43,7 @@
 #endif
 
 /* Full export modifier: */
-#define DSPAPI DSPAPIDLL DSP_STATUS WINAPI
+#define DSPAPI DSPAPIDLL int WINAPI
 
 /* Explicitly define class driver calling conventions */
 #define WBKERNEL_API CDECL

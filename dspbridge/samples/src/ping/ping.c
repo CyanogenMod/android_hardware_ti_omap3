@@ -69,14 +69,14 @@ struct PING_NODEDATA {
 } ;
 
 /* Forward Declarations */
-static DSP_STATUS ProcessArgs(int argc, char **argv, UINT *pMsgCnt,
+static int ProcessArgs(int argc, char **argv, UINT *pMsgCnt,
 												struct PING_NODEDATA *argsBuf);
-static DSP_STATUS AttachProcessor(struct PING_TASK * pingTask);
-static DSP_STATUS CreateNode(struct PING_TASK * pingTask,
+static int AttachProcessor(struct PING_TASK * pingTask);
+static int CreateNode(struct PING_TASK * pingTask,
 												struct PING_NODEDATA * argsBuf);
-static DSP_STATUS RunNode(struct PING_TASK * pingTask);
-static DSP_STATUS DestroyNode(struct PING_TASK * pingTask);
-static DSP_STATUS DetachProcessor(struct PING_TASK * pingTask);
+static int RunNode(struct PING_TASK * pingTask);
+static int DestroyNode(struct PING_TASK * pingTask);
+static int DetachProcessor(struct PING_TASK * pingTask);
 
 /*
  *  ======== main ========
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 	struct PING_TASK pingTask;	/* Ping task context                    */
 	UINT msgCount;		/* Number of messages DSP sends         */
 	struct PING_NODEDATA argsBuf;	/* Task Node args.                      */
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 
 	/* Process command line arguments, open data files: */
 	status = ProcessArgs(argc, argv, &msgCount, &argsBuf);
@@ -122,9 +122,9 @@ int main(int argc, char **argv)
  *  ======== AttachProcessor ========
  *  Perform processor related initialization.
  */
-static DSP_STATUS AttachProcessor(struct PING_TASK *pingTask)
+static int AttachProcessor(struct PING_TASK *pingTask)
 {
-	DSP_STATUS status = DSP_EFAIL;
+	int status = -EPERM;
 	struct DSP_PROCESSORINFO dspInfo;
 	UINT numProcs;
 	UINT index = 0;
@@ -136,7 +136,7 @@ static DSP_STATUS AttachProcessor(struct PING_TASK *pingTask)
 									(dspInfo.uProcessorType == DSPTYPE_64)) {
 			printf("DSP device detected !! \n");
 			procId = index;
-			status = DSP_SOK;
+			status = 0;
 			break;
 		}
 		index++;
@@ -155,11 +155,11 @@ static DSP_STATUS AttachProcessor(struct PING_TASK *pingTask)
  *  ======== CreateNode ========
  *  Perform node related initialization.
  */
-static DSP_STATUS CreateNode(struct PING_TASK *pingTask,
+static int CreateNode(struct PING_TASK *pingTask,
 												struct PING_NODEDATA *argsBuf)
 {
 	struct DSP_CBDATA *pArgs;
-	DSP_STATUS status;
+	int status;
 
 	pArgs = (struct DSP_CBDATA *)argsBuf;
 	/* Allocate the ping node, passing arguments for node create phase. */
@@ -195,10 +195,10 @@ static DSP_STATUS CreateNode(struct PING_TASK *pingTask,
  *  ======== RunNode ========
  *  Run ping task.
  */
-static DSP_STATUS RunNode(struct PING_TASK *pingTask)
+static int RunNode(struct PING_TASK *pingTask)
 {
-	DSP_STATUS status;
-	DSP_STATUS exitStatus;
+	int status;
+	int exitStatus;
 	struct DSP_MSG dspMsg;
 	UINT uIndex;
 	DWORD cEvents;
@@ -238,9 +238,9 @@ static DSP_STATUS RunNode(struct PING_TASK *pingTask)
 					}
 				}
 				if (DSP_FAILED(status)) {
-					if (status == DSP_ETIMEOUT) {
+					if (status == -ETIME) {
 						/* Okay to timeout if message queue is empty */
-						status = DSP_SOK;
+						status = 0;
 						continue;
 					} else {
 						fprintf(stdout,"DSPNode_GetMessage failed: 0x%x\n",
@@ -266,9 +266,9 @@ static DSP_STATUS RunNode(struct PING_TASK *pingTask)
  *  ======== DestroyNode ========
  *  Perform node related cleanup.
  */
-static DSP_STATUS DestroyNode(struct PING_TASK *pingTask)
+static int DestroyNode(struct PING_TASK *pingTask)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 
 	if (pingTask->hNode) {
 		/* Delete DSP node. */
@@ -288,9 +288,9 @@ static DSP_STATUS DestroyNode(struct PING_TASK *pingTask)
  *  ======== DetachProcessor ========
  *  Perform processor related cleanup.
  */
-static DSP_STATUS DetachProcessor(struct PING_TASK *pingTask)
+static int DetachProcessor(struct PING_TASK *pingTask)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 
 	if (pingTask->hProcessor) {
 		/* Detach from processor. */
@@ -309,10 +309,10 @@ static DSP_STATUS DetachProcessor(struct PING_TASK *pingTask)
  *  Process command line arguments for this sample, returning input and
  *  output file handles.
  */
-static DSP_STATUS ProcessArgs(int argc, char **argv, UINT *pMsgCnt,
+static int ProcessArgs(int argc, char **argv, UINT *pMsgCnt,
 												struct PING_NODEDATA *argsBuf)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	switch (argc) {
 	case 1:
 		*pMsgCnt = DEFAULTMSGS;
@@ -325,7 +325,7 @@ static DSP_STATUS ProcessArgs(int argc, char **argv, UINT *pMsgCnt,
 	default:
 		fprintf(stdout, "Usage: %s <message_count> \n", argv[0]);
 		strncpy((char *)argsBuf->cData, DEFAULTDELAY, ARGSIZE);
-		status = DSP_EFAIL;
+		status = -EPERM;
 		break;
 	}
 	if (DSP_SUCCEEDED(status)) {

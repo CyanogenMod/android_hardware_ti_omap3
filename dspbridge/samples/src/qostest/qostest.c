@@ -45,7 +45,7 @@
 #define MAXMSGLEN     128	/* Max length of MessageBox msg.         */
 
 
-static DSP_STATUS status = DSP_SOK;
+static int status = 0;
 static struct QOSREGISTRY *registry;
 static struct QOSDATA **results = NULL;
 static ULONG NumFound;
@@ -137,7 +137,7 @@ void memoryMonitor()
 
 void enumeratingTest(void)
 {
-	status = DSP_SOK;
+	status = 0;
 	printf("\n*** TEST CASE 2: Enumerating Resources ***\n");
 	printf("Calling registry create...\n\n");
 	registry = DSPRegistry_Create();
@@ -177,7 +177,7 @@ void enumeratingTest(void)
 		results = NULL;
 		NumFound = 0;
 		status = DSPRegistry_Find(id, registry, results, &NumFound);
-		if ( !DSP_SUCCEEDED(status) && status != DSP_ESIZE) {
+		if ( !DSP_SUCCEEDED(status) && status != -EINVAL) {
 			printf("None.\n\n");
 			continue;
 		}
@@ -239,7 +239,7 @@ void enumeratingTest(void)
 
 void componentTest(void) {
 	MemoryIsPresent = false;
-	status = DSP_EFAIL;
+	status = -EPERM;
 
 	printf("\n*** TEST CASE 3: Creating, registering, and deleting "
 														"a component ***\n");
@@ -447,7 +447,7 @@ printf("\n*** TEST CASE 5: Querying the database for required "
 int main(int argc, char **argv)
 {
 
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	bool memory = false;
 	bool processor = false;
 	unsigned count =0;

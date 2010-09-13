@@ -70,7 +70,7 @@ QOS_Memory_Scratch_FunctionHandler(struct QOSDATA *DataObject,
 	struct QOSRESOURCE_MEMORY *request =
 				(struct QOSRESOURCE_MEMORY *)DataObject;
 	struct QOSRESOURCE_MEMORY *resource;
-	DSP_STATUS status;
+	int status;
 	switch (FunctionCode) {
 	case QOS_FN_ResourceIsAvailable:
 		if (data->Id == DataObject->Id) {
@@ -82,7 +82,7 @@ QOS_Memory_Scratch_FunctionHandler(struct QOSDATA *DataObject,
 		return false;
 	case QOS_FN_ResourceUpdateInfo:
 		/* validate scratchType arg */
-		status = DSP_EINVALIDARG;
+		status = -EINVAL;
 		if ((request->type == ESharedScratchAllHeaps) ||
 				(request->type == ESharedScratchDaram) ||
 				(request->type == ESharedScratchSaram)) {
@@ -94,7 +94,7 @@ QOS_Memory_Scratch_FunctionHandler(struct QOSDATA *DataObject,
 	default:
 		break;
 	}
-	return DSP_ENOTIMPL;
+	return -ENOSYS;
 }
 
 ULONG QOS_Memory_DynAlloc_FunctionHandler(struct QOSDATA *DataObject,
@@ -102,13 +102,13 @@ ULONG QOS_Memory_DynAlloc_FunctionHandler(struct QOSDATA *DataObject,
 {
 	struct QOSRESOURCE_MEMORY *request =
 			(struct QOSRESOURCE_MEMORY *)DataObject;
-	DSP_STATUS status;
+	int status;
 	switch (FunctionCode) {
 	case QOS_FN_ResourceIsAvailable:
 		return QOS_Memory_IsAvailable(DataObject, Parameter1);
 	case QOS_FN_ResourceUpdateInfo:
 		/* validate heap arg */
-		status = DSP_EINVALIDARG;
+		status = -EINVAL;
 		if (request->heapId <= KAllHeaps) {
 			/* Use the type of heap requested to get size memory in
 			 * use (not free) */
@@ -125,7 +125,7 @@ ULONG QOS_Memory_DynAlloc_FunctionHandler(struct QOSDATA *DataObject,
 	default:
 		break;
 	}
-	return DSP_ENOTIMPL;
+	return -ENOSYS;
 }
 
 ULONG QOS_Memory_DynLoad_FunctionHandler(struct QOSDATA *DataObject,
@@ -145,7 +145,7 @@ ULONG QOS_Memory_DynLoad_FunctionHandler(struct QOSDATA *DataObject,
 	default:
 		break;
 	}
-	return DSP_ENOTIMPL;
+	return -ENOSYS;
 }
 
 ULONG QOS_Processor_FunctionHandler(struct QOSDATA *DataObject,
@@ -174,7 +174,7 @@ ULONG QOS_Processor_FunctionHandler(struct QOSDATA *DataObject,
 	default:
 		break;
 	}
-	return DSP_ENOTIMPL;
+	return -ENOSYS;
 }
 
 ULONG QOS_Resource_DefaultFunctionHandler(struct QOSDATA *DataObject,
@@ -189,8 +189,8 @@ ULONG QOS_Resource_DefaultFunctionHandler(struct QOSDATA *DataObject,
 		}
 		return false;
 	case QOS_FN_ResourceUpdateInfo:
-		return DSP_SOK;
+		return 0;
 	}
-	return DSP_ENOTIMPL;
+	return -ENOSYS;
 }
 

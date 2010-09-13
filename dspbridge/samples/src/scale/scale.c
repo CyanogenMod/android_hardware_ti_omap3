@@ -60,15 +60,15 @@ static const struct DSP_UUID nodeuuid = {
 	0xd91a01bd, 0xd215, 0x11d4, 0x86,0x26,{ 0x0, 0x10, 0x5a, 0x98, 0xca, 0x0b}};
 
 /* Forward declarations: */
-static DSP_STATUS ProcessArgs(int argc, char **argv, 
+static int ProcessArgs(int argc, char **argv,
 												struct SCALE_TASK *scaleTask);
-static DSP_STATUS InitializeProcessor(struct SCALE_TASK * scaleTask);
-static DSP_STATUS InitializeNode(struct SCALE_TASK * scaleTask);
-static DSP_STATUS InitializeStreams(struct SCALE_TASK * scaleTask);
-static DSP_STATUS CleanupProcessor(struct SCALE_TASK * scaleTask);
-static DSP_STATUS CleanupNode(struct SCALE_TASK * scaleTask);
-static DSP_STATUS CleanupStreams(struct SCALE_TASK * scaleTask);
-static DSP_STATUS RunTask(struct SCALE_TASK * scaleTask);
+static int InitializeProcessor(struct SCALE_TASK * scaleTask);
+static int InitializeNode(struct SCALE_TASK * scaleTask);
+static int InitializeStreams(struct SCALE_TASK * scaleTask);
+static int CleanupProcessor(struct SCALE_TASK * scaleTask);
+static int CleanupNode(struct SCALE_TASK * scaleTask);
+static int CleanupStreams(struct SCALE_TASK * scaleTask);
+static int RunTask(struct SCALE_TASK * scaleTask);
 
 /*
  *  ======== main ========
@@ -77,7 +77,7 @@ int
 main(int argc, char **argv)
 {
 	struct SCALE_TASK scaleTask;
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 
 	status = (DBAPI)DspManager_Open(0, NULL);
 
@@ -127,15 +127,15 @@ main(int argc, char **argv)
 	return (DSP_SUCCEEDED(status) ? 0 : -1);
 }
 
-static DSP_STATUS ProcessArgs(int argc,char **argv,struct SCALE_TASK *scaleTask)
+static int ProcessArgs(int argc,char **argv,struct SCALE_TASK *scaleTask)
 {
-	DSP_STATUS status = DSP_EFAIL;
+	int status = -EPERM;
 
 	if (argc != 2) {
 		fprintf(stdout, "Usage: %s <No. of Iterations> \n", argv[0]);
 	} else {
 		sscanf(argv[1], "%u", &(scaleTask->uIterations));
-		status = DSP_SOK;
+		status = 0;
 
 	}
 
@@ -146,9 +146,9 @@ static DSP_STATUS ProcessArgs(int argc,char **argv,struct SCALE_TASK *scaleTask)
  *  ======== InitializeProcessor ========
  *  Perform processor related initialization.
  */
-static DSP_STATUS InitializeProcessor(struct SCALE_TASK *scaleTask)
+static int InitializeProcessor(struct SCALE_TASK *scaleTask)
 {
-	DSP_STATUS status = DSP_EFAIL;
+	int status = -EPERM;
 	struct DSP_PROCESSORATTRIN *pAttrIn;
 	struct DSP_PROCESSORINFO dspInfo;
 	UINT numProcs;
@@ -187,7 +187,7 @@ static DSP_STATUS InitializeProcessor(struct SCALE_TASK *scaleTask)
 									(dspInfo.uProcessorType == DSPTYPE_64)) {
 			printf("DSP device detected !! \n");
 			procId = index;
-			status = DSP_SOK;
+			status = 0;
 			break;
 		}
 		index++;
@@ -232,12 +232,12 @@ static DSP_STATUS InitializeProcessor(struct SCALE_TASK *scaleTask)
  *  ======== InitializeNode ========
  *  Perform node related initialization.
  */
-static DSP_STATUS InitializeNode(struct SCALE_TASK *scaleTask)
+static int InitializeNode(struct SCALE_TASK *scaleTask)
 {
 	struct DSP_NODEATTRIN nodeAttrIn;
 	struct DSP_STRMATTR attrs;
 	struct DSP_UUID uuid;
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 
 	uuid = nodeuuid;
 
@@ -307,9 +307,9 @@ static DSP_STATUS InitializeNode(struct SCALE_TASK *scaleTask)
  *  ======== InitializeStreams ========
  *  Perform stream related initialization.
  */
-static DSP_STATUS InitializeStreams(struct SCALE_TASK *scaleTask)
+static int InitializeStreams(struct SCALE_TASK *scaleTask)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 
 	/* open an output data stream (from host to DSP node) */
 	if (DSP_SUCCEEDED(status)) {
@@ -366,11 +366,11 @@ static DSP_STATUS InitializeStreams(struct SCALE_TASK *scaleTask)
  *  ======== RunTask ========
  *  Run the xDAIS socket; stream data to it and back for scaling.
  */
-static DSP_STATUS RunTask(struct SCALE_TASK *scaleTask)
+static int RunTask(struct SCALE_TASK *scaleTask)
 {
 	BYTE *pOutBuf = scaleTask->pOutBuf;
 	BYTE *pInBuf = scaleTask->pInBuf;
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	struct DSP_MSG message;
 	DWORD dwBufSize;
 	DWORD dwArg;
@@ -480,9 +480,9 @@ static DSP_STATUS RunTask(struct SCALE_TASK *scaleTask)
  *  ======== CleanupStreams ========
  *  Perform stream related cleanup.
  */
-static DSP_STATUS CleanupStreams(struct SCALE_TASK *scaleTask)
+static int CleanupStreams(struct SCALE_TASK *scaleTask)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	struct DSP_STREAMINFO streamInfo;
 	DWORD dwArg = 0;
 	DWORD dwBufsize = DEFAULTBUFSIZE;
@@ -570,10 +570,10 @@ static DSP_STATUS CleanupStreams(struct SCALE_TASK *scaleTask)
  *  ======== CleanupNode ========
  *  Perform node related cleanup.
  */
-static DSP_STATUS CleanupNode(struct SCALE_TASK *scaleTask)
+static int CleanupNode(struct SCALE_TASK *scaleTask)
 {
-	DSP_STATUS status = DSP_SOK;
-	DSP_STATUS exitStatus;
+	int status = 0;
+	int exitStatus;
 
 	if (scaleTask->hNode) {
 		/* terminate DSP node */
@@ -599,9 +599,9 @@ static DSP_STATUS CleanupNode(struct SCALE_TASK *scaleTask)
  *  ======== CleanupProcessor ========
  *  Perform processor related cleanup.
  */
-static DSP_STATUS CleanupProcessor(struct SCALE_TASK *scaleTask)
+static int CleanupProcessor(struct SCALE_TASK *scaleTask)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 
 	if (scaleTask->hProcessor) {
 		/* detach from processor */

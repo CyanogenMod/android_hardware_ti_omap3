@@ -102,7 +102,7 @@ INT main(INT argc, CHAR * argv[])
 	UINT uProcId = 0;	/* default proc ID is 0. */
 	bool fError = false;
 	DSP_HPROCESSOR hProc;
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	INT cArgc = 0;		/* local argc count. */
 	bool fScriptable = false;
 	extern char *optarg;
@@ -154,7 +154,7 @@ INT main(INT argc, CHAR * argv[])
 									(dspInfo.uProcessorType == DSPTYPE_64)) {
 				printf("DSP device detected !! \n");
 				uProcId = index;
-				status = DSP_SOK;
+				status = 0;
 				break;
 			}
 			index++;

@@ -27,7 +27,7 @@
 */
 
 #include <qosregistry.h>
-#include <errbase.h>
+#include <errno.h>
 
 /*  ============================================================================
   name        DSPComponent_Register
@@ -39,17 +39,17 @@
 		registry		system registry
 		comp			component using system resources
 	Return
-		DSP_STATUS		Error code or DSP_SOK for success
+		int			Error code or 0 for success
 	Requirement Coverage
 		This method addresses requirement(s):  SR10085
 */
-DSP_STATUS DSPComponent_Register(struct QOSREGISTRY *registry,
+int DSPComponent_Register(struct QOSREGISTRY *registry,
 					struct QOSCOMPONENT *comp)
 {
 	if (comp != NULL)
 		comp->InUse++;
 
-	return DSP_SOK;
+	return 0;
 }
 
 /*  ============================================================================
@@ -62,21 +62,21 @@ DSP_STATUS DSPComponent_Register(struct QOSREGISTRY *registry,
 		registry		system registry
 		comp			component releasing system resources
 	Return
-		DSP_STATUS		Error code or DSP_SOK for success
+		int			Error code or 0 for success
 	Requirement Coverage
 		This method addresses requirement(s):  SR10085
 */
-DSP_STATUS DSPComponent_Unregister(struct QOSREGISTRY *registry,
+int DSPComponent_Unregister(struct QOSREGISTRY *registry,
 			struct QOSCOMPONENT *comp)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	if (comp != NULL) {
 		/* Negative status returned if error */
 		if (comp->InUse > 0) {
 			comp->InUse--;
-			status = DSP_SOK;
+			status = 0;
 		} else
-			status = DSP_EWRONGSTATE;
+			status = -EBADR;
 
 	}
 	return status;
@@ -85,12 +85,12 @@ DSP_STATUS DSPComponent_Unregister(struct QOSREGISTRY *registry,
 ULONG QOS_Component_DefaultFunctionHandler(struct QOSDATA *DataObject,
 				ULONG FunctionCode, ULONG Parameter1)
 {
-	return DSP_ENOTIMPL;
+	return -ENOSYS;
 }
 
 ULONG QOS_DynDependentLibrary_FunctionHandler(struct QOSDATA *DataObject,
 				ULONG FunctionCode, ULONG Parameter1)
 {
-	return DSP_ENOTIMPL;
+	return -ENOSYS;
 }
 

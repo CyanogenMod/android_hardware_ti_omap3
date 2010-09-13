@@ -90,11 +90,11 @@ extern "C" {
 	} ;
 
 /* DCD Internal Callback Type */
-	typedef DSP_STATUS(CDECL * DCD_REGISTERFXN) (IN struct DSP_UUID * pUuid,
+	typedef int(CDECL * DCD_REGISTERFXN) (IN struct DSP_UUID * pUuid,
 						     IN DSP_DCDOBJTYPE objType,
 						     IN PVOID handle);
 
-	typedef DSP_STATUS(CDECL * DCD_UNREGISTERFXN) (IN struct DSP_UUID * pUuid,
+	typedef int(CDECL * DCD_UNREGISTERFXN) (IN struct DSP_UUID * pUuid,
 						       IN DSP_DCDOBJTYPE
 						       objType);
 

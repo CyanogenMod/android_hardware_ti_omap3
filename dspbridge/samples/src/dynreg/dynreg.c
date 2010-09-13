@@ -98,10 +98,10 @@ typedef enum {
 static VOID DisplayUsage();
 static VOID PrintVerbose(PSTR pstrFmt, ...);
 static CHAR *getNodeType(DSP_NODETYPE nodeType);
-static DSP_STATUS getSectDataFromLib(IN CHAR *szLibPath, IN CHAR *szSection,
+static int getSectDataFromLib(IN CHAR *szLibPath, IN CHAR *szSection,
 					OUT UINT *pNumNodes, OPTIONAL OUT struct DSP_UUID *pLibUUIDs,
 														OUT NLDR_PHASE *phase);
-static DSP_STATUS ProcessArgs(INT argc, CHAR *argv[], DYNREG_COMMAND *cmd,
+static int ProcessArgs(INT argc, CHAR *argv[], DYNREG_COMMAND *cmd,
 														      CHAR *szLibPath);
 static int readBuffer(struct Dynamic_Loader_Stream *this, void *buffer,
 															unsigned bufsize);
@@ -118,7 +118,7 @@ FILE *filePointer = NULL;
 INT main(INT argc, CHAR *argv[])
 {
 
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	struct DSP_UUID *pLibUUIDs = NULL;
 	CHAR szUuid[36];
 	struct DSP_NDBPROPS hNdbProps;
@@ -173,7 +173,7 @@ INT main(INT argc, CHAR *argv[])
 			pLibUUIDs = calloc(1, sizeof(struct DSP_UUID));
 			status = getSectDataFromLib(szLibPath, PHASESECT, NULL, pLibUUIDs,
 																		&phase);
-			if (status != DSP_ENOSECT) {
+			if (status != -ENXIO) {
 				if (DSP_FAILED(status)) {
 					PrintVerbose("Unable to open %s\n",szLibPath);
 					break;
@@ -213,7 +213,7 @@ INT main(INT argc, CHAR *argv[])
 			/* Get number of nodes within library; 0 = NO NODES */
 			status = getSectDataFromLib(szLibPath, DCD_REGISTER_SECTION,
 														&uNumNodes, NULL, NULL);
-			if (status != DSP_ENOSECT) {
+			if (status != -ENXIO) {
 				PrintVerbose("Registering %u nodes\n",uNumNodes);
 				if (DSP_FAILED(status)) {
 					PrintVerbose("Unable to open %s\n", szLibPath);
@@ -293,7 +293,7 @@ INT main(INT argc, CHAR *argv[])
 			pLibUUIDs = calloc(1, sizeof(struct DSP_UUID));
 			status = getSectDataFromLib(szLibPath, PHASESECT, NULL, pLibUUIDs,
 																		&phase);
-			if (status != DSP_ENOSECT) {
+			if (status != -ENXIO) {
 				if (DSP_FAILED(status)) {
 					PrintVerbose("Unable to open %s\n", szLibPath);
 					break;
@@ -332,7 +332,7 @@ INT main(INT argc, CHAR *argv[])
 			/* Get number of nodes within library */
 			status = getSectDataFromLib(szLibPath, DCD_REGISTER_SECTION,
 														&uNumNodes, NULL, NULL);
-			if (status != DSP_ENOSECT) {
+			if (status != -ENXIO) {
 				PrintVerbose("Unregistering %u nodes\n", uNumNodes);
 				if (DSP_FAILED(status)) {
 					PrintVerbose("Unable to open %s\n", szLibPath);
@@ -444,17 +444,17 @@ static CHAR *getNodeType(DSP_NODETYPE nodeType)
  *  ======== ProcessArgs ========
  *  Process command-line arguments
  */
-static DSP_STATUS ProcessArgs(INT argc, CHAR *argv[], DYNREG_COMMAND *cmd,
+static int ProcessArgs(INT argc, CHAR *argv[], DYNREG_COMMAND *cmd,
 																CHAR *szLibPath)
 {
 
 	INT i = 0;
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	/* Initialize as null command */
 	*cmd = DYNREG_CMDNULL;
 	if (argc < 2 || argc > 5) {
 		DisplayUsage();
-		status = DSP_EFAIL;
+		status = -EPERM;
 	} else {
 		while (++i < argc) {
 			/* if (CSL_Strcmp(argv[i],"-v")==0) { */
@@ -492,7 +492,7 @@ static DSP_STATUS ProcessArgs(INT argc, CHAR *argv[], DYNREG_COMMAND *cmd,
 			} else {
 				/* Print Usage */
 				DisplayUsage();
-				status = DSP_EFAIL;
+				status = -EPERM;
 				break;
 			}
 		}
@@ -505,7 +505,7 @@ static DSP_STATUS ProcessArgs(INT argc, CHAR *argv[], DYNREG_COMMAND *cmd,
  *  Given a library name and section name, extract all UUIDs or phase
  *  data and return pointer to array
  */
-static DSP_STATUS getSectDataFromLib(IN CHAR *szLibPath, IN CHAR *szSection,
+static int getSectDataFromLib(IN CHAR *szLibPath, IN CHAR *szSection,
 											OUT UINT *pNumNodes,
 				OPTIONAL OUT struct DSP_UUID *pLibUUIDs,OUT NLDR_PHASE *phase)
 {
@@ -522,7 +522,7 @@ static DSP_STATUS getSectDataFromLib(IN CHAR *szLibPath, IN CHAR *szSection,
 	//CHAR      *pTempBuf;
 	CHAR *pTempCoffBuf;
 	CHAR seps[] = ", ";
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	struct DL_stream_t inputStream;
 	struct DL_sym_t inputSymbols;
 
@@ -542,7 +542,7 @@ static DSP_STATUS getSectDataFromLib(IN CHAR *szLibPath, IN CHAR *szSection,
 	desc = DLOAD_module_open(&(inputStream.dstrm), &(inputSymbols.sym));
 	if (!desc) {
 		/* Error */
-		status = DSP_EFOPEN;
+		status = -EBADF;
 	} else {
 		uByteSize = 1;
 		/* Get Section header */
@@ -551,25 +551,25 @@ static DSP_STATUS getSectDataFromLib(IN CHAR *szLibPath, IN CHAR *szSection,
 			ulAddr = sect->load_addr;
 			ulSize = sect->size * uByteSize;
 		} else {
-			status = DSP_ENOSECT;
+			status = -ENXIO;
 		}
 		if (DSP_SUCCEEDED(status)) {
 			/* Align size */
 			ulSize = DOFF_ALIGN(ulSize);
 			pszCoffBuf = calloc(1, ulSize);
 			if (!pszCoffBuf) {
-				status = DSP_EMEMORY;
+				status = -ENOMEM;
 			}
 #ifdef _DB_TIOMAP
 			pTempCoffBuf = calloc(1, ulSize);
 			if (!pTempCoffBuf) {
-				status = DSP_EMEMORY;
+				status = -ENOMEM;
 			}
 #endif
 			if (DSP_SUCCEEDED(status)) {
 				/* Read section */
 				if (!DLOAD_GetSection(desc, sect, pszCoffBuf)) {
-					status = DSP_EFAIL;
+					status = -EPERM;
 				}
 				if (DSP_SUCCEEDED(status)) {
 					pToken = CSL_Strtokr(pszCoffBuf, seps, &pszCur);

@@ -18,10 +18,10 @@
 #include <unistd.h>
 
 #include <dbdefs.h>
-#include <errbase.h>
 #include <DSPManager.h>
 #include <DSPProcessor.h>
 #include <DSPProcessor_OEM.h>
+#include <errno.h>
 
 #define try_err_out(msg, err)						\
 do {									\
@@ -100,7 +100,7 @@ unsigned long daemon_attach(DSP_HPROCESSOR *proc)
 		if ((dspinfo.uProcessorType == DSPTYPE_55) ||
 				 (dspinfo.uProcessorType == DSPTYPE_64)) {
 			prid = index;
-			status = DSP_SOK;
+			status = 0;
 			break;
 		}
 		index++;
@@ -130,13 +130,13 @@ unsigned long bridge_listener(void)
 {
 	DSP_HPROCESSOR proc;
 	unsigned int index = 0, i;
-	unsigned long status = DSP_SOK;
+	unsigned long status = 0;
 	struct DSP_NOTIFICATION *notifier[EVENTS];
 
 	for (i = 0; i < EVENTS; i++) {
 		notifier[i] = malloc(sizeof(struct DSP_NOTIFICATION));
 		if (!notifier[i])
-			return DSP_EMEMORY;
+			return -ENOMEM;
 		memset(notifier[i], 0, sizeof(struct DSP_NOTIFICATION));
 	}
 
@@ -189,7 +189,7 @@ out:
 
 unsigned long handle_event_action(unsigned int index)
 {
-	unsigned long status = DSP_EFAIL;
+	unsigned long status = -EPERM;
 	DSP_HPROCESSOR proc = NULL;
 
 	printf("bridged: DSP (%s) Crash detected, trying to recover...\n",
@@ -215,7 +215,7 @@ unsigned long handle_event_action(unsigned int index)
 		daemon_detach(proc);
 		break;
 	default:
-		status = DSP_EFAIL;
+		status = -EPERM;
 		try_err_out("Catch unknown event, ", status);
 		break;
 	}
@@ -243,7 +243,7 @@ void handle_error_state(DSP_HPROCESSOR proc)
 
 unsigned long dsp_recovery(int recovtype, DSP_HPROCESSOR proc)
 {
-	unsigned long status = DSP_EFAIL;
+	unsigned long status = -EPERM;
 
 	switch(recovtype) {
 	case RELOAD:

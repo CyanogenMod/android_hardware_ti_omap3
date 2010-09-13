@@ -55,13 +55,13 @@ void DbgMsg(DWORD dwZone, char *szFormat, ...)
 /*  ============================================================================
     func   MsgToDsp
     desc   Send Message to DSP
-    ret    DSP_SOK if Message was transferred to DSP successfully.
+    ret    0 if Message was transferred to DSP successfully.
     ============================================================================
 	*/
-DSP_STATUS QosTI_DspMsg(DWORD dwCmd, DWORD dwArg1, DWORD dwArg2, DWORD *dwOut1,
+int QosTI_DspMsg(DWORD dwCmd, DWORD dwArg1, DWORD dwArg2, DWORD *dwOut1,
 							DWORD *dwOut2)
 {
-	INT status = DSP_SOK;
+	INT status = 0;
 #ifndef STUB_OUT_BRIDGE_API
 	struct DSP_MSG dspMsg;
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "QosTI_DspMsg+\n");
@@ -80,7 +80,7 @@ DSP_STATUS QosTI_DspMsg(DWORD dwCmd, DWORD dwArg1, DWORD dwArg2, DWORD *dwOut1,
 				DbgMsg(DSPAPI_ZONE_WARNING,
 					"Received unknown command: [%d]\n",
 					dspMsg.dwCmd);
-				status = DSP_EFAIL;
+				status = -EPERM;
 			} else {
 				if (dwOut1)
 					*dwOut1 = dspMsg.dwArg1;
@@ -104,9 +104,9 @@ DSP_STATUS QosTI_DspMsg(DWORD dwCmd, DWORD dwArg1, DWORD dwArg2, DWORD *dwOut1,
     desc   Create Qos service.
     ============================================================================
 */
-DSP_STATUS QosTI_Create()
+int QosTI_Create()
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 #ifndef STUB_OUT_BRIDGE_API
 	struct DSP_PROCESSORINFO dspInfo;
 	UINT numProcs;
@@ -120,7 +120,7 @@ DSP_STATUS QosTI_Create()
 	DbgMsg(DSPAPI_ZONE_TEST, "after DspManager_Open (status=%d)\n", status);
 	if (DSP_SUCCEEDED(status)) {
 		/* Perform processor level initialization. */
-		status = DSP_EFAIL;
+		status = -EPERM;
 		while (DSP_SUCCEEDED(DSPManager_EnumProcessorInfo(index,
 			&dspInfo, (UINT)sizeof(struct DSP_PROCESSORINFO),
 				&numProcs))) {
@@ -128,7 +128,7 @@ DSP_STATUS QosTI_Create()
 				DbgMsg(DSPAPI_ZONE_TEST,
 						"DSP device detected !! \n");
 				procId = index;
-				status = DSP_SOK;
+				status = 0;
 				break;
 			}
 			index++;
@@ -190,8 +190,8 @@ DSP_STATUS QosTI_Create()
 void QosTI_Delete()
 {
 #ifndef STUB_OUT_BRIDGE_API
-	DSP_STATUS status = DSP_SOK;
-	DSP_STATUS exitStatus;
+	int status = 0;
+	int exitStatus;
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "QosTI_Delete+\n");
 	/* Terminate the DSP node. */
 	status = DSPNode_Terminate(hNode, &exitStatus);
@@ -247,14 +247,14 @@ void QosTI_Delete()
 				memory
 	arg   OUT memFreeBlocks:           number of free blocks in heap
 	arg   OUT memAllocBlocks:          number of allocated blocks in heap
-	ret   DSP_SOK if successful.
+	ret   0 if successful.
     ========================================================================
 */
-DSP_STATUS QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize,
+int QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize,
 			UINT *memUsed, UINT *memLargestFreeBlockSize,
 			UINT *memFreeBlocks, UINT *memAllocBlocks)
 {
-	INT status = DSP_SOK;
+	INT status = 0;
 	struct DSP_RESOURCEINFO ResourceInfo;
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "QosTI_GetDynLoaderMemStat+\n");
 	if ((heapDesc == EDynloadDaram) || (heapDesc == EDynloadSaram) ||
@@ -280,7 +280,7 @@ DSP_STATUS QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize,
 
 	} else
 		/* Bad argument */
-		status = DSP_EINVALIDARG;
+		status = -EINVAL;
 
 	DbgMsg(DSPAPI_ZONE_FUNCTION, "QosTI_GetDynLoaderMemStat-\n");
 	return status;
@@ -293,12 +293,12 @@ DSP_STATUS QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize,
     arg   OUT predLoad:
     arg   OUT currDspFreq:
     arg   OUT predictedFreq:
-    ret   DSP_SOK if successful.
+    ret   0 if successful.
     ======================================================================== */
-DSP_STATUS QosTI_GetProcLoadStat(UINT *currentLoad, UINT *predLoad,
+int QosTI_GetProcLoadStat(UINT *currentLoad, UINT *predLoad,
 		    UINT *currDspFreq, UINT *predictedFreq)
 {
-	INT status = DSP_SOK;
+	INT status = 0;
 	struct DSP_RESOURCEINFO ResourceInfo;
 
 	ResourceInfo.cbStruct = sizeof(ResourceInfo);
@@ -313,7 +313,7 @@ DSP_STATUS QosTI_GetProcLoadStat(UINT *currentLoad, UINT *predLoad,
 			ResourceInfo.result.procLoadStat.uPredictedFreq;
 
 	} else
-		status = DSP_EFAIL;
+		status = -EPERM;
 
 
 	return status;

@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 #include <dbdefs.h>		/* DSP/BIOS Bridge global definitions and constants */
-#include <errbase.h>		/* DSP/BIOS Bridge status and error codes           */
+#include <errno.h>		/* DSP/BIOS Bridge status and error codes           */
 #include <DSPManager.h>		/* DSP/BIOS Bridge Manager APIs                     */
 #include <DSPProcessor.h>	/* DSP/BIOS Bridge Processor APIs                   */
 #include <DSPNode.h>		/* DSP/BIOS Bridge Node APIs                        */

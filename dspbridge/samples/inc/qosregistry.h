@@ -433,11 +433,11 @@ void DSPRegistry_Delete(struct QOSREGISTRY *registry);
 
 	Return
 
-		DSP_OK			successful
+		0			successful
 
-		DSP_ESIZE		block for results is too small
+		-EINVAL		        block for results is too small
 
-		DSP_ENOTFOUND	item not found
+		-ENOENT	                item not found
 
 	Requirement Coverage
 
@@ -445,7 +445,7 @@ void DSPRegistry_Delete(struct QOSREGISTRY *registry);
 
 */
 
-DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
+int DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 									struct QOSDATA **ResultList, ULONG *Size);
 
 /*  ============================================================================
@@ -461,16 +461,16 @@ DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 	Parameters
 
 		listhead		system registry (in the case of adding resources or
-		components to the system)
+					components to the system)
 
-						or component (in the case of adding required resources
-						to a component)
+					or component (in the case of adding required resources
+					to a component)
 
 		entry			entry to add in list
 
 	Return
 
-		DSP_STATUS		Error code or DSP_SOK for success
+		int		        Error code or 0 for success
 
 	Requirement Coverage
 
@@ -478,7 +478,7 @@ DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 
 */
 
-DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry);
+int DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry);
 
 /* ============================================================================
 
@@ -493,16 +493,16 @@ DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry);
 	Parameters
 
 		listhead		system registry (in the case of removing resources or
-		components from the system)
+                                        components from the system)
 
-						or component (in the case of removing required
-						resources from a component)
+					or component (in the case of removing required
+					resources from a component)
 
 		entry			resource or component to remove
 
 	Return
 
-		DSP_STATUS	Error code or DSP_SOK for success
+		int                     Error code or 0 for success
 
 	Requirement Coverage
 
@@ -510,7 +510,7 @@ DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry);
 
 */
 
-DSP_STATUS DSPRegistry_Remove(struct QOSDATA *listhead, struct QOSDATA *entry);
+int DSPRegistry_Remove(struct QOSDATA *listhead, struct QOSDATA *entry);
 
 /*  ============================================================================
 
@@ -567,7 +567,7 @@ ULONG DSPQos_TypeSpecific(struct QOSDATA *DataObject, ULONG FunctionCode,
 
 	Return
 
-		DSP_STATUS		Error code or DSP_SOK for success
+		int		        Error code or 0 for success
 
 	Requirement Coverage
 
@@ -575,7 +575,7 @@ ULONG DSPQos_TypeSpecific(struct QOSDATA *DataObject, ULONG FunctionCode,
 
 */
 
-DSP_STATUS DSPComponent_Register(struct QOSREGISTRY *registry,
+int DSPComponent_Register(struct QOSREGISTRY *registry,
 													struct QOSCOMPONENT *comp);
 
 /*  ============================================================================
@@ -599,7 +599,7 @@ DSP_STATUS DSPComponent_Register(struct QOSREGISTRY *registry,
 
 	Return
 
-		DSP_STATUS		Error code or DSP_SOK for success
+		int		        Error code or 0 for success
 
 	Requirement Coverage
 
@@ -607,7 +607,7 @@ DSP_STATUS DSPComponent_Register(struct QOSREGISTRY *registry,
 
 */
 
-DSP_STATUS DSPComponent_Unregister(struct QOSREGISTRY *registry,
+int DSPComponent_Unregister(struct QOSREGISTRY *registry,
 													struct QOSCOMPONENT *comp);
 
 /*  ============================================================================
@@ -652,7 +652,7 @@ struct QOSDATA *DSPData_Create(ULONG id);
 
 	Return
 
-		DSP_STATUS		Error code or DSP_SOK for success
+		int		        Error code or 0 for success
 
 	Requirement Coverage
 
@@ -660,7 +660,7 @@ struct QOSDATA *DSPData_Create(ULONG id);
 
 */
 
-DSP_STATUS DSPData_Delete(struct QOSDATA *data);
+int DSPData_Delete(struct QOSDATA *data);
 
 /*  ============================================================================
 
