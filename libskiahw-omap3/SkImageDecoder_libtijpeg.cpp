@@ -693,6 +693,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
 
 #ifdef TIME_DECODE
 	atm.setResolution(JpegHeaderInfo.nWidth , JpegHeaderInfo.nHeight);
+	atm.setScaleFactor(scaleFactor);
 #endif
 
     if (inputFileSize == 0) {
