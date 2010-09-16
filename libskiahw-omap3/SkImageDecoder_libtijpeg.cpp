@@ -34,7 +34,6 @@
 
 #include "SkImageDecoder_libtijpeg.h"
 
-#define USE_OMX_UseBuffer 1
 #define PRINTF // SkDebugf
 //#define PRINTF printf
 #define TIME_DECODE
@@ -472,6 +471,28 @@ OMX_U32 SkTIJPEGImageDecoder::JpegHeader_GetMarkerInfo (OMX_U32 Marker, OMX_U8* 
 }
 void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
 {
+    char strOutResolution[] = "OMX.TI.JPEG.decoder.Param.OutputResolution";
+    OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
+    OMX_CUSTOM_RESOLUTION OutputResolution;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    // algo might have changed our desired output width and height
+    // check here and update bitmap accordingly
+    eError = OMX_GetExtensionIndex(pOMXHandle, strOutResolution, (OMX_INDEXTYPE*)&nCustomIndex);
+    if ( eError != OMX_ErrorNone ) {
+        PRINTF ("Error getting output resolution %d:error= %x\n", __LINE__, eError);
+    } else {
+        eError = OMX_GetConfig (pOMXHandle, nCustomIndex, &OutputResolution);
+        if ( eError != OMX_ErrorNone ) {
+            PRINTF ("Error getting output resolution %d:error= %x\n", __LINE__, eError);
+        } else{
+            PRINTF("output resolution: %dx%d", OutputResolution.nWidth, OutputResolution.nHeight);
+            bitmap->setConfig(bitmap->config(), OutputResolution.nWidth, OutputResolution.nHeight);
+        }
+    }
+    bitmap->setPixelRef(new TISkMallocPixelRef(pBuffer, nFilledLen, NULL))->unref();
+    bitmap->lockPixels();
+
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
 
     char path[50];
@@ -487,12 +508,6 @@ void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
 
     dOutputCount++;
     PRINTF("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
-#endif
-
-#if USE_OMX_UseBuffer
-    // do nothing
-#else
-    memcpy(bitmap->getPixels(), pBuffer, nFilledLen);
 #endif
 
     iLastState = iState;
@@ -633,8 +648,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     int scaleFactor;
     int bitsPerPixel;
     int nRead = 0;
-    int nOutWidth;
-    int nOutHeight;
+    int nOutWidth, nInWidth;
+    int nOutHeight, nInHeight;
     OMX_S32 inputFileSize;
     OMX_S32 nCompId = 100;
     OMX_U32 outBuffSize;
@@ -646,6 +661,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     OMX_CUSTOM_IMAGE_DECODE_SUBREGION SubRegionDecode;
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
     void* inputBuffer = NULL;
+    void* outputBuffer = NULL;
     char strTIJpegDec[] = "OMX.TI.JPEG.decoder";
     char strColorFormat[] = "OMX.TI.JPEG.decoder.Config.OutputColorFormat";
     char strProgressive[] = "OMX.TI.JPEG.decoder.Config.ProgressiveFactor";
@@ -727,6 +743,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         nOutHeight = JpegHeaderInfo.nHeight/scaleFactor;
     }
 
+    nInWidth = JpegHeaderInfo.nWidth;
+    nInHeight = JpegHeaderInfo.nHeight;
     /*check for the maximum resolution and set to its upper limit which is supported by the codec.
       So that TI DSP Codec will take care of scaling down before decoding and updates the
       outputresolution parameter in UALGOutParams structure.
@@ -736,12 +754,12 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     {
         if(nOutWidth > nOutHeight)
         {
-            nOutWidth = PROG_WIDTH;
-            nOutHeight = PROG_HEIGHT;
+            nOutWidth = nInWidth = PROG_WIDTH;
+            nOutHeight = nInHeight = PROG_HEIGHT;
         }else
         {
-            nOutWidth = PROG_HEIGHT;
-            nOutHeight = PROG_WIDTH;
+            nOutWidth = nInWidth = PROG_HEIGHT;
+            nOutHeight = nInHeight = PROG_WIDTH;
         }
     }
     else if(!JpegHeaderInfo.nProgressive &&
@@ -749,12 +767,12 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     {
         if(nOutWidth > nOutHeight)
         {
-            nOutWidth = SEQ_WIDTH;
-            nOutHeight = SEQ_HEIGHT;
+            nOutWidth = nInWidth = SEQ_WIDTH;
+            nOutHeight = nInHeight = SEQ_HEIGHT;
         }else
         {
-            nOutWidth = SEQ_HEIGHT;
-            nOutHeight = SEQ_WIDTH;
+            nOutWidth = nInWidth = SEQ_HEIGHT;
+            nOutHeight = nInHeight = SEQ_WIDTH;
         }
     }
     bm->setConfig(config, nOutWidth, nOutHeight);
@@ -800,8 +818,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
 #if OPTIMIZE
     if(pOMXHandle == NULL ||
             nSubRegDecode == true ||
-            (OMX_U32) JpegHeaderInfo.nWidth > InPortDef.format.image.nFrameWidth ||
-            (OMX_U32) JpegHeaderInfo.nHeight > InPortDef.format.image.nFrameHeight ||
+            (OMX_U32) nInWidth > InPortDef.format.image.nFrameWidth ||
+            (OMX_U32) nInHeight > InPortDef.format.image.nFrameHeight ||
             OutPortDef.format.image.eColorFormat != SkBitmapToOMXColorFormat(bm->config()) ||
             mProgressive != JpegHeaderInfo.nProgressive ||
             InPortDef.format.image.eColorFormat != JPEGToOMXColorFormat(JpegHeaderInfo.nFormat) ||
@@ -882,8 +900,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         InPortDef.bPopulated = OMX_FALSE;
         InPortDef.eDomain = OMX_PortDomainImage;
         InPortDef.format.image.pNativeRender = NULL;
-        InPortDef.format.image.nFrameWidth = JpegHeaderInfo.nWidth;
-        InPortDef.format.image.nFrameHeight = JpegHeaderInfo.nHeight;
+        InPortDef.format.image.nFrameWidth = nInWidth;
+        InPortDef.format.image.nFrameHeight = nInHeight;
         InPortDef.format.image.nStride = -1;
         InPortDef.format.image.nSliceHeight = -1;
         InPortDef.format.image.bFlagErrorConcealment = OMX_FALSE;
@@ -1009,19 +1027,12 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
             PRINTF ("JPEGDec::%d:SubRegionDecode is set.\n", __LINE__ );
         }
 
-#if USE_OMX_UseBuffer
-        if (!bm->allocPixels(&allocator, NULL)) {
-            PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
-        iState = STATE_ERROR;
+        outputBuffer = tisk_malloc_flags(outBuffSize, 0);  // returns NULL on failure
+        if (NULL == outputBuffer) {
+            PRINTF("xxxxxxxxxxxxxxxxxxxx tisk_malloc_flags failed\n");
+            iState = STATE_ERROR;
             goto EXIT;
         }
-#else
-        if (!bm->allocPixels()) {
-        PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
-        iState = STATE_ERROR;
-            goto EXIT;
-        }
-#endif
 
         eError = OMX_UseBuffer(pOMXHandle, &pInBuffHead,  InPortDef.nPortIndex,  (void *)&nCompId, InPortDef.nBufferSize, (OMX_U8*)inputBuffer);
         if ( eError != OMX_ErrorNone ) {
@@ -1032,23 +1043,13 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         // assign nFilledLen to actual amount read during fill_data
         pInBuffHead->nFilledLen = nRead;
 
-#if USE_OMX_UseBuffer
-        eError = OMX_UseBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize, (OMX_U8*)bm->getPixels());
+        eError = OMX_UseBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize, (OMX_U8*)outputBuffer);
         if ( eError != OMX_ErrorNone ) {
             PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
         iState = STATE_ERROR;
             goto EXIT;
         }
-#else
-        /*### For now I am going to use AllocateBuffer. Later on, we must change this to UseBuffer and pass bm as the bufer. */
-        /*### OMX will allocate the buffer and in the FillBufferDone function, we will memcpy the buffer to bm.                      */
-        eError = OMX_AllocateBuffer(pOMXHandle, &pOutBuffHead,  OutPortDef.nPortIndex,  (void *)&nCompId, OutPortDef.nBufferSize);
-        if ( eError != OMX_ErrorNone ) {
-            PRINTF ("JPEGDec test:: %d:error= %x\n", __LINE__, eError);
-        iState = STATE_ERROR;
-            goto EXIT;
-        }
-#endif
+
 #if OPTIMIZE
     } else {
         reuseHandle = 1;
@@ -1123,19 +1124,16 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     else
     {
         PRINTF("REUSING HANDLE current state %d", iState);
-#if USE_OMX_UseBuffer
-        if (!bm->allocPixels(&allocator, NULL)) {
-            PRINTF("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
+
+        outputBuffer = tisk_malloc_flags(outBuffSize, 0);  // returns NULL on failure
+        if (NULL == outputBuffer) {
+            PRINTF("xxxxxxxxxxxxxxxxxxxx tisk_malloc_flags failed\n");
+            iState = STATE_ERROR;
             goto EXIT;
         }
-        pOutBuffHead->pBuffer = (OMX_U8*)bm->getPixels();
+        pOutBuffHead->pBuffer = (OMX_U8*)outputBuffer;
         pOutBuffHead->nAllocLen = outBuffSize;
-#else
-        if (!bm->allocPixels()) {
-            SkDebugf("xxxxxxxxxxxxxxxxxxxx allocPixels failed\n");
-            goto EXIT;
-        }
-#endif
+
         // assign nFilledLen to actual amount read during fill_data
         pInBuffHead->nFilledLen = nRead;
         pInBuffHead->pBuffer = (OMX_U8*)inputBuffer;
