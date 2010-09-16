@@ -331,7 +331,7 @@ void FakeCameraAdapter::getFrameSize(int &width, int &height)
 
 }
 
-status_t FakeCameraAdapter::getPictureBufferSize(size_t &length)
+status_t FakeCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCount)
 {
     LOG_FUNCTION_NAME
 

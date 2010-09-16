@@ -1049,7 +1049,7 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
 
         portCheck.format.image.nStride          = portParams.mStride * portParams.mWidth;
         portCheck.nBufferSize                   =  portParams.mStride * portParams.mWidth * portParams.mHeight;
-        portCheck.nBufferCountActual = CameraHal::NO_BUFFERS_IMAGE_CAPTURE;
+        portCheck.nBufferCountActual = portParams.mNumBufs;
         }
     else
         {
@@ -3377,7 +3377,7 @@ exit:
     LOG_FUNCTION_NAME_EXIT
 }
 
-status_t OMXCameraAdapter::getPictureBufferSize(size_t &length)
+status_t OMXCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCount)
 {
     status_t ret = NO_ERROR;
     OMXCameraPortParameters *imgCaptureData = NULL;
@@ -3395,6 +3395,7 @@ status_t OMXCameraAdapter::getPictureBufferSize(size_t &length)
         {
         imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
+        imgCaptureData->mNumBufs = bufferCount;
         ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *imgCaptureData);
         if ( ret == NO_ERROR )
             {

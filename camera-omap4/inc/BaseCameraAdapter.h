@@ -60,7 +60,7 @@ public:
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height) = 0;
 
-    virtual status_t getPictureBufferSize(size_t &length) = 0;
+    virtual status_t getPictureBufferSize(size_t &length, size_t bufferCount) = 0;
 
     virtual status_t registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data);
 

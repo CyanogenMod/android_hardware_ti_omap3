@@ -633,7 +633,7 @@ public:
     virtual void getFrameSize(int &width, int &height) = 0;
 
     //API to get required picture buffers size with the current configuration in CameraParameters
-    virtual status_t getPictureBufferSize(size_t &length) = 0;
+    virtual status_t getPictureBufferSize(size_t &length, size_t bufferCount) = 0;
 
     virtual ~CameraAdapter() {};
 };
@@ -882,7 +882,7 @@ private:
             status_t allocVideoBufs(int width, int height, const char* previewFormat);
 
             /** Allocate image capture buffers */
-            status_t allocImageBufs(unsigned int width, unsigned int height, size_t length, const char* previewFormat);
+            status_t allocImageBufs(unsigned int width, unsigned int height, size_t length, const char* previewFormat, unsigned int bufferCount);
 
             /** Free preview buffers */
             status_t freePreviewBufs();

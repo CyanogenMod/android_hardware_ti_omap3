@@ -593,7 +593,7 @@ status_t CameraHal::freePreviewBufs()
     }
 
 
-status_t CameraHal::allocImageBufs(unsigned int width, unsigned int height, size_t size, const char* previewFormat)
+status_t CameraHal::allocImageBufs(unsigned int width, unsigned int height, size_t size, const char* previewFormat, unsigned int bufferCount)
 {
     status_t ret = NO_ERROR;
     int bytes;
@@ -614,7 +614,7 @@ status_t CameraHal::allocImageBufs(unsigned int width, unsigned int height, size
 
     if ( NO_ERROR == ret )
         {
-        mImageBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, previewFormat, bytes, CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
+        mImageBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, previewFormat, bytes, bufferCount);
 
         CAMHAL_LOGEB("Size of Image cap buffer = %d", bytes);
         if( NULL == mImageBufs )
@@ -1300,6 +1300,7 @@ status_t CameraHal::takePicture( )
     int width, height;
     size_t pictureBufferLength;
     int burst;
+    unsigned int bufferCount = 1;
 
     Mutex::Autolock lock(mLock);
 
@@ -1320,6 +1321,12 @@ status_t CameraHal::takePicture( )
      if ( NO_ERROR == ret )
         {
         burst = mParameters.getInt(TICameraParameters::KEY_BURST);
+
+        //Allocate all buffers only in burst capture case
+        if ( burst > 1 )
+            {
+            bufferCount = CameraHal::NO_BUFFERS_IMAGE_CAPTURE;
+            }
         }
 
     //Pause Preview during capture
@@ -1339,7 +1346,7 @@ status_t CameraHal::takePicture( )
 
     if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
         {
-        ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength);
+        ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength, bufferCount);
 
         if ( NO_ERROR != ret )
             {
@@ -1351,7 +1358,7 @@ status_t CameraHal::takePicture( )
         {
         mParameters.getPictureSize(&width, &height);
 
-        ret = allocImageBufs(width, height, pictureBufferLength, mParameters.getPictureFormat());
+        ret = allocImageBufs(width, height, pictureBufferLength, mParameters.getPictureFormat(), bufferCount);
         if ( NO_ERROR != ret )
             {
             CAMHAL_LOGEB("allocImageBufs returned error 0x%x", ret);
@@ -1361,7 +1368,7 @@ status_t CameraHal::takePicture( )
     if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
         {
 
-        ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, mImageLength, CameraHal::NO_BUFFERS_IMAGE_CAPTURE);
+        ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, mImageLength, bufferCount);
 
         if ( NO_ERROR == ret )
             {
