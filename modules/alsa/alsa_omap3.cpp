@@ -43,6 +43,7 @@ static int s_device_close(hw_device_t*);
 static status_t s_init(alsa_device_t *, ALSAHandleList &);
 static status_t s_open(alsa_handle_t *, uint32_t, int);
 static status_t s_close(alsa_handle_t *);
+static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
 
 #ifdef AUDIO_MODEM_TI
@@ -82,6 +83,7 @@ static int s_device_open(const hw_module_t* module, const char* name,
     dev->init = s_init;
     dev->open = s_open;
     dev->close = s_close;
+    dev->standby = s_standby;
     dev->route = s_route;
 
     *device = &dev->common;
@@ -603,6 +605,27 @@ static status_t s_close(alsa_handle_t *handle)
     if (h) {
         snd_pcm_drain(h);
         err = snd_pcm_close(h);
+    }
+
+    return err;
+}
+
+/*
+    this is same as s_close, but don't discard
+    the device/mode info. This way we can still
+    close the device, hit idle and power-save, reopen the pcm
+    for the same device/mode after resuming
+*/
+static status_t s_standby(alsa_handle_t *handle)
+{
+    status_t err = NO_ERROR;
+    snd_pcm_t *h = handle->handle;
+    handle->handle = 0;
+    LOGV("In omap3 standby\n");
+    if (h) {
+        snd_pcm_drain(h);
+        err = snd_pcm_close(h);
+        LOGV("called drain&close\n");
     }
 
     return err;
