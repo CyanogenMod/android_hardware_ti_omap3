@@ -36,6 +36,10 @@
 #include "SkLibTiJpeg_Test.h"
 #include "SkTime.h"
 
+#ifdef ANDROID
+#include <cutils/properties.h>
+#endif
+
 extern "C" {
 #include "md5.h"
 };
@@ -521,6 +525,19 @@ int calcScaleFactor(int userW, int userH, SkStream* iStream) {
 } //End of calcScaleFactor()
 
 //-----------------------------------------------------------------------------
+bool isDSPJPGD() {
+    char prop[2] = {'0','\0'};
+
+    property_get("jpeg.libskiahw.decoder.enable", prop, "0");
+    if(prop[0] == '1'){	//uses DSP JPGD
+        return true;
+    }
+    else{
+        return false;   //uses SW JPGD
+    }
+
+} //End of isDSPJPGD()
+//-----------------------------------------------------------------------------
 int runJPEGDecoderTest(int argc, char** argv) {
 
     SkImageDecoder* skJpegDec = NULL;
@@ -532,6 +549,7 @@ int runJPEGDecoderTest(int argc, char** argv) {
     int result = PASS;
     char* cmd = NULL;
     JpegDecoderParams jpegDecParams;
+    bool bSubRegDecFlag = false;
 
     memset((void*)&jpegDecParams, 0, sizeof(JpegDecoderParams) );
 
@@ -626,6 +644,10 @@ int runJPEGDecoderTest(int argc, char** argv) {
         jpegDecParams.nXLength = atoi(argv[9]);
         jpegDecParams.nYLength = atoi(argv[10]);
 
+        if ( jpegDecParams.nXOrg || jpegDecParams.nYOrg ||
+             jpegDecParams.nXLength || jpegDecParams.nYLength ) {
+            bSubRegDecFlag = true;
+        }
         /* Check for the co-ordinates multiples */
         /* TI DSP SN has contraint on the multiples of the co-ori\dinates */
         // Allow the users input. Libskiahw should take care in case of errors.
@@ -657,15 +679,25 @@ int runJPEGDecoderTest(int argc, char** argv) {
     skJpegDec->setSampleSize(reSize);
 
 #ifndef TARGET_OMAP4
-    /*set the subregion decode parameters*/
-    if ( ((SkTIJPEGImageDecoderEntry*)skJpegDec)->SetJpegDecParams((SkTIJPEGImageDecoderEntry::JpegDecoderParams*) &jpegDecParams ) == false ) {
-        PRINT("%s():%d:: !!!! skJpegDec->SetJpegDecodeParameters returned false..\n",__FUNCTION__,__LINE__);
+    /*check which decoder handles is chosen by the Factory()*/
+    if( isDSPJPGD() ){
+        /*set the subregion decode parameters*/
+        if ( ((SkTIJPEGImageDecoderEntry*)skJpegDec)->SetJpegDecParams((SkTIJPEGImageDecoderEntry::JpegDecoderParams*) &jpegDecParams ) == false ) {
+            PRINT("%s():%d:: !!!! skJpegDec->SetJpegDecodeParameters returned false..\n",__FUNCTION__,__LINE__);
+        }
+    }
+    else { //SW decoder
+        if( bSubRegDecFlag ){
+            PRINT("%s():%d:: !!!! SW Decoder does not support the Sub Region Decoding...\n",__FUNCTION__,__LINE__);
+            PRINT("%s():%d:: !!!! Select DSP JPG decoder and run subregion decode tests.\n",__FUNCTION__,__LINE__);
+            return FAIL;
+        }
     }
 #endif
 
 #ifdef TIME_MEASUREMENT
    {
-    AutoTimeMillis atm("Decode Measurement");
+    AutoTimeMicros atm("Decode Measurement");
 #endif 
     /*call decode*/
     if (skJpegDec->decode(&inStream, &skBM, prefConfig, SkImageDecoder::kDecodePixels_Mode) == false) {
@@ -676,6 +708,7 @@ int runJPEGDecoderTest(int argc, char** argv) {
     }
 #ifdef TIME_MEASUREMENT
    atm.setResolution(skBM.width() , skBM.height());
+   atm.setScaleFactor(reSize);
    }
 #endif
 
