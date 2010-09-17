@@ -542,6 +542,18 @@ int runJPEGDecoderTest(int argc, char** argv) {
         return ERROR;
     }
 
+    /* check if the output file already exists and delete it*/
+    {
+        char rmCmd[300];
+        FILE* fp = fopen(argv[3],"r");
+        if (fp) {
+            DBGPRINT("%s():%d:: Output file already exists. Deleting it.\n",__FUNCTION__,__LINE__);
+            fclose(fp);
+            sprintf(rmCmd,"rm %s",argv[3]);
+            system(rmCmd);
+        }
+    }
+
     SkFILEStream   inStream(argv[2]);
     PRINT("InputFile  = %s\n",argv[2]);
     PRINT("OutputFile = %s\n",argv[3]);
@@ -710,6 +722,18 @@ int runJPEGEncoderTest(int argc, char** argv) {
         PRINT("%s:%d::!!!!!Wrong number of arguments....\n",__FUNCTION__,__LINE__);
         printEncoderTestUsage();
         return ERROR;
+    }
+
+    /* check if the output file already exists and delete it*/
+    {
+        char rmCmd[300];
+        FILE* fp = fopen(argv[3],"r");
+        if (fp) {
+            DBGPRINT("%s():%d:: Output file already exists. Deleting it.\n",__FUNCTION__,__LINE__);
+            fclose(fp);
+            sprintf(rmCmd,"rm %s",argv[3]);
+            system(rmCmd);
+        }
     }
 
     SkFILEStream   inStream(argv[2]);
