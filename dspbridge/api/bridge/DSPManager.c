@@ -78,7 +78,6 @@
 int hMediaFile = -1;		/* class driver handle */
 static ULONG usage_count;
 static sem_t semOpenClose;
-static bool bridge_sem_initialized = false;
 
 /*  ----------------------------------- Definitions */
 /* #define BRIDGE_DRIVER_NAME  "/dev/dspbridge"*/
@@ -93,6 +92,16 @@ static bool bridge_sem_initialized = false;
 
 extern void munmap_all(void);
 
+static void start(void) __attribute__((constructor));
+
+void start(void)
+{
+	if (sem_init(&semOpenClose, 0, 1) == -1)
+		DEBUGMSG(DSPAPI_ZONE_ERROR,
+			(TEXT("MGR: Failed to Initialize"
+				"the bridge semaphore\n")));
+}
+
 /*
  *  ======== DspManager_Open ========
  *  Purpose:
@@ -101,16 +110,6 @@ extern void munmap_all(void);
 DBAPI DspManager_Open(UINT argc, PVOID argp)
 {
 	int status = 0;
-
-	if (!bridge_sem_initialized) {
-		if (sem_init(&semOpenClose, 0, 1) == -1) {
-			DEBUGMSG(DSPAPI_ZONE_ERROR,
-				 (TEXT("MGR: Failed to Initialize"
-					   "the bridge semaphore\n")));
-			return -EPERM;
-		} else
-			bridge_sem_initialized = true;
-	}
 
 	sem_wait(&semOpenClose);
 	if (usage_count == 0) {	/* try opening handle to Bridge driver */
