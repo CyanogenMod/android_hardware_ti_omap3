@@ -379,7 +379,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(TICameraParameters::KEY_CONTRAST, params.get(TICameraParameters::KEY_CONTRAST));
         }
 
-     if((params.get(TICameraParameters::KEY_SHARPNESS) != NULL) && params.getInt(TICameraParameters::KEY_SHARPNESS) > 0 )
+     if((params.get(TICameraParameters::KEY_SHARPNESS) != NULL) && params.getInt(TICameraParameters::KEY_SHARPNESS) >= 0 )
         {
         CAMHAL_LOGDB("Sharpness set %s", params.get(TICameraParameters::KEY_SHARPNESS));
         mParameters.set(TICameraParameters::KEY_SHARPNESS, params.get(TICameraParameters::KEY_SHARPNESS));
@@ -387,14 +387,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 
     if((params.get(TICameraParameters::KEY_SATURATION) != NULL)
-        && (params.getInt(TICameraParameters::KEY_SATURATION) > 0 ) )
+        && (params.getInt(TICameraParameters::KEY_SATURATION) >= 0 ) )
         {
         CAMHAL_LOGDB("Saturation set %s", params.get(TICameraParameters::KEY_SATURATION));
         mParameters.set(TICameraParameters::KEY_SATURATION, params.get(TICameraParameters::KEY_SATURATION));
         }
 
     if((params.get(TICameraParameters::KEY_BRIGHTNESS) != NULL)
-        && (params.getInt(TICameraParameters::KEY_BRIGHTNESS) > 0 ))
+        && (params.getInt(TICameraParameters::KEY_BRIGHTNESS) >= 0 ))
         {
         CAMHAL_LOGDB("Brightness set %s", params.get(TICameraParameters::KEY_BRIGHTNESS));
         mParameters.set(TICameraParameters::KEY_BRIGHTNESS, params.get(TICameraParameters::KEY_BRIGHTNESS));
