@@ -160,23 +160,29 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
                 mVideoSubscribers.removeItem((int) cookie);
             }
         }
+    else if ( CameraFrame::ALL_FRAMES  == msgs )
+        {
+
+            {
+            Mutex::Autolock lock(mSubscriberLock);
+
+            mFrameSubscribers.removeItem((int) cookie);
+            mImageSubscribers.removeItem((int) cookie);
+            mRawSubscribers.removeItem((int) cookie);
+            mVideoSubscribers.removeItem((int) cookie);
+            }
+
+        }
     else if ( CameraHalEvent::ALL_EVENTS == msgs)
         {
          //Subscribe only for focus
          //TODO: Process case by case
             {
-                Mutex::Autolock lock(mSubscriberLock);
-                mFocusSubscribers.removeItem((int) cookie);
-            }
+            Mutex::Autolock lock(mSubscriberLock);
 
-            {
-                Mutex::Autolock lock(mSubscriberLock);
-                mShutterSubscribers.removeItem((int) cookie);
-            }
-
-            {
-                Mutex::Autolock lock(mSubscriberLock);
-                mZoomSubscribers.removeItem((int) cookie);
+            mFocusSubscribers.removeItem((int) cookie);
+            mShutterSubscribers.removeItem((int) cookie);
+            mZoomSubscribers.removeItem((int) cookie);
             }
         }
     else

@@ -228,7 +228,7 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -1114,7 +1114,7 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -1330,7 +1330,7 @@ status_t OMXCameraAdapter::flushBuffers()
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -1639,7 +1639,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -1750,7 +1750,7 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -2060,7 +2060,7 @@ status_t OMXCameraAdapter::startPreview()
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -2202,7 +2202,7 @@ status_t OMXCameraAdapter::stopPreview()
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -2221,6 +2221,22 @@ status_t OMXCameraAdapter::setTimeOut(unsigned int sec)
     LOG_FUNCTION_NAME
 
     ret = alarm(sec);
+
+    //At this point ErrorNotifier becomes invalid
+    mErrorNotifier = NULL;
+
+        //Subscriptions are also invalid
+        {
+        Mutex::Autolock lock(mSubscriberLock);
+
+        mFrameSubscribers.clear();
+        mImageSubscribers.clear();
+        mRawSubscribers.clear();
+        mVideoSubscribers.clear();
+        mFocusSubscribers.clear();
+        mShutterSubscribers.clear();
+        mZoomSubscribers.clear();
+        }
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -2575,7 +2591,7 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -3032,7 +3048,7 @@ status_t OMXCameraAdapter::startImageCapture()
 
     if ( eError != OMX_ErrorNone )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -3118,7 +3134,7 @@ status_t OMXCameraAdapter::stopImageCapture()
         {
         CAMHAL_LOGEB("Error occured when disabling image capture port %x",eError);
 
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -3352,7 +3368,7 @@ exit:
 
     if ( OMX_ErrorNone != eError )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -3784,7 +3800,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
     if ( NO_ERROR != ret )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(eError);
             }
@@ -3932,7 +3948,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
 
     if ( NO_ERROR != ret )
         {
-        if ( NULL != mErrorNotifier.get() )
+        if ( NULL != mErrorNotifier )
             {
             mErrorNotifier->errorNotify(ret);
             }
