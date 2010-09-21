@@ -113,11 +113,11 @@ int previewFormat = 0;
 int jpegQuality = 85;
 int thumbQuality = 85;
 timeval autofocus_start, picture_start;
-char script_name[25];
+char script_name[80];
 bool nullOverlay = false;
 int prevcnt = 0;
 
-char dir_path[40] = SDCARD_PATH;
+char dir_path[80] = SDCARD_PATH;
 
 const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Secondary Camera 2", "Stereo Camera"};
 const char *tempBracketing[] = {"disable", "enable"};
@@ -1766,16 +1766,26 @@ char *load_script(char *config) {
     size_t fileSize;
     char *script;
     size_t nRead = 0;
-    char dir_name[20];
+    char dir_name[40];
     char log_cmd[60];
+    int count;
+
+    count = 0;
 
     infile = fopen(config, "r");
 
     strcpy(script_name,config);
+
+    // remove just the '.txt' part of the config
+    while((config[count] != '.') && (count < sizeof(dir_name)/sizeof(dir_name[0])))
+        count++;
+
     printf("\n SCRIPT : <%s> is currently being executed \n",script_name);
-    if(strncpy(dir_name,config,16) == NULL)
+    if(strncpy(dir_name,config,count) == NULL)
         printf("Strcpy error");
-    dir_name[16]=NULL;
+
+    dir_name[count]=NULL;
+
     if(strcat(dir_path,dir_name) == NULL)
         printf("Strcat error");
     printf("\n COMPLETE FOLDER PATH : %s \n",dir_path);
