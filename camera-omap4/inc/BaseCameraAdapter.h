@@ -90,14 +90,14 @@ protected:
     KeyedVector<int, frame_callback> mFrameSubscribers;
     KeyedVector<int, frame_callback> mVideoSubscribers;
     KeyedVector<int, frame_callback> mImageSubscribers;
-	KeyedVector<int, frame_callback> mRawSubscribers;
+    KeyedVector<int, frame_callback> mRawSubscribers;
     KeyedVector<int, event_callback> mFocusSubscribers;
     KeyedVector<int, event_callback> mZoomSubscribers;
-	KeyedVector<int, event_callback> mShutterSubscribers;
+    KeyedVector<int, event_callback> mShutterSubscribers;
     MessageQueue mFrameQ;
     MessageQueue mAdapterQ;
     mutable Mutex mSubscriberLock;
-    sp<ErrorNotifier> mErrorNotifier;
+    ErrorNotifier *mErrorNotifier;
     release_image_buffers_callback mReleaseImageBuffersCallback;
     void *mReleaseData;
 };

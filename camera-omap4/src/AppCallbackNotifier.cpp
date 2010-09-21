@@ -696,6 +696,12 @@ AppCallbackNotifier::~AppCallbackNotifier()
         mFrameProvider->disableFrameNotification(CameraFrame::ALL_FRAMES);
         }
 
+    //unregister with the event provider
+    if ( NULL != mEventProvider )
+        {
+        mEventProvider->disableEventNotification(CameraHalEvent::ALL_EVENTS);
+        }
+
     ///Kill the display thread
     Semaphore sem;
     sem.Create();
