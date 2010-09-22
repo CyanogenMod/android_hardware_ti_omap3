@@ -936,7 +936,7 @@ void OverlayTest::testErrorScenarios()
     RET_CHECK_NOTEQ(ret, 0, __LINE__);
 
     ret = mOverlay1->resizeInput(MAX_OVERLAY_WIDTH_VAL, MAX_OVERLAY_HEIGHT_VAL);
-    RET_CHECK_EQ(ret, 0, __LINE__);
+    RET_CHECK_NOTEQ(ret, 0, __LINE__);
 
     ret = mOverlay1->resizeInput(0, MAX_OVERLAY_HEIGHT_VAL);
     RET_CHECK_NOTEQ(ret, 0, __LINE__);
