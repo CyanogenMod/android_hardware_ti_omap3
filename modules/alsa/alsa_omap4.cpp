@@ -109,41 +109,43 @@ static void setDefaultControls(uint32_t devices, int mode);
 
 typedef void (*AlsaControlSet)(uint32_t devices, int mode);
 
-/*  Eclair 2.1 has removed board specific device outputs 
-    since omap3 has FM support, we add it back in here. 
-    be sure this stays in sync with hardware/alsa_sound */
+/*
+ * Eclair 2.1 has removed board specific device outputs
+ * since omap has FM support, we add it back in here.
+ * be sure this stays in sync with hardware/alsa_sound
+ */
 #define DEVICE_OUT_FM_HEADPHONE 0x800
 #define DEVICE_OUT_FM_SPEAKER 0x1000
 
-#define OMAP3_OUT_SCO      (\
+#define OMAP4_OUT_SCO      (\
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO |\
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |\
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
-#define OMAP3_OUT_FM        (\
+#define OMAP4_OUT_FM        (\
         DEVICE_OUT_FM_HEADPHONE |\
         DEVICE_OUT_FM_SPEAKER)
 
-#define OMAP3_OUT_HDMI        (\
+#define OMAP4_OUT_HDMI        (\
         AudioSystem::DEVICE_OUT_AUX_DIGITAL)
 
-#define OMAP3_OUT_DEFAULT   (\
+#define OMAP4_OUT_DEFAULT   (\
         AudioSystem::DEVICE_OUT_ALL &\
-        ~OMAP3_OUT_SCO &\
-        ~OMAP3_OUT_FM  &\
-        ~OMAP3_OUT_HDMI)
+        ~OMAP4_OUT_SCO &\
+        ~OMAP4_OUT_FM  &\
+        ~OMAP4_OUT_HDMI)
 
-#define OMAP3_IN_SCO        (\
+#define OMAP4_IN_SCO        (\
         AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET)
 
-#define OMAP3_IN_DEFAULT    (\
+#define OMAP4_IN_DEFAULT    (\
         AudioSystem::DEVICE_IN_ALL &\
-        ~OMAP3_IN_SCO)
+        ~OMAP4_IN_SCO)
 
 static alsa_handle_t _defaults[] = {
     {
         module      : 0,
-        devices     : OMAP3_OUT_SCO,
+        devices     : OMAP4_OUT_SCO,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
@@ -156,7 +158,7 @@ static alsa_handle_t _defaults[] = {
     },
     {
         module      : 0,
-        devices     : OMAP3_OUT_FM,
+        devices     : OMAP4_OUT_FM,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
@@ -169,7 +171,7 @@ static alsa_handle_t _defaults[] = {
     },
     {
         module      : 0,
-        devices     : OMAP3_OUT_HDMI,
+        devices     : OMAP4_OUT_HDMI,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
@@ -182,7 +184,7 @@ static alsa_handle_t _defaults[] = {
     },
     {
         module      : 0,
-        devices     : OMAP3_OUT_DEFAULT,
+        devices     : OMAP4_OUT_DEFAULT,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
@@ -195,7 +197,7 @@ static alsa_handle_t _defaults[] = {
     },
     {
         module      : 0,
-        devices     : OMAP3_IN_SCO,
+        devices     : OMAP4_IN_SCO,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
@@ -208,7 +210,7 @@ static alsa_handle_t _defaults[] = {
     },
     {
         module      : 0,
-        devices     : OMAP3_IN_DEFAULT,
+        devices     : OMAP4_IN_DEFAULT,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
@@ -225,13 +227,13 @@ static alsa_handle_t _defaults[] = {
 
 const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
 {
-    if (device & OMAP3_OUT_SCO || device & OMAP3_IN_SCO)
+    if (device & OMAP4_OUT_SCO || device & OMAP4_IN_SCO)
         return BLUETOOTH_SCO_DEVICE;
 
-    if (device & OMAP3_OUT_FM)
+    if (device & OMAP4_OUT_FM)
         return FM_TRANSMIT_DEVICE;
 
-    if (device & OMAP3_OUT_HDMI)
+    if (device & OMAP4_OUT_HDMI)
         return HDMI_DEVICE;
 
     return "default";
@@ -570,7 +572,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
 
 static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 {
-    LOGD("Initializing devices for OMAP3 ALSA module");
+    LOGD("Initializing devices for OMAP4 ALSA module");
 
     list.clear();
 
