@@ -31,6 +31,7 @@ namespace android {
 BaseCameraAdapter::BaseCameraAdapter()
 {
     mReleaseImageBuffersCallback = NULL;
+    mEndImageCaptureCallback = NULL;
 }
 
 status_t BaseCameraAdapter::registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data)
@@ -41,6 +42,20 @@ status_t BaseCameraAdapter::registerImageReleaseCallback(release_image_buffers_c
 
     mReleaseImageBuffersCallback = callback;
     mReleaseData = user_data;
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::registerEndCaptureCallback(end_image_capture_callback callback, void *user_data)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    mEndImageCaptureCallback= callback;
+    mEndCaptureData = user_data;
 
     LOG_FUNCTION_NAME_EXIT
 

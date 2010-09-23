@@ -646,9 +646,21 @@ status_t CameraHal::allocImageBufs(unsigned int width, unsigned int height, size
     return ret;
 }
 
+void endImageCapture( void *userData)
+{
+    LOG_FUNCTION_NAME
+
+    if ( NULL != userData )
+        {
+        CameraHal *c = reinterpret_cast<CameraHal *>(userData);
+        c->signalEndImageCapture();
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
 void releaseImageBuffers(void *userData)
 {
-
     LOG_FUNCTION_NAME
 
     if ( NULL != userData )
@@ -658,6 +670,37 @@ void releaseImageBuffers(void *userData)
         }
 
     LOG_FUNCTION_NAME_EXIT
+}
+
+status_t CameraHal::signalEndImageCapture()
+{
+    status_t ret = NO_ERROR;
+    bool restartImageCapture = false;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+        Mutex::Autolock lock(mLock);
+
+        mImageCaptureRunning = false;
+
+        if ( 0 < mTakePictureQueue )
+            {
+            mTakePictureQueue--;
+            restartImageCapture = true;
+            }
+
+        }
+
+    if ( restartImageCapture )
+        {
+        ret = takePicture();
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 status_t CameraHal::freeImageBufs()
@@ -1318,6 +1361,17 @@ status_t CameraHal::takePicture( )
         return NO_INIT;
         }
 
+    //If capture has already started, then queue this call for later execution
+    if ( mImageCaptureRunning )
+        {
+        mTakePictureQueue++;
+        return ret;
+        }
+    else
+        {
+        mImageCaptureRunning = true;
+        }
+
      if ( NO_ERROR == ret )
         {
         burst = mParameters.getInt(TICameraParameters::KEY_BURST);
@@ -1544,6 +1598,8 @@ CameraHal::CameraHal()
     mAppCallbackNotifier = NULL;
     mMemoryManager = NULL;
     mCameraAdapter = NULL;
+    mTakePictureQueue = 0;
+    mImageCaptureRunning = false;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -1684,6 +1740,7 @@ status_t CameraHal::initialize()
         }
     mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_TIMEOUT);
     mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
+    mCameraAdapter->registerEndCaptureCallback(endImageCapture, (void *)this);
 
     if(!mAppCallbackNotifier.get())
         {
@@ -1823,6 +1880,7 @@ status_t CameraHal::reloadAdapter()
                 {
                 mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_TIMEOUT);
                 mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
+                mCameraAdapter->registerEndCaptureCallback(endImageCapture, (void *)this);
                 }
             }
         else

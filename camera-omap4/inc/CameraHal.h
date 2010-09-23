@@ -278,6 +278,7 @@ typedef void (*event_callback) (CameraHalEvent *event);
 
 //signals CameraHAL to relase image buffers
 typedef void (*release_image_buffers_callback) (void *userData);
+typedef void (*end_image_capture_callback) (void *userData);
 
 /**
   * Interface class implemented by classes that have some events to communicate to dependendent classes
@@ -622,6 +623,9 @@ public:
     //Registers callback for returning image buffers back to CameraHAL
     virtual status_t registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data) = 0;
 
+    //Registers callback, which signals a completed image capture
+    virtual status_t registerEndCaptureCallback(end_image_capture_callback callback, void *user_data) = 0;
+
     //API to send a command to the camera
     virtual status_t sendCommand(int operation, int value1=0, int value2=0, int value3=0) = 0;
 
@@ -667,7 +671,9 @@ public:
 
 };
 
-static void releaseImageBuffers();
+static void releaseImageBuffers(void *userData);
+
+static void endImageCapture(void *userData);
 
  /**
     Implementation of the Android Camera hardware abstraction layer
@@ -854,6 +860,9 @@ public:
         /** Free image bufs */
         status_t freeImageBufs();
 
+        //Signals the end of image capture
+        status_t signalEndImageCapture();
+
      //@}
 
 /*--------------------Internal Member functions - Private---------------------------------*/
@@ -917,13 +926,14 @@ public:
     nsecs_t mCurrentTime;
     bool mFalsePreview;
     bool mPreviewEnabled;
+    bool mImageCaptureRunning;
+    uint32_t mTakePictureQueue;
 
     CameraAdapter *mCameraAdapter;
     sp<AppCallbackNotifier> mAppCallbackNotifier;
     sp<DisplayAdapter> mDisplayAdapter;
     sp<MemoryManager> mMemoryManager;
     sp<CameraProperties> mCameraProperties;
-
 
     sp<IMemoryHeap> mPictureHeap;
     static wp<CameraHardwareInterface> singleton;

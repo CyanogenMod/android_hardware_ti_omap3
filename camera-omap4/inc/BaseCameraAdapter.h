@@ -64,6 +64,8 @@ public:
 
     virtual status_t registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data);
 
+    virtual status_t registerEndCaptureCallback(end_image_capture_callback callback, void *user_data);
+
 protected:
 
     enum FrameState {
@@ -99,7 +101,9 @@ protected:
     mutable Mutex mSubscriberLock;
     ErrorNotifier *mErrorNotifier;
     release_image_buffers_callback mReleaseImageBuffersCallback;
+    end_image_capture_callback mEndImageCaptureCallback;
     void *mReleaseData;
+    void *mEndCaptureData;
 };
 
 };
