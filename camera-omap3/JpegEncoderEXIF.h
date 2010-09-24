@@ -23,6 +23,8 @@
 #define EXIF_ISO_1200   0x6
 #define EXIF_ISO_1600   0x7
 
+static const char ExifAsciiPrefix[] = { 0x41, 0x53, 0x43, 0x49, 0x49, 0x0, 0x0, 0x0 };
+
 typedef struct _exif_buffer
 {
   unsigned char *data;
@@ -45,7 +47,9 @@ typedef struct {
     int altitude, altitudeRef;
     char *longRef, *latRef;
     char *mapdatum, *versionId;
+    char *procMethod;
     unsigned long timestamp;
+    char datestamp[11];
 } gps_data;
 
 void exif_buf_free (exif_buffer * buf);

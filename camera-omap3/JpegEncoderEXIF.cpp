@@ -346,6 +346,10 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
             break;
     };
 
+    sR.numerator = 4*100+68;
+    sR.denominator = 100;
+    exif_entry_set_rational(pEd, EXIF_IFD_EXIF, EXIF_TAG_FOCAL_LENGTH, sR);
+
     exif_entry_set_short(pEd, EXIF_IFD_EXIF, EXIF_TAG_FLASH, 0);
 
     switch( par->metering_mode ) {
@@ -510,8 +514,24 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
         if( NULL != gps->longRef )
             exif_entry_set_string (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_LONGITUDE_REF, gps->longRef);
 
+        if( NULL != gps->procMethod )
+        {
+            //using strlen since i don't want the terminating null
+            unsigned char* data = (unsigned char*)malloc(strlen(gps->procMethod) + sizeof(ExifAsciiPrefix));
+            exif_buffer buffer;
+            memcpy(data, ExifAsciiPrefix, sizeof(ExifAsciiPrefix));
+            memcpy(data+sizeof(ExifAsciiPrefix), gps->procMethod, strlen(gps->procMethod));
+            buffer.data = data;
+            buffer.size = strlen(gps->procMethod)+sizeof(ExifAsciiPrefix);
+            exif_entry_set_undefined (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_PROCESSING_METHOD, &buffer);
+            free(data);
+        }
+
         if( NULL != gps->mapdatum )
             exif_entry_set_string (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_MAP_DATUM, gps->mapdatum);
+
+        if( strlen(gps->datestamp) == 10)
+            exif_entry_set_string (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_DATE_STAMP, gps->datestamp);
 
         if( NULL != gps->versionId )
             exif_entry_set_gps_version(pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_VERSION_ID, gps->versionId[0], gps->versionId[1], gps->versionId[2], gps->versionId[3]);
