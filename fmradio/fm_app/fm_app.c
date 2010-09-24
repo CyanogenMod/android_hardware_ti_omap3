@@ -1145,7 +1145,7 @@ fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 	FMAPP_BEGIN();
 
 	FMAPP_MSG("Powering on FM RX... (this might take awhile)");
-#if defined TARGET_BOARD_PLATFORM == omap3
+#if defined TARGET_BOARD_PLATFORM != omap4
 	/* Configure the Analog Loopback settings */
 	set_fmapp_audio_routing(fm_context);
 #else
@@ -1236,7 +1236,7 @@ fm_status deinit_rx_stack(fm_rx_context_s **fm_context)
 	FMAPP_BEGIN();
 
 	g_fmapp_now_initializing = 0;
-#if defined TARGET_BOARD_PLATFORM == omap3
+#if defined TARGET_BOARD_PLATFORM != omap4
 	/* Revert the analog loopback settings */
 	unset_fmapp_audio_routing(fm_context);
 #else
