@@ -11,7 +11,7 @@
 <preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
 <preview-frame-rate>30</preview-frame-rate>
 <zoom-ratios>100,104,107,111,115,119,123,127,132,137,141,146,152,157,162,168,174,180,187,193,200,207,214,222,230,238,246,255,264,273,283,293,303,314,325,336,348,361,373,386,400,414,429,444,459,476,492,510,528,546,566,586,606,628,650,673,696,721,746,773,800</zoom-ratios>
-<zoom-stages>61</zoom-stages>
+<zoom-stages>60</zoom-stages>
 <zoom-supported>true</zoom-supported>
 <smooth-zoom-supported>true</smooth-zoom-supported>
 <zoom>0</zoom>
@@ -62,7 +62,7 @@
 <preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
 <preview-frame-rate>30</preview-frame-rate>
 <zoom-ratios>100,104,107,111,115,119,123,127,132,137,141,146,152,157,162,168,174,180,187,193,200,207,214,222,230,238,246,255,264,273,283,293,303,314,325,336,348,361,373,386,400,414,429,444,459,476,492,510,528,546,566,586,606,628,650,673,696,721,746,773,800</zoom-ratios>
-<zoom-stages>61</zoom-stages>
+<zoom-stages>60</zoom-stages>
 <zoom-supported>true</zoom-supported>
 <smooth-zoom-supported>true</smooth-zoom-supported>
 <zoom>0</zoom>
@@ -112,7 +112,7 @@
 <preview-frame-rate-values>33,30,25,24,20,15,10</preview-frame-rate-values>
 <preview-frame-rate>30</preview-frame-rate>
 <zoom-ratios-smooth>100,104,107,111,115,119,123,127,132,137,141,146,152,157,162,168,174,180,187,193,200,207,214,222,230,238,246,255,264,273,283,293,303,314,325,336,348,361,373,386,400,414,429,444,459,476,492,510,528,546,566,586,606,628,650,673,696,721,746,773,800</zoom-ratios-smooth>
-<zoom-stages-smooth>61</zoom-stages-smooth>
+<zoom-stages-smooth>60</zoom-stages-smooth>
 <zoom-ratios>100,200,400,800</zoom-ratios>
 <zoom-stages>4</zoom-stages>
 <zoom-supported>true</zoom-supported>
