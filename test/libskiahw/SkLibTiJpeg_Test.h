@@ -1117,6 +1117,12 @@ const struct JPGD_TEST_OUTPUT_FILE_LIST {
 "aa684887a67b414fed278782f0016de6",
 "0",
 },
+{//L_SKIA_JPGD_0172
+"img_6.6MP_2842x2357_prog_rgb32_SF_12.raw",
+"f19a5e1365bf8284ef97f60d9f46448d",
+"e10f8e686d43255baffc5fcccdc120af",
+"0",
+},
 {   /*add the new test output filename and its md5sum before this comment line*/
 "",
 "",
