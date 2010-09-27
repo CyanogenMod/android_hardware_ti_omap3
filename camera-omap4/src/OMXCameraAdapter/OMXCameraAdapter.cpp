@@ -191,7 +191,7 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     OMX_CONFIG_SENSORSELECTTYPE sensorSelect;
     OMX_INIT_STRUCT_PTR (&sensorSelect, OMX_CONFIG_SENSORSELECTTYPE);
     sensorSelect.eSensor = (OMX_SENSORSELECT)sensor_index;
-    eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamSensorSelect, &sensorSelect);
+    eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexConfigSensorSelect, &sensorSelect);
 
     if ( OMX_ErrorNone != eError )
         {
