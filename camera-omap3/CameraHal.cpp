@@ -388,11 +388,6 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_ANTIBANDING, tmpBuffer);
     p.set(CameraParameters::KEY_ANTIBANDING, CameraParameters::ANTIBANDING_OFF);
 
-    memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
-    if(camerahal_strcat( (char*) tmpBuffer, (const char*) CameraParameters::FLASH_MODE_OFF, PARAM_BUFFER)) return;
-    p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
-    p.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
-    //
     p.set(CameraParameters::KEY_ROTATION, 0);
     p.set(KEY_ROTATION_TYPE, ROTATION_PHYSICAL);
 
