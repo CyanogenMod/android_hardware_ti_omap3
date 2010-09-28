@@ -730,8 +730,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         PRINTF ("jpegDecParams.nXLength = %d\n",jpegDecParams.nXLength);
         PRINTF ("jpegDecParams.nYLength = %d\n",jpegDecParams.nYLength);
 
-        nOutWidth = jpegDecParams.nXLength/scaleFactor;
-        nOutHeight = jpegDecParams.nYLength/scaleFactor;
+        nOutWidth = jpegDecParams.nXLength;
+        nOutHeight = jpegDecParams.nYLength;
 
         //set the subregion decode flag So that the current decode will create a new OMX handle.
         //This is required because the Subregion Decode parameters can't be changed in Execute
@@ -739,8 +739,20 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         nSubRegDecode = true;
     }
     else {
-        nOutWidth = JpegHeaderInfo.nWidth/scaleFactor;
-        nOutHeight = JpegHeaderInfo.nHeight/scaleFactor;
+        nOutWidth = JpegHeaderInfo.nWidth;
+        nOutHeight = JpegHeaderInfo.nHeight;
+    }
+
+    switch(scaleFactor){
+        case(8):
+            //For scale factor 8, instead of 12.5% use 13%.
+            nOutWidth = nOutWidth * 13 / 100;
+            nOutHeight = nOutHeight * 13 / 100;
+        break;
+        default:
+            nOutWidth = nOutWidth/scaleFactor;
+            nOutHeight = nOutHeight/scaleFactor;
+        break;
     }
 
     nInWidth = JpegHeaderInfo.nWidth;
@@ -1065,8 +1077,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
         ScaleFactor.xHeight = 25;
     }
     else if (scaleFactor == 8){
-        ScaleFactor.xWidth = 12;
-        ScaleFactor.xHeight = 12;
+        ScaleFactor.xWidth = 13;
+        ScaleFactor.xHeight = 13;
     }
     else{
         ScaleFactor.xWidth = 100;
