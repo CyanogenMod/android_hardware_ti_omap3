@@ -963,7 +963,7 @@ void initDefaults() {
     frameRateIDX = ARRAY_SIZE(frameRate) - 1;      /* Default frame rate is 30 FPS */
     VcaptureSizeIDX = ARRAY_SIZE(VcaptureSize) - 2;/* Default video record is WVGA */
     VbitRateIDX = ARRAY_SIZE(VbitRate) - 4;        /*Default video bit rate is 4M */
-    thumbSizeIDX = 5;
+    thumbSizeIDX = 1;
     compensation = 0.0;
     awb_mode = 0;
     effects_mode = 0;
@@ -1368,7 +1368,7 @@ int functional_menu() {
 
         case ':':
             thumbSizeIDX += 1;
-            thumbSizeIDX %= ARRAY_SIZE(previewSize);
+            thumbSizeIDX %= 2;
             params.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, previewSize[thumbSizeIDX].width);
             params.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, previewSize[thumbSizeIDX].height);
 
