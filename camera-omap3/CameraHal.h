@@ -582,9 +582,14 @@ public:
     int mred_eye;
     int mcapture_mode;
     int mZoomCurrentIdx, mZoomTargetIdx, mZoomSpeed;
-    bool mReturnZoomStatus;
     int mcaf;
     int j;
+
+    enum SmoothZoomStatus {
+        SMOOTH_START = 0,
+        SMOOTH_NOTIFY_AND_STOP,
+        SMOOTH_STOP
+    } mSmoothZoomStatus;
 
     enum PreviewThreadCommands {
 

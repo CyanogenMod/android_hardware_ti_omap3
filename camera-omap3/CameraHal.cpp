@@ -143,7 +143,7 @@ CameraHal::CameraHal()
     mZoomSpeed = 1;
     mZoomTargetIdx = 0;
     mZoomCurrentIdx = 0;
-    mReturnZoomStatus = false;
+    mSmoothZoomStatus = SMOOTH_STOP;
     rotation = 0;
 
 #ifdef HARDWARE_OMX
@@ -287,7 +287,8 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_ZOOM_RATIOS, tmpBuffer);
     p.set(CameraParameters::KEY_ZOOM_SUPPORTED, "true");
     p.set(CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED, "true");
-    p.set(CameraParameters::KEY_MAX_ZOOM, ZOOM_STAGES);
+    // zoom goes from 0..MAX_ZOOM so send array size minus one
+    p.set(CameraParameters::KEY_MAX_ZOOM, ZOOM_STAGES-1);
     p.set(CameraParameters::KEY_ZOOM, 0);
 
     p.set(CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION, COMPENSATION_MAX);
@@ -772,8 +773,10 @@ void CameraHal::previewThread()
 
                 LOGD("Receive Command: START_SMOOTH_ZOOM %d", parm);
 
-                if ( ( parm >= 0 ) && ( parm <= ZOOM_STAGES) ) {
+                if ( ( parm >= 0 ) && ( parm < ZOOM_STAGES) ) {
                     mZoomTargetIdx = parm;
+                    mZoomSpeed = 1;
+                    mSmoothZoomStatus = SMOOTH_START;
                     msg.command = PREVIEW_ACK;
                 } else {
                     msg.command = PREVIEW_NACK;
@@ -786,8 +789,10 @@ void CameraHal::previewThread()
             case STOP_SMOOTH_ZOOM:
 
                 LOGD("Receive Command: STOP_SMOOTH_ZOOM");
-                mZoomTargetIdx = mZoomCurrentIdx;
-                mReturnZoomStatus = true;
+                if(mSmoothZoomStatus == SMOOTH_START)
+                {
+                    mSmoothZoomStatus = SMOOTH_NOTIFY_AND_STOP;
+                }
                 msg.command = PREVIEW_ACK;
 
                 previewThreadAckQ.put(&msg);
@@ -1453,16 +1458,18 @@ void CameraHal::nextPreview()
         ZoomPerform(zoom_step[mZoomCurrentIdx]);
         mParameters.set("zoom", mZoomCurrentIdx);
 
-        if( mZoomCurrentIdx == mZoomTargetIdx )
-            mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
-        else
-            mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
-
-    }
-
-    if ( mReturnZoomStatus ) {
-        mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
-        mReturnZoomStatus = false;
+        // Immediate zoom should not generate callbacks.
+        if ( mSmoothZoomStatus == SMOOTH_START ||  mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)  {
+            if(mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)
+            {
+                mZoomTargetIdx = mZoomCurrentIdx;
+                mSmoothZoomStatus = SMOOTH_STOP;
+            }
+            if( mZoomCurrentIdx == mZoomTargetIdx )
+                mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
+            else
+                mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
+        }
     }
 
 #ifdef FW3A
@@ -3409,6 +3416,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     int w_orig, h_orig, rot_orig;
     int framerate;
     int zoom, compensation, saturation, sharpness;
+    int zoom_save;
     int contrast, brightness, caf;
 	int error;
 	int base;
@@ -3463,7 +3471,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     rotation = params.getInt(CameraParameters::KEY_ROTATION);
 
     mParameters.getPictureSize(&w_orig, &h_orig);
-
+    zoom_save = mParameters.getInt(CameraParameters::KEY_ZOOM);
     mParameters = params;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -3499,8 +3507,13 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     }
 
     zoom = mParameters.getInt(CameraParameters::KEY_ZOOM);
-    if( (zoom >= 0) && ( zoom <= ZOOM_STAGES) ){
+    if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
+        // immediate zoom
+        mZoomSpeed = 0;
         mZoomTargetIdx = zoom;
+    } else if(zoom>= ZOOM_STAGES){
+        mParameters.set(CameraParameters::KEY_ZOOM, zoom_save);
+        return -EINVAL;
     } else {
         mZoomTargetIdx = 0;
     }
