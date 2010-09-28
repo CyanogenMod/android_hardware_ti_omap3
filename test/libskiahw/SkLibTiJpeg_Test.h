@@ -1411,8 +1411,8 @@ st_jpge_file_list[] = {
 },
 { //L_SKIA_JPGE_0041-009
 "4X4-stress-9.jpg",
-//"4299d5c08c42607e7c1fd6438576a5c1", //ARM
-"a120a60c09380c556ec39da1bc6f09b5",   //Hack: another valid md5sum for stress test
+"4299d5c08c42607e7c1fd6438576a5c1", //ARM
+//"a120a60c09380c556ec39da1bc6f09b5",   //Hack: DSP: another valid md5sum for stress test
 "a7f5755e8f100b58fa033f1534eeac2c",
 "0",
 },

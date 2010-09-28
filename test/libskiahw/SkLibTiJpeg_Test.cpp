@@ -478,7 +478,6 @@ int verifyMd5Sum( char* InFileName, void *pBuf, unsigned long nBufSize, int flag
             }
             else {
                 PRINT("%s():%d:: ERROR!!! Md5Sum Mismatch !!!.\n",__FUNCTION__,__LINE__);
-                updateTestCount(FAILCOUNT);
                 return FAIL;
             }
         }
@@ -525,16 +524,22 @@ int calcScaleFactor(int userW, int userH, SkStream* iStream) {
 } //End of calcScaleFactor()
 
 //-----------------------------------------------------------------------------
-bool isDSPJPGD() {
+bool isDSPJPGD(SkStream *stream) {
     char prop[2] = {'0','\0'};
+    char sizeTh[] = "0000000000";
+    unsigned int imageSizeTh;
+    unsigned int fileSize = stream->getLength();
 
     property_get("jpeg.libskiahw.decoder.enable", prop, "0");
     if(prop[0] == '1'){	//uses DSP JPGD
-        return true;
+        //check for the file size threshold
+        property_get("jpeg.libskiahw.decoder.thresh", sizeTh, "0");
+        imageSizeTh = atoi(sizeTh);
+        if(fileSize > imageSizeTh) {
+            return true;
+        }
     }
-    else{
-        return false;   //uses SW JPGD
-    }
+    return false;   //uses SW JPGD
 
 } //End of isDSPJPGD()
 //-----------------------------------------------------------------------------
@@ -680,7 +685,7 @@ int runJPEGDecoderTest(int argc, char** argv) {
 
 #ifndef TARGET_OMAP4
     /*check which decoder handles is chosen by the Factory()*/
-    if( isDSPJPGD() ){
+    if( isDSPJPGD(&inStream) ){
         /*set the subregion decode parameters*/
         if ( ((SkTIJPEGImageDecoderEntry*)skJpegDec)->SetJpegDecParams((SkTIJPEGImageDecoderEntry::JpegDecoderParams*) &jpegDecParams ) == false ) {
             PRINT("%s():%d:: !!!! skJpegDec->SetJpegDecodeParameters returned false..\n",__FUNCTION__,__LINE__);
@@ -937,8 +942,12 @@ void RunFromScript(char* scriptFileName) {
         result = runFromCmdArgs(argsCount-1,(char**)&pArgs);
 
         /* Print the result */
-        if (result){
+        if (result == FAIL){
+            updateTestCount(FAILCOUNT);
             PRINT("\n%15s: <%s>.....FAIL !!!\n",testID,pArgs[2]);
+        }
+        else if(result == ERROR) {
+            PRINT("\n%15s.....ERROR occured during the test !!!.\n",testID);
         }
         else {
             PRINT("\n%15s.....PASS\n",testID);
