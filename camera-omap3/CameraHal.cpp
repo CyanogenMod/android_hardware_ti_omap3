@@ -274,18 +274,7 @@ void CameraHal::initDefaultParameters()
     p.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
     p.set(CameraParameters::KEY_JPEG_QUALITY, 100);
 
-    //Eclair extended parameters
-
-    p.set(CameraParameters::KEY_GPS_LATITUDE, "42.6976246");
-    p.set(CameraParameters::KEY_GPS_LONGITUDE, "23.3222924");
-    p.set(CameraParameters::KEY_GPS_ALTITUDE, "500");
-
-    p.set(KEY_GPS_LATITUDE_REF, "N");
-    p.set(KEY_GPS_LONGITUDE_REF, "E");
-    p.set(KEY_GPS_ALTITUDE_REF, "0");
-    p.set(KEY_GPS_VERSION, "2200");
-    p.set(KEY_GPS_MAPDATUM, "WGS-84");
-    p.set(CameraParameters::KEY_GPS_TIMESTAMP, "834720834");
+    //extended parameters
 
     memset(tmpBuffer, '\0', PARAM_BUFFER);
     for ( int i = 0 ; i < ZOOM_STAGES ; i++ ) {
@@ -314,6 +303,8 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, CameraHal::supportedThumbnailSizes);
     p.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, STRINGIZE(DEFAULT_THUMB_WIDTH));
     p.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, STRINGIZE(DEFAULT_THUMB_HEIGHT));
+
+    p.set(CameraParameters::KEY_FOCAL_LENGTH, STRINGIZE(IMX046_FOCALLENGTH));
 
     memset(tmpBuffer, '\0', PARAM_BUFFER);
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_AUTO, PARAM_BUFFER)) return;
@@ -3524,6 +3515,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     if ( ( params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) && ( params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL )) {
 
         double gpsCoord;
+        struct tm* timeinfo;
 
 #ifdef HARDWARE_OMX
 
@@ -3534,24 +3526,29 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             LOGE("initializing gps_data structure");
 
             memset(gpsLocation, 0, sizeof(gps_data));
+            gpsLocation->datestamp[0] = '\0';
 
             gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_LATITUDE), NULL);
             convertGPSCoord(gpsCoord, &gpsLocation->latDeg, &gpsLocation->latMin, &gpsLocation->latSec);
+            gpsLocation->latRef = (gpsCoord < 0) ? (char*) "S" : (char*) "N";
 
             gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_LONGITUDE), NULL);
             convertGPSCoord(gpsCoord, &gpsLocation->longDeg, &gpsLocation->longMin, &gpsLocation->longSec);
+            gpsLocation->longRef = (gpsCoord < 0) ? (char*) "W" : (char*) "E";
 
             gpsCoord = strtod( params.get(CameraParameters::KEY_GPS_ALTITUDE), NULL);
             gpsLocation->altitude = gpsCoord;
 
-            if ( NULL != params.get(CameraParameters::KEY_GPS_TIMESTAMP) )
+            if ( NULL != params.get(CameraParameters::KEY_GPS_TIMESTAMP) ){
                 gpsLocation->timestamp = strtol( params.get(CameraParameters::KEY_GPS_TIMESTAMP), NULL, 10);
+                timeinfo = localtime((time_t*)&(gpsLocation->timestamp));
+                strftime(gpsLocation->datestamp, 11, "%Y:%m:%d", timeinfo);
+            }
 
             gpsLocation->altitudeRef = params.getInt(KEY_GPS_ALTITUDE_REF);
-            gpsLocation->latRef = (char *) params.get(KEY_GPS_LATITUDE_REF);
-            gpsLocation->longRef = (char *) params.get(KEY_GPS_LONGITUDE_REF);
             gpsLocation->mapdatum = (char *) params.get(KEY_GPS_MAPDATUM);
             gpsLocation->versionId = (char *) params.get(KEY_GPS_VERSION);
+            gpsLocation->procMethod = (char *) params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD);
 
         } else {
             LOGE("Not enough memory to allocate gps_data structure");

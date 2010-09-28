@@ -112,7 +112,7 @@ extern "C" {
 #define STRINGIZE(x) STRINGIZE_(x)
 #define DEFAULT_THUMB_WIDTH     320
 #define DEFAULT_THUMB_HEIGHT    240
-
+#define IMX046_FOCALLENGTH 4.68
 
 #define ZOOM_SCALE (1<<16)
 
