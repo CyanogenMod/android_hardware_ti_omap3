@@ -108,8 +108,11 @@ extern "C" {
 #define COMPENSATION_OFFSET 20
 #define CONTRAST_OFFSET 100
 #define BRIGHTNESS_OFFSET 100
-#define THUMB_WIDTH     80
-#define THUMB_HEIGHT    60
+#define STRINGIZE_(x) #x
+#define STRINGIZE(x) STRINGIZE_(x)
+#define DEFAULT_THUMB_WIDTH     320
+#define DEFAULT_THUMB_HEIGHT    240
+
 
 #define ZOOM_SCALE (1<<16)
 
@@ -215,7 +218,7 @@ typedef struct {
 
 #define PROC_THREAD_PROCESS         0x5
 #define PROC_THREAD_EXIT            0x6
-#define PROC_THREAD_NUM_ARGS        43
+#define PROC_THREAD_NUM_ARGS        45
 #define SHUTTER_THREAD_CALL         0x1
 #define SHUTTER_THREAD_EXIT         0x2
 #define SHUTTER_THREAD_NUM_ARGS     3
@@ -521,7 +524,7 @@ public:
     static const char supportedPictureSizes[];
     static const char supportedPreviewSizes[];
     static const char supportedFPS[];
-    static const char supprotedThumbnailSizes[];
+    static const char supportedThumbnailSizes[];
     static const char PARAMS_DELIMITER[];
 	int procPipe[2], shutterPipe[2], rawPipe[2], snapshotPipe[2], snapshotReadyPipe[2];
 	int mippMode;

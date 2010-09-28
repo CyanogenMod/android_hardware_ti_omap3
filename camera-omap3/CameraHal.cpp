@@ -71,7 +71,7 @@ wp<CameraHardwareInterface> CameraHal::singleton;
 const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240";
 const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
-const char CameraHal::supprotedThumbnailSizes []= "80x60";
+const char CameraHal::supportedThumbnailSizes []= "512x384,320x240,0x0";
 const char CameraHal::PARAMS_DELIMITER []= ",";
 
 const supported_resolution CameraHal::supportedPictureRes[] = { {3264, 2448} , {2560, 2048} ,
@@ -311,7 +311,9 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, CameraHal::supportedFPS);
-    p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, CameraHal::supprotedThumbnailSizes);
+    p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, CameraHal::supportedThumbnailSizes);
+    p.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, STRINGIZE(DEFAULT_THUMB_WIDTH));
+    p.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, STRINGIZE(DEFAULT_THUMB_HEIGHT));
 
     memset(tmpBuffer, '\0', PARAM_BUFFER);
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_AUTO, PARAM_BUFFER)) return;
@@ -1588,7 +1590,7 @@ int  CameraHal::ICapturePerform()
     unsigned long base, offset, jpeg_offset;
     unsigned int preview_width, preview_height;
     icap_buffer_t snapshotBuffer;
-    unsigned int image_width, image_height;
+    unsigned int image_width, image_height, thumb_width, thumb_height;
     SICap_ManualParameters  manual_config;
     SICam_Settings config;
     icap_tuning_params_t cap_tuning;
@@ -1612,6 +1614,8 @@ int  CameraHal::ICapturePerform()
 
     mParameters.getPictureSize((int *) &image_width, (int *) &image_height);
     mParameters.getPreviewSize((int *) &preview_width,(int *) &preview_height);
+    thumb_width = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+    thumb_height = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
 
 #ifdef DEBUG_LOG
 
@@ -1912,9 +1916,10 @@ int  CameraHal::ICapturePerform()
     procMessage[38] = 0;
     procMessage[39] = iobj->cfg.width;
     procMessage[40] = iobj->cfg.height;
+    procMessage[41] = thumb_width;
+    procMessage[42] = thumb_height;
 
-
-    procMessage[41] = (unsigned int) exif_buf;
+    procMessage[43] = (unsigned int) exif_buf;
 
     write(procPipe[1], &procMessage, sizeof(procMessage));
 
@@ -2292,7 +2297,7 @@ int CameraHal::ICapturePerform(){
 		PPM("BEFORE JPEG Encode Image");
 		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
 		jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
-				image_width, image_height, quality, exif_buf, jpegFormat, THUMB_WIDTH, THUMB_HEIGHT, image_width, image_height,
+				image_width, image_height, quality, exif_buf, jpegFormat, DEFAULT_THUMB_WIDTH, DEFAULT_THUMB_HEIGHT, image_width, image_height,
 				image_rotation, image_zoom, 0, 0, image_width, image_height);
 		PPM("AFTER JPEG Encode Image");
 
@@ -2752,10 +2757,12 @@ void CameraHal::procThread()
                 crop_top = procMessage[38];
                 crop_width = procMessage[39];
                 crop_height = procMessage[40];
+                thumb_width = procMessage[41];
+                thumb_height = procMessage[42];
 
 #ifdef HARDWARE_OMX
 
-                exif_buf = (exif_buffer *) procMessage[41];
+                exif_buf = (exif_buffer *) procMessage[43];
 
 #endif
 
@@ -2773,8 +2780,6 @@ void CameraHal::procThread()
                 offset = base - (unsigned long) JPEGPictureHeap->getBase();
                 outBuffer = (void *) base;
 
-                thumb_width = THUMB_WIDTH;
-                thumb_height = THUMB_HEIGHT;
                 pixelFormat = PIX_YUV422I;
 
                 input_buffer = yuv_buffer;
