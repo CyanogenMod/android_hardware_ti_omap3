@@ -19,7 +19,7 @@
 <picture-size>4000x3000</picture-size>
 <picture-format-values>jpeg,yuv422i-yuyv,yuv420sp,rgb565,raw</picture-format-values>
 <picture-format>jpeg</picture-format>
-<jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96</jpeg-thumbnail-size-values>
+<jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
 <jpeg-thumbnail-size>160x120</jpeg-thumbnail-size>
 <whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon</whitebalance-values>
 <whitebalance>auto</whitebalance>
@@ -70,7 +70,7 @@
 <picture-size>2592x1944</picture-size>
 <picture-format-values>jpeg,yuv422i-yuyv,yuv420sp,rgb565,raw</picture-format-values>
 <picture-format>jpeg</picture-format>
-<jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96</jpeg-thumbnail-size-values>
+<jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
 <jpeg-thumbnail-size>640x480</jpeg-thumbnail-size>
 <whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon</whitebalance-values>
 <whitebalance>auto</whitebalance>
@@ -122,7 +122,7 @@
 <picture-size>2592x1944</picture-size>
 <picture-format-values>jpeg,yuv422i-yuyv,yuv420sp,rgb565,raw</picture-format-values>
 <picture-format>jpeg</picture-format>
-<jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96</jpeg-thumbnail-size-values>
+<jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
 <jpeg-thumbnail-size>640x480</jpeg-thumbnail-size>
 <whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon</whitebalance-values>
 <whitebalance>auto</whitebalance>

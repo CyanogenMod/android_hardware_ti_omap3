@@ -755,7 +755,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Picture Quality set %d", mPictureQuality);
 
-    if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH)  > 0 )
+    if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH)  >= 0 )
         {
         mThumbWidth = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
         }
@@ -767,7 +767,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Picture Thumb width set %d", mThumbWidth);
 
-    if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT)  > 0 )
+    if ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT)  >= 0 )
         {
         mThumbHeight = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
         }
