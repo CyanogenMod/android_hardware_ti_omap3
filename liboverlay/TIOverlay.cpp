@@ -46,14 +46,20 @@ extern "C" {
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 
 #ifdef TARGET_OMAP4
+#ifdef KERNEL_35_WA
+#define MAX_DISPLAY_CNT 3
+#else
 #define MAX_DISPLAY_CNT 4
+#endif
 #define MAX_MANAGER_CNT 3
 #define PANEL_NAME_FOR_TV "hdmi"
+
 #else
 #define MAX_DISPLAY_CNT 2
 #define MAX_MANAGER_CNT 2
 #define PANEL_NAME_FOR_TV "tv"
 #endif
+
 
 static displayPanelMetaData screenMetaData[MAX_DISPLAY_CNT];
 static displayManagerMetaData managerMetaData[MAX_MANAGER_CNT];
@@ -646,6 +652,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
+#ifndef KERNEL_35_WA
     if (v4l2_overlay_set_rotation(fd, 0, 0)) {
         LOGE("Failed defaulting rotation\n");
         goto error1;
@@ -655,6 +662,9 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         LOGE("Failed: getting overlay Id");
         goto error1;
     }
+#else
+    pipelineId = overlayid + 2; //offset 2, because of 2 fbs in the system
+#endif
     if ((pipelineId < 0) || (pipelineId > MAX_NUM_OVERLAYS)) {
         LOGE("Failed: Invalid overlay Id");
         goto error1;
@@ -967,7 +977,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
     if (data->posX == stage->posX && data->posY == stage->posY &&
         data->posW == stage->posW && data->posH == stage->posH &&
-        data->rotation == stage->rotation && 
+        data->rotation == stage->rotation &&
 #ifdef TARGET_OMAP4
         data->alpha == stage->alpha &&
 #endif
@@ -1026,7 +1036,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     LOGI("Rotation/%d\n", data->rotation );
     LOGI("alpha/%d\n", data->alpha );
     LOGI("zorder/%d\n", data->zorder );
-    LOGI("data->panel/0x%x/stage->panel/0x%x\n", data->panel, stage->panel );    
+    LOGI("data->panel/0x%x/stage->panel/0x%x\n", data->panel, stage->panel );
 
     if ((ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
         LOGE("commit:Get crop value Failed!/%d\n", ret);
@@ -1037,12 +1047,12 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGE("Stream Off Failed!/%d\n", ret);
         goto end;
     }
-
+#ifndef KERNEL_35_WA
     if ((ret = v4l2_overlay_set_rotation(fd, data->rotation, 0))) {
         LOGE("Set Rotation Failed!/%d\n", ret);
         goto end;
     }
-
+#endif
     if ((ret = v4l2_overlay_set_crop(fd,
                     eCropData.cropX,
                     eCropData.cropY,
@@ -1326,11 +1336,12 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         LOGD(" Could not set the position when creating overlay \n");
         goto end;
     }
-
+#ifndef KERNEL_35_WA
     if ((ret = v4l2_overlay_get_rotation(fd, &degree, NULL))) {
         LOGD("Get rotation value failed! \n");
         goto end;
     }
+#endif
 
     for (int i = 0; i < ctx->omap_overlay->mappedbufcount; i++) {
         v4l2_overlay_unmap_buf(ctx->omap_overlay->buffers[i], ctx->omap_overlay->buffers_len[i]);
@@ -1344,11 +1355,12 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     //Update the overlay object with the new width and height
     ctx->omap_overlay->w = w;
     ctx->omap_overlay->h = h;
+#ifndef KERNEL_35_WA
     if ((ret = v4l2_overlay_set_rotation(fd, degree, 0))) {
         LOGE("Failed rotation\n");
         goto end;
     }
-
+#endif
      if ((ret = v4l2_overlay_set_crop(fd, eCropData.cropX, eCropData.cropY, eCropData.cropW, eCropData.cropH))) {
         LOGE("Failed crop window\n");
         goto end;
@@ -1589,7 +1601,7 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
         rc = -EPERM;
     }
 
-    else if ( ctx->omap_overlay->qd_buf_count < ctx->omap_overlay->optimalQBufCnt ) { 
+    else if ( ctx->omap_overlay->qd_buf_count < ctx->omap_overlay->optimalQBufCnt ) {
         LOGE("Queue more buffers before attempting to dequeue!");
         rc = -EPERM;
     }
