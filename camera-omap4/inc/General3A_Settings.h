@@ -1,3 +1,30 @@
+/*
+ * Copyright (C) Texas Instruments - http://www.ti.com/
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+/**
+* @file General3A_Settings.h
+*
+* This file maps the Camera Hardware Interface to V4L2.
+*
+*/
+
+
 #include "OMX_TI_IVCommon.h"
 #include "OMX_TI_Common.h"
 #include "OMX_TI_Index.h"
@@ -12,94 +39,94 @@ namespace android {
 /*
 *   Effect string constants
 */
-const char * effNone 				= CameraParameters::EFFECT_NONE;
-const char * effNegative 			= CameraParameters::EFFECT_NEGATIVE;
-const char * effSolarize 			= CameraParameters::EFFECT_SOLARIZE;
-const char * effSepia 				= CameraParameters::EFFECT_SEPIA;
-const char * effMono 				= CameraParameters::EFFECT_MONO;
-const char * effNatural 			= TICameraParameters::EFFECT_NATURAL;
-const char * effVivid 				= TICameraParameters::EFFECT_VIVID;
-const char * effColourSwap 			= TICameraParameters::EFFECT_COLOR_SWAP;
+const char * effNone              = CameraParameters::EFFECT_NONE;
+const char * effNegative          = CameraParameters::EFFECT_NEGATIVE;
+const char * effSolarize          = CameraParameters::EFFECT_SOLARIZE;
+const char * effSepia             = CameraParameters::EFFECT_SEPIA;
+const char * effMono              = CameraParameters::EFFECT_MONO;
+const char * effNatural           = TICameraParameters::EFFECT_NATURAL;
+const char * effVivid             = TICameraParameters::EFFECT_VIVID;
+const char * effColourSwap        = TICameraParameters::EFFECT_COLOR_SWAP;
 
 /*
 * ISO Modes
 */
-const char * isoAuto 				= TICameraParameters::ISO_MODE_AUTO;
-const char * iso100 				= TICameraParameters::ISO_MODE_100;
-const char * iso200 				= TICameraParameters::ISO_MODE_200;
-const char * iso400 				= TICameraParameters::ISO_MODE_400;
-const char * iso800 				= TICameraParameters::ISO_MODE_800;
-const char * iso1000 				= TICameraParameters::ISO_MODE_1000;
-const char * iso1200 				= TICameraParameters::ISO_MODE_1200;
-const char * iso1600 				= TICameraParameters::ISO_MODE_1600;
+const char * isoAuto               = TICameraParameters::ISO_MODE_AUTO;
+const char * iso100                = TICameraParameters::ISO_MODE_100;
+const char * iso200                = TICameraParameters::ISO_MODE_200;
+const char * iso400                = TICameraParameters::ISO_MODE_400;
+const char * iso800                = TICameraParameters::ISO_MODE_800;
+const char * iso1000               = TICameraParameters::ISO_MODE_1000;
+const char * iso1200               = TICameraParameters::ISO_MODE_1200;
+const char * iso1600               = TICameraParameters::ISO_MODE_1600;
 
 /*
 * Scene modes
 */
-const char * sceneManual 			= CameraParameters::SCENE_MODE_AUTO;
-const char * scenePortrait 			= CameraParameters::SCENE_MODE_PORTRAIT;
-const char * sceneLandscape 		= CameraParameters::SCENE_MODE_LANDSCAPE;
-const char * sceneSport 			= TICameraParameters::SCENE_MODE_SPORT;
-const char * sceneSnow 				= CameraParameters::SCENE_MODE_SNOW;
-const char * sceneBeach 			= CameraParameters::SCENE_MODE_BEACH;
-const char * sceneNoghtPortrait 	= CameraParameters::SCENE_MODE_NIGHT_PORTRAIT;
-const char * sceneFireworks 		= CameraParameters::SCENE_MODE_FIREWORKS;
+const char * sceneManual           = CameraParameters::SCENE_MODE_AUTO;
+const char * scenePortrait         = CameraParameters::SCENE_MODE_PORTRAIT;
+const char * sceneLandscape        = CameraParameters::SCENE_MODE_LANDSCAPE;
+const char * sceneSport            = TICameraParameters::SCENE_MODE_SPORT;
+const char * sceneSnow             = CameraParameters::SCENE_MODE_SNOW;
+const char * sceneBeach            = CameraParameters::SCENE_MODE_BEACH;
+const char * sceneNightPortrait    = CameraParameters::SCENE_MODE_NIGHT_PORTRAIT;
+const char * sceneFireworks        = CameraParameters::SCENE_MODE_FIREWORKS;
 
-const char * sceneCloseup 			= TICameraParameters::SCENE_MODE_CLOSEUP;
-const char * sceneUnderwater 		= TICameraParameters::SCENE_MODE_AQUA;
-const char * sceneMood 				= TICameraParameters::SCENE_MODE_MOOD;
-const char * sceneNightIndoor 		= TICameraParameters::SCENE_MODE_NIGHT_INDOOR;
-const char * imgSceneDocument 		= TICameraParameters::SCENE_MODE_DOCUMENT;
-const char * imgSceneBarcode 		= TICameraParameters::SCENE_MODE_BARCODE;
-const char * vidSceneSuperNight 	= TICameraParameters::SCENE_MODE_VIDEO_SUPER_NIGHT;
-const char * vidSceneCine 			= TICameraParameters::SCENE_MODE_VIDEO_CINE;
-const char * vidSceneOldFilm 		= TICameraParameters::SCENE_MODE_VIDEO_OLD_FILM;
+const char * sceneCloseup          = TICameraParameters::SCENE_MODE_CLOSEUP;
+const char * sceneUnderwater       = TICameraParameters::SCENE_MODE_AQUA;
+const char * sceneMood             = TICameraParameters::SCENE_MODE_MOOD;
+const char * sceneNightIndoor      = TICameraParameters::SCENE_MODE_NIGHT_INDOOR;
+const char * imgSceneDocument      = TICameraParameters::SCENE_MODE_DOCUMENT;
+const char * imgSceneBarcode       = TICameraParameters::SCENE_MODE_BARCODE;
+const char * vidSceneSuperNight    = TICameraParameters::SCENE_MODE_VIDEO_SUPER_NIGHT;
+const char * vidSceneCine          = TICameraParameters::SCENE_MODE_VIDEO_CINE;
+const char * vidSceneOldFilm       = TICameraParameters::SCENE_MODE_VIDEO_OLD_FILM;
 
 /*
 * Whitebalance modes
 */
-const char * whiteBalAuto 			= CameraParameters::WHITE_BALANCE_AUTO;
-const char * whiteBalDaylight 		= CameraParameters::WHITE_BALANCE_DAYLIGHT;
-const char * whiteBalCloudy 		= CameraParameters::WHITE_BALANCE_CLOUDY_DAYLIGHT;
-const char * whiteBalShade 			= CameraParameters::WHITE_BALANCE_SHADE;
-const char * whiteBalFluorescent 	= CameraParameters::WHITE_BALANCE_FLUORESCENT;
-const char * whiteBalIncandescent 	= CameraParameters::WHITE_BALANCE_INCANDESCENT;
+const char * whiteBalAuto          = CameraParameters::WHITE_BALANCE_AUTO;
+const char * whiteBalDaylight      = CameraParameters::WHITE_BALANCE_DAYLIGHT;
+const char * whiteBalCloudy        = CameraParameters::WHITE_BALANCE_CLOUDY_DAYLIGHT;
+const char * whiteBalShade         = CameraParameters::WHITE_BALANCE_SHADE;
+const char * whiteBalFluorescent   = CameraParameters::WHITE_BALANCE_FLUORESCENT;
+const char * whiteBalIncandescent  = CameraParameters::WHITE_BALANCE_INCANDESCENT;
 
-const char * whiteBalHorizon 		= TICameraParameters::WHITE_BALANCE_HORIZON;
-const char * whiteBalTungsten 		= TICameraParameters::WHITE_BALANCE_TUNGSTEN;
+const char * whiteBalHorizon       = TICameraParameters::WHITE_BALANCE_HORIZON;
+const char * whiteBalTungsten      = TICameraParameters::WHITE_BALANCE_TUNGSTEN;
 
 /*
 * Antibanding modes
 */
-const char * antibandingOff 		= CameraParameters::ANTIBANDING_OFF;
-const char * antibandingAuto 		= CameraParameters::ANTIBANDING_AUTO;
-const char * antibanding50hz 		= CameraParameters::ANTIBANDING_50HZ;
-const char * antibanding60hz 		= CameraParameters::ANTIBANDING_60HZ;
+const char * antibandingOff        = CameraParameters::ANTIBANDING_OFF;
+const char * antibandingAuto       = CameraParameters::ANTIBANDING_AUTO;
+const char * antibanding50hz       = CameraParameters::ANTIBANDING_50HZ;
+const char * antibanding60hz       = CameraParameters::ANTIBANDING_60HZ;
 
 /*
 * Focus modes
 */
-const char * focusAuto 				= CameraParameters::FOCUS_MODE_AUTO;
-const char * focusInfinity 			= CameraParameters::FOCUS_MODE_INFINITY;
-const char * focusMacro 			= CameraParameters::FOCUS_MODE_MACRO;
+const char * focusAuto             = CameraParameters::FOCUS_MODE_AUTO;
+const char * focusInfinity         = CameraParameters::FOCUS_MODE_INFINITY;
+const char * focusMacro            = CameraParameters::FOCUS_MODE_MACRO;
 
-const char * focusPortrait 			= TICameraParameters::FOCUS_MODE_PORTRAIT;
-const char * focusExtended 			= TICameraParameters::FOCUS_MODE_EXTENDED;
-const char * focusCAF 				= TICameraParameters::FOCUS_MODE_CAF;
+const char * focusPortrait         = TICameraParameters::FOCUS_MODE_PORTRAIT;
+const char * focusExtended         = TICameraParameters::FOCUS_MODE_EXTENDED;
+const char * focusCAF              = TICameraParameters::FOCUS_MODE_CAF;
 
 /*
 * Exposure modes
 */
-const char * exposureOff 			= TICameraParameters::EXPOSURE_MODE_OFF;
-const char * exposureAuto 			= TICameraParameters::EXPOSURE_MODE_AUTO;
-const char * exposureNight 			= TICameraParameters::EXPOSURE_MODE_NIGHT;
-const char * exposureBackLight 		= TICameraParameters::EXPOSURE_MODE_BACKLIGHT;
-const char * exposureSpotLight 		= TICameraParameters::EXPOSURE_MODE_SPOTLIGHT;
-const char * exposureSports			= TICameraParameters::EXPOSURE_MODE_SPORTS;
-const char * exposureSnow 			= TICameraParameters::EXPOSURE_MODE_SNOW;
-const char * exposureBeach 			= TICameraParameters::EXPOSURE_MODE_BEACH;
-const char * exposureAperture 		= TICameraParameters::EXPOSURE_MODE_APERTURE;
-const char * exposureSmallAperture 	= TICameraParameters::EXPOSURE_MODE_SMALL_APERTURE;
+const char * exposureOff           = TICameraParameters::EXPOSURE_MODE_OFF;
+const char * exposureAuto          = TICameraParameters::EXPOSURE_MODE_AUTO;
+const char * exposureNight         = TICameraParameters::EXPOSURE_MODE_NIGHT;
+const char * exposureBackLight     = TICameraParameters::EXPOSURE_MODE_BACKLIGHT;
+const char * exposureSpotLight     = TICameraParameters::EXPOSURE_MODE_SPOTLIGHT;
+const char * exposureSports        = TICameraParameters::EXPOSURE_MODE_SPORTS;
+const char * exposureSnow          = TICameraParameters::EXPOSURE_MODE_SNOW;
+const char * exposureBeach         = TICameraParameters::EXPOSURE_MODE_BEACH;
+const char * exposureAperture      = TICameraParameters::EXPOSURE_MODE_APERTURE;
+const char * exposureSmallAperture = TICameraParameters::EXPOSURE_MODE_SMALL_APERTURE;
 
 struct userToOMX_LUT{
     const char * userDefinition;
@@ -140,13 +167,13 @@ userToOMX_LUT scene_UserToOMX [] = {
     {  sceneLandscape     ,OMX_Landscape    },
     {  sceneUnderwater    ,OMX_Underwater   },
     {  sceneSport         ,OMX_Sport        },
-    {  sceneBeach		  ,OMX_SnowBeach    },
-    {  sceneSnow		  ,OMX_SnowBeach    },
+    {  sceneBeach         ,OMX_SnowBeach    },
+    {  sceneSnow          ,OMX_SnowBeach    },
     {  sceneMood          ,OMX_Mood         },
-    {  sceneNoghtPortrait ,OMX_NightPortrait},
+    {  sceneNightPortrait ,OMX_NightPortrait},
     {  sceneNightIndoor   ,OMX_NightIndoor  },
     {  sceneFireworks     ,OMX_Fireworks    },
-    {  sceneSport           , OMX_Sport},
+    {  sceneSport         ,OMX_Sport        },
     {  imgSceneDocument   ,OMX_Document     },
     {  imgSceneBarcode    ,OMX_Barcode      },
     {  vidSceneSuperNight ,OMX_SuperNight   },
@@ -174,7 +201,7 @@ userToOMX_LUT antibanding_UserToOMX [] = {
 
 
 userToOMX_LUT focus_UserToOMX [] = {
-    { focusAuto     ,OMX_IMAGE_FocusControlAutoLock         },
+    { focusAuto     ,OMX_IMAGE_FocusControlAutoLock     },
     { focusInfinity ,OMX_IMAGE_FocusControlAutoInfinity },
     { focusMacro    ,OMX_IMAGE_FocusControAutoMacro     },
     { focusPortrait ,OMX_IMAGE_FocusControlPortrait     },
