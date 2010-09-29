@@ -212,6 +212,8 @@ public:
             fLabel = "";
         }
         fNow = SkTime::GetMSecs();
+        this->width = 0;
+        this->height = 0;
 
         LOG_FUNCTION_NAME_EXIT
     }
