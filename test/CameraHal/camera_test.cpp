@@ -776,11 +776,11 @@ int configureRecorder() {
         return -1;
     }
 
-    if(mkdir("/data/videos",0777) == -1)
+    if(mkdir("/mnt/sdcard/videos",0777) == -1)
          printf("\n Directory --videos-- was not created \n");
-    sprintf(videoFile, "/data/videos/video%d.%s", recording_counter,outputFormat[outputFormatIDX].desc);
+    sprintf(videoFile, "/mnt/sdcard/videos/video%d.%s", recording_counter,outputFormat[outputFormatIDX].desc);
 
-    fd = open(videoFile, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0777);
+    fd = open(videoFile, O_CREAT | O_RDWR);
 
     if(fd < 0){
         printf("Error while creating video filename\n");
@@ -788,7 +788,7 @@ int configureRecorder() {
         return -1;
     }
 
-    if ( recorder->setOutputFile(videoFile) < 0 ) {
+    if ( recorder->setOutputFile(fd, 0, 0) < 0 ) {
         printf("error while configuring video filename\n");
 
         return -1;
