@@ -1085,9 +1085,11 @@ void CameraHal::stopPreview()
 
     mAppCallbackNotifier->stopPreviewCallbacks();
 
-
-    //Stop the source of frames
-    mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
+    if ( NULL != mCameraAdapter )
+       {
+        //Stop the source of frames
+        mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
+        }
 
     freePreviewBufs();
 
@@ -1685,12 +1687,12 @@ status_t CameraHal::initialize()
     ///Get the default Camera
     mCameraPropertiesArr = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(mCameraIndex);
 
-#ifdef DEBUG_LOG
+if(!mCameraPropertiesArr)
+    {
+    goto fail_loop;
+    }
 
-    if(!mCameraPropertiesArr)
-        {
-        goto fail_loop;
-        }
+#ifdef DEBUG_LOG
 
     ///Dump the properties of this Camera
     dumpProperties(mCameraPropertiesArr);
@@ -1871,16 +1873,19 @@ status_t CameraHal::reloadAdapter()
         if(f)
             {
             mCameraAdapter = f();
-            if((NULL != mCameraAdapter)
-                    && (NO_ERROR != mCameraAdapter->initialize(sensor_index)))
+            if(NULL != mCameraAdapter)
                 {
-                ret = -1;
-                }
-            else
-                {
-                mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_TIMEOUT);
-                mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
-                mCameraAdapter->registerEndCaptureCallback(endImageCapture, (void *)this);
+                if(NO_ERROR != mCameraAdapter->initialize(sensor_index))
+                    {
+                    ret = -1;
+                    }
+
+                if(NO_ERROR == ret)
+                    {
+                    mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_TIMEOUT);
+                    mCameraAdapter->registerImageReleaseCallback(releaseImageBuffers, (void *) this);
+                    mCameraAdapter->registerEndCaptureCallback(endImageCapture, (void *)this);
+                    }
                 }
             }
         else
