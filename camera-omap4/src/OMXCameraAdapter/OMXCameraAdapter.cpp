@@ -715,7 +715,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         }
     else
         {
-        mCapMode = OMXCameraAdapter::VIDEO_MODE;
+        mCapMode = OMXCameraAdapter::HIGH_QUALITY;
         }
 
     CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
@@ -754,7 +754,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         }
     else
         {
-        mIPP = OMXCameraAdapter::IPP_NONE;
+        mIPP = OMXCameraAdapter::IPP_LDCNSF;
         }
 
     if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
