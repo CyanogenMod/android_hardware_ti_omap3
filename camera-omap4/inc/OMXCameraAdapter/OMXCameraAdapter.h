@@ -209,7 +209,7 @@ public:
 
     //APIs to configure Camera adapter and get the current parameter set
     virtual status_t setParameters(const CameraParameters& params);
-    virtual void getParameters(CameraParameters& params) const;
+    virtual void getParameters(CameraParameters& params);
 
     virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
 
@@ -371,8 +371,16 @@ private:
     //automatically disable AF after a given amount of frames
     unsigned int mFocusThreshold;
 
+    //This is needed for the CTS tests. They falsely assume, that during
+    //smooth zoom the current zoom stage will not change within the
+    //zoom callback scope, which in a real world situation is not always the
+    //case. This variable will "simulate" the expected behavior
+    unsigned int mZoomParameterIdx;
+
     //current zoom
+    bool mSmoothZoomEnabled;
     unsigned int mCurrentZoomIdx, mTargetZoomIdx;
+    int mZoomInc;
     bool mReturnZoomStatus;
     static const int32_t ZOOM_STEPS [];
 

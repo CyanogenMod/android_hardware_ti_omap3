@@ -128,7 +128,7 @@ status_t FakeCameraAdapter::setParameters(const CameraParameters& params)
     return NO_ERROR;
 }
 
-void FakeCameraAdapter::getParameters(CameraParameters& params) const
+void FakeCameraAdapter::getParameters(CameraParameters& params)
 {
     LOG_FUNCTION_NAME
     LOG_FUNCTION_NAME_EXIT
