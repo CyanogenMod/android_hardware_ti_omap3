@@ -192,6 +192,8 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
 
     int fd;
 
+   pix->field = V4L2_FIELD_NONE;
+
    switch (fmt) {
     case OVERLAY_FORMAT_RGBA_8888:
         pix->pixelformat = V4L2_PIX_FMT_RGB32;
@@ -204,6 +206,13 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
         break;
     case OVERLAY_FORMAT_CbYCrY_422_I:
         pix->pixelformat = V4L2_PIX_FMT_UYVY;
+        break;
+    case OVERLAY_FORMAT_YCbCr_420_SP_SEQ_TB:
+        /* NV12 Interlaced (Sequential Top-Bottom).
+           Just update pix.field, and  NV12 params */
+        pix->field = V4L2_FIELD_SEQ_TB;
+        pix->pixelformat = V4L2_PIX_FMT_NV12;
+        pix->bytesperline = 4096;
         break;
     case OVERLAY_FORMAT_YCbCr_420_SP:
         pix->pixelformat = V4L2_PIX_FMT_NV12;

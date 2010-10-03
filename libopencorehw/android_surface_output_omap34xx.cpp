@@ -140,6 +140,12 @@ bool AndroidSurfaceOutputOmap34xx::initCheck()
     iBytesperPixel = 1;
     mOptimalQBufCnt = 4;
    }
+   else if (iVideoSubFormat == PVMF_MIME_YUV420_PACKEDSEMIPLANAR_SEQ_TOPBOTTOM)
+   {
+    videoFormat = OVERLAY_FORMAT_YCbCr_420_SP_SEQ_TB;
+    iBytesperPixel = 1;
+    mOptimalQBufCnt = 4;
+   }
     else if(iVideoSubFormat == PVMF_MIME_YUV422_INTERLEAVED_UYVY)
    {
    videoFormat =  OVERLAY_FORMAT_CbYCrY_422_I;
@@ -639,8 +645,9 @@ PVMFStatus AndroidSurfaceOutputOmap34xx::getParametersSync(PvmiMIOSession aSessi
     if (strcmp(aIdentifier, PVMF_BUFFER_ALLOCATOR_KEY) == 0)
     {
         if((iVideoSubFormat != PVMF_MIME_YUV422_INTERLEAVED_UYVY) && (iVideoSubFormat != PVMF_MIME_YUV422_INTERLEAVED_YUYV) \
-      && (iVideoSubFormat != PVMF_MIME_YUV420_SEMIPLANAR)&&(iVideoSubFormat != PVMF_MIME_YUV420_PACKEDSEMIPLANAR))
-    {
+          && (iVideoSubFormat != PVMF_MIME_YUV420_SEMIPLANAR)&&(iVideoSubFormat != PVMF_MIME_YUV420_PACKEDSEMIPLANAR) \
+          && (iVideoSubFormat != PVMF_MIME_YUV420_PACKEDSEMIPLANAR_SEQ_TOPBOTTOM))
+        {
             LOGI("Ln %d iVideoSubFormat %s. do NOT allocate decoder buffer from overlay", __LINE__, iVideoSubFormat.getMIMEStrPtr() );
             OSCL_LEAVE(OsclErrNotSupported);
             return PVMFErrNotSupported;
