@@ -572,7 +572,9 @@ public:
         CAMERA_STOP_SMOOTH_ZOOM,
         CAMERA_USE_BUFFERS,
         CAMERA_SET_TIMEOUT,
-        CAMERA_CANCEL_TIMEOUT
+        CAMERA_CANCEL_TIMEOUT,
+        CAMERA_START_BRACKET_CAPTURE,
+        CAMERA_STOP_BRACKET_CAPTURE
         };
 
     enum CameraMode
@@ -863,6 +865,11 @@ public:
         //Signals the end of image capture
         status_t signalEndImageCapture();
 
+      //Events
+     static void eventCallbackRelay(CameraHalEvent* event);
+     void eventCallback(CameraHalEvent* event);
+     void setEventProvider(int32_t eventMask, MessageNotifier * eventProvider);
+
      //@}
 
 /*--------------------Internal Member functions - Private---------------------------------*/
@@ -913,6 +920,10 @@ private:
 
             void dumpProperties(CameraProperties::CameraProperty** cameraProps);
 
+        status_t startImageBracketing();
+
+        status_t stopImageBracketing();
+
 
         //@}
 
@@ -928,6 +939,8 @@ public:
     bool mPreviewEnabled;
     bool mImageCaptureRunning;
     uint32_t mTakePictureQueue;
+    bool mBracketingEnabled;
+    bool mBracketingRunning;
 
     CameraAdapter *mCameraAdapter;
     sp<AppCallbackNotifier> mAppCallbackNotifier;
@@ -973,6 +986,7 @@ private:
     bool mPreviewRunning;
     bool mPreviewStateOld;
     bool mRecordingEnabled;
+    EventProvider *mEventProvider;
 
     int32_t *mImageBufs;
     uint32_t *mImageOffsets;
@@ -986,6 +1000,9 @@ private:
     uint32_t *mVideoOffsets;
     int mVideoFd;
     int mVideoLength;
+
+    int mBracketRangePositive;
+    int mBracketRangeNegative;
 
     ///@todo Rename this as preview buffer provider
     BufferProvider *mBufProvider;

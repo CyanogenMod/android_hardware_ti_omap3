@@ -182,6 +182,7 @@ public:
             OMX_CONFIG_FRAMESTABTYPE        mVidStabConfig;
             OMX_U32                         mCapFrame;
             OMX_U32                         mFrameRate;
+            CameraFrame::FrameType mImageType;
     };
 
     ///Context of the OMX Camera component
@@ -309,6 +310,12 @@ private:
     status_t startVideoCapture();
     status_t stopVideoCapture();
 
+    //Temporal Bracketing
+    status_t stopBracketing();
+    status_t startBracketing();
+    status_t doBracketing(OMX_BUFFERHEADERTYPE *pBuffHeader, CameraFrame::FrameType typeOfFrame);
+    status_t sendBracketFrames();
+
     // Image Capture Service
     status_t startImageCapture();
     status_t stopImageCapture();
@@ -379,7 +386,7 @@ private:
     unsigned int mPictureRotation;
     bool mFocusStarted;
     bool mWaitingForSnapshot;
-	int mSnapshotCount;
+    int mSnapshotCount;
     int mPreviewBufferCount;
     int *mPreviewBuffers;
     KeyedVector<int, int> mPreviewBuffersAvailable;
@@ -389,6 +396,13 @@ private:
     int mCaptureBuffersCount;
     size_t mCaptureBuffersLength;
     mutable Mutex mCaptureBufferLock;
+
+    mutable Mutex mBracketingLock;
+    bool *mBracketingBuffersQueued;
+    int mBracketingBuffersQueuedCount;
+    int mLastBracetingBufferIdx;
+    bool mBracketingEnabled;
+    int mBracketingRange;
 
     int *mVideoBuffers;
     KeyedVector<int, int> mVideoBuffersAvailable;

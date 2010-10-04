@@ -59,7 +59,13 @@ static const  char KEY_MAN_EXPOSURE[];
 static const  char KEY_METERING_MODE[];
 static const  char KEY_PADDED_WIDTH[];
 static const  char KEY_PADDED_HEIGHT[];
+static const char  KEY_TEMP_BRACKETING[];
+static const char  KEY_TEMP_BRACKETING_RANGE_POS[];
+static const char  KEY_TEMP_BRACKETING_RANGE_NEG[];
 
+//TI extensions for Temporal bracketing
+static const char BRACKET_ENABLE[];
+static const char BRACKET_DISABLE[];
 
 //TI extensions to Image post-processing
 static const char IPP_LDCNSF[];

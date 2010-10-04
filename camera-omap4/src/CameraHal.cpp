@@ -496,6 +496,63 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         ret = mCameraAdapter->setParameters(mParameters);
         }
 
+    if( NULL != params.get(TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS) )
+        {
+        int posBracketRange = params.getInt(TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS);
+        if ( 0 < posBracketRange )
+            {
+            mBracketRangePositive = posBracketRange;
+            }
+        }
+    CAMHAL_LOGEB("Positive bracketing range %d", mBracketRangePositive);
+
+
+    if( NULL != params.get(TICameraParameters::KEY_TEMP_BRACKETING_RANGE_NEG) )
+        {
+        int negBracketRange = params.getInt(TICameraParameters::KEY_TEMP_BRACKETING_RANGE_NEG);
+        if ( 0 < negBracketRange )
+            {
+            mBracketRangeNegative = negBracketRange;
+            }
+        }
+    CAMHAL_LOGEB("Negative bracketing range %d", mBracketRangeNegative);
+
+    if( ( NULL != params.get(TICameraParameters::KEY_TEMP_BRACKETING) ) &&
+        ( strcmp(params.get(TICameraParameters::KEY_TEMP_BRACKETING), TICameraParameters::BRACKET_ENABLE) == 0 ))
+        {
+        if ( !mBracketingEnabled )
+            {
+            CAMHAL_LOGDA("Enabling bracketing");
+            mBracketingEnabled = true;
+
+            //Wait for AF events to enable bracketing
+            if ( NULL != mCameraAdapter )
+                {
+                setEventProvider( CameraHalEvent::ALL_EVENTS, mCameraAdapter );
+                }
+            }
+        else
+            {
+            CAMHAL_LOGDA("Bracketing already enabled");
+            }
+        }
+    else if ( ( NULL != params.get(TICameraParameters::KEY_TEMP_BRACKETING) ) &&
+        ( strcmp(params.get(TICameraParameters::KEY_TEMP_BRACKETING), TICameraParameters::BRACKET_DISABLE) == 0 ))
+        {
+        CAMHAL_LOGDA("Disabling bracketing");
+
+        mBracketingEnabled = false;
+        stopImageBracketing();
+
+        //Remove AF events subscription
+        if ( NULL != mEventProvider )
+            {
+            mEventProvider->disableEventNotification( CameraHalEvent::ALL_EVENTS );
+            delete mEventProvider;
+            mEventProvider = NULL;
+            }
+
+        }
 
     CAMHAL_LOGDB("mReloadAdapter %d", (int) mReloadAdapter);
 
@@ -1331,6 +1388,175 @@ status_t CameraHal::cancelAutoFocus()
     return NO_ERROR;
 }
 
+void CameraHal::setEventProvider(int32_t eventMask, MessageNotifier * eventNotifier)
+{
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL != mEventProvider )
+        {
+        mEventProvider->disableEventNotification(CameraHalEvent::ALL_EVENTS);
+        delete mEventProvider;
+        mEventProvider = NULL;
+        }
+
+    mEventProvider = new EventProvider(eventNotifier, this, eventCallbackRelay);
+    if ( NULL == mEventProvider )
+        {
+        CAMHAL_LOGEA("Error in creating EventProvider");
+        }
+    else
+        {
+        mEventProvider->enableEventNotification(eventMask);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+void CameraHal::eventCallbackRelay(CameraHalEvent* event)
+{
+    LOG_FUNCTION_NAME
+
+    CameraHal *appcbn = ( CameraHal * ) (event->mCookie);
+    appcbn->eventCallback(event );
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+void CameraHal::eventCallback(CameraHalEvent* event)
+{
+    LOG_FUNCTION_NAME
+
+    if ( NULL != event )
+        {
+        switch( event->mEventType )
+            {
+            case CameraHalEvent::EVENT_FOCUS_LOCKED:
+            case CameraHalEvent::EVENT_FOCUS_ERROR:
+                {
+                if ( mBracketingEnabled )
+                    {
+                    startImageBracketing();
+                    }
+                break;
+                }
+            default:
+                {
+                break;
+                }
+            };
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
+status_t CameraHal::startImageBracketing()
+{
+        status_t ret = NO_ERROR;
+        int width, height;
+        size_t pictureBufferLength;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+        gettimeofday(&mStartCapture, NULL);
+
+#endif
+
+        LOG_FUNCTION_NAME
+
+        if(!previewEnabled() && !mDisplayPaused)
+            {
+            LOG_FUNCTION_NAME_EXIT
+            return NO_INIT;
+            }
+
+        if ( !mBracketingEnabled )
+            {
+            return ret;
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            mBracketingRunning = true;
+            }
+
+        if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
+            {
+            ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength, ( mBracketRangeNegative + 1 ));
+
+            if ( NO_ERROR != ret )
+                {
+                CAMHAL_LOGEB("getPictureBufferSize returned error 0x%x", ret);
+                }
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            mParameters.getPictureSize(&width, &height);
+
+            ret = allocImageBufs(width, height, pictureBufferLength, mParameters.getPictureFormat(), ( mBracketRangeNegative + 1 ));
+            if ( NO_ERROR != ret )
+                {
+                CAMHAL_LOGEB("allocImageBufs returned error 0x%x", ret);
+                }
+            }
+
+        if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
+            {
+
+            ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, mImageLength, ( mBracketRangeNegative + 1 ));
+
+            if ( NO_ERROR == ret )
+                {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+                 //pass capture timestamp along with the camera adapter command
+                ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_BRACKET_CAPTURE,  ( mBracketRangePositive + 1 ),  (int) &mStartCapture);
+
+#else
+
+                ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_BRACKET_CAPTURE, ( mBracketRangePositive + 1 ));
+
+#endif
+
+                }
+            }
+
+        return ret;
+}
+
+status_t CameraHal::stopImageBracketing()
+{
+        status_t ret = NO_ERROR;
+
+        LOG_FUNCTION_NAME
+
+        if ( !mBracketingRunning )
+            {
+            return ret;
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            mBracketingRunning = false;
+            }
+
+        if(!previewEnabled() && !mDisplayPaused)
+            {
+            return NO_INIT;
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_BRACKET_CAPTURE);
+            }
+
+        LOG_FUNCTION_NAME_EXIT
+
+        return ret;
+}
+
 /**
    @brief Take a picture.
 
@@ -1374,73 +1600,80 @@ status_t CameraHal::takePicture( )
         mImageCaptureRunning = true;
         }
 
-     if ( NO_ERROR == ret )
+    if ( !mBracketingRunning )
         {
-        burst = mParameters.getInt(TICameraParameters::KEY_BURST);
 
-        //Allocate all buffers only in burst capture case
-        if ( burst > 1 )
+         if ( NO_ERROR == ret )
             {
-            bufferCount = CameraHal::NO_BUFFERS_IMAGE_CAPTURE;
+            burst = mParameters.getInt(TICameraParameters::KEY_BURST);
             }
-        }
 
-    //Pause Preview during capture
-    if ( (NO_ERROR == ret) && ( NULL != mDisplayAdapter.get() ) && ( burst < 1 ) )
-        {
-        mDisplayPaused = true;
-        mPreviewEnabled = false;
-        ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
+         //Allocate all buffers only in burst capture case
+         if ( burst > 1 )
+             {
+             bufferCount = CameraHal::NO_BUFFERS_IMAGE_CAPTURE;
+             }
+
+        //Pause Preview during capture
+        if ( (NO_ERROR == ret) && ( NULL != mDisplayAdapter.get() ) && ( burst < 1 ) )
+            {
+            mDisplayPaused = true;
+            mPreviewEnabled = false;
+            ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-        mDisplayAdapter->setSnapshotTimeRef(&mStartCapture);
+            mDisplayAdapter->setSnapshotTimeRef(&mStartCapture);
 
 #endif
 
-        }
-
-    if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
-        {
-        ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength, bufferCount);
-
-        if ( NO_ERROR != ret )
-            {
-            CAMHAL_LOGEB("getPictureBufferSize returned error 0x%x", ret);
             }
-        }
 
-    if ( NO_ERROR == ret )
-        {
-        mParameters.getPictureSize(&width, &height);
-
-        ret = allocImageBufs(width, height, pictureBufferLength, mParameters.getPictureFormat(), bufferCount);
-        if ( NO_ERROR != ret )
+        if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
             {
-            CAMHAL_LOGEB("allocImageBufs returned error 0x%x", ret);
+            ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength, bufferCount);
+
+            if ( NO_ERROR != ret )
+                {
+                CAMHAL_LOGEB("getPictureBufferSize returned error 0x%x", ret);
+                }
             }
-        }
-
-    if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
-        {
-
-        ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, mImageLength, bufferCount);
 
         if ( NO_ERROR == ret )
             {
+            mParameters.getPictureSize(&width, &height);
+
+            ret = allocImageBufs(width, height, pictureBufferLength, mParameters.getPictureFormat(), bufferCount);
+            if ( NO_ERROR != ret )
+                {
+                CAMHAL_LOGEB("allocImageBufs returned error 0x%x", ret);
+                }
+            }
+
+        if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
+            {
+            ret = mCameraAdapter->useBuffers(CameraAdapter::CAMERA_IMAGE_CAPTURE, mImageBufs, mImageOffsets, mImageFd, mImageLength, bufferCount);
+            }
+        }
+    else
+        {
+        mBracketingRunning = false;
+        }
+
+    if ( ( NO_ERROR == ret ) && ( NULL != mCameraAdapter ) )
+        {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-             //pass capture timestamp along with the camera adapter command
-            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) &mStartCapture);
+         //pass capture timestamp along with the camera adapter command
+        ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE,  (int) &mStartCapture);
 
 #else
 
-            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE);
+        ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE);
 
 #endif
 
-            }
         }
 
     return ret;
@@ -1602,6 +1835,11 @@ CameraHal::CameraHal()
     mCameraAdapter = NULL;
     mTakePictureQueue = 0;
     mImageCaptureRunning = false;
+    mBracketingEnabled = false;
+    mBracketingRunning = false;
+    mEventProvider = NULL;
+    mBracketRangePositive = 1;
+    mBracketRangeNegative = 1;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -1782,8 +2020,6 @@ if(!mCameraPropertiesArr)
     ///         for any event
     mAppCallbackNotifier->setEventProvider(eventMask, mCameraAdapter);
     mAppCallbackNotifier->setFrameProvider(mCameraAdapter);
-
-
 
     ///Any dynamic errors that happen during the camera use case has to be propagated back to the application
     ///via CAMERA_MSG_ERROR. AppCallbackNotifier is the class that  notifies such errors to the application
@@ -2363,6 +2599,13 @@ void CameraHal::deinitialize()
     mCameraProperties.clear();
 
     mSetOverlayCalled = false;
+
+    if ( NULL != mEventProvider )
+        {
+        mEventProvider->disableEventNotification(CameraHalEvent::ALL_EVENTS);
+        delete mEventProvider;
+        mEventProvider = NULL;
+        }
 
     if ( NULL != mCameraAdapter )
         {

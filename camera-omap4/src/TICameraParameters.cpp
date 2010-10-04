@@ -57,7 +57,13 @@ const char TICameraParameters::KEY_MAN_EXPOSURE[] = "manual-exposure";
 const char TICameraParameters::KEY_METERING_MODE[] = "meter-mode";
 const char TICameraParameters::KEY_PADDED_WIDTH[] = "padded-width";
 const char TICameraParameters::KEY_PADDED_HEIGHT[] = "padded-height";
+const char TICameraParameters::KEY_TEMP_BRACKETING[] = "temporal-bracketing";
+const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS[] = "temporal-bracketing-range-positive";
+const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_NEG[] = "temporal-bracketing-range-negative";
 
+//TI extensions for Temporal Bracketing
+const char TICameraParameters::BRACKET_ENABLE[] = "enable";
+const char TICameraParameters::BRACKET_DISABLE[] = "disable";
 
 //TI extensions to Image post-processing
 const char TICameraParameters::IPP_LDCNSF[] = "ldc-nsf";

@@ -231,6 +231,10 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         CAMHAL_LOGEB("Sensor %d selected successfully", sensor_index);
         }
 
+    mBracketingEnabled = false;
+    mBracketingBuffersQueuedCount = 0;
+    mBracketingRange = 1;
+    mLastBracetingBufferIdx = 0;
     mPreviewing = false;
     mCapturing = false;
     mRecording = false;
@@ -293,7 +297,7 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
     if ( ( CameraFrame::IMAGE_FRAME == frameType ) ||
          ( CameraFrame::RAW_FRAME == frameType ) )
         {
-        if ( 1 > mCapturedFrames )
+        if ( ( 1 > mCapturedFrames ) && ( !mBracketingEnabled ) )
             {
             stopImageCapture();
             return;
@@ -1758,7 +1762,7 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
 
         GOTO_EXIT_IF(( eError != OMX_ErrorNone ), eError);
 
-        pBufferHdr->pAppPrivate = (OMX_PTR)pBufferHdr;
+        pBufferHdr->pAppPrivate = (OMX_PTR) index;
         pBufferHdr->nSize = sizeof(OMX_BUFFERHEADERTYPE);
         pBufferHdr->nVersion.s.nVersionMajor = 1 ;
         pBufferHdr->nVersion.s.nVersionMinor = 1 ;
@@ -1958,6 +1962,32 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
         case CameraAdapter::CAMERA_STOP_IMAGE_CAPTURE:
             {
             ret = stopImageCapture();
+            break;
+            }
+        case CameraAdapter::CAMERA_START_BRACKET_CAPTURE:
+            {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            refTimestamp = ( struct timeval * ) value2;
+            if ( NULL != refTimestamp )
+                {
+                memcpy( &mStartCapture, refTimestamp, sizeof(struct timeval));
+                }
+
+#endif
+
+            mBracketingRange = value1;
+
+            if( mPending3Asettings )
+                Apply3Asettings(mParameters3A);
+
+            ret = startBracketing();
+            break;
+            }
+        case CameraAdapter::CAMERA_STOP_BRACKET_CAPTURE:
+            {
+            ret = stopBracketing();
             break;
             }
          case CameraAdapter::CAMERA_PERFORM_AUTOFOCUS:
@@ -2989,6 +3019,7 @@ status_t OMXCameraAdapter::notifyFocusSubscribers(bool override, bool status)
         {
         focusStatus = status;
         }
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
      //dump the AF latency
@@ -3023,6 +3054,218 @@ status_t OMXCameraAdapter::notifyFocusSubscribers(bool override, bool status)
     return ret;
 }
 
+status_t OMXCameraAdapter::startBracketing()
+{
+    status_t ret = NO_ERROR;
+    OMXCameraPortParameters * imgCaptureData = NULL;
+
+    LOG_FUNCTION_NAME
+
+    imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in executing state");
+        ret = -EINVAL;
+        }
+
+        {
+        Mutex::Autolock lock(mBracketingLock);
+
+        if ( mBracketingEnabled )
+            {
+            return ret;
+            }
+        }
+
+    if ( 0 == imgCaptureData->mNumBufs )
+        {
+        CAMHAL_LOGEB("Image capture buffers set to %d", imgCaptureData->mNumBufs);
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        Mutex::Autolock lock(mBracketingLock);
+
+        mBracketingBuffersQueued = new bool[imgCaptureData->mNumBufs];
+        if ( NULL == mBracketingBuffersQueued )
+            {
+            CAMHAL_LOGEA("Unable to allocate bracketing management structures");
+            ret = -1;
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            mBracketingBuffersQueuedCount = imgCaptureData->mNumBufs;
+            mLastBracetingBufferIdx = mBracketingBuffersQueuedCount - 1;
+
+            for ( int i = 0 ; i  < imgCaptureData->mNumBufs ; i++ )
+                {
+                mBracketingBuffersQueued[i] = true;
+                }
+
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        ret = startImageCapture();
+            {
+            Mutex::Autolock lock(mBracketingLock);
+
+            if ( NO_ERROR == ret )
+                {
+                mBracketingEnabled = true;
+                }
+            else
+                {
+                mBracketingEnabled = false;
+                }
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::doBracketing(OMX_BUFFERHEADERTYPE *pBuffHeader, CameraFrame::FrameType typeOfFrame)
+{
+    status_t ret = NO_ERROR;
+    int currentBufferIdx, nextBufferIdx;
+    OMXCameraPortParameters * imgCaptureData = NULL;
+
+    LOG_FUNCTION_NAME
+
+    imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in executing state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        currentBufferIdx = ( unsigned int ) pBuffHeader->pAppPrivate;
+
+        if ( currentBufferIdx >= imgCaptureData->mNumBufs)
+            {
+            CAMHAL_LOGEB("Invalid bracketing buffer index 0x%x", currentBufferIdx);
+            ret = -EINVAL;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        mBracketingBuffersQueued[currentBufferIdx] = false;
+        mBracketingBuffersQueuedCount--;
+
+        if ( 0 >= mBracketingBuffersQueuedCount )
+            {
+            nextBufferIdx = ( currentBufferIdx + 1 ) % imgCaptureData->mNumBufs;
+            mBracketingBuffersQueued[nextBufferIdx] = true;
+            mBracketingBuffersQueuedCount++;
+            mLastBracetingBufferIdx = nextBufferIdx;
+            returnFrame(imgCaptureData->mBufferHeader[nextBufferIdx]->pBuffer, typeOfFrame);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::sendBracketFrames()
+{
+    status_t ret = NO_ERROR;
+    int currentBufferIdx;
+    OMXCameraPortParameters * imgCaptureData = NULL;
+
+    LOG_FUNCTION_NAME
+
+    imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in executing state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        currentBufferIdx = mLastBracetingBufferIdx;
+        do
+            {
+            currentBufferIdx++;
+            currentBufferIdx %= imgCaptureData->mNumBufs;
+            if (!mBracketingBuffersQueued[currentBufferIdx] )
+                {
+                sendFrameToSubscribers(imgCaptureData->mBufferHeader[currentBufferIdx], imgCaptureData->mImageType, imgCaptureData);
+                }
+            } while ( currentBufferIdx != mLastBracetingBufferIdx );
+
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::stopBracketing()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in executing state");
+        ret = -EINVAL;
+        }
+
+        {
+        Mutex::Autolock lock(mBracketingLock);
+
+        if ( !mBracketingEnabled )
+            {
+            return ret;
+            }
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        ret = stopImageCapture();
+
+            {
+            Mutex::Autolock lock(mBracketingLock);
+            mBracketingEnabled = false;
+            }
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        Mutex::Autolock lock(mBracketingLock);
+        if ( NULL != mBracketingBuffersQueued )
+            {
+            delete mBracketingBuffersQueued;
+            }
+
+        mBracketingBuffersQueuedCount = 0;
+        mLastBracetingBufferIdx = 0;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::startImageCapture()
 {
     status_t ret = NO_ERROR;
@@ -3031,6 +3274,25 @@ status_t OMXCameraAdapter::startImageCapture()
     OMX_CONFIG_BOOLEANTYPE bOMX;
 
     LOG_FUNCTION_NAME
+
+        //During bracketing image capture is already active
+        {
+        Mutex::Autolock lock(mBracketingLock);
+        if ( mBracketingEnabled )
+            {
+            //Stop bracketing, activate normal burst for the remaining images
+            mBracketingEnabled = false;
+            mCapturedFrames = mBracketingRange;
+            ret = sendBracketFrames();
+
+            if ( NULL != mBracketingBuffersQueued )
+                {
+                delete mBracketingBuffersQueued;
+                }
+
+            return ret;
+            }
+        }
 
     if ( NO_ERROR == ret )
         {
@@ -3080,6 +3342,9 @@ status_t OMXCameraAdapter::startImageCapture()
             {
             mErrorNotifier->errorNotify(eError);
             }
+
+        ret = -1;
+
         }
 
     return ret;
@@ -3790,15 +4055,6 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
 #endif
 
-        if ( 1 > mCapturedFrames )
-            {
-            goto EXIT;
-            }
-
-        CAMHAL_LOGDB("Captured Frames: %d", mCapturedFrames);
-
-        mCapturedFrames--;
-
         if ( OMX_COLOR_FormatUnused == mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex].mColorFormat )
             {
             typeOfFrame = CameraFrame::IMAGE_FRAME;
@@ -3808,6 +4064,25 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             typeOfFrame = CameraFrame::RAW_FRAME;
             }
 
+            pPortParam->mImageType = typeOfFrame;
+
+            {
+            Mutex::Autolock lock(mBracketingLock);
+            if ( mBracketingEnabled )
+                {
+                doBracketing(pBuffHeader, typeOfFrame);
+                return eError;
+                }
+            }
+
+        if ( 1 > mCapturedFrames )
+            {
+            goto EXIT;
+            }
+
+        CAMHAL_LOGDB("Captured Frames: %d", mCapturedFrames);
+
+        mCapturedFrames--;
         ret = sendFrameToSubscribers(pBuffHeader, typeOfFrame, pPortParam);
         }
     else
