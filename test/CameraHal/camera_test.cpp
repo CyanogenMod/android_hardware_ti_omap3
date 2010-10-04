@@ -44,11 +44,16 @@
 #define KEY_IPP             "ippMode"
 #define KEY_BUFF_STARV      "buff-starvation"
 #define KEY_METERING_MODE   "meter-mode"
+#define KEY_TEMP_BRACKETING "temporal-bracketing"
+#define KEY_TEMP_BRACKETING_POS "temporal-bracketing-range-positive"
+#define KEY_TEMP_BRACKETING_NEG "temporal-bracketing-range-negative"
+
 
 #define SDCARD_PATH "/sdcard/"
 
 #define MAX_BURST   15
 #define BURST_INC     5
+#define TEMP_BRACKETING_MAX_RANGE 4
 
 #define MEMORY_DUMP "procrank -u"
 #define KEY_METERING_MODE   "meter-mode"
@@ -83,6 +88,8 @@ int caf_mode = 0;
 int vnf_mode = 0;
 int vstab_mode = 0;
 
+int tempBracketRange = 1;
+int tempBracketIdx = 0;
 int postProcIDX = 0;
 int rotation = 0;
 bool reSizePreview = true;
@@ -113,7 +120,7 @@ int prevcnt = 0;
 char dir_path[40] = SDCARD_PATH;
 
 const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Secondary Camera 2", "Stereo Camera"};
-
+const char *tempBracketing[] = {"disable", "enable"};
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
 const char *iso [] = { "auto", "100", "200", "400", "800", "1200", "1600"};
 const char *effects [] = {
@@ -1134,7 +1141,9 @@ int functional_menu() {
 
         printf(" \n\n IMAGE CAPTURE SUB MENU \n");
         printf(" -----------------------------\n");
-        printf("   p. Take picture\n");
+        printf("   p. Take picture/Full Press\n");
+        printf("   U. Temporal Bracketing:   %s\n", tempBracketing[tempBracketIdx]);
+        printf("   W. Temporal Bracketing Range: [-%d;+%d]\n", tempBracketRange, tempBracketRange);
         printf("   $. Picture Format: %s\n", pixelformat[pictureFormat]);
         printf("   3. Picture Rotation:       %3d degree\n", rotation );
         printf("   5. Picture size:   %4d x %4d - %s\n",captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height,              captureSize[captureSizeIDX].name);
@@ -1165,7 +1174,7 @@ int functional_menu() {
         printf(" \n\n 3A SETTING SUB MENU \n");
         printf(" -----------------------------\n");
 
-        printf("   f. Auto Focus\n");
+        printf("   f. Auto Focus/Half Press\n");
         printf("   7. EV offset:      %4.1f\n", compensation);
         printf("   8. AWB mode:       %s\n", strawb_mode[awb_mode]);
         printf("   z. Zoom            %s\n", zoom[zoomIDX].zoom_description);
@@ -1496,6 +1505,31 @@ int functional_menu() {
             capture_mode++;
             capture_mode %= ARRAY_SIZE(capture);
             params.set(KEY_MODE, (capture[capture_mode]));
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'U':
+            tempBracketIdx++;
+            tempBracketIdx %= ARRAY_SIZE(tempBracketing);
+            params.set(KEY_TEMP_BRACKETING, tempBracketing[tempBracketIdx]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'W':
+            tempBracketRange++;
+            tempBracketRange %= TEMP_BRACKETING_MAX_RANGE;
+            if ( 0 == tempBracketRange ) {
+                tempBracketRange = 1;
+            }
+
+            params.set(KEY_TEMP_BRACKETING_NEG, tempBracketRange);
+            params.set(KEY_TEMP_BRACKETING_POS, tempBracketRange);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
