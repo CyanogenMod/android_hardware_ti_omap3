@@ -40,8 +40,8 @@
 #define JPEG_DECODER_DUMP_INPUT_AND_OUTPUT 0 // set directory persmissions for /temp as 777
 
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
-	int dOutputCount = 0;
-	int dInputCount = 0;
+    int dOutputCount = 0;
+    int dInputCount = 0;
 #endif
 
 //////////////////////////////////////////////////////////////////////////
@@ -55,28 +55,30 @@ public:
             fLabel = "";
         }
         fNow = SkTime::GetMSecs();
+        width = 0;
+        height = 0;
     }
     ~AutoTimeMillis() {
-		SkDebugf("---- Input file Resolution :%dx%d",width,height);
+        SkDebugf("---- Input file Resolution :%dx%d",width,height);
         SkDebugf("---- TI JPEG Decode Time (ms): %s %d\n", fLabel, SkTime::GetMSecs() - fNow);
     }
 
-	void setResolution(int width, int height){
-		this->width=width;
-		this->height=height;
-	}
+    void setResolution(int width, int height){
+        this->width=width;
+        this->height=height;
+    }
 
 private:
     const char* fLabel;
     SkMSec      fNow;
-	int width;
-	int height;
+    int width;
+    int height;
 };
 
 typedef struct OMX_CUSTOM_RESOLUTION
 {
-	OMX_U32 nWidth;
-	OMX_U32 nHeight;
+    OMX_U32 nWidth;
+    OMX_U32 nHeight;
 } OMX_CUSTOM_RESOLUTION;
 
 typedef struct OMX_CUSTOM_IMAGE_DECODE_SUBREGION
@@ -683,11 +685,11 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     //PRINTF("File size = %d\n", stream->getLength());
 
     if (scaleFactor == 3)
-    	scaleFactor = 2;
+        scaleFactor = 2;
     else if ((scaleFactor > 4) && (scaleFactor < 8))
-    	scaleFactor = 4;
+        scaleFactor = 4;
     else if (scaleFactor > 8)
-    	scaleFactor = 8;
+        scaleFactor = 8;
 
     PRINTF ("Modified scaleFactor = %d\n", scaleFactor);
     if (SkImageDecoder::kDecodeBounds_Mode == mode) {
@@ -708,8 +710,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     }
 
 #ifdef TIME_DECODE
-	atm.setResolution(JpegHeaderInfo.nWidth , JpegHeaderInfo.nHeight);
-	atm.setScaleFactor(scaleFactor);
+    atm.setResolution(JpegHeaderInfo.nWidth , JpegHeaderInfo.nHeight);
+    atm.setScaleFactor(scaleFactor);
 #endif
 
     if (inputFileSize == 0) {
@@ -1175,6 +1177,8 @@ EXIT:
     }
     if(inputBuffer != NULL)
         free(inputBuffer);
+
+    tisk_free(outputBuffer);
 
     gTIJpegDecMutex.unlock();
     PRINTF("Leaving Critical Section 3 \n");
