@@ -408,7 +408,7 @@ PVMFCommandId  AndroidSurfaceOutputOmap34xx::writeAsync(uint8 aFormatType, int32
                      break;
                      case PVMFErrInvalidState:
                          bDequeueFail = true;
-                         LOGI("Dequeue FAIL from writeFrameBuf");
+                         LOGV("Dequeue FAIL from writeFrameBuf");
                      break;
                      case PVMFFailure:
                          bDequeueFail = true;

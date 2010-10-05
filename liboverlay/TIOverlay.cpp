@@ -1602,7 +1602,7 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
     }
 
     else if ( ctx->omap_overlay->qd_buf_count < ctx->omap_overlay->optimalQBufCnt ) {
-        LOGE("Queue more buffers before attempting to dequeue!");
+        LOGV("Queue more buffers before attempting to dequeue!");
         rc = -EPERM;
     }
 
