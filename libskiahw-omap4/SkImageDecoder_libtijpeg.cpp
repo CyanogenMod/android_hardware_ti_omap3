@@ -162,6 +162,9 @@ SkTIJPEGImageDecoder::SkTIJPEGImageDecoder()
 
     pOMXHandle = NULL;
     pARMHandle = NULL;
+    pBeforeDecodeTime = NULL;
+    pDecodeTime = NULL;
+    pAfterDecodeTime = NULL;
 
     LIBSKIAHW_LOGDB("semaphore created semaphore = 0x%x", semaphore);
 
@@ -480,7 +483,10 @@ void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
     iLastState = iState;
     iState = STATE_FILL_BUFFER_DONE_CALLED;
 
-    delete pDecodeTime;
+    if(pDecodeTime) {
+        delete pDecodeTime;
+        pDecodeTime = NULL;
+    }
 
     LOG_FUNCTION_NAME_EXIT
     }
@@ -1092,7 +1098,10 @@ void SkTIJPEGImageDecoder::Run()
                         pInBuffHead->nAllocLen = pInBuffHead->nFilledLen;
                         pInBuffHead->nOffset = 0;
 
-                        delete pBeforeDecodeTime;
+                        if(pBeforeDecodeTime) {
+                            delete pBeforeDecodeTime;
+                            pBeforeDecodeTime = NULL;
+                        }
 
                         pDecodeTime=new AutoTimeMillis("BufferDecode Time");
                         OMX_EmptyThisBuffer(pOMXHandle, pInBuffHead);
@@ -1146,7 +1155,10 @@ void SkTIJPEGImageDecoder::Run()
                         iState = STATE_EXIT;
                         sem_post(semaphore);
 
-                        delete pAfterDecodeTime;
+                        if(pAfterDecodeTime) {
+                            delete pAfterDecodeTime;
+                            pAfterDecodeTime = NULL;
+                        }
 
                         break;
                 }
