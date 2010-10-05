@@ -484,16 +484,21 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, params.get(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY));
         }
 
-    if((params.get(CameraParameters::KEY_ZOOM) != NULL )
-        && (params.getInt(CameraParameters::KEY_ZOOM) >=0))
+    if( ( params.get(CameraParameters::KEY_ZOOM) != NULL )
+        && (params.getInt(CameraParameters::KEY_ZOOM) >= 0 )
+        && (params.getInt(CameraParameters::KEY_ZOOM) <= mMaxZoomSupported ) )
         {
         CAMHAL_LOGDB("Zoom set %s", params.get(CameraParameters::KEY_ZOOM));
         mParameters.set(CameraParameters::KEY_ZOOM, params.get(CameraParameters::KEY_ZOOM));
         }
+    else
+        {
+        ret = -EINVAL;
+        }
 
     if ( NULL != mCameraAdapter )
         {
-        ret = mCameraAdapter->setParameters(mParameters);
+        ret |= mCameraAdapter->setParameters(mParameters);
         }
 
     if( NULL != params.get(TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS) )
@@ -1705,11 +1710,21 @@ status_t CameraHal::cancelPicture( )
  */
 CameraParameters CameraHal::getParameters() const
 {
-    LOG_FUNCTION_NAME
+    CameraParameters params;
 
-    LOG_FUNCTION_NAME_EXIT
-    ///Return the current set of parameters
-    return mParameters;
+     LOG_FUNCTION_NAME
+
+     params = mParameters;
+     if( NULL != mCameraAdapter )
+        {
+        mCameraAdapter->getParameters(params);
+        }
+
+     LOG_FUNCTION_NAME_EXIT
+
+     ///Return the current set of parameters
+
+     return params;
 }
 
 /**
@@ -1840,6 +1855,7 @@ CameraHal::CameraHal()
     mEventProvider = NULL;
     mBracketRangePositive = 1;
     mBracketRangeNegative = 1;
+    mMaxZoomSupported = 0;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -2369,6 +2385,7 @@ void CameraHal::insertSupportedParams()
     ///Set the name of the camera
     p.set(TICameraParameters::KEY_CAMERA_NAME, mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue);
 
+    mMaxZoomSupported = atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ZOOM_STAGES]->mPropValue);
 
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue);

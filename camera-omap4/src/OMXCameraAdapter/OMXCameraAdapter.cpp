@@ -82,21 +82,22 @@ static void SigHandler(int sig)
 
 
 const int32_t OMXCameraAdapter::ZOOM_STEPS [ZOOM_STAGES] =  {
-                                                                65536, 67847, 70240, 72717,
-                                                                73216, 75281, 77936, 81000,
-                                                                82032, 85096, 88320, 89192,
-                                                                93288, 97384, 101480, 102837,
-                                                                105800, 111029, 115125, 117500,
-                                                                121960, 124672,130152, 132864,
-                                                                138344, 147200, 150632, 158824,
-                                                                162920, 163840, 171776, 176128,
-                                                                187496, 191592, 195688, 208640,
-                                                                212072, 216168, 229376, 236648,
-                                                                241664, 257128, 261224, 269416,
-                                                                274000, 295000, 302184, 310376,
-                                                                315392, 316000, 343144, 359528,
-                                                                371816, 412776, 425064, 441448,
-                                                                450000, 530000, 550000, 580000 };
+                                                                            65536, 68157, 70124, 72745,
+                                                                            75366, 77988, 80609, 83231,
+                                                                            86508, 89784, 92406, 95683,
+                                                                            99615, 102892, 106168, 110100,
+                                                                            114033, 117965, 122552, 126484,
+                                                                            131072, 135660, 140247, 145490,
+                                                                            150733, 155976, 161219, 167117,
+                                                                            173015, 178913, 185467, 192020,
+                                                                            198574, 205783, 212992, 220201,
+                                                                            228065, 236585, 244449, 252969,
+                                                                            262144, 271319, 281149, 290980,
+                                                                            300810, 311951, 322437, 334234,
+                                                                            346030, 357827, 370934, 384041,
+                                                                            397148, 411566, 425984, 441057,
+                                                                            456131, 472515, 488899, 506593,
+                                                                            524288 };
 
 status_t OMXCameraAdapter::initialize(int sensor_index)
 {
@@ -249,6 +250,9 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mCurrentZoomIdx = 0;
     mTargetZoomIdx = 0;
     mReturnZoomStatus = false;
+    mSmoothZoomEnabled = false;
+    mZoomInc = 1;
+    mZoomParameterIdx = 0;
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
 
@@ -758,7 +762,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         }
     else
         {
-        mIPP = OMXCameraAdapter::IPP_LDCNSF;
+        mIPP = OMXCameraAdapter::IPP_NONE;
         }
 
     if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
@@ -854,6 +858,10 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     } else {
         mTargetZoomIdx = 0;
     }
+    //Immediate zoom should be applied instantly ( CTS requirement )
+    mCurrentZoomIdx = mTargetZoomIdx;
+    doZoom(mCurrentZoomIdx);
+
     CAMHAL_LOGDB("Zoom by App %d", zoom);
 
     LOG_FUNCTION_NAME_EXIT
@@ -900,9 +908,11 @@ void saveFile(unsigned char   *buff, int width, int height, int format) {
     LOG_FUNCTION_NAME_EXIT
 }
 
-void OMXCameraAdapter::getParameters(CameraParameters& params) const
+void OMXCameraAdapter::getParameters(CameraParameters& params)
 {
     LOG_FUNCTION_NAME
+
+#ifdef PARAM_FEEDBACK
 
     OMX_CONFIG_EXPOSURECONTROLTYPE exp;
     OMX_CONFIG_EXPOSUREVALUETYPE expValues;
@@ -1019,7 +1029,26 @@ void OMXCameraAdapter::getParameters(CameraParameters& params) const
     params.set( TICameraParameters::KEY_CONTRAST, contrast.nContrast );
     params.set( TICameraParameters::KEY_SHARPNESS, procSharpness.nLevel);
     params.set( TICameraParameters::KEY_SATURATION, saturation.nSaturation);
-    params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx);
+
+#else
+
+    if ( ( mSmoothZoomEnabled ) )
+        {
+
+        if ( mZoomParameterIdx != mCurrentZoomIdx )
+            {
+            mZoomParameterIdx += mZoomInc;
+            }
+
+        params.set( CameraParameters::KEY_ZOOM, mZoomParameterIdx);
+        if ( ( mCurrentZoomIdx == mTargetZoomIdx ) && ( mZoomParameterIdx == mCurrentZoomIdx ) )
+            {
+            mSmoothZoomEnabled = false;
+            }
+        CAMHAL_LOGDB("CameraParameters Zoom = %d , mSmoothZoomEnabled = %d", mCurrentZoomIdx, mSmoothZoomEnabled);
+        }
+
+#endif
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -1868,27 +1897,31 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
 
         case CameraAdapter::CAMERA_START_SMOOTH_ZOOM:
             {
-            CAMHAL_LOGDA("Start smooth zoom");
+            CAMHAL_LOGDB("Start smooth zoom target = %d", value1);
 
             if ( ( value1 >= 0 ) && ( value1 < ZOOM_STAGES ) )
                 {
                 mTargetZoomIdx = value1;
+                mZoomParameterIdx = mCurrentZoomIdx;
+                mSmoothZoomEnabled = true;
                 }
             else
                 {
-                CAMHAL_LOGEA("No frame subscribers!!");
+                CAMHAL_LOGEB("Smooth value out of range %d!", value1);
                 ret = -EINVAL;
                 }
-
             break;
             }
 
         case CameraAdapter::CAMERA_STOP_SMOOTH_ZOOM:
             {
-            CAMHAL_LOGDA("Stop smooth zoom");
 
-            mTargetZoomIdx = mCurrentZoomIdx;
-            mReturnZoomStatus = true;
+            if ( mSmoothZoomEnabled )
+                {
+                mTargetZoomIdx = mCurrentZoomIdx;
+                mReturnZoomStatus = true;
+                CAMHAL_LOGDB("Stop smooth zoom mCurrentZoomIdx = %d, mTargetZoomIdx = %d", mCurrentZoomIdx, mTargetZoomIdx);
+                }
 
             break;
             }
@@ -3966,7 +3999,6 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
     OMXCameraPortParameters  *pPortParam;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     CameraFrame::FrameType typeOfFrame = CameraFrame::ALL_FRAMES;
-    unsigned int zoomInc;
     unsigned int refCount = 0;
 
     res1 = res2 = -1;
@@ -3975,34 +4007,53 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
         {
         recalculateFPS();
 
-        if ( mCurrentZoomIdx != mTargetZoomIdx )
-            {
-            if ( mCurrentZoomIdx < mTargetZoomIdx )
-                {
-                zoomInc = 1;
-                }
-            else
-                {
-                zoomInc = -1;
-                }
-
-            mCurrentZoomIdx += zoomInc;
-            ret = doZoom(mCurrentZoomIdx);
-
-            if ( mCurrentZoomIdx == mTargetZoomIdx )
-                {
-                notifyZoomSubscribers(mCurrentZoomIdx, true);
-                }
-            else
-                {
-                notifyZoomSubscribers(mCurrentZoomIdx, false);
-                }
-            }
-
         if ( mReturnZoomStatus )
             {
-            notifyZoomSubscribers(mCurrentZoomIdx, true);
+            mTargetZoomIdx = mCurrentZoomIdx;
             mReturnZoomStatus = false;
+            mSmoothZoomEnabled = false;
+            ret = doZoom(mCurrentZoomIdx);
+            notifyZoomSubscribers(mCurrentZoomIdx, true);
+            }
+        else if ( mCurrentZoomIdx != mTargetZoomIdx )
+            {
+            if ( mSmoothZoomEnabled )
+                {
+                if ( mCurrentZoomIdx < mTargetZoomIdx )
+                    {
+                    mZoomInc = 1;
+                    }
+                else
+                    {
+                    mZoomInc = -1;
+                    }
+
+                mCurrentZoomIdx += mZoomInc;
+                }
+            else
+                {
+                mCurrentZoomIdx = mTargetZoomIdx;
+                }
+
+            ret = doZoom(mCurrentZoomIdx);
+
+            if ( mSmoothZoomEnabled )
+                {
+                if ( mCurrentZoomIdx == mTargetZoomIdx )
+                    {
+                    CAMHAL_LOGDB("[Goal Reached] Smooth Zoom notify currentIdx = %d, targetIdx = %d", mCurrentZoomIdx, mTargetZoomIdx);
+                    notifyZoomSubscribers(mCurrentZoomIdx, true);
+                    }
+                else
+                    {
+                    CAMHAL_LOGDB("[Advancing] Smooth Zoom notify currentIdx = %d, targetIdx = %d", mCurrentZoomIdx, mTargetZoomIdx);
+                    notifyZoomSubscribers(mCurrentZoomIdx, false);
+                    }
+                }
+            }
+        else if ( mSmoothZoomEnabled )
+            {
+            mSmoothZoomEnabled = false;
             }
 
         ///On the fly update to 3A settings not working
