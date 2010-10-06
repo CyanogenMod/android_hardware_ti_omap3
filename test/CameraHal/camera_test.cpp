@@ -40,6 +40,8 @@
 #define KEY_MODE            "mode"
 #define KEY_VNF             "vnf"
 #define KEY_VSTAB           "vstab"
+#define KEY_FACE_DETECTION_ENABLE "face-detection-enable"
+#define KEY_FACE_DETECTION_DATA "face-detection-data"
 #define KEY_COMPENSATION    "exposure-compensation"
 #define KEY_IPP             "ippMode"
 #define KEY_BUFF_STARV      "buff-starvation"
@@ -112,6 +114,7 @@ int ippIDX = 0;
 int previewFormat = 0;
 int jpegQuality = 85;
 int thumbQuality = 85;
+int faceIndex = 0;
 timeval autofocus_start, picture_start;
 char script_name[80];
 bool nullOverlay = false;
@@ -121,6 +124,7 @@ char dir_path[80] = SDCARD_PATH;
 
 const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Secondary Camera 2", "Stereo Camera"};
 const char *tempBracketing[] = {"disable", "enable"};
+const char *faceDetection[] = {"disable", "enable"};
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
 const char *iso [] = { "auto", "100", "200", "400", "800", "1200", "1600"};
 const char *effects [] = {
@@ -1174,6 +1178,8 @@ int functional_menu() {
         printf(" \n\n 3A SETTING SUB MENU \n");
         printf(" -----------------------------\n");
 
+        printf("   F. Face detection: %s\n", faceDetection[faceIndex]);
+        printf("   T. Dump face data \n");
         printf("   f. Auto Focus/Half Press\n");
         printf("   7. EV offset:      %4.1f\n", compensation);
         printf("   8. AWB mode:       %s\n", strawb_mode[awb_mode]);
@@ -1469,6 +1475,32 @@ int functional_menu() {
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
+
+            break;
+
+        case 'F':
+            faceIndex += 1;
+            faceIndex %= ARRAY_SIZE(faceDetection);
+            params.set(KEY_FACE_DETECTION_ENABLE, faceDetection[faceIndex]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'T':
+
+            if ( hardwareActive ) {
+                CameraParameters par = camera->getParameters();
+                const char * faceData = par.get(KEY_FACE_DETECTION_DATA);
+
+                if ( NULL != faceData) {
+                    printf("Face coordinates: %s\n", faceData);
+                } else {
+                    printf("No face data\n");
+                }
+
+            }
 
             break;
 
