@@ -780,6 +780,9 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
             mYOff = yOff;
             }
 
+        {
+        // scope for the lock
+        Mutex::Autolock lock(mLock);
         //Post it to display via Overlay
         actualFramesWithDisplay = ret = mOverlay->queueBuffer(buf);
 
@@ -790,8 +793,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
             mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
             }
         else
-            { // scope for the lock
-            Mutex::Autolock lock(mLock);
+            {
             mFramesWithDisplay++;
 
             if(mFramesWithDisplay>NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
@@ -820,21 +822,30 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
                 }
 
 #endif
-            if(actualFramesWithDisplay!=mFramesWithDisplay)
+            if((actualFramesWithDisplay!=mFramesWithDisplay))
                 {
-                CAMHAL_LOGEB("Stream off happened actualFramesWithDisplay=%d mFramesWithDisplay=%d",
-                                actualFramesWithDisplay, mFramesWithDisplay);
-                ///Skew detected. Overlay has gone through a stream off sequence due to trigger from Surface flinger
-                /// Reclaim all the buffers back except the one we posted
-                for(unsigned int i=0;i<mFramesWithDisplayMap.size();i++)
+                if(actualFramesWithDisplay==0)
                     {
-                    ///Return the reclaimed frames back to the provider (Camera Adapter)
-                    mFrameProvider->returnFrame( (void *) mFramesWithDisplayMap.keyAt(i), CameraFrame::PREVIEW_FRAME_SYNC);
-                    }
+                    CAMHAL_LOGEB("Stream off happened actualFramesWithDisplay=%d mFramesWithDisplay=%d",
+                                    actualFramesWithDisplay, mFramesWithDisplay);
+                    ///Skew detected. Overlay has gone through a stream off sequence due to trigger from Surface flinger
+                    /// Reclaim all the buffers back except the one we posted
+                    for(unsigned int i=0;i<mFramesWithDisplayMap.size();i++)
+                        {
+                        ///Return the reclaimed frames back to the provider (Camera Adapter)
+                        mFrameProvider->returnFrame( (void *) mFramesWithDisplayMap.keyAt(i), CameraFrame::PREVIEW_FRAME_SYNC);
+                        }
 
-                ///Clear the frames with display map
-                mFramesWithDisplayMap.clear();
+                    ///Clear the frames with display map
+                    mFramesWithDisplayMap.clear();
+                    }
+                else
+                    {
+                    CAMHAL_LOGEB("ERROR:Buffer count not matching actualFramesWithDisplay=%d mFramesWithDisplay=%d",
+                                        actualFramesWithDisplay, mFramesWithDisplay);
+                    }
                 }
+
 
             ///Update the mFramesWithDisplay with the updated count.
             ///Note that actualFramesWithDisplay will always be 1 with the first queueBuffer after stream off
@@ -844,6 +855,8 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
             ret = NO_ERROR;
 
             }
+            }
+
 
         }
     else
@@ -851,6 +864,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
         ///Drop the frame, return it back to the provider (Camera Adapter)
         mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
         }
+
 
     return ret;
 }
