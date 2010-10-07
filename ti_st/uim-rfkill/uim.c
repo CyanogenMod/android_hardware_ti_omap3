@@ -742,6 +742,10 @@ int main(int argc, char *argv[])
 		UIM_DBG("GPS driver module un-available... ");
 		UIM_DBG("GPS driver built into the kernel ?");
 	}
+
+	if (chmod("/dev/tifm", 0666) < 0) {
+		UIM_ERR("unable to chmod /dev/tifm");
+	}
 #endif
 	/* rfkill device's open/poll/read */
 	st_fd = open("/dev/rfkill", O_RDONLY);
