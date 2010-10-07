@@ -754,7 +754,7 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
         return NO_ERROR;
     }
 
-    if (handle->handle && handle->curDev == devices && handle->curMode == mode)
+    if (handle->curDev == devices && handle->curMode == mode)
         ; // Nothing to do
     else if (handle->handle && (handle->devices & devices))
         setAlsaControls(handle, devices, mode);
