@@ -139,6 +139,11 @@ void CameraHal::enableMsgType(int32_t msgType)
 {
     LOG_FUNCTION_NAME
 
+    if ( ( msgType & CAMERA_MSG_SHUTTER ) && ( !mShutterEnabled ) )
+        {
+        msgType &= ~CAMERA_MSG_SHUTTER;
+        }
+
     {
     Mutex::Autolock lock(mLock);
     mMsgEnabled |= msgType;
@@ -558,6 +563,26 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             }
 
         }
+
+    if( ( NULL != params.get(TICameraParameters::KEY_SHUTTER_ENABLE) ) &&
+        ( strcmp(params.get(TICameraParameters::KEY_SHUTTER_ENABLE), TICameraParameters::SHUTTER_ENABLE) == 0 ))
+        {
+        CAMHAL_LOGDA("Enabling shutter sound");
+
+        mShutterEnabled = true;
+        mMsgEnabled |= CAMERA_MSG_SHUTTER;
+        mParameters.set(TICameraParameters::KEY_SHUTTER_ENABLE, params.get(TICameraParameters::KEY_SHUTTER_ENABLE));
+        }
+    else if ( ( NULL != params.get(TICameraParameters::KEY_SHUTTER_ENABLE) ) &&
+        ( strcmp(params.get(TICameraParameters::KEY_SHUTTER_ENABLE), TICameraParameters::SHUTTER_DISABLE) == 0 ))
+        {
+        CAMHAL_LOGDA("Disabling shutter sound");
+
+        mShutterEnabled = false;
+        mMsgEnabled &= ~CAMERA_MSG_SHUTTER;
+        mParameters.set(TICameraParameters::KEY_SHUTTER_ENABLE, params.get(TICameraParameters::KEY_SHUTTER_ENABLE));
+        }
+
 
     CAMHAL_LOGDB("mReloadAdapter %d", (int) mReloadAdapter);
 
@@ -1856,6 +1881,8 @@ CameraHal::CameraHal()
     mBracketRangePositive = 1;
     mBracketRangeNegative = 1;
     mMaxZoomSupported = 0;
+    mShutterEnabled = true;
+
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 

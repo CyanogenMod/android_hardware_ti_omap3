@@ -924,6 +924,7 @@ private:
 
         status_t stopImageBracketing();
 
+        void setShutter(bool enable);
 
         //@}
 
@@ -941,6 +942,8 @@ public:
     uint32_t mTakePictureQueue;
     bool mBracketingEnabled;
     bool mBracketingRunning;
+    //User shutter override
+    bool mShutterEnabled;
 
     CameraAdapter *mCameraAdapter;
     sp<AppCallbackNotifier> mAppCallbackNotifier;

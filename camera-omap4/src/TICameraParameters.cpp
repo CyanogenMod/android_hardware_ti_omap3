@@ -38,6 +38,7 @@ const char TICameraParameters::VIDEO_MODE[] = "video-mode";
 // TI extensions to standard android Parameters
 const char TICameraParameters::KEY_SUPPORTED_CAMERAS[] = "camera-indexes";
 const char TICameraParameters::KEY_CAMERA[] = "camera-index";
+const char TICameraParameters::KEY_SHUTTER_ENABLE[] = "shutter-enable";
 const char TICameraParameters::KEY_CAMERA_NAME[] = "camera-name";
 const char TICameraParameters::KEY_BURST[] = "burst-capture";
 const char TICameraParameters::KEY_CAP_MODE[] = "mode";
@@ -60,6 +61,10 @@ const char TICameraParameters::KEY_PADDED_HEIGHT[] = "padded-height";
 const char TICameraParameters::KEY_TEMP_BRACKETING[] = "temporal-bracketing";
 const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS[] = "temporal-bracketing-range-positive";
 const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_NEG[] = "temporal-bracketing-range-negative";
+
+//TI extensions for enabling/disabling shutter sound
+const char TICameraParameters::SHUTTER_ENABLE[] = "true";
+const char TICameraParameters::SHUTTER_DISABLE[] = "false";
 
 //TI extensions for Temporal Bracketing
 const char TICameraParameters::BRACKET_ENABLE[] = "enable";

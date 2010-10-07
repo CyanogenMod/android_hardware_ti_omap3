@@ -62,6 +62,11 @@ static const  char KEY_PADDED_HEIGHT[];
 static const char  KEY_TEMP_BRACKETING[];
 static const char  KEY_TEMP_BRACKETING_RANGE_POS[];
 static const char  KEY_TEMP_BRACKETING_RANGE_NEG[];
+static const char  KEY_SHUTTER_ENABLE[];
+
+//TI extensions for enabling/disabling shutter sound
+static const char SHUTTER_ENABLE[];
+static const char SHUTTER_DISABLE[];
 
 //TI extensions for Temporal bracketing
 static const char BRACKET_ENABLE[];
