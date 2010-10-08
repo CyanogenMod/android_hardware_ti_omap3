@@ -38,6 +38,8 @@ static int mDebugFps = 0;
 
 #define Q16_OFFSET 16
 
+#define FACE_DETECTION_BUFFER_SIZE  0x1000
+
 #define HERE(Msg) {CAMHAL_LOGEB("--===line %d, %s===--\n", __LINE__, Msg);}
 
 namespace android {
@@ -258,6 +260,14 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     //Setting this flag will that the first setParameter call will apply all 3A settings
     //and will not conditionally apply based on current values.
     mFirstTimeInit = true;
+
+    mFaceDetectionRunning = false;
+    mFaceDectionResult = new char[FACE_DETECTION_BUFFER_SIZE];
+    if ( NULL != mFaceDectionResult )
+        {
+        memset(mFaceDectionResult, '\0', FACE_DETECTION_BUFFER_SIZE);
+        }
+
 
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
@@ -785,6 +795,27 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Burst Frames set %d", mBurstFrames);
 
+    if ( NULL != params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE) )
+        {
+        if (strcmp(params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE), (const char *) TICameraParameters::FACE_DETECTION_ENABLE) == 0)
+            {
+            setFaceDetection(true);
+            }
+        else if (strcmp(params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE), (const char *) TICameraParameters::FACE_DETECTION_DISABLE) == 0)
+            {
+            setFaceDetection(false);
+            }
+        else
+            {
+            setFaceDetection(false);
+            }
+        }
+    else
+        {
+        //Disable face detection by default
+        setFaceDetection(false);
+        }
+
     if ( ( params.getInt(CameraParameters::KEY_JPEG_QUALITY)  >= MIN_JPEG_QUALITY ) &&
          ( params.getInt(CameraParameters::KEY_JPEG_QUALITY)  <= MAX_JPEG_QUALITY ) )
         {
@@ -1054,6 +1085,19 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
             mSmoothZoomEnabled = false;
             }
         CAMHAL_LOGDB("CameraParameters Zoom = %d , mSmoothZoomEnabled = %d", mCurrentZoomIdx, mSmoothZoomEnabled);
+        }
+
+        //Face detection coordinates go in here
+        {
+        Mutex::Autolock lock(mFaceDetectionLock);
+        if ( mFaceDetectionRunning )
+            {
+            params.set( TICameraParameters::KEY_FACE_DETECTION_DATA, mFaceDectionResult);
+            }
+        else
+            {
+            params.set( TICameraParameters::KEY_FACE_DETECTION_DATA, NULL);
+            }
         }
 
 #endif
@@ -1680,7 +1724,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
             }
         GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
-        pBufferHdr->pAppPrivate = (OMX_PTR)pBufferHdr;
+        //pBufferHdr->pAppPrivate =  (OMX_PTR)pBufferHdr;
         pBufferHdr->nSize = sizeof(OMX_BUFFERHEADERTYPE);
         pBufferHdr->nVersion.s.nVersionMajor = 1 ;
         pBufferHdr->nVersion.s.nVersionMinor = 1 ;
@@ -2463,6 +2507,281 @@ status_t OMXCameraAdapter::setExposureMode(Gen3A_settings& Gen3A)
             {
             CAMHAL_LOGDA("Camera exposure mode configured successfully");
             }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setFaceDetection(bool enable)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_EXTRADATATYPE extraDataControl;
+    OMX_CONFIG_OBJDETECTIONTYPE objDetection;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&objDetection, OMX_CONFIG_OBJDETECTIONTYPE);
+        objDetection.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+        if  ( enable )
+            {
+            objDetection.bEnable = OMX_TRUE;
+            }
+        else
+            {
+            objDetection.bEnable = OMX_FALSE;
+            }
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexConfigImageFaceDetection, &objDetection);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring face detection 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGEA("Face detection configuring successfully");
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&extraDataControl, OMX_CONFIG_EXTRADATATYPE);
+        extraDataControl.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+        extraDataControl.eExtraDataType = OMX_FaceDetection;
+        extraDataControl.eCameraView = OMX_2D;
+        if  ( enable )
+            {
+            extraDataControl.bEnable = OMX_TRUE;
+            }
+        else
+            {
+            extraDataControl.bEnable = OMX_FALSE;
+            }
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexConfigOtherExtraDataControl, &extraDataControl);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring face detection extra data 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGEA("Face detection extra data configuring successfully");
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        Mutex::Autolock lock(mFaceDetectionLock);
+        mFaceDetectionRunning = enable;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_FACERESULT *faceResult;
+    OMX_OTHER_EXTRADATATYPE *extraData;
+    OMX_FACEDETECTIONTYPE *faceData;
+    OMX_TI_PLATFORMPRIVATE *platformPrivate;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in executing state");
+        ret = -1;
+        }
+
+    if ( NULL == pBuffHeader )
+        {
+        CAMHAL_LOGEA("Invalid Buffer header");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        platformPrivate = (OMX_TI_PLATFORMPRIVATE *) (pBuffHeader->pPlatformPrivate);
+        if ( NULL != platformPrivate )
+            {
+
+            if ( sizeof(OMX_TI_PLATFORMPRIVATE) == platformPrivate->nSize )
+                {
+                CAMHAL_LOGVB("Size = %d, sizeof = %d, pAuxBuf = 0x%x, pAuxBufSize= %d, pMetaDataBufer = 0x%x, nMetaDataSize = %d",
+                                        platformPrivate->nSize,
+                                        sizeof(OMX_TI_PLATFORMPRIVATE),
+                                        platformPrivate->pAuxBuf1,
+                                        platformPrivate->pAuxBufSize1,
+                                        platformPrivate->pMetaDataBuffer,
+                                        platformPrivate->nMetaDataSize
+                                        );
+                }
+            else
+                {
+                CAMHAL_LOGEB("OMX_TI_PLATFORMPRIVATE size mismatch: expected = %d, received = %d",
+                                            ( unsigned int ) sizeof(OMX_TI_PLATFORMPRIVATE),
+                                            ( unsigned int ) platformPrivate->nSize);
+                ret = -EINVAL;
+                }
+            }
+        else
+            {
+            CAMHAL_LOGEA("Invalid OMX_TI_PLATFORMPRIVATE");
+            ret = -EINVAL;
+            }
+
+    }
+
+    if ( NO_ERROR == ret )
+        {
+
+        if ( 0 >= platformPrivate->nMetaDataSize )
+            {
+            CAMHAL_LOGEB("OMX_TI_PLATFORMPRIVATE nMetaDataSize is size is %d",
+                                            ( unsigned int ) platformPrivate->nMetaDataSize);
+            ret = -EINVAL;
+            }
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        extraData = (OMX_OTHER_EXTRADATATYPE *) (platformPrivate->pMetaDataBuffer);
+        if ( NULL != extraData )
+            {
+            CAMHAL_LOGVB("Size = %d, sizeof = %d, eType = 0x%x, nDataSize= %d, nPortIndex = 0x%x, nVersion = 0x%x",
+                                        extraData->nSize,
+                                        sizeof(OMX_OTHER_EXTRADATATYPE),
+                                        extraData->eType,
+                                        extraData->nDataSize,
+                                        extraData->nPortIndex,
+                                        extraData->nVersion
+                                        );
+            }
+        else
+            {
+            CAMHAL_LOGEA("Invalid OMX_OTHER_EXTRADATATYPE");
+            ret = -EINVAL;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        faceData = ( OMX_FACEDETECTIONTYPE * ) extraData->data;
+        if ( NULL != faceData )
+            {
+            if ( sizeof(OMX_FACEDETECTIONTYPE) == faceData->nSize )
+                {
+                CAMHAL_LOGVB("Faces detected %d",
+                                            faceData->ulFaceCount,
+                                            faceData->nSize,
+                                            sizeof(OMX_FACEDETECTIONTYPE),
+                                            faceData->eCameraView,
+                                            faceData->nPortIndex,
+                                            faceData->nVersion);
+                }
+            else
+                {
+                CAMHAL_LOGEB("OMX_FACEDETECTIONTYPE size mismatch: expected = %d, received = %d",
+                                            ( unsigned int ) sizeof(OMX_FACEDETECTIONTYPE),
+                                            ( unsigned int ) faceData->nSize);
+                ret = -EINVAL;
+                }
+
+            }
+        else
+            {
+            CAMHAL_LOGEA("Invalid OMX_FACEDETECTIONTYPE");
+            ret = -EINVAL;
+            }
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = encodeFaceCoordinates(faceData, mFaceDectionResult, FACE_DETECTION_BUFFER_SIZE);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *faceData, char *faceString, size_t faceStringSize)
+{
+    status_t ret = NO_ERROR;
+    OMX_TI_FACERESULT *faceResult;
+    size_t faceResultSize;
+    int count = 0;
+    char *p;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == faceData )
+        {
+        CAMHAL_LOGEA("Invalid OMX_FACEDETECTIONTYPE parameter");
+        ret = -EINVAL;
+        }
+
+    if ( NULL == faceString )
+        {
+        CAMHAL_LOGEA("Invalid faceString parameter");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        p = mFaceDectionResult;
+        faceResultSize = faceStringSize;
+        faceResult = ( OMX_TI_FACERESULT * ) faceData->tFacePosition;
+        if ( 0 < faceData->ulFaceCount )
+            {
+            for ( int i = 0  ; i < faceData->ulFaceCount ; i++)
+                {
+                CAMHAL_LOGVB("Face %d: left = %d, top = %d, width = %d, height = %d", i,
+                                                       ( unsigned int ) faceResult->nLeft,
+                                                       ( unsigned int ) faceResult->nTop,
+                                                       ( unsigned int ) faceResult->nWidth,
+                                                       ( unsigned int ) faceResult->nHeight);
+
+                count = snprintf(p, faceResultSize, "%dx%d,%dx%d,",
+                                                       ( unsigned int ) faceResult->nLeft,
+                                                       ( unsigned int ) faceResult->nTop,
+                                                       ( unsigned int ) faceResult->nWidth,
+                                                       ( unsigned int ) faceResult->nHeight);
+                p += count;
+                faceResultSize -= count;
+                faceResult++;
+                }
+            }
+        else
+            {
+            memset(mFaceDectionResult, '\0', faceStringSize);
+            }
+        }
+    else
+        {
+        memset(mFaceDectionResult, '\0', faceStringSize);
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -4019,6 +4338,17 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
         {
         recalculateFPS();
 
+        //Face detection runs only in High Quality capture mode
+        if ( ( OMXCameraAdapter::HIGH_QUALITY == mCapMode ) ||
+             ( OMXCameraAdapter::VIDEO_MODE == mCapMode) )
+            {
+            Mutex::Autolock lock(mFaceDetectionLock);
+            if ( mFaceDetectionRunning )
+                {
+                detectFaces(pBuffHeader);
+                }
+            }
+
         if ( mReturnZoomStatus )
             {
             mTargetZoomIdx = mCurrentZoomIdx;
@@ -4553,6 +4883,11 @@ OMXCameraAdapter::~OMXCameraAdapter()
     if(mComponentState==OMX_StateLoaded)
         {
         OMX_Deinit();
+        }
+
+    if ( NULL != mFaceDectionResult )
+        {
+        delete [] mFaceDectionResult;
         }
 
     LOG_FUNCTION_NAME_EXIT

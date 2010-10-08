@@ -1028,7 +1028,7 @@ private:
 
     uint32_t mPreviewWidth;
     uint32_t mPreviewHeight;
-    uint32_t mMaxZoomSupported;
+    int32_t mMaxZoomSupported;
 };
 
 

@@ -40,8 +40,9 @@ static const  char KEY_SUPPORTED_CAMERAS[];
 static const char KEY_CAMERA[];
 static const char KEY_CAMERA_NAME[];
 static const  char KEY_S3D_SUPPORTED[];
-
-static const char KEY_BURST[];
+static const char  KEY_FACE_DETECTION_ENABLE[];
+static const char  KEY_FACE_DETECTION_DATA[];
+static const char  KEY_BURST[];
 static const  char KEY_CAP_MODE[];
 static const  char KEY_VSTAB[];
 static const  char KEY_VNF[];
@@ -98,6 +99,10 @@ static const  char SCENE_MODE_BARCODE[];
 static const  char SCENE_MODE_VIDEO_SUPER_NIGHT[];
 static const  char SCENE_MODE_VIDEO_CINE[];
 static const  char SCENE_MODE_VIDEO_OLD_FILM[];
+
+// TI extensions for face detecition
+static const  char FACE_DETECTION_ENABLE[];
+static const  char FACE_DETECTION_DISABLE[];
 
 // TI extensions to standard android white balance settings.
 static const  char WHITE_BALANCE_TUNGSTEN[];

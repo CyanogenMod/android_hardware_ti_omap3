@@ -302,6 +302,11 @@ private:
     //LDC
     status_t setLDC(OMXCameraAdapter::IPPMode mode);
 
+    //Face detection
+    status_t setFaceDetection(bool enable);
+    status_t detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader);
+    status_t encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *faceData, char *faceString, size_t faceStringSize);
+
     // Preview Service
     status_t startPreview();
     status_t stopPreview();
@@ -319,6 +324,7 @@ private:
     // Image Capture Service
     status_t startImageCapture();
     status_t stopImageCapture();
+
     //Sets eithter HQ or HS mode and the frame count
     status_t setCaptureMode(OMXCameraAdapter::CaptureMode mode);
     status_t UseBuffersCapture(void* bufArr, int num);
@@ -352,6 +358,12 @@ private:
     struct timeval mStartCapture;
 
 #endif
+
+    mutable Mutex mFaceDetectionLock;
+    //Face detection status
+    bool mFaceDetectionRunning;
+    //Buffer for storing face detection results
+    char *mFaceDectionResult;
 
     //Image post-processing
     IPPMode mIPP;
