@@ -300,7 +300,7 @@ const struct {
 
 };
 
-int thumbSizeIDX =  5;
+int thumbSizeIDX =  3;
 int previewSizeIDX = ARRAY_SIZE(previewSize) - 1;
 int captureSizeIDX = ARRAY_SIZE(captureSize) - 1;
 int frameRateIDX = ARRAY_SIZE(frameRate) - 1;
@@ -970,7 +970,7 @@ void initDefaults() {
     frameRateIDX = ARRAY_SIZE(frameRate) - 1;      /* Default frame rate is 30 FPS */
     VcaptureSizeIDX = ARRAY_SIZE(VcaptureSize) - 2;/* Default video record is WVGA */
     VbitRateIDX = ARRAY_SIZE(VbitRate) - 4;        /*Default video bit rate is 4M */
-    thumbSizeIDX = 5;
+    thumbSizeIDX = 3;
     compensation = 0.0;
     awb_mode = 0;
     effects_mode = 0;
