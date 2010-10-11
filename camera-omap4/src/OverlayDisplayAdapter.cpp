@@ -824,7 +824,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
 #endif
             if((actualFramesWithDisplay!=mFramesWithDisplay))
                 {
-                if(actualFramesWithDisplay==0)
+                if(actualFramesWithDisplay==1)
                     {
                     CAMHAL_LOGEB("Stream off happened actualFramesWithDisplay=%d mFramesWithDisplay=%d",
                                     actualFramesWithDisplay, mFramesWithDisplay);
