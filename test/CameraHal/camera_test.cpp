@@ -2971,7 +2971,7 @@ int main(int argc, char *argv[]) {
 
         return 0;
     }
-
+    system("echo camerahal_test > /sys/power/wake_lock");
     if ( argc < 3 ) {
         switch (*argv[1]) {
             case 'S':
@@ -2987,7 +2987,7 @@ int main(int argc, char *argv[]) {
 
                 if ( openCamera() < 0 ) {
                     printf("Camera initialization failed\n");
-
+                    system("echo camerahal_test > /sys/power/wake_unlock");
                     return -1;
                 }
 
@@ -3015,7 +3015,7 @@ int main(int argc, char *argv[]) {
 
                 if ( openCamera() < 0 ) {
                     printf("Camera initialization failed\n");
-
+                    system("echo camerahal_test > /sys/power/wake_unlock");
                     return -1;
                 }
 
@@ -3045,7 +3045,7 @@ int main(int argc, char *argv[]) {
 
         if ( openCamera() < 0 ) {
             printf("Camera initialization failed\n");
-
+            system("echo camerahal_test > /sys/power/wake_unlock");
             return -1;
         }
 
@@ -3066,7 +3066,7 @@ int main(int argc, char *argv[]) {
 
         if ( openCamera() < 0 ) {
             printf("Camera initialization failed\n");
-
+            system("echo camerahal_test > /sys/power/wake_unlock");
             return -1;
         }
 
@@ -3091,6 +3091,6 @@ int main(int argc, char *argv[]) {
     end = current_time.tv_sec * 1000000 + current_time.tv_usec;
     delay = end - st;
     printf("Application clossed after: %llu ms\n", delay);
-
+    system("echo camerahal_test > /sys/power/wake_unlock");
     return 0;
 }
