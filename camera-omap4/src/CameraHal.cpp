@@ -244,12 +244,54 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     ///Ensure that preview is not enabled when the below parameters are changed.
     if(!previewEnabled())
         {
+        ///Sensor selection will go in first as all other parameter setting is dependent on it
+        if((params.get(TICameraParameters::KEY_CAMERA) != NULL)
+            && (params.getInt(TICameraParameters::KEY_CAMERA) >=0)
+            && (params.getInt(TICameraParameters::KEY_CAMERA) < mCameraProperties->camerasSupported() ))
+            {
+            mParameters.set(TICameraParameters::KEY_CAMERA, params.get(TICameraParameters::KEY_CAMERA));
+            }
+
+        int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
+
+        CAMHAL_LOGDB("Camera Selected %s",mParameters.get(TICameraParameters::KEY_CAMERA));
+        CAMHAL_LOGDB("camera_index %d, mCameraIndex %d", camera_index, mCameraIndex);
+
+        if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
+            {
+            mCameraIndex = camera_index;
+            mReloadAdapter = true;
+            }
+
+        //This can only happen when there is a mismatch
+        //between the Camera application default
+        //CameraHal's own default at the start
+        if ( mReloadAdapter )
+            {
+             if ( NULL != mCameraAdapter )
+                {
+                  // Free the camera adapter
+                 //mCameraAdapter.clear();
+
+                 //Close the camera adapter DLL
+                 //::dlclose(mCameraAdapterHandle);
+                }
+
+            if ( reloadAdapter() < 0 )
+                {
+                CAMHAL_LOGEA("CameraAdapter reload failed");
+                }
+
+            mReloadAdapter = false;
+            }
+
+
         CAMHAL_LOGDB("PreviewFormat %s", params.getPreviewFormat());
 
         if ( !isParameterValid(params.getPreviewFormat(), (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue))
             {
             CAMHAL_LOGEB("Invalid preview format %s",  (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS]->mPropValue);
-            return -EINVAL;
+            ret = -EINVAL;
             }
         else
             {
@@ -260,7 +302,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
             {
             CAMHAL_LOGEB("Invalid preview resolution %d x %d", w, h);
-            return -EINVAL;
+            ret = -EINVAL;
             }
         else
             {
@@ -302,24 +344,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mParameters.set(TICameraParameters::KEY_BURST, params.get(TICameraParameters::KEY_BURST));
             }
 
-        if((params.get(TICameraParameters::KEY_CAMERA) != NULL)
-            && (params.getInt(TICameraParameters::KEY_CAMERA) >=0)
-            && (params.getInt(TICameraParameters::KEY_CAMERA) < mCameraProperties->camerasSupported() ))
-            {
-            mParameters.set(TICameraParameters::KEY_CAMERA, params.get(TICameraParameters::KEY_CAMERA));
-            }
-
-        int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
-
-        CAMHAL_LOGDB("Camera Selected %s",mParameters.get(TICameraParameters::KEY_CAMERA));
-        CAMHAL_LOGDB("camera_index %d, mCameraIndex %d", camera_index, mCameraIndex);
-
-        if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
-            {
-            mCameraIndex = camera_index;
-            mReloadAdapter = true;
-            }
-
         }
 
     ///Below parameters can be changed when the preview is running
@@ -327,7 +351,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue))
         {
         CAMHAL_LOGEA("Invalid picture format");
-        return -EINVAL;
+        ret = -EINVAL;
         }
     else
         {
@@ -338,7 +362,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue))
         {
         CAMHAL_LOGEA("Invalid picture resolution");
-        return -EINVAL;
+        ret = -EINVAL;
         }
     else
         {
@@ -351,7 +375,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     if ( !isParameterValid(framerate, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue))
         {
         CAMHAL_LOGEA("Invalid frame rate");
-        return -EINVAL;
+        ret = -EINVAL;
         }
     else
         {
@@ -831,6 +855,7 @@ status_t CameraHal::freeImageBufs()
  */
 status_t CameraHal::startPreview()
 {
+
     status_t ret = NO_ERROR;
     int w, h;
 
@@ -870,33 +895,6 @@ status_t CameraHal::startPreview()
 
         return ALREADY_EXISTS;
         }
-
-    //This can only happen when there is a mismatch
-    //between the Camera application default
-    //CameraHal's own default at the start
-    if ( mReloadAdapter )
-        {
-         if ( NULL != mCameraAdapter )
-            {
-              // Free the camera adapter
-             //mCameraAdapter.clear();
-
-             //Close the camera adapter DLL
-             //::dlclose(mCameraAdapterHandle);
-            }
-
-        if ( reloadAdapter() < 0 )
-            {
-            CAMHAL_LOGEA("CameraAdapter reload failed")
-            }
-        else
-            {
-            insertSupportedParams();
-            }
-
-        mReloadAdapter = false;
-        }
-
 
     ///If we don't have the preview callback enabled and display adapter,
     ///@todo we dont support changing the overlay dynamically when preview is ongoing nor set the overlay object dynamically
@@ -1182,29 +1180,6 @@ void CameraHal::stopPreview()
 
     mPreviewEnabled = false;
     mDisplayPaused = false;
-
-    if ( mReloadAdapter )
-        {
-         if ( NULL != mCameraAdapter )
-            {
-              // Free the camera adapter
-             //mCameraAdapter.clear();
-
-             //Close the camera adapter DLL
-             //::dlclose(mCameraAdapterHandle);
-            }
-
-        if ( reloadAdapter() < 0 )
-            {
-            CAMHAL_LOGEA("CameraAdapter reload failed");
-            }
-        else
-            {
-            insertSupportedParams();
-            }
-
-        mReloadAdapter = false;
-        }
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -2072,6 +2047,12 @@ if(!mCameraPropertiesArr)
     ///Initialize default parameters
     initDefaultParameters();
 
+
+    if ( setParameters(mParameters) != NO_ERROR )
+        {
+        CAMHAL_LOGEA("Failed to set default parameters?!");
+        }
+
     LOG_FUNCTION_NAME_EXIT
 
     return NO_ERROR;
@@ -2146,6 +2127,8 @@ status_t CameraHal::reloadAdapter()
     //Delete all existing instances of CameraHAL objects
     //deinitialize();
 
+    initDefaultParameters();
+
     if ( -1 != ret )
         {
         f = (CameraAdapterFactory) ::dlsym(mCameraAdapterHandle, "CameraAdapter_Factory");
@@ -2178,6 +2161,7 @@ status_t CameraHal::reloadAdapter()
         ret = mCameraAdapter->setParameters(mParameters);
         }
 
+
     if ( (0 == ret) && ( NULL != mAppCallbackNotifier.get() ) &&
            ( NULL !=  mCameraAdapter ) )
         {
@@ -2193,7 +2177,6 @@ status_t CameraHal::reloadAdapter()
         }
 
     LOG_FUNCTION_NAME_EXIT
-
     return ret;
 }
 
@@ -2513,11 +2496,6 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_EXPOSURE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXPOSURE_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_ISO, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ISO_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_IPP]->mPropValue);
-
-    if ( setParameters(p) != NO_ERROR )
-        {
-        CAMHAL_LOGEA("Failed to set default parameters?!");
-        }
 
     LOG_FUNCTION_NAME_EXIT
 }

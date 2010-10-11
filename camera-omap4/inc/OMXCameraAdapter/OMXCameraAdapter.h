@@ -420,6 +420,7 @@ private:
 
     CameraParameters mParameters;
     OMXCameraAdapterComponentContext mCameraAdapterParameters;
+    bool mFirstTimeInit;
 
     ///Semaphores used internally
     MessageQueue mEventSignalQ;

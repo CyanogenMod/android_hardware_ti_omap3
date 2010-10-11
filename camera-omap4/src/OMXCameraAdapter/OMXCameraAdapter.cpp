@@ -253,6 +253,11 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mSmoothZoomEnabled = false;
     mZoomInc = 1;
     mZoomParameterIdx = 0;
+
+    //Setting this flag will that the first setParameter call will apply all 3A settings
+    //and will not conditionally apply based on current values.
+    mFirstTimeInit = true;
+
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
 
@@ -565,7 +570,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(CameraParameters::KEY_WHITE_BALANCE);
     mode = getLUTvalue_HALtoOMX( str, WBalLUT);
-    if ( ( str != NULL ) && ( mode != mParameters3A.WhiteBallance ) )
+    if ( mFirstTimeInit || ( str != NULL ) && ( mode != mParameters3A.WhiteBallance ) )
         {
         mParameters3A.WhiteBallance = mode;
         CAMHAL_LOGEB("Whitebalance mode %d", mode);
@@ -577,7 +582,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     if ( 0 <= params.getInt(TICameraParameters::KEY_CONTRAST) )
         {
-        if ( (mParameters3A.Contrast  + CONTRAST_OFFSET) != params.getInt(TICameraParameters::KEY_CONTRAST) )
+        if ( mFirstTimeInit || ( (mParameters3A.Contrast  + CONTRAST_OFFSET) != params.getInt(TICameraParameters::KEY_CONTRAST)) )
             {
             mParameters3A.Contrast = params.getInt(TICameraParameters::KEY_CONTRAST) - CONTRAST_OFFSET;
             CAMHAL_LOGEB("Contrast %d", mParameters3A.Contrast);
@@ -587,7 +592,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     if ( 0 <= params.getInt(TICameraParameters::KEY_SHARPNESS) )
         {
-        if ( (mParameters3A.Sharpness + SHARPNESS_OFFSET) != params.getInt(TICameraParameters::KEY_SHARPNESS) )
+        if ( mFirstTimeInit || ((mParameters3A.Sharpness + SHARPNESS_OFFSET) != params.getInt(TICameraParameters::KEY_SHARPNESS)))
             {
             mParameters3A.Sharpness = params.getInt(TICameraParameters::KEY_SHARPNESS) - SHARPNESS_OFFSET;
             CAMHAL_LOGEB("Sharpness %d", mParameters3A.Sharpness);
@@ -597,7 +602,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     if ( 0 <= params.getInt(TICameraParameters::KEY_SATURATION) )
         {
-        if ( (mParameters3A.Saturation + SATURATION_OFFSET) != params.getInt(TICameraParameters::KEY_SATURATION) )
+        if ( mFirstTimeInit || ((mParameters3A.Saturation + SATURATION_OFFSET) != params.getInt(TICameraParameters::KEY_SATURATION)) )
             {
             mParameters3A.Saturation = params.getInt(TICameraParameters::KEY_SATURATION) - SATURATION_OFFSET;
             CAMHAL_LOGEB("Saturation %d", mParameters3A.Saturation);
@@ -607,7 +612,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     if ( 0 <= params.getInt(TICameraParameters::KEY_BRIGHTNESS) )
         {
-        if ( mParameters3A.Brightness !=  ( unsigned int ) params.getInt(TICameraParameters::KEY_BRIGHTNESS) )
+        if ( mFirstTimeInit || (( mParameters3A.Brightness !=  ( unsigned int ) params.getInt(TICameraParameters::KEY_BRIGHTNESS))) )
             {
             mParameters3A.Brightness = (unsigned)params.getInt(TICameraParameters::KEY_BRIGHTNESS);
             CAMHAL_LOGEB("Brightness %d", mParameters3A.Brightness);
@@ -617,7 +622,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(CameraParameters::KEY_ANTIBANDING);
     mode = getLUTvalue_HALtoOMX(str,FlickerLUT);
-    if ( ( str != NULL ) && ( mParameters3A.Flicker != mode ) )
+    if ( mFirstTimeInit || ( ( str != NULL ) && ( mParameters3A.Flicker != mode ) ))
         {
         mParameters3A.Flicker = mode;
         CAMHAL_LOGEB("Flicker %d", mParameters3A.Flicker);
@@ -630,7 +635,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     str = params.get(TICameraParameters::KEY_ISO);
     mode = getLUTvalue_HALtoOMX(str, IsoLUT);
     CAMHAL_LOGEB("ISO mode arrived in HAL : %s", str);
-    if ( ( str != NULL ) && ( mParameters3A.ISO != mode ) )
+    if ( mFirstTimeInit || (  ( str != NULL ) && ( mParameters3A.ISO != mode )) )
         {
         mParameters3A.ISO = mode;
         CAMHAL_LOGEB("ISO %d", mParameters3A.ISO);
@@ -642,7 +647,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(CameraParameters::KEY_FOCUS_MODE);
     mode = getLUTvalue_HALtoOMX(str, FocusLUT);
-    if ( ( str != NULL ) && ( mParameters3A.Focus != mode ) )
+    if ( mFirstTimeInit || ( ( str != NULL ) && ( mParameters3A.Focus != mode )) )
         {
         mParameters3A.Focus = mode;
         CAMHAL_LOGEB("Focus %d", mParameters3A.Focus);
@@ -655,7 +660,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         }
 
     str = params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION);
-    if ( ( str != NULL ) && (mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION) ))
+    if ( mFirstTimeInit || (( str != NULL ) && (mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION))))
         {
         CAMHAL_LOGEB("Setting EV Compensation to %d", params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION));
 
@@ -665,7 +670,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(CameraParameters::KEY_SCENE_MODE);
     mode = getLUTvalue_HALtoOMX( str, SceneLUT);
-    if ( ( str != NULL ) && ( mParameters3A.SceneMode != mode ) )
+    if (  mFirstTimeInit || (( str != NULL ) && ( mParameters3A.SceneMode != mode )) )
         {
         if ( 0 <= mode )
             {
@@ -681,7 +686,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(CameraParameters::KEY_EFFECT);
     mode = getLUTvalue_HALtoOMX( str, EffLUT);
-    if ( ( str != NULL ) && ( mParameters3A.Effect != mode ) )
+    if (  mFirstTimeInit || (( str != NULL ) && ( mParameters3A.Effect != mode )) )
         {
         mParameters3A.Effect = mode;
         CAMHAL_LOGEB("Effect %d", mParameters3A.Effect);
@@ -863,6 +868,8 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     doZoom(mCurrentZoomIdx);
 
     CAMHAL_LOGDB("Zoom by App %d", zoom);
+
+    mFirstTimeInit = false;
 
     LOG_FUNCTION_NAME_EXIT
     return ret;
