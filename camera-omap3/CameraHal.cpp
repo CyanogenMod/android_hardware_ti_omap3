@@ -1171,7 +1171,9 @@ int CameraHal::CameraConfigure()
     parm.parm.capture.timeperframe.numerator);
 
     parm.parm.capture.timeperframe.numerator = 1;
-    parm.parm.capture.timeperframe.denominator = framerate;
+    //Framerate 0 does not make sense in kernel context
+    if ( framerate!=0 ) parm.parm.capture.timeperframe.denominator = framerate;
+    else ( parm.parm.capture.timeperframe.denominator ) = 30;
     err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
     if(err != 0) {
         LOGE("VIDIOC_S_PARM ");
@@ -3835,13 +3837,16 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
         valstr = mParameters.get(KEY_TOUCH_FOCUS);
-        if( NULL != valstr ){
+        char *valstr_copy = (char *)malloc(ARRAY_SIZE(valstr) + 1);
+        if( (NULL != valstr)&&(NULL != valstr_copy) ){
             if ( strcmp(valstr, (const char *) TOUCH_FOCUS_DISABLED) != 0) {
 
+                //make a copy of valstr, because strtok() overrides the whole mParameters structure
+                strcpy(valstr_copy, valstr);
                 int af_x = 0;
                 int af_y = 0;
 
-                af_coord = strtok((char *) valstr, PARAMS_DELIMITER);
+                af_coord = strtok((char *) valstr_copy, PARAMS_DELIMITER);
 
                 if( NULL != af_coord){
                     af_x = atoi(af_coord);
@@ -3862,6 +3867,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
                 LOGD("NEW PARAMS: af_x = %d, af_y = %d", af_x, af_y);
             }
+            free(valstr_copy);
+            valstr_copy = NULL;
         }
 
         if ( params.get(KEY_ISO) != NULL ) {
@@ -4086,7 +4093,8 @@ CameraParameters CameraHal::getParameters() const
 
 #ifdef FW3A
 
-    if ( isStart_FW3A ) {
+    //check if fobj is created in order to get settings from 3AFW
+    if ( NULL != fobj ) {
 
         if( FW3A_GetSettings() < 0 ) {
             LOGE("ERROR FW3A_GetSettings()");
