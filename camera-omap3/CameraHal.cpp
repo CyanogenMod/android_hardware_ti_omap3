@@ -2681,7 +2681,7 @@ void CameraHal::procThread()
     FD_ZERO(&descriptorSet);
     FD_SET(procPipe[0], &descriptorSet);
 
-    mJPEGLength  = PICTURE_WIDTH*PICTURE_HEIGHT + ((2*PAGE) - 1);
+    mJPEGLength  = MAX_THUMB_WIDTH*MAX_THUMB_HEIGHT + PICTURE_WIDTH*PICTURE_HEIGHT + ((2*PAGE) - 1);
     mJPEGLength &= ~((2*PAGE) - 1);
     mJPEGLength  += 2*PAGE;
     JPEGPictureHeap = new MemoryHeapBase(mJPEGLength);
