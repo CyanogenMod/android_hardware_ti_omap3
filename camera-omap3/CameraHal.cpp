@@ -3554,7 +3554,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             if ( NULL != params.get(CameraParameters::KEY_GPS_TIMESTAMP) ){
                 gpsLocation->timestamp = strtol( params.get(CameraParameters::KEY_GPS_TIMESTAMP), NULL, 10);
                 timeinfo = localtime((time_t*)&(gpsLocation->timestamp));
-                strftime(gpsLocation->datestamp, 11, "%Y:%m:%d", timeinfo);
+                if(timeinfo != NULL)
+                    strftime(gpsLocation->datestamp, 11, "%Y:%m:%d", timeinfo);
             }
 
             gpsLocation->altitudeRef = params.getInt(KEY_GPS_ALTITUDE_REF);
