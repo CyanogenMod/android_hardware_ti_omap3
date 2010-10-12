@@ -2709,9 +2709,9 @@ status_t OMXCameraAdapter::doZoom(int index)
 
     LOG_FUNCTION_NAME
 
-    if ( OMX_StateExecuting != mComponentState )
+    if ( OMX_StateInvalid == mComponentState )
         {
-        CAMHAL_LOGEA("OMX component not in executing state");
+        CAMHAL_LOGEA("OMX component is in invalid state");
         ret = -1;
         }
 
