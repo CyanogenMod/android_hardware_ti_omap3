@@ -105,6 +105,7 @@ extern "C" {
 /* DSP exception events (DSP/BIOS and DSP MMU fault) */
 #define DSP_MMUFAULT                0x00000010
 #define DSP_SYSERROR                0x00000020
+#define DSP_WDTOVERFLOW             0x00000040
 #define DSP_PWRERROR                0x00000080
 
 /* IVA exception events (IVA MMU fault) */
@@ -180,7 +181,8 @@ extern "C" {
                                     DSP_STREAMIOCOMPLETION | \
                                     DSP_MMUFAULT | \
                                     DSP_SYSERROR | \
-				    DSP_PWRERROR)) && \
+				    DSP_PWRERROR | \
+				    DSP_WDTOVERFLOW)) && \
                                 !((x) & ~(DSP_PROCESSORSTATECHANGE | \
                                     DSP_PROCESSORATTACH | \
                                     DSP_PROCESSORDETACH | \
@@ -190,7 +192,8 @@ extern "C" {
                                     DSP_STREAMIOCOMPLETION | \
                                     DSP_MMUFAULT | \
                                     DSP_SYSERROR | \
-				    DSP_PWRERROR))))
+				    DSP_PWRERROR | \
+				    DSP_WDTOVERFLOW))))
 
 #define IsValidNodeEvent(x)    (((x) == 0) || (((x) & (DSP_NODESTATECHANGE | \
                                 DSP_NODEMESSAGEREADY)) && \
