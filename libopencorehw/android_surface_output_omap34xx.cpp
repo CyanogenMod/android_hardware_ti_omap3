@@ -223,6 +223,12 @@ bool AndroidSurfaceOutputOmap34xx::initCheck()
    }
         for (int i = 0; i < mbufferAlloc.maxBuffers; i++) {
             data = (mapping_data_t *)mOverlay->getBufferAddress((void*)i);
+            if (data == NULL)
+            {
+                LOGE("Vendor Speicifc(34xx)MIO: Failed to get the overlay Buffer address. ");
+                mPvPlayer->sendEvent(MEDIA_ERROR,MEDIA_ERROR_UNKNOWN,PVMFErrNoResources);
+                return mInitialized;
+            }
             mbufferAlloc.buffer_address[i] = data->ptr;
             strcpy((char *)mbufferAlloc.buffer_address[i], "hello");
             if (strcmp((char *)mbufferAlloc.buffer_address[i], "hello")) {
