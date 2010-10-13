@@ -581,7 +581,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     int err = snd_pcm_open(&handle->handle, devName, direction(handle), 0);
 
     if (err < 0) {
-        LOGE("Failed to Initialize any ALSA %s device: %s", stream, strerror(err));
+        LOGE("Failed to Initialize any ALSA %s device: %s", stream, snd_strerror(err));
         return NO_INIT;
     }
 
@@ -605,6 +605,8 @@ static status_t s_close(alsa_handle_t *handle)
     if (h) {
         snd_pcm_drain(h);
         err = snd_pcm_close(h);
+        if (err)
+            LOGE("Failed closing ALSA stream: %s", snd_strerror(err));
     }
 
     return err;
@@ -625,6 +627,8 @@ static status_t s_standby(alsa_handle_t *handle)
     if (h) {
         snd_pcm_drain(h);
         err = snd_pcm_close(h);
+        if (err)
+            LOGE("Failed closing ALSA stream: %s", snd_strerror(err));
         LOGV("called drain&close\n");
     }
 
