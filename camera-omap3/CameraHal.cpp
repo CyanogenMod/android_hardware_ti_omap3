@@ -3307,7 +3307,7 @@ bool CameraHal::recordingEnabled()
 }
 void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 {
-LOG_FUNCTION_NAME
+//LOG_FUNCTION_NAME
     int index;
 
     for(index = 0; index <mVideoBufferCount; index ++){
