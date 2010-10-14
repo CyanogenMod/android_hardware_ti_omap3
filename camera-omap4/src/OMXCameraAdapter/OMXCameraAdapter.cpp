@@ -755,12 +755,12 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
                 }
             else
                 {
-                mIPP = OMXCameraAdapter::IPP_LDCNSF;
+                mIPP = OMXCameraAdapter::IPP_NONE;
                 }
             }
         else
             {
-            mIPP = OMXCameraAdapter::IPP_LDCNSF;
+            mIPP = OMXCameraAdapter::IPP_NONE;
             }
 
         CAMHAL_LOGEB("IPP Mode set %d", mIPP);
