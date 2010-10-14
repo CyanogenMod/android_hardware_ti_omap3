@@ -73,12 +73,21 @@ extern "C" {
 #define COUNT_MANUALVERIFY   4
 #define COUNT_MAX_INDEX      5
 
+#define CODECTYPE_SW         0
+#define CODECTYPE_DSP        1
+#define CODECTYPE_SIMCOP     2
+
 //test case count
 unsigned int nTestCount[5]; //[0]-ARM; [1]-TI;
                             //[2]-SIMCOP; [3]-Fail count;
                             //[4]-manual verification needed
 int flagDumpMd5Sum;
+int flagCodecType;          //0- SW codec ( ARM)
+                            //1- TI DSP codec
+                            //2- SIMCOP codec
+
 FILE* pFileDump;            //for dumping the md5sum strings
+char testID[40];
 
 //------------------------------------------------------------------------------------
 #ifdef TIME_MEASUREMENT
@@ -413,6 +422,62 @@ void updateTestCount(int id) {
 }
 
 //-----------------------------------------------------------------------------
+void dumpMd5Sum(char* imgFileName, char* mdString, void* pList) {
+    const struct JPGD_TEST_OUTPUT_FILE_LIST *pDBList = (const struct JPGD_TEST_OUTPUT_FILE_LIST *)pList;
+
+    //dump the file name and its md5sum string in to a file
+    fprintf(pFileDump, "{ // %s\n",testID);
+    fprintf(pFileDump, "\"%s\",\n",imgFileName);
+
+    switch(flagCodecType) {
+
+        case CODECTYPE_SW:
+            if(pDBList){
+                fprintf(pFileDump, "\"%s\",\n",mdString);
+                fprintf(pFileDump, "\"%s\",\n",pDBList->md5CheckSumTi);
+                fprintf(pFileDump, "\"%s\"\n",pDBList->md5CheckSumSimcop);
+            }
+            else {
+                fprintf(pFileDump, "\"%s\",\n",mdString);
+                fprintf(pFileDump, "\"0\",\n");
+                fprintf(pFileDump, "\"0\"\n");
+            }
+        break;
+
+        case CODECTYPE_DSP:
+            if(pDBList){
+                fprintf(pFileDump, "\"%s\",\n",pDBList->md5CheckSumArm);
+                fprintf(pFileDump, "\"%s\",\n",mdString);
+                fprintf(pFileDump, "\"%s\"\n",pDBList->md5CheckSumSimcop);
+            }
+            else {
+                fprintf(pFileDump, "\"0\",\n");
+                fprintf(pFileDump, "\"%s\",\n",mdString);
+                fprintf(pFileDump, "\"0\"\n");
+            }
+        break;
+
+        case CODECTYPE_SIMCOP:
+            if(pDBList){
+                fprintf(pFileDump, "\"%s\",\n",pDBList->md5CheckSumArm);
+                fprintf(pFileDump, "\"%s\",\n",pDBList->md5CheckSumTi);
+                fprintf(pFileDump, "\"%s\"\n",mdString);
+            }
+            else {
+                fprintf(pFileDump, "\"0\",\n");
+                fprintf(pFileDump, "\"0\",\n");
+                fprintf(pFileDump, "\"%s\"\n",mdString);
+            }
+        break;
+
+        default:
+        break;
+    }
+    fprintf(pFileDump, "},\n");
+
+}  //End of dumpMd5Sum()
+
+//-----------------------------------------------------------------------------
 int verifyMd5Sum( char* InFileName, void *pBuf, unsigned long nBufSize, int flag ) {
 
     unsigned char md[MD5_SUM_LENGTH];   //16bytes (128bits)
@@ -420,6 +485,7 @@ int verifyMd5Sum( char* InFileName, void *pBuf, unsigned long nBufSize, int flag
     char imgFileName[128];
     const struct JPGD_TEST_OUTPUT_FILE_LIST *pMd5SumDBList = NULL;
     int i;
+    int result = ERROR;
 
     /*Generate the md5sum for the current output from file */
     if ( pBuf == NULL) {
@@ -439,16 +505,6 @@ int verifyMd5Sum( char* InFileName, void *pBuf, unsigned long nBufSize, int flag
     extractFileName(InFileName, imgFileName);
     PRINT("md5sum String = %s\n",mdString);
 
-    if ( flagDumpMd5Sum ) {
-        //dump the file name and its md5sum string in to a file
-        fprintf(pFileDump, "{\n");
-        fprintf(pFileDump, "\"%s\",\n",imgFileName);
-        fprintf(pFileDump, "\"%s\",\n",mdString);
-        fprintf(pFileDump, "\"0\",\n");
-        fprintf(pFileDump, "\"0\",\n");
-        fprintf(pFileDump, "},\n");
-    }
-
     /*comapre the md5sum with the data base */
     if ( flag == JPGD_MD5SUM_LIST ) {
         pMd5SumDBList = &st_jpgd_file_list[0];
@@ -464,27 +520,43 @@ int verifyMd5Sum( char* InFileName, void *pBuf, unsigned long nBufSize, int flag
             if ( strcmp( pMd5SumDBList[i].md5CheckSumArm , (const char*)mdString ) == 0 ) {
                 PRINT("Md5Sum matches with ARM Codec output.\n");
                 updateTestCount(PASSCOUNT_ARM);
-                return PASS;
+                result = PASS;
+                break;
             }
             else if ( strcmp( pMd5SumDBList[i].md5CheckSumTi , (const char*)mdString ) == 0 ) {
                 PRINT("Md5Sum matches with TI Codec output.\n");
                 updateTestCount(PASSCOUNT_TIDSP);
-                return PASS;
+                result = PASS;
+                break;
             }
             else if ( strcmp( pMd5SumDBList[i].md5CheckSumSimcop , (const char*)mdString ) == 0 ) {
                 PRINT("Md5Sum matches with SIMCOP Codec output.\n");
                 updateTestCount(PASSCOUNT_SIMCOP);
-                return PASS;
+                result = PASS;
+                break;
             }
             else {
                 PRINT("%s():%d:: ERROR!!! Md5Sum Mismatch !!!.\n",__FUNCTION__,__LINE__);
-                return FAIL;
+                result = FAIL;
+                break;
             }
         }
     }
-    PRINT("\n%s():%d:: !!!!!New test output file. Manual verification required.!!!!!.\n",__FUNCTION__,__LINE__);
-    updateTestCount(COUNT_MANUALVERIFY);
-    return PASS;
+
+    if ( result == ERROR ) {
+        PRINT("\n%s():%d:: !!!!!New test output file. Manual verification required.!!!!!.\n",__FUNCTION__,__LINE__);
+        updateTestCount(COUNT_MANUALVERIFY);
+        if(flagDumpMd5Sum) {
+            dumpMd5Sum(imgFileName, mdString, NULL);
+        }
+        return PASS;
+    }
+    else {
+        if(flagDumpMd5Sum) {
+            dumpMd5Sum(imgFileName, mdString,(void*) &pMd5SumDBList[i]);
+        }
+        return result;
+    }
 
 } //End of verifyMd5Sum()
 
@@ -557,6 +629,7 @@ int runJPEGDecoderTest(int argc, char** argv) {
     bool bSubRegDecFlag = false;
 
     memset((void*)&jpegDecParams, 0, sizeof(JpegDecoderParams) );
+    flagCodecType = CODECTYPE_SW;
 
     /*check the parameter counts*/
     if (argc < 4) {
@@ -686,6 +759,8 @@ int runJPEGDecoderTest(int argc, char** argv) {
 #ifndef TARGET_OMAP4
     /*check which decoder handles is chosen by the Factory()*/
     if( isDSPJPGD(&inStream) ){
+        flagCodecType = CODECTYPE_DSP;
+
         /*set the subregion decode parameters*/
         if ( ((SkTIJPEGImageDecoderEntry*)skJpegDec)->SetJpegDecParams((SkTIJPEGImageDecoderEntry::JpegDecoderParams*) &jpegDecParams ) == false ) {
             PRINT("%s():%d:: !!!! skJpegDec->SetJpegDecodeParameters returned false..\n",__FUNCTION__,__LINE__);
@@ -875,7 +950,6 @@ void RunFromScript(char* scriptFileName) {
     FILE* fp = NULL;
     char *pArgs[12];
     char strLine[500];
-    char testID[40];
     char *pstrLine = strLine;
     int argsCount=0, i=0;
     int result = 0;
