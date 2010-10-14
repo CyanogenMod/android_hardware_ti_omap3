@@ -519,12 +519,15 @@ exif_buffer *get_exif_buffer(void *params, void *gpsLocation)
             //using strlen since i don't want the terminating null
             unsigned char* data = (unsigned char*)malloc(strlen(gps->procMethod) + sizeof(ExifAsciiPrefix));
             exif_buffer buffer;
-            memcpy(data, ExifAsciiPrefix, sizeof(ExifAsciiPrefix));
-            memcpy(data+sizeof(ExifAsciiPrefix), gps->procMethod, strlen(gps->procMethod));
-            buffer.data = data;
-            buffer.size = strlen(gps->procMethod)+sizeof(ExifAsciiPrefix);
-            exif_entry_set_undefined (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_PROCESSING_METHOD, &buffer);
-            free(data);
+            if(data != NULL)
+            {
+                memcpy(data, ExifAsciiPrefix, sizeof(ExifAsciiPrefix));
+                memcpy(data+sizeof(ExifAsciiPrefix), gps->procMethod, strlen(gps->procMethod));
+                buffer.data = data;
+                buffer.size = strlen(gps->procMethod)+sizeof(ExifAsciiPrefix);
+                exif_entry_set_undefined (pEd, EXIF_IFD_GPS, (ExifTag) EXIF_TAG_GPS_PROCESSING_METHOD, &buffer);
+                free(data);
+            }
         }
 
         if( NULL != gps->mapdatum )
