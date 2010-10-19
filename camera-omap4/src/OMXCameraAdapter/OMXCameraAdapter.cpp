@@ -39,6 +39,7 @@ static int mDebugFps = 0;
 #define Q16_OFFSET 16
 
 #define FACE_DETECTION_BUFFER_SIZE  0x1000
+#define TOUCH_FOCUS_RANGE 0xFF
 
 #define HERE(Msg) {CAMHAL_LOGEB("--===line %d, %s===--\n", __LINE__, Msg);}
 
@@ -261,6 +262,8 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     //and will not conditionally apply based on current values.
     mFirstTimeInit = true;
 
+    mTouchFocusPosX = 0;
+    mTouchFocusPosY = 0;
     mFaceDetectionRunning = false;
     mFaceDectionResult = new char[FACE_DETECTION_BUFFER_SIZE];
     if ( NULL != mFaceDectionResult )
@@ -669,6 +672,12 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             mPending3Asettings |= SetFocus;
             }
         }
+
+    str = params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS);
+    if ( NULL != str ) {
+        parseTouchFocusPosition(str, mTouchFocusPosX, mTouchFocusPosY);
+        CAMHAL_LOGEB("Touch focus position %d,%d", mTouchFocusPosX, mTouchFocusPosY);
+    }
 
     str = params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION);
     if ( mFirstTimeInit || (( str != NULL ) && (mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION))))
@@ -3075,6 +3084,94 @@ status_t OMXCameraAdapter::doZoom(int index)
     return ret;
 }
 
+status_t OMXCameraAdapter::parseTouchFocusPosition(const char *pos, unsigned int &posX, unsigned int &posY)
+{
+
+    status_t ret = NO_ERROR;
+    char *ctx, *pX, *pY;
+    const char *sep = ",";
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == pos )
+        {
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        pX = strtok_r( (char *) pos, sep, &ctx);
+
+        if ( NULL != pX )
+            {
+            posX = atoi(pX);
+            }
+        else
+            {
+            CAMHAL_LOGEB("Invalid touch focus position %s", pos);
+            ret = -EINVAL;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        pY = strtok_r(NULL, sep, &ctx);
+
+        if ( NULL != pY )
+            {
+            posY = atoi(pY);
+            }
+        else
+            {
+            CAMHAL_LOGEB("Invalid touch focus position %s", pos);
+            ret = -EINVAL;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setTouchFocus(unsigned int posX, unsigned int posY, size_t width, size_t height)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_EXTFOCUSREGIONTYPE touchControl;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&touchControl, OMX_CONFIG_EXTFOCUSREGIONTYPE);
+        touchControl.nLeft = ( posX * TOUCH_FOCUS_RANGE ) / width;
+        touchControl.nTop =  ( posY * TOUCH_FOCUS_RANGE ) / height;
+        touchControl.nWidth = 0;
+        touchControl.nHeight = 0;
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexConfigExtFocusRegion, &touchControl);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring touch focus 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDB("Touch focus nLeft = %d, nTop = %d configured successfuly", ( int ) touchControl.nLeft, ( int ) touchControl.nTop);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::doAutoFocus()
 {
     status_t ret = NO_ERROR;
@@ -3094,6 +3191,15 @@ status_t OMXCameraAdapter::doAutoFocus()
         {
         OMX_INIT_STRUCT_PTR (&focusControl, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
         focusControl.eFocusControl = ( OMX_IMAGE_FOCUSCONTROLTYPE ) mParameters3A.Focus;
+
+        //If touch AF is set, then configure position first
+        if ( ( ( OMX_IMAGE_FOCUSCONTROLTYPE ) OMX_IMAGE_FocusRegionPriorityMode ) == focusControl.eFocusControl )
+            {
+            OMXCameraPortParameters * mPreviewData = NULL;
+            mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+
+            setTouchFocus(mTouchFocusPosX, mTouchFocusPosY, mPreviewData->mWidth, mPreviewData->mHeight);
+            }
 
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
         if ( OMX_ErrorNone != eError )

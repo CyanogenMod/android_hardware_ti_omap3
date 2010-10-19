@@ -109,7 +109,7 @@ const char * antibanding60hz       = CameraParameters::ANTIBANDING_60HZ;
 const char * focusAuto             = CameraParameters::FOCUS_MODE_AUTO;
 const char * focusInfinity         = CameraParameters::FOCUS_MODE_INFINITY;
 const char * focusMacro            = CameraParameters::FOCUS_MODE_MACRO;
-
+const char * focusTouch             = TICameraParameters::FOCUS_MODE_TOUCH;
 const char * focusPortrait         = TICameraParameters::FOCUS_MODE_PORTRAIT;
 const char * focusExtended         = TICameraParameters::FOCUS_MODE_EXTENDED;
 const char * focusCAF              = TICameraParameters::FOCUS_MODE_CAF;
@@ -207,6 +207,7 @@ userToOMX_LUT focus_UserToOMX [] = {
     { focusPortrait ,OMX_IMAGE_FocusControlPortrait     },
     { focusExtended ,OMX_IMAGE_FocusControlExtended     },
     { focusCAF      ,OMX_IMAGE_FocusControlAuto },
+    { focusTouch    ,OMX_IMAGE_FocusRegionPriorityMode },
 };
 
 userToOMX_LUT exposure_UserToOMX [] = {
