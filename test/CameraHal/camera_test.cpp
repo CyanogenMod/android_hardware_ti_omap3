@@ -2338,6 +2338,31 @@ int execute_functional_script(char *script) {
 
                 break;
 
+            case 'U':
+
+                params.set(KEY_TEMP_BRACKETING, (cmd + 1));
+
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
+                break;
+
+            case 'W':
+
+                tempBracketRange = atoi(cmd + 1);
+                tempBracketRange %= TEMP_BRACKETING_MAX_RANGE;
+                if ( 0 == tempBracketRange ) {
+                    tempBracketRange = 1;
+                }
+
+                params.set(KEY_TEMP_BRACKETING_NEG, tempBracketRange);
+                params.set(KEY_TEMP_BRACKETING_POS, tempBracketRange);
+
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
+            break;
+
             case '#':
 
                 params.set(KEY_BURST, atoi(cmd + 1));
