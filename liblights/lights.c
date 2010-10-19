@@ -41,6 +41,9 @@ char const*const LCD_FILE
 char const*const KEYBOARD_FILE
         = "/sys/class/leds/keyboard-backlight/brightness";
 
+char const*const CHARGING_LED_FILE
+        = "/sys/class/leds/battery-led/brightness";
+
 /*RGB file descriptors */
 char const*const RED_LED_FILE
         = "/sys/class/leds/red/brightness";
@@ -147,8 +150,6 @@ set_light_buttons(struct light_device_t* dev,
 
 }
 
-/* TO DO: Really want this to go to the charging LED but
-use the tri-color LED for now until the charging LED is enabled.*/
 static int
 set_light_battery(struct light_device_t* dev,
         struct light_state_t const* state)
@@ -176,31 +177,7 @@ set_light_battery(struct light_device_t* dev,
     LOGD("set_light_battery colorRGB=%08X, onMS=%d, offMS=%d****************\n",
             colorRGB, onMS, offMS);
 #endif
-    /*TO DO: Need to manage the inputs to a single RGB LED ie don't turn off
-      the led or stop blinking if the attention LED should be lit */
-    red = (colorRGB >> 16) & 0xFF;
-    green = (colorRGB >> 8) & 0xFF;
-    blue = colorRGB & 0xFF;
-
-    err = write_int(RED_LED_FILE, red);
-    err = write_int(GREEN_LED_FILE, green);
-    err = write_int(BLUE_LED_FILE, blue);
-
-    if (onMS > 0 && offMS > 0) {
-        write_int(RED_DELAY_ON_FILE, onMS);
-        write_int(RED_DELAY_OFF_FILE, offMS);
-        write_int(GREEN_DELAY_ON_FILE, onMS);
-        write_int(GREEN_DELAY_OFF_FILE, offMS);
-        write_int(BLUE_DELAY_ON_FILE, onMS);
-        write_int(BLUE_DELAY_OFF_FILE, offMS);
-    } else {
-        write_int(RED_DELAY_ON_FILE, 0);
-        write_int(RED_DELAY_OFF_FILE, 0);
-        write_int(GREEN_DELAY_ON_FILE, 0);
-        write_int(GREEN_DELAY_OFF_FILE, 0);
-        write_int(BLUE_DELAY_ON_FILE, 0);
-        write_int(BLUE_DELAY_OFF_FILE, 0);
-    }
+    err = write_int(CHARGING_LED_FILE, colorRGB ? 255 : 0);
 
     return err;
 }
