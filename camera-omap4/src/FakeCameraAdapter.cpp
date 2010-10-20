@@ -331,6 +331,18 @@ void FakeCameraAdapter::getFrameSize(int &width, int &height)
 
 }
 
+status_t FakeCameraAdapter::getFrameDataSize(size_t &dataFrameSize, size_t bufferCount)
+{
+    LOG_FUNCTION_NAME
+
+    dataFrameSize = DEFAULT_PICTURE_BUFFER_SIZE;
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return NO_ERROR;
+}
+
+
 status_t FakeCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCount)
 {
     LOG_FUNCTION_NAME

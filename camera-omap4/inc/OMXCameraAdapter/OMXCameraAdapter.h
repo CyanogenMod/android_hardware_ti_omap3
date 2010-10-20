@@ -195,6 +195,7 @@ public:
             OMX_U32                     mVideoPortIndex;
             OMX_U32                     mPrevPortIndex;
             OMX_U32                     mImagePortIndex;
+            OMX_U32                     mMeasurementPortIndex;
             OMXCameraPortParameters     mCameraPortParams[MAX_NO_PORTS];
     };
 
@@ -239,6 +240,8 @@ public:
     virtual void getFrameSize(int &width, int &height);
 
     virtual status_t getPictureBufferSize(size_t &length, size_t bufferCount);
+
+    virtual status_t getFrameDataSize(size_t &dataFrameSize, size_t bufferCount);
 
  OMX_ERRORTYPE OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETYPE hComponent,
                                     OMX_IN OMX_EVENTTYPE eEvent,
@@ -332,6 +335,7 @@ private:
     //Sets eithter HQ or HS mode and the frame count
     status_t setCaptureMode(OMXCameraAdapter::CaptureMode mode);
     status_t UseBuffersCapture(void* bufArr, int num);
+    status_t UseBuffersPreviewData(void* bufArr, int num);
 
     //Used for calculation of the average frame rate during preview
     status_t recalculateFPS();
@@ -357,6 +361,8 @@ private:
     CaptureMode mCapMode;
     size_t mBurstFrames;
     size_t mCapturedFrames;
+
+    bool mMeasurementEnabled;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -422,6 +428,12 @@ private:
     int mCaptureBuffersCount;
     size_t mCaptureBuffersLength;
     mutable Mutex mCaptureBufferLock;
+
+    int *mPreviewDataBuffers;
+    KeyedVector<int, bool> mPreviewDataBuffersAvailable;
+    int mPreviewDataBuffersCount;
+    size_t mPreviewDataBuffersLength;
+    mutable Mutex mPreviewDataBufferLock;
 
     mutable Mutex mBracketingLock;
     bool *mBracketingBuffersQueued;

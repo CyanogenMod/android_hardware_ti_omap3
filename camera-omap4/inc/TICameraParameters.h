@@ -65,6 +65,11 @@ static const char  KEY_TEMP_BRACKETING_RANGE_POS[];
 static const char  KEY_TEMP_BRACKETING_RANGE_NEG[];
 static const char  KEY_SHUTTER_ENABLE[];
 static const char  KEY_TOUCH_FOCUS_POS[];
+static const char  KEY_MEASUREMENT_ENABLE[];
+
+//TI extensions for enabling/disabling measurements
+static const char MEASUREMENT_ENABLE[];
+static const char MEASUREMENT_DISABLE[];
 
 //TI extensions for enabling/disabling shutter sound
 static const char SHUTTER_ENABLE[];
