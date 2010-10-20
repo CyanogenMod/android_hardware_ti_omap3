@@ -754,12 +754,7 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
         return NO_ERROR;
     }
 
-    if (handle->curDev == devices && handle->curMode == mode)
-        ; // Nothing to do
-    else if (handle->handle && (handle->devices & devices))
-        setAlsaControls(handle, devices, mode);
-    else {
-        LOGE("Why are we routing to a device that isn't supported by this object?!?!?!?!");
+    if (handle->curDev != devices) {
         status = s_open(handle, devices, mode);
         #ifdef AUDIO_MODEM_TI
             ALSAControl control("hw:00");
