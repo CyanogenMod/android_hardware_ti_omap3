@@ -49,7 +49,7 @@
 #define KEY_TEMP_BRACKETING "temporal-bracketing"
 #define KEY_TEMP_BRACKETING_POS "temporal-bracketing-range-positive"
 #define KEY_TEMP_BRACKETING_NEG "temporal-bracketing-range-negative"
-
+#define KEY_MEASUREMENT "measurement"
 
 #define SDCARD_PATH "/sdcard/"
 
@@ -92,6 +92,7 @@ int vstab_mode = 0;
 
 int tempBracketRange = 1;
 int tempBracketIdx = 0;
+int measurementIdx = 0;
 int postProcIDX = 0;
 int rotation = 0;
 bool reSizePreview = true;
@@ -123,6 +124,7 @@ int prevcnt = 0;
 char dir_path[80] = SDCARD_PATH;
 
 const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Secondary Camera 2", "Stereo Camera"};
+const char *measurement[] = {"disable", "enable"};
 const char *tempBracketing[] = {"disable", "enable"};
 const char *faceDetection[] = {"disable", "enable"};
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
@@ -1178,6 +1180,7 @@ int functional_menu() {
         printf(" \n\n 3A SETTING SUB MENU \n");
         printf(" -----------------------------\n");
 
+        printf("   M. Measurement Data: %s\n", measurement[measurementIdx]);
         printf("   F. Face detection: %s\n", faceDetection[faceIndex]);
         printf("   T. Dump face data \n");
         printf("   f. Auto Focus/Half Press\n");
@@ -1441,6 +1444,13 @@ int functional_menu() {
             }
 
             params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+            break;
+
+        case 'M':
+            measurementIdx = (measurementIdx + 1)%ARRAY_SIZE(measurement);
+            params.set(KEY_MEASUREMENT, measurement[measurementIdx]);
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
             break;
@@ -2492,6 +2502,11 @@ int execute_functional_script(char *script) {
                 break;
 
             case 'M':
+                params.set(KEY_MEASUREMENT, (cmd + 1));
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+                break;
+
             case 'm':
             {
                 params.set(KEY_METERING_MODE, (cmd + 1));
