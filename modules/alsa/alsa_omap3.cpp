@@ -248,7 +248,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
     const char *formatName = validFormat ? snd_pcm_format_name(handle->format)
             : "UNKNOWN";
 
-    if (direction(handle)) {
+    if (direction(handle)==SND_PCM_STREAM_PLAYBACK) {
         /* For playback, configure ALSA use our "standard" period size */
         periodSizeScaleFactor = 4;
     } else {
