@@ -1165,10 +1165,18 @@ void CameraHal::stopPreview()
         mDisplayAdapter->disableDisplay();
         }
 
-    //Stop the callback sending
-    mAppCallbackNotifier->stop();
 
-    mAppCallbackNotifier->stopPreviewCallbacks();
+
+    if(mAppCallbackNotifier.get() != NULL)
+        {
+
+        //Stop the callback sending
+        mAppCallbackNotifier->stop();
+
+
+        mAppCallbackNotifier->stopPreviewCallbacks();
+        }
+
 
     if ( NULL != mCameraAdapter )
        {
@@ -1177,6 +1185,7 @@ void CameraHal::stopPreview()
         }
 
     freePreviewBufs();
+
 
     mPreviewEnabled = false;
     mDisplayPaused = false;
