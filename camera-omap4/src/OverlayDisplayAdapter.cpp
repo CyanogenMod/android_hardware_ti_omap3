@@ -245,8 +245,8 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
     ///fd of overlay
     mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
 
-	mFrameWidth = mOverlay->getWidth();
-	mFrameHeight = mOverlay->getHeight();
+    mFrameWidth = mOverlay->getWidth();
+    mFrameHeight = mOverlay->getHeight();
 
     CAMHAL_LOGDB("mFrameWidth = %d mFrameHeight = %d", mFrameWidth, mFrameHeight);
 
@@ -315,8 +315,11 @@ int OverlayDisplayAdapter::disableDisplay()
         mDisplayThread->msgQ().put(&msg);
 
         ///Wait for the ACK for display to be disabled
+
         sem.Wait();
+
         }
+
 
     ///Dequeue the remaining buffers
     while(!handleFrameReturn());
@@ -642,6 +645,7 @@ bool OverlayDisplayAdapter::processHalMsg()
 
     LOG_FUNCTION_NAME
 
+
     mDisplayThread->msgQ().get(&msg);
     bool ret = true, invalidCommand = false;
 
@@ -689,11 +693,15 @@ bool OverlayDisplayAdapter::processHalMsg()
     ///Signal the semaphore if it is sent as part of the message
     if ( ( msg.arg1 ) && ( !invalidCommand ) )
         {
+
         CAMHAL_LOGDA("+Signalling display semaphore");
         Semaphore &sem = *((Semaphore*)msg.arg1);
+
         sem.Signal();
-        CAMHAL_LOGDA("-Signalled display semaphore");
+
+        CAMHAL_LOGDA("-Signalling display semaphore");
         }
+
 
     LOG_FUNCTION_NAME_EXIT
     return ret;
@@ -889,9 +897,23 @@ bool OverlayDisplayAdapter::handleFrameReturn()
     ///This case implies that a stream off happened. In this case, there are no buffers to dequeue
     ///Buffers already queued will  be dequeued by PostFrame when it detects skew in the count
     ///of frames with overlay and internal count value
-    if ( (ret=mOverlay->dequeueBuffer(&buf)) == -2 )
+
+    if ( (ret=mOverlay->dequeueBuffer(&buf)) == -1 )
         {
         CAMHAL_LOGEA("Looks like STREAM OFF happened inside overlay");
+        ///Skew detected. Overlay has gone through a stream off sequence due to trigger from Surface flinger
+        /// Reclaim all the buffers back except the one we posted
+        for(unsigned int i=0;i<mFramesWithDisplayMap.size();i++)
+            {
+            ///Return the reclaimed frames back to the provider (Camera Adapter)
+            mFrameProvider->returnFrame( (void *) mFramesWithDisplayMap.keyAt(i), CameraFrame::PREVIEW_FRAME_SYNC);
+            }
+
+        mFramesWithDisplay = 0;
+
+        ///Clear the frames with display map
+        mFramesWithDisplayMap.clear();
+
         return true;
         }
 
@@ -917,6 +939,7 @@ bool OverlayDisplayAdapter::handleFrameReturn()
     ///Overlay still holds one buffer back as long as display is enabled
     if ( 1 == mFramesWithDisplay )
         {
+
         //CAMHAL_LOGDA("Received all but one frames back from Display.");
         return true;
         }
