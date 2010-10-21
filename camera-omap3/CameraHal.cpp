@@ -3838,38 +3838,40 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
         valstr = mParameters.get(KEY_TOUCH_FOCUS);
-        char *valstr_copy = (char *)malloc(ARRAY_SIZE(valstr) + 1);
-        if( (NULL != valstr)&&(NULL != valstr_copy) ){
-            if ( strcmp(valstr, (const char *) TOUCH_FOCUS_DISABLED) != 0) {
+        if(NULL != valstr) {
+            char *valstr_copy = (char *)malloc(ARRAY_SIZE(valstr) + 1);
+            if(NULL != valstr_copy){
+                if ( strcmp(valstr, (const char *) TOUCH_FOCUS_DISABLED) != 0) {
 
-                //make a copy of valstr, because strtok() overrides the whole mParameters structure
-                strcpy(valstr_copy, valstr);
-                int af_x = 0;
-                int af_y = 0;
+                    //make a copy of valstr, because strtok() overrides the whole mParameters structure
+                    strcpy(valstr_copy, valstr);
+                    int af_x = 0;
+                    int af_y = 0;
 
-                af_coord = strtok((char *) valstr_copy, PARAMS_DELIMITER);
+                    af_coord = strtok((char *) valstr_copy, PARAMS_DELIMITER);
 
-                if( NULL != af_coord){
-                    af_x = atoi(af_coord);
+                    if( NULL != af_coord){
+                        af_x = atoi(af_coord);
+                    }
+
+                    af_coord = strtok(NULL, PARAMS_DELIMITER);
+
+                    if( NULL != af_coord){
+                        af_y = atoi(af_coord);
+                    }
+
+                    fobj->settings.general.face_tracking.enable = 1;
+                    fobj->settings.general.face_tracking.count = 1;
+                    fobj->settings.general.face_tracking.update = 1;
+                    fobj->settings.general.face_tracking.faces[0].top = af_y;
+                    fobj->settings.general.face_tracking.faces[0].left = af_x;
+                    fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_EXTENDED;
+
+                    LOGD("NEW PARAMS: af_x = %d, af_y = %d", af_x, af_y);
                 }
-
-                af_coord = strtok(NULL, PARAMS_DELIMITER);
-
-                if( NULL != af_coord){
-                    af_y = atoi(af_coord);
-                }
-
-                fobj->settings.general.face_tracking.enable = 1;
-                fobj->settings.general.face_tracking.count = 1;
-                fobj->settings.general.face_tracking.update = 1;
-                fobj->settings.general.face_tracking.faces[0].top = af_y;
-                fobj->settings.general.face_tracking.faces[0].left = af_x;
-                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_EXTENDED;
-
-                LOGD("NEW PARAMS: af_x = %d, af_y = %d", af_x, af_y);
+                free(valstr_copy);
+                valstr_copy = NULL;
             }
-            free(valstr_copy);
-            valstr_copy = NULL;
         }
 
         if ( params.get(KEY_ISO) != NULL ) {
