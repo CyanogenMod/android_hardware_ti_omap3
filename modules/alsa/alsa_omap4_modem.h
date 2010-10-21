@@ -191,6 +191,27 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_CODEC_CAPTURE_VOL_HANDFREE            4
 #define AUDIO_CODEC_CAPTURE_VOL_HEADSET             4
 
+// ABE Audio UL voice mixer Volume
+// Range values: min=0,max=149,step=1
+// dBscale-min=-120.00dB,step=1.00dB,mute=0
+#define AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET       120
+#define AUDIO_ABE_AUDUL_VOICE_VOL_HANDFREE      120
+#define AUDIO_ABE_AUDUL_VOICE_VOL_HEADSET       120
+
+// Sidetone Downlink Volume
+// Range values: min=0,max=149,step=1
+// dBscale-min=-120.00dB,step=1.00dB,mute=0
+#define AUDIO_ABE_SIDETONE_DL_VOL_HANDSET       120
+#define AUDIO_ABE_SIDETONE_DL_VOL_HANDFREE      0
+#define AUDIO_ABE_SIDETONE_DL_VOL_HEADSET       120
+
+// Sidetone Ulink Volume
+// Range values: min=0,max=149,step=1
+// dBscale-min=-120.00dB,step=1.00dB,mute=0
+#define AUDIO_ABE_SIDETONE_UL_VOL_HANDSET       100
+#define AUDIO_ABE_SIDETONE_UL_VOL_HANDFREE      0
+#define AUDIO_ABE_SIDETONE_UL_VOL_HEADSET       100
+
 // Modem interface static library to use
 // are declared in the prop. key modem.audio.libpath
 // if not found the generic library is used
@@ -198,7 +219,7 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_MODEM_LIB_DEFAULT_PATH    "/system/lib/libaudiomodemgeneric.so"
 
 // Audio ALSA PCM configuration
-#define AUDIO_MODEM_PCM_HANDLE_NAME    "plughw:0,2"
+#define AUDIO_MODEM_PCM_HANDLE_NAME    "hw:0,5"
 #define AUDIO_MODEM_PCM_LATENCY     500000
 
 

@@ -522,10 +522,6 @@ void setDefaultControls(uint32_t devices, int mode)
 LOGV("%s", __FUNCTION__);
     ALSAControl control("hw:00");
 
-#ifdef AUDIO_MODEM_TI
-    audioModem->voiceCallControls(devices, mode, &control);
-#endif
-
     /* check whether the devices is input or not */
     /* for output devices */
     if (devices & 0x0000FFFF){
@@ -684,6 +680,10 @@ LOGV("%s", __FUNCTION__);
             control.set("MUX_VX1", "None");
 	}
     }
+
+#ifdef AUDIO_MODEM_TI
+    audioModem->voiceCallControls(devices, mode, &control);
+#endif
 }
 
 void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
