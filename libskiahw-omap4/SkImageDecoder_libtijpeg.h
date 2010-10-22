@@ -110,6 +110,74 @@ namespace android {
 #define M_DHT   0xC4
 #define M_DRI   0xDD
 
+#define M_MPO  0xE2            /* APP2 MPO Stereo marker*/
+#define M_JPS  0xE3            /* APP3 JPS Stereo marker*/
+//#define M_JPS_ID  "0x5F0x4A 0x50 0x53 0x4a 0x50 0x53 0x5F"            /* JPS Identifier */
+
+#define JPS_TYPE_OFFSET 15            /* JPS Type field offset */
+#define JPS_LAYOUT_OFFSET 14        /* JPS Layout offset */
+#define JPS_MISCF_OFFSET 13          /* JPS Misc. Flags offset */
+#define JPS_SEP_OFFSET 12              /* JPS Separation offset */
+
+#define JPS_MISCF_FO_MASK 0x04       /* MASK for bit 18 Field order bit */
+#define JPS_MISCF_SS_MASK 0x03     /* MASK for bit 16 and bit 17 Subsampling*/
+#define MPO_MISCF_SS_MASK 0x03     /* MASK for bit 16 and bit 17 Subsampling*/
+
+#define MP_START_OF_OFFSET_REF 6
+#define TAGID_MPFVERSION 0xB000
+#define TAGID_NIMAGES 0xB001
+#define TAGID_MPENTRY 0xB002
+#define TAGID_UIDLIST 0xB003
+#define TAGID_TFRAMES 0xB004
+#define TAGID_MPIMAGENUM 0xB101
+#define TAGID_PANSCANORIENTATION 0xB201
+#define TAGID_BVPOINTNUM 0xB204
+#define TAGID_CONVANG 0xB205
+#define TAGID_BASELINELEN 0xB206
+
+typedef enum
+{
+        TAG_TYPE_BYTE = 0x1,
+        TAG_TYPE_ASCII = 0x2,
+        TAG_TYPE_SHORT = 0x3,
+        TAG_TYPE_LONG = 0x4,
+        TAG_TYPE_RATIONAL = 0x5,
+        TAG_TYPE_UNDEFINED = 0x7,
+        TAG_TYPE_SLONG = 0x9,
+        TAG_TYPE_SRATIONAL = 0xA
+} TAG_TYPE;
+
+typedef struct MP_ENTRY
+{
+    OMX_U32     imageAttribute;
+    OMX_U32     imageSize;
+    OMX_U32     dataOffset;
+    OMX_U16     dependentImage1;
+    OMX_U16     dependentImage2;
+}MP_ENTRY;
+
+typedef struct MP_FIELDS_SUPPORTED
+{
+    OMX_U32     MPFVersion;
+    OMX_U8     numberOfImages;
+    MP_ENTRY*    MPEntry; //Image UIDList not supported for nows
+    OMX_U8     totalFrames;
+    OMX_U8     MPIndividualNum;
+    OMX_U8     panOrientation;
+    OMX_U8     panOverlap_H;
+    OMX_U8     panOverlap_V;
+    OMX_U8     baseViewpointNum;
+    OMX_U8     convergenceAngle;
+    OMX_U8     baselineLength;
+    OMX_U8     verticalDivergence;
+    OMX_U8     axisDistance_X;
+    OMX_U8     axisDistance_Y;
+    OMX_U8     axisDistance_Z;
+    OMX_U8     yawAngle;
+    OMX_U8     pitchAngle;
+    OMX_U8     rollAngle;
+}MP_FIELDS_SUPPORTED;
+
 class AutoTimeMillis;
 
 class SkJPEGImageDecoder : public SkImageDecoder {
@@ -165,11 +233,35 @@ public:
 
 private:
 
+    /*values for possible S3D format types*/
+    enum {
+        S3D_FORMAT_ROW_IL = 0,
+        S3D_FORMAT_OVERUNDER,
+        S3D_FORMAT_SIDEBYSIDE,
+        S3D_FORMAT_ANAGLYPH,
+    };
+
+    /*values for possible S3D order types: Field order bit 18 */
+    enum {    
+        S3D_ORDER_RF = 0,
+        S3D_ORDER_LF,
+    };
+
+    /*values for possible S3D subsampling modes*/
+    enum {    
+        S3D_SS_NONE = 0x0,
+        S3D_SS_VERT =0x1, // misc flags = 0x01
+        S3D_SS_HORZ = 0x2, // misc flags = 0x02
+        S3D_SS_BOTH = 0x3, // misc flags = 0x03
+    };
+
     typedef struct JPEG_HEADER_INFO {
         int nWidth;
         int nHeight ;
         int nFormat;
         int nProgressive;
+        S3D_DESC_INFO s3dDesc; //S3D
+        MP_FIELDS_SUPPORTED MPIndexIFDTags;//S3D
     } JPEG_HEADER_INFO;
 
         OMX_HANDLETYPE pOMXHandle;
@@ -184,8 +276,14 @@ private:
         SkBitmap* bitmap;
         TIHeapAllocator allocator;
 
+        TIS3DHeapAllocator S3DAllocator;
+        int fileType;
+        size_t finalBytesRead;
+
     OMX_S16 GetYUVformat(OMX_U8 * Data);
     OMX_S16 Get16m(const void * Short);
+    void BigEndianRead32Bits(OMX_U32 *pVal,OMX_U8* ptr);
+    void BigEndianRead16Bits(OMX_U16 *pVal,OMX_U8* ptr);
     OMX_S32 ParseJpegHeader (SkStream* stream, JPEG_HEADER_INFO* JpegHeaderInfo);
     OMX_S32 fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* stream, OMX_S32 bufferSize);
     void FixFrameSize(JPEG_HEADER_INFO* JpegHeaderInfo);
@@ -193,6 +291,7 @@ private:
     bool IsHwAvailable();
     bool onDecodeOmx(SkStream* stream, SkBitmap* bm, Mode);
     bool onDecodeArm(SkStream* stream, SkBitmap* bm, Mode);
+    bool isValidStream(SkStream* stream, int nextFileOffset);
 
 public:
     sem_t *semaphore;
