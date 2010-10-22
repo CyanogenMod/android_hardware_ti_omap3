@@ -442,6 +442,7 @@ private:
     unsigned int mIter;
     nsecs_t mLastFPSTime;
 
+    int mSensorIndex;
 };
 }; //// namespace
 #endif //OMX_CAMERA_ADAPTER_H

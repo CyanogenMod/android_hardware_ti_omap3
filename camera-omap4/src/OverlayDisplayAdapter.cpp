@@ -226,7 +226,7 @@ status_t OverlayDisplayAdapter::setSnapshotTimeRef(struct timeval *refTime)
 #endif
 
 
-int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
+int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime, S3DParameters *s3dParams)
 {
     Semaphore sem;
     Message msg;
@@ -244,7 +244,9 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime)
     ///Set the optimal buffer count to 0 since we have a display thread which monitors the
     ///fd of overlay
     mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
-
+    if(s3dParams)
+        mOverlay->set_s3d_params(s3dParams->mode, s3dParams->framePacking,
+                                    s3dParams->order, s3dParams->subSampling);
     mFrameWidth = mOverlay->getWidth();
     mFrameHeight = mOverlay->getHeight();
 

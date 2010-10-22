@@ -648,6 +648,13 @@ public:
 class DisplayAdapter : public BufferProvider, public virtual RefBase
 {
 public:
+    typedef struct S3DParameters_t
+    {
+        int mode;
+        int framePacking;
+        int order;
+        int subSampling;
+    } S3DParameters;
 
     ///Initializes the display adapter creates any resources required
     virtual status_t initialize() = 0;
@@ -655,7 +662,7 @@ public:
     virtual int setOverlay(const sp<Overlay> &overlay) = 0;
     virtual int setFrameProvider(FrameNotifier *frameProvider) = 0;
     virtual status_t setErrorHandler(ErrorNotifier *errorNotifier) = 0;
-    virtual int enableDisplay(struct timeval *refTime = NULL) = 0;
+    virtual int enableDisplay(struct timeval *refTime = NULL, S3DParameters *s3dParams = NULL) = 0;
     virtual int disableDisplay() = 0;
     //Used for Snapshot review temp. pause
     virtual status_t pauseDisplay(bool pause) = 0;

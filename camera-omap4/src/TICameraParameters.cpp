@@ -61,6 +61,7 @@ const char TICameraParameters::KEY_PADDED_HEIGHT[] = "padded-height";
 const char TICameraParameters::KEY_TEMP_BRACKETING[] = "temporal-bracketing";
 const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS[] = "temporal-bracketing-range-positive";
 const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_NEG[] = "temporal-bracketing-range-negative";
+const char TICameraParameters::KEY_S3D_SUPPORTED[] = "s3d-supported";
 
 //TI extensions for enabling/disabling shutter sound
 const char TICameraParameters::SHUTTER_ENABLE[] = "true";

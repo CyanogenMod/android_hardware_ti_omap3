@@ -232,6 +232,7 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         CAMHAL_LOGEB("Sensor %d selected successfully", sensor_index);
         }
 
+    mSensorIndex = sensor_index;
     mBracketingEnabled = false;
     mBracketingBuffersQueuedCount = 0;
     mBracketingRange = 1;
@@ -2650,8 +2651,12 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
         {
 
         OMX_INIT_STRUCT_PTR (&camMode, OMX_CONFIG_CAMOPERATINGMODETYPE);
-
-        if ( OMXCameraAdapter::HIGH_SPEED == mode )
+        if ( mSensorIndex == OMX_TI_StereoSensor )
+            {
+            CAMHAL_LOGDA("Camera mode: STEREO");
+            camMode.eCamOperatingMode = OMX_CaptureStereoImageCapture;
+            }
+        else if ( OMXCameraAdapter::HIGH_SPEED == mode )
             {
             CAMHAL_LOGDA("Camera mode: HIGH SPEED");
             camMode.eCamOperatingMode = OMX_CaptureImageHighSpeedTemporalBracketing;

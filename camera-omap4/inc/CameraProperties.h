@@ -98,13 +98,15 @@ public:
         PROP_INDEX_BRIGHTNESS,
         PROP_INDEX_SHARPNESS,
         PROP_INDEX_IPP,
+        PROP_INDEX_S3D_SUPPORTED,
         PROP_INDEX_MAX
         };
 
     static const char PROP_KEY_INVALID[];
     static const char PROP_KEY_CAMERA_NAME[];
     static const char PROP_KEY_ADAPTER_DLL_NAME[];
-	static const char PROP_KEY_CAMERA_SENSOR_INDEX[];
+    static const char PROP_KEY_CAMERA_SENSOR_INDEX[];
+    static const char PROP_KEY_S3D_SUPPORTED[];
     static const char PROP_KEY_SUPPORTED_PREVIEW_SIZES[];
     static const char PROP_KEY_SUPPORTED_PREVIEW_FORMATS[];
     static const char PROP_KEY_SUPPORTED_PREVIEW_FRAME_RATES[];

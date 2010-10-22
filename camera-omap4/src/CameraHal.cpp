@@ -950,13 +950,23 @@ status_t CameraHal::startPreview()
         {
         CAMHAL_LOGDA("Enabling display");
 
+        bool isS3d = (strcmp(mParameters.get(TICameraParameters::KEY_S3D_SUPPORTED), "true") == 0);
+
+        //TODO: obtain the frame packing configuration from camera or user settings
+        //once side by side configuration is supported
+        DisplayAdapter::S3DParameters s3dParams;
+        s3dParams.mode = OVERLAY_S3D_MODE_ON;
+        s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
+        s3dParams.order = OVERLAY_S3D_ORDER_LF;
+        s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-        ret = mDisplayAdapter->enableDisplay(&mStartPreview);
+        ret = mDisplayAdapter->enableDisplay(&mStartPreview, isS3d ? &s3dParams : NULL);
 
 #else
 
-        ret = mDisplayAdapter->enableDisplay();
+        ret = mDisplayAdapter->enableDisplay(NULL, isS3d ? &s3dParams : NULL);
 
 #endif
 
@@ -2429,6 +2439,7 @@ void CameraHal::insertSupportedParams()
     p.set(CameraParameters::KEY_ZOOM_SUPPORTED, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ZOOM_SUPPORTED]->mPropValue);
     p.set(CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SMOOTH_ZOOM_SUPPORTED]->mPropValue);
     p.set(TICameraParameters::KEY_SUPPORTED_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_IPP_MODES]->mPropValue);
+    p.set(TICameraParameters::KEY_S3D_SUPPORTED,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D_SUPPORTED]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }

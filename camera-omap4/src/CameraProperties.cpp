@@ -38,6 +38,7 @@ const char CameraProperties::PROP_KEY_INVALID[]="invalid-key";
 const char CameraProperties::PROP_KEY_CAMERA_NAME[]="camera-name";
 const char CameraProperties::PROP_KEY_ADAPTER_DLL_NAME[]="camera-adapter-dll-name";
 const char CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX[]="sensor-index";
+const char CameraProperties::PROP_KEY_S3D_SUPPORTED[]="s3d-supported";
 const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_SIZES[] = "preview-size-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FORMATS[] = "preview-format-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FRAME_RATES[] = "preview-frame-rate-values";
@@ -825,6 +826,12 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_IPP;
         }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_S3D_SUPPORTED))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_S3D_SUPPORTED");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_S3D_SUPPORTED;
+        }
 
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
@@ -1085,6 +1092,11 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_IPP );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_IPP;
+
+    case CameraProperties::PROP_INDEX_S3D_SUPPORTED:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_S3D_SUPPORTED);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_S3D_SUPPORTED;
 
 
 

@@ -62,7 +62,7 @@ public:
     virtual int setOverlay(const sp<Overlay> &overlay);
     virtual int setFrameProvider(FrameNotifier *frameProvider);
     virtual int setErrorHandler(ErrorNotifier *errorNotifier);
-    virtual int enableDisplay(struct timeval *refTime = NULL);
+    virtual int enableDisplay(struct timeval *refTime = NULL, S3DParameters *s3dParams = NULL);
     virtual int disableDisplay();
     virtual status_t pauseDisplay(bool pause);
 

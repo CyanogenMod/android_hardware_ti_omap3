@@ -39,7 +39,7 @@ static const  char KEY_SUPPORTED_CAMERAS[];
 // Select logical Camera index
 static const char KEY_CAMERA[];
 static const char KEY_CAMERA_NAME[];
-
+static const  char KEY_S3D_SUPPORTED[];
 
 static const char KEY_BURST[];
 static const  char KEY_CAP_MODE[];
