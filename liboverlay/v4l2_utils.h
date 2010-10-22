@@ -55,6 +55,11 @@ int v4l2_overlay_set_local_alpha(int fd, int enable);
 int32_t Util_Memcpy_2Dto1D(void* pSrc2D, uint32_t nHeight2D, uint32_t nWidth2D, uint32_t nStride2D);
 int v4l2_overlay_getId(int fd, int* id);
 
+int v4l2_overlay_set_s3d_mode(int fd, uint32_t mode);
+int v4l2_overlay_get_s3d_mode(int fd, uint32_t *mode);
+int v4l2_overlay_set_s3d_format(int fd, uint32_t fmt, uint32_t order, uint32_t subsampling);
+int v4l2_overlay_get_s3d_format(int fd, uint32_t *fmt, uint32_t *order, uint32_t *subsampling);
+
 enum {
   V4L2_OVERLAY_PLANE_GRAPHICS,
   V4L2_OVERLAY_PLANE_VIDEO1,
@@ -72,4 +77,68 @@ typedef struct
 /* this constant should be insync with that defined in kernel v4l2 header
 */
 #define V4L2_CID_TI_DISPC_OVERLAY 0x08000000
+
+/*S3D private definitions, should be in sync with S3D V4L2 kernel header*/
+#define VIDIOC_PRIVATE_S3D_S_OFFS \
+    _IOWR('V', BASE_VIDIOC_PRIVATE + 1, struct v4l2_s3d_offsets)
+
+//#define V4L2_CID_PRIVATE_DISPLAY_ID (V4L2_CID_PRIVATE_BASE+1)
+//#define V4L2_CID_PRIVATE_ANAGLYPH_TYPE (V4L2_CID_PRIVATE_BASE+2)
+#define V4L2_CID_PRIVATE_S3D_MODE (V4L2_CID_PRIVATE_BASE+3)
+
+enum v4l2_anaglyph_type {
+    /*Left view Red, right view Cyan */
+    V4L2_ANAGLYPH_RED_CYAN = 0,
+    /*Left view Red, right view Blue */
+    V4L2_ANAGLYPH_RED_BLUE = 1,
+    /*Left view Green, right view Magenta */
+    V4L2_ANAGLYPH_GR_MAG,
+    V4L2_ANAGLYPH_MAX
+};
+
+enum v4l2_s3d_mode {
+    V4L2_S3D_MODE_OFF = 0,
+    V4L2_S3D_MODE_ON,
+    V4L2_S3D_MODE_ANAGLYPH,
+    V4L2_S3D_MODE_MAX
+};
+
+enum v4l2_frame_pack_type {
+    V4L2_FPACK_NONE = 0,
+    V4L2_FPACK_OVERUNDER,
+    V4L2_FPACK_SIDEBYSIDE,
+    V4L2_FPACK_ROW_IL,
+    V4L2_FPACK_COL_IL,
+    V4L2_FPACK_PIX_IL,
+    V4L2_FPACK_CHECKB,
+    V4L2_FPACK_FRM_SEQ,
+};
+
+enum v4l2_frame_pack_order {
+    V4L2_FPACK_ORDER_LF = 0,
+    V4L2_FPACK_ORDER_RF,
+};
+
+enum v4l2_frame_pack_sub_sample {
+    V4L2_FPACK_SS_NONE = 0,
+    V4L2_FPACK_SS_HOR,
+    V4L2_FPACK_SS_VERT,
+};
+
+struct v4l2_frame_packing {
+    enum v4l2_frame_pack_type type;
+    enum v4l2_frame_pack_order order;
+    enum v4l2_frame_pack_sub_sample sub_samp;
+};
+
+struct v4l2_s3d_offsets {
+    /*Offset from base address to active left view start */
+    unsigned long l;
+    /*Offset from base address to active right view start */
+    unsigned long r;
+    /*Cropping w and h */
+    unsigned int w;
+    unsigned int h;
+};
+
 #endif  // ANDROID_ZOOM_REPO_HARDWARE_TI_OMAP3_LIBOVERLAY_V4L2_UTILS_H_

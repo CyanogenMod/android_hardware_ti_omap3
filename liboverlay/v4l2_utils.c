@@ -713,6 +713,151 @@ int v4l2_overlay_getId(int fd, int* id)
      return ret;
 }
 
+enum v4l2_s3d_mode get_s3d_mode(uint32_t mode)
+{
+    switch(mode) {
+        default:
+        case OVERLAY_S3D_MODE_OFF:
+            return V4L2_S3D_MODE_OFF;
+        case OVERLAY_S3D_MODE_ON:
+            return V4L2_S3D_MODE_ON;
+        case OVERLAY_S3D_MODE_ANAGLYPH:
+            return V4L2_S3D_MODE_ANAGLYPH;
+    }
+}
+
+uint32_t set_s3d_mode(enum v4l2_s3d_mode mode)
+{
+    switch(mode) {
+        default:
+        case V4L2_S3D_MODE_OFF:
+            return OVERLAY_S3D_MODE_OFF;
+        case V4L2_S3D_MODE_ON:
+            return OVERLAY_S3D_MODE_ON;
+        case V4L2_S3D_MODE_ANAGLYPH:
+            return OVERLAY_S3D_MODE_ANAGLYPH;
+    }
+}
+
+int v4l2_overlay_set_s3d_mode(int fd, uint32_t mode)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_control ctrl;
+    memset(&ctrl, 0, sizeof(ctrl));
+    ctrl.id = V4L2_CID_PRIVATE_S3D_MODE;
+    ctrl.value = get_s3d_mode(mode);
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "set s3d mode");
+    return ret;
+}
+
+int v4l2_overlay_get_s3d_mode(int fd, uint32_t *mode)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_control ctrl;
+
+    ctrl.id = V4L2_CID_PRIVATE_S3D_MODE;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_CTRL, &ctrl, "get s3d mode");
+    *mode = set_s3d_mode(ctrl.value);
+
+    return ret;
+}
+
+void configure_s3d_format(struct v4l2_frame_packing *frame_packing,
+                        uint32_t fmt, uint32_t order, uint32_t subsampling)
+{
+    enum v4l2_frame_pack_type type;
+    enum v4l2_frame_pack_order v4l2_order;
+    enum v4l2_frame_pack_sub_sample v4l2_subsampling;
+
+    switch(fmt) {
+        default:
+        case OVERLAY_S3D_FORMAT_NONE:
+            type = V4L2_FPACK_NONE;
+            break;
+        case OVERLAY_S3D_FORMAT_OVERUNDER:
+            type = V4L2_FPACK_OVERUNDER;
+            break;
+        case OVERLAY_S3D_FORMAT_SIDEBYSIDE:
+            type = V4L2_FPACK_SIDEBYSIDE;
+            break;
+        case OVERLAY_S3D_FORMAT_ROW_IL:
+            type = V4L2_FPACK_ROW_IL;
+            break;
+        case OVERLAY_S3D_FORMAT_COL_IL:
+            type = V4L2_FPACK_COL_IL;
+            break;
+        case OVERLAY_S3D_FORMAT_PIX_IL:
+            type = V4L2_FPACK_PIX_IL;
+            break;
+        case OVERLAY_S3D_FORMAT_CHECKB:
+            type = V4L2_FPACK_CHECKB;
+            break;
+        case OVERLAY_S3D_FORMAT_FRM_SEQ:
+            type = V4L2_FPACK_FRM_SEQ;
+            break;
+    }
+
+    switch(order) {
+        default:
+        case OVERLAY_S3D_ORDER_LF:
+            v4l2_order = V4L2_FPACK_ORDER_LF;
+            break;
+        case OVERLAY_S3D_ORDER_RF:
+            v4l2_order = V4L2_FPACK_ORDER_RF;
+            break;
+    }
+
+    switch(subsampling) {
+        default:
+        case OVERLAY_S3D_SS_NONE:
+            v4l2_subsampling = V4L2_FPACK_SS_NONE;
+            break;
+        case OVERLAY_S3D_SS_HOR:
+            v4l2_subsampling = V4L2_FPACK_SS_HOR;
+            break;
+        case OVERLAY_S3D_SS_VERT:
+            v4l2_subsampling = V4L2_FPACK_SS_VERT;
+            break;
+    }
+
+    frame_packing->type = type;
+    frame_packing->order = v4l2_order;
+    frame_packing->sub_samp = v4l2_subsampling;
+}
+
+int v4l2_overlay_set_s3d_format(int fd, uint32_t fmt, uint32_t order, uint32_t subsampling)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_format format;
+
+    format.type = V4L2_BUF_TYPE_PRIVATE;
+    configure_s3d_format((struct v4l2_frame_packing *)format.fmt.raw_data, fmt, order, subsampling);
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &format, "set s3d format");
+
+    return ret;
+
+}
+
+int v4l2_overlay_get_s3d_format(int fd, uint32_t *fmt, uint32_t *order, uint32_t *subsampling)
+{
+
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_format format;
+
+    format.type = V4L2_BUF_TYPE_PRIVATE;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format, "get s3d format");
+    *fmt = ((struct v4l2_frame_packing *)format.fmt.raw_data)->type;
+    *order =((struct v4l2_frame_packing *)format.fmt.raw_data)->order;
+    *subsampling = ((struct v4l2_frame_packing *)format.fmt.raw_data)->sub_samp;
+
+    return ret;
+}
+
+
 /*
 Copies 2D buffer to 1D buffer. All heights, widths etc. should be in bytes.
 The function copies the lower no. of bytes i.e. if nSize1D < (nHeight2D * nWidth2D)

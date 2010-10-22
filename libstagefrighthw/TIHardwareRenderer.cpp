@@ -92,6 +92,17 @@ TIHardwareRenderer::TIHardwareRenderer(
         size_t displayWidth, size_t displayHeight,
         size_t decodedWidth, size_t decodedHeight,
         OMX_COLOR_FORMATTYPE colorFormat)
+{
+
+    TIHardwareRenderer(surface, displayWidth, displayHeight, decodedWidth, decodedHeight, colorFormat, 0);
+}
+
+//S3D
+TIHardwareRenderer::TIHardwareRenderer(
+        const sp<ISurface> &surface,
+        size_t displayWidth, size_t displayHeight,
+        size_t decodedWidth, size_t decodedHeight,
+        OMX_COLOR_FORMATTYPE colorFormat, int isS3D)
     : mISurface(surface),
       mDisplayWidth(displayWidth),
       mDisplayHeight(displayHeight),
@@ -145,8 +156,14 @@ TIHardwareRenderer::TIHardwareRenderer(
    return;
     }
 
+//S3D
+#ifdef TARGET_OMAP4
     sp<OverlayRef> ref = mISurface->createOverlay(
-            mDecodedWidth, mDecodedHeight, videoFormat, 0);
+        mDecodedWidth, mDecodedHeight, videoFormat, 0, isS3D);
+#else
+    sp<OverlayRef> ref = mISurface->createOverlay(
+        mDecodedWidth, mDecodedHeight, videoFormat, 0);
+#endif
 
     if (ref.get() == NULL) {
         return;
@@ -444,6 +461,13 @@ bool TIHardwareRenderer::setCallback(release_rendered_buffer_callback cb, void *
     release_frame_cb = cb;
     cookie = c;
     return true;
+}
+
+void TIHardwareRenderer::set_s3d_frame_layout(uint32_t s3d_mode, uint32_t s3d_fmt, uint32_t s3d_order, uint32_t s3d_subsampling)
+{
+    LOGD("Setting the frameLayout  s3d_mode=%d s3d_fmt=%d, s3d_order=%d, s3d_subsampling=%d,  \n", s3d_mode, s3d_fmt, s3d_order, s3d_subsampling);
+    if(mOverlay->set_s3d_params(s3d_mode, s3d_fmt, s3d_order, s3d_subsampling))
+        LOGE("Error Setting S3D params \n");
 }
 
 }  // namespace android

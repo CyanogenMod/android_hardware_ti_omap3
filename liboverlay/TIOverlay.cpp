@@ -582,9 +582,9 @@ int overlay_control_context_t::overlay_get(struct overlay_control_device_t *dev,
 }
 
 overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_control_device_t *dev,
-                                        uint32_t w, uint32_t h, int32_t  format)
+                                        uint32_t w, uint32_t h, int32_t  format, int isS3D)
 {
-    LOGD("overlay_createOverlay:IN w=%d h=%d format=%d\n", w, h, format);
+    LOGD("overlay_createOverlay:IN w=%d h=%d format=%d isS3D=%d \n", w, h, format, isS3D);
     LOG_FUNCTION_NAME_ENTRY;
 
     overlay_object            *overlayobj;
@@ -632,8 +632,19 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         return NULL;
     }
 
-    LOGD("Enabling the OVERLAY[%d]", overlayid);
-    fd = v4l2_overlay_open(overlayid);
+#ifdef TARGET_OMAP4
+    if(isS3D)
+    {
+        LOGD("Enabling the OVERLAY[0] for S3D \n");
+        fd = v4l2_overlay_open(-1);
+    }
+    else
+#endif
+    {
+        LOGD("Enabling the OVERLAY[%d]", overlayid);
+        fd = v4l2_overlay_open(overlayid);
+    }
+
     if (fd < 0) {
         LOGE("Failed to open overlay device[%d]\n", overlayid);
         return NULL;
@@ -748,6 +759,16 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     overlayobj->mData.cropW = w;
     overlayobj->mData.cropH = h;
 
+    //S3D Default values
+    if(isS3D)
+        overlayobj->mData.s3d_mode = OVERLAY_S3D_MODE_ON;
+    else
+        overlayobj->mData.s3d_mode = OVERLAY_S3D_MODE_OFF;
+
+    overlayobj->mData.s3d_fmt = OVERLAY_S3D_FORMAT_NONE;
+    overlayobj->mData.s3d_order = OVERLAY_S3D_ORDER_LF;
+    overlayobj->mData.s3d_subsampling = OVERLAY_S3D_SS_NONE;
+
     self->mOmapOverlays[overlayid] = overlayobj;
 
     LOGD("overlay_createOverlay: OUT");
@@ -758,6 +779,13 @@ error1:
     close(fd);
     self->destroy_shared_overlayobj(overlayobj);
     return NULL;
+}
+
+overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_control_device_t *dev,
+                                        uint32_t w, uint32_t h, int32_t  format)
+{
+    // For Non-3D case
+    return overlay_createOverlay(dev, w, h, format, 0);
 }
 
 void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_device_t *dev,
@@ -1042,7 +1070,14 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 #endif
 
-    if (data->panel != stage->panel) {
+#ifdef TARGET_OMAP4
+    if ((ret = v4l2_overlay_get_s3d_mode(fd, &eCropData.s3d_mode))) {
+        LOGE("commit:Get S3D mode value Failed!/%d\n", ret);
+        goto end;
+    }
+#endif
+
+    if (data->panel != stage->panel && !eCropData.s3d_mode) {
         LOGD("data->panel/0x%x / stage->panel/0x%x\n", data->panel, stage->panel );
         data->panel = stage->panel;
 
@@ -1197,17 +1232,21 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGE("Failed enabling alpha\n");
         goto end;
     }
-    if (data->zorder != stage->zorder) {
-        data->zorder = stage->zorder;
-        //Set up the z-order for the overlay:
-        //TBD:Surface flinger or the driver has to re-work the zorder of all the
-        //other active overlays for a given manager to service the current request.
-        char z_order[16];
-        sprintf(z_order, "%d", data->zorder);
-        if (sysfile_write(overlayobj->overlayzorderpath, &z_order,  strlen("0")) < 0) {
-            LOGE("zorder setting failed");
-            ret = -1;
-            goto end;
+   //Currently not supported with V4L2_S3D driver
+   if(!eCropData.s3d_mode)
+   {
+        if (data->zorder != stage->zorder) {
+            data->zorder = stage->zorder;
+            //Set up the z-order for the overlay:
+            //TBD:Surface flinger or the driver has to re-work the zorder of all the
+            //other active overlays for a given manager to service the current request.
+            char z_order[16];
+            sprintf(z_order, "%d", data->zorder);
+            if (sysfile_write(overlayobj->overlayzorderpath, &z_order,  strlen("0")) < 0) {
+                LOGE("zorder setting failed");
+                ret = -1;
+                goto end;
+            }
         }
     }
 #endif
@@ -1286,7 +1325,11 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
     ctx->omap_overlay->mData.cropW = overlayobj->w;
     ctx->omap_overlay->mData.cropH = overlayobj->h;
 
-
+    //S3D Default value set from createOverlay
+    ctx->omap_overlay->mData.s3d_mode = overlayobj->mData.s3d_mode;
+    ctx->omap_overlay->mData.s3d_fmt = overlayobj->mData.s3d_fmt;
+    ctx->omap_overlay->mData.s3d_order = overlayobj->mData.s3d_order;
+    ctx->omap_overlay->mData.s3d_subsampling = overlayobj->mData.s3d_subsampling;
 
     if (fstat(video_fd, &stat)) {
            LOGE("Error = %s from %s\n", strerror(errno), "overlay initialize");
@@ -1507,6 +1550,70 @@ int overlay_data_context_t::overlay_data_setParameter(struct overlay_data_device
     return ( ret );
 }
 
+int overlay_data_context_t::overlay_set_s3d_params(struct overlay_data_device_t *dev, uint32_t s3d_mode,
+                           uint32_t s3d_fmt, uint32_t s3d_order, uint32_t s3d_subsampling) {
+
+    //LOG_FUNCTION_NAME_ENTRY
+    if (dev == NULL) {
+        LOGE("Null Arguments[%d]", __LINE__);
+        return -1;
+    }
+
+    if ((OVERLAY_S3D_MODE_ANAGLYPH  < (int)s3d_fmt || ((int)s3d_fmt < OVERLAY_S3D_MODE_OFF)) ||
+        (OVERLAY_S3D_FORMAT_FRM_SEQ < (int)s3d_fmt || ((int)s3d_fmt < OVERLAY_S3D_FORMAT_NONE)) ||
+        (OVERLAY_S3D_ORDER_RF < (int)s3d_order || ((int)s3d_order < OVERLAY_S3D_ORDER_LF)) ||
+        (OVERLAY_S3D_SS_VERT < (int)s3d_subsampling || ((int)s3d_subsampling < OVERLAY_S3D_SS_NONE))){
+        LOGE("Invalid Arguments [%d]", __LINE__);
+        return -1;
+    }
+
+    int ret = 0;
+    struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
+
+    if (ctx->omap_overlay == NULL) {
+        LOGE("Shared Data Not Init'd!\n");
+        return -1;
+    }
+
+    int fd = ctx->omap_overlay->getdata_videofd();
+    pthread_mutex_lock(&ctx->omap_overlay->lock);
+
+    if (ctx->omap_overlay->mData.s3d_mode != s3d_mode)
+    {
+        if ((ret = v4l2_overlay_set_s3d_mode(fd, s3d_mode))) {
+            LOGE("Set S3D mode Failed!/%d\n", ret);
+            pthread_mutex_unlock(&ctx->omap_overlay->lock);
+            return ret;
+        }
+        ctx->omap_overlay->mData.s3d_mode = s3d_mode;
+        LOGI("[s3d_params functions] s3d mode/%d\n",  s3d_mode);
+    }
+ /*
+    if ((ret = ctx->disable_streaming_locked(ctx->omap_overlay))) {
+         LOGE("Disable stream Failed!/%d\n", ret);
+        pthread_mutex_unlock(&ctx->omap_overlay->lock);
+        return ret;
+    }
+    */
+
+    if (ctx->omap_overlay->mData.s3d_fmt != s3d_fmt || ctx->omap_overlay->mData.s3d_order != s3d_order
+        || ctx->omap_overlay->mData.s3d_subsampling != s3d_subsampling)
+    {
+        if ((ret = v4l2_overlay_set_s3d_format(fd, s3d_fmt, s3d_order,s3d_subsampling))) {
+        LOGE("Set S3D format Failed!/%d\n", ret);
+        pthread_mutex_unlock(&ctx->omap_overlay->lock);
+        return ret;
+        }
+        ctx->omap_overlay->mData.s3d_fmt = s3d_fmt;
+        ctx->omap_overlay->mData.s3d_order = s3d_order;
+        ctx->omap_overlay->mData.s3d_subsampling = s3d_subsampling;
+    }
+
+    LOG_FUNCTION_NAME_EXIT;
+
+    pthread_mutex_unlock(&ctx->omap_overlay->lock);
+    return ret;
+}
 
 int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, uint32_t x,
                            uint32_t y, uint32_t w, uint32_t h) {
@@ -1859,6 +1966,8 @@ static int overlay_device_open(const struct hw_module_t* module,
 
         dev->get = overlay_control_context_t::overlay_get;
         dev->createOverlay = overlay_control_context_t::overlay_createOverlay;
+        //S3D
+        dev->createOverlay_S3D = overlay_control_context_t::overlay_createOverlay;
         dev->destroyOverlay = overlay_control_context_t::overlay_destroyOverlay;
         dev->setPosition = overlay_control_context_t::overlay_setPosition;
         dev->getPosition = overlay_control_context_t::overlay_getPosition;
@@ -1901,6 +2010,8 @@ static int overlay_device_open(const struct hw_module_t* module,
         dev->queueBuffer = overlay_data_context_t::overlay_queueBuffer;
         dev->getBufferAddress = overlay_data_context_t::overlay_getBufferAddress;
         dev->getBufferCount = overlay_data_context_t::overlay_getBufferCount;
+        //S3D
+        dev->set_s3d_params = overlay_data_context_t::overlay_set_s3d_params;
 
         *device = &dev->common;
          status = 0;

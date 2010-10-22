@@ -77,6 +77,10 @@ public:
         cropY = 0;
         cropW = LCD_WIDTH;
         cropH = LCD_HEIGHT;
+        s3d_mode = OVERLAY_S3D_MODE_OFF;
+        s3d_fmt = OVERLAY_S3D_FORMAT_NONE;
+        s3d_order = OVERLAY_S3D_ORDER_LF;
+        s3d_subsampling = OVERLAY_S3D_SS_NONE;
     }
 
 public:
@@ -84,6 +88,10 @@ public:
   uint32_t cropY;
   uint32_t cropW;
   uint32_t cropH;
+  uint32_t s3d_mode;
+  uint32_t s3d_fmt;
+  uint32_t s3d_order;
+  uint32_t s3d_subsampling;
 };
 
 
@@ -179,6 +187,8 @@ public:
     static int overlay_get(struct overlay_control_device_t *dev, int name);
     static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
             uint32_t w, uint32_t h, int32_t  format);
+    static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
+            uint32_t w, uint32_t h, int32_t  format, int isS3D);
     static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
                                        overlay_t* overlay);
     static int overlay_setPosition(struct overlay_control_device_t *dev,
@@ -235,6 +245,8 @@ public:
                                    overlay_buffer_t buffer);
     static int overlay_getBufferCount(struct overlay_data_device_t *dev);
     static int overlay_data_close(struct hw_device_t *dev);
+    static int overlay_set_s3d_params(struct overlay_data_device_t *dev, uint32_t s3d_mode,
+                           uint32_t s3d_fmt, uint32_t s3d_order, uint32_t s3d_subsampling);
 
     /* our private state goes below here */
 public:
