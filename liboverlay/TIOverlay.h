@@ -88,6 +88,7 @@ public:
   uint32_t cropY;
   uint32_t cropW;
   uint32_t cropH;
+  bool s3d_active;
   uint32_t s3d_mode;
   uint32_t s3d_fmt;
   uint32_t s3d_order;

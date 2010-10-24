@@ -759,12 +759,8 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     overlayobj->mData.cropW = w;
     overlayobj->mData.cropH = h;
 
-    //S3D Default values
-    if(isS3D)
-        overlayobj->mData.s3d_mode = OVERLAY_S3D_MODE_ON;
-    else
-        overlayobj->mData.s3d_mode = OVERLAY_S3D_MODE_OFF;
-
+    overlayobj->mData.s3d_active = isS3D;
+    overlayobj->mData.s3d_mode = OVERLAY_S3D_MODE_ON;
     overlayobj->mData.s3d_fmt = OVERLAY_S3D_FORMAT_NONE;
     overlayobj->mData.s3d_order = OVERLAY_S3D_ORDER_LF;
     overlayobj->mData.s3d_subsampling = OVERLAY_S3D_SS_NONE;
@@ -1070,14 +1066,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 #endif
 
-#ifdef TARGET_OMAP4
-    if ((ret = v4l2_overlay_get_s3d_mode(fd, &eCropData.s3d_mode))) {
-        LOGE("commit:Get S3D mode value Failed!/%d\n", ret);
-        goto end;
-    }
-#endif
-
-    if (data->panel != stage->panel && !eCropData.s3d_mode) {
+    if (data->panel != stage->panel && !overlayobj->mData.s3d_active) {
         LOGD("data->panel/0x%x / stage->panel/0x%x\n", data->panel, stage->panel );
         data->panel = stage->panel;
 
@@ -1232,8 +1221,9 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGE("Failed enabling alpha\n");
         goto end;
     }
+
    //Currently not supported with V4L2_S3D driver
-   if(!eCropData.s3d_mode)
+   if(!overlayobj->mData.s3d_active)
    {
         if (data->zorder != stage->zorder) {
             data->zorder = stage->zorder;
