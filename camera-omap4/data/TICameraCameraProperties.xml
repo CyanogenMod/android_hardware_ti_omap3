@@ -22,9 +22,9 @@
 <picture-format>jpeg</picture-format>
 <jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
 <jpeg-thumbnail-size>160x120</jpeg-thumbnail-size>
-<whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon</whitebalance-values>
+<whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon,facepriority,sunset,twilight,warm-fluorescent</whitebalance-values>
 <whitebalance>auto</whitebalance>
-<effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap</effect-values>
+<effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap,blackwhite,whiteboard,blackboard,aqua,posterize</effect-values>
 <effect>none</effect>
 <antibanding-values>off,auto,50hz,60hz</antibanding-values>
 <antibanding>auto</antibanding>
@@ -40,7 +40,7 @@
 <iso-mode>auto</iso-mode>
 <focus-mode-values>auto,infinity,macro,caf,extended,portrait,touch</focus-mode-values>
 <focus-mode>auto</focus-mode>
-<scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,nightportrait,nightindoor,fireworks,document,barcode,supernight,cine,oldfilm</scene-mode-values>
+<scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,night-portrait,night-indoor,fireworks,document,barcode,supernight,cine,oldfilm,beach,candlelight,night,party,snow,steadyphoto,sunset,theatre</scene-mode-values>
 <scene-mode>auto</scene-mode>
 <flash-mode-values>off</flash-mode-values>
 <flash-mode>off</flash-mode>
@@ -74,9 +74,9 @@
 <picture-format>jpeg</picture-format>
 <jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
 <jpeg-thumbnail-size>640x480</jpeg-thumbnail-size>
-<whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon</whitebalance-values>
+<whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon,facepriority,sunset,twilight,warm-fluorescent</whitebalance-values>
 <whitebalance>auto</whitebalance>
-<effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap</effect-values>
+<effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap,blackwhite,whiteboard,blackboard,aqua,posterize</effect-values>
 <effect>none</effect>
 <antibanding-values>off,auto,50hz,60hz</antibanding-values>
 <antibanding>auto</antibanding>
@@ -92,7 +92,7 @@
 <iso-mode>auto</iso-mode>
 <focus-mode-values>auto,infinity,macro,caf,extended,portrait</focus-mode-values>
 <focus-mode>auto</focus-mode>
-<scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,nightportrait,nightindoor,fireworks,document,barcode,supernight,cine,oldfilm</scene-mode-values>
+<scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,night-portrait,night-indoor,fireworks,document,barcode,supernight,cine,oldfilm,beach,candlelight,night,party,snow,steadyphoto,sunset,theatre</scene-mode-values>
 <scene-mode>auto</scene-mode>
 <flash-mode-values>off</flash-mode-values>
 <required-preview-bufs>8</required-preview-bufs>
@@ -127,9 +127,9 @@
 <picture-format>jpeg</picture-format>
 <jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
 <jpeg-thumbnail-size>640x480</jpeg-thumbnail-size>
-<whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon</whitebalance-values>
+<whitebalance-values>auto,daylight,cloudy-daylight,shade,tungsten,fluorescent,incandescent,horizon,facepriority,sunset,twilight,warm-fluorescent</whitebalance-values>
 <whitebalance>auto</whitebalance>
-<effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap</effect-values>
+<effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap,blackwhite,whiteboard,blackboard,aqua,posterize</effect-values>
 <effect>none</effect>
 <antibanding-values>off,auto,50hz,60hz</antibanding-values>
 <antibanding>auto</antibanding>
@@ -145,7 +145,7 @@
 <iso-mode>auto</iso-mode>
 <focus-mode-values>auto,infinity,macro,caf,extended,portrait</focus-mode-values>
 <focus-mode>auto</focus-mode>
-<scene-mode-values>auto,manual,closeup,portrait,landscape,underwater,action,snow-beach,mood,nightportrait,nightindoor,fireworks,document,barcode,supernight,cine,oldfilm</scene-mode-values>
+<scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,night-portrait,night-indoor,fireworks,document,barcode,supernight,cine,oldfilm,beach,candlelight,night,party,snow,steadyphoto,sunset,theatre</scene-mode-values>
 <scene-mode>auto</scene-mode>
 <flash-mode-values>off</flash-mode-values>
 <required-preview-bufs>8</required-preview-bufs>

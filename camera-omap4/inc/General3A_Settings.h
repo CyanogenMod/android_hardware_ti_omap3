@@ -44,9 +44,14 @@ const char * effNegative          = CameraParameters::EFFECT_NEGATIVE;
 const char * effSolarize          = CameraParameters::EFFECT_SOLARIZE;
 const char * effSepia             = CameraParameters::EFFECT_SEPIA;
 const char * effMono              = CameraParameters::EFFECT_MONO;
+const char * effBlackBoard      = CameraParameters::EFFECT_BLACKBOARD;
+const char * effWhiteBoard        = CameraParameters::EFFECT_WHITEBOARD;
+const char * effAqua                = CameraParameters::EFFECT_AQUA;
+const char * effPosterize           = CameraParameters::EFFECT_POSTERIZE;
 const char * effNatural           = TICameraParameters::EFFECT_NATURAL;
 const char * effVivid             = TICameraParameters::EFFECT_VIVID;
 const char * effColourSwap        = TICameraParameters::EFFECT_COLOR_SWAP;
+const char * effBlackWhite       = TICameraParameters::EFFECT_BLACKWHITE;
 
 /*
 * ISO Modes
@@ -71,7 +76,13 @@ const char * sceneSnow             = CameraParameters::SCENE_MODE_SNOW;
 const char * sceneBeach            = CameraParameters::SCENE_MODE_BEACH;
 const char * sceneNightPortrait    = CameraParameters::SCENE_MODE_NIGHT_PORTRAIT;
 const char * sceneFireworks        = CameraParameters::SCENE_MODE_FIREWORKS;
-
+const char * sceneCandleLight      = CameraParameters::SCENE_MODE_CANDLELIGHT;
+const char * sceneNight               = CameraParameters::SCENE_MODE_NIGHT;
+const char * sceneParty                 = CameraParameters::SCENE_MODE_PARTY;
+const char * sceneSteadyPhoto    = CameraParameters::SCENE_MODE_STEADYPHOTO;
+const char * sceneSunset              = CameraParameters::SCENE_MODE_SUNSET;
+const char * sceneAction                = CameraParameters::SCENE_MODE_ACTION;
+const char * sceneTheatre             = CameraParameters::SCENE_MODE_THEATRE;
 const char * sceneCloseup          = TICameraParameters::SCENE_MODE_CLOSEUP;
 const char * sceneUnderwater       = TICameraParameters::SCENE_MODE_AQUA;
 const char * sceneMood             = TICameraParameters::SCENE_MODE_MOOD;
@@ -91,7 +102,10 @@ const char * whiteBalCloudy        = CameraParameters::WHITE_BALANCE_CLOUDY_DAYL
 const char * whiteBalShade         = CameraParameters::WHITE_BALANCE_SHADE;
 const char * whiteBalFluorescent   = CameraParameters::WHITE_BALANCE_FLUORESCENT;
 const char * whiteBalIncandescent  = CameraParameters::WHITE_BALANCE_INCANDESCENT;
-
+const char * whiteBalTwilight            = CameraParameters::WHITE_BALANCE_TWILIGHT;
+const char * whiteBalWarmFluorescent = CameraParameters::WHITE_BALANCE_WARM_FLUORESCENT;
+const char * whiteBalFace            = TICameraParameters::WHITE_BALANCE_FACE;
+const char * whiteBalSunset        = TICameraParameters::WHITE_BALANCE_SUNSET;
 const char * whiteBalHorizon       = TICameraParameters::WHITE_BALANCE_HORIZON;
 const char * whiteBalTungsten      = TICameraParameters::WHITE_BALANCE_TUNGSTEN;
 
@@ -158,12 +172,16 @@ userToOMX_LUT effects_UserToOMX [] = {
     {  effNatural,         OMX_ImageFilterNatural      },
     {  effVivid,           OMX_ImageFilterVivid        },
     {  effColourSwap,      OMX_ImageFilterColourSwap   },
+    { effBlackBoard      ,OMX_TI_ImageFilterBlackBoard },
+    { effWhiteBoard      ,OMX_TI_ImageFilterWhiteBoard },
+    { effAqua               ,OMX_TI_ImageFilterAqua },
+    { effPosterize         ,OMX_TI_ImageFilterPosterize },
+    { effBlackWhite     ,OMX_TI_ImageFilterBlackWhite }
 };
 
 userToOMX_LUT scene_UserToOMX [] = {
     {  sceneManual        ,OMX_Manual       },
     {  sceneCloseup       ,OMX_Closeup      },
-    {  scenePortrait      ,OMX_Portrait     },
     {  sceneLandscape     ,OMX_Landscape    },
     {  sceneUnderwater    ,OMX_Underwater   },
     {  sceneSport         ,OMX_Sport        },
@@ -173,12 +191,21 @@ userToOMX_LUT scene_UserToOMX [] = {
     {  sceneNightPortrait ,OMX_NightPortrait},
     {  sceneNightIndoor   ,OMX_NightIndoor  },
     {  sceneFireworks     ,OMX_Fireworks    },
-    {  sceneSport         ,OMX_Sport        },
     {  imgSceneDocument   ,OMX_Document     },
     {  imgSceneBarcode    ,OMX_Barcode      },
     {  vidSceneSuperNight ,OMX_SuperNight   },
     {  vidSceneCine       ,OMX_Cine         },
-    {  vidSceneOldFilm    ,OMX_OldFilm      }
+    {  vidSceneOldFilm    ,OMX_OldFilm      },
+    { sceneAction            ,OMX_TI_Action },
+    { sceneBeach            ,OMX_TI_Beach },
+    { sceneCandleLight     ,OMX_TI_Candlelight },
+    { sceneNight               ,OMX_TI_Night },
+    { sceneParty               ,OMX_TI_Party },
+    { scenePortrait            ,OMX_TI_Portrait },
+    { sceneSnow               ,OMX_TI_Snow },
+    { sceneSteadyPhoto    ,OMX_TI_Steadyphoto },
+    { sceneSunset             ,OMX_TI_Sunset },
+    { sceneTheatre             ,OMX_TI_Theatre }
 };
 
 userToOMX_LUT whiteBal_UserToOMX [] = {
@@ -189,7 +216,12 @@ userToOMX_LUT whiteBal_UserToOMX [] = {
     { whiteBalTungsten       ,OMX_WhiteBalControlTungsten      },
     { whiteBalFluorescent    ,OMX_WhiteBalControlFluorescent   },
     { whiteBalIncandescent   ,OMX_WhiteBalControlIncandescent  },
-    { whiteBalHorizon        ,OMX_WhiteBalControlHorizon       }
+    { whiteBalHorizon        ,OMX_WhiteBalControlHorizon },
+    { whiteBalShade         ,OMX_TI_WhiteBalControlShade },
+    { whiteBalTwilight       ,OMX_TI_WhiteBalControlTwilight },
+    { whiteBalWarmFluorescent ,OMX_TI_WhiteBalControlWarmFluorescent },
+    { whiteBalFace            ,OMX_WhiteBalControlFacePriorityMode },
+    { whiteBalSunset        ,OMX_TI_WhiteBalControlSunset }
 };
 
 userToOMX_LUT antibanding_UserToOMX [] = {
