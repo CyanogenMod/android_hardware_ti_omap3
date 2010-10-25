@@ -199,6 +199,9 @@ const char *focus[] = {
     "auto",
     "infinity",
     "macro",
+    "caf",
+    "extended",
+    "portrait",
 };
 int focus_mode = 0;
 const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw"};
@@ -1220,7 +1223,6 @@ int functional_menu() {
         printf("   c. Contrast:       %d\n", contrast);
         printf("   h. Sharpness:      %d\n", sharpness);
         printf("   b. Brightness:     %d\n", brightness);
-        printf("   y. Continuous AF:  %s\n", caf[caf_mode]);
         printf("   x. Antibanding:    %s\n", antibanding[antibanding_mode]);
         printf("   g. Focus mode:     %s\n", focus[focus_mode]);
         printf("   m. Metering mode:     %s\n", metering[meter_mode]);
@@ -1606,16 +1608,6 @@ int functional_menu() {
             scene_mode++;
             scene_mode %= ARRAY_SIZE(scene);
             params.set(params.KEY_SCENE_MODE, scene[scene_mode]);
-
-            if ( hardwareActive )
-                camera->setParameters(params.flatten());
-
-            break;
-
-        case 'y':
-            caf_mode++;
-            caf_mode %= ARRAY_SIZE(caf);
-            params.set(KEY_CAF, caf_mode);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -2404,15 +2396,6 @@ int execute_functional_script(char *script) {
                 if(hardwareActive)
                     params.unflatten(camera->getParameters());
                 printSupportedParams();
-                break;
-
-            case 'y':
-                caf_mode = atoi(cmd + 1);
-                params.set(KEY_CAF, caf_mode);
-
-                if ( hardwareActive )
-                    camera->setParameters(params.flatten());
-
                 break;
 
             case 'i':
