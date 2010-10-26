@@ -27,8 +27,9 @@
 #endif
 
 #define MM_DEFAULT_DEVICE	"plughw:0,0"
-#define BLUETOOTH_SCO_DEVICE	"hw:0,2"
-#define FM_TRANSMIT_DEVICE	"hw:0,2"
+#define BLUETOOTH_SCO_DEVICE	"plughw:0,2"
+#define FM_TRANSMIT_DEVICE	"plughw:0,3"
+#define FM_CAPTURE_DEVICE       "plughw:0,1"
 #define HDMI_DEVICE		"plughw:0,7"
 
 #ifndef ALSA_DEFAULT_SAMPLE_RATE
@@ -36,7 +37,7 @@
 #endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
-
+static bool fm_enable = false;
 namespace android
 {
 
@@ -141,6 +142,9 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode);
 #define OMAP4_IN_SCO        (\
         AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET)
 
+#define OMAP4_IN_FM        (\
+        AudioSystem::DEVICE_IN_FM_ANALOG)
+
 #define OMAP4_IN_DEFAULT    (\
         AudioSystem::DEVICE_IN_ALL &\
         ~OMAP4_IN_SCO)
@@ -224,6 +228,20 @@ static alsa_handle_t _defaults[] = {
         bufferSize  : 2048, // Desired Number of samples
         modPrivate  : (void *)&setDefaultControls,
     },
+    {
+        module      : 0,
+        devices     : OMAP4_IN_FM,
+        curDev      : 0,
+        curMode     : 0,
+        handle      : 0,
+        format      : SND_PCM_FORMAT_S32_LE,
+        channels    : 2,
+        sampleRate  : 48000,
+        latency     : -1, // Doesn't matter, since it is buffer-less
+        bufferSize  : 2048, // Desired Number of samples
+        modPrivate  : (void *)&setDefaultControls,
+    },
+
 };
 
 // ----------------------------------------------------------------------------
@@ -238,6 +256,9 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
 
     if (device & OMAP4_OUT_HDMI)
         return HDMI_DEVICE;
+
+    if (device & OMAP4_IN_FM)
+        return FM_CAPTURE_DEVICE;
 
     return MM_DEFAULT_DEVICE;
 }
@@ -437,7 +458,11 @@ status_t setSoftwareParams(alsa_handle_t *handle)
         // For recording, configure ALSA to start the transfer on the
         // first frame.
         startThreshold = 1;
-        stopThreshold = bufferSize;
+        if (handle->devices & OMAP4_IN_FM) {
+          LOGV("Stop Threshold for FM Rx is -1");
+          stopThreshold = -1; // For FM Rx via ABE
+        } else
+             stopThreshold = bufferSize;
     }
 
     err = snd_pcm_sw_params_set_start_threshold(handle->handle, softwareParams,
@@ -569,6 +594,22 @@ LOGV("%s", __FUNCTION__);
             control.set("DL2 Mixer Multimedia", 1);		// MM_DL    -> DL2 Mixer
             control.set("DL2 Mixer Tones", 1);			// TONES_DL -> DL2 Mixer
             control.set("DL2 Mixer Voice", 1);			// VX_DL    -> DL2 Mixer
+            if (fm_enable && ((devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
+                       (devices & AudioSystem::DEVICE_OUT_EARPIECE))) {
+                LOGE("FM ABE headset");
+                /* FM Rx: DL1 Mixer */
+                control.set("DL1 Capture Playback Volume", 115);
+                control.set("DL2 Capture Playback Volume", 0, -1);
+            } else  if (fm_enable  && devices & AudioSystem::DEVICE_OUT_SPEAKER) {
+                LOGE("FM ABE speaker");
+                /* FM Rx: DL2 Mixer */
+                control.set("DL2 Capture Playback Volume", 115);
+                control.set("DL1 Capture Playback Volume", 0, -1);
+            } else {
+                /* FM Rx: DL1/DL2 Mixer */
+                control.set("DL1 Capture Playback Volume", 0, -1);
+                control.set("DL2 Capture Playback Volume", 0, -1);
+            }
         } else {
             /* OMAP4 ABE */
             /* Headset: DL1 Mixer */
@@ -585,6 +626,9 @@ LOGV("%s", __FUNCTION__);
             control.set("DL2 Mixer Multimedia", 0, 0);
             control.set("DL2 Mixer Tones", 0, 0);
             control.set("DL2 Mixer Voice", 0, 0);
+           /* FM Rx: DL1/DL2 Mixer */
+            control.set("DL1 Capture Playback Volume", 0, -1);
+            control.set("DL2 Capture Playback Volume", 0, -1);
         }
     }
 
@@ -602,6 +646,12 @@ LOGV("%s", __FUNCTION__);
             control.set("Analog Right Capture Route", "Headset Mic");	// Headset Mic -> Mic Mux
             control.set("Capture Preamplifier Volume", 1);
             control.set("Capture Volume", 4);
+        } else if (devices & OMAP4_IN_FM) {
+           /* TWL 6040 */
+            control.set("Analog Left Capture Route", "Aux/FM Left");     // FM -> Mic Mux
+            control.set("Analog Right Capture Route", "Aux/FM Right");   // FM -> Mic Mux
+            control.set("Capture Preamplifier Volume", 1);
+            control.set("Capture Volume", 1);
         } else {
             /* TWL6040 */
             control.set("Analog Left Capture Route", "Off");
@@ -611,7 +661,8 @@ LOGV("%s", __FUNCTION__);
         }
 
         if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
-            (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET)) {
+            (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
+            (devices & OMAP4_IN_FM)) {
             /* OMAP4 ABE */
             control.set("AMIC_UL PDM Switch", 1);			// PDM_UL1 -> AMIC_UL
             control.set("MUX_UL00", "AMic1");				// AMIC_UL -> MM_UL00
@@ -621,7 +672,7 @@ LOGV("%s", __FUNCTION__);
             control.set("Voice Capture Mixer Capture", 1);		// VX_UL   -> VXREC_MIXER
             control.set("MUX_VX0", "AMic1");				// AMIC_UL -> VX_UL0
             control.set("MUX_VX1", "AMic0");				// AMIC_UL -> VX_UL1
-	} else {
+        } else {
             /* OMAP4 ABE */
             control.set("AMIC_UL PDM Switch", 0, 0);
             control.set("MUX_UL00", "None");
@@ -704,6 +755,14 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     if (err == NO_ERROR) err = setSoftwareParams(handle);
 
     LOGI("Initialized ALSA %s device '%s'", stream, devName);
+    // For FM Rx through ABE, McPDM UL needs to be triggered
+    if (devices &  OMAP4_IN_FM) {
+       LOGI("Triggering McPDM UL");
+       fm_enable = true;
+       snd_pcm_start(handle->handle);
+    } else if (0 == devices) {
+       fm_enable = false;
+    }
     return err;
 }
 
