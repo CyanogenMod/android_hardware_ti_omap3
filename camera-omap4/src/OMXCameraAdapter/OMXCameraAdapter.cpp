@@ -40,6 +40,7 @@ static int mDebugFps = 0;
 
 #define FACE_DETECTION_BUFFER_SIZE  0x1000
 #define TOUCH_FOCUS_RANGE 0xFF
+#define AF_CALLBACK_TIMEOUT 3000000
 
 #define HERE(Msg) {CAMHAL_LOGEB("--===line %d, %s===--\n", __LINE__, Msg);}
 
@@ -3240,13 +3241,18 @@ status_t OMXCameraAdapter::doAutoFocus()
 
         if ( NO_ERROR == ret )
             {
-            eventSem.Wait();
-            CAMHAL_LOGDA("Autofocus callback received successfully");
+            ret = eventSem.WaitTimeout(AF_CALLBACK_TIMEOUT);
             }
 
         if ( NO_ERROR == ret )
             {
+            CAMHAL_LOGDA("Autofocus callback received");
             ret = notifyFocusSubscribers(false, false);
+            }
+        else
+            {
+            CAMHAL_LOGEA("Autofocus callback timeout expired");
+            ret = notifyFocusSubscribers(true, false);
             }
 
         }
