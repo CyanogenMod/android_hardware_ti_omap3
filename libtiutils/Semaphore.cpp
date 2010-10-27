@@ -22,7 +22,7 @@
 #include "Semaphore.h"
 #include "ErrorUtils.h"
 #include <utils/Log.h>
-
+#include <time.h>
 
 namespace android {
 
@@ -167,21 +167,32 @@ int Semaphore::Count()
 
 status_t Semaphore::WaitTimeout(int timeoutMicroSecs)
 {
+    status_t ret = NO_ERROR;
+
     struct timespec timeSpec;
+    struct timeval currentTime;
 
     ///semaphore should have been created first
-    if(!mSemaphore)
+    if( NULL == mSemaphore)
         {
-        return BAD_VALUE;
+        ret = BAD_VALUE;
         }
 
-    ///setup the timeout values - timeout is specified in seconds and nanoseconds
-    timeSpec.tv_sec = (timeoutMicroSecs/1000000);
-    timeSpec.tv_nsec = (timeoutMicroSecs - timeSpec.tv_sec*1000000)*1000;
+    if ( NO_ERROR == ret )
+        {
 
-    ///Wait for the timeout or signal and return the result based on whichever event occurred first
-    return ErrorUtils::posixToAndroidError(sem_timedwait(mSemaphore, &timeSpec));
+        ///setup the timeout values - timeout is specified in seconds and nanoseconds
+        gettimeofday(&currentTime, NULL);
+        timeSpec.tv_sec = currentTime.tv_sec;
+        timeSpec.tv_nsec = currentTime.tv_usec * 1000;
+        timeSpec.tv_sec += ( timeoutMicroSecs / 1000000 );
+        timeSpec.tv_nsec += ( timeoutMicroSecs % 1000000) * 1000;
 
+        ///Wait for the timeout or signal and return the result based on whichever event occurred first
+        ret = sem_timedwait(mSemaphore, &timeSpec);
+        }
+
+    return ret;
 }
 
 
