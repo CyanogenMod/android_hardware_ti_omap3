@@ -40,6 +40,8 @@ const char TICameraParameters::KEY_SUPPORTED_CAMERAS[] = "camera-indexes";
 const char TICameraParameters::KEY_CAMERA[] = "camera-index";
 const char TICameraParameters::KEY_SHUTTER_ENABLE[] = "shutter-enable";
 const char TICameraParameters::KEY_CAMERA_NAME[] = "camera-name";
+const char TICameraParameters::KEY_FACE_DETECTION_ENABLE[] = "face-detection-enable";
+const char TICameraParameters::KEY_FACE_DETECTION_DATA[] = "face-detection-data";
 const char TICameraParameters::KEY_BURST[] = "burst-capture";
 const char TICameraParameters::KEY_CAP_MODE[] = "mode";
 const char TICameraParameters::KEY_VSTAB[] = "vstab";
@@ -102,7 +104,9 @@ const char TICameraParameters::FOCUS_MODE_PORTRAIT[] = "portrait";
 const char TICameraParameters::FOCUS_MODE_EXTENDED[] = "extended";
 const char TICameraParameters::FOCUS_MODE_CAF[] = "caf";
 
-
+// TI extensions for face detection
+const char TICameraParameters::FACE_DETECTION_ENABLE[] = "enable";
+const char TICameraParameters::FACE_DETECTION_DISABLE[] = "disable";
 
 //  TI extensions to add  values for effect settings.
 const char TICameraParameters::EFFECT_NATURAL[] = "natural";

@@ -454,6 +454,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_FOCUS_MODE, params.get(CameraParameters::KEY_FOCUS_MODE));
         }
 
+    if( params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE) != NULL )
+        {
+        CAMHAL_LOGDB("Face detection set to %s", params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE));
+        mParameters.set(TICameraParameters::KEY_FACE_DETECTION_ENABLE, params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE));
+        }
+
     if(params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION) != NULL)
         {
         CAMHAL_LOGDB("Exposure compensation set %s", params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION));
