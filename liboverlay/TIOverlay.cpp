@@ -1351,6 +1351,7 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
     ctx->omap_overlay->mappedbufcount = ctx->omap_overlay->num_buffers;
     LOG_FUNCTION_NAME_EXIT;
     LOGD("Initialize ret = %d", rc);
+    InitDisplayManagerMetaData();
     return ( rc );
 }
 
