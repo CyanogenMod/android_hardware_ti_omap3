@@ -230,21 +230,27 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         break;
     case 3:
         format = OVERLAY_FORMAT_YCbCr_422_SP;
+        bytesPerPixel1 = 1; //this is not the bytes per complete pixel, instead only Y-component
         break;
     case 4:
         format = OVERLAY_FORMAT_YCbCr_420_SP;
+        bytesPerPixel1 = 1; //this is not the bytes per complete pixel, instead only Y-component
         break;
     case 5:
         format = OVERLAY_FORMAT_YCbYCr_422_I;
+        bytesPerPixel1 = 2;
         break;
     case 6:
         format = OVERLAY_FORMAT_YCbYCr_420_I;
+        bytesPerPixel1 = 1; //this is not the bytes per complete pixel, instead only Y-component
         break;
     case 7:
         format = OVERLAY_FORMAT_CbYCrY_422_I;
+        bytesPerPixel1 = 2;
         break;
     case 8:
         format = OVERLAY_FORMAT_CbYCrY_420_I;
+        bytesPerPixel1 = 1; //this is not the bytes per complete pixel, instead only Y-component
         break;
     default:
         format = fmt1;
@@ -329,21 +335,27 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         break;
     case 3:
         format = OVERLAY_FORMAT_YCbCr_422_SP;
+        bytesPerPixel2 = 1; //this is not the bytes per complete pixel, instead only Y-component
         break;
     case 4:
         format = OVERLAY_FORMAT_YCbCr_420_SP;
+        bytesPerPixel2 = 1; //this is not the bytes per complete pixel, instead only Y-component
         break;
     case 5:
         format = OVERLAY_FORMAT_YCbYCr_422_I;
+        bytesPerPixel2 = 2;
         break;
     case 6:
         format = OVERLAY_FORMAT_YCbYCr_420_I;
+        bytesPerPixel2 = 1; //this is not the bytes per complete pixel, instead only Y-component
         break;
     case 7:
         format = OVERLAY_FORMAT_CbYCrY_422_I;
+        bytesPerPixel2 = 2;
         break;
     case 8:
         format = OVERLAY_FORMAT_CbYCrY_420_I;
+        bytesPerPixel2 = 1; //this is not the bytes per complete pixel, instead only Y-component
         break;
     default:
         format = fmt2;
@@ -447,8 +459,10 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     int cnt1 = 0, iter = 0;
     overlay_buffer_t buffer1;
     int numBuffers1;
-    uint32_t page_width1 = (w1 * 2   + 4096 -1) & ~(4096 -1);  // width rounded to the 4096 bytes
     uint32_t framesize1 = w1*h1*bytesPerPixel1;
+    if (fmt1 == 4) {
+        framesize1 = (w1*h1*3)/2;   //for NV-12 it is 12 bits per pixel
+    }
     uint8_t* localbuffer1 = new uint8_t [framesize1];
 
     int filedes2 = -1;
@@ -457,8 +471,10 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     int cnt2 = 0;
     overlay_buffer_t buffer2;
     int numBuffers2;
-    uint32_t page_width2 = (w2 * 2   + 4096 -1) & ~(4096 -1);  // width rounded to the 4096 bytes
     uint32_t framesize2 = w2*h2*bytesPerPixel2;
+    if (fmt2 == 4) {
+        framesize2 = (w2*h2*3)/2;   //for NV-12 format, it is 12 bits per pixel
+    }
     uint8_t* localbuffer2 = new uint8_t [framesize2];
 
     filedes1 = open(img1, O_RDONLY);
@@ -556,14 +572,20 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         uint8_t* runningptr1 = localbuffer1;
 
         #ifdef TARGET_OMAP4
-        for (int k1 = 0; k1 < (int)h1  ; k1 += 1){
-        for (int j1 = 0; j1 < (int)w1; j1+= 2){
-            *(uint32_t *)(p1) = *(uint32_t*)(runningptr1);
-            p1 += 4;
-            runningptr1 += 4;
-        }
-            p1    +=  page_width1 - w1*2; //go to the beginning of the next row
-        }
+        int total_height_bytes = h1;
+        int total_width_bytes = bytesPerPixel1*w1;
+        if (fmt1 == 4) {
+            total_height_bytes = (3*h1)/2;
+            }
+            uint32_t stride = 4096;
+            //copy y-buffer, almost bytewise copy, except for stride jumps.
+            uint8_t* p1y = (uint8_t*) runningptr1;
+            uint8_t* p2y = (uint8_t*) p1;
+            for(int i=0;i<total_height_bytes;i++)
+                {
+                //copy whole row of Y pixels. source and desination will point to new row each time.
+                memcpy(p2y+i*stride, p1y+i*total_width_bytes,total_width_bytes);
+                }
         #else
             memcpy(mBuffers1[cnt1], runningptr1, framesize1);
         #endif
@@ -588,14 +610,20 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
             uint8_t *p2 = (uint8_t*) mBuffers2[cnt2];
             uint8_t* runningptr2 = localbuffer2;
             #ifdef TARGET_OMAP4
-            for (int k2 = 0; k2 < (int)h2  ; k2 += 1){
-            for (int j2 = 0; j2 < (int)w2; j2 += 2){
-                *(uint32_t *)(p2) = *(uint32_t*)(runningptr2);
-                p2 += 4;
-                runningptr2 += 4;
+        int total_height_bytes = h2;
+        int total_width_bytes = bytesPerPixel2*w2;
+        if (fmt2 == 4) {
+            total_height_bytes = (3*h2)/2;
             }
-                p2    +=  page_width2 - w2*2; //go to the beginning of the next row
-            }
+            uint32_t stride = 4096;
+            //copy y-buffer, almost bytewise copy, except for stride jumps.
+            uint8_t* p1y = (uint8_t*) runningptr2;
+            uint8_t* p2y = (uint8_t*) p2;
+            for(int i=0;i<total_height_bytes;i++)
+                {
+                //copy whole row of Y pixels. source and desination will point to new row each time.
+                memcpy(p2y+i*stride, p1y+i*total_width_bytes,total_width_bytes);
+                }
             #else
                 memcpy(mBuffers2[cnt2], runningptr2, framesize2);
             #endif
@@ -616,14 +644,20 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         uint8_t *p1 = (uint8_t*) mBuffers1[cnt1];
         uint8_t* runningptr1 = localbuffer1;
         #ifdef TARGET_OMAP4
-        for (int k1 = 0; k1 < (int)h1  ; k1 += 1) {
-        for (int j1 = 0; j1 < (int)w1; j1 += 2) {
-            *(uint32_t *)(p1) = *(uint32_t*)(runningptr1);
-            p1 += 4;
-            runningptr1 += 4;
-        }
-            p1    +=  page_width1 - w1*2; //go to the beginning of the next row
-        }
+        int total_height_bytes = h1;
+        int total_width_bytes = bytesPerPixel1*w1;
+if (fmt1 == 4) {
+    total_height_bytes = (3*h1)/2;
+    }
+            uint32_t stride = 4096;
+            //copy y-buffer, almost bytewise copy, except for stride jumps.
+            uint8_t* p1y = (uint8_t*) runningptr1;
+            uint8_t* p2y = (uint8_t*) p1;
+            for(int i=0;i<total_height_bytes;i++)
+                {
+                //copy whole row of Y pixels. source and desination will point to new row each time.
+                memcpy(p2y+i*stride, p1y+i*total_width_bytes,total_width_bytes);
+                }
         #else
             memcpy(mBuffers1[cnt1], runningptr1, framesize1);
         #endif
@@ -648,14 +682,20 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
             uint8_t *p2 = (uint8_t*) mBuffers2[cnt2];
             uint8_t* runningptr2 = localbuffer2;
             #ifdef TARGET_OMAP4
-            for (int k2 = 0; k2 < (int)h2  ; k2 += 1) {
-            for (int j2 = 0; j2 < (int)w2; j2 += 2) {
-                *(uint32_t *)(p2) = *(uint32_t*)(runningptr2);
-                p2 += 4;
-                runningptr2 += 4;
+        int total_height_bytes = h2;
+        int total_width_bytes = bytesPerPixel2*w2;
+        if (fmt2 == 4) {
+            total_height_bytes = (3*h2)/2;
             }
-                p2    +=  page_width2 - w2*2; //go to the beginning of the next row
-            }
+            uint32_t stride = 4096;
+            //copy y-buffer, almost bytewise copy, except for stride jumps.
+            uint8_t* p1y = (uint8_t*) runningptr2;
+            uint8_t* p2y = (uint8_t*) p2;
+            for(int i=0;i<total_height_bytes;i++)
+                {
+                //copy whole row of Y pixels. source and desination will point to new row each time.
+                memcpy(p2y+i*stride, p1y+i*total_width_bytes,total_width_bytes);
+                }
             #else
                 memcpy(mBuffers2[cnt2], runningptr2, framesize2);
             #endif
@@ -1234,7 +1274,7 @@ void printUsage()
     printf("\n-x val : win x");
     printf("\n-y val : win y");
     printf("\n-w val : New Width");
-    printf("\n-h val : New Height");    
+    printf("\n-h val : New Height");
     printf("\n-i val : Repeat test 'val' times");
 
     printf("\n\n");
@@ -1464,7 +1504,7 @@ int main (int argc, char* argv[])
         {
             LOGD("\n\n---------------------Iteration %d ------------------------------\n\n", i);
             test.testOverlay(argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), atoi(argv[7]), argv[8], atoi(argv[9]), atoi(argv[10]), atoi(argv[11]), atoi(argv[12]));
-            sleep(2); //Sleep for 2 seconds. Give SF time to destroy overlay            
+            sleep(2); //Sleep for 2 seconds. Give SF time to destroy overlay
         }
 
     }
