@@ -454,6 +454,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_FOCUS_MODE, params.get(CameraParameters::KEY_FOCUS_MODE));
         }
 
+    if( params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS) != NULL )
+        {
+        CAMHAL_LOGDB("Touch Focus position set %s", params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS));
+        mParameters.set(TICameraParameters::KEY_TOUCH_FOCUS_POS, params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS));
+        }
+
     if( params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE) != NULL )
         {
         CAMHAL_LOGDB("Face detection set to %s", params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE));

@@ -38,7 +38,7 @@
 <ev-compensation>0</ev-compensation>
 <iso-mode-values>auto,100,200,400,800,1000,1200,1600</iso-mode-values>
 <iso-mode>auto</iso-mode>
-<focus-mode-values>auto,infinity,macro,caf,extended,portrait</focus-mode-values>
+<focus-mode-values>auto,infinity,macro,caf,extended,portrait,touch</focus-mode-values>
 <focus-mode>auto</focus-mode>
 <scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,nightportrait,nightindoor,fireworks,document,barcode,supernight,cine,oldfilm</scene-mode-values>
 <scene-mode>auto</scene-mode>

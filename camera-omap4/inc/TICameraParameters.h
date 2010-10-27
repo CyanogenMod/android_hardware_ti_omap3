@@ -64,6 +64,7 @@ static const char  KEY_TEMP_BRACKETING[];
 static const char  KEY_TEMP_BRACKETING_RANGE_POS[];
 static const char  KEY_TEMP_BRACKETING_RANGE_NEG[];
 static const char  KEY_SHUTTER_ENABLE[];
+static const char  KEY_TOUCH_FOCUS_POS[];
 
 //TI extensions for enabling/disabling shutter sound
 static const char SHUTTER_ENABLE[];
@@ -124,7 +125,7 @@ static const  char EXPOSURE_MODE_SMALL_APERTURE[];
 static const  char FOCUS_MODE_PORTRAIT[];
 static const  char FOCUS_MODE_EXTENDED[];
 static const  char FOCUS_MODE_CAF[];
-
+static const  char FOCUS_MODE_TOUCH[];
 
 // TI extensions to add iso values
 static const char ISO_MODE_AUTO[];

@@ -302,6 +302,10 @@ private:
     //LDC
     status_t setLDC(OMXCameraAdapter::IPPMode mode);
 
+    //Touch AF
+    status_t parseTouchFocusPosition(const char *pos, unsigned int &posX, unsigned int &posY);
+    status_t setTouchFocus(unsigned int posX, unsigned int posY, size_t width, size_t height);
+
     //Face detection
     status_t setFaceDetection(bool enable);
     status_t detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader);
@@ -347,6 +351,8 @@ private:
     //AF callback
     status_t setFocusCallback(bool enabled);
 
+    unsigned int mTouchFocusPosX;
+    unsigned int mTouchFocusPosY;
 
     CaptureMode mCapMode;
     size_t mBurstFrames;
