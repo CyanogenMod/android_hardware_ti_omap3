@@ -60,6 +60,8 @@ public:
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height) = 0;
 
+    virtual status_t getFrameDataSize(size_t &dataFrameSize, size_t bufferCount) = 0;
+
     virtual status_t getPictureBufferSize(size_t &length, size_t bufferCount) = 0;
 
     virtual status_t registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data);
@@ -90,6 +92,7 @@ protected:
     };
 
     KeyedVector<int, frame_callback> mFrameSubscribers;
+    KeyedVector<int, frame_callback> mFrameDataSubscribers;
     KeyedVector<int, frame_callback> mVideoSubscribers;
     KeyedVector<int, frame_callback> mImageSubscribers;
     KeyedVector<int, frame_callback> mRawSubscribers;

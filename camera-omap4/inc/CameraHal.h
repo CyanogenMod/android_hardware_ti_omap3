@@ -167,17 +167,17 @@ class CameraFrame
 
     enum FrameType
         {
-            PREVIEW_FRAME_SYNC=0x1, ///SYNC implies that the frame needs to be explicitly returned after consuming in order to be filled by camera again
-            PREVIEW_FRAME=0x2   , ///Preview frame includes viewfinder and snapshot frames
-            IMAGE_FRAME_SYNC=0x4, ///Image Frame is the image capture output frame
-            IMAGE_FRAME=0x8,
-            VIDEO_FRAME_SYNC=0x10, ///Timestamp will be updated for these frames
-            VIDEO_FRAME=0x20,
-            FRAME_DATA_SYNC=0x40, ///Any extra data assosicated with the frame. Always synced with the frame
-            FRAME_DATA=0x80,
-            RAW_FRAME =0x100,
-            SNAPSHOT_FRAME =0x200,
-            ALL_FRAMES=0xFFFF   ///Maximum of 16 frame types supported
+            PREVIEW_FRAME_SYNC = 0x1, ///SYNC implies that the frame needs to be explicitly returned after consuming in order to be filled by camera again
+            PREVIEW_FRAME = 0x2   , ///Preview frame includes viewfinder and snapshot frames
+            IMAGE_FRAME_SYNC = 0x4, ///Image Frame is the image capture output frame
+            IMAGE_FRAME = 0x8,
+            VIDEO_FRAME_SYNC = 0x10, ///Timestamp will be updated for these frames
+            VIDEO_FRAME = 0x20,
+            FRAME_DATA_SYNC = 0x40, ///Any extra data assosicated with the frame. Always synced with the frame
+            FRAME_DATA= 0x80,
+            RAW_FRAME = 0x100,
+            SNAPSHOT_FRAME = 0x200,
+            ALL_FRAMES = 0xFFFF   ///Maximum of 16 frame types supported
         };
 
     //default contrustor
@@ -423,9 +423,11 @@ public:
     status_t startPreviewCallbacks(CameraParameters &params, void *buffers, uint32_t *offsets, int fd, size_t length, size_t count);
     status_t stopPreviewCallbacks();
 
-	status_t enableMsgType(int32_t msgType);
-	status_t disableMsgType(int32_t msgType);
+    status_t enableMsgType(int32_t msgType);
+    status_t disableMsgType(int32_t msgType);
 
+    //API for enabling/disabling measurement data
+    void setMeasurements(bool enable);
 
     //thread loops
     void notificationThread();
@@ -514,7 +516,7 @@ private:
 
     mutable Mutex mRecordingLock;
     bool mRecording;
-
+    bool mMeasurementEnabled;
 };
 
 
@@ -582,6 +584,7 @@ public:
         CAMERA_PREVIEW,
         CAMERA_IMAGE_CAPTURE,
         CAMERA_VIDEO,
+        CAMERA_MEASUREMENT
         };
 public:
 
@@ -637,6 +640,9 @@ public:
     //API to get the frame size required to be allocated. This size is used to override the size passed
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height) = 0;
+
+    //API to get required data frame size
+    virtual status_t getFrameDataSize(size_t &dataFrameSize, size_t bufferCount) = 0;
 
     //API to get required picture buffers size with the current configuration in CameraParameters
     virtual status_t getPictureBufferSize(size_t &length, size_t bufferCount) = 0;
@@ -898,6 +904,12 @@ private:
 
             void insertSupportedParams();
 
+            /** Allocate preview data buffers */
+            status_t allocPreviewDataBufs(size_t size, size_t bufferCount);
+
+            /** Free preview data buffers */
+            status_t freePreviewDataBufs();
+
             /** Allocate preview buffers */
             status_t allocPreviewBufs(int width, int height, const char* previewFormat);
 
@@ -951,6 +963,7 @@ public:
     bool mBracketingRunning;
     //User shutter override
     bool mShutterEnabled;
+    bool mMeasurementEnabled;
 
     CameraAdapter *mCameraAdapter;
     sp<AppCallbackNotifier> mAppCallbackNotifier;
@@ -998,6 +1011,10 @@ private:
     bool mRecordingEnabled;
     EventProvider *mEventProvider;
 
+    int32_t *mPreviewDataBufs;
+    uint32_t *mPreviewDataOffsets;
+    int mPreviewDataFd;
+    int mPreviewDataLength;
     int32_t *mImageBufs;
     uint32_t *mImageOffsets;
     int mImageFd;

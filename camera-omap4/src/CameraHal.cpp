@@ -466,12 +466,31 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(TICameraParameters::KEY_FACE_DETECTION_ENABLE, params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE));
         }
 
+    if( params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE) != NULL )
+        {
+        CAMHAL_LOGDB("Measurements set to %s", params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE));
+        mParameters.set(TICameraParameters::KEY_MEASUREMENT_ENABLE, params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE));
+
+        if (strcmp(params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE), (const char *) TICameraParameters::MEASUREMENT_ENABLE) == 0)
+            {
+            mMeasurementEnabled = true;
+            }
+        else if (strcmp(params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE), (const char *) TICameraParameters::MEASUREMENT_DISABLE) == 0)
+            {
+            mMeasurementEnabled = false;
+            }
+        else
+            {
+            mMeasurementEnabled = false;
+            }
+
+        }
+
     if(params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION) != NULL)
         {
         CAMHAL_LOGDB("Exposure compensation set %s", params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION));
         mParameters.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION));
         }
-
 
     if((params.get(CameraParameters::KEY_SCENE_MODE) != NULL)
         && isParameterValid(params.get(CameraParameters::KEY_SCENE_MODE),
@@ -698,7 +717,7 @@ status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewF
 }
 
 status_t CameraHal::freePreviewBufs()
-    {
+{
     status_t ret = NO_ERROR;
     LOG_FUNCTION_NAME
 
@@ -713,8 +732,88 @@ status_t CameraHal::freePreviewBufs()
         }
     LOG_FUNCTION_NAME_EXIT;
     return ret;
-    }
+}
 
+
+status_t CameraHal::allocPreviewDataBufs(size_t size, size_t bufferCount)
+{
+    status_t ret = NO_ERROR;
+    int bytes;
+
+    LOG_FUNCTION_NAME
+
+    bytes = size;
+
+    if ( NO_ERROR == ret )
+        {
+        if( NULL != mPreviewDataBufs )
+            {
+            ret = freePreviewDataBufs();
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        mPreviewDataBufs = (int32_t *)mMemoryManager->allocateBuffer(0, 0, NULL, bytes, bufferCount);
+
+        CAMHAL_LOGEB("Size of Preview data buffer = %d", bytes);
+        if( NULL == mPreviewDataBufs )
+            {
+            CAMHAL_LOGEA("Couldn't allocate image buffers using memory manager");
+            ret = -NO_MEMORY;
+            }
+        else
+            {
+            bytes = size;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        mPreviewDataFd = mMemoryManager->getFd();
+        mPreviewDataLength = bytes;
+        mPreviewDataOffsets = mMemoryManager->getOffsets();
+        }
+    else
+        {
+        mPreviewDataFd = -1;
+        mPreviewDataLength = 0;
+        mPreviewDataOffsets = NULL;
+        }
+
+    LOG_FUNCTION_NAME
+
+    return ret;
+}
+
+status_t CameraHal::freePreviewDataBufs()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+
+        if( NULL != mPreviewDataBufs )
+            {
+
+            ///@todo Pluralise the name of this method to freeBuffers
+            ret = mMemoryManager->freeBuffer(mPreviewDataBufs);
+            mPreviewDataBufs = NULL;
+
+            }
+        else
+            {
+            ret = -EINVAL;
+            }
+
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
 
 status_t CameraHal::allocImageBufs(unsigned int width, unsigned int height, size_t size, const char* previewFormat, unsigned int bufferCount)
 {
@@ -870,6 +969,7 @@ status_t CameraHal::startPreview()
 
     status_t ret = NO_ERROR;
     int w, h;
+    size_t frameDataSize;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -932,13 +1032,35 @@ status_t CameraHal::startPreview()
     mParameters.set(TICameraParameters::KEY_PADDED_WIDTH, mPreviewWidth);
     mParameters.set(TICameraParameters::KEY_PADDED_HEIGHT, mPreviewHeight);
 
-
     ///Allocate the preview buffers
     ret = allocPreviewBufs(w, h, mParameters.getPreviewFormat());
     if ( NO_ERROR != ret )
         {
         CAMHAL_LOGEA("Couldn't allocate buffers for Preview");
         goto error;
+        }
+
+    if ( mMeasurementEnabled )
+        {
+
+        ret = mCameraAdapter->getFrameDataSize(frameDataSize, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+
+        if ( NO_ERROR == ret )
+            {
+            ///Allocate the preview data buffers
+            ret = allocPreviewDataBufs(frameDataSize, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+            if ( NO_ERROR != ret )
+                {
+                CAMHAL_LOGEA("Couldn't allocate preview data buffers");
+                goto error;
+                }
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            mCameraAdapter->useBuffers(CameraAdapter::CAMERA_MEASUREMENT, mPreviewDataBufs, mPreviewDataOffsets, mPreviewDataFd, mPreviewDataLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+            }
+
         }
 
     ///Pass the buffers to Camera Adapter
@@ -956,6 +1078,12 @@ status_t CameraHal::startPreview()
         }
 
     CAMHAL_LOGDA("Started AppCallbackNotifier..");
+
+
+    if ( NO_ERROR == ret )
+        {
+        mAppCallbackNotifier->setMeasurements(mMeasurementEnabled);
+        }
 
     ///Enable the display adapter if present, actual overlay enable happens when we post the buffer
     if(mDisplayAdapter.get() != NULL)
@@ -1207,6 +1335,7 @@ void CameraHal::stopPreview()
         }
 
     freePreviewBufs();
+    freePreviewDataBufs();
 
 
     mPreviewEnabled = false;
@@ -1888,7 +2017,8 @@ CameraHal::CameraHal()
     mBracketRangeNegative = 1;
     mMaxZoomSupported = 0;
     mShutterEnabled = true;
-
+    mMeasurementEnabled = false;
+    mPreviewDataBufs = NULL;
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 

@@ -95,6 +95,14 @@ void BaseCameraAdapter::enableMsgType(int32_t msgs, frame_callback callback, eve
             mFrameSubscribers.add((int) cookie, callback);
             }
         }
+    else if ( CameraFrame::FRAME_DATA_SYNC == msgs )
+        {
+            {
+            Mutex::Autolock lock(mSubscriberLock);
+            CAMHAL_LOGEA("Adding FrameData Subscriber");
+            mFrameDataSubscribers.add((int) cookie, callback);
+            }
+        }
     else if ( CameraFrame::IMAGE_FRAME == msgs)
         {
             {
@@ -154,6 +162,13 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
             mFrameSubscribers.removeItem((int) cookie);
             }
         }
+    else if ( CameraFrame::FRAME_DATA_SYNC == msgs )
+        {
+            {
+            Mutex::Autolock lock(mSubscriberLock);
+            mFrameDataSubscribers.removeItem((int) cookie);
+            }
+        }
     else if ( CameraFrame::IMAGE_FRAME == msgs)
         {
             {
@@ -182,6 +197,7 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
             Mutex::Autolock lock(mSubscriberLock);
 
             mFrameSubscribers.removeItem((int) cookie);
+            mFrameDataSubscribers.removeItem((int) cookie);
             mImageSubscribers.removeItem((int) cookie);
             mRawSubscribers.removeItem((int) cookie);
             mVideoSubscribers.removeItem((int) cookie);

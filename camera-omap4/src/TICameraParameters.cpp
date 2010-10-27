@@ -65,6 +65,11 @@ const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS[] = "temporal-brack
 const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_NEG[] = "temporal-bracketing-range-negative";
 const char TICameraParameters::KEY_S3D_SUPPORTED[] = "s3d-supported";
 const char TICameraParameters::KEY_TOUCH_FOCUS_POS[] = "touch-focus";
+const char TICameraParameters::KEY_MEASUREMENT_ENABLE[] = "measurement";
+
+//TI extensions for enabling/disabling measurement
+const char TICameraParameters::MEASUREMENT_ENABLE[] = "enable";
+const char TICameraParameters::MEASUREMENT_DISABLE[] = "disable";
 
 //TI extensions for enabling/disabling shutter sound
 const char TICameraParameters::SHUTTER_ENABLE[] = "true";

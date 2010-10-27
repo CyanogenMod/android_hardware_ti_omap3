@@ -42,6 +42,9 @@ const int AppCallbackNotifier::NOTIFIER_TIMEOUT = -1;
 status_t AppCallbackNotifier::initialize()
 {
     LOG_FUNCTION_NAME
+
+    mMeasurementEnabled = false;
+
     ///Create the app notifier thread
     mNotificationThread = new NotificationThread(this);
     if(!mNotificationThread.get())
@@ -82,6 +85,23 @@ void AppCallbackNotifier::setCallbacks(CameraHardwareInterface * cameraHal,
 
     LOG_FUNCTION_NAME_EXIT
 }
+
+void AppCallbackNotifier::setMeasurements(bool enable)
+{
+    Mutex::Autolock lock(mLock);
+
+    LOG_FUNCTION_NAME
+
+    mMeasurementEnabled = enable;
+
+    if (  enable  )
+        {
+         mFrameProvider->enableFrameNotification(CameraFrame::FRAME_DATA_SYNC);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+}
+
 
 //All sub-components of Camera HAL call this whenever any error happens
 void AppCallbackNotifier::errorNotify(int error)
@@ -437,55 +457,116 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mNotifyCb))
                     {
 
-                    if(!mAppSupportsStride)
+                    Mutex::Autolock lock(mLock);
+                    //When enabled, measurement data is sent instead of video data
+                    if ( !mMeasurementEnabled )
                         {
-                        buffer = mPreviewBuffers[mPreviewBufCount].get();
-                        if(!buffer || !frame->mBuffer)
+
+                        if(!mAppSupportsStride)
                             {
-                            CAMHAL_LOGDA("Error! One of the buffer is NULL");
-                            break;
+                            buffer = mPreviewBuffers[mPreviewBufCount].get();
+                            if(!buffer || !frame->mBuffer)
+                                {
+                                CAMHAL_LOGDA("Error! One of the buffer is NULL");
+                                break;
+                                }
                             }
-                        }
-                    else
-                        {
-
-                        memBase = mSharedPreviewBuffers.valueFor( ( unsigned int ) frame->mBuffer );
-
-                        if( (NULL == memBase.get() ) || ( NULL == frame->mBuffer) )
+                        else
                             {
-                            CAMHAL_LOGDA("Error! One of the preview buffer is NULL");
-                            break;
+
+                            memBase = mSharedPreviewBuffers.valueFor( ( unsigned int ) frame->mBuffer );
+
+                            if( (NULL == memBase.get() ) || ( NULL == frame->mBuffer) )
+                                {
+                                CAMHAL_LOGDA("Error! One of the preview buffer is NULL");
+                                break;
+                                }
                             }
-                        }
 
-                    if(!mAppSupportsStride)
-                        {
-                        copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
-                                    mPreviewPixelFormat);
+                        if(!mAppSupportsStride)
+                            {
+                            copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                                        mPreviewPixelFormat);
 
-                        mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
+                            mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
 
-                        memBase = buffer;
-                        }
+                            memBase = buffer;
+                            }
 
 
-                    if(mCameraHal->msgTypeEnabled(CAMERA_MSG_SHUTTER))
-                        {
-                        //activate shutter sound
-                        mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
-                        }
+                        if(mCameraHal->msgTypeEnabled(CAMERA_MSG_SHUTTER))
+                            {
+                            //activate shutter sound
+                            mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
+                            }
 
-                    if(mCameraHal->msgTypeEnabled(CAMERA_MSG_POSTVIEW_FRAME))
-                        {
+                        if(mCameraHal->msgTypeEnabled(CAMERA_MSG_POSTVIEW_FRAME))
+                            {
 
-                        ///Give preview callback to app
-                        mDataCb(CAMERA_MSG_POSTVIEW_FRAME, memBase, mCallbackCookie);
+                            ///Give preview callback to app
+                            mDataCb(CAMERA_MSG_POSTVIEW_FRAME, memBase, mCallbackCookie);
+                            }
+
                         }
 
                     mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
 
                     }
                 else if(( CameraFrame::PREVIEW_FRAME_SYNC== frame->mFrameType ) &&
+                             ( NULL != mCameraHal.get() ) &&
+                             ( NULL != mDataCb) &&
+                             ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME)  ))
+                    {
+
+                    Mutex::Autolock lock(mLock);
+                    //When enabled, measurement data is sent instead of video data
+                    if ( !mMeasurementEnabled )
+                        {
+
+                        if(!mAppSupportsStride)
+                            {
+                            buffer = mPreviewBuffers[mPreviewBufCount].get();
+                            if(!buffer || !frame->mBuffer)
+                                {
+                                CAMHAL_LOGDA("Error! One of the buffer is NULL");
+                                break;
+                                }
+                            }
+                        else
+                            {
+
+                            memBase = mSharedPreviewBuffers.valueFor( ( unsigned int ) frame->mBuffer );
+
+                            if( (NULL == memBase.get() ) || ( NULL == frame->mBuffer) )
+                                {
+                                CAMHAL_LOGDA("Error! One of the preview buffer is NULL");
+                                break;
+                                }
+                            }
+
+                        if(!mAppSupportsStride)
+                            {
+                            ///CAMHAL_LOGDB("+Copy 0x%x to 0x%x frame-%dx%d", frame->mBuffer, buffer->pointer(), frame->mWidth,frame->mHeight );
+                            ///Copy the data into 1-D buffer
+                            copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                                        mPreviewPixelFormat);
+                            ///CAMHAL_LOGDA("-Copy");
+
+                            //Increment the buffer count
+                            mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
+
+                            memBase = buffer;
+                            }
+
+                        ///Give preview callback to app
+                        mDataCb(CAMERA_MSG_PREVIEW_FRAME, memBase, mCallbackCookie);
+
+                        }
+
+                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
+
+                    }
+                else if(( CameraFrame::FRAME_DATA_SYNC == frame->mFrameType ) &&
                              ( NULL != mCameraHal.get() ) &&
                              ( NULL != mDataCb) &&
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME)  ))
@@ -514,11 +595,15 @@ void AppCallbackNotifier::notifyFrame()
 
                     if(!mAppSupportsStride)
                         {
-                        ///CAMHAL_LOGDB("+Copy 0x%x to 0x%x frame-%dx%d", frame->mBuffer, buffer->pointer(), frame->mWidth,frame->mHeight );
-                        ///Copy the data into 1-D buffer
-                        copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
-                                    mPreviewPixelFormat);
-                        ///CAMHAL_LOGDA("-Copy");
+
+                        if ( buffer->size () >= frame->mLength )
+                            {
+                            memcpy(buffer->pointer(), ( void * )  frame->mBuffer, frame->mLength);
+                            }
+                        else
+                            {
+                            memset(buffer->pointer(), 0, buffer->size());
+                            }
 
                         //Increment the buffer count
                         mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
@@ -534,7 +619,8 @@ void AppCallbackNotifier::notifyFrame()
                     }
                 else
                     {
-                    CAMHAL_LOGEB("Frame type 0x%x is still unsupported!", frame->mFrameType);
+                    mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
+                    CAMHAL_LOGDB("Frame type 0x%x is still unsupported!", frame->mFrameType);
                     }
 
                 break;
