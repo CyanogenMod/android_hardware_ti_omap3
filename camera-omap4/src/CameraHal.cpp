@@ -2315,6 +2315,7 @@ status_t CameraHal::reloadAdapter()
             mCameraAdapter = f();
             if(NULL != mCameraAdapter)
                 {
+                ret = mCameraAdapter->setParameters(mParameters);
                 if(NO_ERROR != mCameraAdapter->initialize(sensor_index))
                     {
                     ret = -1;
@@ -2333,12 +2334,6 @@ status_t CameraHal::reloadAdapter()
             ret = -1;
             }
         }
-
-    if( 0 == ret)
-        {
-        ret = mCameraAdapter->setParameters(mParameters);
-        }
-
 
     if ( (0 == ret) && ( NULL != mAppCallbackNotifier.get() ) &&
            ( NULL !=  mCameraAdapter ) )

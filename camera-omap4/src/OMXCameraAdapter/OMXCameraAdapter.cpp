@@ -219,6 +219,18 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
          CAMHAL_LOGDA("-Port enable event arrived");
 
         }
+    else
+        {
+        OMXCameraPortParameters * mPreviewData =
+            &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+
+        //Apply default configs before trying to swtich to a new sensor
+        if ( NO_ERROR != setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData) )
+            {
+            CAMHAL_LOGEB("Error 0x%x while applying defaults", ret);
+            goto EXIT;
+            }
+        }
 
     ///Select the sensor
     OMX_CONFIG_SENSORSELECTTYPE sensorSelect;
