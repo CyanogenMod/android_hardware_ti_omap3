@@ -1066,7 +1066,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 #endif
 
-    if (data->panel != stage->panel && !overlayobj->mData.s3d_active) {
+    if (data->panel != stage->panel) {
         LOGD("data->panel/0x%x / stage->panel/0x%x\n", data->panel, stage->panel );
         data->panel = stage->panel;
 
@@ -1076,7 +1076,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGD("Manager path [%s]", overlayobj->overlaymanagerpath);
         LOGD("Manager name [%s]", managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername);
         LOGD("Display name [%s]", screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayname);
-
         if (overlayobj->mDisplayMetaData.mTobeDisabledPanelIndex != -1) {
             char disablepanelpath[PATH_MAX];
             sprintf(disablepanelpath, "/sys/devices/platform/omapdss/display%d/enabled", \
@@ -1087,61 +1086,71 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
                 goto end;
             }
         }
-        if (sysfile_write(overlayobj->overlayenabled, "0", sizeof("0")) < 0) {
-            LOGE("Failed: overlay Disable");
-            ret = -1;
-            goto end;
-        }
 
-        /* Set the manager to the overlay */
-        if (sysfile_read(overlayobj->overlaymanagerpath, &overlaymanagername, PATH_MAX) < 0) {
-            LOGE("Overlay manager Name Get failed [%d]", __LINE__);
-            ret = -1;
-            goto end;
-        }
-        strtok(overlaymanagername, "\n");
-        LOGI("Before assigning Overlay-Manager to Overlay");
-        LOGI("overlaymanagerpath= %s, overlaymanagername= %s",overlayobj->overlaymanagerpath,overlaymanagername);
-
-        if (sysfile_write(overlayobj->overlaymanagerpath, \
-            managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername, PATH_MAX) < 0) {
-            LOGE("Unable to set the overlay->manager");
-            ret = -1;
-            goto end;
-        }
-
-        if (sysfile_read(overlayobj->overlaymanagerpath, &overlaymanagername, PATH_MAX) < 0) {
-            LOGE("Overlay manager Name Get failed [%d]", __LINE__);
-            ret = -1;
-            goto end;
-        }
-        strtok(overlaymanagername, "\n");
-        LOGI("After assigning  Overlay-Manager to Overlay");
-        LOGI("overlaymanagerpath= %s, overlaymanagername= %s",overlayobj->overlaymanagerpath,overlaymanagername);
-
-#ifdef TARGET_OMAP4
-
-        /** Set the manager display to the panel*/
-        if (sysfile_write(managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managerdisplay, \
-            screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayname, PATH_MAX) < 0) {
-            LOGE("Unable to set the manager->display");
-            ret = -1;
-            goto end;
-        }
-#else
-        char displaytimings[PATH_MAX];
-        sprintf(displaytimings, "/sys/devices/platform/omapdss/display%d/timings", overlayobj->mDisplayMetaData.mPanelIndex);
-        if (!strcmp(managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername, "tv")) {
-            if (sysfile_write(displaytimings, "ntsc", sizeof("ntsc")) < 0) {
-                LOGE("Setting display timings failed");
+        if (!overlayobj->mData.s3d_active) {
+            if (sysfile_write(overlayobj->overlayenabled, "0", sizeof("0")) < 0) {
+                LOGE("Failed: overlay Disable");
                 ret = -1;
                 goto end;
             }
-        }
 
-#endif
+            /* Set the manager to the overlay */
+            if (sysfile_read(overlayobj->overlaymanagerpath, &overlaymanagername, PATH_MAX) < 0) {
+                LOGE("Overlay manager Name Get failed [%d]", __LINE__);
+                ret = -1;
+                goto end;
+            }
+            strtok(overlaymanagername, "\n");
+            LOGI("Before assigning Overlay-Manager to Overlay");
+            LOGI("overlaymanagerpath= %s, overlaymanagername= %s",overlayobj->overlaymanagerpath,overlaymanagername);
+
+            if (sysfile_write(overlayobj->overlaymanagerpath, \
+                managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername, PATH_MAX) < 0) {
+                LOGE("Unable to set the overlay->manager");
+                ret = -1;
+                goto end;
+            }
+
+            if (sysfile_read(overlayobj->overlaymanagerpath, &overlaymanagername, PATH_MAX) < 0) {
+                LOGE("Overlay manager Name Get failed [%d]", __LINE__);
+                ret = -1;
+                goto end;
+            }
+            strtok(overlaymanagername, "\n");
+            LOGI("After assigning  Overlay-Manager to Overlay");
+            LOGI("overlaymanagerpath= %s, overlaymanagername= %s",overlayobj->overlaymanagerpath,overlaymanagername);
 
 #ifdef TARGET_OMAP4
+
+            /** Set the manager display to the panel*/
+            if (sysfile_write(managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managerdisplay, \
+                screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayname, PATH_MAX) < 0) {
+                LOGE("Unable to set the manager->display");
+                ret = -1;
+                goto end;
+            }
+#else
+            char displaytimings[PATH_MAX];
+            sprintf(displaytimings, "/sys/devices/platform/omapdss/display%d/timings", overlayobj->mDisplayMetaData.mPanelIndex);
+            if (!strcmp(managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername, "tv")) {
+                if (sysfile_write(displaytimings, "ntsc", sizeof("ntsc")) < 0) {
+                    LOGE("Setting display timings failed");
+                    ret = -1;
+                    goto end;
+                }
+            }
+#endif
+        }
+
+        // Enable the requested panel here
+        if (sysfile_write(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled, "1", sizeof("1")) < 0) {
+            LOGE("Panel enable failed");
+            ret = -1;
+            goto end;
+        }
+
+#ifdef TARGET_OMAP4
+        //Read timings after display has been enabled as they could have changed
         char displaytimingspath[PATH_MAX];
         sprintf(displaytimingspath, "/sys/devices/platform/omapdss/display%d/timings",
                 overlayobj->mDisplayMetaData.mPanelIndex);
@@ -1154,20 +1163,22 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGD("Display timings [%s]\n", screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displaytimings);
 #endif
 
-        // Enable the requested panel here
-        if (sysfile_write(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled, "1", sizeof("1")) < 0) {
-            LOGE("Panel enable failed");
-            ret = -1;
-            goto end;
-        }
-
         // Disable streaming to ensure that stream_on is called again which indirectly sets overlayenabled to 1
         if ((ret = overlay_data_context_t::disable_streaming_locked(overlayobj, false))) {
             LOGE("Stream Off Failed!/%d\n", ret);
             goto end;
         }
-    }
+        if (overlayobj->mData.s3d_active) {
+            //Currently need to disable streaming to change display id
+            ret = v4l2_overlay_set_display_id(fd,data->panel);
+            if(ret)
+                LOGE("failed to set display ID\n");
 
+            ret = v4l2_overlay_set_s3d_mode(fd,overlayobj->mData.s3d_mode);
+            if(ret)
+                LOGE("failed to reset S3D mode\n");
+        }
+    }
     //Calculate window size. As of now this is applicable only for non-LCD panels
     calculateWindow(overlayobj, &finalWindow);
 
