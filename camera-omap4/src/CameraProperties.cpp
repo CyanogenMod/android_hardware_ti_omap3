@@ -85,6 +85,8 @@ const char CameraProperties::PROP_KEY_BRIGHTNESS[] = "brightness";
 const char CameraProperties::PROP_KEY_SATURATION[] = "saturation";
 const char CameraProperties::PROP_KEY_SHARPNESS[] = "sharpness";
 const char CameraProperties::PROP_KEY_IPP[] = "ipp";
+const char CameraProperties::PROP_KEY_S3D2D_PREVIEW[] = "s3d2d-preview";
+const char CameraProperties::PROP_KEY_S3D2D_PREVIEW_MODES[] = "s3d2d-preview-values";
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
 
@@ -832,6 +834,18 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_S3D_SUPPORTED;
         }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_S3D2D_PREVIEW))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_S3D2D_PREVIEW");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_S3D2D_PREVIEW;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_S3D2D_PREVIEW_MODES))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_S3D2D_PREVIEW_MODES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_S3D2D_PREVIEW_MODES;
+        }
 
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
@@ -1098,6 +1112,15 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_S3D_SUPPORTED;
 
+        case CameraProperties::PROP_INDEX_S3D2D_PREVIEW:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_S3D2D_PREVIEW );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_S3D2D_PREVIEW;
+
+        case CameraProperties::PROP_INDEX_S3D2D_PREVIEW_MODES:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_S3D2D_PREVIEW_MODES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_S3D2D_PREVIEW_MODES;
 
 
         default:

@@ -99,6 +99,8 @@ public:
         PROP_INDEX_SHARPNESS,
         PROP_INDEX_IPP,
         PROP_INDEX_S3D_SUPPORTED,
+        PROP_INDEX_S3D2D_PREVIEW,
+        PROP_INDEX_S3D2D_PREVIEW_MODES,
         PROP_INDEX_MAX
         };
 
@@ -157,6 +159,8 @@ public:
 
     static const char TICAMERA_FILE_PREFIX[];
     static const char TICAMERA_FILE_EXTN[];
+    static const char PROP_KEY_S3D2D_PREVIEW[];
+    static const char PROP_KEY_S3D2D_PREVIEW_MODES[];
 
     class CameraProperty
         {

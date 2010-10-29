@@ -344,6 +344,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mParameters.set(TICameraParameters::KEY_BURST, params.get(TICameraParameters::KEY_BURST));
             }
 
+        if(params.get(TICameraParameters::KEY_S3D2D_PREVIEW) != NULL)
+            {
+            CAMHAL_LOGDB("Stereo 3D->2D Preview mode is %s", params.get(TICameraParameters::KEY_S3D2D_PREVIEW));
+            mParameters.set(TICameraParameters::KEY_S3D2D_PREVIEW, params.get(TICameraParameters::KEY_S3D2D_PREVIEW));
+            }
+
         }
 
     ///Below parameters can be changed when the preview is running
@@ -1091,14 +1097,25 @@ status_t CameraHal::startPreview()
         CAMHAL_LOGDA("Enabling display");
 
         bool isS3d = (strcmp(mParameters.get(TICameraParameters::KEY_S3D_SUPPORTED), "true") == 0);
-
-        //TODO: obtain the frame packing configuration from camera or user settings
-        //once side by side configuration is supported
         DisplayAdapter::S3DParameters s3dParams;
-        s3dParams.mode = OVERLAY_S3D_MODE_ON;
-        s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
-        s3dParams.order = OVERLAY_S3D_ORDER_LF;
-        s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+        if (strcmp(mParameters.get(TICameraParameters::KEY_S3D2D_PREVIEW), "off") == 0)
+            {
+            CAMHAL_LOGEA("STEREO 3D->2D PREVIEW MODE IS OFF");
+            //TODO: obtain the frame packing configuration from camera or user settings
+            //once side by side configuration is supported
+            s3dParams.mode = OVERLAY_S3D_MODE_ON;
+            s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
+            s3dParams.order = OVERLAY_S3D_ORDER_LF;
+            s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+            }
+        else
+            {
+            CAMHAL_LOGEA("STEREO 3D->2D PREVIEW MODE IS ON");
+            s3dParams.mode = OVERLAY_S3D_MODE_OFF;
+            s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
+            s3dParams.order = OVERLAY_S3D_ORDER_LF;
+            s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+            }
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -2582,6 +2599,7 @@ void CameraHal::insertSupportedParams()
     p.set(CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SMOOTH_ZOOM_SUPPORTED]->mPropValue);
     p.set(TICameraParameters::KEY_SUPPORTED_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_IPP_MODES]->mPropValue);
     p.set(TICameraParameters::KEY_S3D_SUPPORTED,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D_SUPPORTED]->mPropValue);
+    p.set(TICameraParameters::KEY_S3D2D_PREVIEW_MODE,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D2D_PREVIEW_MODES]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -2658,6 +2676,7 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_EXPOSURE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXPOSURE_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_ISO, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ISO_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_IPP]->mPropValue);
+    p.set(TICameraParameters::KEY_S3D2D_PREVIEW, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D2D_PREVIEW]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }

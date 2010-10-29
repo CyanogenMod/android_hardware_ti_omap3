@@ -155,5 +155,7 @@
 <contrast>100</contrast>
 <saturation>100</saturation>
 <sharpness>100</sharpness>
+<s3d2d-preview-values>on,off</s3d2d-preview-values>
+<s3d2d-preview>s3d2d-preview</s3d2d-preview>
 </CameraInstance>
 </CameraRoot>

@@ -71,6 +71,10 @@ const char TICameraParameters::KEY_MEASUREMENT_ENABLE[] = "measurement";
 const char TICameraParameters::MEASUREMENT_ENABLE[] = "enable";
 const char TICameraParameters::MEASUREMENT_DISABLE[] = "disable";
 
+// TI extensions for 2D Preview in Stereo Mode
+const char TICameraParameters::KEY_S3D2D_PREVIEW[] = "s3d2d-preview";
+const char TICameraParameters::KEY_S3D2D_PREVIEW_MODE[] = "s3d2d-preview-values";
+
 //TI extensions for enabling/disabling shutter sound
 const char TICameraParameters::SHUTTER_ENABLE[] = "true";
 const char TICameraParameters::SHUTTER_DISABLE[] = "false";

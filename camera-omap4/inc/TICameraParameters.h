@@ -147,6 +147,8 @@ static const char EFFECT_NATURAL[];
 static const char EFFECT_VIVID[];
 static const char EFFECT_COLOR_SWAP[];
 
+static const char KEY_S3D2D_PREVIEW[];
+static const char KEY_S3D2D_PREVIEW_MODE[];
 };
 
 };
