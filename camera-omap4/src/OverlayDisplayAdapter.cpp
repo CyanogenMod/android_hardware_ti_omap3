@@ -817,7 +817,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
 
             if ( mMeasureStandby )
                 {
-                CameraHal::PPM("Standby to first shot: ", &mStandbyToShot);
+                CameraHal::PPM("Standby to first shot: Sensor Change completed - ", &mStandbyToShot);
                 mMeasureStandby = false;
                 }
             else if (CameraFrame::CameraFrame::SNAPSHOT_FRAME == dispFrame.mType)
