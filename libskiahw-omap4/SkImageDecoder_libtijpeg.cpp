@@ -147,6 +147,9 @@ SkTIJPEGImageDecoder::~SkTIJPEGImageDecoder()
         pARMHandle=NULL;
         }
 
+    if(JpegHeaderInfo.MPIndexIFDTags.MPEntry)
+        delete[] JpegHeaderInfo.MPIndexIFDTags.MPEntry;
+
     LOG_FUNCTION_NAME_EXIT
     }
 
@@ -165,6 +168,10 @@ SkTIJPEGImageDecoder::SkTIJPEGImageDecoder()
     pBeforeDecodeTime = NULL;
     pDecodeTime = NULL;
     pAfterDecodeTime = NULL;
+
+    JpegHeaderInfo.MPIndexIFDTags.MPEntry = NULL;
+    fileType = TYPE_JPG;
+    finalBytesRead = 0;
 
     LIBSKIAHW_LOGDB("semaphore created semaphore = 0x%x", semaphore);
 
@@ -262,6 +269,22 @@ OMX_S16 SkTIJPEGImageDecoder::GetYUVformat(OMX_U8 * Data)
     return (image_format);
     }
 
+/* BigEndianRead32Bits() gets a 32-bit value into a pointer variable */
+void SkTIJPEGImageDecoder::BigEndianRead32Bits(OMX_U32 *pVal,OMX_U8* ptr)
+{
+    *pVal = (OMX_U32)((*(ptr+3)));
+    *pVal |= (OMX_U32)((*(ptr+2)) <<8);
+    *pVal |= (OMX_U32)((*(ptr+1)) <<16);
+    *pVal |= (OMX_U32)((*(ptr)) <<24);
+}
+
+/* BigEndianRead16Bits() gets a 16-bit value into a pointer variable  */
+void SkTIJPEGImageDecoder::BigEndianRead16Bits(OMX_U16 *pVal,OMX_U8* ptr)
+{
+    *pVal = *ptr;
+    *pVal <<=8;
+    *pVal |= *(ptr+1);
+}
 
 OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INFO* JpgHdrInfo)
     {
@@ -271,25 +294,33 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
     OMX_S32 lSize = 0;
     lSize = stream->getLength();
     stream->rewind();
+
+    OMX_U8 *Data = NULL;
+    size_t bytesRead=0;
     JpgHdrInfo->nProgressive = 0; /*Default value is non progressive*/
+    OMX_U32 littleEndian = 0, skipFactor = 0, nextIFDOffset = 0, nextOffset = 0, tagValOffset = 0;
+    OMX_U32 tagCount, tagValue;
+    OMX_U8 *pOffsetRef;
+    OMX_U8 *pOffsetVal;
+    OMX_U16 MPIndexCount, tagID, tagType;
 
-
-    a = stream->readU8();
+    a = stream->readU8();bytesRead++;
     if ( a != 0xff || stream->readU8() != M_SOI )
         {
         return 0;
         }
+    bytesRead++;
 
     for ( ;; )
         {
         OMX_U32 itemlen = 0;
         OMX_U32 marker = 0;
         OMX_U32 ll = 0,lh = 0, got = 0;
-        OMX_U8 *Data = NULL;
 
         for ( a=0;a<15 /* 7 originally */;a++ )
             {
             marker = stream->readU8();
+            bytesRead++;
             if ( marker != 0xff )
                 {
                 break;
@@ -315,7 +346,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
         /* Read the length of the section.*/
         lh = stream->readU8();
         ll = stream->readU8();
-
+        bytesRead+=2;
         itemlen = (lh << 8) | ll;
 
         if ( itemlen < 2 )
@@ -335,6 +366,7 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
         Data[1] = (OMX_U8)ll;
 
         got = stream->read(Data+2, itemlen-2); /* Read the whole section.*/
+        bytesRead +=got;
 
         if ( got != itemlen-2 )
             {
@@ -438,6 +470,299 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
                         }
                         break;
                 }
+            case M_JPS:
+                    {
+                        if((*(Data+2) == 0x5F && *(Data+3) == 0x4A && *(Data+4) == 0x50 && *(Data+5) == 0x53 && *(Data+6) == 0x4A && *(Data+7) == 0x50 && *(Data+8) == 0x53 && *(Data+9) == 0x5F)
+                            && (0x01 == (OMX_U8) *(Data+JPS_TYPE_OFFSET)))
+                        {
+                            LIBSKIAHW_LOGDA("Valid Stereo JPS type file \n");
+                             fileType = TYPE_JPS;
+
+                            JpgHdrInfo->s3dDesc.nType = (OMX_U8) *(Data+JPS_TYPE_OFFSET);
+                            JpgHdrInfo->s3dDesc.nLayout = (OMX_U8) *(Data+JPS_LAYOUT_OFFSET);
+
+                            // Setting the frame order
+                            if((OMX_U8) *(Data+JPS_MISCF_OFFSET) & JPS_MISCF_FO_MASK)
+                                JpgHdrInfo->s3dDesc.nFrameOrder = S3D_ORDER_LF;
+                            else
+                                JpgHdrInfo->s3dDesc.nFrameOrder = S3D_ORDER_RF;
+
+                            switch((OMX_U8) *(Data+JPS_MISCF_OFFSET) & JPS_MISCF_SS_MASK)
+                            {
+                                    case S3D_SS_NONE:
+                                            //LIBSKIAHW_LOGDA("No SubSampling \n");
+                                            JpgHdrInfo->s3dDesc.nSubSampling = S3D_SS_NONE;
+                                            break;
+                                    case S3D_SS_VERT:
+                                            //LIBSKIAHW_LOGDA("VERT SubSampling \n");
+                                            JpgHdrInfo->s3dDesc.nSubSampling = S3D_SS_VERT;
+                                            break;
+                                    case S3D_SS_HORZ:
+                                            //LIBSKIAHW_LOGDA("HORZ SubSampling \n");
+                                            JpgHdrInfo->s3dDesc.nSubSampling = S3D_SS_HORZ;
+                                            break;
+                                    case S3D_SS_BOTH:
+                                           // LIBSKIAHW_LOGDA("HORZ and VERT SubSampling \n");
+                                            JpgHdrInfo->s3dDesc.nSubSampling = S3D_SS_BOTH;
+                                            break;
+                            }
+
+                            // Separation field , read it even if Don't care
+                            JpgHdrInfo->s3dDesc.nSeparation = (OMX_U8) *(Data+JPS_SEP_OFFSET);
+
+                            //LIBSKIAHW_LOGDA("ntype=0x%x, layout=0x%x, miscflag=0x%x, separation=0x%x \n", (OMX_U8) *(Data+JPS_TYPE_OFFSET), (OMX_U8) *(Data+JPS_LAYOUT_OFFSET) , (OMX_U8) *(Data+JPS_MISCF_OFFSET) , (OMX_U8) *(Data+JPS_SEP_OFFSET));
+                       }
+                       else
+                            {
+                                LIBSKIAHW_LOGDA("Non-Supported or invalid JPS file  \n");
+                                if ( Data != NULL ) {
+                                    free(Data);
+                                    Data=NULL;
+                                }
+                                return 0;
+                            }
+                    break;
+                    }
+            case M_MPO:
+                    {
+                        if(*(Data+2) == 0x4D && *(Data+3) == 0x50 && *(Data+4) == 0x46 && *(Data+5) == 0x00 )
+                        {
+                            LIBSKIAHW_LOGDA("Valid MPO type file \n");
+                            fileType = TYPE_MPO;
+                            pOffsetRef = Data + MP_START_OF_OFFSET_REF; // Start of reference
+                            finalBytesRead  =bytesRead + 4 - got;// reset and add MP Format ID
+
+                            if(*(pOffsetRef) == 0x49 && *(pOffsetRef+1) == 0x49 /*&& *(pOffsetRef+2) == 0x2A && *(pOffsetRef+3) == 0x00 */)
+                            {
+                                //LIBSKIAHW_LOGDA("Little Endian \n");
+                                littleEndian = 1;
+                            }
+                            Data += 0x0A;//Skipping to read the offset
+                            // Read 0th IFD offset
+                            if(littleEndian)
+                                skipFactor = (OMX_U32) (*Data);
+                            else
+                                BigEndianRead32Bits(&skipFactor,Data);
+
+                            Data = pOffsetRef + skipFactor; // Jump to 0th IFD
+
+                            // Reset the offset value
+                            nextIFDOffset = 0;
+                            tagValue = 0;
+
+                             //Default parameters for now
+                            JpgHdrInfo->s3dDesc.nType = 0x01; // STEROSCOPIC IMAGES
+                            JpgHdrInfo->s3dDesc.nLayout = S3D_FORMAT_OVERUNDER;
+                            JpgHdrInfo->s3dDesc.nFrameOrder = S3D_ORDER_LF;
+                            JpgHdrInfo->s3dDesc.nSubSampling = S3D_SS_NONE;
+                            JpgHdrInfo->s3dDesc.nSeparation = NULL;
+
+                            do
+                            {
+                                Data += nextIFDOffset;
+                                //nextIFDOffset = 0;
+
+                                if(littleEndian)
+                                {
+                                    MPIndexCount = (OMX_U16)((*Data) + (*(Data+1)<<8));
+                                }
+                                else
+                                {
+                                    BigEndianRead16Bits(&MPIndexCount,Data);
+                                }
+                                Data += sizeof(OMX_U16);
+
+                                for(int j=0;j<MPIndexCount;j++)
+                                {
+                                    if(littleEndian)
+                                    {
+                                        tagID = (OMX_U16)((*Data) + (*(Data+1)<<8));
+                                        Data += sizeof(OMX_U16);
+
+                                        tagType = (OMX_U16)((*Data) + (*(Data+1)<<8));
+                                        Data += sizeof(OMX_U16);
+
+                                        tagCount = (OMX_U32)((*Data) + (*(Data+1)<<8) +
+                                                              (*(Data+2)<<16) + (*(Data+3)<<24));
+                                        Data += sizeof(OMX_U32);
+
+                                        tagValue = (OMX_U32)((*Data) + (*(Data+1)<<8) +
+                                                              (*(Data+2)<<16) + (*(Data+3)<<24));
+                                        Data += sizeof(OMX_U32);
+
+                                    }
+                                    else
+                                    {
+                                        BigEndianRead16Bits(&tagID,Data);
+                                        Data += sizeof(OMX_U16);
+
+                                        BigEndianRead16Bits(&tagType,Data);
+                                        Data += sizeof(OMX_U16);
+
+                                        BigEndianRead32Bits(&tagCount,Data);
+                                        Data += sizeof(OMX_U32);
+
+                                        BigEndianRead32Bits(&tagValue,Data);
+                                        Data += sizeof(OMX_U32);
+                                    }
+
+                                    switch (tagID)
+                                    {
+                                        case TAGID_MPFVERSION://MPFVersion
+
+                                            if((tagType != (OMX_U16)TAG_TYPE_UNDEFINED))
+                                                goto EXIT;
+
+                                            //LIBSKIAHW_LOGDA("MPF Version \n");
+                                            JpgHdrInfo->MPIndexIFDTags.MPFVersion = tagValue;
+                                            //TODO: Passed this structure to upper layers
+                                            break;
+                                        case TAGID_NIMAGES://Number of Images
+
+                                            if((tagType != (OMX_U16)TAG_TYPE_LONG))
+                                                goto EXIT;
+
+                                            JpgHdrInfo->MPIndexIFDTags.numberOfImages = (OMX_U8) tagValue;
+                                            //LIBSKIAHW_LOGDA("Number of Images %x \n", JpgHdrInfo->MPIndexIFDTags.numberOfImages);
+                                            //TODO: Passed this structure to upper layers
+                                            break;
+                                        case TAGID_MPENTRY://MPEntry
+
+                                            if((tagType != (OMX_U16)TAG_TYPE_UNDEFINED))
+                                                goto EXIT;
+
+                                            //LIBSKIAHW_LOGDA("MPEntry \n");
+                                            pOffsetVal = pOffsetRef + tagValue;
+                                            JpgHdrInfo->MPIndexIFDTags.MPEntry = new MP_ENTRY[(int)(tagCount/16)];
+                                            for(int i=0;i<(int)(tagCount/16);i++)
+                                            {
+                                                JpgHdrInfo->MPIndexIFDTags.MPEntry[i].imageAttribute =
+                                                (OMX_U32)((*pOffsetVal) + (*(pOffsetVal+1)<<8) + (*(pOffsetVal+2)<<16) + (*(pOffsetVal+3)<<24));
+                                                pOffsetVal += sizeof(OMX_U32);
+                                               // LIBSKIAHW_LOGDA("MPEntryAttribute %x \n", JpgHdrInfo->MPIndexIFDTags.MPEntry[i].imageAttribute);
+
+                                                JpgHdrInfo->MPIndexIFDTags.MPEntry[i].imageSize =
+                                                (OMX_U32)((*pOffsetVal) + (*(pOffsetVal+1)<<8) + (*(pOffsetVal+2)<<16) + (*(pOffsetVal+3)<<24));
+                                                pOffsetVal += sizeof(OMX_U32);
+                                               //  LIBSKIAHW_LOGDA("MPEntry ImageSize %x \n", JpgHdrInfo->MPIndexIFDTags.MPEntry[i].imageSize);
+
+                                                JpgHdrInfo->MPIndexIFDTags.MPEntry[i].dataOffset =
+                                                (OMX_U32)((*pOffsetVal) + (*(pOffsetVal+1)<<8) + (*(pOffsetVal+2)<<16) + (*(pOffsetVal+3)<<24));
+                                                pOffsetVal += sizeof(OMX_U32);
+                                                // LIBSKIAHW_LOGDA("MPEntry dataOffset%x \n", JpgHdrInfo->MPIndexIFDTags.MPEntry[i].dataOffset);
+
+                                                JpgHdrInfo->MPIndexIFDTags.MPEntry[i].dependentImage1=
+                                                (OMX_U16)((*pOffsetVal) + (*(pOffsetVal+1)<<8));
+                                                pOffsetVal += sizeof(OMX_U16);
+                                                // LIBSKIAHW_LOGDA("MPEntrydependentImage1  %x \n", JpgHdrInfo->MPIndexIFDTags.MPEntry[i].dependentImage1);
+
+                                                JpgHdrInfo->MPIndexIFDTags.MPEntry[i].dependentImage2 =
+                                                (OMX_U16)((*pOffsetVal) + (*(pOffsetVal+1)<<8));
+                                                pOffsetVal += sizeof(OMX_U16);
+                                                //  LIBSKIAHW_LOGDA("MPEntry dependentImage2  %x \n", JpgHdrInfo->MPIndexIFDTags.MPEntry[i].dependentImage2);
+
+                                            }
+
+                                            pOffsetVal = NULL;
+                                        break;
+                                        case TAGID_UIDLIST://Indifidual Image Unique ID list
+
+                                            if((tagType != (OMX_U16)TAG_TYPE_UNDEFINED))
+                                                goto EXIT;
+
+                                            //LIBSKIAHW_LOGDA("Image Unique ID list Non-supported\n");
+                                            //TODO: Passed this structure to upper layers
+
+                                        break;
+                                        case TAGID_TFRAMES://Total number of capture frames
+
+                                            if((tagType != (OMX_U16)TAG_TYPE_LONG))
+                                                goto EXIT;
+
+                                            JpgHdrInfo->MPIndexIFDTags.totalFrames = (OMX_U8) tagValue;
+                                            //TODO: Passed this structure to upper layers
+                                            //LIBSKIAHW_LOGDA("Number of captures frames  %x \n", JpgHdrInfo->MPIndexIFDTags.totalFrames);
+
+                                        break;
+                                        case TAGID_MPIMAGENUM: //MP Individual Image Number
+
+                                             if((tagType != (OMX_U16)TAG_TYPE_LONG))
+                                                goto EXIT;
+
+                                            JpgHdrInfo->MPIndexIFDTags.MPIndividualNum= tagValue;
+                                            //LIBSKIAHW_LOGDA("MP Individual Image Number  %x \n", JpgHdrInfo->MPIndexIFDTags.MPIndividualNum);
+
+                                            if(tagValue == 0x1)
+                                                JpgHdrInfo->s3dDesc.nFrameOrder = S3D_ORDER_LF;
+
+                                        break;
+                                        case TAGID_PANSCANORIENTATION: // Panorama Scanning Orientation
+
+                                             if((tagType != (OMX_U16)TAG_TYPE_LONG))
+                                                goto EXIT;
+
+                                            //LIBSKIAHW_LOGDA("Panorama Scanning Information not yet supported \n");
+                                            //TODO: Passed this structure to upper layers
+
+                                        break;
+                                        case TAGID_BVPOINTNUM: //Base Viewpoint Number
+
+                                            if((tagType != (OMX_U16)TAG_TYPE_LONG))
+                                                goto EXIT;
+
+                                            JpgHdrInfo->MPIndexIFDTags.baseViewpointNum= tagValue;
+                                            //LIBSKIAHW_LOGDA("Base Viewpoint Number %x  \n", JpgHdrInfo->MPIndexIFDTags.baseViewpointNum);
+                                            //TODO: Passed this structure to upper layers
+
+                                        break;
+                                        case TAGID_CONVANG: //Convergence Angle
+
+                                            if((tagType != (OMX_U16)TAG_TYPE_SRATIONAL))
+                                                goto EXIT;
+
+                                            JpgHdrInfo->MPIndexIFDTags.convergenceAngle = tagValue;// Need to convert it to a 64 bits value according to standard
+                                            //LIBSKIAHW_LOGDA("Convergence Angle  %x \n", JpgHdrInfo->MPIndexIFDTags.convergenceAngle );
+                                            //TODO: Passed this structure to upper layers
+
+                                        break;
+                                        case TAGID_BASELINELEN: //Base Line Length
+
+                                            if((tagType != (OMX_U16)TAG_TYPE_RATIONAL))
+                                                goto EXIT;
+
+                                            JpgHdrInfo->MPIndexIFDTags.baselineLength= tagValue;// Need to convert it to a 64 bits value according to standard
+                                            //LIBSKIAHW_LOGDA("Base Line Length  %x \n", JpgHdrInfo->MPIndexIFDTags.baselineLength);
+                                            //TODO: Passed this structure to upper layers
+
+                                        break;
+                                        default:
+                                            LIBSKIAHW_LOGDA("Not Supported \n");
+                                        break;
+                                    }
+                                }
+                                //At the end of the IFD, read the nextIFD offset
+                                if(littleEndian)
+                                {
+                                    nextIFDOffset = (OMX_U32)((*Data) + (*(Data+1)<<8) +
+                                                          (*(Data+2)<<16) + (*(Data+3)<<24));
+                                    //LIBSKIAHW_LOGDA("Resseting offset %x \n", nextIFDOffset);
+                                }
+                                else
+                                {
+                                    BigEndianRead32Bits(&nextIFDOffset,Data);
+                                }
+                                if((nextIFDOffset >(itemlen-6))) //APP2 field length (2bytes) + MPformat ID (4 bytes)
+                                    {
+                                        //LIBSKIAHW_LOGDA("size of app %d \n", itemlen);
+                                        nextIFDOffset =0;
+                                    }
+
+                                Data = pOffsetRef; // Reset
+
+                            }while(nextIFDOffset!=NULL);
+                            Data = pOffsetRef -MP_START_OF_OFFSET_REF;
+                        }
+                    }
             default:
                      {
                     /* Skip any other sections.*/
@@ -446,12 +771,18 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
             }
 
             if ( Data != NULL )
-                {
+            {
                 free(Data);
                 Data=NULL;
-                }
+            }
     }
 
+EXIT:
+    if ( Data != NULL )
+    {
+        free(Data);
+        Data=NULL;
+    }
     LOG_FUNCTION_NAME_EXIT
     return 0;
 }
@@ -576,7 +907,7 @@ OMX_S32 SkTIJPEGImageDecoder::fill_data(OMX_BUFFERHEADERTYPE *pBuf, SkStream* st
 ///Decision engine method that decides between ARM decoder or SIMCOP decoder
 bool SkTIJPEGImageDecoder::IsHwFormat(SkStream* stream)
 {
-    bool useHw = true;
+    bool useHw = false;//Use SW for 2D Images backward compatility
 
     inputFileSize = ParseJpegHeader(stream , &JpegHeaderInfo);
 
@@ -649,6 +980,22 @@ bool SkTIJPEGImageDecoder::IsHwAvailable()
 
 }
 
+bool SkTIJPEGImageDecoder::isValidStream(SkStream* stream, int nextFileOffset)
+{
+        OMX_U8 a = 0;
+
+        a = stream->readU8();
+        if ( a != 0xff || stream->readU8() != M_SOI )
+        {
+            stream->rewind();
+            return false;
+        }
+        else
+        {
+            stream->rewind();
+            return true;
+        }
+}
 
 ///Method for decoding using ARM decoder
 bool SkTIJPEGImageDecoder::onDecodeArm(SkStream* stream, SkBitmap* bm, Mode mode)
@@ -661,7 +1008,61 @@ bool SkTIJPEGImageDecoder::onDecodeArm(SkStream* stream, SkBitmap* bm, Mode mode
             return false;
             }
         }
+    bool ret=false;
+    int nextFileOffset;
     stream->rewind();
+
+    pARMHandle->setSampleSize(this->getSampleSize());
+    pARMHandle->setDitherImage(this->getDitherImage());
+    pARMHandle->SetDeviceConfig(this->GetDeviceConfig());
+    int scaleFactor = this->getSampleSize();
+
+    if(fileType== TYPE_MPO)
+    {
+        //LIBSKIAHW_LOGDA("ARM decoder for MPO file thread Id %x , scaleFactor=%d, mode=%d, config=%d \n", pthread_self(), scaleFactor, mode, this->GetDeviceConfig());
+        bm->setConfig(this->GetDeviceConfig(), (JpegHeaderInfo.nWidth/scaleFactor),(JpegHeaderInfo.nHeight/scaleFactor), JpegHeaderInfo.s3dDesc);
+        if(SkImageDecoder::kDecodeBounds_Mode == mode )
+            return pARMHandle->decode(stream, bm, mode);
+
+        // For now we are assuming same resolutions files and we put in TOP/BOTTOM
+        // configuration, there is no need to set any other layout
+        // as our driver and algo better handle T/B.
+        S3DAllocator.config(fileType, bm->width(), (bm->height() *JpegHeaderInfo.MPIndexIFDTags.numberOfImages), JpegHeaderInfo.MPIndexIFDTags.numberOfImages);
+        pARMHandle->setAllocator(&S3DAllocator);
+
+        for(int i=0;i < JpegHeaderInfo.MPIndexIFDTags.numberOfImages;i++)
+        {
+            // The offset of the first image is 0, so skip from next image
+            if(i)
+            {
+                nextFileOffset = JpegHeaderInfo.MPIndexIFDTags.MPEntry[i].dataOffset + finalBytesRead;
+
+                stream->rewind();
+                // Skipping to offset
+                for(int j=0;j<nextFileOffset;j++)
+                    stream->read(NULL, 1);
+                /*int realSize = stream->skip((size_t) (myoffset));
+                LIBSKIAHW_LOGDA("Skipping by %d bytes \n", realSize);*/
+
+                if(!isValidStream(stream, nextFileOffset))
+                    return true;
+            }
+            ret = pARMHandle->decode(stream, bm, mode);
+        }
+        S3DAllocator.reset(bm);
+        return ret;
+    }
+    else if(fileType==TYPE_JPS)
+    {
+         //LIBSKIAHW_LOGDA("JPS ARM decoder \n");
+         bm->setConfig(this->GetDeviceConfig(), JpegHeaderInfo.nWidth/scaleFactor, JpegHeaderInfo.nHeight/scaleFactor, JpegHeaderInfo.s3dDesc);
+    }
+    else
+    {
+         //LIBSKIAHW_LOGDA("ARM decoder \n");
+         bm->setConfig(this->GetDeviceConfig(), JpegHeaderInfo.nWidth/scaleFactor, JpegHeaderInfo.nHeight/scaleFactor);
+      }
+
     return pARMHandle->decode(stream, bm, mode);
 }
 
@@ -1194,6 +1595,9 @@ protected:
     virtual bool onDecode(SkStream* stream, SkBitmap* bm,
                           Mode mode)
         {
+            mPtr->setSampleSize(this->getSampleSize());
+            mPtr->setDitherImage(this->getDitherImage());
+            mPtr->SetDeviceConfig(this->GetDeviceConfig());
             return mPtr->decode(stream, bm, mode);
         }
 public:

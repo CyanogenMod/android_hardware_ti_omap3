@@ -46,7 +46,7 @@ extern "C" {
 //#define PRINTF printf
 
 //#define SK_TRACK_ALLOC
-#define SK_TAG_BLOCKS
+//#define SK_TAG_BLOCKS
 //#define SK_CHECK_TAGS
 
 // size this (as a multiple of 4) so that the total offset to the internal data

@@ -83,5 +83,27 @@ private:
     typedef SkPixelRef INHERITED;
 };
 
+/* S3D allocator version to take into account frame layout */
+class TIS3DHeapAllocator : public SkBitmap::Allocator {
+public:
+    virtual bool allocPixelRef(SkBitmap*, SkColorTable*);
+    void config(int filetype,int stereoWidth, int stereoHeight, int numImages);
+    void reset(SkBitmap* dst);
+
+private:
+    TISkMallocPixelRef * mypixelref;
+    int decodeCount;
+    size_t nWidth;
+    size_t nHeight;
+    size_t numImages;
+    size_t bm_size;
+};
+
+    /*values for possible S3D subsampling modes*/
+    enum {
+        TYPE_JPG = 0,
+        TYPE_JPS,
+        TYPE_MPO,
+    };
 #endif //ifndef SkAllocator_DEFINED
 
