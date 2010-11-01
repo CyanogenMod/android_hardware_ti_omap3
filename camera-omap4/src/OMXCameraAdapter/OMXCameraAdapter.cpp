@@ -591,6 +591,31 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             {
             CAMHAL_LOGDA("JPEG format selected");
             pixFormat = OMX_COLOR_FormatUnused;
+            mCodingMode = CodingNone;
+            }
+        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_JPS) == 0)
+            {
+            CAMHAL_LOGDA("JPS format selected");
+            pixFormat = OMX_COLOR_FormatUnused;
+            mCodingMode = CodingJPS;
+            }
+        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_MPO) == 0)
+            {
+            CAMHAL_LOGDA("MPO format selected");
+            pixFormat = OMX_COLOR_FormatUnused;
+            mCodingMode = CodingMPO;
+            }
+        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_RAW_JPEG) == 0)
+            {
+            CAMHAL_LOGDA("RAW + JPEG format selected");
+            pixFormat = OMX_COLOR_FormatUnused;
+            mCodingMode = CodingRAWJPEG;
+            }
+        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_RAW_MPO) == 0)
+            {
+            CAMHAL_LOGDA("RAW + MPO format selected");
+            pixFormat = OMX_COLOR_FormatUnused;
+            mCodingMode = CodingRAWMPO;
             }
         else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_RAW) == 0)
             {
@@ -1261,9 +1286,33 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         {
         portCheck.format.image.nFrameWidth      = portParams.mWidth;
         portCheck.format.image.nFrameHeight     = portParams.mHeight;
-        if ( OMX_COLOR_FormatUnused == portParams.mColorFormat )
+        if ( OMX_COLOR_FormatUnused == portParams.mColorFormat && mCodingMode == CodingNone )
             {
             portCheck.format.image.eColorFormat     = OMX_COLOR_FormatCbYCrY;
+            portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
+            }
+        else if ( OMX_COLOR_FormatUnused == portParams.mColorFormat && mCodingMode == CodingJPS )
+            {
+            portCheck.format.image.eColorFormat       = OMX_COLOR_FormatCbYCrY;
+            portCheck.format.image.eCompressionFormat = (OMX_IMAGE_CODINGTYPE) OMX_TI_IMAGE_CodingJPS;
+            }
+        else if ( OMX_COLOR_FormatUnused == portParams.mColorFormat && mCodingMode == CodingMPO )
+            {
+            portCheck.format.image.eColorFormat       = OMX_COLOR_FormatCbYCrY;
+            portCheck.format.image.eCompressionFormat = (OMX_IMAGE_CODINGTYPE) OMX_TI_IMAGE_CodingMPO;
+            }
+        else if ( OMX_COLOR_FormatUnused == portParams.mColorFormat && mCodingMode == CodingRAWJPEG )
+            {
+            //TODO: OMX_IMAGE_CodingJPEG should be changed to OMX_IMAGE_CodingRAWJPEG when
+            // RAW format is supported
+            portCheck.format.image.eColorFormat       = OMX_COLOR_FormatCbYCrY;
+            portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
+            }
+        else if ( OMX_COLOR_FormatUnused == portParams.mColorFormat && mCodingMode == CodingRAWMPO )
+            {
+            //TODO: OMX_IMAGE_CodingJPEG should be changed to OMX_IMAGE_CodingRAWMPO when
+            // RAW format is supported
+            portCheck.format.image.eColorFormat       = OMX_COLOR_FormatCbYCrY;
             portCheck.format.image.eCompressionFormat = OMX_IMAGE_CodingJPEG;
             }
         else

@@ -33,6 +33,7 @@
 #include "OMX_TI_Index.h"
 #include "OMX_TI_IVCommon.h"
 #include "OMX_TI_Common.h"
+#include "OMX_TI_Image.h"
 #include "General3A_Settings.h"
 
 #include "BaseCameraAdapter.h"
@@ -163,6 +164,15 @@ public:
         IPP_NSF,
         IPP_LDC,
         IPP_LDCNSF,
+        };
+
+    enum CodingMode
+        {
+        CodingNone = 0,
+        CodingJPS,
+        CodingMPO,
+        CodingRAWJPEG,
+        CodingRAWMPO,
         };
 
     ///Parameters specific to any port of the OMX Camera component
@@ -486,6 +496,7 @@ private:
     nsecs_t mLastFPSTime;
 
     int mSensorIndex;
+    CodingMode mCodingMode;
 };
 }; //// namespace
 #endif //OMX_CAMERA_ADAPTER_H

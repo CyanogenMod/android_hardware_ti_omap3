@@ -96,7 +96,11 @@ static const char HIGH_QUALITY_MODE[];
 static const char VIDEO_MODE[];
 
 // TI extensions to standard android pixel formats
-static const  char PIXEL_FORMAT_RAW[];
+static const char PIXEL_FORMAT_RAW[];
+static const char PIXEL_FORMAT_JPS[];
+static const char PIXEL_FORMAT_MPO[];
+static const char PIXEL_FORMAT_RAW_JPEG[];
+static const char PIXEL_FORMAT_RAW_MPO[];
 
 // TI extensions to standard android scene mode settings
 static const  char SCENE_MODE_SPORT[];
