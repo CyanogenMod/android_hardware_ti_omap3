@@ -1095,26 +1095,30 @@ status_t CameraHal::startPreview()
     if(mDisplayAdapter.get() != NULL)
         {
         CAMHAL_LOGDA("Enabling display");
-
-        bool isS3d = (strcmp(mParameters.get(TICameraParameters::KEY_S3D_SUPPORTED), "true") == 0);
+        bool isS3d = false;
+        if (mParameters.get(TICameraParameters::KEY_S3D_SUPPORTED) != NULL) {
+            isS3d = (strcmp(mParameters.get(TICameraParameters::KEY_S3D_SUPPORTED), "true") == 0);
+        }
         DisplayAdapter::S3DParameters s3dParams;
-        if (strcmp(mParameters.get(TICameraParameters::KEY_S3D2D_PREVIEW), "off") == 0)
-            {
-            CAMHAL_LOGEA("STEREO 3D->2D PREVIEW MODE IS OFF");
-            //TODO: obtain the frame packing configuration from camera or user settings
-            //once side by side configuration is supported
-            s3dParams.mode = OVERLAY_S3D_MODE_ON;
-            s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
-            s3dParams.order = OVERLAY_S3D_ORDER_LF;
-            s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
-            }
-        else
-            {
-            CAMHAL_LOGEA("STEREO 3D->2D PREVIEW MODE IS ON");
-            s3dParams.mode = OVERLAY_S3D_MODE_OFF;
-            s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
-            s3dParams.order = OVERLAY_S3D_ORDER_LF;
-            s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+        if (mParameters.get(TICameraParameters::KEY_S3D2D_PREVIEW) != NULL) {
+            if (strcmp(mParameters.get(TICameraParameters::KEY_S3D2D_PREVIEW), "off") == 0)
+                {
+                CAMHAL_LOGEA("STEREO 3D->2D PREVIEW MODE IS OFF");
+                //TODO: obtain the frame packing configuration from camera or user settings
+                //once side by side configuration is supported
+                s3dParams.mode = OVERLAY_S3D_MODE_ON;
+                s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
+                s3dParams.order = OVERLAY_S3D_ORDER_LF;
+                s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+                }
+            else
+                {
+                CAMHAL_LOGEA("STEREO 3D->2D PREVIEW MODE IS ON");
+                s3dParams.mode = OVERLAY_S3D_MODE_OFF;
+                s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
+                s3dParams.order = OVERLAY_S3D_ORDER_LF;
+                s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+                }
             }
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
