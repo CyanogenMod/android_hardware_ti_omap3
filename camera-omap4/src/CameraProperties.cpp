@@ -87,6 +87,10 @@ const char CameraProperties::PROP_KEY_SHARPNESS[] = "sharpness";
 const char CameraProperties::PROP_KEY_IPP[] = "ipp";
 const char CameraProperties::PROP_KEY_S3D2D_PREVIEW[] = "s3d2d-preview";
 const char CameraProperties::PROP_KEY_S3D2D_PREVIEW_MODES[] = "s3d2d-preview-values";
+const char CameraProperties::PROP_KEY_AUTOCONVERGENCE[] = "auto-convergence";
+const char CameraProperties::PROP_KEY_AUTOCONVERGENCE_MODE[] = "auto-convergence-mode";
+const char CameraProperties::PROP_KEY_MANUALCONVERGENCE_VALUES[] = "manual-convergence-values";
+
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
 
@@ -846,6 +850,24 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_S3D2D_PREVIEW_MODES;
         }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_AUTOCONVERGENCE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_AUTOCONVERGENCE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_AUTOCONVERGENCE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_AUTOCONVERGENCE_MODE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_AUTOCONVERGENCE_MODE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_AUTOCONVERGENCE_MODE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUALCONVERGENCE_VALUES))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_MANUALCONVERGENCE_VALUES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES;
+        }
 
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
@@ -1107,10 +1129,25 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_IPP;
 
-    case CameraProperties::PROP_INDEX_S3D_SUPPORTED:
+        case CameraProperties::PROP_INDEX_S3D_SUPPORTED:
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_S3D_SUPPORTED);
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_S3D_SUPPORTED;
+
+        case CameraProperties::PROP_INDEX_AUTOCONVERGENCE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_AUTOCONVERGENCE );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_AUTOCONVERGENCE;
+
+        case CameraProperties::PROP_INDEX_AUTOCONVERGENCE_MODE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_AUTOCONVERGENCE_MODE );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_AUTOCONVERGENCE_MODE;
+
+        case CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUALCONVERGENCE_VALUES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_MANUALCONVERGENCE_VALUES;
 
         case CameraProperties::PROP_INDEX_S3D2D_PREVIEW:
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_S3D2D_PREVIEW );

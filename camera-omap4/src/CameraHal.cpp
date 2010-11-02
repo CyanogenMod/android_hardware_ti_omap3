@@ -343,6 +343,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mParameters.set(TICameraParameters::KEY_S3D2D_PREVIEW, params.get(TICameraParameters::KEY_S3D2D_PREVIEW));
             }
 
+        if(params.get(TICameraParameters::KEY_AUTOCONVERGENCE) != NULL)
+            {
+            CAMHAL_LOGEB("AutoConvergence mode is %s", params.get(TICameraParameters::KEY_AUTOCONVERGENCE));
+            mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE, params.get(TICameraParameters::KEY_AUTOCONVERGENCE));
+            }
+
         }
 
     ///Below parameters can be changed when the preview is running
@@ -391,6 +397,24 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     CAMHAL_LOGDB("FRAMERATE %d", framerate);
 
     ///Update the current parameter set
+    if(params.get(TICameraParameters::KEY_AUTOCONVERGENCE)!=NULL)
+        {
+        CAMHAL_LOGDB("AutoConvergence Mode is set = %s", params.get(TICameraParameters::KEY_AUTOCONVERGENCE));
+        mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE, params.get(TICameraParameters::KEY_AUTOCONVERGENCE));
+        }
+
+//    if(params.get(TICameraParameters::KEY_AUTOCONVERGENCE_MODE)!=NULL)
+//        {
+//        CAMHAL_LOGDB("AutoConvergence Mode is set = %s", params.get(TICameraParameters::KEY_AUTOCONVERGENCE_MODE));
+//        mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE_MODE, params.get(TICameraParameters::KEY_AUTOCONVERGENCE_MODE));
+//        }
+
+    if(params.get(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES)!=NULL)
+        {
+        CAMHAL_LOGDB("ManualConvergence Value = %s", params.get(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES));
+        mParameters.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, params.get(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES));
+        }
+
     if((params.get(TICameraParameters::KEY_EXPOSURE_MODE)!=NULL)
         && isParameterValid(params.get(TICameraParameters::KEY_EXPOSURE_MODE),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EXPOSURE_MODES]->mPropValue))
@@ -2599,6 +2623,8 @@ void CameraHal::insertSupportedParams()
     p.set(TICameraParameters::KEY_SUPPORTED_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_IPP_MODES]->mPropValue);
     p.set(TICameraParameters::KEY_S3D_SUPPORTED,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D_SUPPORTED]->mPropValue);
     p.set(TICameraParameters::KEY_S3D2D_PREVIEW_MODE,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D2D_PREVIEW_MODES]->mPropValue);
+    p.set(TICameraParameters::KEY_AUTOCONVERGENCE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_AUTOCONVERGENCE_MODE]->mPropValue);
+    p.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -2676,6 +2702,8 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_ISO, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ISO_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_IPP]->mPropValue);
     p.set(TICameraParameters::KEY_S3D2D_PREVIEW, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D2D_PREVIEW]->mPropValue);
+    p.set(TICameraParameters::KEY_AUTOCONVERGENCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_AUTOCONVERGENCE]->mPropValue);
+    p.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }

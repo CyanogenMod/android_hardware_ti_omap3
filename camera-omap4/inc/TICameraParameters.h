@@ -71,6 +71,11 @@ static const char  KEY_MEASUREMENT_ENABLE[];
 static const char MEASUREMENT_ENABLE[];
 static const char MEASUREMENT_DISABLE[];
 
+//  TI extensions to add values for ManualConvergence and AutoConvergence mode
+static const char KEY_AUTOCONVERGENCE[];
+static const char KEY_AUTOCONVERGENCE_MODE[];
+static const char KEY_MANUALCONVERGENCE_VALUES[];
+
 //TI extensions for enabling/disabling shutter sound
 static const char SHUTTER_ENABLE[];
 static const char SHUTTER_DISABLE[];
@@ -152,6 +157,13 @@ static const char EFFECT_BLACKWHITE[];
 
 static const char KEY_S3D2D_PREVIEW[];
 static const char KEY_S3D2D_PREVIEW_MODE[];
+
+//  TI extensions to add values for AutoConvergence settings.
+static const char AUTOCONVERGENCE_MODE_DISABLE[];
+static const char AUTOCONVERGENCE_MODE_FRAME[];
+static const char AUTOCONVERGENCE_MODE_CENTER[];
+static const char AUTOCONVERGENCE_MODE_FFT[];
+static const char AUTOCONVERGENCE_MODE_MANUAL[];
 
 };
 

@@ -157,5 +157,8 @@
 <sharpness>100</sharpness>
 <s3d2d-preview-values>on,off</s3d2d-preview-values>
 <s3d2d-preview>s3d2d-preview</s3d2d-preview>
+<auto-convergence-mode>mode-disable,mode-frame,mode-center,mode-fft,mode-manual</auto-convergence-mode>
+<auto-convergence>auto-convergence</auto-convergence>
+<manual-convergence-values>-100,-50,-30,-25,0,25,50,100</manual-convergence-values>
 </CameraInstance>
 </CameraRoot>

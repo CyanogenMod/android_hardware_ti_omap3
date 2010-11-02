@@ -75,6 +75,11 @@ const char TICameraParameters::MEASUREMENT_DISABLE[] = "disable";
 const char TICameraParameters::KEY_S3D2D_PREVIEW[] = "s3d2d-preview";
 const char TICameraParameters::KEY_S3D2D_PREVIEW_MODE[] = "s3d2d-preview-values";
 
+//TI extensions for SAC/SMC
+const char TICameraParameters::KEY_AUTOCONVERGENCE[] = "auto-convergence";
+const char TICameraParameters::KEY_AUTOCONVERGENCE_MODE[] = "auto-convergence-mode";
+const char TICameraParameters::KEY_MANUALCONVERGENCE_VALUES[] = "manual-convergence-values";
+
 //TI extensions for enabling/disabling shutter sound
 const char TICameraParameters::SHUTTER_ENABLE[] = "true";
 const char TICameraParameters::SHUTTER_DISABLE[] = "false";
@@ -149,6 +154,13 @@ const char TICameraParameters::ISO_MODE_800[] = "800";
 const char TICameraParameters::ISO_MODE_1000[] = "1000";
 const char TICameraParameters::ISO_MODE_1200[] = "1200";
 const char TICameraParameters::ISO_MODE_1600[] = "1600";
+
+//  TI extensions to add auto convergence values
+const char TICameraParameters::AUTOCONVERGENCE_MODE_DISABLE[] = "mode-disable";
+const char TICameraParameters::AUTOCONVERGENCE_MODE_FRAME[] = "mode-frame";
+const char TICameraParameters::AUTOCONVERGENCE_MODE_CENTER[] = "mode-center";
+const char TICameraParameters::AUTOCONVERGENCE_MODE_FFT[] = "mode-fft";
+const char TICameraParameters::AUTOCONVERGENCE_MODE_MANUAL[] = "mode-manual";
 
 };
 

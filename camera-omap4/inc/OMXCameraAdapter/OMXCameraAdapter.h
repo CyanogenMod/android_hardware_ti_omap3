@@ -355,6 +355,10 @@ private:
     int getLUTvalue_HALtoOMX(const char * HalValue, LUTtype LUT);
     OMX_ERRORTYPE Apply3Asettings( Gen3A_settings& Gen3A );
 
+    // AutoConvergence
+    status_t setAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE pACMode, OMX_S32 pManualConverence);
+    status_t getAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE *pACMode, OMX_S32 *pManualConverence);
+
 
 public:
 

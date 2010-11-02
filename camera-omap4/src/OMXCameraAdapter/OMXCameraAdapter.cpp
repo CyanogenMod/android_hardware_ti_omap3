@@ -953,6 +953,36 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mVstabEnabled = false;
         }
 
+    // Set Auto Convergence Mode
+    str = params.get((const char *) TICameraParameters::KEY_AUTOCONVERGENCE);
+    if ( str != NULL )
+        {
+        // Set ManualConvergence default value
+        OMX_S32 manualconvergence = -30;
+        if ( strcmp (str, (const char *) TICameraParameters::AUTOCONVERGENCE_MODE_DISABLE) == 0 )
+            {
+            setAutoConvergence(OMX_TI_AutoConvergenceModeDisable, manualconvergence);
+            }
+        else if ( strcmp (str, (const char *) TICameraParameters::AUTOCONVERGENCE_MODE_FRAME) == 0 )
+                {
+                setAutoConvergence(OMX_TI_AutoConvergenceModeFrame, manualconvergence);
+                }
+        else if ( strcmp (str, (const char *) TICameraParameters::AUTOCONVERGENCE_MODE_CENTER) == 0 )
+                {
+                setAutoConvergence(OMX_TI_AutoConvergenceModeCenter, manualconvergence);
+                }
+        else if ( strcmp (str, (const char *) TICameraParameters::AUTOCONVERGENCE_MODE_FFT) == 0 )
+                {
+                setAutoConvergence(OMX_TI_AutoConvergenceModeFocusFaceTouch, manualconvergence);
+                }
+        else if ( strcmp (str, (const char *) TICameraParameters::AUTOCONVERGENCE_MODE_MANUAL) == 0 )
+                {
+                manualconvergence = (OMX_S32)params.getInt(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES);
+                setAutoConvergence(OMX_TI_AutoConvergenceModeManual, manualconvergence);
+                }
+        CAMHAL_LOGEB("AutoConvergenceMode %s, value = %d", str, (int) manualconvergence);
+        }
+
     if ( ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY)  >= MIN_JPEG_QUALITY ) &&
          ( params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY)  <= MAX_JPEG_QUALITY ) )
         {
@@ -5482,6 +5512,67 @@ const char* OMXCameraAdapter::getLUTvalue_OMXtoHAL(int OMXValue, LUTtype LUT)
             return LUT.Table[i].userDefinition;
 
     return NULL;
+}
+
+// Set AutoConvergence
+status_t OMXCameraAdapter::setAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE pACMode, OMX_S32 pManualConverence)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_CONFIG_CONVERGENCETYPE ACParams;
+
+    LOG_FUNCTION_NAME
+
+    ACParams.nSize = sizeof(OMX_TI_CONFIG_CONVERGENCETYPE);
+    ACParams.nVersion = mLocalVersionParam;
+    ACParams.nPortIndex = OMX_ALL;
+    ACParams.nManualConverence = pManualConverence;
+    ACParams.eACMode = pACMode;
+    eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexConfigAutoConvergence, &ACParams);
+    if ( eError != OMX_ErrorNone )
+        {
+        CAMHAL_LOGEB("Error while setting AutoConvergence 0x%x", eError);
+        ret = -EINVAL;
+        }
+    else
+        {
+        CAMHAL_LOGDA("AutoConvergence applied successfully");
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+// Get AutoConvergence
+status_t OMXCameraAdapter::getAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE *pACMode, OMX_S32 *pManualConverence)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_CONFIG_CONVERGENCETYPE ACParams;
+
+    ACParams.nSize = sizeof(OMX_TI_CONFIG_CONVERGENCETYPE);
+    ACParams.nVersion = mLocalVersionParam;
+    ACParams.nPortIndex = OMX_ALL;
+
+    LOG_FUNCTION_NAME
+
+    eError =  OMX_GetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexConfigAutoConvergence, &ACParams);
+    if ( eError != OMX_ErrorNone )
+        {
+        CAMHAL_LOGEB("Error while getting AutoConvergence 0x%x", eError);
+        ret = -EINVAL;
+        }
+    else
+        {
+        *pManualConverence = ACParams.nManualConverence;
+        *pACMode = ACParams.eACMode;
+        CAMHAL_LOGDA("AutoConvergence got successfully");
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
 }
 
 OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
