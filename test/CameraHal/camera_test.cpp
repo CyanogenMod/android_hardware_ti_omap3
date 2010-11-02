@@ -46,6 +46,9 @@
 #define KEY_IPP             "ippMode"
 #define KEY_BUFF_STARV      "buff-starvation"
 #define KEY_METERING_MODE   "meter-mode"
+#define KEY_AUTOCONVERGENCE "auto-convergence"
+#define KEY_MANUALCONVERGENCE_VALUES "manual-convergence-values"
+#define AUTOCONVERGENCE_MODE_MANUAL "mode-manual"
 #define KEY_TEMP_BRACKETING "temporal-bracketing"
 #define KEY_TEMP_BRACKETING_POS "temporal-bracketing-range-positive"
 #define KEY_TEMP_BRACKETING_NEG "temporal-bracketing-range-negative"
@@ -93,6 +96,9 @@ int vstab_mode = 0;
 int tempBracketRange = 1;
 int tempBracketIdx = 0;
 int measurementIdx = 0;
+int AutoConvergenceModeIDX = 0;
+int ManualConvergenceValuesIDX = 0;
+const int ManualConvergenceDefaultValueIDX = 2;
 int postProcIDX = 0;
 int rotation = 0;
 bool reSizePreview = true;
@@ -209,6 +215,9 @@ const char *post_proc[] = {"off", "nsf", "ldc", "ldc-nsf"};
 int pictureFormat = ARRAY_SIZE(pixelformat) - 2;
 const char *exposure[] = {"auto", "macro", "portrait", "landscape", "sports", "night", "night-portrait", "backlighting", "manual"};
 const char *capture[] = { "high-performance", "high-quality", "video-mode" };
+const char *autoconvergencemode[] = { "mode-disable", "mode-frame", "mode-center", "mode-fft", "mode-manual" };
+const char *manualconvergencevalues[] = { "-100", "-50", "-30", "-25", "0", "25", "50", "100" };
+
 const struct {
     int idx;
     const char *zoom_description;
@@ -1066,6 +1075,8 @@ void initDefaults() {
     params.set(KEY_METERING_MODE, metering[meter_mode]);
     params.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, previewSize[thumbSizeIDX].width);
     params.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, previewSize[thumbSizeIDX].height);
+    ManualConvergenceValuesIDX = ManualConvergenceDefaultValueIDX;
+    params.set(KEY_MANUALCONVERGENCE_VALUES, manualconvergencevalues[ManualConvergenceValuesIDX]);
 }
 
 int menu_gps() {
@@ -1173,6 +1184,8 @@ int functional_menu() {
         printf("   ~. Preview format %s\n", pixelformat[previewFormat]);
         printf("   4. Preview size:   %4d x %4d - %s\n",previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
         printf("   &. Dump a preview frame\n");
+        printf("   _. Auto Convergence mode: %s\n", autoconvergencemode[AutoConvergenceModeIDX]);
+        printf("   ^. Manual Convergence Value: %s\n", manualconvergencevalues[ManualConvergenceValuesIDX]);
 
         printf(" \n\n IMAGE CAPTURE SUB MENU \n");
         printf(" -----------------------------\n");
@@ -1237,6 +1250,28 @@ int functional_menu() {
 
     switch (ch) {
 
+    case '_':
+        AutoConvergenceModeIDX++;
+        AutoConvergenceModeIDX %= ARRAY_SIZE(autoconvergencemode);
+        params.set(KEY_AUTOCONVERGENCE, autoconvergencemode[AutoConvergenceModeIDX]);
+        if ( strcmp (autoconvergencemode[AutoConvergenceModeIDX], AUTOCONVERGENCE_MODE_MANUAL) == 0) {
+            params.set(KEY_MANUALCONVERGENCE_VALUES, manualconvergencevalues[ManualConvergenceValuesIDX]);
+        }
+        else {
+            params.set(KEY_MANUALCONVERGENCE_VALUES, manualconvergencevalues[ManualConvergenceDefaultValueIDX]);
+            ManualConvergenceValuesIDX = ManualConvergenceDefaultValueIDX;
+        }
+        camera->setParameters(params.flatten());
+
+        break;
+    case '^':
+        if ( strcmp (autoconvergencemode[AutoConvergenceModeIDX], AUTOCONVERGENCE_MODE_MANUAL) == 0) {
+            ManualConvergenceValuesIDX++;
+            ManualConvergenceValuesIDX %= ARRAY_SIZE(manualconvergencevalues);
+            params.set(KEY_MANUALCONVERGENCE_VALUES, manualconvergencevalues[ManualConvergenceValuesIDX]);
+            camera->setParameters(params.flatten());
+        }
+        break;
     case 'A':
         camera_index++;
         camera_index %= ARRAY_SIZE(cameras);
@@ -2644,6 +2679,30 @@ int execute_functional_script(char *script) {
             case 'n':
             {
                 nullOverlay = true;
+                break;
+            }
+            case '_':
+            {
+                AutoConvergenceModeIDX = atoi(cmd + 1);
+                if ( AutoConvergenceModeIDX < 0 || AutoConvergenceModeIDX > 4 )
+                    AutoConvergenceModeIDX = 0;
+                params.set(KEY_AUTOCONVERGENCE, autoconvergencemode[AutoConvergenceModeIDX]);
+                if ( AutoConvergenceModeIDX != 4 )
+                    params.set(KEY_MANUALCONVERGENCE_VALUES, manualconvergencevalues[ManualConvergenceDefaultValueIDX]);
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+                break;
+            }
+
+            case '^':
+            {
+                char strtmpval[7];
+                if ( strcmp (autoconvergencemode[AutoConvergenceModeIDX], AUTOCONVERGENCE_MODE_MANUAL) == 0) {
+                    sprintf(strtmpval,"%d", atoi(cmd + 1));
+                    params.set(KEY_MANUALCONVERGENCE_VALUES, strtmpval);
+                    if ( hardwareActive )
+                        camera->setParameters(params.flatten());
+                }
                 break;
             }
 
