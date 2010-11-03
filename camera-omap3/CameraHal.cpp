@@ -862,10 +862,12 @@ void CameraHal::previewThread()
                 else
                 {
 #ifdef FW3A
+                if (isStart_FW3A_CAF == 0){
                     if( FW3A_Start_CAF() < 0){
                         LOGE("ERROR FW3A_Start_CAF()");
                         err = -1;
                     }
+                }
 #endif
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
                 }
@@ -4078,6 +4080,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             Message msg;
             msg.command = mcaf ? PREVIEW_CAF_START : PREVIEW_CAF_STOP;
             previewThreadCommandQ.put(&msg);
+            //unlock in order to read the message correctly
+            mLock.unlock();
             previewThreadAckQ.get(&msg);
             return msg.command == PREVIEW_ACK ? NO_ERROR : INVALID_OPERATION;
         }
