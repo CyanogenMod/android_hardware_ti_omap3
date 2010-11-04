@@ -332,6 +332,10 @@ private:
     status_t startImageCapture();
     status_t stopImageCapture();
 
+    //Shutter callback notifications
+    status_t notifyShutterSubscribers();
+    status_t setShutterCallback(bool enabled);
+
     //Sets eithter HQ or HS mode and the frame count
     status_t setCaptureMode(OMXCameraAdapter::CaptureMode mode);
     status_t UseBuffersCapture(void* bufArr, int num);
