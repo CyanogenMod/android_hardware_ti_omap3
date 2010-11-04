@@ -806,7 +806,7 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
             {
             mFramesWithDisplay++;
 
-            if(mFramesWithDisplay>NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE)
+              if(mFramesWithDisplay> OPTIMAL_BUFFER_COUNT_WITH_DISPLAY)
                 {
                 ///Enough buffers with display. Post a DQ for dequeing a buffer from display
                 Message msg;

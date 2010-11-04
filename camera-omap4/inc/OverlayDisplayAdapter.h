@@ -21,6 +21,8 @@
 
 #include "CameraHal.h"
 
+#define OPTIMAL_BUFFER_COUNT_WITH_DISPLAY 
+
 namespace android {
 
 /**
