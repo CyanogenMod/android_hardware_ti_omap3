@@ -197,13 +197,15 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET       120
 #define AUDIO_ABE_AUDUL_VOICE_VOL_HANDFREE      120
 #define AUDIO_ABE_AUDUL_VOICE_VOL_HEADSET       120
+#define AUDIO_ABE_AUDUL_VOICE_VOL_BLUETOOTH     120
 
 // Sidetone Downlink Volume
 // Range values: min=0,max=149,step=1
 // dBscale-min=-120.00dB,step=1.00dB,mute=0
 #define AUDIO_ABE_SIDETONE_DL_VOL_HANDSET       120
-#define AUDIO_ABE_SIDETONE_DL_VOL_HANDFREE      0
+#define AUDIO_ABE_SIDETONE_DL_VOL_HANDFREE     0
 #define AUDIO_ABE_SIDETONE_DL_VOL_HEADSET       120
+#define AUDIO_ABE_SIDETONE_DL_VOL_BLUETOOTH     120
 
 // Sidetone Ulink Volume
 // Range values: min=0,max=149,step=1
@@ -211,6 +213,7 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_ABE_SIDETONE_UL_VOL_HANDSET       100
 #define AUDIO_ABE_SIDETONE_UL_VOL_HANDFREE      0
 #define AUDIO_ABE_SIDETONE_UL_VOL_HEADSET       100
+#define AUDIO_ABE_SIDETONE_UL_VOL_BLUETOOTH     100
 
 // Modem interface static library to use
 // are declared in the prop. key modem.audio.libpath
