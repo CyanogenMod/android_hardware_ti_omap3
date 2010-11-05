@@ -113,6 +113,8 @@ static const  char FACE_DETECTION_DISABLE[];
 // TI extensions to standard android white balance settings.
 static const  char WHITE_BALANCE_TUNGSTEN[];
 static const  char WHITE_BALANCE_HORIZON[];
+static const  char WHITE_BALANCE_SUNSET[];
+static const  char WHITE_BALANCE_FACE[];
 
 // TI extensions to add exposure preset modes to android api
 static const  char EXPOSURE_MODE_OFF[];
@@ -146,9 +148,11 @@ static const char ISO_MODE_1600[];
 static const char EFFECT_NATURAL[];
 static const char EFFECT_VIVID[];
 static const char EFFECT_COLOR_SWAP[];
+static const char EFFECT_BLACKWHITE[];
 
 static const char KEY_S3D2D_PREVIEW[];
 static const char KEY_S3D2D_PREVIEW_MODE[];
+
 };
 
 };
