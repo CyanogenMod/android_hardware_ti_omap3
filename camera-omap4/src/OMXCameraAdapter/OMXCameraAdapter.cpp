@@ -4892,7 +4892,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             if ( mFaceDetectionRunning )
                 {
                 detectFaces(pBuffHeader);
-                LOGE("Faces detected: %s", mFaceDectionResult);
+                CAMHAL_LOGVB("Faces detected: %s", mFaceDectionResult);
                 }
             }
 
