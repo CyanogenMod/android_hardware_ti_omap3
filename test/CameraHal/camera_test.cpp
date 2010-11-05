@@ -1480,7 +1480,6 @@ int functional_menu() {
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
             break;
-
         case 'm':
         {
             meter_mode = (meter_mode + 1)%ARRAY_SIZE(metering);
@@ -1511,7 +1510,6 @@ int functional_menu() {
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
-
             break;
 
         case 'F':
@@ -1935,6 +1933,38 @@ int execute_functional_script(char *script) {
         printf("Command: %c \n", cmd[0]);
 
         switch (id) {
+
+            // Case for Suspend-Resume Feature
+            case '!': {
+                // STEP 1: Mount Debugfs
+                system("mkdir /debug");
+                system("mount -t debugfs debugfs /debug");
+
+                // STEP 2: Set up wake up Timer - wake up happens after 5 seconds
+                system("echo 10 > /debug/pm_debug/wakeup_timer_seconds");
+
+                // STEP 3: Make system ready for Suspend
+                system("echo camerahal_test > /sys/power/wake_unlock");
+                // Release wake lock held by test app
+                printf(" Wake lock released ");
+                system("cat /sys/power/wake_lock");
+                system("sendevent /dev/input/event0 1 60 1");
+                system("sendevent /dev/input/event0 1 60 0");
+                // Simulate F2 key press to make display OFF
+                printf(" F2 event simulation complete ");
+
+                //STEP 4: Wait for system Resume and then simuate F1 key
+                sleep(50);//50s  // This delay is not related to suspend resume timer
+                printf(" After 30 seconds of sleep");
+                system("sendevent /dev/input/event0 1 59 0");
+                system("sendevent /dev/input/event0 1 59 1");
+                // Simulate F1 key press to make display ON
+                system("echo camerahal_test > /sys/power/wake_lock");
+                // Acquire wake lock for test app
+
+                break;
+            }
+
             case '[':
                 if ( hardwareActive )
                     {
@@ -2532,7 +2562,6 @@ int execute_functional_script(char *script) {
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
                 break;
-
             case 'm':
             {
                 params.set(KEY_METERING_MODE, (cmd + 1));
