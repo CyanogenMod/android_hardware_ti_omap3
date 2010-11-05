@@ -135,10 +135,14 @@ const char *effects [] = {
     "negative",
     "solarize",
     "sepia",
+    "vivid",
     "whiteboard",
     "blackboard",
     "cool",
     "emboss",
+    "blackwhite",
+    "aqua",
+    "posterize"
 };
 const char *caf [] = { "Off", "On" };
 const char *vnf [] = { "Off", "On" };
@@ -151,8 +155,24 @@ const char *scene [] = {
     "landscape",
     "night",
     "night-portrait",
+    "night-indoor",
     "fireworks",
-
+    "sport",
+    "cine",
+    "beach",
+    "snow",
+    "mood",
+    "closeup",
+    "underwater",
+    "document",
+    "barcode",
+    "oldfilm",
+    "candlelight",
+    "party",
+    "steadyphoto",
+    "sunset",
+    "action",
+    "theatre"
 };
 const char *strawb_mode[] = {
     "auto",
@@ -161,6 +181,12 @@ const char *strawb_mode[] = {
     "daylight",
     "horizon",
     "shadow",
+    "tungsten",
+    "shade",
+    "twilight",
+    "warm-fluorescent",
+    "facepriority",
+    "sunset"
 };
 const char *antibanding[] = {
     "off",
