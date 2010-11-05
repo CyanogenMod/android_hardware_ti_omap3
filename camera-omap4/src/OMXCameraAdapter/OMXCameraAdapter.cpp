@@ -3643,6 +3643,54 @@ status_t OMXCameraAdapter::checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus)
     return ret;
 }
 
+status_t OMXCameraAdapter::setShutterCallback(bool enabled)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_CALLBACKREQUESTTYPE shutterRequstCallback;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateExecuting != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component not in executing state");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        OMX_INIT_STRUCT_PTR (&shutterRequstCallback, OMX_CONFIG_CALLBACKREQUESTTYPE);
+        shutterRequstCallback.nPortIndex = OMX_ALL;
+
+        if ( enabled )
+            {
+            shutterRequstCallback.bEnable = OMX_TRUE;
+            shutterRequstCallback.nIndex = ( OMX_INDEXTYPE ) OMX_TI_IndexConfigShutterCallback;
+            }
+        else
+            {
+            shutterRequstCallback.bEnable = OMX_FALSE;
+            shutterRequstCallback.nIndex = ( OMX_INDEXTYPE ) OMX_TI_IndexConfigShutterCallback;
+            }
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp,  ( OMX_INDEXTYPE ) OMX_IndexConfigCallbackRequest, &shutterRequstCallback);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error registering shutter callback 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDB("Shutter callback for index 0x%x registered successfully", OMX_TI_IndexConfigShutterCallback);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::notifyZoomSubscribers(int zoomIdx, bool targetReached)
 {
     event_callback eventCb;
@@ -3987,6 +4035,7 @@ status_t OMXCameraAdapter::startImageCapture()
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMXCameraPortParameters * capData = NULL;
+    Semaphore eventSem;
     OMX_CONFIG_BOOLEANTYPE bOMX;
 
     LOG_FUNCTION_NAME
@@ -4019,6 +4068,32 @@ status_t OMXCameraAdapter::startImageCapture()
             }
         }
 
+    //OMX shutter callback events are only available in hq mode
+    if ( HIGH_QUALITY == mCapMode )
+        {
+        if ( NO_ERROR == ret )
+            {
+            ret = eventSem.Create(0);
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
+                                        (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
+                                        OMX_ALL,
+                                        OMX_TI_IndexConfigShutterCallback,
+                                        eventSem,
+                                        -1 );
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            ret = setShutterCallback(true);
+            }
+
+        }
+
+
     if ( NO_ERROR == ret )
         {
         capData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
@@ -4050,6 +4125,23 @@ status_t OMXCameraAdapter::startImageCapture()
             }
         }
 
+    //OMX shutter callback events are only available in hq mode
+    if ( HIGH_QUALITY == mCapMode )
+        {
+
+        if ( NO_ERROR == ret )
+            {
+            ret = eventSem.Wait();
+            }
+
+        if ( NO_ERROR == ret )
+            {
+            CAMHAL_LOGDA("Autofocus callback received");
+            ret = notifyShutterSubscribers();
+            }
+
+        }
+
     EXIT:
 
     if ( eError != OMX_ErrorNone )
@@ -4062,6 +4154,42 @@ status_t OMXCameraAdapter::startImageCapture()
         ret = -1;
 
         }
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::notifyShutterSubscribers()
+{
+    CameraHalEvent shutterEvent;
+    event_callback eventCb;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+
+        if ( mShutterSubscribers.size() == 0 )
+            {
+            CAMHAL_LOGEA("No shutter Subscribers!");
+            return ret;
+            }
+
+        shutterEvent.mEventType = CameraHalEvent::EVENT_SHUTTER;
+        shutterEvent.mEventData.shutterEvent.shutterClosed = true;
+
+        for (unsigned int i = 0 ; i < mShutterSubscribers.size() ; i++ )
+            {
+            shutterEvent.mCookie = ( void * ) mShutterSubscribers.keyAt(i);
+            eventCb = ( event_callback ) mShutterSubscribers.valueAt(i);
+
+            CAMHAL_LOGEA("Sending shutter callback");
+
+            eventCb ( &shutterEvent );
+            }
+        }
+
+    LOG_FUNCTION_NAME
 
     return ret;
 }
@@ -4759,6 +4887,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             if ( mFaceDetectionRunning )
                 {
                 detectFaces(pBuffHeader);
+                LOGE("Faces detected: %s", mFaceDectionResult);
                 }
             }
 
@@ -5053,25 +5182,13 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
             }
         else if ( ( CameraFrame::PREVIEW_FRAME_SYNC == typeOfFrame ) || ( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ) )
             {
-            //Currently send the snapshot callback as shutter callback
-            if( (CameraFrame::SNAPSHOT_FRAME == typeOfFrame) && (mSnapshotCount==1) ){
-                if ( mShutterSubscribers.size() == 0 )
-                    {
-                    CAMHAL_LOGEA("No shutter Subscribers!");
-                    }
 
-                CameraHalEvent shutterEvent;
-                event_callback eventCb;
-                shutterEvent.mEventType = CameraHalEvent::EVENT_SHUTTER;
-                shutterEvent.mEventData.shutterEvent.shutterClosed = true;
-                for (unsigned int i = 0 ; i < mShutterSubscribers.size(); i++ )
-                    {
-                    shutterEvent.mCookie = (void *) mShutterSubscribers.keyAt(i);
-                    eventCb = (event_callback) mShutterSubscribers.valueAt(i);
-                    CAMHAL_LOGEA("Sending shutter callback");
-                    eventCb ( &shutterEvent );
-                    }
-            }
+            if( ( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ) &&
+                ( mSnapshotCount == 1 ) &&
+                ( HIGH_SPEED == mCapMode ) )
+                {
+                notifyShutterSubscribers();
+                }
 
             OMXCameraPortParameters *cap;
             cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
