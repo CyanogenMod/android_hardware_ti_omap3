@@ -59,6 +59,8 @@ int v4l2_overlay_set_s3d_mode(int fd, uint32_t mode);
 int v4l2_overlay_get_s3d_mode(int fd, uint32_t *mode);
 int v4l2_overlay_set_s3d_format(int fd, uint32_t fmt, uint32_t order, uint32_t subsampling);
 int v4l2_overlay_get_s3d_format(int fd, uint32_t *fmt, uint32_t *order, uint32_t *subsampling);
+int v4l2_overlay_set_display_id(int fd, uint32_t id);
+int v4l2_overlay_set_anaglyph_type(int fd, uint32_t type);
 
 enum {
   V4L2_OVERLAY_PLANE_GRAPHICS,
@@ -82,8 +84,8 @@ typedef struct
 #define VIDIOC_PRIVATE_S3D_S_OFFS \
     _IOWR('V', BASE_VIDIOC_PRIVATE + 1, struct v4l2_s3d_offsets)
 
-//#define V4L2_CID_PRIVATE_DISPLAY_ID (V4L2_CID_PRIVATE_BASE+1)
-//#define V4L2_CID_PRIVATE_ANAGLYPH_TYPE (V4L2_CID_PRIVATE_BASE+2)
+#define V4L2_CID_PRIVATE_DISPLAY_ID (V4L2_CID_PRIVATE_BASE+1)
+#define V4L2_CID_PRIVATE_ANAGLYPH_TYPE (V4L2_CID_PRIVATE_BASE+2)
 #define V4L2_CID_PRIVATE_S3D_MODE (V4L2_CID_PRIVATE_BASE+3)
 
 enum v4l2_anaglyph_type {

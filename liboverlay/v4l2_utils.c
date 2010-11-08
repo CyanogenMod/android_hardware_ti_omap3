@@ -756,10 +756,36 @@ int v4l2_overlay_get_s3d_mode(int fd, uint32_t *mode)
     LOG_FUNCTION_NAME
     int ret;
     struct v4l2_control ctrl;
-
+    memset(&ctrl, 0, sizeof(ctrl));
     ctrl.id = V4L2_CID_PRIVATE_S3D_MODE;
     ret = v4l2_overlay_ioctl(fd, VIDIOC_G_CTRL, &ctrl, "get s3d mode");
     *mode = set_s3d_mode(ctrl.value);
+
+    return ret;
+}
+
+int v4l2_overlay_set_display_id(int fd, uint32_t id)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_control ctrl;
+    memset(&ctrl, 0, sizeof(ctrl));
+    ctrl.id = V4L2_CID_PRIVATE_DISPLAY_ID;
+    ctrl.value = id;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "set display ID");
+
+    return ret;
+}
+
+int v4l2_overlay_set_anaglyph_type(int fd, uint32_t id)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_control ctrl;
+    memset(&ctrl, 0, sizeof(ctrl));
+    ctrl.id = V4L2_CID_PRIVATE_ANAGLYPH_TYPE;
+    ctrl.value = id;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "set anaglpyh type");
 
     return ret;
 }
