@@ -17,6 +17,7 @@
 
 #define LOG_TAG "Omap4ALSA"
 #include <utils/Log.h>
+#include <cutils/properties.h>
 
 #include "AudioHardwareALSA.h"
 #include <media/AudioRecord.h>
@@ -48,6 +49,8 @@ static status_t s_open(alsa_handle_t *, uint32_t, int);
 static status_t s_close(alsa_handle_t *);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
+
+void configMicChoices();
 
 #ifdef AUDIO_MODEM_TI
     AudioModemAlsa *audioModem;
@@ -659,15 +662,7 @@ LOGV("%s", __FUNCTION__);
         if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
             (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
             (devices & OMAP4_IN_FM)) {
-            /* OMAP4 ABE */
-            control.set("AMIC_UL PDM Switch", 1);			// PDM_UL1 -> AMIC_UL
-            control.set("MUX_UL00", "AMic1");				// AMIC_UL -> MM_UL00
-            control.set("MUX_UL01", "AMic0");				// AMIC_UL -> MM_UL01
-            control.set("MUX_UL10", "AMic1");				// AMIC_UL -> MM_UL10
-            control.set("MUX_UL11", "AMic0");				// AMIC_UL -> MM_UL11
-            control.set("Voice Capture Mixer Capture", 1);		// VX_UL   -> VXREC_MIXER
-            control.set("MUX_VX0", "AMic1");				// AMIC_UL -> VX_UL0
-            control.set("MUX_VX1", "AMic0");				// AMIC_UL -> VX_UL1
+            configMicChoices();
         } else {
             /* OMAP4 ABE */
             control.set("AMIC_UL PDM Switch", 0, 0);
@@ -678,7 +673,7 @@ LOGV("%s", __FUNCTION__);
             control.set("Voice Capture Mixer Capture", 0, 0);
             control.set("MUX_VX0", "None");
             control.set("MUX_VX1", "None");
-	}
+        }
     }
 
 #ifdef AUDIO_MODEM_TI
@@ -822,5 +817,46 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
     }
 
     return status;
+}
+
+void configMicChoices () {
+
+    ALSAControl control("hw:00");
+    char value[PROPERTY_VALUE_MAX];
+
+    //for Main Mic
+    if (property_get("omap.audio.mic.main", value, "AMic0") &&
+        !strcmp(value, "DMic0L")) {
+        LOGE("OMAP4 ABE set for Digital Main Mic 0L");
+        control.set("AMIC_UL PDM Switch", 0, 0);  // PDM_UL1 -> off
+        control.set("MUX_UL01", value);           // DMIC0L_UL -> MM_UL01
+        control.set("MUX_UL11", value);           // DMIC0L_UL -> MM_UL11
+        control.set("MUX_VX1", value);            // DMIC0L_UL -> VX_UL1
+    }
+    else {
+        LOGE("OMAP4 ABE set for Analog Main Mic 0");
+        control.set("AMIC_UL PDM Switch", 1);     // PDM_UL1 -> AMIC_UL
+        control.set("MUX_UL01", "AMic0");         // AMIC_UL -> MM_UL01
+        control.set("MUX_UL11", "AMic0");         // AMIC_UL -> MM_UL11
+        control.set("MUX_VX1", "AMic0");          // AMIC_UL -> VX_UL1
+    }
+    //for Sub Mic
+    if (property_get("omap.audio.mic.sub", value, "AMic1") &&
+        !strcmp(value, "DMic0R")) {
+        LOGE("OMAP4 ABE set for Digital Sub Mic 0R");
+        control.set("AMIC_UL PDM Switch", 0, 0);  // PDM_UL1 -> off
+        control.set("MUX_UL00", value);           // DMIC0R_UL -> MM_UL00
+        control.set("MUX_UL10", value);           // DMIC0R_UL -> MM_UL10
+        control.set("MUX_VX0", value);            // DMIC0R_UL -> VX_UL0
+    }
+    else {
+        LOGE("OMAP4 ABE set for Analog Sub Mic 1");
+        control.set("AMIC_UL PDM Switch", 1);      // PDM_UL1 -> AMIC_UL
+        control.set("MUX_UL00", "AMic1");          // AMIC_UL -> MM_UL00
+        control.set("MUX_UL10", "AMic1");          // AMIC_UL -> MM_UL10
+        control.set("MUX_VX0", "AMic1");           // AMIC_UL -> VX_UL0
+    }
+    //always enable vx mixer
+    control.set("Voice Capture Mixer Capture", 1);  // VX_UL   -> VXREC_MIXER
 }
 }
