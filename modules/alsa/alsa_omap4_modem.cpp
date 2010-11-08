@@ -16,7 +16,6 @@
  */
 
 #define LOG_TAG "Omap4ALSAModem"
-#define LOG_NDEBUG 0
 
 #include <utils/Log.h>
 #include <cutils/properties.h>
@@ -52,10 +51,6 @@ AudioModemAlsa::AudioModemAlsa()
     status_t error;
 
     LOGV("Build date: %s time: %s", __DATE__, __TIME__);
-
-#ifdef AUDIO_MODEM_HACK_IGNORE_PCM_START_ERROR
-     LOGV("Hack: ignore PCM start errors");
-#endif
 
     LOGD("Initializing devices for Modem OMAP4 ALSA module");
 
@@ -98,13 +93,13 @@ AudioModemInterface* AudioModemAlsa::create()
 
     dlHandle = dlopen(libPath, RTLD_NOW);
     if (dlHandle == NULL) {
-        LOGE("Audio Modem %s dlopen failed: %s\n", libPath, dlerror());
+        LOGE("Audio Modem %s dlopen failed: %s", libPath, dlerror());
         exit(-1);
     }
 
     audioModem = (AudioModemInterface *(*)(void))dlsym(dlHandle, "createAudioModemInterface");
     if (audioModem == NULL) {
-        LOGE("createAudioModemInterface function not defined or not exported in %s\n", libPath);
+        LOGE("createAudioModemInterface function not defined or not exported in %s", libPath);
         exit(-1);
     }
 
@@ -317,13 +312,13 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
     if ((error = snd_pcm_open(&cHandle,
                     AUDIO_MODEM_PCM_HANDLE_NAME,
                     SND_PCM_STREAM_CAPTURE, 0)) < 0) {
-        LOGE("Modem PCM capture open error: %d:%s\n", error, snd_strerror(error));
+        LOGE("Modem PCM capture open error: %d:%s", error, snd_strerror(error));
         return INVALID_OPERATION;
     }
     if ((error = snd_pcm_open(&pHandle,
                     AUDIO_MODEM_PCM_HANDLE_NAME,
                     SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
-        LOGE("Modem PCM playback open error: %d:%s\n", error, snd_strerror(error));
+        LOGE("Modem PCM playback open error: %d:%s", error, snd_strerror(error));
         return INVALID_OPERATION;
     }
 
@@ -337,35 +332,31 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
     if ((error = snd_pcm_set_params(cHandle,
                     SND_PCM_FORMAT_S16_LE,
                     SND_PCM_ACCESS_RW_INTERLEAVED,
-                    2,
+                    1,
                     sampleRate,
                     1,
                     AUDIO_MODEM_PCM_LATENCY)) < 0) {
-        LOGE("Modem PCM capture params error: %s\n", snd_strerror(error));
+        LOGE("Modem PCM capture params error: %s", snd_strerror(error));
         return INVALID_OPERATION;
     }
     if ((error = snd_pcm_set_params(pHandle,
                     SND_PCM_FORMAT_S16_LE,
                     SND_PCM_ACCESS_RW_INTERLEAVED,
-                    2,
+                    1,
                     sampleRate,
                     1,
                     AUDIO_MODEM_PCM_LATENCY)) < 0) {
-        LOGE("Modem PCM playback params error: %s\n", snd_strerror(error));
+        LOGE("Modem PCM playback params error: %s", snd_strerror(error));
         return INVALID_OPERATION;
     }
 
     if ((error = snd_pcm_start(cHandle)) < 0) {
-        LOGE("Modem PCM capture start error: %d:%s\n", error, snd_strerror(error));
-#ifndef AUDIO_MODEM_HACK_IGNORE_PCM_START_ERROR
+        LOGE("Modem PCM capture start error: %d:%s", error, snd_strerror(error));
         return INVALID_OPERATION;
-#endif
     }
     if ((error = snd_pcm_start(pHandle)) < 0) {
-        LOGE("Modem PCM playback start error: %d:%s\n", error, snd_strerror(error));
-#ifndef AUDIO_MODEM_HACK_IGNORE_PCM_START_ERROR
+        LOGE("Modem PCM playback start error: %d:%s", error, snd_strerror(error));
         return INVALID_OPERATION;
-#endif
     }
 
     return NO_ERROR;
@@ -373,6 +364,17 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
 
 status_t AudioModemAlsa::voiceCallCodecPCMUpdate()
 {
+    status_t error;
+
+    if ((error = voiceCallCodecPCMReset()) < 0) {
+        LOGE("Modem PCM Update reset error: %d:%s", error, snd_strerror(error));
+        return INVALID_OPERATION;
+    }
+    if ((error = voiceCallCodecPCMSet()) < 0) {
+        LOGE("Modem PCM Update set error: %d:%s", error, snd_strerror(error));
+        return INVALID_OPERATION;
+    }
+
     return NO_ERROR;
 }
 
@@ -382,20 +384,20 @@ status_t AudioModemAlsa::voiceCallCodecPCMReset()
     int error;
 
     if ((error = snd_pcm_drop(cHandle)) < 0) {
-        LOGE("Modem PCM capture drop error: %s\n", snd_strerror(error));
+        LOGE("Modem PCM capture drop error: %s", snd_strerror(error));
         return INVALID_OPERATION;
     }
     if ((error = snd_pcm_drop(pHandle)) < 0) {
-        LOGE("Modem PCM playback drop error: %s\n", snd_strerror(error));
+        LOGE("Modem PCM playback drop error: %s", snd_strerror(error));
         return INVALID_OPERATION;
     }
 
     if ((error = snd_pcm_close(cHandle)) < 0) {
-        LOGE("Modem PCM capture close error: %s\n", snd_strerror(error));
+        LOGE("Modem PCM capture close error: %s", snd_strerror(error));
         return INVALID_OPERATION;
     }
     if ((error = snd_pcm_close(pHandle)) < 0) {
-        LOGE("Modem PCM playback close error: %s\n", snd_strerror(error));
+        LOGE("Modem PCM playback close error: %s", snd_strerror(error));
         return INVALID_OPERATION;
     }
 
@@ -438,18 +440,13 @@ status_t AudioModemAlsa::voiceCallCodecSetHandset()
 {
     status_t error = NO_ERROR;
 
-    // Enable the ABE DL1 mixer used for Voice
-    CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1, 0), error);
+    // Enable Playback voice path
+    CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
+    CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
+                                AUDIO_ABE_SIDETONE_DL_VOL_HANDSET, -1), error);
 
-    // Set Main mic volume
-    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDSET), error);
-    CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                AUDIO_CODEC_CAPTURE_VOL_HANDSET), error);
-    // Enable Main mic
-    CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"),
-                                    error);
-
+    // Enable Capture voice path
+    CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"), error);
     if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
                 "Yes")) {
         LOGV("dual mic. enabled");
@@ -458,6 +455,22 @@ status_t AudioModemAlsa::voiceCallCodecSetHandset()
         CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"),
                                         error);
     }
+    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
+                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDSET, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Capture Volume",
+                                AUDIO_CODEC_CAPTURE_VOL_HANDSET, -1), error);
+
+    CHECK_ERROR(mAlsaControl->set("AMIC_UL PDM Switch", 1), error);
+    CHECK_ERROR(mAlsaControl->set("MUX_VX0", "AMic0"), error);
+    CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic1"), error);
+    CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
+                                AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 1), error);
+
+    // Enable Sidetone
+    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
+    CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_HANDSET, -1), error);
 
     return error;
 }
@@ -466,24 +479,37 @@ status_t AudioModemAlsa::voiceCallCodecSetHandfree()
 {
     status_t error = NO_ERROR;
 
-    // Enable the ABE DL2 mixer used for Voice
-    CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 1, 0), error);
+    // Enable Playback voice path
+    CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 1), error);
+    CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
+                                AUDIO_ABE_SIDETONE_DL_VOL_HANDFREE, -1), error);
 
-    // Set Main mic volume
-    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDFREE), error);
-    CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                AUDIO_CODEC_CAPTURE_VOL_HANDFREE), error);
-    // Enable Main mic
+    // Enable Capture voice path
     CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"), error);
-
     if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
                 "Yes")) {
         LOGV("dual mic. enabled");
 
         // Enable Sub mic
-        CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"), error);
+        CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"),
+                                        error);
     }
+    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
+                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDFREE, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Capture Volume",
+                                AUDIO_CODEC_CAPTURE_VOL_HANDFREE, -1), error);
+
+    CHECK_ERROR(mAlsaControl->set("AMIC_UL PDM Switch", 1), error);
+    CHECK_ERROR(mAlsaControl->set("MUX_VX0", "AMic0"), error);
+    CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic1"), error);
+    CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
+                                AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 1), error);
+
+    // Enable Sidetone
+    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
+    CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_HANDFREE, -1), error);
 
     return error;
 }
@@ -492,18 +518,30 @@ status_t AudioModemAlsa::voiceCallCodecSetHeadset()
 {
     status_t error = NO_ERROR;
 
-    // Enable the ABE DL1 mixer used for Voice
-    CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1, 0), error);
+    // Enable Playback voice path
+    CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
+    CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
+                                AUDIO_ABE_SIDETONE_DL_VOL_HEADSET, -1), error);
 
-
-    // Set Main mic volume
-    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HEADSET), error);
-    CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                AUDIO_CODEC_CAPTURE_VOL_HEADSET), error);
-    // Enable Headset mic
+    // Enable Capture voice path
     CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Headset Mic"), error);
     CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Headset Mic"), error);
+    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
+                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HEADSET, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Capture Volume",
+                                AUDIO_CODEC_CAPTURE_VOL_HEADSET, -1), error);
+
+    CHECK_ERROR(mAlsaControl->set("AMIC_UL PDM Switch", 1), error);
+    CHECK_ERROR(mAlsaControl->set("MUX_VX0", "AMic0"), error);
+    CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic1"), error);
+    CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
+                                AUDIO_ABE_AUDUL_VOICE_VOL_HEADSET, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 1), error);
+
+    // Enable Sidetone
+    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
+    CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_HEADSET, -1), error);
 
     return error;
 }
@@ -529,23 +567,47 @@ status_t AudioModemAlsa::voiceCallCodecUpdateHandset()
     case AudioModemInterface::AUDIO_MODEM_HANDFREE:
         // Disable the ABE DL2 mixer used for Voice
         CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
-
         // Enable the ABE DL1 mixer used for Voice
-        CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1, 0), error);
-
-        // Set Main mic volume
+        CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
+        CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
+                                AUDIO_ABE_SIDETONE_DL_VOL_HANDSET, -1), error);
+        // Set mic volume
+        CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
+                                AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET, -1), error);
         CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                        AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDSET), error);
+                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDSET, -1), error);
         CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                        AUDIO_CODEC_CAPTURE_VOL_HANDSET), error);
-    break;
+                                AUDIO_CODEC_CAPTURE_VOL_HANDSET, -1), error);
+        // Set Sidetone volume
+        CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
+                                AUDIO_ABE_SIDETONE_DL_VOL_HANDSET, -1), error);
+        CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_HANDSET, -1), error);
+        break;
 
     case AudioModemInterface::AUDIO_MODEM_HEADSET:
-        // Set Main mic volume
+        // Enable Capture voice path
+        CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"), error);
+        if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
+                    "Yes")) {
+            LOGV("dual mic. enabled");
+
+            // Enable Sub mic
+            CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"),
+                                            error);
+        }
+        // Set mic volume
+        CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
+                                AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET, -1), error);
         CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                        AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDSET), error);
+                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDSET, -1), error);
         CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                        AUDIO_CODEC_CAPTURE_VOL_HANDSET), error);
+                                AUDIO_CODEC_CAPTURE_VOL_HANDSET, -1), error);
+        // Set Sidetone volume
+        CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
+                                AUDIO_ABE_SIDETONE_DL_VOL_HANDSET, -1), error);
+        CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_HANDSET, -1), error);
         break;
 
     case AudioModemInterface::AUDIO_MODEM_BLUETOOTH:
@@ -590,15 +652,31 @@ status_t AudioModemAlsa::voiceCallCodecUpdateHandfree()
     case AudioModemInterface::AUDIO_MODEM_HEADSET:
         // Disable the ABE DL1 mixer used for Voice
         CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 0, 0), error);
-
         // Enable the ABE DL2 mixer used for Voice
-        CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 1, 0), error);
+        CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 1), error);
+        CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
+                                AUDIO_ABE_SIDETONE_DL_VOL_HANDFREE, -1), error);
+        // Enable Capture voice path
+        CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"), error);
+        if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
+                    "Yes")) {
+            LOGV("dual mic. enabled");
 
-        // Set Main mic volume
+            // Enable Sub mic
+            CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"),
+                                            error);
+        }
         CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                        AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDFREE), error);
+                                    AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDFREE, -1), error);
         CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                        AUDIO_CODEC_CAPTURE_VOL_HANDFREE), error);
+                                    AUDIO_CODEC_CAPTURE_VOL_HANDFREE, -1), error);
+
+        CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
+                                    AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET, -1), error);
+        // Enable Sidetone
+        CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
+        CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                    AUDIO_ABE_SIDETONE_UL_VOL_HANDFREE, -1), error);
         break;
 
     case AudioModemInterface::AUDIO_MODEM_BLUETOOTH:
@@ -640,24 +718,26 @@ status_t AudioModemAlsa::voiceCallCodecUpdateHeadset()
 
     switch (mPreviousAudioModemModes) {
     case AudioModemInterface::AUDIO_MODEM_HANDFREE:
+    case AudioModemInterface::AUDIO_MODEM_HANDSET:
         // Disable the ABE DL2 mixer used for Voice
         CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
-
         // Enable the ABE DL1 mixer used for Voice
-        CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1, 0), error);
-
-        // Set Main mic volume
+        CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
+        CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
+                                    AUDIO_ABE_SIDETONE_DL_VOL_HEADSET, -1), error);
+        // Enable Capture voice path
+        CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Headset Mic"), error);
+        CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Headset Mic"), error);
         CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                        AUDIO_CODEC_CAPTURE_PREAMP_ATT_HEADSET), error);
+                                    AUDIO_CODEC_CAPTURE_PREAMP_ATT_HEADSET, -1), error);
         CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                        AUDIO_CODEC_CAPTURE_VOL_HEADSET), error);
-    break;
-    case AudioModemInterface::AUDIO_MODEM_HANDSET:
-        // Set Main mic volume
-        CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                        AUDIO_CODEC_CAPTURE_PREAMP_ATT_HEADSET), error);
-        CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                        AUDIO_CODEC_CAPTURE_VOL_HEADSET), error);
+                                    AUDIO_CODEC_CAPTURE_VOL_HEADSET, -1), error);
+        CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
+                                    AUDIO_ABE_AUDUL_VOICE_VOL_HEADSET, -1), error);
+        // Enable Sidetone
+        CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
+        CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                    AUDIO_ABE_SIDETONE_UL_VOL_HEADSET, -1), error);
         break;
 
     case AudioModemInterface::AUDIO_MODEM_BLUETOOTH:
@@ -745,25 +825,26 @@ status_t AudioModemAlsa::voiceCallCodecStop()
 {
     status_t error = NO_ERROR;
 
-    // Disable the ABE DL2 mixer used for Voice
-    CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
-
-    // Disable the ABE DL1 mixer used for Voice
+    // Enable Playback voice path
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 0, 0), error);
+    CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
+    CHECK_ERROR(mAlsaControl->set("SDT DL Volume", 0, -1), error);
 
-    // Set Main mic volume to minimal
-    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume", (unsigned int)0), error);
-    CHECK_ERROR(mAlsaControl->set("Capture Volume", (unsigned int)0), error);
-    // Disable Mic
+    // Enable Capture voice path
     CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Off"), error);
+    CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Off"), error);
+    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume", 0, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Capture Volume", 0, -1), error);
 
-    if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
-                "Yes")) {
-        LOGV("dual mic. enabled");
+    CHECK_ERROR(mAlsaControl->set("AMIC_UL PDM Switch", 0, 0), error);
+    CHECK_ERROR(mAlsaControl->set("MUX_VX0", "None"), error);
+    CHECK_ERROR(mAlsaControl->set("MUX_VX1", "None"), error);
+    CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume", 0, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 0, 0), error);
 
-        // Enable Sub mic
-        CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Off"), error);
-    }
+    // Enable Sidetone
+    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 0, 0), error);
+    CHECK_ERROR(mAlsaControl->set("SDT UL Volume", 0, -1), error);
 
     return error;
 }
