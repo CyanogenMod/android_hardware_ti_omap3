@@ -53,6 +53,7 @@
 #define KEY_TEMP_BRACKETING_POS "temporal-bracketing-range-positive"
 #define KEY_TEMP_BRACKETING_NEG "temporal-bracketing-range-negative"
 #define KEY_MEASUREMENT "measurement"
+#define KEY_STEREO_CAMERA "s3d-supported"
 
 #define SDCARD_PATH "/sdcard/"
 
@@ -211,8 +212,9 @@ const char *focus[] = {
 };
 int focus_mode = 0;
 const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw"};
+const char *codingformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw", "jps", "mpo", "raw+jpeg", "raw+mpo"};
 const char *post_proc[] = {"off", "nsf", "ldc", "ldc-nsf"};
-int pictureFormat = ARRAY_SIZE(pixelformat) - 2;
+int pictureFormat = 3; // jpeg
 const char *exposure[] = {"auto", "macro", "portrait", "landscape", "sports", "night", "night-portrait", "backlighting", "manual"};
 const char *capture[] = { "high-performance", "high-quality", "video-mode" };
 const char *autoconvergencemode[] = { "mode-disable", "mode-frame", "mode-center", "mode-fft", "mode-manual" };
@@ -1046,7 +1048,7 @@ void initDefaults() {
     bufferStarvationTest = 0;
     meter_mode = 0;
     previewFormat = 0;
-    pictureFormat = ARRAY_SIZE(pixelformat) - 2;
+    pictureFormat = 3; // jpeg
     params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
     params.setPictureSize(captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height);
     params.set(CameraParameters::KEY_ROTATION, rotation);
@@ -1070,7 +1072,7 @@ void initDefaults() {
     params.set(KEY_IPP, ippIDX);
     params.set(CameraParameters::KEY_JPEG_QUALITY, jpegQuality);
     params.setPreviewFormat(pixelformat[previewFormat]);
-    params.setPictureFormat(pixelformat[pictureFormat]);
+    params.setPictureFormat(codingformat[pictureFormat]);
     params.set(KEY_BUFF_STARV, bufferStarvationTest); //enable buffer starvation
     params.set(KEY_METERING_MODE, metering[meter_mode]);
     params.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, previewSize[thumbSizeIDX].width);
@@ -1192,7 +1194,7 @@ int functional_menu() {
         printf("   p. Take picture/Full Press\n");
         printf("   U. Temporal Bracketing:   %s\n", tempBracketing[tempBracketIdx]);
         printf("   W. Temporal Bracketing Range: [-%d;+%d]\n", tempBracketRange, tempBracketRange);
-        printf("   $. Picture Format: %s\n", pixelformat[pictureFormat]);
+        printf("   $. Picture Format: %s\n", codingformat[pictureFormat]);
         printf("   3. Picture Rotation:       %3d degree\n", rotation );
         printf("   5. Picture size:   %4d x %4d - %s\n",captureSize[captureSizeIDX].width, captureSize[captureSizeIDX].height,              captureSize[captureSizeIDX].name);
         printf("   i. ISO mode:       %s\n", iso[iso_mode]);
@@ -1432,9 +1434,10 @@ int functional_menu() {
             break;
         case '$':
             pictureFormat += 1;
-            pictureFormat %= ARRAY_SIZE(pixelformat);
-            params.setPictureFormat(pixelformat[pictureFormat]);
-
+            if ( strcmp(params.get(KEY_STEREO_CAMERA), "false") == 0 && pictureFormat > 4 )
+                pictureFormat = 0;
+            pictureFormat %= ARRAY_SIZE(codingformat);
+            params.setPictureFormat(codingformat[pictureFormat]);
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
 
