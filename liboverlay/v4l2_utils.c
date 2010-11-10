@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include "v4l2_utils.h"
 #include <cutils/properties.h>
+#include <sys/poll.h>
 
 #define LOG_FUNCTION_NAME    LOGV("%s: %s",  __FILE__, __FUNCTION__);
 
@@ -675,6 +676,7 @@ int v4l2_overlay_dq_buf(int fd, int *index)
 {
     struct v4l2_buffer buf;
     int ret;
+    struct pollfd p;
 
     /*
     ret = v4l2_overlay_query_buffer(fd, buffer_cookie, index, &buf);
@@ -686,12 +688,23 @@ int v4l2_overlay_dq_buf(int fd, int *index)
         return -EINVAL
     }
     */
+    /* check if buffer is available */
+
+    /* use poll() to timeout gracefully */
+    p.fd     = fd;
+    p.events = POLLOUT;
+
+    /* for now use 1/15s for timeout */
+    ret = poll(&p, 1, 67);
+    if (ret <= 0)
+        return ret ? -errno : -EIO;
+
     buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     buf.memory = V4L2_MEMORY_MMAP;
 
     ret = v4l2_overlay_ioctl(fd, VIDIOC_DQBUF, &buf, "dqbuf");
     if (ret)
-      return ret;
+      return errno;
     *index = buf.index;
     return 0;
 }
