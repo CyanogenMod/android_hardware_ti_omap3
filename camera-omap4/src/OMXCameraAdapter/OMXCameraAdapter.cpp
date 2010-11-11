@@ -712,7 +712,8 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS);
     if ( NULL != str ) {
-        parseTouchFocusPosition(str, mTouchFocusPosX, mTouchFocusPosY);
+        strncpy(mTouchCoords, str, TOUCH_DATA_SIZE);
+        parseTouchFocusPosition(mTouchCoords, mTouchFocusPosX, mTouchFocusPosY);
         CAMHAL_LOGEB("Touch focus position %d,%d", mTouchFocusPosX, mTouchFocusPosY);
     }
 
@@ -1151,6 +1152,10 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
             mSmoothZoomEnabled = false;
             }
         CAMHAL_LOGDB("CameraParameters Zoom = %d , mSmoothZoomEnabled = %d", mCurrentZoomIdx, mSmoothZoomEnabled);
+        }
+    else
+        {
+        params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx);
         }
 
         //Face detection coordinates go in here

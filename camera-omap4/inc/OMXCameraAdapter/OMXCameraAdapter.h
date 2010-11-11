@@ -54,6 +54,7 @@ namespace android {
 #define MIN_JPEG_QUALITY 1
 #define MAX_JPEG_QUALITY 100
 
+#define TOUCH_DATA_SIZE         200
 #define DEFAULT_THUMB_WIDTH     160
 #define DEFAULT_THUMB_HEIGHT    120
 #define FRAME_RATE_FULL_HD      27
@@ -359,6 +360,7 @@ private:
     //AF callback
     status_t setFocusCallback(bool enabled);
 
+    char mTouchCoords[TOUCH_DATA_SIZE];
     unsigned int mTouchFocusPosX;
     unsigned int mTouchFocusPosY;
 
