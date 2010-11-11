@@ -2053,9 +2053,6 @@ CameraHal::CameraHal()
     mCameraIndex = 0;
 
     mReloadAdapter = false;
-    system("echo ondemand > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
-    system("echo 70 > /sys/devices/system/cpu/cpufreq/ondemand/up_threshold");
-    system("echo 1 > /sys/devices/system/cpu/cpu1/online");
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -2072,8 +2069,6 @@ CameraHal::~CameraHal()
 
     ///Call de-initialize here once more - it is the last chance for us to relinquish all the h/w and s/w resources
     deinitialize();
-
-    system("echo hotplug > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
 
     LOG_FUNCTION_NAME_EXIT
 }
