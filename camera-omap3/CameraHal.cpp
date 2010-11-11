@@ -71,7 +71,7 @@ wp<CameraHardwareInterface> CameraHal::singleton;
 const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240";
 const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
-const char CameraHal::supportedThumbnailSizes []= "512x384,320x240,0x0";
+const char CameraHal::supportedThumbnailSizes []= "512x384,320x240,80x60,0x0";
 const char CameraHal::PARAMS_DELIMITER []= ",";
 
 const supported_resolution CameraHal::supportedPictureRes[] = { {3264, 2448} , {2560, 2048} ,
@@ -2871,6 +2871,12 @@ void CameraHal::procThread()
 #ifdef DEBUG_LOG
                 LOGD(" outbuffer = %p, jpegSize = %d, input_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, input_buffer/*yuv_buffer*/, input_length/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
 #endif
+                //workaround for thumbnail size  - it should be smaller than captured image
+                if ((image_width<thumb_width) || (image_height<thumb_width) ||
+                    (image_width<thumb_height) || (image_height<thumb_height)) {
+                     thumb_width = MIN_THUMB_WIDTH;
+                     thumb_height = MIN_THUMB_HEIGHT;
+                }
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                 PPM("BEFORE JPEG Encode Image");
