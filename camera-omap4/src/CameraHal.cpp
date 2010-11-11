@@ -337,13 +337,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mParameters.set(TICameraParameters::KEY_IPP, params.get(TICameraParameters::KEY_IPP));
             }
 
-        if((params.get(TICameraParameters::KEY_BURST) != NULL)
-            && (params.getInt(TICameraParameters::KEY_BURST) >=0))
-            {
-            CAMHAL_LOGDB("Burst set %s", params.get(TICameraParameters::KEY_BURST));
-            mParameters.set(TICameraParameters::KEY_BURST, params.get(TICameraParameters::KEY_BURST));
-            }
-
         if(params.get(TICameraParameters::KEY_S3D2D_PREVIEW) != NULL)
             {
             CAMHAL_LOGDB("Stereo 3D->2D Preview mode is %s", params.get(TICameraParameters::KEY_S3D2D_PREVIEW));
@@ -376,6 +369,13 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
     CAMHAL_LOGDB("Picture Size by App %d x %d", w, h);
+
+    if((params.get(TICameraParameters::KEY_BURST) != NULL)
+        && (params.getInt(TICameraParameters::KEY_BURST) >=0))
+        {
+        CAMHAL_LOGEB("Burst set %s", params.get(TICameraParameters::KEY_BURST));
+        mParameters.set(TICameraParameters::KEY_BURST, params.get(TICameraParameters::KEY_BURST));
+        }
 
     framerate = params.getPreviewFrameRate();
     if ( !isParameterValid(framerate, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue))
