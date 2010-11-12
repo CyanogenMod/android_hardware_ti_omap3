@@ -28,7 +28,7 @@
 #endif
 
 #define MM_DEFAULT_DEVICE	"plughw:0,0"
-#define BLUETOOTH_SCO_DEVICE	"plughw:0,2"
+#define BLUETOOTH_SCO_DEVICE	"plughw:0,0"
 #define FM_TRANSMIT_DEVICE	"plughw:0,3"
 #define FM_CAPTURE_DEVICE       "plughw:0,1"
 #define HDMI_DEVICE		"plughw:0,7"
