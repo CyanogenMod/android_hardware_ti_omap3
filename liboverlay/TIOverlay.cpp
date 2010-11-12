@@ -832,9 +832,10 @@ int overlay_control_context_t::overlay_setPosition(struct overlay_control_device
     }
 
     overlay_object *overlayobj = static_cast<overlay_object *>(overlay);
-
+    overlay_ctrl_t   *data   = overlayobj->data();
     overlay_ctrl_t   *stage  = overlayobj->staging();
-
+    int fd = overlayobj->getctrl_videofd();
+    overlay_ctrl_t finalWindow;
     int rc = 0;
 
     // FIXME:  This is a hack to deal with seemingly unintentional negative
@@ -850,6 +851,7 @@ int overlay_control_context_t::overlay_setPosition(struct overlay_control_device
     if (w < 16 || h < 16) {
         // Return an error
         rc = -1;
+        goto END;
     } else if (!overlayobj->controlReady) {
         if ( x < 0 ) x = 0;
         if ( y < 0 ) y = 0;
@@ -861,15 +863,73 @@ int overlay_control_context_t::overlay_setPosition(struct overlay_control_device
                (y + h) > overlayobj->dispH) {
         // Return an error
         rc = -1;
+        goto END;
     }
 
-    if (rc == 0) {
-        stage->posX = x;
-        stage->posY = y;
-        stage->posW = w;
-        stage->posH = h;
+    if (data->posX == (unsigned int)x &&
+        data->posY == (unsigned int)y &&
+        data->posW == w &&
+        data->posH == h) {
+        LOGI("Nothing to do!\n");
+        goto END;
     }
 
+    stage->posX = x;
+    stage->posY = y;
+    stage->posW = w;
+    stage->posH = h;
+
+#ifndef TARGET_OMAP4
+    pthread_mutex_lock(&overlayobj->lock);
+
+    data->posX = stage->posX;
+    data->posY = stage->posY;
+    data->posW = stage->posW;
+    data->posH = stage->posH;
+
+    // Adjust the coordinate system to match the V4L change
+    switch ( data->rotation ) {
+    case 90:
+        finalWindow.posX = data->posY;
+        finalWindow.posY = data->posX;
+        finalWindow.posW = data->posH;
+        finalWindow.posH = data->posW;
+        break;
+    case 180:
+        finalWindow.posX = ((overlayobj->dispW - data->posX) - data->posW);
+        finalWindow.posY = ((overlayobj->dispH - data->posY) - data->posH);
+        finalWindow.posW = data->posW;
+        finalWindow.posH = data->posH;
+        break;
+    case 270:
+        finalWindow.posX = data->posY;
+        finalWindow.posY = data->posX;
+        finalWindow.posW = data->posH;
+        finalWindow.posH = data->posW;
+        break;
+    default: // 0
+        finalWindow.posX = data->posX;
+        finalWindow.posY = data->posY;
+        finalWindow.posW = data->posW;
+        finalWindow.posH = data->posH;
+        break;
+    }
+
+    //Calculate window size. As of now this is applicable only for non-LCD panels
+    calculateWindow(overlayobj, &finalWindow);
+
+    LOGI("overlay_setPosition/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
+    LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
+
+    if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
+        LOGE("Set Position Failed!/%d\n", rc);
+        goto UNLOCK;
+    }
+
+UNLOCK:
+    pthread_mutex_unlock(&overlayobj->lock);
+#endif
+END:
     LOG_FUNCTION_NAME_EXIT;
     return rc;
 }
