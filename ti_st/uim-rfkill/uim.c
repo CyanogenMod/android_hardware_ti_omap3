@@ -46,6 +46,10 @@ unsigned int uart_baud_rate;
 struct termios ti;
 int line_discipline;
 
+/* BD address as string and a pointer to array of hex bytes */
+char uim_bd_address[17];
+bdaddr_t *bd_addr;
+
 /* File descriptor for the UART device*/
 int dev_fd;
 
@@ -92,7 +96,7 @@ struct rfkill_event {
 
 /* to read events and filter notifications for us */
 struct rfkill_event rf_event;
-unsigned int 	rfkill_idx;
+unsigned int   rfkill_idx;
 
 /*****************************************************************************/
 #ifdef UIM_DEBUG
@@ -118,7 +122,7 @@ void read_firmware_version()
 #endif
 
 /*****************************************************************************/
-#ifdef ANDROID			/* library for android to do insmod/rmmod  */
+#ifdef ANDROID                 /* library for android to do insmod/rmmod  */
 
 /* Function to insert the kernel module into the system*/
 static int insmod(const char *filename, const char *args)
@@ -377,6 +381,8 @@ int st_sig_handler(int signo)
 	int ldisc, len;
 	uim_speed_change_cmd cmd;
 
+	uim_bdaddr_change_cmd addr_cmd;
+
 	UIM_START_FUNC();
 
 	/* Raise a signal after when UIM is killed.
@@ -450,6 +456,36 @@ int st_sig_handler(int signo)
 				close(dev_fd);
 
 				return -1;
+			}
+
+			/* Set the uim BD address */
+			if (uim_bd_address[0] != 0) {
+
+				memset(&addr_cmd, 0, sizeof(addr_cmd));
+				/* Forming the packet for change BD address command*/
+				addr_cmd.uart_prefix = HCI_COMMAND_PKT;
+				addr_cmd.hci_hdr.opcode = WRITE_BD_ADDR_OPCODE;
+				addr_cmd.hci_hdr.plen = sizeof(bdaddr_t);
+				memcpy(&addr_cmd.addr, bd_addr, sizeof(bdaddr_t));
+
+				/* Writing the change BD address command to the UART
+				 * This will change the change BD address  at the controller
+				 * side
+				 */
+				len = write(dev_fd, &addr_cmd, sizeof(addr_cmd));
+				if (len < 0) {
+					UIM_ERR(" Failed to write BD address command");
+					close(dev_fd);
+					return -1;
+				}
+
+				/* Read the response for the change BD address command */
+				if (read_command_complete(dev_fd, WRITE_BD_ADDR_OPCODE) < 0) {
+					close(dev_fd);
+					return -1;
+				}
+
+				UIM_VER(" BD address changed to %s", uim_bd_address);
 			}
 #ifdef UIM_DEBUG
 			read_firmware_version();
@@ -583,23 +619,49 @@ int change_rfkill_perms(void)
 
 	return 0;
 }
+
+void *bt_malloc(size_t size)
+{
+	return malloc(size);
+}
+
+/* Function to convert the BD address from ascii to hex value */
+bdaddr_t *strtoba(const char *str)
+{
+	const char *ptr = str;
+	int i;
+
+	uint8_t *ba = bt_malloc(sizeof(bdaddr_t));
+	if (!ba)
+		return NULL;
+
+	for (i = 0; i < 6; i++) {
+		ba[i] = (uint8_t) strtol(ptr, NULL, 16);
+		if (i != 5 && !(ptr = strchr(ptr, ':')))
+			ptr = ":00:00:00:00:00";
+		ptr++;
+	}
+
+	return (bdaddr_t *) ba;
+}
+
 /*****************************************************************************/
 int main(int argc, char *argv[])
 {
 	int st_fd,err;
 	struct stat file_stat;
-#ifndef ANDROID	/* used on ubuntu */
+#ifndef ANDROID        /* used on ubuntu */
 	char *tist_ko_path;
 	struct utsname name;
 #endif
-	struct pollfd 	p;
-	sigset_t 	sigs;
+	struct pollfd   p;
+	sigset_t        sigs;
 
 	UIM_START_FUNC();
 	err = 0;
 
 	/* Parse the user input */
-	if (argc == 5) {
+	if ((argc == 5) || (argc == 6)) {
 		strcpy(uart_dev_name, argv[1]);
 		uart_baud_rate = atoi(argv[2]);
 		uart_flow_control = atoi(argv[3]);
@@ -637,18 +699,26 @@ int main(int argc, char *argv[])
 				UIM_ERR(" Inavalid Baud Rate");
 				break;
 		}
+
+		memset(&uim_bd_address, 0, sizeof(uim_bd_address));
 	} else {
 		UIM_ERR(" Invalid arguements");
-		UIM_ERR(" Usage: uim [Uart device] [Baud rate] [Flow control] [Line discipline]");
+		UIM_ERR(" Usage: uim [Uart device] [Baud rate] [Flow control] [Line discipline] <bd address>");
 		return -1;
 	}
+	if (argc == 6) {
+		/* BD address passed as string in xx:xx:xx:xx:xx:xx format */
+		strcpy(uim_bd_address, argv[5]);
+		bd_addr = strtoba(uim_bd_address);
+	}
+
 
 #ifndef ANDROID
 	if (uname (&name) == -1) {
 		UIM_ERR("cannot get kernel release name");
 		return -1;
 	}
-#else	/* if ANDROID */
+#else  /* if ANDROID */
 
 	if (0 == lstat("/st_drv.ko", &file_stat)) {
 		if (insmod("/st_drv.ko", "") < 0) {
@@ -709,7 +779,7 @@ int main(int argc, char *argv[])
 	}
 	free(tist_ko_path);
 
-#else	/* if ANDROID */
+#else  /* if ANDROID */
 	if (0 == lstat("/bt_drv.ko", &file_stat)) {
 		if (insmod("/bt_drv.ko", "") < 0) {
 			UIM_ERR(" Error inserting bt_drv module, NO BT? ");
@@ -783,9 +853,9 @@ RE_POLL:
 				rf_event.soft);
 		if ((rf_event.op == RFKILL_OP_CHANGE) &&
 				(rf_event.idx == rfkill_idx)) {
-			if (rf_event.hard == 1)	/* hard blocked */
+			if (rf_event.hard == 1) /* hard blocked */
 				st_state = UNINSTALL_N_TI_WL;
-			else	/* unblocked */
+			else    /* unblocked */
 				st_state = INSTALL_N_TI_WL;
 
 			if (prev_st_state != st_state)
