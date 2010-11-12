@@ -58,33 +58,30 @@ static void debugShowFPS()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static int Calculate_TotalRefFrames(int nWidth, int nHeight)
-{
+static int Calculate_TotalRefFrames(int nWidth, int nHeight) {
     LOGD("Calculate_TotalRefFrames");
-    int ref_frames = 0;
-    int spec_computation;
-    if(nWidth > MAX_OVERLAY_WIDTH_VAL || nHeight > MAX_OVERLAY_HEIGHT_VAL)
-    {
-       return 0;
-    }
-    nWidth = nWidth - 128 - 2 * 36;
+    uint32_t ref_frames = 0;
+    uint32_t MaxDpbMbs;
+    uint32_t PicWidthInMbs;
+    uint32_t FrameHeightInMbs;
 
-    if (nWidth > 1280) {
-        nWidth = 1920;
-    } else if (nWidth > 720) {
-        nWidth = 1280;
-    } else {
-        nWidth = (nWidth + 16) & ~12;
-    }
+    MaxDpbMbs = 32768; //Maximum value for upto level 4.1
 
-    nHeight = nHeight - 4 * 24;
+    PicWidthInMbs = nWidth / 16;
 
-    /* 12288 is the value for Profile 4.1 */
-    spec_computation = ((1024 * 12288)/((nWidth/16)*(nHeight/16)*384));
-    ref_frames = (spec_computation > 16)?16:(spec_computation/1);
-    ref_frames = ref_frames + 1 + NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE;
-    LOGD("**Calculated buf %d",ref_frames);
-    return ref_frames;
+    FrameHeightInMbs = nHeight / 16;
+
+    ref_frames =  (uint32_t)(MaxDpbMbs / (PicWidthInMbs * FrameHeightInMbs));
+
+    LOGD("nWidth [%d] PicWidthInMbs [%d] nHeight [%d] FrameHeightInMbs [%d] ref_frames [%d]",
+        nWidth, PicWidthInMbs, nHeight, FrameHeightInMbs, ref_frames);
+
+    ref_frames = (ref_frames > 16) ? 16 : ref_frames;
+
+    LOGD("Final ref_frames [%d]", ref_frames);
+
+    return (ref_frames + 3 + 2*NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE);
+
 }
 
 TIHardwareRenderer::TIHardwareRenderer(
@@ -175,16 +172,13 @@ TIHardwareRenderer::TIHardwareRenderer(
     /* Calculate the number of overlay buffers required, based on the video resolution
     * and resize the overlay for the new number of buffers
     */
-    int overlaybuffcnt = Calculate_TotalRefFrames(mDecodedWidth, mDecodedHeight);
-    if (overlaybuffcnt < 20) {
-        overlaybuffcnt = 20;
-    }
+    int overlaybuffcnt = Calculate_TotalRefFrames(mDisplayWidth, mDisplayHeight);
     int initialcnt = mOverlay->getBufferCount();
     if (overlaybuffcnt != initialcnt) {
         mOverlay->setParameter(OVERLAY_NUM_BUFFERS, overlaybuffcnt);
         mOverlay->resizeInput(mDecodedWidth, mDecodedHeight);
     }
-    mOverlay->setParameter(OPTIMAL_QBUF_CNT, 4);
+    mOverlay->setParameter(OPTIMAL_QBUF_CNT, 2*NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE);
 #endif
 
     for (size_t i = 0; i < (size_t)mOverlay->getBufferCount(); ++i) {
