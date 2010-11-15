@@ -1211,14 +1211,17 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
         portCheck.format.video.nFrameHeight     = portParams.mHeight;
         portCheck.format.video.eColorFormat     = portParams.mColorFormat;
         portCheck.format.video.nStride          = portParams.mStride;
-        if((portCheck.format.video.nFrameWidth==1920) && (portCheck.format.video.nFrameHeight==1080))
+        if( ( portCheck.format.video.nFrameWidth == 1920 ) && ( portCheck.format.video.nFrameHeight == 1080 ) &&
+            ( portParams.mFrameRate>=FRAME_RATE_FULL_HD ) )
             {
-                if(portParams.mFrameRate>=FRAME_RATE_FULL_HD)
-                    {
-                    ///Limit the frame rate at full hd resolution to maximum supported rate.
-                    portParams.mFrameRate = FRAME_RATE_FULL_HD;
-                    }
+            //Confugure overclocking for this framerate
+            setSensorOverclock(true);
             }
+        else
+            {
+            setSensorOverclock(false);
+            }
+
         portCheck.format.video.xFramerate       = portParams.mFrameRate<<16;
         portCheck.nBufferSize                   = portParams.mStride * portParams.mHeight;
         portCheck.nBufferCountActual = portParams.mNumBufs;
@@ -3120,6 +3123,47 @@ status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEA("Error while configuring rotation");
+            ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setSensorOverclock(bool enable)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_BOOLEANTYPE bOMX;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in loaded state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
+
+        if ( enable )
+            {
+            bOMX.bEnabled = OMX_TRUE;
+            }
+        else
+            {
+            bOMX.bEnabled = OMX_FALSE;
+            }
+
+        CAMHAL_LOGEB("Configuring Sensor overclock mode 0x%x", bOMX.bEnabled);
+        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexParamSensorOverClockMode, &bOMX);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while setting Sensor overclock 0x%x", eError);
             ret = -1;
             }
         }

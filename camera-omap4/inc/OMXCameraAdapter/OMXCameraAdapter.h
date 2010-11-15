@@ -315,6 +315,9 @@ private:
     status_t detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader);
     status_t encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *faceData, char *faceString, size_t faceStringSize);
 
+    //Sensor overclocking
+    status_t setSensorOverclock(bool enable);
+
     // Preview Service
     status_t startPreview();
     status_t stopPreview();
