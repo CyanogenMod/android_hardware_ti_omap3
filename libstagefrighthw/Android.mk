@@ -2,15 +2,12 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
-    stagefright_overlay_output.cpp \
-    TIHardwareRenderer.cpp \
     TIOMXPlugin.cpp
 
 LOCAL_CFLAGS := $(PV_CFLAGS_MINUS_VISIBILITY)
 
 LOCAL_C_INCLUDES:= \
-        $(TOP)/frameworks/base/include/media/stagefright/openmax \
-        $(TOP)/hardware/ti/omap3/liboverlay
+        $(TOP)/frameworks/base/include/media/stagefright/openmax
 
 LOCAL_SHARED_LIBRARIES :=       \
         libbinder               \
