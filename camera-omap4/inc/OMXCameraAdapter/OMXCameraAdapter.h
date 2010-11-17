@@ -269,6 +269,12 @@ public:
 
 private:
 
+    OMXCameraPortParameters *getPortParams(CameraFrame::FrameType frameType);
+    void setFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType, int refCount);
+    int getFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType);
+    size_t getSubscriberCount(CameraFrame::FrameType frameType);
+    status_t fillThisBuffer(void* frameBuf, OMXCameraPortParameters *port);
+
     OMX_ERRORTYPE SignalEvent(OMX_IN OMX_HANDLETYPE hComponent,
                                                   OMX_IN OMX_EVENTTYPE eEvent,
                                                   OMX_IN OMX_U32 nData1,
@@ -303,6 +309,7 @@ private:
     //Digital zoom
     status_t doZoom(int index);
     status_t notifyZoomSubscribers(int zoomIdx, bool targetReached);
+    status_t advanceZoom();
 
     //Scenes
     status_t setScene(Gen3A_settings& Gen3A);
