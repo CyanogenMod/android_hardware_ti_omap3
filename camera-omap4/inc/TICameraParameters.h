@@ -60,12 +60,23 @@ static const  char KEY_IPP[];
 static const  char KEY_METERING_MODE[];
 static const  char KEY_PADDED_WIDTH[];
 static const  char KEY_PADDED_HEIGHT[];
+static const char  KEY_EXP_BRACKETING_RANGE[];
 static const char  KEY_TEMP_BRACKETING[];
 static const char  KEY_TEMP_BRACKETING_RANGE_POS[];
 static const char  KEY_TEMP_BRACKETING_RANGE_NEG[];
 static const char  KEY_SHUTTER_ENABLE[];
 static const char  KEY_TOUCH_FOCUS_POS[];
 static const char  KEY_MEASUREMENT_ENABLE[];
+static const char  KEY_INITIAL_VALUES[];
+
+
+//TI extensions for zoom
+static const char ZOOM_SUPPORTED[];
+static const char ZOOM_UNSUPPORTED[];
+
+//TI extensions for camera capabilies
+static const char INITIAL_VALUES_TRUE[];
+static const char INITIAL_VALUES_FALSE[];
 
 //TI extensions for enabling/disabling measurements
 static const char MEASUREMENT_ENABLE[];

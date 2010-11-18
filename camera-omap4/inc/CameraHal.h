@@ -976,6 +976,8 @@ public:
     //User shutter override
     bool mShutterEnabled;
     bool mMeasurementEnabled;
+    //Google's parameter delimiter
+    static const char PARAMS_DELIMITER[];
 
     CameraAdapter *mCameraAdapter;
     sp<AppCallbackNotifier> mAppCallbackNotifier;
@@ -1009,8 +1011,6 @@ private:
     int mCameraIndex;
     //When set, reloads Camera Adapter after each stopPreview
     bool mReloadAdapter;
-    //Google's parameter delimiter
-    static const char PARAMS_DELIMITER[];
 
     mutable Mutex mLock;
 

@@ -271,11 +271,13 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mSmoothZoomEnabled = false;
     mZoomInc = 1;
     mZoomParameterIdx = 0;
+    mExposureBracketingValidEntries = 0;
 
     //Setting this flag will that the first setParameter call will apply all 3A settings
     //and will not conditionally apply based on current values.
     mFirstTimeInit = true;
 
+    memset(mExposureBracketingValues, 0, EXP_BRACKET_RANGE*sizeof(int));
     mTouchFocusPosX = 0;
     mTouchFocusPosY = 0;
     mMeasurementEnabled = false;
@@ -907,6 +909,11 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         CAMHAL_LOGEB("Touch focus position %d,%d", mTouchFocusPosX, mTouchFocusPosY);
     }
 
+    str = params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE);
+    if ( NULL != str ) {
+        parseExpRange(str, mExposureBracketingValues, EXP_BRACKET_RANGE, mExposureBracketingValidEntries);
+    }
+
     str = params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION);
     if ( mFirstTimeInit || (( str != NULL ) && (mParameters3A.EVCompensation != params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION))))
         {
@@ -1040,9 +1047,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
         {
         mBurstFrames = params.getInt(TICameraParameters::KEY_BURST);
-
-        //always use high speed when doing burst
-        mCapMode = OMXCameraAdapter::HIGH_SPEED;
         }
     else
         {
@@ -2275,6 +2279,25 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     LOGE("Params Width = %d", (int)imgCaptureData->mWidth);
     LOGE("Params Height = %d", (int)imgCaptureData->mWidth);
 
+    ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *imgCaptureData);
+    if ( ret != NO_ERROR )
+        {
+        CAMHAL_LOGEB("setFormat() failed %d", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    if ( 0 < mExposureBracketingValidEntries )
+        {
+        ret = setExposureBracketing( mExposureBracketingValues,
+                                                   mExposureBracketingValidEntries, mBurstFrames);
+        }
+    if ( ret != NO_ERROR )
+        {
+        CAMHAL_LOGEB("setExposureBracketing() failed %d", ret);
+        return ret;
+        }
+
     ///Register for Image port ENABLE event
     ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
                                 OMX_EventCmdComplete,
@@ -3320,6 +3343,142 @@ status_t OMXCameraAdapter::setAlgoPriority(AlgoPriority priority, Algorithm3A al
     return ret;
 }
 
+status_t OMXCameraAdapter::parseExpRange(const char *rangeStr, int * expRange, size_t count, size_t &validEntries)
+{
+    status_t ret = NO_ERROR;
+    char *ctx, *expVal;
+    char *tmp = NULL;
+    size_t i = 0;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == rangeStr )
+        {
+        ret = -EINVAL;
+        }
+
+    if ( NULL == expRange )
+        {
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        tmp = ( char * ) malloc( strlen(rangeStr) + 1 );
+
+        if ( NULL == tmp )
+            {
+            CAMHAL_LOGEA("No resources for temporary buffer");
+            ret = -1;
+            }
+        memset(tmp, '\0', strlen(rangeStr) + 1);
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        strncpy(tmp, rangeStr, strlen(rangeStr) );
+        expVal = strtok_r( (char *) tmp, CameraHal::PARAMS_DELIMITER, &ctx);
+
+        i = 0;
+        while ( ( NULL != expVal ) && ( i < count ) )
+            {
+            expRange[i] = atoi(expVal);
+            expVal = strtok_r(NULL, CameraHal::PARAMS_DELIMITER, &ctx);
+            i++;
+            }
+        validEntries = i;
+        }
+
+    if ( NULL != tmp )
+        {
+        free(tmp);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setExposureBracketing(int *evValues, size_t evCount, size_t frameCount)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_CAPTUREMODETYPE expCapMode;
+    OMX_CONFIG_EXTCAPTUREMODETYPE extExpCapMode;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -EINVAL;
+        }
+
+    if ( NULL == evValues )
+        {
+        CAMHAL_LOGEA("Exposure compensation values pointer is invalid");
+        ret = -EINVAL;
+        }
+
+    if ( 1 > evCount )
+        {
+        CAMHAL_LOGEB("Exposure compensation values count set to %d", evCount);
+        ret = -EINVAL;
+        }
+
+    if ( 1 > frameCount )
+        {
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&expCapMode, OMX_CONFIG_CAPTUREMODETYPE);
+        expCapMode.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
+        expCapMode.bFrameLimited = OMX_TRUE;
+        expCapMode.nFrameLimit = frameCount;
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCaptureMode, &expCapMode);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring capture mode 0x%x", eError);
+            }
+        else
+            {
+            CAMHAL_LOGDA("Camera capture mode configured successfully");
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&extExpCapMode, OMX_CONFIG_EXTCAPTUREMODETYPE);
+        extExpCapMode.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
+        extExpCapMode.bEnableBracketing = OMX_TRUE;
+        extExpCapMode.tBracketConfigType.eBracketMode = OMX_BracketExposureRelativeInEV;
+        extExpCapMode.tBracketConfigType.nNbrBracketingValues = evCount;
+
+        for ( unsigned int i = 0 ; i < evCount ; i++ )
+            {
+            extExpCapMode.tBracketConfigType.nBracketValues[i]  =  ( evValues[i] * ( 1 << Q16_OFFSET ) )  / 10;
+            }
+
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexConfigExtCaptureMode, &extExpCapMode);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring extended capture mode 0x%x", eError);
+            }
+        else
+            {
+            CAMHAL_LOGDA("Extended camera capture mode configured successfully");
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::setFaceDetection(bool enable)
 {
     status_t ret = NO_ERROR;
@@ -4233,16 +4392,15 @@ status_t OMXCameraAdapter::setFocusCallback(bool enabled)
 
         OMX_INIT_STRUCT_PTR (&focusRequstCallback, OMX_CONFIG_CALLBACKREQUESTTYPE);
         focusRequstCallback.nPortIndex = OMX_ALL;
+        focusRequstCallback.nIndex = OMX_IndexConfigCommonFocusStatus;
 
         if ( enabled )
             {
             focusRequstCallback.bEnable = OMX_TRUE;
-            focusRequstCallback.nIndex = OMX_IndexConfigCommonFocusStatus;
             }
         else
             {
             focusRequstCallback.bEnable = OMX_FALSE;
-            focusRequstCallback.nIndex = OMX_IndexConfigCommonFocusStatus;
             }
 
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp,  (OMX_INDEXTYPE) OMX_IndexConfigCallbackRequest, &focusRequstCallback);
@@ -4748,7 +4906,6 @@ status_t OMXCameraAdapter::startImageCapture()
             }
 
         }
-
 
     if ( NO_ERROR == ret )
         {
