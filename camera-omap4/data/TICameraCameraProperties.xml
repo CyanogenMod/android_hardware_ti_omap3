@@ -44,7 +44,7 @@
 <scene-mode>auto</scene-mode>
 <flash-mode-values>off</flash-mode-values>
 <flash-mode>off</flash-mode>
-<required-preview-bufs>8</required-preview-bufs>
+<required-preview-bufs>5</required-preview-bufs>
 <required-image-bufs>1</required-image-bufs>
 <jpeg-quality>95</jpeg-quality>
 <brightness>50</brightness>
