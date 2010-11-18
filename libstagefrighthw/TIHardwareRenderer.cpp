@@ -129,7 +129,7 @@ TIHardwareRenderer::TIHardwareRenderer(
    {
     videoFormat = OVERLAY_FORMAT_YCbCr_420_SP;
    }
-    else if ((colorFormat == OMX_TI_COLOR_FormatYVU420PackedSemiPlanar_Sequential_TopBottom))
+    else if ((colorFormat == OMX_TI_COLOR_FormatYUV420PackedSemiPlanar_Sequential_TopBottom))
    {
     videoFormat = OVERLAY_FORMAT_YCbCr_420_SP_SEQ_TB;
    }
