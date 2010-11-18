@@ -32,7 +32,6 @@
 #include <cutils/log.h>
 #endif
 
-#include <common/ppoll.h> /* for ppoll */
 #include "uim.h"
 
 /* Maintains the exit state of UIM*/
@@ -655,7 +654,6 @@ int main(int argc, char *argv[])
 	struct utsname name;
 #endif
 	struct pollfd   p;
-	sigset_t        sigs;
 
 	UIM_START_FUNC();
 	err = 0;
@@ -829,17 +827,10 @@ int main(int argc, char *argv[])
 	p.fd = st_fd;
 	p.events = POLLERR | POLLHUP | POLLOUT | POLLIN;
 
-	sigfillset(&sigs);
-	sigdelset(&sigs, SIGCHLD);
-	sigdelset(&sigs, SIGPIPE);
-	sigdelset(&sigs, SIGTERM);
-	sigdelset(&sigs, SIGINT);
-	sigdelset(&sigs, SIGHUP);
-
 RE_POLL:
 	while (!exiting) {
 		p.revents = 0;
-		err = ppoll(&p, 1, NULL, &sigs);
+		err = poll(&p, 1, -1);
 		if (err < 0 && errno == EINTR)
 			continue;
 		if (err)
