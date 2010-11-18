@@ -621,7 +621,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(CameraParameters::KEY_WHITE_BALANCE);
     mode = getLUTvalue_HALtoOMX( str, WBalLUT);
-    if ( mFirstTimeInit || ( str != NULL ) && ( mode != mParameters3A.WhiteBallance ) )
+    if ( ( mFirstTimeInit || ( str != NULL ) ) && ( mode != mParameters3A.WhiteBallance ) )
         {
         mParameters3A.WhiteBallance = mode;
         CAMHAL_LOGEB("Whitebalance mode %d", mode);
@@ -700,14 +700,22 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     mode = getLUTvalue_HALtoOMX(str, FocusLUT);
     if ( mFirstTimeInit || ( ( str != NULL ) && ( mParameters3A.Focus != mode )) )
         {
-        mParameters3A.Focus = mode;
-        CAMHAL_LOGEB("Focus %d", mParameters3A.Focus);
         //Apply focus mode immediatly only if  CAF  or Inifinity are selected
-        if ( ( 0 <= mParameters3A.Focus ) && ( ( mode == OMX_IMAGE_FocusControlAuto ) ||
-                ( mode == OMX_IMAGE_FocusControlAutoInfinity )) )
+        if ( ( mode == OMX_IMAGE_FocusControlAuto ) ||
+             ( mode == OMX_IMAGE_FocusControlAutoInfinity ) )
             {
             mPending3Asettings |= SetFocus;
             }
+        else if ( mParameters3A.Focus == OMX_IMAGE_FocusControlAuto )
+            {
+            //If we switch from CAF to something else, then disable CAF
+            mPending3Asettings |= SetFocus;
+            mParameters3A.Focus = OMX_IMAGE_FocusControlOff;
+            Apply3Asettings(mParameters3A);
+            }
+
+        mParameters3A.Focus = mode;
+        CAMHAL_LOGEB("Focus %d", mParameters3A.Focus);
         }
 
     str = params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS);
@@ -1810,6 +1818,13 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         {
         CAMHAL_LOGEB("Error configuring scene mode %x", ret);
         return ret;
+        }
+
+    //Apply focus after setting the capture mode
+    if ( NO_ERROR == ret )
+        {
+        mPending3Asettings |= SetFocus;
+        ret = Apply3Asettings(mParameters3A);
         }
 
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
