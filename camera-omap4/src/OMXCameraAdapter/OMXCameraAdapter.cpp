@@ -2018,13 +2018,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-    //Apply focus after setting the capture mode
-    if ( NO_ERROR == ret )
-        {
-        mPending3Asettings |= SetFocus;
-        ret = Apply3Asettings(mParameters3A);
-        }
-
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
         {
         ///Enable/Disable Video Noise Filter
