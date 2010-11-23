@@ -1190,6 +1190,7 @@ int functional_menu() {
         printf("   &. Dump a preview frame\n");
         printf("   _. Auto Convergence mode: %s\n", autoconvergencemode[AutoConvergenceModeIDX]);
         printf("   ^. Manual Convergence Value: %s\n", manualconvergencevalues[ManualConvergenceValuesIDX]);
+        printf("   {. 2D Preview in 3D Stereo Mode: %s\n", params.get(KEY_S3D2D_PREVIEW_MODE));
 
         printf(" \n\n IMAGE CAPTURE SUB MENU \n");
         printf(" -----------------------------\n");
@@ -1822,6 +1823,19 @@ int functional_menu() {
             dump_preview = 1;
             if ( hardwareActive )
             camera->setPreviewCallbackFlags(FRAME_CALLBACK_FLAG_ENABLE_MASK);
+            break;
+
+        case '{':
+            if ( strcmp(params.get(KEY_S3D2D_PREVIEW_MODE), "off") == 0 )
+                {
+                params.set(KEY_S3D2D_PREVIEW_MODE, "on");
+                }
+            else
+                {
+                params.set(KEY_S3D2D_PREVIEW_MODE, "off");
+                }
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
             break;
 
         case 'a':
@@ -2616,6 +2630,15 @@ int execute_functional_script(char *script) {
             case '\n':
                 printf("Iteration: %d \n", iteration);
                 iteration++;
+                break;
+
+            case '{':
+                if ( atoi(cmd + 1) > 0 )
+                    params.set(KEY_S3D2D_PREVIEW_MODE, "on");
+                else
+                    params.set(KEY_S3D2D_PREVIEW_MODE, "off");
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
                 break;
 
             case 'M':
