@@ -53,6 +53,7 @@
 #define KEY_TEMP_BRACKETING_POS "temporal-bracketing-range-positive"
 #define KEY_TEMP_BRACKETING_NEG "temporal-bracketing-range-negative"
 #define KEY_MEASUREMENT "measurement"
+#define KEY_S3D2D_PREVIEW_MODE "s3d2d-preview"
 #define KEY_STEREO_CAMERA "s3d-supported"
 
 #define SDCARD_PATH "/sdcard/"
@@ -130,7 +131,7 @@ int prevcnt = 0;
 
 char dir_path[80] = SDCARD_PATH;
 
-const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Secondary Camera 2", "Stereo Camera"};
+const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Stereo Camera"};
 const char *measurement[] = {"disable", "enable"};
 const char *tempBracketing[] = {"disable", "enable"};
 const char *faceDetection[] = {"disable", "enable"};
@@ -1079,6 +1080,7 @@ void initDefaults() {
     params.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, previewSize[thumbSizeIDX].height);
     ManualConvergenceValuesIDX = ManualConvergenceDefaultValueIDX;
     params.set(KEY_MANUALCONVERGENCE_VALUES, manualconvergencevalues[ManualConvergenceValuesIDX]);
+    params.set(KEY_S3D2D_PREVIEW_MODE, "off");
 }
 
 int menu_gps() {
@@ -1184,7 +1186,7 @@ int functional_menu() {
         printf("   1. Start Preview\n");
         printf("   2. Stop Preview\n");
         printf("   ~. Preview format %s\n", pixelformat[previewFormat]);
-        printf("   4. Preview size:   %4d x %4d - %s\n",previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
+        printf("   4. Preview size:   %4d x %4d - %s\n",previewSize[previewSizeIDX].width, camera_index == 2 ? previewSize[previewSizeIDX].height*2 : previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
         printf("   &. Dump a preview frame\n");
         printf("   _. Auto Convergence mode: %s\n", autoconvergencemode[AutoConvergenceModeIDX]);
         printf("   ^. Manual Convergence Value: %s\n", manualconvergencevalues[ManualConvergenceValuesIDX]);
@@ -1277,6 +1279,11 @@ int functional_menu() {
     case 'A':
         camera_index++;
         camera_index %= ARRAY_SIZE(cameras);
+        if ( camera_index == 2) {
+            params.set(KEY_STEREO_CAMERA, "true");
+        }
+        else
+            params.set(KEY_STEREO_CAMERA, "false");
         params.set(KEY_CAMERA, camera_index);
 
         if ( hardwareActive )
@@ -1327,7 +1334,10 @@ int functional_menu() {
         case '4':
             previewSizeIDX += 1;
             previewSizeIDX %= ARRAY_SIZE(previewSize);
-            params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
+            if ( strcmp(params.get(KEY_STEREO_CAMERA), "false") == 0 )
+                params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
+            else
+                params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height*2);
             reSizePreview = true;
 
             if ( hardwareActive && previewRunning ) {
@@ -2116,8 +2126,9 @@ int execute_functional_script(char *script) {
                     height = atoi(res);
                 }
 
+                if ( strcmp(params.get(KEY_STEREO_CAMERA), "false") == 0 )
+                    height *=2;
                 printf("Resolution: %d x %d\n", width, height);
-
                 params.setPreviewSize(width, height);
                 reSizePreview = true;
 
@@ -2251,6 +2262,10 @@ int execute_functional_script(char *script) {
             case 'A':
                 camera_index=atoi(cmd+1);
                 camera_index %= ARRAY_SIZE(cameras);
+                if ( camera_index == 2)
+                    params.set(KEY_STEREO_CAMERA, "true");
+                else
+                    params.set(KEY_STEREO_CAMERA, "false");
                 params.set(KEY_CAMERA, camera_index);
                 printf("%s selected.\n", cameras[camera_index]);
 
