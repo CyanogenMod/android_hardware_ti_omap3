@@ -636,6 +636,14 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     cap->mColorFormat = pixFormat;
 
+        {
+        Mutex::Autolock lock(mLock);
+        if ( !mCapturing )
+            {
+            setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *cap);
+            }
+        }
+
     str = params.get(TICameraParameters::KEY_EXPOSURE_MODE);
     mode = getLUTvalue_HALtoOMX( str, ExpLUT);
     if ( ( str != NULL ) && ( mParameters3A.Exposure != mode ) )
@@ -2096,14 +2104,6 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
 
     LOGE("Params Width = %d", (int)imgCaptureData->mWidth);
     LOGE("Params Height = %d", (int)imgCaptureData->mWidth);
-
-    ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *imgCaptureData);
-    if ( ret != NO_ERROR )
-        {
-        CAMHAL_LOGEB("setFormat() failed %d", ret);
-        LOG_FUNCTION_NAME_EXIT
-         return ret;
-        }
 
     ///Register for Image port ENABLE event
     ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
@@ -4397,7 +4397,10 @@ status_t OMXCameraAdapter::stopImageCapture()
     camSem.Wait();
     CAMHAL_LOGDA("Port disabled");
 
-    mCapturing = false;
+        {
+        Mutex::Autolock lock(mLock);
+        mCapturing = false;
+        }
 
     //Release image buffers
     if ( NULL != mReleaseImageBuffersCallback )
