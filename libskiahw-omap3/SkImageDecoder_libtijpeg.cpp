@@ -752,8 +752,8 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
             nOutHeight = nOutHeight * 13 / 100;
         break;
         default:
-            nOutWidth = nOutWidth/scaleFactor;
-            nOutHeight = nOutHeight/scaleFactor;
+            nOutWidth = floor(nOutWidth+scaleFactor-1)/scaleFactor;
+            nOutHeight = floor(nOutHeight+scaleFactor-1)/scaleFactor;
         break;
     }
 
