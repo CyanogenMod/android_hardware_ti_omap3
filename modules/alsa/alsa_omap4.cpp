@@ -50,7 +50,7 @@ static status_t s_close(alsa_handle_t *);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
 
-void configMicChoices();
+void configMicChoices(uint32_t);
 
 #ifdef AUDIO_MODEM_TI
     AudioModemAlsa *audioModem;
@@ -570,6 +570,21 @@ LOGV("%s", __FUNCTION__);
             control.set("Earphone Playback Volume", 0, -1);
         }
 
+        /* Set EQ Profiles for Audio. AMIC/DMIC related EQ's set in
+           configMicChoices() */
+        if ((devices & AudioSystem::DEVICE_OUT_SPEAKER) ||
+            (devices & AudioSystem::DEVICE_OUT_AUX_DIGITAL)) {
+            // Setting DL2 EQ's to 800Hz cut-off frequency, as setting
+            // to flat response saturates the audio quality in the
+            // handsfree speakers
+            control.set("DL2 Left Equalizer Profile", 1, 0);
+            control.set("DL2 Right Equalizer Profile", 1, 0);
+        }
+        if ((devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
+            (devices & AudioSystem::DEVICE_OUT_EARPIECE)) {
+            control.set("DL1 Equalizer Profile", 0, 0);
+        }
+
 	/*
          * ASoC multicomponent doesn't allow us to enable backends
          * on-the-fly, so enable handsfree and headset backends
@@ -662,7 +677,7 @@ LOGV("%s", __FUNCTION__);
         if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
             (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
             (devices & OMAP4_IN_FM)) {
-            configMicChoices();
+            configMicChoices(devices);
         } else {
             /* OMAP4 ABE */
             control.set("AMIC_UL PDM Switch", 0, 0);
@@ -819,7 +834,7 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
     return status;
 }
 
-void configMicChoices () {
+void configMicChoices (uint32_t devices) {
 
     ALSAControl control("hw:00");
     char value[PROPERTY_VALUE_MAX];
@@ -832,6 +847,10 @@ void configMicChoices () {
         control.set("MUX_UL01", value);           // DMIC0L_UL -> MM_UL01
         control.set("MUX_UL11", value);           // DMIC0L_UL -> MM_UL11
         control.set("MUX_VX1", value);            // DMIC0L_UL -> VX_UL1
+        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
+            (devices & AudioSystem::DEVICE_IN_BACK_MIC)) {
+            control.set("DMIC Equalizer Profile", 0, 0);
+        }
     }
     else {
         LOGE("OMAP4 ABE set for Analog Main Mic 0");
@@ -839,6 +858,13 @@ void configMicChoices () {
         control.set("MUX_UL01", "AMic0");         // AMIC_UL -> MM_UL01
         control.set("MUX_UL11", "AMic0");         // AMIC_UL -> MM_UL11
         control.set("MUX_VX1", "AMic0");          // AMIC_UL -> VX_UL1
+        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
+            (devices & AudioSystem::DEVICE_IN_BACK_MIC) ||
+            (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
+            (devices & AudioSystem::DEVICE_IN_AUX_DIGITAL) ||
+            (devices & AudioSystem::DEVICE_IN_FM_ANALOG)) {
+            control.set("AMIC Equalizer Profile", 0, 0);
+        }
     }
     //for Sub Mic
     if (property_get("omap.audio.mic.sub", value, "AMic1") &&
@@ -848,6 +874,10 @@ void configMicChoices () {
         control.set("MUX_UL00", value);           // DMIC0R_UL -> MM_UL00
         control.set("MUX_UL10", value);           // DMIC0R_UL -> MM_UL10
         control.set("MUX_VX0", value);            // DMIC0R_UL -> VX_UL0
+        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
+            (devices & AudioSystem::DEVICE_IN_BACK_MIC)) {
+            control.set("DMIC Equalizer Profile", 0, 0);
+        }
     }
     else {
         LOGE("OMAP4 ABE set for Analog Sub Mic 1");
@@ -855,6 +885,14 @@ void configMicChoices () {
         control.set("MUX_UL00", "AMic1");          // AMIC_UL -> MM_UL00
         control.set("MUX_UL10", "AMic1");          // AMIC_UL -> MM_UL10
         control.set("MUX_VX0", "AMic1");           // AMIC_UL -> VX_UL0
+        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
+            (devices & AudioSystem::DEVICE_IN_BACK_MIC) ||
+            (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
+            (devices & AudioSystem::DEVICE_IN_AUX_DIGITAL) ||
+            (devices & AudioSystem::DEVICE_IN_FM_ANALOG)) {
+            control.set("AMIC Equalizer Profile", 0, 0);
+        }
+
     }
     //always enable vx mixer
     control.set("Voice Capture Mixer Capture", 1);  // VX_UL   -> VXREC_MIXER
