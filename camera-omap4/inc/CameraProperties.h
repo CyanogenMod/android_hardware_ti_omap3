@@ -104,6 +104,8 @@ public:
         PROP_INDEX_AUTOCONVERGENCE,
         PROP_INDEX_AUTOCONVERGENCE_MODE,
         PROP_INDEX_MANUALCONVERGENCE_VALUES,
+        PROP_INDEX_VSTAB,
+        PROP_INDEX_VSTAB_VALUES,
         PROP_INDEX_MAX
         };
 
@@ -167,6 +169,8 @@ public:
     static const char TICAMERA_FILE_EXTN[];
     static const char PROP_KEY_S3D2D_PREVIEW[];
     static const char PROP_KEY_S3D2D_PREVIEW_MODES[];
+    static const char PROP_KEY_VSTAB[];
+    static const char PROP_KEY_VSTAB_VALUES[];
 
     class CameraProperty
         {

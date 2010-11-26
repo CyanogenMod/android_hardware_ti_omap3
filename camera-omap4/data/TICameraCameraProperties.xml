@@ -160,5 +160,7 @@
 <auto-convergence-mode>mode-disable,mode-frame,mode-center,mode-fft,mode-manual</auto-convergence-mode>
 <auto-convergence>auto-convergence</auto-convergence>
 <manual-convergence-values>-100,-50,-30,-25,0,25,50,100</manual-convergence-values>
+<vstab>0</vstab>
+<vstab-values>0,1</vstab-values>
 </CameraInstance>
 </CameraRoot>

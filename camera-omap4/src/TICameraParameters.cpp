@@ -45,6 +45,7 @@ const char TICameraParameters::KEY_FACE_DETECTION_DATA[] = "face-detection-data"
 const char TICameraParameters::KEY_BURST[] = "burst-capture";
 const char TICameraParameters::KEY_CAP_MODE[] = "mode";
 const char TICameraParameters::KEY_VSTAB[] = "vstab";
+const char TICameraParameters::KEY_VSTAB_VALUES[] = "vstab-values";
 const char TICameraParameters::KEY_VNF[] = "vnf";
 const char TICameraParameters::KEY_SATURATION[] = "saturation";
 const char TICameraParameters::KEY_BRIGHTNESS[] = "brightness";

@@ -90,6 +90,8 @@ const char CameraProperties::PROP_KEY_S3D2D_PREVIEW_MODES[] = "s3d2d-preview-val
 const char CameraProperties::PROP_KEY_AUTOCONVERGENCE[] = "auto-convergence";
 const char CameraProperties::PROP_KEY_AUTOCONVERGENCE_MODE[] = "auto-convergence-mode";
 const char CameraProperties::PROP_KEY_MANUALCONVERGENCE_VALUES[] = "manual-convergence-values";
+const char CameraProperties::PROP_KEY_VSTAB[] = "vstab";
+const char CameraProperties::PROP_KEY_VSTAB_VALUES[] = "vstab-values";
 
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
@@ -868,6 +870,18 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES;
         }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_VSTAB))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_VSTAB");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_VSTAB;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_VSTAB_VALUES))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_VSTAB_VALUES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_VSTAB_VALUES;
+        }
 
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
@@ -1158,6 +1172,16 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_S3D2D_PREVIEW_MODES );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_S3D2D_PREVIEW_MODES;
+
+        case CameraProperties::PROP_INDEX_VSTAB:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_VSTAB );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_VSTAB;
+
+        case CameraProperties::PROP_INDEX_VSTAB_VALUES:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_VSTAB_VALUES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_VSTAB_VALUES;
 
 
         default:

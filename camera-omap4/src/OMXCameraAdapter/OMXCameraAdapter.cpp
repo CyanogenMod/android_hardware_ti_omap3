@@ -2035,27 +2035,15 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-    if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
+    //Apply focus after setting the capture mode
+    if ( NO_ERROR == ret )
         {
-        ///Enable/Disable Video Noise Filter
-        ret = enableVideoNoiseFilter(mVnfEnabled);
-        if ( NO_ERROR != ret)
-            {
-            CAMHAL_LOGEB("Error configuring VNF %x", ret);
-            return ret;
-            }
-
-        ///Enable/Disable Video Stabilization
-        ret = enableVideoStabilization(mVstabEnabled);
-        if ( NO_ERROR != ret)
-            {
-            CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
-            return ret;
-            }
+        mPending3Asettings |= SetFocus;
+        ret = Apply3Asettings(mParameters3A);
         }
-    else
+
+    if(mCapMode == OMXCameraAdapter::VIDEO_MODE || mCapMode == OMXCameraAdapter::HIGH_QUALITY)
         {
-        mVnfEnabled = false;
         ///Enable/Disable Video Noise Filter
         ret = enableVideoNoiseFilter(mVnfEnabled);
         if ( NO_ERROR != ret)
@@ -2064,7 +2052,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
             return ret;
             }
 
-        mVstabEnabled = false;
         ///Enable/Disable Video Stabilization
         ret = enableVideoStabilization(mVstabEnabled);
         if ( NO_ERROR != ret)
