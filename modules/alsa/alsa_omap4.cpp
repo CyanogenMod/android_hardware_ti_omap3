@@ -29,7 +29,7 @@
 
 #define MM_DEFAULT_DEVICE	"plughw:0,0"
 #define BLUETOOTH_SCO_DEVICE	"plughw:0,0"
-#define FM_TRANSMIT_DEVICE	"plughw:0,3"
+#define FM_TRANSMIT_DEVICE	"plughw:0,0"
 #define FM_CAPTURE_DEVICE       "plughw:0,1"
 #define HDMI_DEVICE		"plughw:0,7"
 
@@ -169,7 +169,7 @@ static alsa_handle_t _defaults[] = {
         sampleRate  : DEFAULT_SAMPLE_RATE,
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
-        modPrivate  : (void *)&setFmControls,
+        modPrivate  : (void *)&setDefaultControls,
     },
     {
         module      : 0,
@@ -584,14 +584,22 @@ LOGV("%s", __FUNCTION__);
          */
         if ((devices & AudioSystem::DEVICE_OUT_SPEAKER) ||
             (devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
-            (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
+            (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
+            (devices & AudioSystem::DEVICE_OUT_FM_TRANSMIT)) {
             /* OMAP4 ABE */
             /* Headset: DL1 Mixer */
             control.set("DL1 Mixer Multimedia", 1);		// MM_DL    -> DL1 Mixer
             control.set("DL1 Mixer Tones", 1);			// TONES_DL -> DL1 Mixer
             control.set("DL1 Mixer Voice", 1);			// VX_DL    -> DL1 Mixer
             control.set("Sidetone Mixer Playback", 1);		// DL1 Mixer-> Sidetone Mixer
-            control.set("DL1 PDM Switch", 1);                 // Sidetone Mixer -> PDM_DL1
+            if (devices & OMAP4_OUT_FM) {
+              /* FM Tx: DL1 MM_EXT Switch */
+              control.set("DL1 MM_EXT Switch", 1);
+              control.set("DL1 PDM Switch", 0, 0);
+            } else {
+              control.set("DL1 PDM Switch", 1);                 // Sidetone Mixer -> PDM_DL1
+              control.set("DL1 MM_EXT Switch", 0, 0);
+            }
             control.set("DL1 Media Playback Volume", 118);
             control.set("DL1 Tones Playback Volume", 118);
             control.set("DL1 Voice Playback Volume", 118);
