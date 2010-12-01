@@ -1081,6 +1081,7 @@ void initDefaults() {
     ManualConvergenceValuesIDX = ManualConvergenceDefaultValueIDX;
     params.set(KEY_MANUALCONVERGENCE_VALUES, manualconvergencevalues[ManualConvergenceValuesIDX]);
     params.set(KEY_S3D2D_PREVIEW_MODE, "off");
+    params.set(KEY_STEREO_CAMERA, "false");
 }
 
 int menu_gps() {
