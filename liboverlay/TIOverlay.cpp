@@ -689,11 +689,6 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 #else
-    if (v4l2_overlay_set_global_alpha(fd, 1, 1)){
-        LOGE("Failed enabling alpha\n");
-        goto error1;
-    }
-
 
     /* Enable the video zorder and video transparency
     * for the controls to be visible on top of video, give the graphics highest zOrder
@@ -1282,10 +1277,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 #else
-    if ((ret = v4l2_overlay_set_global_alpha(fd, 1, 255))) {
-        LOGE("Failed enabling alpha\n");
-        goto end;
-    }
 
    //Currently not supported with V4L2_S3D driver
    if(!overlayobj->mData.s3d_active)
