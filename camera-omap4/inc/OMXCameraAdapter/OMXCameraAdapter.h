@@ -190,6 +190,13 @@ public:
         REGION_PRIORITY,
         };
 
+    enum BrightnessMode
+        {
+        BRIGHTNESS_OFF = 0,
+        BRIGHTNESS_ON,
+        BRIGHTNESS_AUTO,
+        };
+
     ///Parameters specific to any port of the OMX Camera component
     class OMXCameraPortParameters
     {
@@ -346,6 +353,12 @@ private:
 
     //LDC
     status_t setLDC(OMXCameraAdapter::IPPMode mode);
+
+    //GLBCE
+    status_t setGLBCE(OMXCameraAdapter::BrightnessMode mode);
+
+    //GBCE
+    status_t setGBCE(OMXCameraAdapter::BrightnessMode mode);
 
     //Touch AF
     status_t parseTouchFocusPosition(const char *pos, unsigned int &posX, unsigned int &posY);
