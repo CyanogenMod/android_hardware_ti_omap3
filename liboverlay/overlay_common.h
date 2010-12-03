@@ -39,9 +39,6 @@
 #define FULLHD_HEIGHT 1080
 #define NUM_OVERLAY_BUFFERS_MAX (32)
 
-//workaround for .35 kernel
-#define KERNEL_35_WA
-
 #else
 #define NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE    3
 #define NUM_OVERLAY_BUFFERS_REQUESTED  (6)
