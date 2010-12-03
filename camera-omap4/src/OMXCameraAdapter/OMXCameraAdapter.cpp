@@ -590,6 +590,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     const char * str = NULL;
     int mode = 0;
     status_t ret = NO_ERROR;
+    bool updateImagePortParams = false;
 
     mParams = params;
 
@@ -665,11 +666,16 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     params.getPictureSize(&w, &h);
 
+    if ( ( w != ( int ) cap->mWidth ) ||
+          ( h != ( int ) cap->mHeight ) )
+        {
+        updateImagePortParams = true;
+        }
+
     cap->mWidth = w;
     cap->mHeight = h;
     //TODO: Support more pixelformats
     cap->mStride = 2;
-    cap->mBufSize = cap->mStride * cap->mHeight;
 
     CAMHAL_LOGVB("Image: cap.mWidth = %d", (int)cap->mWidth);
     CAMHAL_LOGVB("Image: cap.mHeight = %d", (int)cap->mHeight);
@@ -738,8 +744,13 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         pixFormat = OMX_COLOR_FormatUnused;
         }
 
-    cap->mColorFormat = pixFormat;
+    if ( pixFormat != cap->mColorFormat )
+        {
+        updateImagePortParams = true;
+        cap->mColorFormat = pixFormat;
+        }
 
+    if ( updateImagePortParams )
         {
         Mutex::Autolock lock(mLock);
         if ( !mCapturing )
