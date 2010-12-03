@@ -1028,17 +1028,21 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("Thumbnail Quality set %d", mThumbQuality);
 
-    int zoom = params.getInt(CameraParameters::KEY_ZOOM);
-    if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
-        mTargetZoomIdx = zoom;
-    } else {
-        mTargetZoomIdx = 0;
-    }
-    //Immediate zoom should be applied instantly ( CTS requirement )
-    mCurrentZoomIdx = mTargetZoomIdx;
-    doZoom(mCurrentZoomIdx);
+    //Immediate zoom should not be avaialable while smooth zoom is running
+    if ( !mSmoothZoomEnabled )
+        {
+        int zoom = params.getInt(CameraParameters::KEY_ZOOM);
+        if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
+            mTargetZoomIdx = zoom;
+        } else {
+            mTargetZoomIdx = 0;
+        }
+        //Immediate zoom should be applied instantly ( CTS requirement )
+        mCurrentZoomIdx = mTargetZoomIdx;
+        doZoom(mCurrentZoomIdx);
 
-    CAMHAL_LOGDB("Zoom by App %d", zoom);
+        CAMHAL_LOGDB("Zoom by App %d", zoom);
+        }
 
     mFirstTimeInit = false;
 
