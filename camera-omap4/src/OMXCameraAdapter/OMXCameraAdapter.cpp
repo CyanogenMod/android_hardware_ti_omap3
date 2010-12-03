@@ -1132,20 +1132,24 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGDB("Thumbnail Quality set %d", mThumbQuality);
 
-    //Immediate zoom should not be avaialable while smooth zoom is running
-    if ( !mSmoothZoomEnabled )
         {
-        int zoom = params.getInt(CameraParameters::KEY_ZOOM);
-        if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
-            mTargetZoomIdx = zoom;
-        } else {
-            mTargetZoomIdx = 0;
-        }
-        //Immediate zoom should be applied instantly ( CTS requirement )
-        mCurrentZoomIdx = mTargetZoomIdx;
-        doZoom(mCurrentZoomIdx);
+        Mutex::Autolock lock(mZoomLock);
 
-        CAMHAL_LOGDB("Zoom by App %d", zoom);
+        //Immediate zoom should not be avaialable while smooth zoom is running
+        if ( !mSmoothZoomEnabled )
+            {
+            int zoom = params.getInt(CameraParameters::KEY_ZOOM);
+            if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
+                mTargetZoomIdx = zoom;
+            } else {
+                mTargetZoomIdx = 0;
+            }
+            //Immediate zoom should be applied instantly ( CTS requirement )
+            mCurrentZoomIdx = mTargetZoomIdx;
+            doZoom(mCurrentZoomIdx);
+
+            CAMHAL_LOGDB("Zoom by App %d", zoom);
+            }
         }
 
     mFirstTimeInit = false;
@@ -1317,24 +1321,26 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
 
 #else
 
-    if ( ( mSmoothZoomEnabled ) )
         {
-
-        if ( mZoomParameterIdx != mCurrentZoomIdx )
+        Mutex::Autolock lock(mZoomLock);
+        if ( ( mSmoothZoomEnabled ) )
             {
-            mZoomParameterIdx += mZoomInc;
-            }
+            if ( mZoomParameterIdx != mCurrentZoomIdx )
+                {
+                mZoomParameterIdx += mZoomInc;
+                }
 
-        params.set( CameraParameters::KEY_ZOOM, mZoomParameterIdx);
-        if ( ( mCurrentZoomIdx == mTargetZoomIdx ) && ( mZoomParameterIdx == mCurrentZoomIdx ) )
-            {
-            mSmoothZoomEnabled = false;
+            params.set( CameraParameters::KEY_ZOOM, mZoomParameterIdx);
+            if ( ( mCurrentZoomIdx == mTargetZoomIdx ) && ( mZoomParameterIdx == mCurrentZoomIdx ) )
+                {
+                mSmoothZoomEnabled = false;
+                }
+            CAMHAL_LOGDB("CameraParameters Zoom = %d , mSmoothZoomEnabled = %d", mCurrentZoomIdx, mSmoothZoomEnabled);
             }
-        CAMHAL_LOGDB("CameraParameters Zoom = %d , mSmoothZoomEnabled = %d", mCurrentZoomIdx, mSmoothZoomEnabled);
-        }
-    else
-        {
-        params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx);
+        else
+            {
+            params.set( CameraParameters::KEY_ZOOM, mCurrentZoomIdx);
+            }
         }
 
         //Face detection coordinates go in here
@@ -2363,7 +2369,9 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
 
         case CameraAdapter::CAMERA_START_SMOOTH_ZOOM:
             {
-            CAMHAL_LOGDB("Start smooth zoom target = %d", value1);
+            Mutex::Autolock lock(mZoomLock);
+
+            CAMHAL_LOGDB("Start smooth zoom target = %d, mCurrentIdx = %d", value1, mCurrentZoomIdx);
 
             if ( ( value1 >= 0 ) && ( value1 < ZOOM_STAGES ) )
                 {
@@ -2381,6 +2389,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
 
         case CameraAdapter::CAMERA_STOP_SMOOTH_ZOOM:
             {
+            Mutex::Autolock lock(mZoomLock);
 
             if ( mSmoothZoomEnabled )
                 {
@@ -5253,6 +5262,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 status_t OMXCameraAdapter::advanceZoom()
 {
     status_t ret = NO_ERROR;
+    Mutex::Autolock lock(mZoomLock);
 
     if ( mReturnZoomStatus )
         {

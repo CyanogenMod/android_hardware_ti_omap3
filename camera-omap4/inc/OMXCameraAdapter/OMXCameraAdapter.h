@@ -432,6 +432,7 @@ private:
     unsigned int mZoomParameterIdx;
 
     //current zoom
+    Mutex mZoomLock;
     bool mSmoothZoomEnabled;
     unsigned int mCurrentZoomIdx, mTargetZoomIdx;
     int mZoomInc;
