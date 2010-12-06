@@ -239,7 +239,7 @@ userToOMX_LUT focus_UserToOMX [] = {
     { focusPortrait ,OMX_IMAGE_FocusControlPortrait     },
     { focusExtended ,OMX_IMAGE_FocusControlExtended     },
     { focusCAF      ,OMX_IMAGE_FocusControlAuto },
-    { focusTouch    ,OMX_IMAGE_FocusRegionPriorityMode },
+    { focusTouch    ,OMX_IMAGE_FocusControlExtended },
 };
 
 userToOMX_LUT exposure_UserToOMX [] = {
@@ -344,6 +344,7 @@ enum E3ASettingsFlags
     SetFocus                = 1 << 11,
     SetManualExposure       = 1 << 12,
     SetManualGain           = 1 << 13,
+    SetExpMode              = 1 << 14,
 
     E3aSettingMax,
     E3AsettingsAll = ( ((E3aSettingMax -1 ) << 1) -1 ) /// all possible flags raised
