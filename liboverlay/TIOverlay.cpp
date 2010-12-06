@@ -659,11 +659,6 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-    if (v4l2_overlay_set_crop(fd, 0, 0, w, h)) {
-        LOGE("Failed defaulting crop window\n");
-        goto error1;
-    }
-
     if (v4l2_overlay_set_rotation(fd, 0, 0)) {
         LOGE("Failed defaulting rotation\n");
         goto error1;
@@ -671,6 +666,11 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
 
     if (v4l2_overlay_getId(fd, &pipelineId)) {
         LOGE("Failed: getting overlay Id");
+        goto error1;
+    }
+
+    if (v4l2_overlay_set_crop(fd, 0, 0, w, h)) {
+        LOGE("Failed defaulting crop window\n");
         goto error1;
     }
 
@@ -909,7 +909,6 @@ int overlay_control_context_t::overlay_setPosition(struct overlay_control_device
 
     LOGI("overlay_setPosition/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
-
     if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
         LOGE("Set Position Failed!/%d\n", rc);
         goto UNLOCK;
