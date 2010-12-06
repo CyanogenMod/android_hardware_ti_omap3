@@ -835,7 +835,6 @@ status_t AudioModemAlsa::voiceCallCodecStop()
     // Enable Playback voice path
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 0, 0), error);
     CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
-    CHECK_ERROR(mAlsaControl->set("SDT DL Volume", 0, -1), error);
 
     // Enable Capture voice path
     CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Off"), error);
