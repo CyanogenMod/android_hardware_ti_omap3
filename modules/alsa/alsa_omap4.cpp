@@ -624,19 +624,7 @@ LOGV("%s", __FUNCTION__);
                 control.set("DL1 Capture Playback Volume", 0, -1);
                 control.set("DL2 Capture Playback Volume", 0, -1);
             }
-        } else if ((devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO) ||
-          (devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
-          (devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)) {
-           /* OMAP4 ABE */
-           /* Bluetooth: DL1 Mixer */
-           LOGE("BT SCO MM");
-           control.set("DL1 Mixer Multimedia", 1);    // MM_DL    -> DL1 Mixer
-           control.set("Sidetone Mixer Playback", 1);           // DL1 Mixer-> Sidetone Mixer
-           control.set("DL1 BT_VX Switch", 1);                   // Sidetone Mixer -> BT-VX-D
-           control.set("DL1 Media Playback Volume", 118);
-           /* Disable McPDM */
-           control.set("DL1 PDM Switch", 0, 0);
-       } else {
+        } else {
             /* OMAP4 ABE */
             /* Headset: DL1 Mixer */
             control.set("DL1 Mixer Multimedia", 0, 0);
@@ -655,6 +643,19 @@ LOGV("%s", __FUNCTION__);
            /* FM Rx: DL1/DL2 Mixer */
             control.set("DL1 Capture Playback Volume", 0, -1);
             control.set("DL2 Capture Playback Volume", 0, -1);
+        }
+
+        if ((devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO) ||
+            (devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
+            (devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)) {
+            /* OMAP4 ABE */
+            /* Bluetooth: DL1 Mixer */
+            control.set("DL1 Mixer Multimedia", 1);		// MM_DL    -> DL1 Mixer
+            control.set("Sidetone Mixer Playback", 1);		// DL1 Mixer-> Sidetone Mixer
+            control.set("DL1 BT_VX Switch", 1);			// Sidetone Mixer -> BT-VX-DL
+            control.set("DL1 Media Playback Volume", 118);
+        } else {
+            control.set("DL1 BT_VX Switch", 0, 0);
         }
     }
 
