@@ -42,7 +42,6 @@
 #include <ui/Overlay.h>
 #include <camera/CameraHardwareInterface.h>
 #include "MessageQueue.h"
-#include "overlay_common.h"
 #include "Semaphore.h"
 #include "CameraProperties.h"
 #include "DebugUtils.h"

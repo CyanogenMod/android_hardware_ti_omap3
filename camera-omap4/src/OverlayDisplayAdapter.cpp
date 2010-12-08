@@ -23,6 +23,7 @@
 #define LOG_TAG "CameraHal"
 
 #include "OverlayDisplayAdapter.h"
+#include "overlay_common.h"
 
 namespace android {
 
