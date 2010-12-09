@@ -131,7 +131,9 @@ extern int gMcpLogToFile;
  */
 #if defined TARGET_BOARD_PLATFORM == omap4
 snd_pcm_t *phandle, *chandle;
-static char *alsa_device = "default";
+static char *palsa_device = "hw:0,0";
+static char *calsa_device = "hw:0,1";
+snd_pcm_sw_params_t *swparams;
 #endif
 
 void validate_uint_boundaries(FMC_UINT *variable, FMC_UINT minimum, FMC_UINT maximum)
@@ -1149,14 +1151,15 @@ fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 	/* Configure the Analog Loopback settings */
 	set_fmapp_audio_routing(fm_context);
 #else
+        snd_pcm_sw_params_alloca(&swparams);
 	/* open alsa pcm device for playback */
-	if ((err = snd_pcm_open(&phandle, alsa_device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
+	if ((err = snd_pcm_open(&phandle, palsa_device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
 		FMAPP_ERROR("Playback open error: %s\n", snd_strerror(err));
 		ret = FMC_STATUS_FAILED;
 		goto out;
 	}
 	/* open alsa pcm device for capture */
-	if ((err = snd_pcm_open(&chandle, alsa_device, SND_PCM_STREAM_CAPTURE, 0)) < 0) {
+	if ((err = snd_pcm_open(&chandle, calsa_device, SND_PCM_STREAM_CAPTURE, 0)) < 0) {
 		FMAPP_ERROR("Capture open error: %s\n", snd_strerror(err));
 		ret = FMC_STATUS_FAILED;
 		goto out;
@@ -1170,12 +1173,16 @@ fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 					SND_PCM_ACCESS_RW_INTERLEAVED,
 					2,
 					48000,
-					1,
-					500000)) < 0) {       /* 0.5sec */
+					0,
+					-1)) < 0) {
 		FMAPP_ERROR("Playback open error: %s\n", snd_strerror(err));
 		ret = FMC_STATUS_FAILED;
 		goto out;
 	}
+
+        snd_pcm_sw_params_alloca(&swparams);
+        snd_pcm_sw_params_set_stop_threshold(phandle, swparams, -1);
+        err = snd_pcm_sw_params(phandle, swparams);
 
 	/* this calls prepare() in the driver - use this to start mcpdm downlink*/
 	if ((err = snd_pcm_set_params(chandle,
@@ -1183,13 +1190,16 @@ fm_status init_rx_stack(fm_rx_context_s  **fm_context)
 					SND_PCM_ACCESS_RW_INTERLEAVED,
 					2,
 					48000,
-					1,
-					500000)) < 0) { /* 0.5sec */
+					0,
+					-1)) < 0) {
 		FMAPP_ERROR("Playback open error: %s\n", snd_strerror(err));
 		ret = FMC_STATUS_FAILED;
 		goto out;
 	}
 
+        snd_pcm_sw_params_current(chandle, swparams);
+        snd_pcm_sw_params_set_stop_threshold(chandle, swparams, -1);
+        err = snd_pcm_sw_params(chandle, swparams);
 	/* this cals trigger() in the driver - use this to start mcpdm uplink*/
 	snd_pcm_start(phandle);
 	snd_pcm_start(chandle);
