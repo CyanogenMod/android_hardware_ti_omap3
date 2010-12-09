@@ -34,6 +34,11 @@
 #ifndef GENERAL_3A_SETTINGS_H
 #define GENERAL_3A_SETTINGS_H
 
+#define FOCUS_FACE_PRIORITY OMX_IMAGE_FocusControlMax -1
+#define FOCUS_REGION_PRIORITY OMX_IMAGE_FocusControlMax -2
+#define WB_FACE_PRIORITY OMX_WhiteBalControlMax -1
+#define EXPOSURE_FACE_PRIORITY OMX_ExposureControlMax - 1
+
 namespace android {
 
 /*
@@ -220,7 +225,7 @@ userToOMX_LUT whiteBal_UserToOMX [] = {
     { whiteBalShade         ,OMX_TI_WhiteBalControlShade },
     { whiteBalTwilight       ,OMX_TI_WhiteBalControlTwilight },
     { whiteBalWarmFluorescent ,OMX_TI_WhiteBalControlWarmFluorescent },
-    { whiteBalFace            ,OMX_WhiteBalControlFacePriorityMode },
+    { whiteBalFace            ,WB_FACE_PRIORITY },
     { whiteBalSunset        ,OMX_TI_WhiteBalControlSunset }
 };
 
@@ -239,7 +244,8 @@ userToOMX_LUT focus_UserToOMX [] = {
     { focusPortrait ,OMX_IMAGE_FocusControlPortrait     },
     { focusExtended ,OMX_IMAGE_FocusControlExtended     },
     { focusCAF      ,OMX_IMAGE_FocusControlAuto },
-    { focusTouch    ,OMX_IMAGE_FocusControlExtended },
+    { focusTouch    ,FOCUS_REGION_PRIORITY},
+    { TICameraParameters::FOCUS_MODE_FACE , FOCUS_FACE_PRIORITY },
 };
 
 userToOMX_LUT exposure_UserToOMX [] = {
@@ -252,7 +258,8 @@ userToOMX_LUT exposure_UserToOMX [] = {
     { exposureSnow          ,OMX_ExposureControlSnow            },
     { exposureBeach         ,OMX_ExposureControlBeach           },
     { exposureAperture      ,OMX_ExposureControlLargeAperture   },
-    { exposureSmallAperture ,OMX_ExposureControlSmallApperture  }
+    { exposureSmallAperture ,OMX_ExposureControlSmallApperture  },
+    { TICameraParameters::EXPOSURE_MODE_FACE, EXPOSURE_FACE_PRIORITY },
 };
 
 const LUTtype ExpLUT =

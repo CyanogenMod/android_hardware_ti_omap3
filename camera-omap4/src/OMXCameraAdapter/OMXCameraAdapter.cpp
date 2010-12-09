@@ -2986,6 +2986,23 @@ OMX_ERRORTYPE OMXCameraAdapter::setExposureMode(Gen3A_settings& Gen3A)
 
     if ( OMX_ErrorNone == eError )
         {
+
+        if ( EXPOSURE_FACE_PRIORITY == Gen3A.Exposure )
+                {
+                //Disable Region priority and enable Face priority
+                setAlgoPriority(REGION_PRIORITY, EXPOSURE_ALGO, false);
+                setAlgoPriority(FACE_PRIORITY, EXPOSURE_ALGO, true);
+
+                //Then set the mode to auto
+                Gen3A.WhiteBallance = OMX_ExposureControlAuto;
+                }
+            else
+                {
+                //Disable Face and Region priority
+                setAlgoPriority(FACE_PRIORITY, EXPOSURE_ALGO, false);
+                setAlgoPriority(REGION_PRIORITY, EXPOSURE_ALGO, false);
+                }
+
         OMX_INIT_STRUCT_PTR (&exp, OMX_CONFIG_EXPOSURECONTROLTYPE);
         exp.nPortIndex = OMX_ALL;
         exp.eExposureControl = (OMX_EXPOSURECONTROLTYPE)Gen3A.Exposure;
@@ -3133,6 +3150,138 @@ status_t OMXCameraAdapter::setManualGain(Gen3A_settings& Gen3A)
             {
             CAMHAL_LOGDA("Manual gain right configured successfully");
             }
+
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setAlgoPriority(AlgoPriority priority, Algorithm3A algo, bool enable)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_CONFIG_3A_REGION_PRIORITY regionPriority;
+    OMX_TI_CONFIG_3A_FACE_PRIORITY facePriority;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -1;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        if ( FACE_PRIORITY == priority )
+            {
+            OMX_INIT_STRUCT_PTR (&facePriority, OMX_TI_CONFIG_3A_FACE_PRIORITY);
+            facePriority.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
+
+            if ( algo & WHITE_BALANCE_ALGO )
+                {
+                if ( enable )
+                    {
+                    facePriority.bAwbFaceEnable = OMX_TRUE;
+                    }
+                else
+                    {
+                    facePriority.bAwbFaceEnable = OMX_FALSE;
+                    }
+                }
+
+            if ( algo & EXPOSURE_ALGO )
+                {
+                if ( enable )
+                    {
+                    facePriority.bAeFaceEnable = OMX_TRUE;
+                    }
+                else
+                    {
+                    facePriority.bAeFaceEnable = OMX_FALSE;
+                    }
+                }
+
+            if ( algo & FOCUS_ALGO )
+                {
+                if ( enable )
+                    {
+                    facePriority.bAfFaceEnable= OMX_TRUE;
+                    }
+                else
+                    {
+                    facePriority.bAfFaceEnable = OMX_FALSE;
+                    }
+                }
+
+            eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexConfigFacePriority3a, &facePriority);
+            if ( OMX_ErrorNone != eError )
+                {
+                CAMHAL_LOGEB("Error while configuring face priority 0x%x", eError);
+                }
+            else
+                {
+                CAMHAL_LOGEA("Face priority for algorithms set successfully");
+                }
+
+            }
+        else if ( REGION_PRIORITY == priority )
+            {
+
+            OMX_INIT_STRUCT_PTR (&regionPriority, OMX_TI_CONFIG_3A_REGION_PRIORITY);
+            regionPriority.nPortIndex =  mCameraAdapterParameters.mImagePortIndex;
+
+            if ( algo & WHITE_BALANCE_ALGO )
+                {
+                if ( enable )
+                    {
+                    regionPriority.bAwbRegionEnable= OMX_TRUE;
+                    }
+                else
+                    {
+                    regionPriority.bAwbRegionEnable = OMX_FALSE;
+                    }
+                }
+
+            if ( algo & EXPOSURE_ALGO )
+                {
+                if ( enable )
+                    {
+                    regionPriority.bAeRegionEnable = OMX_TRUE;
+                    }
+                else
+                    {
+                    regionPriority.bAeRegionEnable = OMX_FALSE;
+                    }
+                }
+
+            if ( algo & FOCUS_ALGO )
+                {
+                if ( enable )
+                    {
+                    regionPriority.bAfRegionEnable = OMX_TRUE;
+                    }
+                else
+                    {
+                    regionPriority.bAfRegionEnable = OMX_FALSE;
+                    }
+                }
+
+            eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexConfigRegionPriority3a, &regionPriority);
+            if ( OMX_ErrorNone != eError )
+                {
+                CAMHAL_LOGEB("Error while configuring region priority 0x%x", eError);
+                }
+            else
+                {
+                CAMHAL_LOGEA("Region priority for algorithms set successfully");
+                }
+
+            }
+
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -3848,14 +3997,46 @@ status_t OMXCameraAdapter::doAutoFocus()
         {
         OMX_INIT_STRUCT_PTR (&focusControl, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
         focusControl.eFocusControl = ( OMX_IMAGE_FOCUSCONTROLTYPE ) mParameters3A.Focus;
-
-        //If touch AF is set, then configure position first
-        if ( ( ( OMX_IMAGE_FOCUSCONTROLTYPE ) OMX_IMAGE_FocusControlExtended ) == focusControl.eFocusControl )
+        //If touch AF is set, then necessary configuration first
+        if ( FOCUS_REGION_PRIORITY == focusControl.eFocusControl )
             {
+
+            //Disable face priority first
+            setAlgoPriority(FACE_PRIORITY, FOCUS_ALGO, false);
+
+            //Enable region algorithm priority
+            setAlgoPriority(REGION_PRIORITY, FOCUS_ALGO, true);
+
+            //Set position
             OMXCameraPortParameters * mPreviewData = NULL;
             mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
-
             setTouchFocus(mTouchFocusPosX, mTouchFocusPosY, mPreviewData->mWidth, mPreviewData->mHeight);
+
+            //Do normal focus afterwards
+            focusControl.eFocusControl = OMX_IMAGE_FocusControlAutoLock;
+
+            }
+        else if ( FOCUS_FACE_PRIORITY == focusControl.eFocusControl )
+            {
+
+            //Disable region priority first
+            setAlgoPriority(REGION_PRIORITY, FOCUS_ALGO, false);
+
+            //Enable face algorithm priority
+            setAlgoPriority(FACE_PRIORITY, FOCUS_ALGO, true);
+
+            //Do normal focus afterwards
+            focusControl.eFocusControl = OMX_IMAGE_FocusControlAutoLock;
+
+            }
+        else
+            {
+
+            //Disable both region and face priority
+            setAlgoPriority(REGION_PRIORITY, FOCUS_ALGO, false);
+
+            setAlgoPriority(FACE_PRIORITY, FOCUS_ALGO, false);
+
             }
 
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
@@ -5698,6 +5879,24 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
 
                 case SetWhiteBallance:
                     {
+
+
+                    if ( WB_FACE_PRIORITY == Gen3A.WhiteBallance )
+                        {
+                        //Disable Region priority and enable Face priority
+                        setAlgoPriority(REGION_PRIORITY, WHITE_BALANCE_ALGO, false);
+                        setAlgoPriority(FACE_PRIORITY, WHITE_BALANCE_ALGO, true);
+
+                        //Then set the mode to auto
+                        Gen3A.WhiteBallance = OMX_WhiteBalControlAuto;
+                        }
+                    else
+                        {
+                        //Disable Face and Region priority
+                        setAlgoPriority(FACE_PRIORITY, WHITE_BALANCE_ALGO, false);
+                        setAlgoPriority(REGION_PRIORITY, WHITE_BALANCE_ALGO, false);
+                        }
+
                     OMX_CONFIG_WHITEBALCONTROLTYPE wb;
                     wb.nSize = sizeof(OMX_CONFIG_WHITEBALCONTROLTYPE);
                     wb.nVersion = mLocalVersionParam;
@@ -5818,6 +6017,11 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
 
                 case SetFocus:
                     {
+
+                    //First Disable Face and Region priority
+                    setAlgoPriority(FACE_PRIORITY, FOCUS_ALGO, false);
+                    setAlgoPriority(REGION_PRIORITY, FOCUS_ALGO, false);
+
                     OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE focus;
                     focus.nSize = sizeof(OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
                     focus.nVersion = mLocalVersionParam;
@@ -5827,6 +6031,7 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
 
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focus);
                     CAMHAL_LOGDB("Focus type in hal , OMX : %d , 0x%x", Gen3A.Focus, focus.eFocusControl );
+
                     break;
                     }
 

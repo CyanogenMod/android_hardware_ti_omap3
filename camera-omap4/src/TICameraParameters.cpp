@@ -118,13 +118,14 @@ const char TICameraParameters::SCENE_MODE_VIDEO_OLD_FILM[] = "old-film";
 const char TICameraParameters::WHITE_BALANCE_TUNGSTEN[] = "tungsten";
 const char TICameraParameters::WHITE_BALANCE_HORIZON[] = "horizon";
 const char TICameraParameters::WHITE_BALANCE_SUNSET[] = "sunset";
-const char TICameraParameters::WHITE_BALANCE_FACE[] = "facepriority";
+const char TICameraParameters::WHITE_BALANCE_FACE[] = "face-priority";
 
 // TI extensions to  standard android focus modes.
 const char TICameraParameters::FOCUS_MODE_PORTRAIT[] = "portrait";
 const char TICameraParameters::FOCUS_MODE_EXTENDED[] = "extended";
 const char TICameraParameters::FOCUS_MODE_CAF[] = "caf";
 const char TICameraParameters::FOCUS_MODE_TOUCH[] = "touch";
+const char TICameraParameters::FOCUS_MODE_FACE[] = "face-priority";
 
 // TI extensions for face detection
 const char TICameraParameters::FACE_DETECTION_ENABLE[] = "enable";
@@ -147,7 +148,7 @@ const char TICameraParameters::EXPOSURE_MODE_SNOW[] = "snow";
 const char TICameraParameters::EXPOSURE_MODE_BEACH[] = "beach";
 const char TICameraParameters::EXPOSURE_MODE_APERTURE[] = "aperture";
 const char TICameraParameters::EXPOSURE_MODE_SMALL_APERTURE[] = "small-aperture";
-
+const char TICameraParameters::EXPOSURE_MODE_FACE[] = "face-priority";
 
 // TI extensions to add iso values
 const char TICameraParameters::ISO_MODE_AUTO[] = "auto";
