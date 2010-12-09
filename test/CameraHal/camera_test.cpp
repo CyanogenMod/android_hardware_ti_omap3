@@ -1336,10 +1336,11 @@ int functional_menu() {
         case '4':
             previewSizeIDX += 1;
             previewSizeIDX %= ARRAY_SIZE(previewSize);
-            if ( strcmp(params.get(KEY_STEREO_CAMERA), "false") == 0 )
+            if ( strcmp(params.get(KEY_STEREO_CAMERA), "false") == 0 ) {
                 params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height);
-            else
+            } else {
                 params.setPreviewSize(previewSize[previewSizeIDX].width, previewSize[previewSizeIDX].height*2);
+            }
             reSizePreview = true;
 
             if ( hardwareActive && previewRunning ) {
@@ -2141,8 +2142,9 @@ int execute_functional_script(char *script) {
                     height = atoi(res);
                 }
 
-                if ( strcmp(params.get(KEY_STEREO_CAMERA), "false") == 0 )
+                if ( strcmp(params.get(KEY_STEREO_CAMERA), "true") == 0 ) {
                     height *=2;
+                }
                 printf("Resolution: %d x %d\n", width, height);
                 params.setPreviewSize(width, height);
                 reSizePreview = true;
