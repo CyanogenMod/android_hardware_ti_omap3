@@ -1815,6 +1815,10 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
 
     else if ( (rc = v4l2_overlay_dq_buf(fd, &i )) != 0 ) {
         LOGE("Failed to DQ/%d\n", rc);
+       //in order to recover from DQ failure scenario, let's disable the stream. 
+       //the stream gets re-enabled in the subsequent Q buffer call
+       //if streamoff also fails!!! just return the errorcode to the client
+       rc = disable_streaming_locked(ctx->omap_overlay, true);
     }
 
     else if ( i < 0 || i > ctx->omap_overlay->num_buffers ) {
