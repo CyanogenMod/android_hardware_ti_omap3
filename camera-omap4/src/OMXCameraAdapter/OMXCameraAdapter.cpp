@@ -933,6 +933,24 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         CAMHAL_LOGEB("SceneMode %d", mParameters3A.SceneMode);
         }
 
+    str = params.get(CameraParameters::KEY_FLASH_MODE);
+    mode = getLUTvalue_HALtoOMX( str, FlashLUT);
+    if (  mFirstTimeInit || (( str != NULL ) && ( mParameters3A.FlashMode != mode )) )
+        {
+        if ( 0 <= mode )
+            {
+            mParameters3A.FlashMode = mode;
+            mPending3Asettings |= SetFlash;
+            }
+        else
+            {
+            mParameters3A.FlashMode = OMX_Manual;
+            }
+
+        CAMHAL_LOGEB("SceneMode %d", mParameters3A.FlashMode);
+        }
+
+
     str = params.get(CameraParameters::KEY_EFFECT);
     mode = getLUTvalue_HALtoOMX( str, EffLUT);
     if (  mFirstTimeInit || (( str != NULL ) && ( mParameters3A.Effect != mode )) )
@@ -1254,6 +1272,7 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
     OMX_CONFIG_WHITEBALCONTROLTYPE wb;
     OMX_CONFIG_FLICKERCANCELTYPE flicker;
     OMX_CONFIG_SCENEMODETYPE scene;
+    OMX_IMAGE_PARAM_FLASHCONTROLTYPE flash;
     OMX_CONFIG_BRIGHTNESSTYPE brightness;
     OMX_CONFIG_CONTRASTTYPE contrast;
     OMX_IMAGE_CONFIG_PROCESSINGLEVELTYPE procSharpness;
@@ -1280,6 +1299,11 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
     scene.nSize = sizeof(OMX_CONFIG_SCENEMODETYPE);
     scene.nVersion = mLocalVersionParam;
     scene.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+
+    flash.nSize = sizeof(OMX_IMAGE_PARAM_FLASHCONTROLTYPE);
+    flash.nVersion = mLocalVersionParam;
+    flash.nPortIndex = OMX_ALL;
+
 
     brightness.nSize = sizeof(OMX_CONFIG_BRIGHTNESSTYPE);
     brightness.nVersion = mLocalVersionParam;
@@ -1310,6 +1334,7 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonWhiteBalance, &wb);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexConfigFlickerCancel, &flicker );
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamSceneMode, &scene);
+    OMX_GetParameter( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexParamFlashControl, &flash);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonBrightness, &brightness);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonContrast, &contrast);
     OMX_GetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexConfigSharpeningLevel, &procSharpness);
@@ -1338,6 +1363,11 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
         if( SceneLUT.Table[i].omxDefinition == scene.eSceneMode )
             str = (char*)SceneLUT.Table[i].userDefinition;
     params.set( CameraParameters::KEY_SCENE_MODE , str );
+
+    for(int i = 0; i < FlashLUT.size; i++)
+        if( FlashLUT.Table[i].omxDefinition == flash.eFlashControl )
+            str = (char*)FlashLUT.Table[i].userDefinition;
+    params.set( CameraParameters::KEY_FLASH_MODE, str );
 
     for(int i = 0; i < EffLUT.size; i++)
         if( EffLUT.Table[i].omxDefinition == effect.eImageFilter )
@@ -2067,6 +2097,13 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
     if ( NO_ERROR != ret )
         {
         CAMHAL_LOGEB("Error configuring manual gain %x", ret);
+        return ret;
+        }
+
+    ret = setFlashMode(mParameters3A);
+    if (NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring flash mode %x", ret);
         return ret;
         }
 
@@ -3593,6 +3630,44 @@ OMX_ERRORTYPE OMXCameraAdapter::setScene(Gen3A_settings& Gen3A)
 
     return eError;
 }
+
+status_t OMXCameraAdapter::setFlashMode(Gen3A_settings& Gen3A)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_IMAGE_PARAM_FLASHCONTROLTYPE flash;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateLoaded != mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is not in loaded state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&flash, OMX_IMAGE_PARAM_FLASHCONTROLTYPE);
+        flash.nPortIndex = OMX_ALL;
+        flash.eFlashControl = ( OMX_IMAGE_FLASHCONTROLTYPE ) Gen3A.FlashMode;
+
+        CAMHAL_LOGEB("Configuring flash mode 0x%x", flash.eFlashControl);
+        eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE) OMX_IndexParamFlashControl, &flash);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring flash mode 0x%x", eError);
+            }
+        else
+            {
+            CAMHAL_LOGDA("Camera flash mode configured successfully");
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 
 status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
 {

@@ -177,5 +177,8 @@ const char TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT[] = "manual-gain-iso-lef
 const char TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT[] = "manual-gain-iso-right";
 const char TICameraParameters::KEY_MANUAL_GAIN_MODES[] = "manual-gain-modes";
 
+//TI extensions to flash settings
+const char TICameraParameters::FLASH_MODE_FILL_IN[] = "fill-in";
+
 };
 

@@ -579,6 +579,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_SCENE_MODE, valstr);
         }
 
+    if((params.get(CameraParameters::KEY_FLASH_MODE) != NULL)
+        && isParameterValid(params.get(CameraParameters::KEY_FLASH_MODE),
+        (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue))
+        {
+        CAMHAL_LOGDB("Flash mode set %s", params.get(CameraParameters::KEY_FLASH_MODE));
+        mParameters.set(CameraParameters::KEY_FLASH_MODE, params.get(CameraParameters::KEY_FLASH_MODE));
+        }
+
     if(( (valstr = params.get(CameraParameters::KEY_EFFECT)) != NULL)
         && isParameterValid(params.get(CameraParameters::KEY_EFFECT),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue))
@@ -2678,9 +2686,9 @@ void CameraHal::insertSupportedParams()
     p.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_WHITE_BALANCE]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_EFFECTS, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EFFECTS]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_SCENE_MODES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FOCUS_MODES]->mPropValue);
     p.set(CameraParameters::KEY_SUPPORTED_ANTIBANDING, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_ANTIBANDING]->mPropValue);
-    p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue);
     p.set(CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EV_MAX]->mPropValue);
     p.set(CameraParameters::KEY_MIN_EXPOSURE_COMPENSATION, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EV_MIN]->mPropValue);
     p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_EV_STEP]->mPropValue);
@@ -2774,6 +2782,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_FOCUS_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_FOCUS_MODE]->mPropValue);
     p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EV_COMPENSATION]->mPropValue);
     p.set(CameraParameters::KEY_SCENE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SCENE_MODE]->mPropValue);
+    p.set(CameraParameters::KEY_FLASH_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_FLASH_MODE]->mPropValue);
     p.set(CameraParameters::KEY_ZOOM, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ZOOM]->mPropValue);
     p.set(TICameraParameters::KEY_CONTRAST, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_CONTRAST]->mPropValue);
     p.set(TICameraParameters::KEY_SATURATION, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SATURATION]->mPropValue);
