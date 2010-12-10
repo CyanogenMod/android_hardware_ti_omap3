@@ -208,7 +208,7 @@ static alsa_handle_t _defaults[] = {
         sampleRate  : AudioRecord::DEFAULT_SAMPLE_RATE,
         latency     : 250000, // Desired Delay in usec
         bufferSize  : 2048, // Desired Number of samples
-        modPrivate  : (void *)&setScoControls,
+        modPrivate  : (void *)&setDefaultControls,
     },
     {
         module      : 0,
@@ -690,6 +690,16 @@ LOGV("%s", __FUNCTION__);
             (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
             (devices & OMAP4_IN_FM)) {
             configMicChoices(devices);
+        } else if(devices & OMAP4_IN_SCO) {
+           LOGE("OMAP4 ABE set for BT SCO Headset");
+            control.set("AMIC_UL PDM Switch", 0, 0);
+            control.set("MUX_UL00", "BT Right");
+            control.set("MUX_UL01", "BT Left");
+            control.set("MUX_UL10", "BT Right");
+            control.set("MUX_UL11", "BT Left");
+            control.set("Voice Capture Mixer Capture", 1);
+            control.set("MUX_VX0", "BT Right");
+            control.set("MUX_VX1", "BT Left");
         } else {
             /* OMAP4 ABE */
             control.set("AMIC_UL PDM Switch", 0, 0);
