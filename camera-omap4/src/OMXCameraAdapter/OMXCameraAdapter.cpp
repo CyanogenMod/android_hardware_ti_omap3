@@ -134,105 +134,106 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         return ret;
         }
 
-    ///Update the preview and image capture port indexes
-    mCameraAdapterParameters.mPrevPortIndex = OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW;
-    // temp changed in order to build OMX_CAMERA_PORT_VIDEO_OUT_IMAGE;
-    mCameraAdapterParameters.mImagePortIndex = OMX_CAMERA_PORT_IMAGE_OUT_IMAGE;
-    mCameraAdapterParameters.mMeasurementPortIndex = OMX_CAMERA_PORT_VIDEO_OUT_MEASUREMENT;
-    //currently not supported use preview port instead
-    mCameraAdapterParameters.mVideoPortIndex = OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW;
+    if ( mComponentState != OMX_StateExecuting ){
+        ///Update the preview and image capture port indexes
+        mCameraAdapterParameters.mPrevPortIndex = OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW;
+        // temp changed in order to build OMX_CAMERA_PORT_VIDEO_OUT_IMAGE;
+        mCameraAdapterParameters.mImagePortIndex = OMX_CAMERA_PORT_IMAGE_OUT_IMAGE;
+        mCameraAdapterParameters.mMeasurementPortIndex = OMX_CAMERA_PORT_VIDEO_OUT_MEASUREMENT;
+        //currently not supported use preview port instead
+        mCameraAdapterParameters.mVideoPortIndex = OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW;
 
-    if(!mCameraAdapterParameters.mHandleComp)
-        {
-        ///Initialize the OMX Core
-        eError = OMX_Init();
-
-        if(eError!=OMX_ErrorNone)
+        if(!mCameraAdapterParameters.mHandleComp)
             {
-            CAMHAL_LOGEB("OMX_Init -0x%x", eError);
-            }
-        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+            ///Initialize the OMX Core
+            eError = OMX_Init();
 
-        ///Setup key parameters to send to Ducati during init
-        OMX_CALLBACKTYPE oCallbacks;
+            if(eError!=OMX_ErrorNone)
+                {
+                CAMHAL_LOGEB("OMX_Init -0x%x", eError);
+                }
+            GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
-        /* Initialize the callback handles */
-        oCallbacks.EventHandler    = android::OMXCameraAdapterEventHandler;
-        oCallbacks.EmptyBufferDone = android::OMXCameraAdapterEmptyBufferDone;
-        oCallbacks.FillBufferDone  = android::OMXCameraAdapterFillBufferDone;
+            ///Setup key parameters to send to Ducati during init
+            OMX_CALLBACKTYPE oCallbacks;
 
-        ///Get the handle to the OMX Component
-        mCameraAdapterParameters.mHandleComp = NULL;
-        eError = OMX_GetHandle(&(mCameraAdapterParameters.mHandleComp), //     previously used: OMX_GetHandle
-                                    (OMX_STRING)"OMX.TI.DUCATI1.VIDEO.CAMERA" ///@todo Use constant instead of hardcoded name
-                                    , this
-                                    , &oCallbacks);
+            /* Initialize the callback handles */
+            oCallbacks.EventHandler    = android::OMXCameraAdapterEventHandler;
+            oCallbacks.EmptyBufferDone = android::OMXCameraAdapterEmptyBufferDone;
+            oCallbacks.FillBufferDone  = android::OMXCameraAdapterFillBufferDone;
 
-        if(eError!=OMX_ErrorNone)
-            {
-            CAMHAL_LOGEB("OMX_GetHandle -0x%x", eError);
-            }
-        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+            ///Get the handle to the OMX Component
+            mCameraAdapterParameters.mHandleComp = NULL;
+            eError = OMX_GetHandle(&(mCameraAdapterParameters.mHandleComp), //     previously used: OMX_GetHandle
+                                        (OMX_STRING)"OMX.TI.DUCATI1.VIDEO.CAMERA" ///@todo Use constant instead of hardcoded name
+                                        , this
+                                        , &oCallbacks);
+
+            if(eError!=OMX_ErrorNone)
+                {
+                CAMHAL_LOGEB("OMX_GetHandle -0x%x", eError);
+                }
+            GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
 
-         eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
-                                      OMX_CommandPortDisable,
-                                      OMX_ALL,
-                                      NULL);
+             eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
+                                          OMX_CommandPortDisable,
+                                          OMX_ALL,
+                                          NULL);
 
-         if(eError!=OMX_ErrorNone)
-             {
-             CAMHAL_LOGEB("OMX_SendCommand(OMX_CommandPortDisable) -0x%x", eError);
-             }
+             if(eError!=OMX_ErrorNone)
+                 {
+                 CAMHAL_LOGEB("OMX_SendCommand(OMX_CommandPortDisable) -0x%x", eError);
+                 }
 
-         GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+             GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
-         ///Register for port enable event
-         ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                                     OMX_EventCmdComplete,
-                                     OMX_CommandPortEnable,
-                                     mCameraAdapterParameters.mPrevPortIndex,
-                                     eventSem,
-                                     -1 ///Infinite timeout
-                                     );
-         if(ret!=NO_ERROR)
-             {
-             CAMHAL_LOGEB("Error in registering for event %d", ret);
-             goto EXIT;
-             }
+             ///Register for port enable event
+             ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
+                                         OMX_EventCmdComplete,
+                                         OMX_CommandPortEnable,
+                                         mCameraAdapterParameters.mPrevPortIndex,
+                                         eventSem,
+                                         -1 ///Infinite timeout
+                                         );
+             if(ret!=NO_ERROR)
+                 {
+                 CAMHAL_LOGEB("Error in registering for event %d", ret);
+                 goto EXIT;
+                 }
 
-        ///Enable PREVIEW Port
-         eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
-                                     OMX_CommandPortEnable,
-                                     mCameraAdapterParameters.mPrevPortIndex,
-                                     NULL);
+            ///Enable PREVIEW Port
+             eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
+                                         OMX_CommandPortEnable,
+                                         mCameraAdapterParameters.mPrevPortIndex,
+                                         NULL);
 
-         if(eError!=OMX_ErrorNone)
-             {
-             CAMHAL_LOGEB("OMX_SendCommand(OMX_CommandPortEnable) -0x%x", eError);
-             }
+             if(eError!=OMX_ErrorNone)
+                 {
+                 CAMHAL_LOGEB("OMX_SendCommand(OMX_CommandPortEnable) -0x%x", eError);
+                 }
 
-         GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+             GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
-         //Wait for the port enable event to occur
+             //Wait for the port enable event to occur
          eventSem.Wait();
 
-         CAMHAL_LOGDA("-Port enable event arrived");
+             CAMHAL_LOGDA("-Port enable event arrived");
 
-        }
-    else
-        {
-        OMXCameraPortParameters * mPreviewData =
-            &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
-
-        //Apply default configs before trying to swtich to a new sensor
-        if ( NO_ERROR != setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData) )
-            {
-            CAMHAL_LOGEB("Error 0x%x while applying defaults", ret);
-            goto EXIT;
             }
-        }
+        else
+            {
+            OMXCameraPortParameters * mPreviewData =
+                &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
 
+            //Apply default configs before trying to swtich to a new sensor
+            if ( NO_ERROR != setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData) )
+                {
+                CAMHAL_LOGEB("Error 0x%x while applying defaults", ret);
+                goto EXIT;
+                }
+            }
+    }
     ///Select the sensor
     OMX_CONFIG_SENSORSELECTTYPE sensorSelect;
     OMX_INIT_STRUCT_PTR (&sensorSelect, OMX_CONFIG_SENSORSELECTTYPE);
@@ -254,13 +255,17 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mBracketingBuffersQueuedCount = 0;
     mBracketingRange = 1;
     mLastBracetingBufferIdx = 0;
-    mPreviewing = false;
-    mCapturing = false;
-    mRecording = false;
-    mFlushBuffers = false;
-    mWaitingForSnapshot = false;
-    mSnapshotCount = 0;
-    mComponentState = OMX_StateLoaded;
+
+    if ( mComponentState != OMX_StateExecuting ){
+        mPreviewing = false;
+        mCapturing = false;
+        mRecording = false;
+        mFlushBuffers = false;
+        mWaitingForSnapshot = false;
+        mSnapshotCount = 0;
+        mComponentState = OMX_StateLoaded;
+    }
+
     mCapMode = HIGH_QUALITY;
     mBurstFrames = 1;
     mCapturedFrames = 0;
@@ -283,10 +288,15 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mMeasurementEnabled = false;
     mFaceDetectionRunning = false;
 
-    memset(mFaceDectionResult, '\0', FACE_DETECTION_BUFFER_SIZE);
-    memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
-    memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
+    if ( NULL != mFaceDectionResult )
+        {
+        memset(mFaceDectionResult, '\0', FACE_DETECTION_BUFFER_SIZE);
+        }
 
+    if ( mComponentState != OMX_StateExecuting ){
+        memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
+        memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
+    }
     return ErrorUtils::omxToAndroidError(eError);
 
     EXIT:

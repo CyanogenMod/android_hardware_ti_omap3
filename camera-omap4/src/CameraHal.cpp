@@ -245,49 +245,50 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     Mutex::Autolock lock(mLock);
 
+    ///Sensor selection will go in first as all other parameter setting is dependent on it
+    if(( (valstr = params.get(TICameraParameters::KEY_CAMERA)) != NULL)
+      && (params.getInt(TICameraParameters::KEY_CAMERA) >=0)
+      && (params.getInt(TICameraParameters::KEY_CAMERA) < mCameraProperties->camerasSupported() ))
+         {
+         mParameters.set(TICameraParameters::KEY_CAMERA, valstr);
+         }
+
+
+    int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
+
+    CAMHAL_LOGDB("Camera Selected %s",mParameters.get(TICameraParameters::KEY_CAMERA));
+    CAMHAL_LOGDB("camera_index %d, mCameraIndex %d", camera_index, mCameraIndex);
+
+    if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
+        {
+        mCameraIndex = camera_index;
+        mReloadAdapter = true;
+        }
+
+    //This can only happen when there is a mismatch
+    //between the Camera application default
+    //CameraHal's own default at the start
+    if ( mReloadAdapter )
+        {
+         if ( NULL != mCameraAdapter )
+            {
+             // Free the camera adapter
+             //mCameraAdapter.clear();
+
+             //Close the camera adapter DLL
+             //::dlclose(mCameraAdapterHandle);
+            }
+
+        if ( reloadAdapter() < 0 )
+            {
+            CAMHAL_LOGEA("CameraAdapter reload failed");
+            }
+
+        mReloadAdapter = false;
+        }
     ///Ensure that preview is not enabled when the below parameters are changed.
     if(!previewEnabled())
         {
-        ///Sensor selection will go in first as all other parameter setting is dependent on it
-          if(( (valstr = params.get(TICameraParameters::KEY_CAMERA)) != NULL)
-            && (params.getInt(TICameraParameters::KEY_CAMERA) >=0)
-            && (params.getInt(TICameraParameters::KEY_CAMERA) < mCameraProperties->camerasSupported() ))
-            {
-            mParameters.set(TICameraParameters::KEY_CAMERA, valstr);
-            }
-
-        int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
-
-        CAMHAL_LOGDB("Camera Selected %s",mParameters.get(TICameraParameters::KEY_CAMERA));
-        CAMHAL_LOGDB("camera_index %d, mCameraIndex %d", camera_index, mCameraIndex);
-
-        if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
-            {
-            mCameraIndex = camera_index;
-            mReloadAdapter = true;
-            }
-
-        //This can only happen when there is a mismatch
-        //between the Camera application default
-        //CameraHal's own default at the start
-        if ( mReloadAdapter )
-            {
-             if ( NULL != mCameraAdapter )
-                {
-                  // Free the camera adapter
-                 //mCameraAdapter.clear();
-
-                 //Close the camera adapter DLL
-                 //::dlclose(mCameraAdapterHandle);
-                }
-
-            if ( reloadAdapter() < 0 )
-                {
-                CAMHAL_LOGEA("CameraAdapter reload failed");
-                }
-
-            mReloadAdapter = false;
-            }
 
 
         CAMHAL_LOGDB("PreviewFormat %s", params.getPreviewFormat());
@@ -415,7 +416,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     params.getPictureSize(&w, &h);
     if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue))
         {
-        CAMHAL_LOGEA("Invalid picture resolution");
+        CAMHAL_LOGEA("Invalid picture resolution, exiting");
         ret = -EINVAL;
         }
     else
@@ -443,7 +444,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.setPreviewFrameRate(framerate);
         }
 
-    CAMHAL_LOGDB("FRAMERATE %d", framerate);
+    CAMHAL_LOGEB("FRAMERATE %d", framerate);
 
     ///Update the current parameter set
     if( (valstr = params.get(TICameraParameters::KEY_AUTOCONVERGENCE)) != NULL)
@@ -2613,9 +2614,13 @@ status_t CameraHal::parseResolution(const char *resStr, int &width, int &height)
         ret = -EINVAL;
         }
 
+    //This fixes "Invalid input resolution"
+    char *resStr_copy = (char *)malloc(strlen(resStr) + 1);
+    if ( NULL!=resStr_copy ) {
     if ( NO_ERROR == ret )
         {
-        pWidth = strtok_r( (char *) resStr, sep, &ctx);
+        strcpy(resStr_copy, resStr);
+        pWidth = strtok_r( (char *) resStr_copy, sep, &ctx);
 
         if ( NULL != pWidth )
             {
@@ -2643,6 +2648,9 @@ status_t CameraHal::parseResolution(const char *resStr, int &width, int &height)
             }
         }
 
+        free(resStr_copy);
+        resStr_copy = NULL;
+     }
     LOG_FUNCTION_NAME_EXIT
 
     return ret;
