@@ -308,6 +308,7 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
 {
     int error;
     unsigned int sampleRate;
+    unsigned int channels;
 
     if ((error = snd_pcm_open(&cHandle,
                     AUDIO_MODEM_PCM_HANDLE_NAME,
@@ -329,10 +330,19 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
         sampleRate = 8000;
     }
 
+    if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
+                "Yes")) {
+        LOGV("dual mic. enabled");
+            // Enable Sub mic
+        channels = 2;
+    } else {
+        channels = 1;
+    }
+
     if ((error = snd_pcm_set_params(cHandle,
                     SND_PCM_FORMAT_S16_LE,
                     SND_PCM_ACCESS_RW_INTERLEAVED,
-                    1,
+                    channels,
                     sampleRate,
                     1,
                     AUDIO_MODEM_PCM_LATENCY)) < 0) {
