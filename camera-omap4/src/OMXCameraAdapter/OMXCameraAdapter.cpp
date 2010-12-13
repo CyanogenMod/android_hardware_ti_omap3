@@ -594,25 +594,26 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     int expVal, gainVal;
     status_t ret = NO_ERROR;
     bool updateImagePortParams = false;
+    const char *valstr = NULL;
 
     mParams = params;
 
     ///@todo Include more camera parameters
     int w, h;
     OMX_COLOR_FORMATTYPE pixFormat;
-    if ( params.getPreviewFormat() != NULL )
+    if ( (valstr = params.getPreviewFormat()) != NULL )
         {
-        if (strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
+        if (strcmp(valstr, (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
             {
             CAMHAL_LOGDA("CbYCrY format selected");
             pixFormat = OMX_COLOR_FormatCbYCrY;
             }
-        else if(strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
+        else if(strcmp(valstr, (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
             {
             CAMHAL_LOGDA("YUV420SP format selected");
             pixFormat = OMX_COLOR_FormatYUV420SemiPlanar;
             }
-        else if(strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
+        else if(strcmp(valstr, (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
             {
             CAMHAL_LOGDA("RGB565 format selected");
             pixFormat = OMX_COLOR_Format16bitRGB565;
@@ -683,54 +684,54 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     CAMHAL_LOGVB("Image: cap.mWidth = %d", (int)cap->mWidth);
     CAMHAL_LOGVB("Image: cap.mHeight = %d", (int)cap->mHeight);
 
-    if ( params.getPictureFormat() != NULL )
+    if ( (valstr = params.getPictureFormat()) != NULL )
         {
-        if (strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
+        if (strcmp(valstr, (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
             {
             CAMHAL_LOGDA("CbYCrY format selected");
             pixFormat = OMX_COLOR_FormatCbYCrY;
             }
-        else if(strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
+        else if(strcmp(valstr, (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
             {
             CAMHAL_LOGDA("YUV420SP format selected");
             pixFormat = OMX_COLOR_FormatYUV420SemiPlanar;
             }
-        else if(strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
+        else if(strcmp(valstr, (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
             {
             CAMHAL_LOGDA("RGB565 format selected");
             pixFormat = OMX_COLOR_Format16bitRGB565;
             }
-        else if(strcmp(params.getPictureFormat(), (const char *) CameraParameters::PIXEL_FORMAT_JPEG) == 0)
+        else if(strcmp(valstr, (const char *) CameraParameters::PIXEL_FORMAT_JPEG) == 0)
             {
             CAMHAL_LOGDA("JPEG format selected");
             pixFormat = OMX_COLOR_FormatUnused;
             mCodingMode = CodingNone;
             }
-        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_JPS) == 0)
+        else if(strcmp(valstr, (const char *) TICameraParameters::PIXEL_FORMAT_JPS) == 0)
             {
             CAMHAL_LOGDA("JPS format selected");
             pixFormat = OMX_COLOR_FormatUnused;
             mCodingMode = CodingJPS;
             }
-        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_MPO) == 0)
+        else if(strcmp(valstr, (const char *) TICameraParameters::PIXEL_FORMAT_MPO) == 0)
             {
             CAMHAL_LOGDA("MPO format selected");
             pixFormat = OMX_COLOR_FormatUnused;
             mCodingMode = CodingMPO;
             }
-        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_RAW_JPEG) == 0)
+        else if(strcmp(valstr, (const char *) TICameraParameters::PIXEL_FORMAT_RAW_JPEG) == 0)
             {
             CAMHAL_LOGDA("RAW + JPEG format selected");
             pixFormat = OMX_COLOR_FormatUnused;
             mCodingMode = CodingRAWJPEG;
             }
-        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_RAW_MPO) == 0)
+        else if(strcmp(valstr, (const char *) TICameraParameters::PIXEL_FORMAT_RAW_MPO) == 0)
             {
             CAMHAL_LOGDA("RAW + MPO format selected");
             pixFormat = OMX_COLOR_FormatUnused;
             mCodingMode = CodingRAWMPO;
             }
-        else if(strcmp(params.getPictureFormat(), (const char *) TICameraParameters::PIXEL_FORMAT_RAW) == 0)
+        else if(strcmp(valstr, (const char *) TICameraParameters::PIXEL_FORMAT_RAW) == 0)
             {
             CAMHAL_LOGDA("RAW Picture format selected");
             pixFormat = OMX_COLOR_FormatRawBayer10bit;
@@ -903,7 +904,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     str = params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS);
     if ( NULL != str ) {
-        strncpy(mTouchCoords, str, TOUCH_DATA_SIZE);
+        strncpy(mTouchCoords, str, TOUCH_DATA_SIZE-1);
         parseTouchFocusPosition(mTouchCoords, mTouchFocusPosX, mTouchFocusPosY);
         CAMHAL_LOGEB("Touch focus position %d,%d", mTouchFocusPosX, mTouchFocusPosY);
     }
@@ -956,17 +957,17 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Picture Rotation set %d", mPictureRotation);
 
-    if ( NULL != params.get(TICameraParameters::KEY_CAP_MODE) )
+    if ( (valstr = params.get(TICameraParameters::KEY_CAP_MODE)) != NULL )
         {
-        if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::HIGH_PERFORMANCE_MODE) == 0)
+        if (strcmp(valstr, (const char *) TICameraParameters::HIGH_PERFORMANCE_MODE) == 0)
             {
             mCapMode = OMXCameraAdapter::HIGH_SPEED;
             }
-        else if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::HIGH_QUALITY_MODE) == 0)
+        else if (strcmp(valstr, (const char *) TICameraParameters::HIGH_QUALITY_MODE) == 0)
             {
             mCapMode = OMXCameraAdapter::HIGH_QUALITY;
             }
-        else if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::VIDEO_MODE) == 0)
+        else if (strcmp(valstr, (const char *) TICameraParameters::VIDEO_MODE) == 0)
             {
             mCapMode = OMXCameraAdapter::VIDEO_MODE;
             }
@@ -984,21 +985,21 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     if(mCapMode == OMXCameraAdapter::HIGH_QUALITY)
         {
-        if ( NULL != params.get(TICameraParameters::KEY_IPP) )
+          if ( (valstr = params.get(TICameraParameters::KEY_IPP)) != NULL )
             {
-            if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_LDCNSF) == 0)
+            if (strcmp(valstr, (const char *) TICameraParameters::IPP_LDCNSF) == 0)
                 {
                 mIPP = OMXCameraAdapter::IPP_LDCNSF;
                 }
-            else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_LDC) == 0)
+            else if (strcmp(valstr, (const char *) TICameraParameters::IPP_LDC) == 0)
                 {
                 mIPP = OMXCameraAdapter::IPP_LDC;
                 }
-            else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_NSF) == 0)
+            else if (strcmp(valstr, (const char *) TICameraParameters::IPP_NSF) == 0)
                 {
                 mIPP = OMXCameraAdapter::IPP_NSF;
                 }
-            else if (strcmp(params.get(TICameraParameters::KEY_IPP), (const char *) TICameraParameters::IPP_NONE) == 0)
+            else if (strcmp(valstr, (const char *) TICameraParameters::IPP_NONE) == 0)
                 {
                 mIPP = OMXCameraAdapter::IPP_NONE;
                 }
@@ -1033,13 +1034,13 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Burst Frames set %d", mBurstFrames);
 
-    if ( NULL != params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE) )
+    if ( (valstr = params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE)) != NULL )
         {
-        if (strcmp(params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE), (const char *) TICameraParameters::FACE_DETECTION_ENABLE) == 0)
+        if (strcmp(valstr, (const char *) TICameraParameters::FACE_DETECTION_ENABLE) == 0)
             {
             setFaceDetection(true);
             }
-        else if (strcmp(params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE), (const char *) TICameraParameters::FACE_DETECTION_DISABLE) == 0)
+        else if (strcmp(valstr, (const char *) TICameraParameters::FACE_DETECTION_DISABLE) == 0)
             {
             setFaceDetection(false);
             }
@@ -1054,13 +1055,13 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         setFaceDetection(false);
         }
 
-    if ( NULL != params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE) )
+    if ( (valstr = params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE)) != NULL )
         {
-        if (strcmp(params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE), (const char *) TICameraParameters::MEASUREMENT_ENABLE) == 0)
+        if (strcmp(valstr, (const char *) TICameraParameters::MEASUREMENT_ENABLE) == 0)
             {
             mMeasurementEnabled = true;
             }
-        else if (strcmp(params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE), (const char *) TICameraParameters::MEASUREMENT_DISABLE) == 0)
+        else if (strcmp(valstr, (const char *) TICameraParameters::MEASUREMENT_DISABLE) == 0)
             {
             mMeasurementEnabled = false;
             }
@@ -4420,6 +4421,10 @@ status_t OMXCameraAdapter::stopBracketing()
 
         if ( !mBracketingEnabled )
             {
+              if ( NULL != mBracketingBuffersQueued )
+                {
+                  delete mBracketingBuffersQueued;
+                }
             return ret;
             }
 
@@ -4437,17 +4442,14 @@ status_t OMXCameraAdapter::stopBracketing()
 
         }
 
-    if ( NO_ERROR == ret )
-        {
-        Mutex::Autolock lock(mBracketingLock);
-        if ( NULL != mBracketingBuffersQueued )
-            {
-            delete mBracketingBuffersQueued;
-            }
+    Mutex::Autolock lock(mBracketingLock);
+    if ( NULL != mBracketingBuffersQueued )
+      {
+        delete mBracketingBuffersQueued;
+      }
 
-        mBracketingBuffersQueuedCount = 0;
-        mLastBracetingBufferIdx = 0;
-        }
+    mBracketingBuffersQueuedCount = 0;
+    mLastBracetingBufferIdx = 0;
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -4473,13 +4475,12 @@ status_t OMXCameraAdapter::startImageCapture()
             mBracketingEnabled = false;
             mCapturedFrames = mBracketingRange;
             ret = sendBracketFrames();
-
+            /*
             if ( NULL != mBracketingBuffersQueued )
                 {
-                delete mBracketingBuffersQueued;
+                  delete mBracketingBuffersQueued;
                 }
-
-            return ret;
+            */
             }
         }
 

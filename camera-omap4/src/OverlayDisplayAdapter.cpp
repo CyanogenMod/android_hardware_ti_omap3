@@ -40,7 +40,9 @@ const int OverlayDisplayAdapter::DISPLAY_TIMEOUT = 1000; //seconds
 OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
                                         mDisplayState(OverlayDisplayAdapter::DISPLAY_INIT),
                                         mFramesWithDisplay(0),
-                                        mDisplayEnabled(false)
+                                        mDisplayEnabled(false),
+                                        mBufferCount(0)
+
 
 
 {
@@ -49,8 +51,18 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     mShotToShot = false;
-
+    mStartCapture.tv_sec = 0;
+    mStartCapture.tv_usec = 0;
+    mStandbyToShot.tv_sec = 0;
+    mStandbyToShot.tv_usec = 0;
 #endif
+
+    mPixelFormat = NULL;
+    mPreviewBufferMap =NULL;
+    mMeasureStandby = false;
+    mFrameProvider = NULL;
+    mFrameWidth = 0;
+    mFrameHeight = 0;
 
     mPaused = false;
     mXOff = 0;
@@ -416,11 +428,11 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
     mBufferCount = numBufs;
     int32_t *buffers = new int32_t[lnumBufs];
     mPreviewBufferMap = new int32_t[lnumBufs];
-    if ( NULL == buffers )
+    if ( (buffers == NULL) || (mPreviewBufferMap == NULL) )
         {
         CAMHAL_LOGEA("Couldn't create array for overlay buffers");
         LOG_FUNCTION_NAME_EXIT
-
+        delete [] buffers;
         return NULL;
         }
 

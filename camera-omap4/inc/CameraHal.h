@@ -181,7 +181,17 @@ class CameraFrame
         };
 
     //default contrustor
-    CameraFrame() {}
+    CameraFrame():
+    mCookie(NULL),
+    mBuffer(NULL),
+    mFrameType(0),
+    mTimestamp(0),
+    mWidth(0),
+    mHeight(0),
+    mOffset(0),
+    mAlignment(0),
+    mFd(0),
+    mLength(0) {}
 
     //copy constructor
     CameraFrame(const CameraFrame &frame) :
@@ -216,6 +226,7 @@ public:
     //Enums
     enum CameraHalEventType
         {
+          NO_EVENTS = 0x0,
         EVENT_FOCUS_LOCKED = 0x1,
         EVENT_FOCUS_ERROR = 0x2,
         EVENT_ZOOM_INDEX_REACHED = 0x4,
@@ -253,11 +264,13 @@ public:
         {
         CameraHalEvent::FocusEventData focusEvent;
         CameraHalEvent::ZoomEventData zoomEvent;
-		CameraHalEvent::ShutterEventData shutterEvent;
+	CameraHalEvent::ShutterEventData shutterEvent;
         } CameraHalEventData;
 
     //default contrustor
-    CameraHalEvent() {}
+    CameraHalEvent():
+      mCookie(NULL),
+      mEventType(NO_EVENTS) {}
 
     //copy constructor
     CameraHalEvent(const CameraHalEvent &event) :

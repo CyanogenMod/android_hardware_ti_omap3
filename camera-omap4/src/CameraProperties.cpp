@@ -182,11 +182,12 @@ status_t CameraProperties::loadProperties()
                     CAMHAL_LOGVB("Found Camera Properties file %s", dp->d_name);
                     ////Choosing 268 because "system/etc/"+ dir_name(0...255) can be max 268 chars
                     char fullPath[268];
-                    sprintf(fullPath, "/system/etc/%s",dp->d_name);
+                      snprintf(fullPath, sizeof(fullPath)-1,"/system/etc/%s",dp->d_name);
                     ret = parseAndLoadProps((const char*)fullPath);
                     if(ret!=NO_ERROR)
                         {
                         CAMHAL_LOGEB("Error when parsing the config file :%s Err[%d]",fullPath, ret);
+                        (void) closedir(dirp);
                         LOG_FUNCTION_NAME_EXIT
                         return ret;
                         }
@@ -278,8 +279,8 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
 
     name = xmlTextReaderConstName(reader);
     ret = xmlTextReaderRead(reader);
-    if( ( strcmp( (const char *) name, CAMERA_ROOT) == 0 ) &&
-         ( 1 == ret))
+    if( name && ( strcmp( (const char *) name, CAMERA_ROOT) == 0 ) &&
+         (1 == ret) )
         {
 
         //Start parsing the Camera Instances
@@ -294,7 +295,7 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
             return ret;
             }
 
-        while( strcmp( (const char *) name, CAMERA_INSTANCE) == 0)
+        while( name && (strcmp( (const char *) name, CAMERA_INSTANCE) == 0))
             {
             CAMHAL_LOGVB("Camera Element Name:%s", name);
 
@@ -336,7 +337,7 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
 
                 ///Check if the tag is CameraInstance, if so we are done with properties for current camera
                 ///Move on to next one if present
-                if ( strcmp((const char *) name, "CameraInstance") == 0)
+                if ( name && (strcmp((const char *) name, "CameraInstance") == 0) )
                     {
                     ///End of camera element
                     if ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT )
@@ -363,11 +364,12 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
                 ///Get the next tag name
                 nextName = xmlTextReaderConstName(reader);
                 CAMHAL_LOGVB("Found next tag:%s", name);
-                if ( strcmp((const char *) nextName, TEXT_XML_ELEMENT) == 0)
+                if ( nextName && (strcmp((const char *) nextName, TEXT_XML_ELEMENT) == 0) )
                     {
                     nextName = NULL;
                     value = xmlTextReaderConstValue(reader);
-                    strcpy(val, (const char *) value);
+                    if (value)
+                      strncpy(val, (const char *) value, sizeof(val)-1);
                     value = (const xmlChar *) val;
                     CAMHAL_LOGVB("Found next tag value: %s", value);
                     }
@@ -422,7 +424,7 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
             name = xmlTextReaderConstName(reader);
             nextName = NULL;
             CAMHAL_LOGVB("Found tag:%s", name);
-            if ( ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT ) &&
+            if (name && ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT ) &&
                     ( strcmp( (const char *) name, CAMERA_ROOT) == 0 ) )
                 {
                 CAMHAL_LOGVA("Completed parsing the XML file");
@@ -536,6 +538,9 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
 
     ///Do a string comparison on the property name passed with the supported property keys
     ///and return the corresponding property index
+      if(propName == NULL)
+        goto exit;
+
     if(!strcmp(propName,CameraProperties::PROP_KEY_CAMERA_NAME))
         {
         CAMHAL_LOGVA("Returning PROP_INDEX_CAMERA_NAME");
@@ -939,8 +944,7 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         return CameraProperties::PROP_INDEX_MANUAL_GAIN_MODES;
         }
 
-
-
+exit:
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
     LOG_FUNCTION_NAME_EXIT
     return CameraProperties::PROP_INDEX_INVALID;
@@ -1336,7 +1340,7 @@ status_t CameraProperties::CameraProperty::setValue(const char * value)
         {
         return BAD_VALUE;
         }
-    strcpy(mPropValue, value);
+      strncpy(mPropValue, value, sizeof(mPropValue)-1);
     CAMHAL_LOGVB("mPropValue = %s", mPropValue);
     return NO_ERROR;
 }

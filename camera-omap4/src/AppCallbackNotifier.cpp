@@ -354,6 +354,7 @@ void AppCallbackNotifier::notifyFrame()
     MemoryHeapBase *heap;
     MemoryBase *buffer = NULL;
     sp<MemoryBase> memBase;
+    void *buf = NULL;
 
     LOG_FUNCTION_NAME
 
@@ -389,7 +390,9 @@ void AppCallbackNotifier::notifyFrame()
 
                         sp<MemoryHeapBase> RAWPictureHeap = new MemoryHeapBase(frame->mLength);
                         sp<MemoryBase> RAWPictureMemBase = new MemoryBase(RAWPictureHeap, 0, frame->mLength);
-                        memcpy(RAWPictureMemBase->pointer(), ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
+                        buf = RAWPictureMemBase->pointer();
+                        if (buf)
+                          memcpy(buf, ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
 
                         mDataCb(CAMERA_MSG_RAW_IMAGE, RAWPictureMemBase, mCallbackCookie);
 
@@ -411,7 +414,9 @@ void AppCallbackNotifier::notifyFrame()
 
                         sp<MemoryHeapBase> JPEGPictureHeap = new MemoryHeapBase(frame->mLength);
                         sp<MemoryBase> JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, 0, frame->mLength);
-                        memcpy(JPEGPictureMemBase->pointer(), ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
+                        buf = JPEGPictureMemBase->pointer();
+                        if (buf)
+                          memcpy(buf, ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
 
                         mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
 
@@ -485,8 +490,10 @@ void AppCallbackNotifier::notifyFrame()
 
                         if(!mAppSupportsStride)
                             {
-                            copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
-                                        mPreviewPixelFormat);
+                              buf = (buffer->pointer());
+                              if (buf)
+                                copy2Dto1D(buf, frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                                           mPreviewPixelFormat);
 
                             mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
 
@@ -548,8 +555,10 @@ void AppCallbackNotifier::notifyFrame()
                             {
                             ///CAMHAL_LOGDB("+Copy 0x%x to 0x%x frame-%dx%d", frame->mBuffer, buffer->pointer(), frame->mWidth,frame->mHeight );
                             ///Copy the data into 1-D buffer
-                            copy2Dto1D(buffer->pointer(), frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
-                                        mPreviewPixelFormat);
+                            buf = buffer->pointer();
+                            if (buf)
+                              copy2Dto1D(buf, frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                                         mPreviewPixelFormat);
                             ///CAMHAL_LOGDA("-Copy");
 
                             //Increment the buffer count
@@ -598,11 +607,15 @@ void AppCallbackNotifier::notifyFrame()
 
                         if ( buffer->size () >= frame->mLength )
                             {
-                            memcpy(buffer->pointer(), ( void * )  frame->mBuffer, frame->mLength);
+                              buf = buffer->pointer();
+                              if (buf)
+                                memcpy(buf, ( void * )  frame->mBuffer, frame->mLength);
                             }
                         else
                             {
-                            memset(buffer->pointer(), 0, buffer->size());
+                              buf = buffer->pointer();
+                              if (buf)
+                                memset(buf, 0, buffer->size());
                             }
 
                         //Increment the buffer count
@@ -1143,13 +1156,13 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
     for ( unsigned int i = 0 ; i < count ; i ++ )
         {
         heap = new MemoryHeapBase(fd, length, 0, offsets[i]);
-        heap->incStrong(this);
         if ( NULL == heap )
             {
             CAMHAL_LOGEB("Unable to map a memory heap to frame 0x%x", bufArr[i]);
             ret = -1;
             goto exit;
             }
+        heap->incStrong(this);
 
 #ifdef DEBUG_LOG
 
@@ -1158,7 +1171,6 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
 #endif
 
         buffer = new MemoryBase(heap, 0, length);
-        buffer->incStrong(this);
         if ( NULL == buffer )
             {
             CAMHAL_LOGEB("Unable to initialize a memory base to frame 0x%x", bufArr[i]);
@@ -1167,6 +1179,7 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
             ret = -1;
             goto exit;
             }
+        buffer->incStrong(this);
 
 #ifdef DEBUG_LOG
 

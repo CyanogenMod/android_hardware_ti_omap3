@@ -32,6 +32,9 @@ BaseCameraAdapter::BaseCameraAdapter()
 {
     mReleaseImageBuffersCallback = NULL;
     mEndImageCaptureCallback = NULL;
+    mErrorNotifier = NULL;
+    mEndCaptureData = NULL;
+    mReleaseData = NULL;
 }
 
 status_t BaseCameraAdapter::registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data)

@@ -193,8 +193,8 @@ public:
         public:
             CameraProperty(const char *propName, const char *propValue)
                 {
-                strcpy(mPropName, propName);
-                strcpy(mPropValue, propValue);
+                  strncpy(mPropName, propName, sizeof(mPropName)-1);
+                  strncpy(mPropValue, propValue, sizeof(mPropValue)-1);
                 }
             status_t setValue(const char * value);
 
