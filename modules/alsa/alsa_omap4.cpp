@@ -837,11 +837,12 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
 
     if (handle->curDev != devices) {
         status = s_open(handle, devices, mode);
-        #ifdef AUDIO_MODEM_TI
-            ALSAControl control("hw:00");
-            status = audioModem->voiceCallControls(devices, mode, &control);
-        #endif
     }
+
+    #ifdef AUDIO_MODEM_TI
+        ALSAControl control("hw:00");
+        status = audioModem->voiceCallControls(devices, mode, &control);
+    #endif
 
     return status;
 }
