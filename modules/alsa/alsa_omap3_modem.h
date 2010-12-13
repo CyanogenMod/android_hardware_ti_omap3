@@ -209,10 +209,24 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_MODEM_LIB_PATH_PROPERTY   "modem.audio.libpath"
 #define AUDIO_MODEM_LIB_DEFAULT_PATH    "/system/lib/libaudiomodemgeneric.so"
 
+// Voice Call Volume
+struct voiceCallVolumeInfo
+{
+    unsigned int      min;
+    unsigned int      max;
+};
+
+struct voiceCallVolumeList
+{
+    const uint32_t  device;
+    const char      *volumeName;
+    voiceCallVolumeInfo *mInfo;
+};
+
 class AudioModemAlsa
 {
 public:
-                AudioModemAlsa();
+                AudioModemAlsa(ALSAControl *alsaControl);
     virtual    ~AudioModemAlsa();
 
     class AudioModemDeviceProperties
@@ -285,6 +299,7 @@ public:
         status_t     voiceCallCodecBTPCMSet(void);
         status_t     voiceCallCodecBTPCMReset(void);
     #endif
+    status_t voiceCallVolume(ALSAControl *alsaControl, float volume);
 
     char        *mBoardName;
     ALSAControl *mAlsaControl;

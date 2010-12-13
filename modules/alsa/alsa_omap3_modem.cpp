@@ -37,10 +37,29 @@
 
 namespace android
 {
+// Voice call volume
+#define VOICE_CALL_VOLUME_PROP(dev, name) \
+    {\
+        dev, name, NULL\
+    }
 
+static voiceCallVolumeList
+voiceCallVolumeProp[] = {
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_HANDSET,
+                            "DAC Voice Digital Downlink Volume"),
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_HANDFREE,
+                            "DAC Voice Digital Downlink Volume"),
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_HEADSET,
+                            "DAC Voice Digital Downlink Volume"),
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_AUX,
+                            "DAC Voice Digital Downlink Volume"),
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_BLUETOOTH,
+                            "BT Digital Playback Volume"),
+    VOICE_CALL_VOLUME_PROP(0, "")
+};
 // ----------------------------------------------------------------------------
 
-AudioModemAlsa::AudioModemAlsa()
+AudioModemAlsa::AudioModemAlsa(ALSAControl *alsaControl)
 {
     status_t error;
 
@@ -62,6 +81,24 @@ AudioModemAlsa::AudioModemAlsa()
         exit(-1);
     }
     mVoiceCallState = AUDIO_MODEM_VOICE_CALL_OFF;
+
+    // Initialize Min and Max volume
+    int i = 0;
+    while(voiceCallVolumeProp[i].device) {
+        voiceCallVolumeInfo *info = voiceCallVolumeProp[i].mInfo = new voiceCallVolumeInfo;
+
+        error = alsaControl->getmax(voiceCallVolumeProp[i].volumeName, info->max);
+        error = alsaControl->getmin(voiceCallVolumeProp[i].volumeName, info->min);
+        LOGV("Voice call volume name: %s min: %d max: %d", voiceCallVolumeProp[i].volumeName,
+                 info->min, info->max);
+
+        if (error != NO_ERROR) {
+            LOGE("Audio Voice Call volume was not correctly initialized.");
+            delete mModem;
+            exit(error);
+        }
+        i++;
+    }
 }
 
 AudioModemAlsa::~AudioModemAlsa()
@@ -964,4 +1001,31 @@ status_t AudioModemAlsa::voiceCallModemReset()
     return error;
 }
 
+status_t AudioModemAlsa::voiceCallVolume(ALSAControl *alsaControl, float volume)
+{
+    status_t error = NO_ERROR;
+    unsigned int setVolume;
+    int i = 0;
+
+    while(voiceCallVolumeProp[i].device) {
+        voiceCallVolumeInfo *info = voiceCallVolumeProp[i].mInfo;
+
+        // Make sure volume is between bounds.
+        setVolume = info->min + volume * (info->max - info->min);
+        if (setVolume > info->max) setVolume = info->max;
+        if (setVolume < info->min) setVolume = info->min;
+
+        LOGV("%s: in call volume level to apply: %d", voiceCallVolumeProp[i].volumeName,
+                setVolume);
+
+        error = alsaControl->set(voiceCallVolumeProp[i].volumeName, setVolume, 0);
+        if (error < 0) {
+            LOGE("%s: error applying in call volume: %d", voiceCallVolumeProp[i].volumeName,
+                    setVolume);
+            return error;
+        }
+        i++;
+    }
+    return NO_ERROR;
+}
 } // namespace android
