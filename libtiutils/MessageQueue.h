@@ -23,7 +23,7 @@
 #define __MESSAGEQUEUE_H__
 
 #include "DebugUtils.h"
-
+#include <stdint.h>
 
 ///Uncomment this macro to debug the message queue implementation
 //#define DEBUG_LOG
@@ -60,6 +60,7 @@ struct Message
     void*        arg2;
     void*        arg3;
     void*        arg4;
+    int64_t     id;
 };
 
 ///Message queue implementation
