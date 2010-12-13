@@ -505,6 +505,7 @@ private:
 
     int mSensorIndex;
     CodingMode mCodingMode;
+    Mutex mEventLock;
 };
 }; //// namespace
 #endif //OMX_CAMERA_ADAPTER_H

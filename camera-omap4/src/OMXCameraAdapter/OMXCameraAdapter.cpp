@@ -4993,36 +4993,66 @@ OMX_ERRORTYPE OMXCameraAdapter::SignalEvent(OMX_IN OMX_HANDLETYPE hComponent,
                                           OMX_IN OMX_U32 nData2,
                                           OMX_IN OMX_PTR pEventData)
 {
+    int64_t startId, nextId;
+    Mutex::Autolock lock(mEventLock);
+
     LOG_FUNCTION_NAME
-    if(!mEventSignalQ.isEmpty())
+
+    if ( !mEventSignalQ.isEmpty() )
         {
         CAMHAL_LOGDA("Event queue not empty");
         Message msg;
         mEventSignalQ.get(&msg);
-        CAMHAL_LOGVB("msg.command = %d, msg.arg1 = %d, msg.arg2 = %d, msg.arg3 = %d", msg.command
-                                                                            , msg.arg1
-                                                                            , msg.arg2
-                                                                            , msg.arg3);
-        ///If any of the message parameters are not set, then that is taken as listening for all events/event parameters
-        if((msg.command!=0 || msg.command == (unsigned int)(eEvent))
-            && (!msg.arg1 || (OMX_U32)msg.arg1 == nData1)
-            && (!msg.arg2 || (OMX_U32)msg.arg2 == nData2)
-            && msg.arg3)
+
+        startId = msg.id;
+
+        //Iterate through the FIFO until we either find our event
+        //or reach the end of the queue
+        do
             {
-            Semaphore *sem  = (Semaphore*) msg.arg3;
-            CAMHAL_LOGDA("Event matched, signalling sem");
-            ///Signal the semaphore provided
-            sem->Signal();
-            }
-        else
-            {
-            ///Put the message back in the queue
+
+            CAMHAL_LOGDB("msg.id = %d msg.command = %d, msg.arg1 = %d, msg.arg2 = %d, msg.arg3 = %d", ( int ) msg.id,
+                                                                               ( int ) msg.command,
+                                                                               ( int ) msg.arg1,
+                                                                               ( int ) msg.arg2,
+                                                                               ( int ) msg.arg3 );
+
+            if( ( msg.command != 0 || msg.command == ( unsigned int ) ( eEvent ) )
+                && ( !msg.arg1 || ( OMX_U32 ) msg.arg1 == nData1 )
+                && ( !msg.arg2 || ( OMX_U32 ) msg.arg2 == nData2 )
+                && msg.arg3)
+                {
+                Semaphore *sem  = (Semaphore*) msg.arg3;
+                CAMHAL_LOGDA("Event matched, signalling sem");
+                //Signal the semaphore provided
+                sem->Signal();
+                break;
+                }
+            else if ( mEventSignalQ.isEmpty() )
+                {
+                //Put the message back in the queue
+                CAMHAL_LOGDA("Event didnt match, putting the message back in Q");
+                mEventSignalQ.put(&msg);
+                break;
+                }
+
             CAMHAL_LOGDA("Event didnt match, putting the message back in Q");
             mEventSignalQ.put(&msg);
-            }
+
+            //Get the next one
+            mEventSignalQ.get(&msg);
+            nextId = msg.id;
+
+            } while ( startId != nextId );
+
+        }
+    else
+        {
+        CAMHAL_LOGEA("Event queue empty!!!");
         }
 
     LOG_FUNCTION_NAME_EXIT
+
     return OMX_ErrorNone;
 }
 
@@ -5033,6 +5063,8 @@ status_t OMXCameraAdapter::RegisterForEvent(OMX_IN OMX_HANDLETYPE hComponent,
                                           OMX_IN Semaphore &semaphore,
                                           OMX_IN OMX_U32 timeout)
 {
+    static int64_t id = 0;
+
     LOG_FUNCTION_NAME
 
     Message msg;
@@ -5041,8 +5073,12 @@ status_t OMXCameraAdapter::RegisterForEvent(OMX_IN OMX_HANDLETYPE hComponent,
     msg.arg2 = (void*)nData2;
     msg.arg3 = (void*)&semaphore;
     msg.arg4 = (void*)hComponent;
+    msg.id = id;
+
+    id++;
 
     LOG_FUNCTION_NAME_EXIT
+
     return mEventSignalQ.put(&msg);
 }
 
