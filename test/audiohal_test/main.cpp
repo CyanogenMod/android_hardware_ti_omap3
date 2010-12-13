@@ -96,7 +96,11 @@ int wav_rec(const char *fn)
                                                   &m_rate, 
                                                   &status, 
                                                   (AudioSystem::audio_in_acoustics) mFlags);
-
+    if (in == NULL) {
+        fprintf(stderr,"openInputStream failed\n");
+        delete hardware;
+        return -1;
+    }
     hardware->setMasterVolume(1.0f);
     size = (unsigned int)in->bufferSize();
     printf("Rec: set buffer size = %d\n", size);
@@ -104,6 +108,8 @@ int wav_rec(const char *fn)
     fd = open(fn, O_CREAT | O_RDWR, 777);
     if (fd < 0) {
  	fprintf(stderr,"Rec: cannot open output file\n");
+        hardware->closeInputStream(in);
+        delete hardware;
         return -1;
     }
 
@@ -289,6 +295,7 @@ int wav_play(char *fn)
 
     if (read(fd, &hdr, sizeof(hdr)) != sizeof(hdr)) {
  	fprintf(stderr,"Play: cannot read header\n");
+        close(fd);
 	return -1;
     }
 
@@ -303,15 +310,18 @@ int wav_play(char *fn)
         (hdr.riff_fmt != ID_WAVE) ||
         (hdr.fmt_id != ID_FMT)) {
     	fprintf(stderr,"Play: '%s' is not a riff/wave file\n", fn);
+        close(fd);
         return -1;
     }
     if ((hdr.audio_format != FORMAT_PCM) ||
         (hdr.fmt_sz != 16)) {
 	fprintf(stderr, "Play: '%s' is not pcm format\n", fn);
+        close(fd);
         return -1;
     }
     if (hdr.bits_per_sample != 16) {
 	fprintf(stderr, "Play: '%s' is not 16bit per sample\n", fn);
+        close(fd);
         return -1;
     }
 
