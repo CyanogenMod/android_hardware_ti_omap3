@@ -53,6 +53,9 @@ MessageQueue::MessageQueue()
     if ( 0 > stat )
         {
         MSGQ_LOGEB("Error while openning pipe: %s", strerror(stat) );
+        this->fd_read = 0;
+        this->fd_write = 0;
+        mHasMsg = false;
         }
     else
         {
