@@ -307,6 +307,10 @@ class Gen3A_settings{
     public:
 
     int Exposure;
+    OMX_U32 ExposureValueLeft;
+    OMX_U32 ExposureValueRight;
+    OMX_U32 ManualGainISOLeft;
+    OMX_U32 ManualGainISORight;
     int WhiteBallance;
     int Flicker;
     int SceneMode;
@@ -338,6 +342,8 @@ enum E3ASettingsFlags
     SetSaturation           = 1 << 9,
     SetEffect               = 1 << 10,
     SetFocus                = 1 << 11,
+    SetManualExposure       = 1 << 12,
+    SetManualGain           = 1 << 13,
 
     E3aSettingMax,
     E3AsettingsAll = ( ((E3aSettingMax -1 ) << 1) -1 ) /// all possible flags raised

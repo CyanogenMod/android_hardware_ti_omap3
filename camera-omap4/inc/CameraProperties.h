@@ -106,6 +106,14 @@ public:
         PROP_INDEX_MANUALCONVERGENCE_VALUES,
         PROP_INDEX_VSTAB,
         PROP_INDEX_VSTAB_VALUES,
+        PROP_INDEX_MANUAL_EXPOSURE_LEFT,
+        PROP_INDEX_MANUAL_EXPOSURE_RIGHT,
+        PROP_INDEX_MANUAL_EXPOSURE_MODES,
+        PROP_INDEX_MANUAL_GAIN_EV_LEFT,
+        PROP_INDEX_MANUAL_GAIN_EV_RIGHT,
+        PROP_INDEX_MANUAL_GAIN_ISO_LEFT,
+        PROP_INDEX_MANUAL_GAIN_ISO_RIGHT,
+        PROP_INDEX_MANUAL_GAIN_MODES,
         PROP_INDEX_MAX
         };
 
@@ -163,6 +171,14 @@ public:
     static const char PROP_KEY_AUTOCONVERGENCE[];
     static const char PROP_KEY_AUTOCONVERGENCE_MODE[];
     static const char PROP_KEY_MANUALCONVERGENCE_VALUES[];
+    static const char PROP_KEY_MANUAL_EXPOSURE_LEFT[];
+    static const char PROP_KEY_MANUAL_EXPOSURE_RIGHT[];
+    static const char PROP_KEY_MANUAL_EXPOSURE_MODES[];
+    static const char PROP_KEY_MANUAL_GAIN_EV_LEFT[];
+    static const char PROP_KEY_MANUAL_GAIN_EV_RIGHT[];
+    static const char PROP_KEY_MANUAL_GAIN_ISO_LEFT[];
+    static const char PROP_KEY_MANUAL_GAIN_ISO_RIGHT[];
+    static const char PROP_KEY_MANUAL_GAIN_MODES[];
     static const char PARAMS_DELIMITER [];
 
     static const char TICAMERA_FILE_PREFIX[];

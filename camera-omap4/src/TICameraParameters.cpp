@@ -57,7 +57,6 @@ const char TICameraParameters::KEY_ISO[] = "iso";
 const char TICameraParameters::KEY_SUPPORTED_ISO_VALUES[] = "iso-mode-values";
 const char TICameraParameters::KEY_SUPPORTED_IPP[] = "ipp-values";
 const char TICameraParameters::KEY_IPP[] = "ipp";
-const char TICameraParameters::KEY_MAN_EXPOSURE[] = "manual-exposure";
 const char TICameraParameters::KEY_METERING_MODE[] = "meter-mode";
 const char TICameraParameters::KEY_PADDED_WIDTH[] = "padded-width";
 const char TICameraParameters::KEY_PADDED_HEIGHT[] = "padded-height";
@@ -166,6 +165,16 @@ const char TICameraParameters::AUTOCONVERGENCE_MODE_FRAME[] = "mode-frame";
 const char TICameraParameters::AUTOCONVERGENCE_MODE_CENTER[] = "mode-center";
 const char TICameraParameters::AUTOCONVERGENCE_MODE_FFT[] = "mode-fft";
 const char TICameraParameters::AUTOCONVERGENCE_MODE_MANUAL[] = "mode-manual";
+
+//  TI extensions to add Manual Gain and Manual Exposure
+const char TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT[] = "manual-exposure-left";
+const char TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT[] = "manual-exposure-right";
+const char TICameraParameters::KEY_MANUAL_EXPOSURE_MODES[] = "manual-exposure-modes";
+const char TICameraParameters::KEY_MANUAL_GAIN_EV_LEFT[] = "manual-gain-ev-left";
+const char TICameraParameters::KEY_MANUAL_GAIN_EV_RIGHT[] = "manual-gain-ev-right";
+const char TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT[] = "manual-gain-iso-left";
+const char TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT[] = "manual-gain-iso-right";
+const char TICameraParameters::KEY_MANUAL_GAIN_MODES[] = "manual-gain-modes";
 
 };
 

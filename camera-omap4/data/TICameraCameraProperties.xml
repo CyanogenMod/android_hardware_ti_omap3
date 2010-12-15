@@ -162,5 +162,13 @@
 <manual-convergence-values>-100,-50,-30,-25,0,25,50,100</manual-convergence-values>
 <vstab>0</vstab>
 <vstab-values>0,1</vstab-values>
+<manual-exposure-left>66</manual-exposure-left>
+<manual-exposure-right>66</manual-exposure-right>
+<manual-exposure-modes>off,on</manual-exposure-modes>
+<manual-gain-ev-left>0</manual-gain-ev-left>
+<manual-gain-ev-right>0</manual-gain-ev-right>
+<manual-gain-iso-left>100</manual-gain-iso-left>
+<manual-gain-iso-right>100</manual-gain-iso-right>
+<manual-gain-modes>off,on</manual-gain-modes>
 </CameraInstance>
 </CameraRoot>
