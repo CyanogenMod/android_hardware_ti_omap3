@@ -2263,126 +2263,127 @@ st_jpge_file_list[] = {
 "0",
 "0",
 },
-{
+{ // L_SKIA_JPGE_0062:
 "img_40x40.jpg",
 "de42966b308851437e6d2a57b752052c",
 "0",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0063:
 "img_180x160.jpg",
 "96b9cc698fdb1f4b86aa318ab2b4b8b7",
 "0",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0064:
 "img_1MP_1280x800.jpg",
-"0",
+"572d84ecd9ba621d44ff047cacfa2d34",
 "d314741f1d5954c46465fbbbf1ab61d5",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0065:
 "img_1.3MP_1440x900.jpg",
-"0",
+"c89bff41f8287bb388ca8a87bc541210",
 "7c2eba27047229f0113d35c9f162778e",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0066:
 "img_2.3MP_1920x1200.jpg",
-"0",
+"5637301d17133e54531cbd6368f5a143",
 "30d5ffd2f343f0fb4b712fa544091eae",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0067:
 "img_3.1MP_2048x1536.jpg",
-"0",
+"f0babaa98f7224cb276c439fe76496e0",
 "90eaae721846e682b597dcc22245a3df",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0068:
 "img_3.5MP_2048x1800.jpg",
-"0",
+"dfc4d0a10e793c7e359606bbbfebe1bb",
 "e48bef13d29919de20e71372ac7b2310",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0069:
 "img_4MP_2560x1600.jpg",
-"0",
+"b87f419e86f23b38a31a28b62e127504",
 "aea3b25de29ea0268b0ef92ba2b60861",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0070:
 "img_4.6MP_2560x1800.jpg",
-"0",
+"5439011562e77b27ec1dc2312cf14e84",
 "b9e793a7ee914465c0db6abac86e8dcb",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0071:
 "img_5.5MP_2952x1882.jpg",
-"0",
+"623743278f08f74d5d8242268418bbcf",
 "7c37445ca471480ff42735b3c3c7e39f",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0072:
 "img_6.6MP_2842x2357.jpg",
 "eb87115c2a0580a58ef1c0abdc0228bc",
 "0",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0073:
 "img_7MP_3072x2304.jpg",
-"0",
+"05510147d075c5acc4e7af847528134d",
 "7a092e59ed2db8e4cc84df66a745e1d4",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0074:
 "img_7.5MP_3474x2154.jpg",
-"0",
+"d3dfe1c1f74b88628971134c38f115c4",
 "96ee2cfeb19992f544a78f7cc868a8ad",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0075:
 "img_8.4MP_3300x2550.jpg",
-"0",
+"5d9ded221de32b42e7959a686ed78868",
 "70c077cf61d71d5ef4d77ccade482cbd",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0076:
 "img_9MP_3000x3000.jpg",
-"0",
+"71fdd854b289a1f1a9ff2d6b77c4f355",
 "8cd36ce9dd49556a53069dfb15fc76f8",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0077:
 "img_9.6MP_3600x2400.jpg",
-"0",
+"af34f5984328d2cc7c514e50bdc14ce4",
 "4bd6c8f7c45d510fae3bd678e3c07269",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0078:
 "img_10MP_3664x2748.jpg",
-"0",
+"a73b96eb735d24837ae5dff4d4e40716",
 "330d0e0e1a0b2e6043efefe62540dcf1",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0079:
 "img_10.5MP_3780x2782.jpg",
-"0",
+"4d6ff1cce73e040e4915566b0b3460c1",
 "67755f45edf70c6dfe6408e1d57d6161",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0080:
 "img_11MP_4028x2732.jpg",
-"0",
+"7d5b8b8aae7bc8497a401c596deb1c67",
 "4b3ad9cca93b192110e8a0c09f83f0a1",
-"0",
+"0"
 },
-{
+{ // L_SKIA_JPGE_0081:
 "img_11.5MP_4195x2763.jpg",
 "f897c84c422729f7ab58531255a357d1",
 "0",
-"0",
+"0"
 },
+
 
 {   /*add the new test output filename and its md5sum before this comment line*/
 "",
