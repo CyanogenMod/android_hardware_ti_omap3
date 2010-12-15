@@ -711,7 +711,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-    if (sysfile_write("sys/devices/platform/omapdss/overlay1/zorder", "0",  strlen("0")) < 0) {
+    if (sysfile_write("sys/devices/platform/omapdss/overlay1/zorder", "3",  strlen("0")) < 0) {
         goto error1;
     }
 
@@ -730,6 +730,28 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
         goto error1;
     }
+
+   for (int i = 0; i < MAX_MANAGER_CNT; i++) {
+        if (strcmp(managerMetaData[i].managername, "tv") == 0) {
+            LOGD("found LCD manager @ [%d]", i);
+            index = i;
+            break;
+        }
+    }
+
+    if (sysfile_write(managerMetaData[index].managertrans_key_value, "0", strlen("0")) < 0) {
+        goto error1;
+    }
+
+    if (sysfile_write(managerMetaData[index].managertrans_key_type, "video-source", strlen("video-source")) < 0) {
+        goto error1;
+    }
+
+    if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
+        goto error1;
+    }
+
+
 #endif
 
     if (v4l2_overlay_req_buf(fd, &num, 0, 0)) {
