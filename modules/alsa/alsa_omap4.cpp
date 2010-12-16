@@ -30,14 +30,20 @@
 #endif
 #endif
 
-#define MM_DEFAULT_DEVICE	"plughw:0,0"
-#define BLUETOOTH_SCO_DEVICE	"plughw:0,0"
-#define FM_TRANSMIT_DEVICE	"plughw:0,0"
-#define FM_CAPTURE_DEVICE       "plughw:0,1"
-#define HDMI_DEVICE		"plughw:0,7"
+#define MM_DEFAULT_DEVICE    "plughw:0,0"
+#define BLUETOOTH_SCO_DEVICE "plughw:0,0"
+#define FM_TRANSMIT_DEVICE   "plughw:0,0"
+#define FM_CAPTURE_DEVICE    "plughw:0,1"
+#define MM_LP_DEVICE         "hw:0,6"
+#define HDMI_DEVICE          "plughw:0,7"
 
 #ifndef ALSA_DEFAULT_SAMPLE_RATE
 #define ALSA_DEFAULT_SAMPLE_RATE 48000 // in Hz
+#endif
+
+#ifndef MM_LP_SAMPLE_RATE
+//not used for now
+#define MM_LP_SAMPLE_RATE 44100        // in Hz
 #endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -54,8 +60,6 @@ static status_t s_open(alsa_handle_t *, uint32_t, int);
 static status_t s_close(alsa_handle_t *);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
-
-void configMicChoices(uint32_t);
 
 #ifdef AUDIO_MODEM_TI
     AudioModemAlsa *audioModem;
@@ -118,7 +122,7 @@ static void setScoControls(uint32_t devices, int mode);
 static void setFmControls(uint32_t devices, int mode);
 static void setHDMIControls(uint32_t devices, int mode);
 static void setDefaultControls(uint32_t devices, int mode);
-
+void configMicChoices(uint32_t);
 
 typedef void (*AlsaControlSet)(uint32_t devices, int mode);
 
@@ -133,10 +137,14 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode);
 #define OMAP4_OUT_HDMI        (\
         AudioSystem::DEVICE_OUT_AUX_DIGITAL)
 
+#define OMAP4_OUT_LP          (\
+        AudioSystem::DEVICE_OUT_LOW_POWER)
+
 #define OMAP4_OUT_DEFAULT   (\
         AudioSystem::DEVICE_OUT_ALL &\
         ~OMAP4_OUT_SCO &\
         ~OMAP4_OUT_FM  &\
+        ~OMAP4_OUT_LP  &\
         ~OMAP4_OUT_HDMI)
 
 #define OMAP4_IN_SCO        (\
@@ -161,6 +169,7 @@ static alsa_handle_t _defaults[] = {
         sampleRate  : DEFAULT_SAMPLE_RATE,
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
+        mmap        : 0,
         modPrivate  : (void *)&setDefaultControls,
     },
     {
@@ -174,6 +183,7 @@ static alsa_handle_t _defaults[] = {
         sampleRate  : DEFAULT_SAMPLE_RATE,
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
+        mmap        : 0,
         modPrivate  : (void *)&setDefaultControls,
     },
     {
@@ -187,6 +197,7 @@ static alsa_handle_t _defaults[] = {
         sampleRate  : DEFAULT_SAMPLE_RATE,
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
+        mmap        : 0,
         modPrivate  : (void *)&setHDMIControls,
     },
     {
@@ -199,7 +210,22 @@ static alsa_handle_t _defaults[] = {
         channels    : 2,
         sampleRate  : DEFAULT_SAMPLE_RATE,
         latency     : 200000, // Desired Delay in usec
-        bufferSize  : DEFAULT_SAMPLE_RATE / 10, // Desired Number of samples
+        bufferSize  : 4096, // Desired Number of samples
+        mmap        : 1,
+        modPrivate  : (void *)&setDefaultControls,
+    },
+    {
+        module      : 0,
+        devices     : OMAP4_OUT_LP,
+        curDev      : 0,
+        curMode     : 0,
+        handle      : 0,
+        format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
+        channels    : 2,
+        sampleRate  : DEFAULT_SAMPLE_RATE,
+        latency     : 140000, // Desired Delay in usec
+        bufferSize  : 6144, // Desired Number of samples
+        mmap        : 1,
         modPrivate  : (void *)&setDefaultControls,
     },
     {
@@ -213,6 +239,7 @@ static alsa_handle_t _defaults[] = {
         sampleRate  : AudioRecord::DEFAULT_SAMPLE_RATE,
         latency     : 250000, // Desired Delay in usec
         bufferSize  : 2048, // Desired Number of samples
+        mmap        : 0,
         modPrivate  : (void *)&setDefaultControls,
     },
     {
@@ -226,6 +253,7 @@ static alsa_handle_t _defaults[] = {
         sampleRate  : AudioRecord::DEFAULT_SAMPLE_RATE,
         latency     : 250000, // Desired Delay in usec
         bufferSize  : 2048, // Desired Number of samples
+        mmap        : 0,
         modPrivate  : (void *)&setDefaultControls,
     },
     {
@@ -239,6 +267,7 @@ static alsa_handle_t _defaults[] = {
         sampleRate  : 48000,
         latency     : -1, // Doesn't matter, since it is buffer-less
         bufferSize  : 2048, // Desired Number of samples
+        mmap        : 0,
         modPrivate  : (void *)&setDefaultControls,
     },
 
@@ -260,7 +289,15 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
     if (device & OMAP4_IN_FM)
         return FM_CAPTURE_DEVICE;
 
-    return MM_DEFAULT_DEVICE;
+    if (device & OMAP4_IN_DEFAULT)
+        return MM_DEFAULT_DEVICE;
+
+    if (device & OMAP4_OUT_LP)
+        return MM_LP_DEVICE;
+
+    //always use device 6 for default cases until dynamic swith is supported
+    //return MM_DEFAULT_DEVICE;
+    return MM_LP_DEVICE;
 }
 
 snd_pcm_stream_t direction(alsa_handle_t *handle)
@@ -279,9 +316,11 @@ status_t setHardwareParams(alsa_handle_t *handle)
     snd_pcm_hw_params_t *hardwareParams;
     status_t err;
 
-    snd_pcm_uframes_t bufferSize = handle->bufferSize;
+    snd_pcm_uframes_t periodSize, bufferSize = handle->bufferSize;
+    unsigned int periodTime, bufferTime;
     unsigned int requestedRate = handle->sampleRate;
     unsigned int latency = handle->latency;
+    int numPeriods = 0;
 
     // snd_pcm_format_description() and snd_pcm_format_name() do not perform
     // proper bounds checking.
@@ -305,8 +344,21 @@ status_t setHardwareParams(alsa_handle_t *handle)
     }
 
     // Set the interleaved read and write format.
-    err = snd_pcm_hw_params_set_access(handle->handle, hardwareParams,
-            SND_PCM_ACCESS_RW_INTERLEAVED);
+    if (handle->mmap) {
+        snd_pcm_access_mask_t *mask =
+            (snd_pcm_access_mask_t *)alloca(snd_pcm_access_mask_sizeof());
+        snd_pcm_access_mask_none(mask);
+        snd_pcm_access_mask_set(mask, SND_PCM_ACCESS_MMAP_INTERLEAVED);
+        err = snd_pcm_hw_params_set_access_mask(
+                        handle->handle,
+                        hardwareParams,
+                        mask);
+    } else  {
+        err = snd_pcm_hw_params_set_access(
+                        handle->handle,
+                        hardwareParams,
+                        SND_PCM_ACCESS_RW_INTERLEAVED);
+    }
     if (err < 0) {
         LOGE("Unable to configure PCM read/write format: %s",
                 snd_strerror(err));
@@ -360,26 +412,34 @@ status_t setHardwareParams(alsa_handle_t *handle)
         goto done;
     }
 
+    if (handle->devices == OMAP4_OUT_DEFAULT ||
+        handle->devices == OMAP4_OUT_LP) {
+        // ping-pong the cheech-chong
+        numPeriods = 2;
+    } else {
+        // other outputs use FIFO, so set up 4 periods
+        numPeriods = 4;
+    }
+    latency = latency / numPeriods;
     // Setup buffers for latency
     err = snd_pcm_hw_params_set_buffer_time_near(handle->handle,
             hardwareParams, &latency, NULL);
     if (err < 0) {
         /* That didn't work, set the period instead */
-        unsigned int periodTime = latency / 4;
+        unsigned int periodTime = latency;
         err = snd_pcm_hw_params_set_period_time_near(handle->handle,
                 hardwareParams, &periodTime, NULL);
         if (err < 0) {
             LOGE("Unable to set the period time for latency: %s", snd_strerror(err));
             goto done;
         }
-        snd_pcm_uframes_t periodSize;
         err = snd_pcm_hw_params_get_period_size(hardwareParams, &periodSize,
                 NULL);
         if (err < 0) {
             LOGE("Unable to get the period size for latency: %s", snd_strerror(err));
             goto done;
         }
-        bufferSize = periodSize * 4;
+        bufferSize = periodSize * numPeriods;
         if (bufferSize < handle->bufferSize) bufferSize = handle->bufferSize;
         err = snd_pcm_hw_params_set_buffer_size_near(handle->handle,
                 hardwareParams, &bufferSize);
@@ -400,7 +460,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
             LOGE("Unable to get the buffer time for latency: %s", snd_strerror(err));
             goto done;
         }
-        unsigned int periodTime = latency / 4;
+        periodTime = latency;
         err = snd_pcm_hw_params_set_period_time_near(handle->handle,
                 hardwareParams, &periodTime, NULL);
         if (err < 0) {
@@ -409,11 +469,16 @@ status_t setHardwareParams(alsa_handle_t *handle)
         }
     }
 
-    LOGV("Buffer size: %d", (int)bufferSize);
-    LOGV("Latency: %d", (int)latency);
+    if (handle->mmap) {
+        handle->bufferSize = periodSize;
+        handle->latency = periodTime;
+    } else {
+        handle->bufferSize = bufferSize;
+        handle->latency = bufferTime;
+    }
 
-    handle->bufferSize = bufferSize;
-    handle->latency = latency;
+    LOGI("Buffer size: %d", (int)(handle->bufferSize));
+    LOGI("Latency: %d", (int)(handle->latency));
 
     // Commit the hardware parameters back to the device.
     err = snd_pcm_hw_params(handle->handle, hardwareParams);
@@ -459,10 +524,10 @@ status_t setSoftwareParams(alsa_handle_t *handle)
         // first frame.
         startThreshold = 1;
         if (handle->devices & OMAP4_IN_FM) {
-          LOGV("Stop Threshold for FM Rx is -1");
-          stopThreshold = -1; // For FM Rx via ABE
+            LOGV("Stop Threshold for FM Rx is -1");
+            stopThreshold = -1; // For FM Rx via ABE
         } else
-             stopThreshold = bufferSize;
+            stopThreshold = bufferSize;
     }
 
     err = snd_pcm_sw_params_set_start_threshold(handle->handle, softwareParams,
@@ -527,25 +592,29 @@ LOGV("%s", __FUNCTION__);
     if (devices & 0x0000FFFF){
         if (devices & AudioSystem::DEVICE_OUT_SPEAKER) {
             /* OMAP4 ABE */
+            control.set("DL2 Mixer Multimedia", 1);		// MM_DL    -> DL2 Mixer
             control.set("DL2 Media Playback Volume", 118);
-            control.set("DL2 Tones Playback Volume", 118);
-            control.set("DL2 Voice Playback Volume", 118);
             /* TWL6040 */
             control.set("HF Left Playback", "HF DAC");		// HFDAC L -> HF Mux
             control.set("HF Right Playback", "HF DAC");		// HFDAC R -> HF Mux
-            control.set("Handsfree Playback Volume", 29);
+            control.set("Handsfree Playback Volume", 23);
+            if (fm_enable) {
+                LOGE("FM ABE speaker");
+                control.set("DL2 Capture Playback Volume", 115);
+            }
         } else {
             /* OMAP4 ABE */
+            control.set("DL2 Mixer Multimedia", 0, 0);
             control.set("DL2 Media Playback Volume", 0, -1);
-            control.set("DL2 Tones Playback Volume", 0, -1);
-            control.set("DL2 Voice Playback Volume", 0, -1);
+            control.set("DL2 Capture Playback Volume", 0, -1);
             /* TWL6040 */
             control.set("HF Left Playback", "Off");
             control.set("HF Right Playback", "Off");
             control.set("Handsfree Playback Volume", 0, -1);
         }
 
-        if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) {
+        if ((devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
+            (devices & AudioSystem::DEVICE_OUT_LOW_POWER)) {
             /* TWL6040 */
             control.set("HS Left Playback", "HS DAC");		// HSDAC L -> HS Mux
             control.set("HS Right Playback", "HS DAC");		// HSDAC R -> HS Mux
@@ -566,36 +635,12 @@ LOGV("%s", __FUNCTION__);
             control.set("Earphone Driver Switch", 0, 0);
             control.set("Earphone Playback Volume", 0, -1);
         }
-
-        /* Set EQ Profiles for Audio. AMIC/DMIC related EQ's set in
-           configMicChoices() */
-        if ((devices & AudioSystem::DEVICE_OUT_SPEAKER) ||
-            (devices & AudioSystem::DEVICE_OUT_AUX_DIGITAL)) {
-            // Setting DL2 EQ's to 800Hz cut-off frequency, as setting
-            // to flat response saturates the audio quality in the
-            // handsfree speakers
-            control.set("DL2 Left Equalizer Profile", 1, 0);
-            control.set("DL2 Right Equalizer Profile", 1, 0);
-        }
-        if ((devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
-            (devices & AudioSystem::DEVICE_OUT_EARPIECE)) {
-            control.set("DL1 Equalizer Profile", 0, 0);
-        }
-
-	/*
-         * ASoC multicomponent doesn't allow us to enable backends
-         * on-the-fly, so enable handsfree and headset backends
-         * always
-         */
-        if ((devices & AudioSystem::DEVICE_OUT_SPEAKER) ||
-            (devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
+        if ((devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
             (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
-            (devices & AudioSystem::DEVICE_OUT_FM_TRANSMIT)) {
+            (devices & AudioSystem::DEVICE_OUT_FM_TRANSMIT) ||
+            (devices & AudioSystem::DEVICE_OUT_LOW_POWER)) {
             /* OMAP4 ABE */
-            /* Headset: DL1 Mixer */
             control.set("DL1 Mixer Multimedia", 1);		// MM_DL    -> DL1 Mixer
-            control.set("DL1 Mixer Tones", 1);			// TONES_DL -> DL1 Mixer
-            control.set("DL1 Mixer Voice", 1);			// VX_DL    -> DL1 Mixer
             control.set("Sidetone Mixer Playback", 1);		// DL1 Mixer-> Sidetone Mixer
             if (devices & OMAP4_OUT_FM) {
               /* FM Tx: DL1 MM_EXT Switch */
@@ -606,50 +651,18 @@ LOGV("%s", __FUNCTION__);
               control.set("DL1 MM_EXT Switch", 0, 0);
             }
             control.set("DL1 Media Playback Volume", 118);
-            control.set("DL1 Tones Playback Volume", 118);
-            control.set("DL1 Voice Playback Volume", 118);
-
-            /* Handsfree: DL2 Mixer */
-            control.set("DL2 Mixer Multimedia", 1);		// MM_DL    -> DL2 Mixer
-            control.set("DL2 Mixer Tones", 1);			// TONES_DL -> DL2 Mixer
-            control.set("DL2 Mixer Voice", 1);			// VX_DL    -> DL2 Mixer
-            if (fm_enable && ((devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
-                       (devices & AudioSystem::DEVICE_OUT_EARPIECE))) {
-                LOGE("FM ABE headset");
-                /* FM Rx: DL1 Mixer */
+            if (fm_enable) {
+                LOGI("FM Enabled, DL1 Capture-Playback Vol ON");
                 control.set("DL1 Capture Playback Volume", 115);
-                control.set("DL2 Capture Playback Volume", 0, -1);
-            } else  if (fm_enable  && devices & AudioSystem::DEVICE_OUT_SPEAKER) {
-                LOGE("FM ABE speaker");
-                /* FM Rx: DL2 Mixer */
-                control.set("DL2 Capture Playback Volume", 115);
-                control.set("DL1 Capture Playback Volume", 0, -1);
-            } else {
-                /* FM Rx: DL1/DL2 Mixer */
-                control.set("DL1 Capture Playback Volume", 0, -1);
-                control.set("DL2 Capture Playback Volume", 0, -1);
             }
         } else {
             /* OMAP4 ABE */
-            /* Headset: DL1 Mixer */
             control.set("DL1 Mixer Multimedia", 0, 0);
-            control.set("DL1 Mixer Tones", 0, 0);
-            control.set("DL1 Mixer Voice", 0, 0);
             control.set("Sidetone Mixer Playback", 0, 0);
             control.set("DL1 PDM Switch", 0, 0);
             control.set("DL1 Media Playback Volume", 0, -1);
-            control.set("DL1 Tones Playback Volume", 0, -1);
-            control.set("DL1 Voice Playback Volume", 0, -1);
-
-            /* Handsfree: DL2 Mixer */
-            control.set("DL2 Mixer Multimedia", 0, 0);
-            control.set("DL2 Mixer Tones", 0, 0);
-            control.set("DL2 Mixer Voice", 0, 0);
-           /* FM Rx: DL1/DL2 Mixer */
             control.set("DL1 Capture Playback Volume", 0, -1);
-            control.set("DL2 Capture Playback Volume", 0, -1);
         }
-
         if ((devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO) ||
             (devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
             (devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)) {
@@ -662,11 +675,27 @@ LOGV("%s", __FUNCTION__);
         } else {
             control.set("DL1 BT_VX Switch", 0, 0);
         }
+        if ((devices & AudioSystem::DEVICE_OUT_SPEAKER) ||
+            (devices & AudioSystem::DEVICE_OUT_AUX_DIGITAL)) {
+            // Setting DL2 EQ's to 800Hz cut-off frequency, as setting
+            // to flat response saturates the audio quality in the
+            // handsfree speakers
+            control.set("DL2 Left Equalizer Profile", 1, 0);
+            control.set("DL2 Right Equalizer Profile", 1, 0);
+        }
+        if ((devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
+            (devices & AudioSystem::DEVICE_OUT_EARPIECE)) {
+            control.set("DL1 Equalizer Profile", 0, 0);
+        }
+        LOGI("SETTING DEVICE OUT LOW POWER MODE");
+        control.set("TWL6040 Power Mode", "Low-Power");
+
     }
 
     /* for input devices */
     if (devices >> 16) {
         if (devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) {
+            configMicChoices(devices);
             /* TWL6040 */
             control.set("Analog Left Capture Route", "Main Mic");	// Main Mic -> Mic Mux
             control.set("Analog Right Capture Route", "Sub Mic");	// Sub Mic  -> Mic Mux
@@ -679,25 +708,13 @@ LOGV("%s", __FUNCTION__);
             control.set("Capture Preamplifier Volume", 1);
             control.set("Capture Volume", 4);
         } else if (devices & OMAP4_IN_FM) {
-           /* TWL 6040 */
+            /* TWL6040 */
             control.set("Analog Left Capture Route", "Aux/FM Left");     // FM -> Mic Mux
             control.set("Analog Right Capture Route", "Aux/FM Right");   // FM -> Mic Mux
             control.set("Capture Preamplifier Volume", 1);
             control.set("Capture Volume", 1);
-        } else {
-            /* TWL6040 */
-            control.set("Analog Left Capture Route", "Off");
-            control.set("Analog Right Capture Route", "Off");
-            control.set("Capture Preamplifier Volume", 0, -1);
-            control.set("Capture Volume", 0, -1);
-        }
-
-        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
-            (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
-            (devices & OMAP4_IN_FM)) {
-            configMicChoices(devices);
         } else if(devices & OMAP4_IN_SCO) {
-           LOGE("OMAP4 ABE set for BT SCO Headset");
+            LOGI("OMAP4 ABE set for BT SCO Headset");
             control.set("AMIC_UL PDM Switch", 0, 0);
             control.set("MUX_UL00", "BT Right");
             control.set("MUX_UL01", "BT Left");
@@ -707,13 +724,18 @@ LOGV("%s", __FUNCTION__);
             control.set("MUX_VX0", "BT Right");
             control.set("MUX_VX1", "BT Left");
         } else {
-            /* OMAP4 ABE */
+            /* TWL6040 */
+            control.set("Analog Left Capture Route", "Off");
+            control.set("Analog Right Capture Route", "Off");
+            control.set("Capture Preamplifier Volume", 0, -1);
+            control.set("Capture Volume", 0, -1);
+            control.set("Voice Capture Mixer Capture", 0, 0);
             control.set("AMIC_UL PDM Switch", 0, 0);
+            /* ABE */
             control.set("MUX_UL00", "None");
             control.set("MUX_UL01", "None");
             control.set("MUX_UL10", "None");
             control.set("MUX_UL11", "None");
-            control.set("Voice Capture Mixer Capture", 0, 0);
             control.set("MUX_VX0", "None");
             control.set("MUX_VX1", "None");
         }
@@ -874,64 +896,42 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
 void configMicChoices (uint32_t devices) {
 
     ALSAControl control("hw:00");
-    char value[PROPERTY_VALUE_MAX];
+    char mic1[PROPERTY_VALUE_MAX];
+    char mic2[PROPERTY_VALUE_MAX];
+    int status = 0;
+
+    status = property_get("omap.audio.mic.main", mic1, "AMic0");
+    status = property_get("omap.audio.mic.sub", mic2, "AMic1");
 
     //for Main Mic
-    if (property_get("omap.audio.mic.main", value, "AMic0") &&
-        !strcmp(value, "DMic0L")) {
-        LOGE("OMAP4 ABE set for Digital Main Mic 0L");
+    if (!strcmp(mic1, "DMic0L")) {
+        LOGI("OMAP4 ABE set for Digital Mic 0L");
         control.set("AMIC_UL PDM Switch", 0, 0);  // PDM_UL1 -> off
-        control.set("MUX_UL01", value);           // DMIC0L_UL -> MM_UL01
-        control.set("MUX_UL11", value);           // DMIC0L_UL -> MM_UL11
-        control.set("MUX_VX1", value);            // DMIC0L_UL -> VX_UL1
-        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
-            (devices & AudioSystem::DEVICE_IN_BACK_MIC)) {
-            control.set("DMIC Equalizer Profile", 0, 0);
-        }
+        control.set("MUX_UL00", mic1);           // DMIC0L_UL -> MM_UL00
     }
     else {
-        LOGE("OMAP4 ABE set for Analog Main Mic 0");
+        LOGI("OMAP4 ABE set for Analog Main Mic 0");
         control.set("AMIC_UL PDM Switch", 1);     // PDM_UL1 -> AMIC_UL
-        control.set("MUX_UL01", "AMic0");         // AMIC_UL -> MM_UL01
-        control.set("MUX_UL11", "AMic0");         // AMIC_UL -> MM_UL11
-        control.set("MUX_VX1", "AMic0");          // AMIC_UL -> VX_UL1
-        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
-            (devices & AudioSystem::DEVICE_IN_BACK_MIC) ||
-            (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
-            (devices & AudioSystem::DEVICE_IN_AUX_DIGITAL) ||
-            (devices & AudioSystem::DEVICE_IN_FM_ANALOG)) {
-            control.set("AMIC Equalizer Profile", 0, 0);
-        }
+        control.set("MUX_UL00", "AMic0");         // AMIC_UL -> MM_UL00
     }
     //for Sub Mic
-    if (property_get("omap.audio.mic.sub", value, "AMic1") &&
-        !strcmp(value, "DMic0R")) {
-        LOGE("OMAP4 ABE set for Digital Sub Mic 0R");
+    if (!strcmp(mic2, "DMic0R")) {
+        LOGI("OMAP4 ABE set for Digital Sub Mic 0R");
         control.set("AMIC_UL PDM Switch", 0, 0);  // PDM_UL1 -> off
-        control.set("MUX_UL00", value);           // DMIC0R_UL -> MM_UL00
-        control.set("MUX_UL10", value);           // DMIC0R_UL -> MM_UL10
-        control.set("MUX_VX0", value);            // DMIC0R_UL -> VX_UL0
-        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
-            (devices & AudioSystem::DEVICE_IN_BACK_MIC)) {
-            control.set("DMIC Equalizer Profile", 0, 0);
-        }
+        control.set("MUX_UL01", mic2);           // DMIC0R_UL -> MM_UL01
     }
     else {
-        LOGE("OMAP4 ABE set for Analog Sub Mic 1");
+        LOGI("OMAP4 ABE set for Analog Sub Mic 1");
         control.set("AMIC_UL PDM Switch", 1);      // PDM_UL1 -> AMIC_UL
-        control.set("MUX_UL00", "AMic1");          // AMIC_UL -> MM_UL00
-        control.set("MUX_UL10", "AMic1");          // AMIC_UL -> MM_UL10
-        control.set("MUX_VX0", "AMic1");           // AMIC_UL -> VX_UL0
-        if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
-            (devices & AudioSystem::DEVICE_IN_BACK_MIC) ||
-            (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
-            (devices & AudioSystem::DEVICE_IN_AUX_DIGITAL) ||
-            (devices & AudioSystem::DEVICE_IN_FM_ANALOG)) {
-            control.set("AMIC Equalizer Profile", 0, 0);
-        }
-
+        control.set("MUX_UL01", "AMic1");          // AMIC_UL -> MM_UL01
     }
-    //always enable vx mixer
-    control.set("Voice Capture Mixer Capture", 1);  // VX_UL   -> VXREC_MIXER
+
+    /** 
+     * configure EQ profile for Analog or Digital
+     * since we only use flat response for MM, we can just reset
+     * both amic and dmic eq profiles.
+    **/
+    control.set("DMIC Equalizer Profile", 0, 0);
+    control.set("AMIC Equalizer Profile", 0, 0);
 }
 }
