@@ -296,10 +296,24 @@ static const char *MicNameList[] = {
     "eof" // eof
 };
 
+struct voiceCallControlMainInfo
+{
+    bool        updateFlag;
+    uint32_t    devices;
+    int         mode;
+};
+
+struct voiceCallControlLocalInfo
+{
+    uint32_t    devices;
+    int         mode;
+    ALSAControl *mAlsaControl;
+};
+
 class AudioModemAlsa
 {
 public:
-                AudioModemAlsa(ALSAControl *alsaControl);
+                AudioModemAlsa();
     virtual    ~AudioModemAlsa();
 
     class AudioModemDeviceProperties
@@ -342,8 +356,10 @@ public:
 
     AudioModemInterface *create(void);
     status_t     audioModemSetProperties(void);
-    status_t     voiceCallControls(uint32_t devices, int mode,
-                                    ALSAControl *alsaControl);
+    status_t     voiceCallControls(uint32_t devices, int mode);
+    // Voice Call control thread
+    void        voiceCallControlsThread(void);
+
     status_t     setCurrentAudioModemModes(uint32_t devices);
 
     status_t     voiceCallCodecSet(void);
@@ -375,7 +391,6 @@ public:
     status_t voiceCallVolume(ALSAControl *alsaControl, float volume);
 
     char        *mBoardName;
-    ALSAControl *mAlsaControl;
     int         mVoiceCallState;
     uint32_t    mCurrentAudioModemModes;
     uint32_t    mPreviousAudioModemModes;
@@ -383,6 +398,8 @@ public:
     KeyedVector<uint32_t, AudioModemDeviceProperties *> mDevicePropList;
     AudioModemDeviceProperties *mDeviceProp;
     AudioModemDeviceProperties *mDevicePropPrevious;
+
+    voiceCallControlMainInfo    mVoiceCallControlMainInfo;
 
     AudioModemInterface     *mModem;
 
@@ -398,6 +415,12 @@ public:
 
     // Equalizer
     status_t configEqualizers(void);
+
+    // Posix thread
+    pthread_t       mVoiceCallControlThread;
+    pthread_mutex_t mVoiceCallControlMutex;
+    pthread_once_t  mVoiceCallControlKeyOnce;
+    pthread_cond_t  mVoiceCallControlNewParams;
 };
 };        // namespace android
 #endif    // ANDROID_ALSA_OMAP4_MODEM_H

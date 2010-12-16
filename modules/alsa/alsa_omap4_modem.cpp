@@ -20,6 +20,7 @@
 #include <utils/Log.h>
 #include <cutils/properties.h>
 #include <dlfcn.h>
+#include <pthread.h>
 
 #ifdef AUDIO_BLUETOOTH
 #include <sys/socket.h>
@@ -66,16 +67,42 @@ voiceCallVolumeProp[] = {
 #define WORKAROUND_AVOID_VOICE_VOLUME_MIN   1
 #define WORKAROUND_MIN_VOICE_VOLUME         90
 
+// Pointer to Thread local info
+voiceCallControlLocalInfo    *mInfo;
 // ----------------------------------------------------------------------------
 #define CHECK_ERROR(func, error)   if ((error = func) != NO_ERROR) { \
                                 return error; \
                             }
-
+#define mAlsaControl mInfo->mAlsaControl
 // ----------------------------------------------------------------------------
+extern "C"
+{
+    void *VoiceCallControlsThreadStartup(void *_mAudioModemAlsa) {
+        LOGV("%s",__FUNCTION__);
+        AudioModemAlsa *mAudioModemAlsa = (AudioModemAlsa * )_mAudioModemAlsa;
+        mAudioModemAlsa->voiceCallControlsThread();
+        delete mAudioModemAlsa;
+        return (NULL);
+    }
 
-AudioModemAlsa::AudioModemAlsa(ALSAControl *alsaControl)
+    static pthread_key_t   mVoiceCallControlThreadKey;
+    void voiceCallControlInitThreadOnce(void)
+    {
+        status_t error = NO_ERROR;
+        LOGV("%s",__FUNCTION__);
+        error = pthread_key_create(&mVoiceCallControlThreadKey,
+                                    NULL);
+        if (error != NO_ERROR) {
+            LOGE("Can't create the Voice Call Control Thread key");
+            exit(error);
+        }
+    }
+}
+// ----------------------------------------------------------------------------
+AudioModemAlsa::AudioModemAlsa()
 {
     status_t error;
+    pthread_attr_t  mVoiceCallControlAttr;
 
     LOGV("Build date: %s time: %s", __DATE__, __TIME__);
 
@@ -126,6 +153,35 @@ AudioModemAlsa::AudioModemAlsa(ALSAControl *alsaControl)
         }
         i++;
     }
+
+    // Initialize voice call control key once
+    mVoiceCallControlKeyOnce = PTHREAD_ONCE_INIT;
+
+    // Initialize voice call control mutex
+    pthread_mutex_init(&mVoiceCallControlMutex, NULL);
+
+    // Initialize voice call control param condition
+    // This is used to wake up Voice call control thread when
+    // new param is available
+    pthread_cond_init(&mVoiceCallControlNewParams, NULL);
+
+    // Initialize and set thread detached attribute
+    pthread_attr_init(&mVoiceCallControlAttr);
+    pthread_attr_setdetachstate(&mVoiceCallControlAttr, PTHREAD_CREATE_JOINABLE);
+
+    pthread_mutex_lock(&mVoiceCallControlMutex);
+    mVoiceCallControlMainInfo.updateFlag = false;
+    pthread_mutex_unlock(&mVoiceCallControlMutex);
+
+    // Create thread for voice control
+    error = pthread_create(&mVoiceCallControlThread, &mVoiceCallControlAttr,
+                            VoiceCallControlsThreadStartup, (void *)this);
+    if (error != NO_ERROR) {
+        LOGE("Error creating mVoiceCallControlThread");
+        delete mModem;
+        exit(error);
+    }
+    pthread_attr_destroy(&mVoiceCallControlAttr);
 }
 
 AudioModemAlsa::~AudioModemAlsa()
@@ -133,6 +189,9 @@ AudioModemAlsa::~AudioModemAlsa()
     LOGD("Destroy devices for Modem OMAP4 ALSA module");
     mDevicePropList.clear();
     if (mModem) delete mModem;
+
+    pthread_mutex_destroy(&mVoiceCallControlMutex);
+    pthread_kill(mVoiceCallControlThread, SIGKILL);
 }
 
 AudioModemInterface* AudioModemAlsa::create()
@@ -234,86 +293,142 @@ status_t AudioModemAlsa::audioModemSetProperties()
     return NO_ERROR;
 }
 
-status_t AudioModemAlsa::voiceCallControls(uint32_t devices, int mode,
-                                           ALSAControl *alsaControl)
+status_t AudioModemAlsa::voiceCallControls(uint32_t devices, int mode)
+{
+    LOGV("%s: devices %04x mode %d", __FUNCTION__, devices, mode);
+
+    if ((mVoiceCallControlMainInfo.devices != devices) ||
+        (mVoiceCallControlMainInfo.mode != mode)) {
+        pthread_mutex_lock(&mVoiceCallControlMutex);
+        mVoiceCallControlMainInfo.devices = devices;
+        mVoiceCallControlMainInfo.mode = mode;
+        mVoiceCallControlMainInfo.updateFlag = true;
+        pthread_mutex_unlock(&mVoiceCallControlMutex);
+        pthread_cond_signal(&mVoiceCallControlNewParams);
+    }
+    return NO_ERROR;
+}
+
+void AudioModemAlsa::voiceCallControlsThread(void)
 {
     status_t error = NO_ERROR;
+    ALSAControl alsaControl("hw:00");
 
-LOGV("%s: devices %04x mode %d", __FUNCTION__, devices, mode);
+    error = pthread_once(&mVoiceCallControlKeyOnce,
+                           voiceCallControlInitThreadOnce);
+    if (error != NO_ERROR) {
+        LOGE("Error in voiceCallControlInitThreadOnce");
+        goto exit;
+    }
 
-    // Check mics config
-    micChosen();
+    mInfo = (voiceCallControlLocalInfo *)malloc(sizeof(voiceCallControlLocalInfo));
+    if (mInfo == NULL) {
+        LOGE("Error allocating mVoiceCallControlThreadInfo");
+        error = NO_MEMORY;
+        goto exit;
+    }
 
-    mAlsaControl = alsaControl;
+    error = pthread_setspecific(mVoiceCallControlThreadKey, mInfo);
+    if (error != NO_ERROR) {
+        LOGE("Error in Voice Call info set specific");
+        goto exit;
+    }
 
-    if ((mode == AudioSystem::MODE_IN_CALL) &&
-        (mVoiceCallState == AUDIO_MODEM_VOICE_CALL_OFF)) {
-        // enter in voice call mode
-        error = setCurrentAudioModemModes(devices);
-        if (error < 0) return error;
-        mDeviceProp = mDevicePropList.valueFor(mCurrentAudioModemModes);
-        error = voiceCallCodecSet();
-        if (error < 0) return error;
-        error = voiceCallModemSet();
-        if (error < 0) return error;
-#ifdef AUDIO_BLUETOOTH
-        if (mCurrentAudioModemModes ==
-                AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
-            error = voiceCallBTDeviceEnable();
-            if (error < 0) return error;
+    mInfo->devices = 0;
+    mInfo->mode = AudioSystem::MODE_INVALID;
+    mAlsaControl = &alsaControl;
+
+    for (;;) {
+        pthread_mutex_lock(&mVoiceCallControlMutex);
+        // Wait for new parameters
+        if (!mVoiceCallControlMainInfo.updateFlag) {
+            pthread_cond_wait(&mVoiceCallControlNewParams, &mVoiceCallControlMutex);
         }
-#endif
-        mVoiceCallState = AUDIO_MODEM_VOICE_CALL_ON;
-    } else if ((mode == AudioSystem::MODE_IN_CALL) &&
-               (mVoiceCallState == AUDIO_MODEM_VOICE_CALL_ON)) {
-        // update in voice call mode
-        mPreviousAudioModemModes = mCurrentAudioModemModes;
-        error = setCurrentAudioModemModes(devices);
-        if (error < 0) {
-            mCurrentAudioModemModes = mPreviousAudioModemModes;
-            return error;
+        mVoiceCallControlMainInfo.updateFlag = false;
+        mInfo = (voiceCallControlLocalInfo *)pthread_getspecific(mVoiceCallControlThreadKey);
+        if (mInfo == NULL) {
+            LOGE("Error in Voice Call info get specific");
+            goto exit;
         }
-        mDevicePropPrevious = mDeviceProp;
-        mDeviceProp = mDevicePropList.valueFor(mCurrentAudioModemModes);
-        if (mCurrentAudioModemModes != mPreviousAudioModemModes) {
-            error = voiceCallCodecUpdate();
-            if (error < 0) return error;
-            error = voiceCallModemUpdate();
-            if (error < 0) return error;
-#ifdef AUDIO_BLUETOOTH
+        mInfo->devices = mVoiceCallControlMainInfo.devices;
+        mInfo->mode = mVoiceCallControlMainInfo.mode;
+        pthread_mutex_unlock(&mVoiceCallControlMutex);
+        LOGV("%s: devices %04x mode %d", __FUNCTION__, mInfo->devices, mInfo->mode);
+
+        // Check mics config
+        micChosen();
+
+        if ((mInfo->mode == AudioSystem::MODE_IN_CALL) &&
+            (mVoiceCallState == AUDIO_MODEM_VOICE_CALL_OFF)) {
+            // enter in voice call mode
+            error = setCurrentAudioModemModes(mInfo->devices);
+            if (error < 0) goto exit;
+            mDeviceProp = mDevicePropList.valueFor(mCurrentAudioModemModes);
+            error = voiceCallModemSet();
+            if (error < 0) goto exit;
+            error = voiceCallCodecSet();
+            if (error < 0) goto exit;
+    #ifdef AUDIO_BLUETOOTH
             if (mCurrentAudioModemModes ==
                     AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
                 error = voiceCallBTDeviceEnable();
-                if (error < 0) return error;
-            } else if (mPreviousAudioModemModes ==
-                    AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
-                error = voiceCallBTDeviceDisable();
-                if (error < 0) return error;
+                if (error < 0) goto exit;
             }
-#endif
-        } else {
-            LOGI("Audio Modem Mode doesn't changed: no update needed");
+    #endif
+            mVoiceCallState = AUDIO_MODEM_VOICE_CALL_ON;
+        } else if ((mInfo->mode == AudioSystem::MODE_IN_CALL) &&
+                (mVoiceCallState == AUDIO_MODEM_VOICE_CALL_ON)) {
+            // update in voice call mode
+            mPreviousAudioModemModes = mCurrentAudioModemModes;
+            error = setCurrentAudioModemModes(mInfo->devices);
+            if (error < 0) {
+                mCurrentAudioModemModes = mPreviousAudioModemModes;
+                goto exit;
+            }
+            mDevicePropPrevious = mDeviceProp;
+            mDeviceProp = mDevicePropList.valueFor(mCurrentAudioModemModes);
+            if (mCurrentAudioModemModes != mPreviousAudioModemModes) {
+                error = voiceCallModemUpdate();
+                if (error < 0) goto exit;
+                error = voiceCallCodecUpdate();
+                if (error < 0) goto exit;
+    #ifdef AUDIO_BLUETOOTH
+                if (mCurrentAudioModemModes ==
+                        AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
+                    error = voiceCallBTDeviceEnable();
+                    if (error < 0) goto exit;
+                } else if (mPreviousAudioModemModes ==
+                        AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
+                    error = voiceCallBTDeviceDisable();
+                    if (error < 0) goto exit;
+                }
+    #endif
+            } else {
+                LOGI("Audio Modem Mode doesn't changed: no update needed");
+            }
+        } else if ((mInfo->mode != AudioSystem::MODE_IN_CALL) &&
+                (mVoiceCallState == AUDIO_MODEM_VOICE_CALL_ON)) {
+            // we just exit voice call mode
+            mPreviousAudioModemModes = mCurrentAudioModemModes;
+            mDevicePropPrevious = mDeviceProp;
+            error = voiceCallModemReset();
+            if (error < 0) goto exit;
+            error = voiceCallCodecReset();
+            if (error < 0) goto exit;
+    #ifdef AUDIO_BLUETOOTH
+            if (mPreviousAudioModemModes ==
+                        AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
+                    error = voiceCallBTDeviceDisable();
+                    if (error < 0) goto exit;
+            }
+    #endif
+            mVoiceCallState = AUDIO_MODEM_VOICE_CALL_OFF;
         }
-    } else if ((mode != AudioSystem::MODE_IN_CALL) &&
-               (mVoiceCallState == AUDIO_MODEM_VOICE_CALL_ON)) {
-        // we just exit voice call mode
-        mPreviousAudioModemModes = mCurrentAudioModemModes;
-        mDevicePropPrevious = mDeviceProp;
-        error = voiceCallCodecReset();
-        if (error < 0) return error;
-        error = voiceCallModemReset();
-        if (error < 0) return error;
-#ifdef AUDIO_BLUETOOTH
-        if (mPreviousAudioModemModes ==
-                    AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
-                error = voiceCallBTDeviceDisable();
-                if (error < 0) return error;
-        }
-#endif
-        mVoiceCallState = AUDIO_MODEM_VOICE_CALL_OFF;
-    }
+    } // for(;;)
 
-    return error;
+exit:
+    LOGE("%s: exit with error %d (%s)", __FUNCTION__, error, strerror(error));
+    pthread_exit((void*) error);
 }
 
 status_t AudioModemAlsa::setCurrentAudioModemModes(uint32_t devices)
