@@ -312,10 +312,10 @@ private:
     status_t advanceZoom();
 
     //Scenes
-    status_t setScene(Gen3A_settings& Gen3A);
+    OMX_ERRORTYPE setScene(Gen3A_settings& Gen3A);
 
     //Exposure Modes
-    status_t setExposureMode(Gen3A_settings& Gen3A);
+    OMX_ERRORTYPE setExposureMode(Gen3A_settings& Gen3A);
 
     //Manual Exposure
     status_t setManualExposure(Gen3A_settings& Gen3A);
@@ -376,7 +376,7 @@ private:
 
     const char* getLUTvalue_OMXtoHAL(int OMXValue, LUTtype LUT);
     int getLUTvalue_HALtoOMX(const char * HalValue, LUTtype LUT);
-    OMX_ERRORTYPE Apply3Asettings( Gen3A_settings& Gen3A );
+    OMX_ERRORTYPE apply3Asettings( Gen3A_settings& Gen3A );
 
     // AutoConvergence
     status_t setAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE pACMode, OMX_S32 pManualConverence);

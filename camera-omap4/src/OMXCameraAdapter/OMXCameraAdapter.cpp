@@ -769,6 +769,10 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         {
         mParameters3A.Exposure = mode;
         CAMHAL_LOGEB("Exposure mode %d", mode);
+        if ( 0 <= mParameters3A.Exposure )
+            {
+            mPending3Asettings |= SetExpMode;
+            }
         }
 
     expVal = params.getInt(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT);
@@ -895,7 +899,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             //If we switch from CAF to something else, then disable CAF
             mPending3Asettings |= SetFocus;
             mParameters3A.Focus = OMX_IMAGE_FocusControlOff;
-            Apply3Asettings(mParameters3A);
+            apply3Asettings(mParameters3A);
             }
 
         mParameters3A.Focus = mode;
@@ -925,6 +929,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         if ( 0 <= mode )
             {
             mParameters3A.SceneMode = mode;
+            mPending3Asettings |= SetSceneMode;
             }
         else
             {
@@ -2057,13 +2062,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-    ret = setExposureMode(mParameters3A);
-    if ( NO_ERROR != ret )
-        {
-        CAMHAL_LOGEB("Error configuring exposure mode %x", ret);
-        return ret;
-        }
-
     ret = setManualExposure(mParameters3A);
     if ( NO_ERROR != ret )
         {
@@ -2076,20 +2074,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         {
         CAMHAL_LOGEB("Error configuring manual gain %x", ret);
         return ret;
-        }
-
-    ret = setScene(mParameters3A);
-    if ( NO_ERROR != ret )
-        {
-        CAMHAL_LOGEB("Error configuring scene mode %x", ret);
-        return ret;
-        }
-
-    //Apply focus after setting the capture mode
-    if ( NO_ERROR == ret )
-        {
-        mPending3Asettings |= SetFocus;
-        ret = Apply3Asettings(mParameters3A);
         }
 
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE || mCapMode == OMXCameraAdapter::HIGH_QUALITY)
@@ -2454,7 +2438,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
             CAMHAL_LOGDA("Start Preview");
 
             if( mPending3Asettings )
-                Apply3Asettings(mParameters3A);
+                apply3Asettings(mParameters3A);
 
             ret = startPreview();
 
@@ -2510,7 +2494,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
 
 #endif
             if( mPending3Asettings )
-                Apply3Asettings(mParameters3A);
+                apply3Asettings(mParameters3A);
 
             ret = startImageCapture();
             break;
@@ -2536,7 +2520,7 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
             mBracketingRange = value1;
 
             if( mPending3Asettings )
-                Apply3Asettings(mParameters3A);
+                apply3Asettings(mParameters3A);
 
             ret = startBracketing();
             break;
@@ -2987,27 +2971,25 @@ status_t OMXCameraAdapter::setImageQuality(unsigned int quality)
     return ret;
 }
 
-status_t OMXCameraAdapter::setExposureMode(Gen3A_settings& Gen3A)
+OMX_ERRORTYPE OMXCameraAdapter::setExposureMode(Gen3A_settings& Gen3A)
 {
-    status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_CONFIG_EXPOSURECONTROLTYPE exp;
 
     LOG_FUNCTION_NAME
 
-    if ( OMX_StateLoaded != mComponentState )
+    if ( OMX_StateInvalid == mComponentState )
         {
-        CAMHAL_LOGEA("OMX component is not in loaded state");
-        ret = -EINVAL;
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        eError = OMX_ErrorInvalidState;
         }
 
-    if ( NO_ERROR == ret )
+    if ( OMX_ErrorNone == eError )
         {
         OMX_INIT_STRUCT_PTR (&exp, OMX_CONFIG_EXPOSURECONTROLTYPE);
         exp.nPortIndex = OMX_ALL;
         exp.eExposureControl = (OMX_EXPOSURECONTROLTYPE)Gen3A.Exposure;
 
-        CAMHAL_LOGEB("Configuring exposure mode 0x%x", exp.eExposureControl);
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonExposure, &exp);
         if ( OMX_ErrorNone != eError )
             {
@@ -3021,7 +3003,7 @@ status_t OMXCameraAdapter::setExposureMode(Gen3A_settings& Gen3A)
 
     LOG_FUNCTION_NAME_EXIT
 
-    return ret;
+    return eError;
 }
 
 status_t OMXCameraAdapter::setManualExposure(Gen3A_settings& Gen3A)
@@ -3433,28 +3415,27 @@ status_t OMXCameraAdapter::encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *fa
     return ret;
 }
 
-status_t OMXCameraAdapter::setScene(Gen3A_settings& Gen3A)
+OMX_ERRORTYPE OMXCameraAdapter::setScene(Gen3A_settings& Gen3A)
 {
-    status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_CONFIG_SCENEMODETYPE scene;
 
     LOG_FUNCTION_NAME
 
-    if ( OMX_StateLoaded != mComponentState )
+    if ( OMX_StateInvalid == mComponentState )
         {
-        CAMHAL_LOGEA("OMX component is not in loaded state");
-        ret = -EINVAL;
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        eError = OMX_ErrorInvalidState;
         }
 
-    if ( NO_ERROR == ret )
+    if ( OMX_ErrorNone == eError )
         {
         OMX_INIT_STRUCT_PTR (&scene, OMX_CONFIG_SCENEMODETYPE);
         scene.nPortIndex = OMX_ALL;
         scene.eSceneMode = ( OMX_SCENEMODETYPE ) Gen3A.SceneMode;
 
         CAMHAL_LOGEB("Configuring scene mode 0x%x", scene.eSceneMode);
-        eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE) OMX_IndexParamSceneMode, &scene);
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexConfigSceneMode, &scene);
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEB("Error while configuring scene mode 0x%x", eError);
@@ -3467,7 +3448,7 @@ status_t OMXCameraAdapter::setScene(Gen3A_settings& Gen3A)
 
     LOG_FUNCTION_NAME_EXIT
 
-    return ret;
+    return eError;
 }
 
 status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
@@ -3869,7 +3850,7 @@ status_t OMXCameraAdapter::doAutoFocus()
         focusControl.eFocusControl = ( OMX_IMAGE_FOCUSCONTROLTYPE ) mParameters3A.Focus;
 
         //If touch AF is set, then configure position first
-        if ( ( ( OMX_IMAGE_FOCUSCONTROLTYPE ) OMX_IMAGE_FocusRegionPriorityMode ) == focusControl.eFocusControl )
+        if ( ( ( OMX_IMAGE_FOCUSCONTROLTYPE ) OMX_IMAGE_FocusControlExtended ) == focusControl.eFocusControl )
             {
             OMXCameraPortParameters * mPreviewData = NULL;
             mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
@@ -5359,7 +5340,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
         ///On the fly update to 3A settings not working
         if( mPending3Asettings )
-            Apply3Asettings(mParameters3A);
+            apply3Asettings(mParameters3A);
 
         if( mWaitingForSnapshot )
             {
@@ -5686,7 +5667,7 @@ status_t OMXCameraAdapter::sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *p
     return ret;
 }
 
-OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
+OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
 {
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     unsigned int currSett; // 32 bit
@@ -5928,6 +5909,19 @@ OMX_ERRORTYPE OMXCameraAdapter::Apply3Asettings( Gen3A_settings& Gen3A )
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValuesRight);
                     }
                     break;
+
+                case SetSceneMode:
+                    {
+                    ret = setScene(Gen3A);
+
+                    break;
+                    }
+                case SetExpMode:
+                    {
+                    ret = setExposureMode(Gen3A);
+
+                    break;
+                    }
 
                 default:
                     CAMHAL_LOGEB("this setting (0x%x) is still not supported in CameraAdapter ", currSett);
