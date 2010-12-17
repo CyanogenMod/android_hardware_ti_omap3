@@ -39,6 +39,8 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 static bool fm_enable = false;
+static bool mActive = false;
+
 namespace android
 {
 
@@ -783,6 +785,8 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
         return NO_INIT;
     }
 
+    mActive = true;
+
     err = setHardwareParams(handle);
 
     if (err == NO_ERROR) err = setSoftwareParams(handle);
@@ -809,6 +813,7 @@ static status_t s_close(alsa_handle_t *handle)
     if (h) {
         snd_pcm_drain(h);
         err = snd_pcm_close(h);
+        mActive = false;
     }
 
     return err;
@@ -828,8 +833,9 @@ static status_t s_standby(alsa_handle_t *handle)
     LOGV("In omap4 standby\n");
     if (h) {
         snd_pcm_drain(h);
-	        err = snd_pcm_close(h);
-	        LOGE("called drain&close\n");
+        err = snd_pcm_close(h);
+        mActive = false;
+        LOGE("called drain&close\n");
     }
 
     return err;
@@ -847,7 +853,11 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
     }
 
     if (handle->curDev != devices) {
-        status = s_open(handle, devices, mode);
+        if (mActive) {
+            status = s_open(handle, devices, mode);
+        } else {
+            setAlsaControls(handle, devices, mode);
+        }
     }
 
     #ifdef AUDIO_MODEM_TI
