@@ -92,14 +92,6 @@ const char CameraProperties::PROP_KEY_AUTOCONVERGENCE_MODE[] = "auto-convergence
 const char CameraProperties::PROP_KEY_MANUALCONVERGENCE_VALUES[] = "manual-convergence-values";
 const char CameraProperties::PROP_KEY_VSTAB[] = "vstab";
 const char CameraProperties::PROP_KEY_VSTAB_VALUES[] = "vstab-values";
-const char CameraProperties::PROP_KEY_MANUAL_EXPOSURE_LEFT[] = "manual-exposure-left";
-const char CameraProperties::PROP_KEY_MANUAL_EXPOSURE_RIGHT[] = "manual-exposure-right";
-const char CameraProperties::PROP_KEY_MANUAL_EXPOSURE_MODES[] = "manual-exposure-modes";
-const char CameraProperties::PROP_KEY_MANUAL_GAIN_EV_LEFT[] = "manual-gain-ev-left";
-const char CameraProperties::PROP_KEY_MANUAL_GAIN_EV_RIGHT[] = "manual-gain-ev-right";
-const char CameraProperties::PROP_KEY_MANUAL_GAIN_ISO_LEFT[] = "manual-gain-iso-left";
-const char CameraProperties::PROP_KEY_MANUAL_GAIN_ISO_RIGHT[] = "manual-gain-iso-right";
-const char CameraProperties::PROP_KEY_MANUAL_GAIN_MODES[] = "manual-gain-modes";
 
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
@@ -895,54 +887,6 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_VSTAB_VALUES;
         }
-    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUAL_EXPOSURE_LEFT))
-        {
-        CAMHAL_LOGDA("Returning PROP_KEY_MANUAL_EXPOSURE_LEFT");
-        LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_LEFT;
-        }
-    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUAL_EXPOSURE_RIGHT))
-        {
-        CAMHAL_LOGDA("Returning PROP_KEY_MANUAL_EXPOSURE_RIGHT");
-        LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_RIGHT;
-        }
-    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUAL_EXPOSURE_MODES))
-        {
-        CAMHAL_LOGDA("Returning PROP_KEY_MANUAL_EXPOSURE_MODES");
-        LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_MODES;
-        }
-    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUAL_GAIN_EV_LEFT))
-        {
-        CAMHAL_LOGDA("Returning PROP_KEY_MANUAL_GAIN_EV_LEFT");
-        LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_MANUAL_GAIN_EV_LEFT;
-        }
-    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUAL_GAIN_EV_RIGHT))
-        {
-        CAMHAL_LOGDA("Returning PROP_KEY_MANUAL_GAIN_EV_RIGHT");
-        LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_MANUAL_GAIN_EV_RIGHT;
-        }
-    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUAL_GAIN_ISO_LEFT))
-        {
-        CAMHAL_LOGDA("Returning PROP_KEY_MANUAL_GAIN_ISO_LEFT");
-        LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_MANUAL_GAIN_ISO_LEFT;
-        }
-    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUAL_GAIN_ISO_RIGHT))
-        {
-        CAMHAL_LOGDA("Returning PROP_KEY_MANUAL_GAIN_ISO_RIGHT");
-        LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_MANUAL_GAIN_ISO_RIGHT;
-        }
-    else if(!strcmp(propName,CameraProperties::PROP_KEY_MANUAL_GAIN_MODES))
-        {
-        CAMHAL_LOGDA("Returning PROP_KEY_MANUAL_GAIN_MODES");
-        LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_MANUAL_GAIN_MODES;
-        }
 
 exit:
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
@@ -1243,46 +1187,6 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_VSTAB_VALUES );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_VSTAB_VALUES;
-        case CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_LEFT:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUAL_EXPOSURE_LEFT );
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_MANUAL_EXPOSURE_LEFT;
-
-        case CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_RIGHT:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUAL_EXPOSURE_RIGHT );
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_MANUAL_EXPOSURE_RIGHT;
-
-        case CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_MODES:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUAL_EXPOSURE_MODES );
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_MANUAL_EXPOSURE_MODES;
-
-        case CameraProperties::PROP_INDEX_MANUAL_GAIN_EV_LEFT:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUAL_GAIN_EV_LEFT );
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_MANUAL_GAIN_EV_LEFT;
-
-        case CameraProperties::PROP_INDEX_MANUAL_GAIN_EV_RIGHT:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUAL_GAIN_EV_RIGHT );
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_MANUAL_GAIN_EV_RIGHT;
-
-        case CameraProperties::PROP_INDEX_MANUAL_GAIN_ISO_LEFT:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUAL_GAIN_ISO_LEFT );
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_MANUAL_GAIN_ISO_LEFT;
-
-        case CameraProperties::PROP_INDEX_MANUAL_GAIN_ISO_RIGHT:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUAL_GAIN_ISO_RIGHT );
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_MANUAL_GAIN_ISO_RIGHT;
-
-        case CameraProperties::PROP_INDEX_MANUAL_GAIN_MODES:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_MANUAL_GAIN_MODES );
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::PROP_KEY_MANUAL_GAIN_MODES;
-
 
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );

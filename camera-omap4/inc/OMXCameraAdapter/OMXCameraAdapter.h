@@ -342,12 +342,6 @@ private:
     //Exposure Modes
     OMX_ERRORTYPE setExposureMode(Gen3A_settings& Gen3A);
 
-    //Manual Exposure
-    status_t setManualExposure(Gen3A_settings& Gen3A);
-
-    //Manual Gain
-    status_t setManualGain(Gen3A_settings& Gen3A);
-
     //Noise filtering
     status_t setNSF(OMXCameraAdapter::IPPMode mode);
 

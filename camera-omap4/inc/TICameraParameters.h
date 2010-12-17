@@ -57,6 +57,7 @@ static const  char KEY_ISO[];
 static const  char KEY_SUPPORTED_ISO_VALUES[];
 static const  char KEY_SUPPORTED_IPP[];
 static const  char KEY_IPP[];
+static const  char KEY_MAN_EXPOSURE[];
 static const  char KEY_METERING_MODE[];
 static const  char KEY_PADDED_WIDTH[];
 static const  char KEY_PADDED_HEIGHT[];
@@ -86,16 +87,6 @@ static const char MEASUREMENT_DISABLE[];
 static const char KEY_AUTOCONVERGENCE[];
 static const char KEY_AUTOCONVERGENCE_MODE[];
 static const char KEY_MANUALCONVERGENCE_VALUES[];
-
-//  TI extensions for Manual Gain and Manual Exposure
-static const char KEY_MANUAL_EXPOSURE_LEFT[];
-static const char KEY_MANUAL_EXPOSURE_RIGHT[];
-static const char KEY_MANUAL_EXPOSURE_MODES[];
-static const char KEY_MANUAL_GAIN_EV_RIGHT[];
-static const char KEY_MANUAL_GAIN_EV_LEFT[];
-static const char KEY_MANUAL_GAIN_ISO_RIGHT[];
-static const char KEY_MANUAL_GAIN_ISO_LEFT[];
-static const char KEY_MANUAL_GAIN_MODES[];
 
 //TI extensions for enabling/disabling shutter sound
 static const char SHUTTER_ENABLE[];

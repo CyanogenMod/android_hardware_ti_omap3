@@ -36,9 +36,6 @@
 #include <math.h>
 
 #define ADAPTER_TIMEOUT 5 //[s.]
-#define MAX_MANUAL_EXPOSURE_MS 66 //[ms.]
-#define MAX_MANUAL_GAIN_EV 50
-#define MAX_MANUAL_GAIN_ISO 3200
 
 ///@remarks added for testing purposes
 
@@ -358,50 +355,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
     ///Below parameters can be changed when the preview is running
-
-    //Manual Exposure and Manual Gain
-    if(params.get(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT) != NULL
-        && (params.getInt(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT) <= MAX_MANUAL_EXPOSURE_MS))
-        {
-        CAMHAL_LOGEB("Manual Exposure Left set %s ms", params.get(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT));
-        mParameters.set(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT, params.get(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT));
-        }
-
-    if(params.get(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT) != NULL
-        && (params.getInt(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT) <= MAX_MANUAL_EXPOSURE_MS))
-        {
-        CAMHAL_LOGEB("Manual Exposure Right set %s ms", params.get(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT));
-        mParameters.set(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT, params.get(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT));
-        }
-
-    if(params.get(TICameraParameters::KEY_MANUAL_GAIN_EV_LEFT) != NULL
-        && (params.getInt(TICameraParameters::KEY_MANUAL_GAIN_EV_LEFT) <= MAX_MANUAL_GAIN_EV))
-        {
-        CAMHAL_LOGEB("Manual Gain Left set %s EV", params.get(TICameraParameters::KEY_MANUAL_GAIN_EV_LEFT));
-        mParameters.set(TICameraParameters::KEY_MANUAL_GAIN_EV_LEFT, params.get(TICameraParameters::KEY_MANUAL_GAIN_EV_LEFT));
-        }
-
-    if(params.get(TICameraParameters::KEY_MANUAL_GAIN_EV_RIGHT) != NULL
-        && (params.getInt(TICameraParameters::KEY_MANUAL_GAIN_EV_RIGHT) <= MAX_MANUAL_GAIN_EV))
-        {
-        CAMHAL_LOGEB("Manual Gain Right set %s EV", params.get(TICameraParameters::KEY_MANUAL_GAIN_EV_RIGHT));
-        mParameters.set(TICameraParameters::KEY_MANUAL_GAIN_EV_RIGHT, params.get(TICameraParameters::KEY_MANUAL_GAIN_EV_RIGHT));
-        }
-
-    if(params.get(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT) != NULL
-        && (params.getInt(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT) <= MAX_MANUAL_GAIN_ISO))
-        {
-        CAMHAL_LOGEB("Manual Gain Left set %s ISO", params.get(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT));
-        mParameters.set(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT, params.get(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT));
-        }
-
-    if(params.get(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT) != NULL
-        && (params.getInt(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT) <= MAX_MANUAL_GAIN_ISO))
-        {
-        CAMHAL_LOGEB("Manual Gain Right set %s ISO", params.get(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT));
-        mParameters.set(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT, params.get(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT));
-        }
-
     if ( !isParameterValid(params.getPictureFormat(),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue))
         {
@@ -731,6 +684,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mMsgEnabled &= ~CAMERA_MSG_SHUTTER;
         mParameters.set(TICameraParameters::KEY_SHUTTER_ENABLE, valstr);
         }
+
 
     CAMHAL_LOGDB("mReloadAdapter %d", (int) mReloadAdapter);
 
@@ -2720,14 +2674,6 @@ void CameraHal::insertSupportedParams()
     p.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB_VALUES,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB_VALUES]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_LEFT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_RIGHT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_EXPOSURE_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_MODES]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_EV_LEFT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_EV_LEFT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_EV_RIGHT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_EV_RIGHT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_ISO_LEFT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_ISO_RIGHT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_MODES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_MODES]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -2810,12 +2756,6 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB_VALUES,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB_VALUES]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_LEFT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_EXPOSURE_RIGHT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_EV_LEFT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_EV_LEFT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_EV_RIGHT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_EV_RIGHT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_ISO_LEFT]->mPropValue);
-    p.set(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUAL_GAIN_ISO_RIGHT]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }
