@@ -149,7 +149,7 @@ public:
         CAMERA_PORT_ENABLE  = 0x1,
         CAMERA_PORT_FLUSH   = 0x2,
         CAMERA_PORT_DISABLE = 0x4,
-    };
+        };
 
     enum CaptureMode
         {
@@ -173,6 +173,19 @@ public:
         CodingMPO,
         CodingRAWJPEG,
         CodingRAWMPO,
+        };
+
+    enum Algorithm3A
+        {
+        WHITE_BALANCE_ALGO = 0x1,
+        EXPOSURE_ALGO = 0x2,
+        FOCUS_ALGO = 0x4,
+        };
+
+    enum AlgoPriority
+        {
+        FACE_PRIORITY = 0,
+        REGION_PRIORITY,
         };
 
     ///Parameters specific to any port of the OMX Camera component
@@ -337,6 +350,9 @@ private:
     status_t setFaceDetection(bool enable);
     status_t detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader);
     status_t encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *faceData, char *faceString, size_t faceStringSize);
+
+    //3A Algorithms priority configuration
+    status_t setAlgoPriority(AlgoPriority priority, Algorithm3A algo, bool enable);
 
     //Sensor overclocking
     status_t setSensorOverclock(bool enable);

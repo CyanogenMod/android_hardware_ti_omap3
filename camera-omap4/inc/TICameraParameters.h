@@ -146,12 +146,14 @@ static const  char EXPOSURE_MODE_SNOW[];
 static const  char EXPOSURE_MODE_BEACH[];
 static const  char EXPOSURE_MODE_APERTURE[];
 static const  char EXPOSURE_MODE_SMALL_APERTURE[];
+static const  char EXPOSURE_MODE_FACE[];
 
 // TI extensions to standard android focus presets.
 static const  char FOCUS_MODE_PORTRAIT[];
 static const  char FOCUS_MODE_EXTENDED[];
 static const  char FOCUS_MODE_CAF[];
 static const  char FOCUS_MODE_TOUCH[];
+static const char  FOCUS_MODE_FACE[];
 
 // TI extensions to add iso values
 static const char ISO_MODE_AUTO[];
