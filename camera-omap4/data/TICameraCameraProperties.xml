@@ -42,7 +42,7 @@
 <focus-mode>auto</focus-mode>
 <scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,night-portrait,night-indoor,fireworks,document,barcode,supernight,cine,oldfilm,beach,candlelight,night,party,snow,steadyphoto,sunset,theatre</scene-mode-values>
 <scene-mode>auto</scene-mode>
-<flash-mode-values>off</flash-mode-values>
+<flash-mode-values>off,on,auto,torch</flash-mode-values>
 <flash-mode>off</flash-mode>
 <required-preview-bufs>5</required-preview-bufs>
 <required-image-bufs>1</required-image-bufs>

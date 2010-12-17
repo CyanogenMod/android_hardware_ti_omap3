@@ -154,7 +154,7 @@ struct userToOMX_LUT{
 
 struct LUTtype{
     int size;
-    userToOMX_LUT *Table;
+    const userToOMX_LUT *Table;
 };
 
 userToOMX_LUT isoUserToOMX[] = {
@@ -262,6 +262,15 @@ userToOMX_LUT exposure_UserToOMX [] = {
     { TICameraParameters::EXPOSURE_MODE_FACE, EXPOSURE_FACE_PRIORITY },
 };
 
+const userToOMX_LUT flash_UserToOMX [] = {
+    { CameraParameters::FLASH_MODE_OFF           ,OMX_IMAGE_FlashControlOff             },
+    { CameraParameters::FLASH_MODE_ON            ,OMX_IMAGE_FlashControlOn              },
+    { CameraParameters::FLASH_MODE_AUTO          ,OMX_IMAGE_FlashControlAuto            },
+    { CameraParameters::FLASH_MODE_TORCH         ,OMX_IMAGE_FlashControlTorch           },
+    { CameraParameters::FLASH_MODE_RED_EYE        ,OMX_IMAGE_FlashControlRedEyeReduction },
+    { TICameraParameters::FLASH_MODE_FILL_IN        ,OMX_IMAGE_FlashControlFillin          }
+};
+
 const LUTtype ExpLUT =
     {
     sizeof(exposure_UserToOMX)/sizeof(exposure_UserToOMX[0]),
@@ -284,6 +293,12 @@ const LUTtype SceneLUT =
     {
     sizeof(scene_UserToOMX)/sizeof(scene_UserToOMX[0]),
     scene_UserToOMX
+    };
+
+const LUTtype FlashLUT =
+    {
+    sizeof(flash_UserToOMX)/sizeof(flash_UserToOMX[0]),
+    flash_UserToOMX
     };
 
 const LUTtype EffLUT =
@@ -328,6 +343,7 @@ class Gen3A_settings{
     int Saturation;
     int Sharpness;
     int ISO;
+    int FlashMode;
 
     unsigned int Brightness;
 };
@@ -352,6 +368,7 @@ enum E3ASettingsFlags
     SetManualExposure       = 1 << 12,
     SetManualGain           = 1 << 13,
     SetExpMode              = 1 << 14,
+    SetFlash                = 1 << 15,
 
     E3aSettingMax,
     E3AsettingsAll = ( ((E3aSettingMax -1 ) << 1) -1 ) /// all possible flags raised

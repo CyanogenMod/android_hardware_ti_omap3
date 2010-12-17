@@ -181,6 +181,11 @@ static const char AUTOCONVERGENCE_MODE_CENTER[];
 static const char AUTOCONVERGENCE_MODE_FFT[];
 static const char AUTOCONVERGENCE_MODE_MANUAL[];
 
+
+//TI extensions for flash mode settings
+static const char FLASH_MODE_FILL_IN[];
+
+
 };
 
 };
