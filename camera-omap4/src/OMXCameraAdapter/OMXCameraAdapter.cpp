@@ -2076,6 +2076,22 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
+    //Disable GBCE by default
+    ret = setGBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
+    if ( NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring GBCE %x", ret);
+        return ret;
+        }
+
+    //Disable GLBCE by default
+    ret = setGLBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
+    if ( NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring GLBCE %x", ret);
+        return ret;
+        }
+
     ret = setImageQuality(mPictureQuality);
     if ( NO_ERROR != ret)
         {
@@ -3992,6 +4008,127 @@ status_t OMXCameraAdapter::setNSF(OMXCameraAdapter::IPPMode mode)
             {
             CAMHAL_LOGEA("Error while setting NSF");
             ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setGBCE(OMXCameraAdapter::BrightnessMode mode)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_CONFIG_LOCAL_AND_GLOBAL_BRIGHTNESSCONTRASTTYPE bControl;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        OMX_INIT_STRUCT_PTR (&bControl,
+                                               OMX_TI_CONFIG_LOCAL_AND_GLOBAL_BRIGHTNESSCONTRASTTYPE);
+
+        bControl.nPortIndex = OMX_ALL;
+
+        switch ( mode )
+            {
+            case OMXCameraAdapter::BRIGHTNESS_ON:
+                {
+                bControl.eControl = OMX_TI_BceModeOn;
+                break;
+                }
+            case OMXCameraAdapter::BRIGHTNESS_AUTO:
+                {
+                bControl.eControl = OMX_TI_BceModeAuto;
+                break;
+                }
+            case OMXCameraAdapter::BRIGHTNESS_OFF:
+            default:
+                {
+                bControl.eControl = OMX_TI_BceModeOff;
+                break;
+                }
+            }
+
+        eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp,
+                                               ( OMX_INDEXTYPE ) OMX_TI_IndexConfigGlobalBrightnessContrastEnhance,
+                                               &bControl);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while setting GBCE 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("GBCE configured successfully");
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::setGLBCE(OMXCameraAdapter::BrightnessMode mode)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_CONFIG_LOCAL_AND_GLOBAL_BRIGHTNESSCONTRASTTYPE bControl;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&bControl,
+                                               OMX_TI_CONFIG_LOCAL_AND_GLOBAL_BRIGHTNESSCONTRASTTYPE);
+
+        bControl.nPortIndex = OMX_ALL;
+
+        switch ( mode )
+            {
+            case OMXCameraAdapter::BRIGHTNESS_ON:
+                {
+                bControl.eControl = OMX_TI_BceModeOn;
+                break;
+                }
+            case OMXCameraAdapter::BRIGHTNESS_AUTO:
+                {
+                bControl.eControl = OMX_TI_BceModeAuto;
+                break;
+                }
+            case OMXCameraAdapter::BRIGHTNESS_OFF:
+            default:
+                {
+                bControl.eControl = OMX_TI_BceModeOff;
+                break;
+                }
+            }
+
+        eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp,
+                                               ( OMX_INDEXTYPE ) OMX_TI_IndexConfigLocalBrightnessContrastEnhance,
+                                               &bControl);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configure GLBCE 0x%x", eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGDA("GLBCE configured successfully");
             }
         }
 
