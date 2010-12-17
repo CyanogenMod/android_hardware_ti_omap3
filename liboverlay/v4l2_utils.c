@@ -612,11 +612,12 @@ int v4l2_overlay_map_buf(int fd, int index, void **start, size_t *len)
 
     *len = buf.length;
     *start = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED,
-                  fd, buf.m.offset);
+                  fd, buf.m.offset & ~(PAGE_SIZE - 1));
     if (*start == MAP_FAILED) {
         LOGE("map failed, length=%u offset=%u\n", buf.length, buf.m.offset);
         return -EINVAL;
     }
+    *((__u32 **) start) += buf.m.offset & (PAGE_SIZE - 1);
     return 0;
 }
 
@@ -624,7 +625,7 @@ int v4l2_overlay_unmap_buf(void *start, size_t len)
 {
     LOG_FUNCTION_NAME
 
-    return munmap(start, len);
+    return munmap((void *) (~(PAGE_SIZE - 1) & (__u32) start), len);
 }
 
 
