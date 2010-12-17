@@ -54,6 +54,7 @@ namespace android {
 
 #define MIN_JPEG_QUALITY 1
 #define MAX_JPEG_QUALITY 100
+#define EXP_BRACKET_RANGE 10
 
 #define TOUCH_DATA_SIZE         200
 #define DEFAULT_THUMB_WIDTH     160
@@ -369,6 +370,10 @@ private:
     status_t startVideoCapture();
     status_t stopVideoCapture();
 
+    //Exposure Bracketing
+    status_t setExposureBracketing(int *evValues, size_t evCount, size_t frameCount);
+    status_t parseExpRange(const char *rangeStr, int * expRange, size_t count, size_t &validEntries);
+
     //Temporal Bracketing
     status_t stopBracketing();
     status_t startBracketing();
@@ -426,6 +431,10 @@ private:
     struct timeval mStartCapture;
 
 #endif
+
+    //Exposure Bracketing
+    int mExposureBracketingValues[EXP_BRACKET_RANGE];
+    size_t mExposureBracketingValidEntries;
 
     mutable Mutex mFaceDetectionLock;
     //Face detection status

@@ -631,6 +631,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, valstr);
         }
 
+    if( (params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE ) != NULL ) )
+        {
+        CAMHAL_LOGDB("Exposure Bracketing set %s", params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE));
+        mParameters.set(TICameraParameters::KEY_EXP_BRACKETING_RANGE, params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE));
+        }
+
     if( ( (valstr = params.get(CameraParameters::KEY_ZOOM)) != NULL )
         && (params.getInt(CameraParameters::KEY_ZOOM) >= 0 )
         && (params.getInt(CameraParameters::KEY_ZOOM) <= mMaxZoomSupported ) )

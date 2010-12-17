@@ -60,6 +60,7 @@ const char TICameraParameters::KEY_IPP[] = "ipp";
 const char TICameraParameters::KEY_METERING_MODE[] = "meter-mode";
 const char TICameraParameters::KEY_PADDED_WIDTH[] = "padded-width";
 const char TICameraParameters::KEY_PADDED_HEIGHT[] = "padded-height";
+const char TICameraParameters::KEY_EXP_BRACKETING_RANGE[] = "exp-bracketing-range";
 const char TICameraParameters::KEY_TEMP_BRACKETING[] = "temporal-bracketing";
 const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS[] = "temporal-bracketing-range-positive";
 const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_NEG[] = "temporal-bracketing-range-negative";
