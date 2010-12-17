@@ -49,6 +49,7 @@
 #define KEY_AUTOCONVERGENCE "auto-convergence"
 #define KEY_MANUALCONVERGENCE_VALUES "manual-convergence-values"
 #define AUTOCONVERGENCE_MODE_MANUAL "mode-manual"
+#define KEY_EXP_BRACKETING_RANGE "exp-bracketing-range"
 #define KEY_TEMP_BRACKETING "temporal-bracketing"
 #define KEY_TEMP_BRACKETING_POS "temporal-bracketing-range-positive"
 #define KEY_TEMP_BRACKETING_NEG "temporal-bracketing-range-negative"
@@ -98,6 +99,7 @@ int vstab_mode = 0;
 int tempBracketRange = 1;
 int tempBracketIdx = 0;
 int measurementIdx = 0;
+int expBracketIdx = 0;
 int AutoConvergenceModeIDX = 0;
 int ManualConvergenceValuesIDX = 0;
 const int ManualConvergenceDefaultValueIDX = 2;
@@ -123,6 +125,7 @@ int ippIDX = 0;
 int previewFormat = 0;
 int jpegQuality = 85;
 int thumbQuality = 85;
+int flashIdx = 0;
 int faceIndex = 0;
 timeval autofocus_start, picture_start;
 char script_name[80];
@@ -133,6 +136,8 @@ char dir_path[80] = SDCARD_PATH;
 
 const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Stereo Camera"};
 const char *measurement[] = {"disable", "enable"};
+const char *expBracketing[] = {"disable", "enable"};
+const char *expBracketingRange[] = {"", "-30,0,30,0,-30"};
 const char *tempBracketing[] = {"disable", "enable"};
 const char *faceDetection[] = {"disable", "enable"};
 const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
@@ -152,6 +157,22 @@ const char *effects [] = {
     "aqua",
     "posterize"
 };
+
+const char CameraParameters::FLASH_MODE_OFF[] = "off";
+const char CameraParameters::FLASH_MODE_AUTO[] = "auto";
+const char CameraParameters::FLASH_MODE_ON[] = "on";
+const char CameraParameters::FLASH_MODE_RED_EYE[] = "red-eye";
+const char CameraParameters::FLASH_MODE_TORCH[] = "torch";
+
+const char *flashModes[] = {
+    "off",
+    "auto",
+    "on",
+    "red-eye",
+    "torch",
+    "fill-in",
+};
+
 const char *caf [] = { "Off", "On" };
 const char *vnf [] = { "Off", "On" };
 const char *vstab [] = { "Off", "On" };
@@ -1025,6 +1046,8 @@ void initDefaults() {
     caf_mode = 0;
     vnf_mode = 0;
     vstab_mode = 0;
+    expBracketIdx = 0;
+    flashIdx = 0;
     rotation = 0;
     zoomIDX = 0;
     videoCodecIDX = 0;
@@ -1196,6 +1219,7 @@ int functional_menu() {
         printf(" \n\n IMAGE CAPTURE SUB MENU \n");
         printf(" -----------------------------\n");
         printf("   p. Take picture/Full Press\n");
+        printf("   H. Exposure Bracketing: %s\n", expBracketing[expBracketIdx]);
         printf("   U. Temporal Bracketing:   %s\n", tempBracketing[tempBracketIdx]);
         printf("   W. Temporal Bracketing Range: [-%d;+%d]\n", tempBracketRange, tempBracketRange);
         printf("   $. Picture Format: %s\n", codingformat[pictureFormat]);
@@ -1232,6 +1256,7 @@ int functional_menu() {
         printf("   F. Face detection: %s\n", faceDetection[faceIndex]);
         printf("   T. Dump face data \n");
         printf("   f. Auto Focus/Half Press\n");
+        printf("   J.Flash:              %s\n", flashModes[flashIdx]);
         printf("   7. EV offset:      %4.1f\n", compensation);
         printf("   8. AWB mode:       %s\n", strawb_mode[awb_mode]);
         printf("   z. Zoom            %s\n", zoom[zoomIDX].zoom_description);
@@ -1620,6 +1645,16 @@ int functional_menu() {
 
             break;
 
+        case 'J':
+            flashIdx++;
+            flashIdx %= ARRAY_SIZE(flashModes);
+            params.set(CameraParameters::KEY_FLASH_MODE, (flashModes[flashIdx]));
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
         case 'u':
             capture_mode++;
             capture_mode %= ARRAY_SIZE(capture);
@@ -1634,6 +1669,17 @@ int functional_menu() {
             tempBracketIdx++;
             tempBracketIdx %= ARRAY_SIZE(tempBracketing);
             params.set(KEY_TEMP_BRACKETING, tempBracketing[tempBracketIdx]);
+
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
+
+            break;
+
+        case 'H':
+            expBracketIdx++;
+            expBracketIdx %= ARRAY_SIZE(expBracketing);
+
+            params.set(KEY_EXP_BRACKETING_RANGE, expBracketingRange[expBracketIdx]);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -2434,6 +2480,13 @@ int execute_functional_script(char *script) {
 
                 break;
 
+            case 'J':
+                params.set(CameraParameters::KEY_FLASH_MODE, (cmd+1));
+
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+
+                break;
 
             case 'w':
                 params.set(params.KEY_SCENE_MODE, (cmd + 1));
