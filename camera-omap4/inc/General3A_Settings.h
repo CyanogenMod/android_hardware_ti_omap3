@@ -274,7 +274,7 @@ const LUTtype WBalLUT =
     whiteBal_UserToOMX
     };
 
-const LUTtype FlickerLUT
+const LUTtype FlickerLUT =
     {
     sizeof(antibanding_UserToOMX)/sizeof(antibanding_UserToOMX[0]),
     antibanding_UserToOMX

@@ -30,6 +30,7 @@
 #include "OverlayDisplayAdapter.h"
 #include "TICameraParameters.h"
 #include "CameraProperties.h"
+#include "overlay_common.h"
 
 #include <poll.h>
 #include <math.h>

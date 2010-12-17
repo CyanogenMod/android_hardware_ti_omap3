@@ -60,6 +60,7 @@ namespace android {
 #define DEFAULT_THUMB_HEIGHT    120
 #define FRAME_RATE_FULL_HD      27
 #define ZOOM_STAGES 61
+#define FACE_DETECTION_BUFFER_SIZE  0x1000
 
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
@@ -427,7 +428,7 @@ private:
     //Face detection status
     bool mFaceDetectionRunning;
     //Buffer for storing face detection results
-    char *mFaceDectionResult;
+    char mFaceDectionResult [FACE_DETECTION_BUFFER_SIZE];
 
     //Image post-processing
     IPPMode mIPP;

@@ -38,7 +38,6 @@ static int mDebugFps = 0;
 
 #define Q16_OFFSET 16
 
-#define FACE_DETECTION_BUFFER_SIZE  0x1000
 #define TOUCH_FOCUS_RANGE 0xFF
 #define AF_CALLBACK_TIMEOUT 3000000
 #define MAX_MANUAL_EXPOSURE_MS 66 //[ms.]
@@ -281,13 +280,8 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mTouchFocusPosY = 0;
     mMeasurementEnabled = false;
     mFaceDetectionRunning = false;
-    mFaceDectionResult = new char[FACE_DETECTION_BUFFER_SIZE];
-    if ( NULL != mFaceDectionResult )
-        {
-        memset(mFaceDectionResult, '\0', FACE_DETECTION_BUFFER_SIZE);
-        }
 
-
+    memset(mFaceDectionResult, '\0', FACE_DETECTION_BUFFER_SIZE);
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
     memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
 
@@ -5505,15 +5499,12 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
         {
         recalculateFPS();
 
-        //Face detection runs only in High Quality capture mode
-        if ( ( OMXCameraAdapter::HIGH_QUALITY == mCapMode ) ||
-             ( OMXCameraAdapter::VIDEO_MODE == mCapMode) )
             {
             Mutex::Autolock lock(mFaceDetectionLock);
             if ( mFaceDetectionRunning )
                 {
                 detectFaces(pBuffHeader);
-                CAMHAL_LOGVB("Faces detected: %s", mFaceDectionResult);
+                CAMHAL_LOGDB("Faces detected: %s", mFaceDectionResult);
                 }
             }
 
@@ -6249,11 +6240,6 @@ OMXCameraAdapter::~OMXCameraAdapter()
     if(mComponentState==OMX_StateLoaded)
         {
         OMX_Deinit();
-        }
-
-    if ( NULL != mFaceDectionResult )
-        {
-        delete [] mFaceDectionResult;
         }
 
     LOG_FUNCTION_NAME_EXIT
