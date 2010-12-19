@@ -54,6 +54,7 @@ LOCAL_C_INCLUDES += \
 LOCAL_CFLAGS += -fno-short-enums -DCOPY_IMAGE_BUFFER -DTARGET_OMAP4
 
 LOCAL_MODULE:= libcamera
+LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -99,6 +100,7 @@ LOCAL_C_INCLUDES += \
 LOCAL_CFLAGS += -fno-short-enums -DTARGET_OMAP4
 
 LOCAL_MODULE:= libfakecameraadapter
+LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -152,6 +154,7 @@ LOCAL_C_INCLUDES += \
 LOCAL_CFLAGS += -fno-short-enums -DTARGET_OMAP4
 
 LOCAL_MODULE:= libomxcameraadapter
+LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_SHARED_LIBRARY)
 

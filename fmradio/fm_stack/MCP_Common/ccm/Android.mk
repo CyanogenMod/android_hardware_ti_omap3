@@ -47,6 +47,7 @@ LOCAL_C_INCLUDES := \
 		$(LOCAL_PATH)/../Platform/os/LINUX/android_$(BTIPS_TARGET_PLATFORM)/inc
 
 LOCAL_MODULE:=libccm
+LOCAL_MODULE_TAGS:= optional
 
 
 include $(BUILD_STATIC_LIBRARY)

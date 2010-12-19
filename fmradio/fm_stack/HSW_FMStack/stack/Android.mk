@@ -55,6 +55,7 @@ LOCAL_C_INCLUDES = \
 
 
 LOCAL_MODULE:=libfmstack
+LOCAL_MODULE_TAGS:= optional
 
 ifeq ($(FM_MCP_STK),1)
 LOCAL_PRELINK_MODULE := false

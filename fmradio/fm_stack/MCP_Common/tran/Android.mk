@@ -37,6 +37,7 @@ LOCAL_C_INCLUDES := \
 		$(LOCAL_PATH)/../tran \
 
 LOCAL_MODULE := libmcptransport
+LOCAL_MODULE_TAGS:=optional
 
 include $(BUILD_STATIC_LIBRARY)
 

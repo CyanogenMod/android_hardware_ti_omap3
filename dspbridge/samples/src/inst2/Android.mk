@@ -16,6 +16,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_CFLAGS += -Wall -g -O0 -finline-functions
 
 LOCAL_MODULE:= instutility.out
+LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_EXECUTABLE)
 

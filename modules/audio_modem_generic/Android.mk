@@ -18,6 +18,7 @@ ifeq ($(strip $(BOARD_USES_TI_OMAP_MODEM_AUDIO)),true)
 
   LOCAL_PRELINK_MODULE := false
   LOCAL_MODULE := libaudiomodemgeneric
+  LOCAL_MODULE_TAGS:= optional
 
   LOCAL_SHARED_LIBRARIES := \
     libcutils \

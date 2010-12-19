@@ -23,6 +23,7 @@ LOCAL_C_INCLUDES += \
 	$(PV_INCLUDES)
 
 LOCAL_MODULE:= camera_test
+LOCAL_MODULE_TAGS:= optional
 
 LOCAL_CFLAGS += -Wall -fno-short-enums -O0 -g -D___ANDROID___
 

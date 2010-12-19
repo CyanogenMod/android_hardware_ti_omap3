@@ -32,6 +32,7 @@ LOCAL_SHARED_LIBRARIES := libbluetooth  libcutils
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 
 LOCAL_MODULE:=bt_voice_call_set
+LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_EXECUTABLE)
 
