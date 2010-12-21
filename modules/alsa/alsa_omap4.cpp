@@ -1,6 +1,6 @@
 /* alsa_omap4.cpp
  **
- ** Copyright 2009 Texas Instruments
+ ** Copyright 2009-2011 Texas Instruments
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -17,36 +17,11 @@
 
 #define LOG_TAG "Omap4ALSA"
 #include <utils/Log.h>
-#include <cutils/properties.h>
 
 #include "AudioHardwareALSA.h"
 #include <media/AudioRecord.h>
+#include "alsa_omap4.h"
 
-#if 0
-
-#ifdef AUDIO_MODEM_TI
-#include "audio_modem_interface.h"
-#include "alsa_omap4_modem.h"
-#endif
-#endif
-
-#define MM_DEFAULT_DEVICE    "plughw:0,0"
-#define BLUETOOTH_SCO_DEVICE "plughw:0,0"
-#define FM_TRANSMIT_DEVICE   "plughw:0,0"
-#define FM_CAPTURE_DEVICE    "plughw:0,1"
-#define MM_LP_DEVICE         "hw:0,6"
-#define HDMI_DEVICE          "plughw:0,7"
-
-#ifndef ALSA_DEFAULT_SAMPLE_RATE
-#define ALSA_DEFAULT_SAMPLE_RATE 48000 // in Hz
-#endif
-
-#ifndef MM_LP_SAMPLE_RATE
-//not used for now
-#define MM_LP_SAMPLE_RATE 44100        // in Hz
-#endif
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 static bool fm_enable = false;
 static bool mActive = false;
 
@@ -61,10 +36,14 @@ static status_t s_close(alsa_handle_t *);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
 static status_t s_voicevolume(float);
+static status_t s_set(const String8&);
+
 
 #ifdef AUDIO_MODEM_TI
     AudioModemAlsa *audioModem;
 #endif
+
+    Omap4ALSAManager propMgr;
 
 static hw_module_methods_t s_module_methods = {
     open            : s_device_open
@@ -101,6 +80,7 @@ static int s_device_open(const hw_module_t* module, const char* name,
     dev->close = s_close;
     dev->standby = s_standby;
     dev->route = s_route;
+    dev->set = s_set;
     dev->voicevolume = s_voicevolume;
 
     *device = &dev->common;
@@ -122,37 +102,7 @@ static const int DEFAULT_SAMPLE_RATE = ALSA_DEFAULT_SAMPLE_RATE;
 
 static void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode);
 void configMicChoices(uint32_t);
-
-#define OMAP4_OUT_SCO      (\
-        AudioSystem::DEVICE_OUT_BLUETOOTH_SCO |\
-        AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |\
-        AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
-
-#define OMAP4_OUT_FM        (\
-        AudioSystem::DEVICE_OUT_FM_TRANSMIT)
-
-#define OMAP4_OUT_HDMI        (\
-        AudioSystem::DEVICE_OUT_AUX_DIGITAL)
-
-#define OMAP4_OUT_LP          (\
-        AudioSystem::DEVICE_OUT_LOW_POWER)
-
-#define OMAP4_OUT_DEFAULT   (\
-        AudioSystem::DEVICE_OUT_ALL &\
-        ~OMAP4_OUT_SCO &\
-        ~OMAP4_OUT_FM  &\
-        ~OMAP4_OUT_LP  &\
-        ~OMAP4_OUT_HDMI)
-
-#define OMAP4_IN_SCO        (\
-        AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET)
-
-#define OMAP4_IN_FM        (\
-        AudioSystem::DEVICE_IN_FM_ANALOG)
-
-#define OMAP4_IN_DEFAULT    (\
-        AudioSystem::DEVICE_IN_ALL &\
-        ~OMAP4_IN_SCO)
+void configEqualizer (uint32_t);
 
 static alsa_handle_t _defaults[] = {
 /*
@@ -341,7 +291,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
     snd_pcm_hw_params_t *hardwareParams;
     status_t err;
 
-    snd_pcm_uframes_t periodSize, bufferSize, reqBuffSize;
+    snd_pcm_uframes_t periodSize = 0, bufferSize = 0, reqBuffSize = 0;
     unsigned int periodTime, bufferTime;
     unsigned int requestedRate = handle->sampleRate;
     int numPeriods = 0;
@@ -765,7 +715,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
 static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 {
     LOGD("Initializing devices for OMAP4 ALSA module");
-
+    status_t status = NO_ERROR;
     list.clear();
 
     for (size_t i = 0; i < ARRAY_SIZE(_defaults); i++) {
@@ -784,6 +734,27 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 #ifdef AUDIO_MODEM_TI
     audioModem = new AudioModemAlsa();
 #endif
+
+    propMgr = Omap4ALSAManager();
+
+    // initialize mics and power mode from system property defaults
+    status = propMgr.setFromProperty((String8)Omap4ALSAManager::MAIN_MIC);
+    status = propMgr.setFromProperty((String8)Omap4ALSAManager::SUB_MIC);
+    status = propMgr.setFromProperty((String8)Omap4ALSAManager::POWER_MODE);
+
+    // initialize other tunable parameters with internal default values
+    status = propMgr.set((String8)Omap4ALSAManager::DL2L_EQ_PROFILE,
+                         (String8)Omap4ALSAManager::EqualizerProfileList[1]);
+    status = propMgr.set((String8)Omap4ALSAManager::DL2R_EQ_PROFILE,
+                         (String8)Omap4ALSAManager::EqualizerProfileList[1]);
+    status = propMgr.set((String8)Omap4ALSAManager::DL1_EQ_PROFILE,
+                         (String8)Omap4ALSAManager::EqualizerProfileList[0]);
+    status = propMgr.set((String8)Omap4ALSAManager::AMIC_EQ_PROFILE,
+                         (String8)Omap4ALSAManager::EqualizerProfileList[0]);
+    status = propMgr.set((String8)Omap4ALSAManager::AMIC_EQ_PROFILE,
+                         (String8)Omap4ALSAManager::EqualizerProfileList[0]);
+    status = propMgr.set((String8)Omap4ALSAManager::AMIC_EQ_PROFILE,
+                         (String8)Omap4ALSAManager::EqualizerProfileList[0]);
 
     return NO_ERROR;
 }
@@ -924,49 +895,94 @@ static status_t s_voicevolume(float volume)
     return status;
 }
 
+static status_t s_set(const String8& keyValuePairs)
+{
+    AudioParameter p = AudioParameter(keyValuePairs);
+    String8 key = (String8) Omap4ALSAManager::MAIN_MIC;
+    String8 value;
+    unsigned int i = 0;
+
+    LOGI("set:: %s", keyValuePairs.string());
+    while (i < propMgr.size()) {
+        if (p.get(propMgr.mParams.keyAt(i), value) == NO_ERROR) {
+            if(propMgr.set(propMgr.mParams.keyAt(i), value) == BAD_VALUE) {
+                LOGE("PropMgr.set failed to validate new value for %s=%s",
+                      propMgr.mParams.keyAt(i).string(), value.string());
+            }
+            else {
+                LOGV("PropMgr.set %s::%s", propMgr.mParams.keyAt(i).string(), value.string());
+                // @TODO: update any controls that should
+                // based on which property was KVP was sent
+                p.remove(key);
+            }
+            // we found it, so...
+            break;
+        }
+        i++;
+    }
+    if (p.size()) {
+        return BAD_VALUE;
+    } else {
+        return NO_ERROR;
+    }
+}
+
 void configMicChoices (uint32_t devices) {
 
     ALSAControl control("hw:00");
-    char mic1[PROPERTY_VALUE_MAX];
-    char mic2[PROPERTY_VALUE_MAX];
-    int status = 0;
+    String8 keyMain = (String8)Omap4ALSAManager::MAIN_MIC;
+    String8 keySub = (String8)Omap4ALSAManager::SUB_MIC;
+    String8 main;
+    String8 sub;
 
-    status = property_get("omap.audio.mic.main", mic1, "AMic0");
-    status = property_get("omap.audio.mic.sub", mic2, "AMic1");
+    if(propMgr.get(keyMain, main) == NO_ERROR)
+        control.set("MUX_UL00", main.string());
 
-    //for Main Mic
-    if (!strcmp(mic1, "DMic0L")) {
-        LOGI("OMAP4 ABE set for Digital Mic 0L");
-        control.set("AMIC_UL PDM Switch", 0, 0);  // PDM_UL1 -> off
-        control.set("MUX_UL00", mic1);            // DMIC0L_UL -> MM_UL00
+    if(propMgr.get(keySub, sub) == NO_ERROR)
+        control.set("MUX_UL01", sub.string());
+
+    // if either mic is analog, turn on AMIC_UL_PDM switch
+    if(strncmp(main.string(), "A", 1) == 0 ||
+        strncmp(sub.string() , "A", 1) == 0) {
+        control.set("AMIC_UL PDM Switch", 1);
+    } else {
+        control.set("AMIC_UL PDM Switch", 0, 0);
+    }
+    // if mic is digital, turn up the associated gain
+    if(strncmp(main.string(), "DMic0", 5) == 0 ||
+        strncmp(sub.string() , "DMic0", 5) == 0) {
         control.set("DMIC1 UL Volume", 140);      // DMIC1: 1dB=Mute --> 149dB
-    }
-    else {
-        LOGI("OMAP4 ABE set for Analog Main Mic 0");
-        control.set("AMIC_UL PDM Switch", 1);     // PDM_UL1 -> AMIC_UL
-        control.set("MUX_UL00", "AMic0");         // AMIC_UL -> MM_UL00
+    } else if(strncmp(main.string(), "DMic1", 5) == 0 ||
+        strncmp(sub.string() , "DMic1", 5) == 0) {
+        control.set("DMIC2 UL Volume", 140);      // DMIC2: 1dB=Mute --> 149dB
+    } else if(strncmp(main.string(), "DMic2", 5) == 0 ||
+        strncmp(sub.string() , "DMic2", 5) == 0) {
+        control.set("DMIC3 UL Volume", 140);      // DMIC3: 1dB=Mute --> 149dB
+    } else {
         control.set("DMIC1 UL Volume", 1);        // DMIC1 -> MUTE
+        control.set("DMIC2 UL Volume", 1);        // DMIC1 -> MUTE
+        control.set("DMIC3 UL Volume", 1);        // DMIC1 -> MUTE
     }
-    //for Sub Mic
-    if (!strcmp(mic2, "DMic0R")) {
-        LOGI("OMAP4 ABE set for Digital Sub Mic 0R");
-        control.set("AMIC_UL PDM Switch", 0, 0);  // PDM_UL1 -> off
-        control.set("MUX_UL01", mic2);           // DMIC0R_UL -> MM_UL01
-        control.set("DMIC1 UL Volume", 140);      // DMIC1: 1dB=Mute --> 149dB
-    }
-    else {
-        LOGI("OMAP4 ABE set for Analog Sub Mic 1");
-        control.set("AMIC_UL PDM Switch", 1);      // PDM_UL1 -> AMIC_UL
-        control.set("MUX_UL01", "AMic1");          // AMIC_UL -> MM_UL01
-        control.set("DMIC1 UL Volume", 1);        // DMIC1 -> MUTE
+    LOGI("main mic selected %s", main.string());
+    LOGI("sub mic selected %s", sub.string());
+
+}
+
+void configEqualizer (uint32_t devices) {
+
+    ALSAControl control("hw:00");
+
+    if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
+        (devices & AudioSystem::DEVICE_IN_BACK_MIC)) {
+        control.set("DMIC Equalizer", "Flat response");
     }
 
-    /** 
-     * configure EQ profile for Analog or Digital
-     * since we only use flat response for MM, we can just reset
-     * both amic and dmic eq profiles.
-    **/
-    control.set("DMIC Equalizer", "Flat response");
-    control.set("AMIC Equalizer", "Flat response");
+    if ((devices & AudioSystem::DEVICE_IN_BUILTIN_MIC) ||
+        (devices & AudioSystem::DEVICE_IN_BACK_MIC) ||
+        (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
+        (devices & AudioSystem::DEVICE_IN_AUX_DIGITAL) ||
+        (devices & AudioSystem::DEVICE_IN_FM_ANALOG)) {
+        control.set("AMIC Equalizer", "Flat response");
+    }
 }
 }

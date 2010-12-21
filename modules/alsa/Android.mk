@@ -39,13 +39,15 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
     endif
   endif
   ifeq ($(strip $(TARGET_BOARD_PLATFORM)), omap4)
-    LOCAL_SRC_FILES:= alsa_omap4.cpp
+    LOCAL_SRC_FILES:= alsa_omap4.cpp \
+                       Omap4ALSAManager.cpp
+    LOCAL_SHARED_LIBRARIES += libmedia
     ifeq ($(strip $(BOARD_USES_TI_OMAP_MODEM_AUDIO)),true)
       LOCAL_SRC_FILES += alsa_omap4_modem.cpp
     endif
   endif
 
-  LOCAL_SHARED_LIBRARIES := \
+  LOCAL_SHARED_LIBRARIES += \
     libaudio \
     libasound \
     liblog \
