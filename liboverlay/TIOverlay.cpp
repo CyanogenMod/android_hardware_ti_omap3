@@ -591,7 +591,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     uint32_t num = NUM_OVERLAY_BUFFERS_REQUESTED;
     int fd;
     int overlay_fd;
-    int pipelineId = 0;
+    int pipelineId = -1;
     int index = 0;
     /* Validate the width and height are within a valid range for the
     * video driver.
@@ -630,7 +630,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     }
 
 #ifdef TARGET_OMAP4
-    if(isS3D)
+    if (isS3D)
     {
         LOGD("Enabling the OVERLAY[0] for S3D \n");
         fd = v4l2_overlay_open(-1);
@@ -664,24 +664,18 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-    if (v4l2_overlay_getId(fd, &pipelineId)) {
-        LOGE("Failed: getting overlay Id");
-        goto error1;
-    }
-
     if (v4l2_overlay_set_crop(fd, 0, 0, w, h)) {
         LOGE("Failed defaulting crop window\n");
         goto error1;
     }
 
-    if ((pipelineId < 0) || (pipelineId > MAX_NUM_OVERLAYS)) {
-        LOGE("Failed: Invalid overlay Id");
-        goto error1;
-    }
+    v4l2_overlay_getId(fd, &pipelineId);
 
-    sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
-    sprintf(overlayobj->overlayzorderpath, "/sys/devices/platform/omapdss/overlay%d/zorder", pipelineId);
-    sprintf(overlayobj->overlayenabled, "/sys/devices/platform/omapdss/overlay%d/enabled", pipelineId);
+    if ((pipelineId >= 0) && (pipelineId <= MAX_NUM_OVERLAYS)) {
+        sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
+        sprintf(overlayobj->overlayzorderpath, "/sys/devices/platform/omapdss/overlay%d/zorder", pipelineId);
+        sprintf(overlayobj->overlayenabled, "/sys/devices/platform/omapdss/overlay%d/enabled", pipelineId);
+    }
 
 #ifndef TARGET_OMAP4
     if (v4l2_overlay_set_colorkey(fd, 1, 0)){
@@ -715,8 +709,10 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-    if (sysfile_write(overlayobj->overlayzorderpath, "1",  strlen("0")) < 0) {
-        goto error1;
+    if (!isS3D) {
+        if (sysfile_write(overlayobj->overlayzorderpath, "1",  strlen("0")) < 0) {
+            goto error1;
+        }
     }
 
     if (sysfile_write(managerMetaData[index].managertrans_key_value, "0", strlen("0")) < 0) {
@@ -815,9 +811,12 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
     overlay_data_context_t::disable_streaming(overlayobj, false);
 
     //lets reset the manager to the lcd
-    if (sysfile_write(overlayobj->overlaymanagerpath, "lcd", sizeof("lcd")) < 0) {
-        LOGE("Overlay Manager reset failed, but proceed anyway");
+    if (!overlayobj->mData.s3d_active) {
+        if (sysfile_write(overlayobj->overlaymanagerpath, "lcd", sizeof("lcd")) < 0) {
+            LOGE("Overlay Manager reset failed, but proceed anyway");
+        }
     }
+
     LOGI("Destroying overlay/fd=%d/obj=%08lx", fd, (unsigned long)overlay);
 
     if (close(fd)) {
@@ -1299,9 +1298,8 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 #else
 
-   //Currently not supported with V4L2_S3D driver
-   if(!overlayobj->mData.s3d_active)
-   {
+    //Currently not supported with V4L2_S3D driver
+    if (!overlayobj->mData.s3d_active) {
         if (data->zorder != stage->zorder) {
             data->zorder = stage->zorder;
             //Set up the z-order for the overlay:
@@ -1836,7 +1834,7 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
 
     else if ( (rc = v4l2_overlay_dq_buf(fd, &i )) != 0 ) {
         LOGE("Failed to DQ/%d\n", rc);
-       //in order to recover from DQ failure scenario, let's disable the stream. 
+       //in order to recover from DQ failure scenario, let's disable the stream.
        //the stream gets re-enabled in the subsequent Q buffer call
        //if streamoff also fails!!! just return the errorcode to the client
        rc = disable_streaming_locked(ctx->omap_overlay, true);
