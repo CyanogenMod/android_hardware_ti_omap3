@@ -5,6 +5,7 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_SRC_FILES := src/ti_omx_interface.cpp
 
 LOCAL_MODULE := libVendor_ti_omx
+LOCAL_MODULE_TAGS := optional
 
 PV_TOP := external/opencore
 

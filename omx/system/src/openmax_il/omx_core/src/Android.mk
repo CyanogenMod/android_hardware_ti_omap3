@@ -24,5 +24,6 @@ else
 LOCAL_CFLAGS += -DNO_OPENCORE
 endif
 LOCAL_MODULE:= libOMX_Core
+LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)
