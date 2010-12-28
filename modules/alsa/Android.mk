@@ -6,7 +6,7 @@
 # This is the OMAP3 ALSA module for OMAP3
 
 ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
-
+  BOARD_USES_TI_OMAP_MODEM_AUDIO := false
   LOCAL_PATH := $(call my-dir)
 
   include $(CLEAR_VARS)

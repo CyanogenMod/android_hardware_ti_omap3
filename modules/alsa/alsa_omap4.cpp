@@ -22,9 +22,12 @@
 #include "AudioHardwareALSA.h"
 #include <media/AudioRecord.h>
 
+#if 0
+
 #ifdef AUDIO_MODEM_TI
 #include "audio_modem_interface.h"
 #include "alsa_omap4_modem.h"
+#endif
 #endif
 
 #define MM_DEFAULT_DEVICE	"plughw:0,0"
