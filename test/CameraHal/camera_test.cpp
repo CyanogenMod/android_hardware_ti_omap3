@@ -74,8 +74,6 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-// TODO: remove this once stride support is put back
-#undef OMAP_ENHANCEMENT
 
 using namespace android;
 

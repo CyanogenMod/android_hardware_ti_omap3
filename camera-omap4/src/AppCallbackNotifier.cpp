@@ -446,8 +446,8 @@ void AppCallbackNotifier::notifyFrame()
                             break;
                             }
                         //CAMHAL_LOGDB("+CB 0x%x buffer 0x%x", frame->mBuffer, buffer);
-// TODO: reenable once stride support is in place in camera framework
-#if 0 // def OMAP_ENHANCEMENT
+
+#ifdef OMAP_ENHANCEMENT
                         mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie
                                                 , frame->mOffset, PAGE_SIZE);
 #else
