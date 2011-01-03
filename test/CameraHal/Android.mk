@@ -14,6 +14,8 @@ LOCAL_SHARED_LIBRARIES:= \
 	libcutils \
 	libbinder \
 	libmedia \
+	libsurfaceflinger_client \
+	libcamera_client
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/ui \
