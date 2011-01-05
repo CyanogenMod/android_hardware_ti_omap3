@@ -10,7 +10,7 @@ ifeq ($(BUILD_FM_RADIO), true)
 #
 #
 LOCAL_C_INCLUDES:=\
-        external/bluetooth/bluez/include \
+        external/bluetooth/bluez/lib \
         $(ALSA_PATH)/include
 
 LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE
@@ -19,7 +19,7 @@ LOCAL_SRC_FILES:= \
 	kfmapp.c
 
 LOCAL_SHARED_LIBRARIES := \
-        libaudio
+        libaudio libasound
 
 LOCAL_STATIC_LIBRARIES :=
 

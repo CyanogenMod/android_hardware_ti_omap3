@@ -47,7 +47,7 @@ LOCAL_SRC_FILES:= \
 fm_app.c fm_trace.c
 
 LOCAL_SHARED_LIBRARIES := \
-	libbluetooth libaudio libfmstack
+	libbluetooth libasound libaudio libfmstack libmcphal
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 LOCAL_MODULE_TAGS := eng
