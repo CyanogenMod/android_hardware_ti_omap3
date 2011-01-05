@@ -191,6 +191,33 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_CODEC_CAPTURE_VOL_HANDFREE            4
 #define AUDIO_CODEC_CAPTURE_VOL_HEADSET             4
 
+// amplifier volumes are
+//  index       gain
+//  0           -24dB
+//  ...
+//  15          6dB
+//
+//  step 2dB
+#define AUDIO_CODEC_EARPIECE_GAIN        15
+
+// amplifier volumes are
+//  index       gain
+//  0           -52dB
+//  ...
+//  29          6dB
+//
+//  step 2dB
+#define AUDIO_CODEC_HANDFREE_GAIN        23
+
+// amplifier volumes are
+//  index       gain
+//  0           -30dB
+//  ...
+//  15          0dB
+//
+//  step 2dB
+#define AUDIO_CODEC_HEADSET_GAIN        15
+
 // ABE Audio UL voice mixer Volume
 // Range values: min=0,max=149,step=1
 // dBscale-min=-120.00dB,step=1.00dB,mute=0
