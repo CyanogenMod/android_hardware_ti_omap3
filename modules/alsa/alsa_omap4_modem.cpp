@@ -241,6 +241,9 @@ status_t AudioModemAlsa::voiceCallControls(uint32_t devices, int mode,
 
 LOGV("%s: devices %04x mode %d", __FUNCTION__, devices, mode);
 
+    // Check mics config
+    micChosen();
+
     mAlsaControl = alsaControl;
 
     if ((mode == AudioSystem::MODE_IN_CALL) &&
@@ -504,26 +507,26 @@ status_t AudioModemAlsa::voiceCallCodecSetHandset()
                                 AUDIO_ABE_SIDETONE_DL_VOL_HANDSET, -1), error);
 
     // Enable Capture voice path
-    CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"), error);
-    if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
-                "Yes")) {
-        LOGV("dual mic. enabled");
+    if ((mainMic.type == OMAP_MIC_TYPE_ANALOG) ||
+        (subMic.type == OMAP_MIC_TYPE_ANALOG)) {
+        CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"), error);
+        if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
+                    "Yes")) {
+            LOGV("dual mic. enabled");
 
-        // Enable Sub mic
-        CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"),
-                                        error);
+            // Enable Sub mic
+            CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"),
+                                            error);
+        }
+        CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
+                                    AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDSET, -1), error);
+        CHECK_ERROR(mAlsaControl->set("Capture Volume",
+                                    AUDIO_CODEC_CAPTURE_VOL_HANDSET, -1), error);
     }
-    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDSET, -1), error);
-    CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                AUDIO_CODEC_CAPTURE_VOL_HANDSET, -1), error);
-
-    CHECK_ERROR(mAlsaControl->set("AMIC_UL PDM Switch", 1), error);
-    CHECK_ERROR(mAlsaControl->set("MUX_VX0", "AMic0"), error);
-    CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic1"), error);
     CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
                                 AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET, -1), error);
-    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 1), error);
+    CHECK_ERROR(configMicrophones(), error);
+    CHECK_ERROR(configEqualizers(), error);
 
     // Enable Sidetone
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
@@ -546,26 +549,26 @@ status_t AudioModemAlsa::voiceCallCodecSetHandfree()
                                 AUDIO_ABE_SIDETONE_DL_VOL_HANDFREE, -1), error);
 
     // Enable Capture voice path
-    CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"), error);
-    if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
-                "Yes")) {
-        LOGV("dual mic. enabled");
+    if ((mainMic.type == OMAP_MIC_TYPE_ANALOG) ||
+        (subMic.type == OMAP_MIC_TYPE_ANALOG)) {
+        CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Main Mic"), error);
+        if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
+                    "Yes")) {
+            LOGV("dual mic. enabled");
 
-        // Enable Sub mic
-        CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"),
-                                        error);
+            // Enable Sub mic
+            CHECK_ERROR(mAlsaControl->set("Analog Right Capture Route", "Sub Mic"),
+                                            error);
+        }
+        CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
+                                    AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDFREE, -1), error);
+        CHECK_ERROR(mAlsaControl->set("Capture Volume",
+                                    AUDIO_CODEC_CAPTURE_VOL_HANDFREE, -1), error);
     }
-    CHECK_ERROR(mAlsaControl->set("Capture Preamplifier Volume",
-                                AUDIO_CODEC_CAPTURE_PREAMP_ATT_HANDFREE, -1), error);
-    CHECK_ERROR(mAlsaControl->set("Capture Volume",
-                                AUDIO_CODEC_CAPTURE_VOL_HANDFREE, -1), error);
-
-    CHECK_ERROR(mAlsaControl->set("AMIC_UL PDM Switch", 1), error);
-    CHECK_ERROR(mAlsaControl->set("MUX_VX0", "AMic0"), error);
-    CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic1"), error);
     CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
-                                AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET, -1), error);
-    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 1), error);
+                                AUDIO_ABE_AUDUL_VOICE_VOL_HANDFREE, -1), error);
+    CHECK_ERROR(configMicrophones(), error);
+    CHECK_ERROR(configEqualizers(), error);
 
     // Enable Sidetone
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
@@ -595,13 +598,10 @@ status_t AudioModemAlsa::voiceCallCodecSetHeadset()
                                 AUDIO_CODEC_CAPTURE_PREAMP_ATT_HEADSET, -1), error);
     CHECK_ERROR(mAlsaControl->set("Capture Volume",
                                 AUDIO_CODEC_CAPTURE_VOL_HEADSET, -1), error);
-
-    CHECK_ERROR(mAlsaControl->set("AMIC_UL PDM Switch", 1), error);
-    CHECK_ERROR(mAlsaControl->set("MUX_VX0", "AMic0"), error);
-    CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic1"), error);
     CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
                                 AUDIO_ABE_AUDUL_VOICE_VOL_HEADSET, -1), error);
-    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 1), error);
+    CHECK_ERROR(configMicrophones(), error);
+    CHECK_ERROR(configEqualizers(), error);
 
     // Enable Sidetone
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
@@ -623,11 +623,10 @@ status_t AudioModemAlsa::voiceCallCodecSetBluetooth()
                                 AUDIO_ABE_SIDETONE_DL_VOL_BLUETOOTH, -1), error);
 
     // Enable Capture voice path
-    CHECK_ERROR(mAlsaControl->set("MUX_VX0", "BT Left"), error);
-    CHECK_ERROR(mAlsaControl->set("MUX_VX1", "BT Right"), error);
     CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
                                 AUDIO_ABE_AUDUL_VOICE_VOL_BLUETOOTH, -1), error);
-    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 1), error);
+    CHECK_ERROR(configMicrophones(), error);
+    CHECK_ERROR(configEqualizers(), error);
 
     // Enable Sidetone
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
@@ -936,5 +935,140 @@ status_t AudioModemAlsa::voiceCallVolume(ALSAControl *alsaControl, float volume)
         i++;
     }
     return NO_ERROR;
+}
+
+int AudioModemAlsa::setMicType(MicConfig *mic)
+{
+    char notFound = 1;
+    int index = 0;
+
+    while (notFound && strcmp(MicNameList[index], "eof")) {
+        notFound = strcmp(MicNameList[index], mic->name);
+        if (notFound)
+            index++;
+    }
+    if (index < AMIC_MAX_INDEX) {
+        mic->type = OMAP_MIC_TYPE_ANALOG;
+    } else if (index < DMIC_MAX_INDEX) {
+        mic->type = OMAP_MIC_TYPE_DIGITAL;
+    } else {
+       mic->type = OMAP_MIC_TYPE_UNKNOWN;
+    }
+
+    return index;
+}
+
+void AudioModemAlsa::micChosen(void)
+{
+    property_get("omap.audio.mic.main", mainMic.name, "AMic0");
+    property_get("omap.audio.mic.sub", subMic.name, "AMic1");
+
+    int mainMicIndex = setMicType(&mainMic);
+    int subMicIndex = setMicType(&subMic);
+
+    if (mainMic.type == OMAP_MIC_TYPE_UNKNOWN) {
+        LOGE("Main Mic type is unknown: switch to AMic0");
+        mainMic.type = OMAP_MIC_TYPE_ANALOG;
+        strcpy(mainMic.name, "AMic0");
+    }
+    if (subMic.type == OMAP_MIC_TYPE_UNKNOWN) {
+        LOGE("Sub Mic type is unknown: switch to AMic1");
+        subMic.type = OMAP_MIC_TYPE_ANALOG;
+        strcpy(subMic.name, "AMic1");
+    }
+    if (mainMicIndex == subMicIndex) {
+        LOGE("Same Mic is used for main and sub...");
+        if (mainMic.type == OMAP_MIC_TYPE_ANALOG) {
+            LOGE("...switch respectively to AMic0 and AMic1");
+            strcpy(mainMic.name, "AMic0");
+            strcpy(subMic.name, "AMic1");
+        }
+        if (mainMic.type == OMAP_MIC_TYPE_DIGITAL) {
+            LOGE("...switch respectively to DMic0L and DMic0R");
+            strcpy(mainMic.name, "DMic0L");
+            strcpy(subMic.name, "DMic0R");
+        }
+    }
+    if (mainMic.type != subMic.type) {
+        LOGE("Different Mic type is used for main and sub...");
+        if (mainMic.type == OMAP_MIC_TYPE_ANALOG) {
+            LOGE("...switch respectively to AMic0 and AMic1");
+            strcpy(mainMic.name, "AMic0");
+            strcpy(subMic.name, "AMic1");
+            subMic.type = OMAP_MIC_TYPE_ANALOG;
+        }
+        if (mainMic.type == OMAP_MIC_TYPE_DIGITAL) {
+            LOGE("...switch respectively to DMic0L and DMic0R");
+            strcpy(mainMic.name, "DMic0L");
+            strcpy(subMic.name, "DMic0R");
+            subMic.type = OMAP_MIC_TYPE_DIGITAL;
+        }
+    }
+}
+
+status_t AudioModemAlsa::configMicrophones(void)
+{
+    ALSAControl control("hw:00");
+
+    status_t error = NO_ERROR;
+
+   switch (mCurrentAudioModemModes) {
+    case AudioModemInterface::AUDIO_MODEM_HANDFREE:
+    case AudioModemInterface::AUDIO_MODEM_HANDSET:
+        if ((mainMic.type == OMAP_MIC_TYPE_DIGITAL) &&
+            (subMic.type == OMAP_MIC_TYPE_DIGITAL)) {
+            CHECK_ERROR(control.set("AMIC_UL PDM Switch", 0, 0), error);
+        } else {
+            CHECK_ERROR(control.set("AMIC_UL PDM Switch", 1), error);
+        }
+
+        CHECK_ERROR(control.set("MUX_VX0", mainMic.name), error);
+        CHECK_ERROR(control.set("MUX_VX1", subMic.name), error);
+        break;
+
+    case AudioModemInterface::AUDIO_MODEM_HEADSET:
+        // In headset the microphone allways comes from analog
+        CHECK_ERROR(control.set("AMIC_UL PDM Switch", 1), error);
+        CHECK_ERROR(mAlsaControl->set("MUX_VX0", "AMic0"), error);
+        CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic1"), error);
+        break;
+
+    case AudioModemInterface::AUDIO_MODEM_BLUETOOTH:
+        CHECK_ERROR(control.set("AMIC_UL PDM Switch", 0, 0), error);
+        CHECK_ERROR(mAlsaControl->set("MUX_VX0", "BT Left"), error);
+        CHECK_ERROR(mAlsaControl->set("MUX_VX1", "BT Right"), error);
+        break;
+
+    default:
+        LOGE("%s: Wrong mCurrentAudioModemModes: %04x",
+                __FUNCTION__,
+                mCurrentAudioModemModes);
+        error = INVALID_OPERATION;
+        break;
+    } //switch (modem_mode)
+
+    //always enable vx mixer
+    CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 1), error);
+
+    return error;
+}
+
+status_t AudioModemAlsa::configEqualizers(void)
+{
+    ALSAControl control("hw:00");
+
+    status_t error = NO_ERROR;
+
+    // All equalizers need to be set at flat response
+    // as equalizers are done by the modem
+    CHECK_ERROR(control.set("AMIC Equalizer Profile", 0, 0), error);
+    CHECK_ERROR(control.set("DMIC Equalizer Profile", 0, 0), error);
+
+    CHECK_ERROR(control.set("DL1 Equalizer Profile", 0, 0), error);
+    CHECK_ERROR(control.set("DL2 Left Equalizer Profile", 0, 0), error);
+    CHECK_ERROR(control.set("DL2 Right Equalizer Profile", 0, 0), error);
+    CHECK_ERROR(control.set("Sidetone Equalizer Profile", 0, 0), error);
+
+    return error;
 }
 } // namespace android

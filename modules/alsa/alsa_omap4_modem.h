@@ -266,6 +266,36 @@ struct voiceCallVolumeList
     voiceCallVolumeInfo *mInfo;
 };
 
+// DMIC or AMIC allocation feature
+enum MicType {
+    OMAP_MIC_TYPE_ANALOG = 0,
+    OMAP_MIC_TYPE_DIGITAL,
+    OMAP_MIC_TYPE_UNKNOWN,
+};
+
+struct MicConfig {
+    char     name[PROPERTY_VALUE_MAX];
+    MicType  type;
+};
+
+#define AMIC_MAX_INDEX 2
+#define DMIC_MAX_INDEX 8
+
+static const char *MicNameList[] = {
+    "AMic0",  // for Analog Main mic
+    "AMic1",  //  for Analog Sub mic
+
+    "DMic0L", // for Digital Left mic 0
+    "DMic1L", // for Digital Left mic 1
+    "DMic2L", // for Digital Left mic 2
+
+    "DMic0R", // for Digital Right mic 0
+    "DMic1R", // for Digital Right mic 1
+    "DMic2R", // for Digital Right mic 2
+
+    "eof" // eof
+};
+
 class AudioModemAlsa
 {
 public:
@@ -358,6 +388,16 @@ public:
 
     snd_pcm_t *pHandle;
     snd_pcm_t *cHandle;
+
+    // DMIC/AMIC allocation
+    status_t configMicrophones(void);
+    void micChosen(void);
+    int setMicType(MicConfig *mic);
+    MicConfig mainMic;
+    MicConfig subMic;
+
+    // Equalizer
+    status_t configEqualizers(void);
 };
 };        // namespace android
 #endif    // ANDROID_ALSA_OMAP4_MODEM_H
