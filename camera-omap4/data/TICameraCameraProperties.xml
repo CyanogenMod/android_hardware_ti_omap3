@@ -4,6 +4,8 @@
 <camera-name>PrimaryCamera</camera-name>
 <camera-adapter-dll-name>libomxcameraadapter.so</camera-adapter-dll-name>
 <sensor-index>0</sensor-index>
+<orientation>0</orientation>
+<facing>back</facing>
 <s3d-supported>false</s3d-supported>
 <preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
 <preview-size>640x480</preview-size>
@@ -56,6 +58,8 @@
 <camera-name>SecondaryCamera</camera-name>
 <camera-adapter-dll-name>libomxcameraadapter.so</camera-adapter-dll-name>
 <sensor-index>1</sensor-index>
+<orientation>0</orientation>
+<facing>front</facing>
 <s3d-supported>false</s3d-supported>
 <preview-size-values>1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
 <preview-size>640x480</preview-size>
@@ -107,6 +111,8 @@
 <camera-name>DualCamera</camera-name>
 <camera-adapter-dll-name>libomxcameraadapter.so</camera-adapter-dll-name>
 <sensor-index>2</sensor-index>
+<orientation>0</orientation>
+<facing>back</facing>
 <s3d-supported>true</s3d-supported>
 <preview-size-values>1280x1440,800x960,720x1152,720x960,768x1152,640x960,320x480,352x576,176x288,128x192,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</preview-size-values>
 <preview-size>640x480</preview-size>

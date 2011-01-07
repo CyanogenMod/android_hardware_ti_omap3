@@ -38,6 +38,8 @@ const char CameraProperties::PROP_KEY_INVALID[]="invalid-key";
 const char CameraProperties::PROP_KEY_CAMERA_NAME[]="camera-name";
 const char CameraProperties::PROP_KEY_ADAPTER_DLL_NAME[]="camera-adapter-dll-name";
 const char CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX[]="sensor-index";
+const char CameraProperties::PROP_KEY_ORIENTATION_INDEX[]="orientation";
+const char CameraProperties::PROP_KEY_FACING_INDEX[]="facing";
 const char CameraProperties::PROP_KEY_S3D_SUPPORTED[]="s3d-supported";
 const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_SIZES[] = "preview-size-values";
 const char CameraProperties::PROP_KEY_SUPPORTED_PREVIEW_FORMATS[] = "preview-format-values";
@@ -827,6 +829,18 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_CAMERA_SENSOR_INDEX;
         }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_ORIENTATION_INDEX))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_ORIENTATION_INDEX");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_ORIENTATION_INDEX;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_FACING_INDEX))
+        {
+        CAMHAL_LOGDA("Returning PROP_INDEX_FACING_INDEX");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_FACING_INDEX;
+        }
     else if(!strcmp(propName,CameraProperties::PROP_KEY_SUPPORTED_IPP_MODES))
         {
         CAMHAL_LOGDA("Returning PROP_SUPPORTED_IPP_MODES)");
@@ -1137,6 +1151,16 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_CAMERA_SENSOR_INDEX;
+
+        case CameraProperties::PROP_INDEX_ORIENTATION_INDEX:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_ORIENTATION_INDEX );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_ORIENTATION_INDEX;
+
+        case CameraProperties::PROP_INDEX_FACING_INDEX:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_FACING_INDEX );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_FACING_INDEX;
 
         case CameraProperties::PROP_INDEX_SUPPORTED_IPP_MODES:
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_SUPPORTED_IPP_MODES);

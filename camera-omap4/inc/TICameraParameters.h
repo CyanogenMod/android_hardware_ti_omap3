@@ -187,6 +187,9 @@ static const char AUTOCONVERGENCE_MODE_MANUAL[];
 //TI extensions for flash mode settings
 static const char FLASH_MODE_FILL_IN[];
 
+//TI values for camera direction
+static const char FACING_FRONT[];
+static const char FACING_BACK[];
 
 };
 

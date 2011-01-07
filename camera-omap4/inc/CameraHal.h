@@ -239,10 +239,10 @@ public:
 
 	//Shutter event specific data
 	typedef struct ShutterEventData_t
-    	{
-    	bool shutterClosed;
+	{
+	bool shutterClosed;
 
-    	}ShutterEventData;
+	}ShutterEventData;
 
     ///Focus event specific data
     typedef struct FocusEventData_t
@@ -863,7 +863,7 @@ public:
       //@{
 
          /** Constructor of CameraHal */
-         CameraHal();
+         CameraHal(int cameraId);
 
         /** Destructor of CameraHal
         *@todo Investigate why the destructor is virtual
@@ -871,7 +871,7 @@ public:
         virtual ~CameraHal();
 
         /** Creates singleton instance of CameraHal */
-        static sp<CameraHardwareInterface> createInstance();
+        static sp<CameraHardwareInterface> createInstance(int cameraId);
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -983,10 +983,9 @@ public:
     sp<AppCallbackNotifier> mAppCallbackNotifier;
     sp<DisplayAdapter> mDisplayAdapter;
     sp<MemoryManager> mMemoryManager;
-    sp<CameraProperties> mCameraProperties;
 
     sp<IMemoryHeap> mPictureHeap;
-    static wp<CameraHardwareInterface> singleton;
+    static wp<CameraHardwareInterface> singleton[MAX_CAMERAS_SUPPORTED];
 
 ///static member vars
 

@@ -169,6 +169,9 @@ const char TICameraParameters::AUTOCONVERGENCE_MODE_CENTER[] = "mode-center";
 const char TICameraParameters::AUTOCONVERGENCE_MODE_FFT[] = "mode-fft";
 const char TICameraParameters::AUTOCONVERGENCE_MODE_MANUAL[] = "mode-manual";
 
+//TI values for camera direction
+const char TICameraParameters::FACING_FRONT[]="front";
+const char TICameraParameters::FACING_BACK[]="back";
 
 //TI extensions to flash settings
 const char TICameraParameters::FLASH_MODE_FILL_IN[] = "fill-in";

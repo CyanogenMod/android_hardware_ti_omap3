@@ -42,7 +42,7 @@
 namespace android {
 /*****************************************************************************/
 
-wp<CameraHardwareInterface> CameraHal::singleton;
+wp<CameraHardwareInterface> CameraHal::singleton[];
 
 ////Constant definitions and declarations
 ////@todo Have a CameraProperties class to store these parameters as constants for every camera
@@ -55,6 +55,9 @@ const uint32_t MessageNotifier::EVENT_BIT_FIELD_POSITION = 0;
 const uint32_t MessageNotifier::FRAME_BIT_FIELD_POSITION = 0;
 
 const char CameraHal::PARAMS_DELIMITER []= ",";
+
+
+static sp<CameraProperties> gCameraProperties = NULL;
 
 /******************************************************************************/
 
@@ -241,26 +244,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     status_t ret = NO_ERROR;
 
     Mutex::Autolock lock(mLock);
-
-    ///Sensor selection will go in first as all other parameter setting is dependent on it
-    if(( (valstr = params.get(TICameraParameters::KEY_CAMERA)) != NULL)
-      && (params.getInt(TICameraParameters::KEY_CAMERA) >=0)
-      && (params.getInt(TICameraParameters::KEY_CAMERA) < mCameraProperties->camerasSupported() ))
-         {
-         mParameters.set(TICameraParameters::KEY_CAMERA, valstr);
-         }
-
-
-    int camera_index = mParameters.getInt(TICameraParameters::KEY_CAMERA);
-
-    CAMHAL_LOGDB("Camera Selected %s",mParameters.get(TICameraParameters::KEY_CAMERA));
-    CAMHAL_LOGDB("camera_index %d, mCameraIndex %d", camera_index, mCameraIndex);
-
-    if ( ( -1 != camera_index ) && ( camera_index != mCameraIndex ) )
-        {
-        mCameraIndex = camera_index;
-        mReloadAdapter = true;
-        }
 
     //This can only happen when there is a mismatch
     //between the Camera application default
@@ -2050,7 +2033,7 @@ status_t  CameraHal::dump(int fd, const Vector<String16>& args) const
    don't use c++ exceptions in the code.
 
  */
-CameraHal::CameraHal()
+CameraHal::CameraHal(int cameraId)
 {
     LOG_FUNCTION_NAME
 
@@ -2067,7 +2050,6 @@ CameraHal::CameraHal()
     mDisplayPaused = false;
     mSetOverlayCalled = false;
     mMsgEnabled = 0;
-    mCameraProperties = NULL;
     mAppCallbackNotifier = NULL;
     mMemoryManager = NULL;
     mCameraAdapter = NULL;
@@ -2113,8 +2095,7 @@ CameraHal::CameraHal()
 
 #endif
 
-    //Default is set to '0'
-    mCameraIndex = 0;
+    mCameraIndex = cameraId;
 
     mReloadAdapter = false;
 
@@ -2131,8 +2112,21 @@ CameraHal::~CameraHal()
 {
     LOG_FUNCTION_NAME
 
+    bool deleteProperties = true;
+
     ///Call de-initialize here once more - it is the last chance for us to relinquish all the h/w and s/w resources
     deinitialize();
+
+    singleton[mCameraIndex].clear();
+
+    // check to see if we are the last open instance of camerahal
+    // if so, then go ahead and free gCameraProperties
+    for(int i=0; i < gCameraProperties->camerasSupported(); i++)
+    {
+        if(singleton[i] != 0) deleteProperties = false;
+    }
+    if(deleteProperties)
+        gCameraProperties.clear();
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -2155,39 +2149,14 @@ status_t CameraHal::initialize()
     typedef CameraAdapter* (*CameraAdapterFactory)();
     CameraAdapterFactory f = NULL;
 
-    int numCameras = 0;
     int sensor_index = 0;
 
     ///Initialize the event mask used for registering an event provider for AppCallbackNotifier
     ///Currently, registering all events as to be coming from CameraAdapter
     int32_t eventMask = CameraHalEvent::ALL_EVENTS;
 
-    ///Create the CameraProperties class
-    ///We create the default Camera Adapter (The adapter which is selected by default, if no specific camera is chosen using setParameter)
-    if(!mCameraProperties.get())
-        {
-        mCameraProperties = new CameraProperties();
-        if(!mCameraProperties.get() || (mCameraProperties->initialize()!=NO_ERROR))
-            {
-            CAMHAL_LOGEA("Unable to create or initialize CameraProperties");
-            goto fail_loop;
-            }
-
-        ///Query the number of cameras supported, minimum we expect is one (at least FakeCameraAdapter)
-        numCameras = mCameraProperties->camerasSupported();
-        if ( 0 == numCameras )
-            {
-            CAMHAL_LOGEA("No cameras supported in Camera HAL implementation");
-            goto fail_loop;
-            }
-        else
-            {
-            CAMHAL_LOGDB("Cameras found %d", numCameras);
-            }
-        }
-
-    ///Get the default Camera
-    mCameraPropertiesArr = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(mCameraIndex);
+    ///Get my camera properties
+    mCameraPropertiesArr = ( CameraProperties::CameraProperty **) gCameraProperties->getProperties(mCameraIndex);
 
 if(!mCameraPropertiesArr)
     {
@@ -2323,7 +2292,7 @@ status_t CameraHal::reloadAdapter()
 
     LOG_FUNCTION_NAME
 
-    if ( mCameraIndex >= mCameraProperties->camerasSupported() )
+    if ( mCameraIndex >= gCameraProperties->camerasSupported() )
         {
         CAMHAL_LOGEA("Camera Index exceeds number of supported cameras!");
         ret = -1;
@@ -2331,7 +2300,7 @@ status_t CameraHal::reloadAdapter()
 
     if ( -1 != ret )
         {
-        mCameraPropertiesArr = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(mCameraIndex);
+        mCameraPropertiesArr = ( CameraProperties::CameraProperty **) gCameraProperties->getProperties(mCameraIndex);
         }
 
     if(!mCameraPropertiesArr)
@@ -2619,27 +2588,6 @@ void CameraHal::insertSupportedParams()
 
     CameraParameters &p = mParameters;
 
-    //Camera Instances supported
-    memset(tmpBuffer, '\0', PARAM_BUFFER);
-    //Enumerate the supported camera instances
-    for ( uint8_t i = 0 ; i < mCameraProperties->camerasSupported() ; i++ )
-        {
-         currentProp = ( CameraProperties::CameraProperty **) mCameraProperties->getProperties(i);
-         if(!currentProp)
-            {
-            CAMHAL_LOGEB("getProperties returns NULL property set for camera index %d", i);
-            LOG_FUNCTION_NAME_EXIT
-            continue;
-            }
-         //Set camera adapter index for reference
-         p.set( ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, i);
-         strncat( ( char * ) tmpBuffer, ( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, INDEX_LENGTH );
-         strncat( ( char * ) tmpBuffer, ( const char * ) PARAMS_DELIMITER, INDEX_LENGTH);
-         p.set(( const char * ) currentProp[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue, i);
-        }
-    p.set(TICameraParameters::KEY_SUPPORTED_CAMERAS, tmpBuffer);
-    p.set(TICameraParameters::KEY_CAMERA, mCameraIndex);
-
     ///Set the name of the camera
     p.set(TICameraParameters::KEY_CAMERA_NAME, mCameraPropertiesArr[CameraProperties::PROP_INDEX_CAMERA_NAME]->mPropValue);
 
@@ -2877,9 +2825,6 @@ void CameraHal::deinitialize()
     /// Free the display adapter
     mDisplayAdapter.clear();
 
-    // Free the CameraProperties object
-    mCameraProperties.clear();
-
     mSetOverlayCalled = false;
 
     if ( NULL != mEventProvider )
@@ -2906,14 +2851,26 @@ void CameraHal::deinitialize()
 
 /*--------------------Camera HAL Creation Related---------------------------------------*/
 
-sp<CameraHardwareInterface> CameraHal::createInstance()
+sp<CameraHardwareInterface> CameraHal::createInstance(int cameraId)
 {
     LOG_FUNCTION_NAME
 
     sp<CameraHardwareInterface> hardware(NULL);
-    if (singleton != 0)
+
+    // Create the CameraProperties class
+    if(!gCameraProperties.get())
+    {
+        gCameraProperties = new CameraProperties();
+        if(!gCameraProperties.get() || (gCameraProperties->initialize()!=NO_ERROR))
         {
-        hardware = singleton.promote();
+            CAMHAL_LOGEA("Unable to create or initialize CameraProperties");
+            return NULL;
+        }
+    }
+
+    if (singleton[cameraId] != 0)
+        {
+        hardware = singleton[cameraId].promote();
         if (hardware != 0)
             {
             CAMHAL_LOGDA("Duplicate instance of Camera");
@@ -2922,7 +2879,7 @@ sp<CameraHardwareInterface> CameraHal::createInstance()
             }
         }
 
-    CameraHal *ptr = new CameraHal();
+    CameraHal *ptr = new CameraHal(cameraId);
 
     if(!ptr)
         {
@@ -2938,19 +2895,92 @@ sp<CameraHardwareInterface> CameraHal::createInstance()
         return NULL;
         }
 
-
-    singleton = hardware = ptr;
+    singleton[cameraId] = hardware = ptr;
 
     LOG_FUNCTION_NAME_EXIT
     return hardware;
 }
 
 
-extern "C" sp<CameraHardwareInterface> openCameraHardware()
+extern "C" int HAL_getNumberOfCameras()
+{
+    int numCameras = 0;
+
+    // Create the CameraProperties class
+    if(!gCameraProperties.get())
+    {
+        gCameraProperties = new CameraProperties();
+        if(!gCameraProperties.get() || (gCameraProperties->initialize()!=NO_ERROR))
+        {
+            CAMHAL_LOGEA("Unable to create or initialize CameraProperties");
+            return 0;
+        }
+    }
+
+    // Query the number of cameras supported, minimum we expect is one (at least FakeCameraAdapter)
+    numCameras = gCameraProperties->camerasSupported();
+    if ( 0 == numCameras )
+    {
+        CAMHAL_LOGEA("No cameras supported in Camera HAL implementation");
+        return 0;
+    }
+    else
+    {
+        CAMHAL_LOGDB("Cameras found %d", numCameras);
+    }
+
+
+    return numCameras;
+}
+extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
+{
+    int face_value = CAMERA_FACING_BACK;
+    int orientation = 0;
+    char *valstr = NULL;
+    CameraProperties::CameraProperty ** properties;
+
+    // Create the CameraProperties class
+    if(!gCameraProperties.get())
+    {
+        gCameraProperties = new CameraProperties();
+        if(!gCameraProperties.get() || (gCameraProperties->initialize()!=NO_ERROR))
+        {
+            CAMHAL_LOGEA("Unable to create or initialize CameraProperties");
+            return;
+        }
+    }
+
+    //Get camera properties for camera index
+    properties = ( CameraProperties::CameraProperty **) gCameraProperties->getProperties(cameraId);
+
+    valstr = properties[CameraProperties::PROP_INDEX_FACING_INDEX]->mPropValue;
+    if(valstr != NULL)
+    {
+        if (strcmp(valstr, (const char *) TICameraParameters::FACING_FRONT) == 0)
+        {
+            face_value = CAMERA_FACING_FRONT;
+        }
+        else if (strcmp(valstr, (const char *) TICameraParameters::FACING_BACK) == 0)
+        {
+            face_value = CAMERA_FACING_BACK;
+        }
+    }
+
+    valstr = properties[CameraProperties::PROP_INDEX_ORIENTATION_INDEX]->mPropValue;
+    if(valstr != NULL)
+    {
+        orientation = atoi(valstr);
+    }
+
+    cameraInfo->facing = face_value;
+    cameraInfo->orientation = orientation;
+}
+
+extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId)
 {
     LOG_FUNCTION_NAME
     CAMHAL_LOGDA("opening ti camera hal\n");
-    return CameraHal::createInstance();
+    return CameraHal::createInstance(cameraId);
 }
 
 
