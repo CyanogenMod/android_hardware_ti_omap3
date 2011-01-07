@@ -21,7 +21,7 @@ ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES:= external/bluetooth/bluez/include
+LOCAL_C_INCLUDES:= external/bluetooth/bluez/lib
 
 LOCAL_CFLAGS:= -DVERSION=\"1.0\"
 
