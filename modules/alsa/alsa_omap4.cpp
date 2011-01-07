@@ -209,7 +209,7 @@ static alsa_handle_t _defaults[] = {
         format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
         channels    : 2,
         sampleRate  : DEFAULT_SAMPLE_RATE,
-        latency     : 200000, // Desired Delay in usec
+        latency     : 85333, // Desired Delay in usec
         bufferSize  : 4096, // Desired Number of samples
         mmap        : 1,
         modPrivate  : (void *)&setDefaultControls,
@@ -277,6 +277,10 @@ static alsa_handle_t _defaults[] = {
 
 const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
 {
+    char pwr[PROPERTY_VALUE_MAX];
+    int status = 0;
+    status = property_get("omap.audio.power", pwr, "HQ");
+
     if (device & OMAP4_OUT_SCO || device & OMAP4_IN_SCO)
         return BLUETOOTH_SCO_DEVICE;
 
@@ -292,12 +296,13 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
     if (device & OMAP4_IN_DEFAULT)
         return MM_DEFAULT_DEVICE;
 
-    if (device & OMAP4_OUT_LP)
+    // now that low-power is flexible in buffer size and sample rate
+    // a system property can be used to toggle
+    if ((device & OMAP4_OUT_LP) ||
+       (strcmp(pwr, "LP") == 0))
         return MM_LP_DEVICE;
 
-    //always use device 6 for default cases until dynamic swith is supported
-    //return MM_DEFAULT_DEVICE;
-    return MM_LP_DEVICE;
+    return MM_DEFAULT_DEVICE;
 }
 
 snd_pcm_stream_t direction(alsa_handle_t *handle)
@@ -316,11 +321,12 @@ status_t setHardwareParams(alsa_handle_t *handle)
     snd_pcm_hw_params_t *hardwareParams;
     status_t err;
 
-    snd_pcm_uframes_t periodSize, bufferSize = handle->bufferSize;
+    snd_pcm_uframes_t periodSize, bufferSize, reqBuffSize;
     unsigned int periodTime, bufferTime;
     unsigned int requestedRate = handle->sampleRate;
-    unsigned int latency = handle->latency;
     int numPeriods = 0;
+    char pwr[PROPERTY_VALUE_MAX];
+    int status = 0;
 
     // snd_pcm_format_description() and snd_pcm_format_name() do not perform
     // proper bounds checking.
@@ -331,6 +337,12 @@ status_t setHardwareParams(alsa_handle_t *handle)
             handle->format) : "Invalid Format";
     const char *formatName = validFormat ? snd_pcm_format_name(handle->format)
             : "UNKNOWN";
+
+    // device name will only return LP device hw06 if the property is set
+    // or if the system is explicitly opening and routing to OMAP4_OUT_LP
+    const char* device = deviceName(handle,
+                                    handle->devices,
+                                    AudioSystem::MODE_NORMAL);
 
     if (snd_pcm_hw_params_malloc(&hardwareParams) < 0) {
         LOG_ALWAYS_FATAL("Failed to allocate ALSA hardware parameters!");
@@ -388,7 +400,6 @@ status_t setHardwareParams(alsa_handle_t *handle)
 
     err = snd_pcm_hw_params_set_rate_near(handle->handle, hardwareParams,
             &requestedRate, 0);
-
     if (err < 0)
         LOGE("Unable to set %s sample rate to %u: %s",
                 streamName(handle), handle->sampleRate, snd_strerror(err));
@@ -401,75 +412,57 @@ status_t setHardwareParams(alsa_handle_t *handle)
     else
         LOGV("Set %s sample rate to %u HZ", streamName(handle), requestedRate);
 
-    // Make sure we have at least the size we originally wanted
+    if (strcmp(device, MM_LP_DEVICE) == 0) {
+        numPeriods = 2;
+        LOGI("Using ping-pong!");
+    } else {
+        numPeriods = 4;
+        LOGI("Using FIFO");
+    }
+    reqBuffSize = handle->bufferSize;
+    bufferSize = reqBuffSize;
 
+    // try the requested buffer size
     err = snd_pcm_hw_params_set_buffer_size_near(handle->handle, hardwareParams,
             &bufferSize);
-
     if (err < 0) {
         LOGE("Unable to set buffer size to %d:  %s",
                 (int)bufferSize, snd_strerror(err));
         goto done;
     }
-
-    if (handle->devices == OMAP4_OUT_DEFAULT ||
-        handle->devices == OMAP4_OUT_LP) {
-        // ping-pong the cheech-chong
-        numPeriods = 2;
-    } else {
-        // other outputs use FIFO, so set up 4 periods
-        numPeriods = 4;
+    // did we get what we asked for? we should.
+    if (bufferSize != reqBuffSize) {
+         LOGW("Requested buffer size %d not granted, got %d",
+                (int)reqBuffSize, (int)bufferSize);
     }
-    latency = latency / numPeriods;
-    // Setup buffers for latency
-    err = snd_pcm_hw_params_set_buffer_time_near(handle->handle,
-            hardwareParams, &latency, NULL);
+    // set the period size for our buffer
+    periodSize = bufferSize / numPeriods;
+    err = snd_pcm_hw_params_set_period_size_near(handle->handle,
+            hardwareParams, &periodSize, NULL);
     if (err < 0) {
-        /* That didn't work, set the period instead */
-        unsigned int periodTime = latency;
-        err = snd_pcm_hw_params_set_period_time_near(handle->handle,
-                hardwareParams, &periodTime, NULL);
-        if (err < 0) {
-            LOGE("Unable to set the period time for latency: %s", snd_strerror(err));
-            goto done;
-        }
-        err = snd_pcm_hw_params_get_period_size(hardwareParams, &periodSize,
-                NULL);
-        if (err < 0) {
-            LOGE("Unable to get the period size for latency: %s", snd_strerror(err));
-            goto done;
-        }
-        bufferSize = periodSize * numPeriods;
-        if (bufferSize < handle->bufferSize) bufferSize = handle->bufferSize;
-        err = snd_pcm_hw_params_set_buffer_size_near(handle->handle,
-                hardwareParams, &bufferSize);
-        if (err < 0) {
-            LOGE("Unable to set the buffer size for latency: %s", snd_strerror(err));
-            goto done;
-        }
-    } else {
-        // OK, we got buffer time near what we expect. See what that did for bufferSize.
-        err = snd_pcm_hw_params_get_buffer_size(hardwareParams, &bufferSize);
-        if (err < 0) {
-            LOGE("Unable to get the buffer size for latency: %s", snd_strerror(err));
-            goto done;
-        }
-        // Does set_buffer_time_near change the passed value? It should.
-        err = snd_pcm_hw_params_get_buffer_time(hardwareParams, &latency, NULL);
-        if (err < 0) {
-            LOGE("Unable to get the buffer time for latency: %s", snd_strerror(err));
-            goto done;
-        }
-        periodTime = latency;
-        err = snd_pcm_hw_params_set_period_time_near(handle->handle,
-                hardwareParams, &periodTime, NULL);
-        if (err < 0) {
-            LOGE("Unable to set the period time for latency: %s", snd_strerror(err));
-            goto done;
-        }
+        LOGE("Unable to set period size to %d:  %s", (int)periodSize, snd_strerror(err));
+        goto done;
+    }
+    // check our period time
+    err = snd_pcm_hw_params_get_period_time(hardwareParams, &periodTime, NULL);
+    if (err < 0) {
+        LOGE("Unable to get period time:  %s", snd_strerror(err));
+        goto done;
+    }
+    // get the buffer & period time
+    err = snd_pcm_hw_params_get_buffer_time(hardwareParams, &bufferTime, NULL);
+    if (err < 0) {
+        LOGE("Unable to set buffer time:  %s", snd_strerror(err));
+        goto done;
+    }
+    // get the buffer size again in case setting the period size changed it
+    err = snd_pcm_hw_params_get_buffer_size(hardwareParams, &bufferSize);
+    if (err < 0) {
+        LOGE("Unable to set buffer size:  %s", snd_strerror(err));
+        goto done;
     }
 
-    if (handle->mmap) {
+    if (strcmp(device, MM_LP_DEVICE) == 0) {
         handle->bufferSize = periodSize;
         handle->latency = periodTime;
     } else {
