@@ -2971,9 +2971,7 @@ void CameraHal::initDefaultParameters()
         adapterRevision = mCameraAdapter->getRevision();
         currentRevision = atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REVISION]->mPropValue);
 
-        //Disable camera properties query for now due to some instabilties.
-        //if ( adapterRevision != currentRevision )
-        if(0)
+        if ( adapterRevision != currentRevision )
             {
             if ( NO_ERROR == mCameraAdapter->getCaps(mParameters) )
                 {
