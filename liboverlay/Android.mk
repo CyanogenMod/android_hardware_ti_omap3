@@ -43,7 +43,7 @@ include $(CLEAR_VARS)
 ifeq ($(TARGET_BOARD_PLATFORM),omap4)
 LOCAL_CFLAGS := -DTARGET_OMAP4
 endif
-LOCAL_SHARED_LIBRARIES := liblog libcutils libhardware libutils libui libsurfaceflinger_client
+LOCAL_SHARED_LIBRARIES := liblog libbinder libcutils libhardware libutils libui libsurfaceflinger_client
 LOCAL_SRC_FILES := TIOverlay_test.cpp
 LOCAL_MODULE := overlay_test
 LOCAL_MODULE_TAGS:= optional
