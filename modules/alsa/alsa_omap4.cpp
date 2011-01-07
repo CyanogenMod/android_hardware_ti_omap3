@@ -658,12 +658,12 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             // Setting DL2 EQ's to 800Hz cut-off frequency, as setting
             // to flat response saturates the audio quality in the
             // handsfree speakers
-            control.set("DL2 Left Equalizer Profile", 1, 0);
-            control.set("DL2 Right Equalizer Profile", 1, 0);
+            control.set("DL2 Left Equalizer", "High-pass 0dB");
+            control.set("DL2 Right Equalizer", "High-pass 0dB");
         }
         if ((devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
             (devices & AudioSystem::DEVICE_OUT_EARPIECE)) {
-            control.set("DL1 Equalizer Profile", 0, 0);
+            control.set("DL1 Equalizer", "Flat response");
         }
         control.set("TWL6040 Power Mode", "High-Performance");
 
@@ -918,7 +918,7 @@ void configMicChoices (uint32_t devices) {
      * since we only use flat response for MM, we can just reset
      * both amic and dmic eq profiles.
     **/
-    control.set("DMIC Equalizer Profile", 0, 0);
-    control.set("AMIC Equalizer Profile", 0, 0);
+    control.set("DMIC Equalizer", "Flat response");
+    control.set("AMIC Equalizer", "Flat response");
 }
 }
