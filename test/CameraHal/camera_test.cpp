@@ -10,7 +10,7 @@
 #include <surfaceflinger/Surface.h>
 #include <surfaceflinger/ISurface.h>
 #include <surfaceflinger/ISurfaceComposer.h>
-#include <surfaceflinger/ISurfaceFlingerClient.h>
+#include <surfaceflinger/ISurfaceComposerClient.h>
 #include <ui/Overlay.h>
 #include <surfaceflinger/SurfaceComposerClient.h>
 
@@ -73,6 +73,9 @@
 #define MAX_PREVIEW_SURFACE_HEIGHT  480
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+// TODO: remove this once stride support is put back
+#undef OMAP_ENHANCEMENT
 
 using namespace android;
 
@@ -939,7 +942,7 @@ int stopRecording() {
 
 int openCamera() {
 
-    camera = Camera::connect();
+    camera = Camera::connect(camera_index);
 
     if ( NULL == camera.get() ) {
         printf("Unable to connect to CameraService\n");
@@ -1311,7 +1314,6 @@ int functional_menu() {
         }
         else
             params.set(KEY_STEREO_CAMERA, "false");
-        params.set(KEY_CAMERA, camera_index);
 
         if ( hardwareActive )
             camera->setParameters(params.flatten());
@@ -2329,7 +2331,7 @@ int execute_functional_script(char *script) {
                     params.set(KEY_STEREO_CAMERA, "true");
                 else
                     params.set(KEY_STEREO_CAMERA, "false");
-                params.set(KEY_CAMERA, camera_index);
+
                 printf("%s selected.\n", cameras[camera_index]);
 
                 if ( hardwareActive )
