@@ -713,8 +713,6 @@ LOGV("%s", __FUNCTION__);
             control.set("AMIC_UL PDM Switch", 1);
             control.set("MUX_UL10", "AMic1");
             control.set("MUX_UL11", "AMic0");
-            control.set("MUX_VX1", "AMic0");
-            control.set("MUX_VX0", "AMic1");
         } else if(devices & OMAP4_IN_SCO) {
             LOGI("OMAP4 ABE set for BT SCO Headset");
             control.set("AMIC_UL PDM Switch", 0, 0);
@@ -723,8 +721,6 @@ LOGV("%s", __FUNCTION__);
             control.set("MUX_UL10", "BT Right");
             control.set("MUX_UL11", "BT Left");
             control.set("Voice Capture Mixer Capture", 1);
-            control.set("MUX_VX0", "BT Right");
-            control.set("MUX_VX1", "BT Left");
         } else {
             /* TWL6040 */
             control.set("Analog Left Capture Route", "Off");
@@ -738,8 +734,6 @@ LOGV("%s", __FUNCTION__);
             control.set("MUX_UL01", "None");
             control.set("MUX_UL10", "None");
             control.set("MUX_UL11", "None");
-            control.set("MUX_VX0", "None");
-            control.set("MUX_VX1", "None");
         }
     }
 }
