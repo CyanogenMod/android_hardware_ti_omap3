@@ -284,16 +284,18 @@ status_t AudioModemAlsa::audioModemSetProperties()
     return NO_ERROR;
 }
 
-status_t AudioModemAlsa::voiceCallControls(uint32_t devices, int mode)
+status_t AudioModemAlsa::voiceCallControls(uint32_t devices, int mode, bool multimediaUpdate)
 {
-    LOGV("%s: devices %04x mode %d", __FUNCTION__, devices, mode);
+    LOGV("%s: devices %04x mode %d MultimediaUpdate %d", __FUNCTION__, devices, mode, multimediaUpdate);
 
     if ((mVoiceCallControlMainInfo.devices != devices) ||
-        (mVoiceCallControlMainInfo.mode != mode)) {
+        (mVoiceCallControlMainInfo.mode != mode) ||
+        (multimediaUpdate)) {
         pthread_mutex_lock(&mVoiceCallControlMutex);
         mVoiceCallControlMainInfo.devices = devices;
         mVoiceCallControlMainInfo.mode = mode;
         mVoiceCallControlMainInfo.updateFlag = true;
+        mVoiceCallControlMainInfo.multimediaUpdate = multimediaUpdate;
         pthread_mutex_unlock(&mVoiceCallControlMutex);
         pthread_cond_signal(&mVoiceCallControlNewParams);
     }
@@ -343,8 +345,10 @@ void AudioModemAlsa::voiceCallControlsThread(void)
         }
         mInfo->devices = mVoiceCallControlMainInfo.devices;
         mInfo->mode = mVoiceCallControlMainInfo.mode;
+        mInfo->multimediaUpdate = mVoiceCallControlMainInfo.multimediaUpdate;
         pthread_mutex_unlock(&mVoiceCallControlMutex);
-        LOGV("%s: devices %04x mode %d", __FUNCTION__, mInfo->devices, mInfo->mode);
+        LOGV("%s: devices %04x mode %d forceUpdate %d", __FUNCTION__, mInfo->devices, mInfo->mode,
+                                                                                                mInfo->multimediaUpdate);
 
         // Check mics config
         micChosen();
@@ -375,6 +379,9 @@ void AudioModemAlsa::voiceCallControlsThread(void)
                 error = voiceCallModemUpdate();
                 if (error < 0) goto exit;
                 error = voiceCallCodecUpdate();
+                if (error < 0) goto exit;
+            } else if (mInfo->multimediaUpdate) {
+                error = multimediaCodecUpdate();
                 if (error < 0) goto exit;
             } else {
                 LOGI("Audio Modem Mode doesn't changed: no update needed");
@@ -837,6 +844,15 @@ status_t AudioModemAlsa::voiceCallCodecUpdate()
     return error;
 }
 
+status_t AudioModemAlsa::multimediaCodecUpdate()
+{
+    status_t error = NO_ERROR;
+
+    configEqualizers();
+
+    return error;
+}
+
 status_t AudioModemAlsa::voiceCallCodecReset()
 {
     status_t error = NO_ERROR;
@@ -1122,13 +1138,13 @@ status_t AudioModemAlsa::configEqualizers(void)
 
     // All equalizers need to be set at flat response
     // as equalizers are done by the modem
-    CHECK_ERROR(control.set("AMIC Equalizer Profile", 0, 0), error);
-    CHECK_ERROR(control.set("DMIC Equalizer Profile", 0, 0), error);
+    CHECK_ERROR(control.set("AMIC Equalizer", "High-pass 0dB"), error);
+    CHECK_ERROR(control.set("DMIC Equalizer", "High-pass 0dB"), error);
 
-    CHECK_ERROR(control.set("DL1 Equalizer Profile", 0, 0), error);
-    CHECK_ERROR(control.set("DL2 Left Equalizer Profile", 0, 0), error);
-    CHECK_ERROR(control.set("DL2 Right Equalizer Profile", 0, 0), error);
-    CHECK_ERROR(control.set("Sidetone Equalizer Profile", 0, 0), error);
+    CHECK_ERROR(control.set("DL1 Equalizer", "Flat response"), error);
+    CHECK_ERROR(control.set("DL2 Left Equalizer", "Flat response"), error);
+    CHECK_ERROR(control.set("DL2 Right Equalizer", "Flat response"), error);
+    CHECK_ERROR(control.set("Sidetone Equalizer", "Flat response"), error);
 
     return error;
 }

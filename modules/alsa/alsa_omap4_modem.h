@@ -301,12 +301,14 @@ struct voiceCallControlMainInfo
     bool        updateFlag;
     uint32_t    devices;
     int         mode;
+    bool       multimediaUpdate;
 };
 
 struct voiceCallControlLocalInfo
 {
     uint32_t    devices;
     int         mode;
+    bool       multimediaUpdate;
     ALSAControl *mAlsaControl;
 };
 
@@ -356,7 +358,7 @@ public:
 
     AudioModemInterface *create(void);
     status_t     audioModemSetProperties(void);
-    status_t     voiceCallControls(uint32_t devices, int mode);
+    status_t     voiceCallControls(uint32_t devices, int mode, bool multimediaUpdate);
     // Voice Call control thread
     void        voiceCallControlsThread(void);
 
@@ -421,6 +423,9 @@ public:
     pthread_mutex_t mVoiceCallControlMutex;
     pthread_once_t  mVoiceCallControlKeyOnce;
     pthread_cond_t  mVoiceCallControlNewParams;
+
+    // Multimedia update
+    status_t     multimediaCodecUpdate(void);
 };
 };        // namespace android
 #endif    // ANDROID_ALSA_OMAP4_MODEM_H
