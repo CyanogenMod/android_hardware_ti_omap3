@@ -3392,6 +3392,17 @@ status_t OMXCameraAdapter::setThumbnailParams(unsigned int width, unsigned int h
         thumbConf.nHeight = height;
         thumbConf.nQuality = quality;
 
+        //CTS Requirement: width or height equal to zero should
+        //result in absent EXIF thumbnail
+        if ( ( 0 == width ) || ( 0 == height ) )
+            {
+            thumbConf.eCompressionFormat = OMX_IMAGE_CodingUnused;
+            }
+        else
+            {
+            thumbConf.eCompressionFormat = OMX_IMAGE_CodingJPEG;
+            }
+
         CAMHAL_LOGDB("Thumbnail width = %d, Thumbnail Height = %d", width, height);
 
         eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_IndexParamThumbnail, &thumbConf);
