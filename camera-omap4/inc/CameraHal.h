@@ -615,7 +615,10 @@ public:
     virtual void getParameters(CameraParameters& params) = 0;
 
     //API to get the caps
-    virtual status_t getCaps() = 0;
+    virtual status_t getCaps(CameraParameters &params) = 0;
+
+    //Used together with capabilities
+    virtual int getRevision() = 0;
 
     //API to give the buffers to Adapter
     status_t useBuffers(CameraMode mode, void *bufArr, uint32_t *offsets, int fd, size_t length,  int num)
@@ -915,6 +918,9 @@ private:
             status_t parseResolution(const char *resStr, int &width, int &height);
 
             void insertSupportedParams();
+
+            //Inserts the supported camera parameters back in CameraProperties
+            void extractSupportedParams();
 
             /** Allocate preview data buffers */
             status_t allocPreviewDataBufs(size_t size, size_t bufferCount);

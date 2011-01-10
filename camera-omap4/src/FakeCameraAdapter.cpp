@@ -69,10 +69,20 @@ int FakeCameraAdapter::setErrorHandler(ErrorNotifier *errorNotifier)
     return 0;
 }
 
-status_t FakeCameraAdapter::getCaps()
+status_t FakeCameraAdapter::getCaps(CameraParameters &params)
 {
     LOG_FUNCTION_NAME
     return NO_ERROR;
+}
+
+int FakeCameraAdapter::getRevision()
+{
+    LOG_FUNCTION_NAME
+
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return 0;
 }
 
 status_t FakeCameraAdapter::initialize(int sensor_index)

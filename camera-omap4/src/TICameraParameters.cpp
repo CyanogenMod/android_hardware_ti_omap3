@@ -68,10 +68,24 @@ const char TICameraParameters::KEY_TEMP_BRACKETING_RANGE_NEG[] = "temporal-brack
 const char TICameraParameters::KEY_S3D_SUPPORTED[] = "s3d-supported";
 const char TICameraParameters::KEY_TOUCH_FOCUS_POS[] = "touch-focus";
 const char TICameraParameters::KEY_MEASUREMENT_ENABLE[] = "measurement";
+const char  TICameraParameters::KEY_GBCE[] = "gbce";
+const char  TICameraParameters::KEY_GLBCE[] = "glbce";
+
+//TI extensions for enabling/disabling GLBCE
+const char TICameraParameters::GLBCE_ENABLE[] = "enable";
+const char TICameraParameters::GLBCE_DISABLE[] = "disable";
+
+//TI extensions for enabling/disabling GBCE
+const char TICameraParameters::GBCE_ENABLE[] = "enable";
+const char TICameraParameters::GBCE_DISABLE[] = "disable";
 
 //TI extensions for enabling/disabling measurement
 const char TICameraParameters::MEASUREMENT_ENABLE[] = "enable";
 const char TICameraParameters::MEASUREMENT_DISABLE[] = "disable";
+
+//TI extensions for zoom
+const char TICameraParameters::ZOOM_SUPPORTED[] = "true";
+const char TICameraParameters::ZOOM_UNSUPPORTED[] = "false";
 
 // TI extensions for 2D Preview in Stereo Mode
 const char TICameraParameters::KEY_S3D2D_PREVIEW[] = "s3d2d-preview";
@@ -81,6 +95,10 @@ const char TICameraParameters::KEY_S3D2D_PREVIEW_MODE[] = "s3d2d-preview-values"
 const char TICameraParameters::KEY_AUTOCONVERGENCE[] = "auto-convergence";
 const char TICameraParameters::KEY_AUTOCONVERGENCE_MODE[] = "auto-convergence-mode";
 const char TICameraParameters::KEY_MANUALCONVERGENCE_VALUES[] = "manual-convergence-values";
+
+const char TICameraParameters::KEY_GPS_ALTITUDE_REF[] = "gps-altitude-ref";
+const char TICameraParameters::KEY_GPS_MAPDATUM[] = "gps-mapdatum";
+const char TICameraParameters::KEY_GPS_VERSION[] = "gps-version";
 
 //TI extensions for enabling/disabling shutter sound
 const char TICameraParameters::SHUTTER_ENABLE[] = "true";
