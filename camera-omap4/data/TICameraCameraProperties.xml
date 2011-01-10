@@ -20,7 +20,7 @@
 <smooth-zoom-supported>true</smooth-zoom-supported>
 <zoom>0</zoom>
 <picture-size-values>4032x3024,3648x2736,3264x2448,2592x1944,2048x1536,1600x1200,1280x1024,1152x864,1280x960,640x480,320x240</picture-size-values>
-<picture-size>4032x3024</picture-size>
+<picture-size>640x480</picture-size>
 <picture-format-values>jpeg,yuv422i-yuyv,yuv420sp,rgb565,raw</picture-format-values>
 <picture-format>jpeg</picture-format>
 <jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
@@ -93,7 +93,7 @@
 <smooth-zoom-supported>true</smooth-zoom-supported>
 <zoom>0</zoom>
 <picture-size-values>2592x1944,2048x1536,1600x1200,1280x1024,1152x864,1280x960,640x480,320x240</picture-size-values>
-<picture-size>2592x1944</picture-size>
+<picture-size>640x480</picture-size>
 <picture-format-values>jpeg,yuv422i-yuyv,yuv420sp,rgb565,raw</picture-format-values>
 <picture-format>jpeg</picture-format>
 <jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
@@ -165,7 +165,7 @@
 <smooth-zoom-supported>true</smooth-zoom-supported>
 <zoom>0</zoom>
 <picture-size-values>2592x1944,2048x1536,1600x1200,1280x1024,1152x864,1280x960,640x480,320x240</picture-size-values>
-<picture-size>2592x1944</picture-size>
+<picture-size>640x480</picture-size>
 <picture-format-values>jpeg,jps,mpo,raw+jpeg,raw+mpo,yuv422i-yuyv,yuv420sp,rgb565,raw</picture-format-values>
 <picture-format>jpeg</picture-format>
 <jpeg-thumbnail-size-values>160x120,200x120,320x240,512x384,352x144,176x144,96x96,0x0</jpeg-thumbnail-size-values>
