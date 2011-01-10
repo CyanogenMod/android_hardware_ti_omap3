@@ -596,29 +596,39 @@ int calcScaleFactor(int userW, int userH, SkStream* iStream) {
 } //End of calcScaleFactor()
 
 //-----------------------------------------------------------------------------
-bool isDSPJPGD(SkStream *stream) {
+int findJPGDType(SkStream *stream) {
     char prop[2] = {'0','\0'};
     char sizeTh[] = "0000000000";
-    unsigned int imageSizeTh;
-    unsigned int fileSize = stream->getLength();
+    unsigned int imageSizeTh =0;
+    unsigned int fileSize = 0;
 
+#ifdef TARGET_OMAP4
+    //TDB -SIMCOP: HW deocder selection logic has to be done here.
+    // return CODECTYPE_SIMCOP;
+
+    //currently return SW JPGD by default
+
+#else  //OMAP3 DSP jpeg decoder
     property_get("jpeg.libskiahw.decoder.enable", prop, "0");
     if(prop[0] == '1'){	//uses DSP JPGD
         //check for the file size threshold
         property_get("jpeg.libskiahw.decoder.thresh", sizeTh, "0");
         imageSizeTh = atoi(sizeTh);
+        fileSize = stream->getLength();
         if(fileSize > imageSizeTh) {
-            return true;
+            return CODECTYPE_DSP;
         }
     }
-    return false;   //uses SW JPGD
+#endif
+    return CODECTYPE_SW;   //uses SW JPGD
 
-} //End of isDSPJPGD()
+} //End of findJPGDType()
 //-----------------------------------------------------------------------------
 int runJPEGDecoderTest(int argc, char** argv) {
 
     SkImageDecoder* skJpegDec = NULL;
-    SkBitmap    skBM;
+    SkBitmap skBM;
+    SkIRect subRegion;
     SkBitmap::Config prefConfig = SkBitmap::kRGB_565_Config;
     int reSize = 1;
     int nReqWidth = 0;
@@ -725,9 +735,15 @@ int runJPEGDecoderTest(int argc, char** argv) {
         if ( jpegDecParams.nXOrg || jpegDecParams.nYOrg ||
              jpegDecParams.nXLength || jpegDecParams.nYLength ) {
             bSubRegDecFlag = true;
+
+            PRINT("%s():%d:: !!!! subregion decode.\n",__FUNCTION__,__LINE__);
+            subRegion.fLeft   = jpegDecParams.nXOrg;
+            subRegion.fRight  = jpegDecParams.nXOrg + jpegDecParams.nXLength;
+            subRegion.fTop    = jpegDecParams.nYOrg;
+            subRegion.fBottom = jpegDecParams.nYOrg + jpegDecParams.nYLength;
         }
-        /* Check for the co-ordinates multiples */
-        /* TI DSP SN has contraint on the multiples of the co-ori\dinates */
+        /* OMAP3: Check for the co-ordinates multiples
+           TI DSP Socket Node has contraint on the multiples of the co-ordinates */
         // Allow the users input. Libskiahw should take care in case of errors.
         DBGPRINT("%s():%d:: NOTE: Refer the Codec guide for the constraints on X & Y origin values.\n",__FUNCTION__,__LINE__);
 
@@ -755,41 +771,67 @@ int runJPEGDecoderTest(int argc, char** argv) {
 
     /*set the scale factor */
     skJpegDec->setSampleSize(reSize);
+    skJpegDec->SetDeviceConfig(prefConfig);
 
-#ifndef TARGET_OMAP4
-    /*check which decoder handles is chosen by the Factory()*/
-    if( isDSPJPGD(&inStream) ){
-        flagCodecType = CODECTYPE_DSP;
+    /*check which decoder handle is chosen by the Factory()*/
+    flagCodecType = findJPGDType(&inStream);
 
+#ifdef TARGET_OMAP4
+    if( CODECTYPE_SIMCOP == flagCodecType ) {
+        if( bSubRegDecFlag ){
+            //TBD:Implement the subregion decode parameter setting for SIMCOP JPEG decoder here.
+            PRINT("%s():%d:: !!!! Currently SIMCOP JPEG Decoder is not fully functional...\n",__FUNCTION__,__LINE__);
+            PRINT("%s():%d:: !!!! Select SW JPG decoder and run subregion decode tests.\n",__FUNCTION__,__LINE__);
+            return FAIL;
+        }
+    }
+
+#else  //OMAP3
+    if( CODECTYPE_DSP == flagCodecType ) {
         /*set the subregion decode parameters*/
         if ( ((SkTIJPEGImageDecoderEntry*)skJpegDec)->SetJpegDecParams((SkTIJPEGImageDecoderEntry::JpegDecoderParams*) &jpegDecParams ) == false ) {
             PRINT("%s():%d:: !!!! skJpegDec->SetJpegDecodeParameters returned false..\n",__FUNCTION__,__LINE__);
         }
     }
-    else { //SW decoder
-        if( bSubRegDecFlag ){
-            PRINT("%s():%d:: !!!! SW Decoder does not support the Sub Region Decoding...\n",__FUNCTION__,__LINE__);
-            PRINT("%s():%d:: !!!! Select DSP JPG decoder and run subregion decode tests.\n",__FUNCTION__,__LINE__);
-            return FAIL;
-        }
-    }
 #endif
 
 #ifdef TIME_MEASUREMENT
-   {
-    AutoTimeMicros atm("Decode Measurement");
-#endif 
-    /*call decode*/
-    if (skJpegDec->decode(&inStream, &skBM, prefConfig, SkImageDecoder::kDecodePixels_Mode) == false) {
-        PRINT("%s():%d:: !!!! skJpegDec->decode returned false..\n",__FUNCTION__,__LINE__);
-        PRINT("%s():%d:: !!!! Test Failed..\n",__FUNCTION__,__LINE__);
-        delete skJpegDec;
-        return FAIL;
+    {
+    AutoTimeMicros atm("Decode Time Measurement:");
+#endif
+
+    //gingerbread- SW(ARM) subregion decode supported
+    if( CODECTYPE_SW == flagCodecType && bSubRegDecFlag ){
+        int ht = 0, wd = 0;
+
+        if( skJpegDec->buildTileIndex(&inStream, &wd, &ht) == false ) {
+            PRINT("%s():%d:: !!!! skJpegDec->buildTileIndex() returned false..\n",__FUNCTION__,__LINE__);
+            PRINT("%s():%d:: !!!! Test Failed..\n",__FUNCTION__,__LINE__);
+            delete skJpegDec;
+            return FAIL;
+        }
+        if( skJpegDec->decodeRegion(&skBM, subRegion, prefConfig) == false) {
+            PRINT("%s():%d:: !!!! skJpegDec->decodeRegion() returned false..\n",__FUNCTION__,__LINE__);
+            PRINT("%s():%d:: !!!! Test Failed..\n",__FUNCTION__,__LINE__);
+            delete skJpegDec;
+            return FAIL;
+        }
     }
+    else {  //if !(CODECTYPE_SW == flagCodecType && bSubRegDecFlag )
+
+        /*call decode*/
+        if (skJpegDec->decode(&inStream, &skBM, prefConfig, SkImageDecoder::kDecodePixels_Mode) == false) {
+            PRINT("%s():%d:: !!!! skJpegDec->decode returned false..\n",__FUNCTION__,__LINE__);
+            PRINT("%s():%d:: !!!! Test Failed..\n",__FUNCTION__,__LINE__);
+            delete skJpegDec;
+            return FAIL;
+        }
+    }
+
 #ifdef TIME_MEASUREMENT
-   atm.setResolution(skBM.width() , skBM.height());
-   atm.setScaleFactor(reSize);
-   }
+    atm.setResolution(skBM.width() , skBM.height());
+    atm.setScaleFactor(reSize);
+    }
 #endif
 
     {   //scope to close the output file/stream  handle

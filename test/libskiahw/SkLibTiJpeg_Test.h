@@ -28,6 +28,7 @@
 #include <dirent.h>
 #include "SkBitmap.h"
 #include "SkStream.h"
+#include "SkRect.h"
 #include "SkImageDecoder.h"
 #include "SkImageEncoder.h"
 
