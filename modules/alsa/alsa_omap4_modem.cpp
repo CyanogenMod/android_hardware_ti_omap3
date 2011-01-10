@@ -22,15 +22,6 @@
 #include <dlfcn.h>
 #include <pthread.h>
 
-#ifdef AUDIO_BLUETOOTH
-#include <sys/socket.h>
-
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/hci.h>
-#include <bluetooth/hci_lib.h>
-#include <bluetooth/sco.h>
-#endif
-
 #include "AudioHardwareALSA.h"
 #include "audio_modem_interface.h"
 #include "alsa_omap4_modem.h"
@@ -368,13 +359,6 @@ void AudioModemAlsa::voiceCallControlsThread(void)
             if (error < 0) goto exit;
             error = voiceCallCodecSet();
             if (error < 0) goto exit;
-    #ifdef AUDIO_BLUETOOTH
-            if (mCurrentAudioModemModes ==
-                    AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
-                error = voiceCallBTDeviceEnable();
-                if (error < 0) goto exit;
-            }
-    #endif
             mVoiceCallState = AUDIO_MODEM_VOICE_CALL_ON;
         } else if ((mInfo->mode == AudioSystem::MODE_IN_CALL) &&
                 (mVoiceCallState == AUDIO_MODEM_VOICE_CALL_ON)) {
@@ -392,17 +376,6 @@ void AudioModemAlsa::voiceCallControlsThread(void)
                 if (error < 0) goto exit;
                 error = voiceCallCodecUpdate();
                 if (error < 0) goto exit;
-    #ifdef AUDIO_BLUETOOTH
-                if (mCurrentAudioModemModes ==
-                        AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
-                    error = voiceCallBTDeviceEnable();
-                    if (error < 0) goto exit;
-                } else if (mPreviousAudioModemModes ==
-                        AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
-                    error = voiceCallBTDeviceDisable();
-                    if (error < 0) goto exit;
-                }
-    #endif
             } else {
                 LOGI("Audio Modem Mode doesn't changed: no update needed");
             }
@@ -415,13 +388,6 @@ void AudioModemAlsa::voiceCallControlsThread(void)
             if (error < 0) goto exit;
             error = voiceCallCodecReset();
             if (error < 0) goto exit;
-    #ifdef AUDIO_BLUETOOTH
-            if (mPreviousAudioModemModes ==
-                        AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
-                    error = voiceCallBTDeviceDisable();
-                    if (error < 0) goto exit;
-            }
-    #endif
             mVoiceCallState = AUDIO_MODEM_VOICE_CALL_OFF;
         }
     } // for(;;)
@@ -588,26 +554,6 @@ status_t AudioModemAlsa::voiceCallCodecPCMReset()
 
     return NO_ERROR;
 }
-
-#ifdef AUDIO_BLUETOOTH
-status_t AudioModemAlsa::voiceCallBTDeviceEnable()
-{
-    status_t error = NO_ERROR;
-
-    LOGV("Enable PCM port of Bluetooth SCO device");
-
-    return error;
-}
-
-status_t AudioModemAlsa::voiceCallBTDeviceDisable()
-{
-    status_t error = NO_ERROR;
-
-    LOGV("Disable PCM port of Bluetooth SCO device");
-
-    return error;
-}
-#endif // AUDIO_BLUETOOTH
 
 status_t AudioModemAlsa::voiceCallCodecSetHandset()
 {
