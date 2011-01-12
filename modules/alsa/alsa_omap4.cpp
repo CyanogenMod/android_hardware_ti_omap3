@@ -200,7 +200,7 @@ static alsa_handle_t _defaults[] = {
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
         mmap        : 0,
-        modPrivate  : (void *)&setHDMIControls,
+        modPrivate  : (void *)&setDefaultControls,
     },
     {
         module      : 0,
