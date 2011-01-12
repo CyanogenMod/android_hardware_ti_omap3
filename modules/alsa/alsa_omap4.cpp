@@ -665,8 +665,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             (devices & AudioSystem::DEVICE_OUT_EARPIECE)) {
             control.set("DL1 Equalizer Profile", 0, 0);
         }
-        LOGI("SETTING DEVICE OUT LOW POWER MODE");
-        control.set("TWL6040 Power Mode", "Low-Power");
+        control.set("TWL6040 Power Mode", "High-Performance");
 
     }
 
