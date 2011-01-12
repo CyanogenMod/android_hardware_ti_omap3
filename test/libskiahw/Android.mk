@@ -26,7 +26,8 @@ LOCAL_C_INCLUDES += \
     hardware/ti/omx/system/src/openmax_il/omx_core/inc
 
 LOCAL_SHARED_LIBRARIES := libskia \
-                          libskiahw
+                          libskiahw \
+                          libcutils
 
 endif
 

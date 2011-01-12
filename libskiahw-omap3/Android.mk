@@ -34,6 +34,7 @@ LOCAL_SRC_FILES+= \
    SkMemory.cpp \
    
 LOCAL_MODULE:= libskiahw
+LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_SHARED_LIBRARY)
 
