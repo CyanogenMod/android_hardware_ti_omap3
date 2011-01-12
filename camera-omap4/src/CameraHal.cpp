@@ -349,7 +349,9 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
     else
         {
-        mParameters.setPictureFormat(params.getPictureFormat());
+        valstr = params.getPictureFormat();
+        if (valstr)
+        mParameters.setPictureFormat(valstr);
         }
 
     params.getPictureSize(&w, &h);
@@ -531,12 +533,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_SCENE_MODE, valstr);
         }
 
-    if((params.get(CameraParameters::KEY_FLASH_MODE) != NULL)
+    if(( (valstr = params.get(CameraParameters::KEY_FLASH_MODE)) != NULL)
         && isParameterValid(params.get(CameraParameters::KEY_FLASH_MODE),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_FLASH_MODES]->mPropValue))
         {
         CAMHAL_LOGDB("Flash mode set %s", params.get(CameraParameters::KEY_FLASH_MODE));
-        mParameters.set(CameraParameters::KEY_FLASH_MODE, params.get(CameraParameters::KEY_FLASH_MODE));
+        mParameters.set(CameraParameters::KEY_FLASH_MODE, valstr);
         }
 
     if(( (valstr = params.get(CameraParameters::KEY_EFFECT)) != NULL)
@@ -583,58 +585,58 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, valstr);
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_LATITUDE)) != NULL )
         {
         CAMHAL_LOGDB("GPS latitude set %s", params.get(CameraParameters::KEY_GPS_LATITUDE));
-        mParameters.set(CameraParameters::KEY_GPS_LATITUDE, params.get(CameraParameters::KEY_GPS_LATITUDE));
+        mParameters.set(CameraParameters::KEY_GPS_LATITUDE, valstr);
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_LONGITUDE)) != NULL )
         {
         CAMHAL_LOGDB("GPS longitude set %s", params.get(CameraParameters::KEY_GPS_LONGITUDE));
-        mParameters.set(CameraParameters::KEY_GPS_LONGITUDE, params.get(CameraParameters::KEY_GPS_LONGITUDE));
+        mParameters.set(CameraParameters::KEY_GPS_LONGITUDE, valstr);
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_ALTITUDE)) != NULL )
         {
         CAMHAL_LOGDB("GPS altitude set %s", params.get(CameraParameters::KEY_GPS_ALTITUDE));
-        mParameters.set(CameraParameters::KEY_GPS_ALTITUDE, params.get(CameraParameters::KEY_GPS_ALTITUDE));
+        mParameters.set(CameraParameters::KEY_GPS_ALTITUDE, valstr);
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_TIMESTAMP) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_TIMESTAMP)) != NULL )
         {
         CAMHAL_LOGDB("GPS timestamp set %s", params.get(CameraParameters::KEY_GPS_TIMESTAMP));
-        mParameters.set(CameraParameters::KEY_GPS_TIMESTAMP, params.get(CameraParameters::KEY_GPS_TIMESTAMP));
+        mParameters.set(CameraParameters::KEY_GPS_TIMESTAMP, valstr);
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD)) != NULL )
         {
         CAMHAL_LOGDB("GPS processing method set %s", params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD));
-        mParameters.set(CameraParameters::KEY_GPS_PROCESSING_METHOD, params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD));
+        mParameters.set(CameraParameters::KEY_GPS_PROCESSING_METHOD, valstr);
         }
 
-    if( (params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF) != NULL ) )
+    if( (valstr = params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF)) != NULL )
         {
         CAMHAL_LOGDB("GPS altitude ref set %s", params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF));
-        mParameters.set(TICameraParameters::KEY_GPS_ALTITUDE_REF, params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF));
+        mParameters.set(TICameraParameters::KEY_GPS_ALTITUDE_REF, valstr);
         }
 
-    if( (params.get(TICameraParameters::KEY_GPS_MAPDATUM ) != NULL ) )
+    if( (valstr = params.get(TICameraParameters::KEY_GPS_MAPDATUM )) != NULL )
         {
         CAMHAL_LOGDB("GPS MAPDATUM set %s", params.get(TICameraParameters::KEY_GPS_MAPDATUM));
-        mParameters.set(TICameraParameters::KEY_GPS_MAPDATUM, params.get(TICameraParameters::KEY_GPS_MAPDATUM));
+        mParameters.set(TICameraParameters::KEY_GPS_MAPDATUM, valstr);
         }
 
-    if( (params.get(TICameraParameters::KEY_GPS_VERSION ) != NULL ) )
+    if( (valstr = params.get(TICameraParameters::KEY_GPS_VERSION)) != NULL )
         {
         CAMHAL_LOGDB("GPS MAPDATUM set %s", params.get(TICameraParameters::KEY_GPS_VERSION));
-        mParameters.set(TICameraParameters::KEY_GPS_VERSION, params.get(TICameraParameters::KEY_GPS_VERSION));
+        mParameters.set(TICameraParameters::KEY_GPS_VERSION, valstr);
         }
 
-    if( (params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE ) != NULL ) )
+    if( (valstr = params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE)) != NULL )
         {
         CAMHAL_LOGDB("Exposure Bracketing set %s", params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE));
-        mParameters.set(TICameraParameters::KEY_EXP_BRACKETING_RANGE, params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE));
+        mParameters.set(TICameraParameters::KEY_EXP_BRACKETING_RANGE, valstr);
         }
     else
         {
@@ -2636,7 +2638,7 @@ status_t CameraHal::parseResolution(const char *resStr, int &width, int &height)
 
     if ( NULL == resStr )
         {
-        ret = -EINVAL;
+        return -EINVAL;
         }
 
     //This fixes "Invalid input resolution"

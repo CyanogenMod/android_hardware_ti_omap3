@@ -40,7 +40,7 @@ namespace android {
 
 #define MAX_CAMERAS_SUPPORTED 6
 #define MAX_PROP_NAME_LENGTH 50
-#define MAX_PROP_VALUE_LENGTH 256
+#define MAX_PROP_VALUE_LENGTH 2048
 
 
 ///Class that handles the Camera Properties
