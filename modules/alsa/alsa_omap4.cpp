@@ -278,7 +278,7 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
 {
     char pwr[PROPERTY_VALUE_MAX];
     int status = 0;
-    status = property_get("omap.audio.power", pwr, "HQ");
+    status = property_get("omap.audio.power", pwr, "FIFO");
 
     if (device & OMAP4_OUT_SCO || device & OMAP4_IN_SCO)
         return BLUETOOTH_SCO_DEVICE;
@@ -298,7 +298,7 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
     // now that low-power is flexible in buffer size and sample rate
     // a system property can be used to toggle
     if ((device & OMAP4_OUT_LP) ||
-       (strcmp(pwr, "LP") == 0))
+       (strcmp(pwr, "PingPong") == 0))
         return MM_LP_DEVICE;
 
     return MM_DEFAULT_DEVICE;
