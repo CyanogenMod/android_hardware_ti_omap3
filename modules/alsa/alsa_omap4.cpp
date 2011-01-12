@@ -120,9 +120,6 @@ static int s_device_close(hw_device_t* device)
 
 static const int DEFAULT_SAMPLE_RATE = ALSA_DEFAULT_SAMPLE_RATE;
 
-static void setScoControls(uint32_t devices, int mode);
-static void setFmControls(uint32_t devices, int mode);
-static void setHDMIControls(uint32_t devices, int mode);
 static void setDefaultControls(uint32_t devices, int mode);
 void configMicChoices(uint32_t);
 
@@ -560,21 +557,6 @@ status_t setSoftwareParams(alsa_handle_t *handle)
     snd_pcm_sw_params_free(softwareParams);
 
     return err;
-}
-
-void setScoControls(uint32_t devices, int mode)
-{
-LOGV("%s", __FUNCTION__);
-}
-
-void setFmControls(uint32_t devices, int mode)
-{
-LOGV("%s", __FUNCTION__);
-}
-
-void setHDMIControls(uint32_t devices, int mode)
-{
-LOGV("%s", __FUNCTION__);
 }
 
 void setDefaultControls(uint32_t devices, int mode)
