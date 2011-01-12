@@ -120,10 +120,8 @@ static int s_device_close(hw_device_t* device)
 
 static const int DEFAULT_SAMPLE_RATE = ALSA_DEFAULT_SAMPLE_RATE;
 
-static void setDefaultControls(uint32_t devices, int mode);
+static void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode);
 void configMicChoices(uint32_t);
-
-typedef void (*AlsaControlSet)(uint32_t devices, int mode);
 
 #define OMAP4_OUT_SCO      (\
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO |\
@@ -169,7 +167,7 @@ static alsa_handle_t _defaults[] = {
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
         mmap        : 0,
-        modPrivate  : (void *)&setDefaultControls,
+        modPrivate  : (void *)&setAlsaControls,
     },
     {
         module      : 0,
@@ -183,7 +181,7 @@ static alsa_handle_t _defaults[] = {
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
         mmap        : 0,
-        modPrivate  : (void *)&setDefaultControls,
+        modPrivate  : (void *)&setAlsaControls,
     },
     {
         module      : 0,
@@ -197,7 +195,7 @@ static alsa_handle_t _defaults[] = {
         latency     : 200000, // Desired Delay in usec
         bufferSize  : DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
         mmap        : 0,
-        modPrivate  : (void *)&setDefaultControls,
+        modPrivate  : (void *)&setAlsaControls,
     },
     {
         module      : 0,
@@ -211,7 +209,7 @@ static alsa_handle_t _defaults[] = {
         latency     : 85333, // Desired Delay in usec
         bufferSize  : 4096, // Desired Number of samples
         mmap        : 1,
-        modPrivate  : (void *)&setDefaultControls,
+        modPrivate  : (void *)&setAlsaControls,
     },
     {
         module      : 0,
@@ -225,7 +223,7 @@ static alsa_handle_t _defaults[] = {
         latency     : 140000, // Desired Delay in usec
         bufferSize  : 6144, // Desired Number of samples
         mmap        : 1,
-        modPrivate  : (void *)&setDefaultControls,
+        modPrivate  : (void *)&setAlsaControls,
     },
     {
         module      : 0,
@@ -239,7 +237,7 @@ static alsa_handle_t _defaults[] = {
         latency     : 250000, // Desired Delay in usec
         bufferSize  : 2048, // Desired Number of samples
         mmap        : 0,
-        modPrivate  : (void *)&setDefaultControls,
+        modPrivate  : (void *)&setAlsaControls,
     },
     {
         module      : 0,
@@ -253,7 +251,7 @@ static alsa_handle_t _defaults[] = {
         latency     : 250000, // Desired Delay in usec
         bufferSize  : 2048, // Desired Number of samples
         mmap        : 0,
-        modPrivate  : (void *)&setDefaultControls,
+        modPrivate  : (void *)&setAlsaControls,
     },
     {
         module      : 0,
@@ -267,7 +265,7 @@ static alsa_handle_t _defaults[] = {
         latency     : -1, // Doesn't matter, since it is buffer-less
         bufferSize  : 2048, // Desired Number of samples
         mmap        : 0,
-        modPrivate  : (void *)&setDefaultControls,
+        modPrivate  : (void *)&setAlsaControls,
     },
 
 };
@@ -448,7 +446,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
         LOGE("Unable to get period time:  %s", snd_strerror(err));
         goto done;
     }
-    // get the buffer & period time
+    // get the buffer time
     err = snd_pcm_hw_params_get_buffer_time(hardwareParams, &bufferTime, NULL);
     if (err < 0) {
         LOGE("Unable to set buffer time:  %s", snd_strerror(err));
@@ -559,9 +557,10 @@ status_t setSoftwareParams(alsa_handle_t *handle)
     return err;
 }
 
-void setDefaultControls(uint32_t devices, int mode)
+
+void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
 {
-LOGV("%s", __FUNCTION__);
+    LOGV("%s", __FUNCTION__);
     ALSAControl control("hw:00");
 
     /* check whether the devices is input or not */
@@ -718,12 +717,7 @@ LOGV("%s", __FUNCTION__);
             control.set("MUX_UL11", "None");
         }
     }
-}
 
-void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
-{
-    AlsaControlSet set = (AlsaControlSet) handle->modPrivate;
-    set(devices, mode);
     handle->curDev = devices;
     handle->curMode = mode;
 }
