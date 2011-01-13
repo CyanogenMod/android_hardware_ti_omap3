@@ -314,13 +314,13 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
                 memcpy(bufferDst, bufferSrc, row);
                 }
             ///Convert NV21 to NV12 by swapping U & V
-            bufferDst_UV = (uint16_t *) ((uint8_t*)dst+row*height);
-            bufferSrc_UV = ( uint16_t * ) ((uint8_t*)src+stride*height);
+            bufferDst_UV = (uint16_t *) (((uint8_t*)dst)+row*height);
+            bufferSrc_UV = ( uint16_t * ) (((uint8_t*)src)+stride*height);
             for(int i = 0 ; i < height/2 ; i++)
                 {
                 for(int j=0;j<width/2;j++)
                     {
-                    *bufferDst_UV++ = ((*bufferSrc_UV & 0xFF)<<16) | ((*bufferSrc_UV >> 16) & 0xFF) ;
+                    *bufferDst_UV++ = ((*bufferSrc_UV & 0xFF)<<8) | ((*bufferSrc_UV >> 8) & 0xFF) ;
                     bufferSrc_UV++;
                     }
                 bufferSrc_UV += alignedRow/2;
