@@ -434,7 +434,14 @@ status_t setHardwareParams(alsa_handle_t *handle)
         numPeriods = 4;
         LOGI("Using FIFO");
     }
-    reqBuffSize = handle->bufferSize;
+
+    //get the default array index
+    for (size_t i = 0; i < ARRAY_SIZE(_defaults); i++) {
+        if (_defaults[i].devices == handle->devices) {
+            reqBuffSize = _defaults[i].bufferSize;
+            break;
+        }
+    }
     bufferSize = reqBuffSize;
 
     // try the requested buffer size
