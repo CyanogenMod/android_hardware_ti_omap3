@@ -894,23 +894,27 @@ void configMicChoices (uint32_t devices) {
     if (!strcmp(mic1, "DMic0L")) {
         LOGI("OMAP4 ABE set for Digital Mic 0L");
         control.set("AMIC_UL PDM Switch", 0, 0);  // PDM_UL1 -> off
-        control.set("MUX_UL00", mic1);           // DMIC0L_UL -> MM_UL00
+        control.set("MUX_UL00", mic1);            // DMIC0L_UL -> MM_UL00
+        control.set("DMIC1 UL Volume", 140);      // DMIC1: 1dB=Mute --> 149dB
     }
     else {
         LOGI("OMAP4 ABE set for Analog Main Mic 0");
         control.set("AMIC_UL PDM Switch", 1);     // PDM_UL1 -> AMIC_UL
         control.set("MUX_UL00", "AMic0");         // AMIC_UL -> MM_UL00
+        control.set("DMIC1 UL Volume", 1);        // DMIC1 -> MUTE
     }
     //for Sub Mic
     if (!strcmp(mic2, "DMic0R")) {
         LOGI("OMAP4 ABE set for Digital Sub Mic 0R");
         control.set("AMIC_UL PDM Switch", 0, 0);  // PDM_UL1 -> off
         control.set("MUX_UL01", mic2);           // DMIC0R_UL -> MM_UL01
+        control.set("DMIC1 UL Volume", 140);      // DMIC1: 1dB=Mute --> 149dB
     }
     else {
         LOGI("OMAP4 ABE set for Analog Sub Mic 1");
         control.set("AMIC_UL PDM Switch", 1);      // PDM_UL1 -> AMIC_UL
         control.set("MUX_UL01", "AMic1");          // AMIC_UL -> MM_UL01
+        control.set("DMIC1 UL Volume", 1);        // DMIC1 -> MUTE
     }
 
     /** 
