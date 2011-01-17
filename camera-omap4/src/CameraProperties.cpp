@@ -94,6 +94,7 @@ const char CameraProperties::PROP_KEY_AUTOCONVERGENCE_MODE[] = "auto-convergence
 const char CameraProperties::PROP_KEY_MANUALCONVERGENCE_VALUES[] = "manual-convergence-values";
 const char CameraProperties::PROP_KEY_VSTAB[] = "vstab";
 const char CameraProperties::PROP_KEY_VSTAB_VALUES[] = "vstab-values";
+const char CameraProperties::PROP_KEY_REVISION[] = "revision";
 
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
@@ -105,6 +106,8 @@ const char CameraProperties::TICAMERA_FILE_EXTN[] = ".xml";
 CameraProperties::CameraProperties() : mCamerasSupported(0)
 {
     LOG_FUNCTION_NAME
+
+    mCamerasSupported = 0;
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -174,14 +177,11 @@ status_t CameraProperties::loadProperties()
                     {
                     ///Confirmed it is an XML file, now open it and parse it
                     CAMHAL_LOGVB("Found Camera Properties file %s", dp->d_name);
-                    ////Choosing 268 because "system/etc/"+ dir_name(0...255) can be max 268 chars
-                    char fullPath[268];
-                      snprintf(fullPath, sizeof(fullPath)-1,"/system/etc/%s",dp->d_name);
-                    ret = parseAndLoadProps((const char*)fullPath);
-                    if(ret!=NO_ERROR)
+                    sprintf(mXMLFullPath, "/system/etc/%s", dp->d_name);
+                    ret = parseAndLoadProps( ( const char * ) mXMLFullPath);
+                    if ( ret != NO_ERROR )
                         {
-                        CAMHAL_LOGEB("Error when parsing the config file :%s Err[%d]",fullPath, ret);
-                        (void) closedir(dirp);
+                        CAMHAL_LOGEB("Error when parsing the config file :%s Err[%d]", mXMLFullPath, ret);
                         LOG_FUNCTION_NAME_EXIT
                         return ret;
                         }
@@ -247,6 +247,151 @@ status_t CameraProperties::parseAndLoadProps(const char* file)
     return ret;
 }
 
+status_t CameraProperties::storeProperties()
+{
+    LOG_FUNCTION_NAME
+
+    xmlTextWriterPtr writer;
+    status_t ret = NO_ERROR;
+
+    writer = xmlNewTextWriterFilename( ( const char * ) mXMLFullPath, 0);
+    if ( NULL != writer )
+        {
+        ret = storeCameraElements(writer);
+        }
+    else
+        {
+        CAMHAL_LOGEB("Unable to open %s\n", mXMLFullPath);
+        }
+
+    CAMHAL_LOGVA("Freeing the XML Reader");
+    xmlFreeTextWriter(writer);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t CameraProperties::storeCameraElements(xmlTextWriterPtr &writer)
+{
+    status_t ret = NO_ERROR;
+    CameraProperty **prop = NULL;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == writer )
+        {
+        CAMHAL_LOGEA("Invalid XML writer");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        ret = xmlTextWriterStartDocument(writer, NULL, "ISO-8859-1", NULL);
+        if ( 0 > ret )
+            {
+            CAMHAL_LOGEB("Error starting XML document 0x%x", ret);
+            }
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        //Insert CameraRoot Tag
+        ret = xmlTextWriterStartElement(writer, ( const xmlChar * ) CAMERA_ROOT);
+        ret |= xmlTextWriterWriteFormatString(writer, "\n");
+        if ( 0 > ret )
+            {
+            CAMHAL_LOGEB("Error inserting root tag 0x%x", ret);
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        for ( int i = 0 ; i < mCamerasSupported ; i++ )
+            {
+
+            prop = getProperties(i);
+            if ( NULL == prop )
+                {
+                break;
+                }
+
+            //Insert CameraIntance Tag
+            ret = xmlTextWriterStartElement(writer, ( const xmlChar * ) CAMERA_INSTANCE);
+            ret |= xmlTextWriterWriteFormatString(writer, "\n");
+            if ( 0 > ret )
+                {
+                CAMHAL_LOGEB("Error inserting camera instance tag 0x%x", ret);
+                break;
+                }
+
+            for ( int j = 1 ; j < PROP_INDEX_MAX ; j++ )
+                {
+
+                if ( ( NULL != prop[j]->mPropName ) &&
+                      ( NULL != prop[j]->mPropValue) )
+                    {
+
+                    //Insert individual Tags
+                    ret = xmlTextWriterWriteElement(writer, ( const xmlChar * ) prop[j]->mPropName,
+                                                                             ( const xmlChar * ) prop[j]->mPropValue);
+                    ret |= xmlTextWriterWriteFormatString(writer, "\n");
+                    if ( 0 > ret )
+                        {
+                        CAMHAL_LOGEB("Error inserting tag %s 0x%x", ( const char * ) prop[j]->mPropName,
+                                                                                                   ret);
+                        break;
+                        }
+
+                    }
+                }
+
+            if ( 0 > ret )
+                {
+                break;
+                }
+
+            //CameraInstance ends here
+            ret = xmlTextWriterEndElement(writer);
+            ret |= xmlTextWriterWriteFormatString(writer, "\n");
+            if ( 0 > ret )
+                {
+                CAMHAL_LOGEB("Error inserting camera instance tag 0x%x", ret);
+                }
+
+            }
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        //CameraRoot ends here
+        ret = xmlTextWriterEndElement(writer);
+        ret |= xmlTextWriterWriteFormatString(writer, "\n");
+        if ( 0 > ret )
+            {
+            CAMHAL_LOGEB("Error inserting root tag 0x%x", ret);
+            }
+        }
+
+
+    if ( NO_ERROR == ret )
+        {
+        ret = xmlTextWriterEndDocument(writer);
+        if ( 0 > ret )
+            {
+            CAMHAL_LOGEB("Error closing xml document 0x%x", ret);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
 {
     status_t ret = NO_ERROR;
@@ -273,8 +418,8 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
 
     name = xmlTextReaderConstName(reader);
     ret = xmlTextReaderRead(reader);
-    if( name && ( strcmp( (const char *) name, CAMERA_ROOT) == 0 ) &&
-         (1 == ret) )
+    if( ( strcmp( (const char *) name, CAMERA_ROOT) == 0 ) &&
+         ( 1 == ret))
         {
 
         //Start parsing the Camera Instances
@@ -289,7 +434,7 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
             return ret;
             }
 
-        while( name && (strcmp( (const char *) name, CAMERA_INSTANCE) == 0))
+        while( strcmp( (const char *) name, CAMERA_INSTANCE) == 0)
             {
             CAMHAL_LOGVB("Camera Element Name:%s", name);
 
@@ -331,7 +476,7 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
 
                 ///Check if the tag is CameraInstance, if so we are done with properties for current camera
                 ///Move on to next one if present
-                if ( name && (strcmp((const char *) name, "CameraInstance") == 0) )
+                if ( strcmp((const char *) name, "CameraInstance") == 0)
                     {
                     ///End of camera element
                     if ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT )
@@ -358,12 +503,11 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
                 ///Get the next tag name
                 nextName = xmlTextReaderConstName(reader);
                 CAMHAL_LOGVB("Found next tag:%s", name);
-                if ( nextName && (strcmp((const char *) nextName, TEXT_XML_ELEMENT) == 0) )
+                if ( strcmp((const char *) nextName, TEXT_XML_ELEMENT) == 0)
                     {
                     nextName = NULL;
                     value = xmlTextReaderConstValue(reader);
-                    if (value)
-                      strncpy(val, (const char *) value, sizeof(val)-1);
+                    strcpy(val, (const char *) value);
                     value = (const xmlChar *) val;
                     CAMHAL_LOGVB("Found next tag value: %s", value);
                     }
@@ -418,7 +562,7 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
             name = xmlTextReaderConstName(reader);
             nextName = NULL;
             CAMHAL_LOGVB("Found tag:%s", name);
-            if (name && ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT ) &&
+            if ( ( xmlTextReaderNodeType(reader) == XML_READER_TYPE_END_ELEMENT ) &&
                     ( strcmp( (const char *) name, CAMERA_ROOT) == 0 ) )
                 {
                 CAMHAL_LOGVA("Completed parsing the XML file");
@@ -532,9 +676,6 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
 
     ///Do a string comparison on the property name passed with the supported property keys
     ///and return the corresponding property index
-      if(propName == NULL)
-        goto exit;
-
     if(!strcmp(propName,CameraProperties::PROP_KEY_CAMERA_NAME))
         {
         CAMHAL_LOGVA("Returning PROP_INDEX_CAMERA_NAME");
@@ -901,8 +1042,19 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_VSTAB_VALUES;
         }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_JPEG_QUALITY))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_JPEG_QUALITY");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_JPEG_QUALITY;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_REVISION))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_REVISION");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_REVISION;
+        }
 
-exit:
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
     LOG_FUNCTION_NAME_EXIT
     return CameraProperties::PROP_INDEX_INVALID;
@@ -1212,6 +1364,16 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_VSTAB_VALUES;
 
+        case CameraProperties::PROP_INDEX_REVISION:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_REVISION);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_REVISION;
+
+        case CameraProperties::PROP_INDEX_PREVIEW_SIZE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_PREVIEW_SIZE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_PREVIEW_SIZE;
+
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );
             LOG_FUNCTION_NAME_EXIT
@@ -1268,7 +1430,7 @@ status_t CameraProperties::CameraProperty::setValue(const char * value)
         {
         return BAD_VALUE;
         }
-      strncpy(mPropValue, value, sizeof(mPropValue)-1);
+    strcpy(mPropValue, value);
     CAMHAL_LOGVB("mPropValue = %s", mPropValue);
     return NO_ERROR;
 }

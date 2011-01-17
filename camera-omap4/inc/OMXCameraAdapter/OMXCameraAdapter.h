@@ -63,6 +63,16 @@ namespace android {
 #define ZOOM_STAGES 61
 #define FACE_DETECTION_BUFFER_SIZE  0x1000
 
+#define GPS_DATESTAMP_SIZE      11
+#define GPS_REF_SIZE                    2
+#define GPS_MAPDATUM_SIZE       100
+#define GPS_PROCESSING_SIZE     100
+#define GPS_VERSION_SIZE            4
+#define GPS_NORTH_REF                "N"
+#define GPS_SOUTH_REF                "S"
+#define GPS_EAST_REF                   "E"
+#define GPS_WEST_REF                  "W"
+
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
 
@@ -127,6 +137,35 @@ static OMX_ERRORTYPE OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLETYPE hCompo
                                         OMX_IN OMX_PTR pAppData,
                                         OMX_IN OMX_BUFFERHEADERTYPE* pBuffHeader);
 
+struct CapResolution {
+    size_t width, height;
+    const char *param;
+};
+
+struct CapPixelformat {
+    OMX_COLOR_FORMATTYPE pixelformat;
+    const char *param;
+};
+
+struct CapFramerate {
+    OMX_U32 framerate;
+    const char *param;
+};
+
+struct CapZoom {
+    OMX_S32 zoomStage;
+    const char *param;
+};
+
+struct CapEVComp {
+    OMX_S32 evComp;
+    const char *param;
+};
+
+struct CapISO {
+    OMX_U32 iso;
+    const char *param;
+};
 
 /**
   * Class which completely abstracts the camera hardware interaction from camera hal
@@ -197,6 +236,28 @@ public:
         BRIGHTNESS_AUTO,
         };
 
+    class GPSData
+    {
+        public:
+                int mLongDeg, mLongMin, mLongSec;
+                char mLongRef[GPS_REF_SIZE];
+                bool mLongValid;
+                int mLatDeg, mLatMin, mLatSec;
+                char mLatRef[GPS_REF_SIZE];
+                bool mLatValid;
+                int mAltitude;
+                char mAltitudeRef[GPS_REF_SIZE];
+                bool mAltitudeValid;
+                char mMapDatum[GPS_MAPDATUM_SIZE];
+                bool mMapDatumValid;
+                char mVersionId[GPS_VERSION_SIZE];
+                bool mVersionIdValid;
+                char mProcMethod[GPS_PROCESSING_SIZE];
+                bool mProcMethodValid;
+                char mDatestamp[GPS_DATESTAMP_SIZE];
+                bool mDatestampValid;
+    };
+
     ///Parameters specific to any port of the OMX Camera component
     class OMXCameraPortParameters
     {
@@ -248,7 +309,10 @@ public:
     virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
 
     //API to get the caps
-    virtual status_t getCaps();
+    virtual status_t getCaps(CameraParameters &params);
+
+    //Used together with capabilities
+    virtual int getRevision();
 
     //API to give the buffers to Adapter
     virtual status_t useBuffers(CameraMode mode, void* bufArr, int num);
@@ -318,6 +382,10 @@ private:
     status_t setImageQuality(unsigned int quality);
     status_t setThumbnailParams(unsigned int width, unsigned int height, unsigned int quality);
 
+    //Geo-tagging
+    status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
+    status_t setupEXIF();
+
     //Focus functionality
     status_t doAutoFocus();
     status_t stopAutoFocus();
@@ -337,7 +405,7 @@ private:
     OMX_ERRORTYPE setScene(Gen3A_settings& Gen3A);
 
     //Flash modes
-    status_t setFlashMode(Gen3A_settings& Gen3A);
+    OMX_ERRORTYPE setFlashMode(Gen3A_settings& Gen3A);
 
     //Exposure Modes
     OMX_ERRORTYPE setExposureMode(Gen3A_settings& Gen3A);
@@ -353,6 +421,8 @@ private:
 
     //GBCE
     status_t setGBCE(OMXCameraAdapter::BrightnessMode mode);
+
+    status_t printComponentVersion(OMX_HANDLETYPE handle);
 
     //Touch AF
     status_t parseTouchFocusPosition(const char *pos, unsigned int &posX, unsigned int &posY);
@@ -372,6 +442,33 @@ private:
     // Preview Service
     status_t startPreview();
     status_t stopPreview();
+
+    //OMX capabilities query
+    status_t getOMXCaps(OMX_TI_CAPTYPE *caps);
+
+    //Utility methods for OMX Capabilities
+    status_t insertCapabilities(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t encodeSizeCap(OMX_TI_CAPRESTYPE &res, const CapResolution *cap, size_t capCount, char * buffer, size_t bufferSize);
+    status_t encodeISOCap(OMX_U32 maxISO, const CapISO *cap, size_t capCount, char * buffer, size_t bufferSize);
+    size_t encodeZoomCap(OMX_S32 maxZoom, const CapZoom *cap, size_t capCount, char * buffer, size_t bufferSize);
+    status_t encodeFramerateCap(OMX_U32 framerateMax, OMX_U32 framerateMin, const CapFramerate *cap, size_t capCount, char * buffer, size_t bufferSize);
+    status_t encodePixelformatCap(OMX_COLOR_FORMATTYPE format, const CapPixelformat *cap, size_t capCount, char * buffer, size_t bufferSize);
+    status_t insertImageSizes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertPreviewSizes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertThumbSizes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertZoomStages(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertImageFormats(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertPreviewFormats(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertFramerates(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertEVs(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertISOModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertIPPModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertWBModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertEffects(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertExpModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertSceneModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertFocusModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertFlickerModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
 
     //Video recording service
     status_t startVideoCapture();
@@ -414,10 +511,52 @@ private:
     status_t setAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE pACMode, OMX_S32 pManualConverence);
     status_t getAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE *pACMode, OMX_S32 *pManualConverence);
 
+    class CommandHandler : public Thread {
+        public:
+            CommandHandler(OMXCameraAdapter* ca)
+                : Thread(false), mCameraAdapter(ca) { }
+
+            virtual bool threadLoop() {
+                bool ret;
+                ret = Handler();
+                return ret;
+            }
+
+            status_t put(Message* msg){
+                return mCommandMsgQ.put(msg);
+            }
+
+            enum {
+                COMMAND_EXIT = -1,
+                CAMERA_START_IMAGE_CAPTURE = 0,
+                CAMERA_PERFORM_AUTOFOCUS
+            };
+
+        private:
+            bool Handler();
+            MessageQueue mCommandMsgQ;
+            OMXCameraAdapter* mCameraAdapter;
+    };
+    sp<CommandHandler> mCommandHandler;
 
 public:
 
 private:
+
+    //OMX Capabilities data
+    static const CapResolution mImageCapRes [];
+    static const CapResolution mPreviewRes [];
+    static const CapResolution mThumbRes [];
+    static const CapPixelformat mPixelformats [];
+    static const CapFramerate mFramerates [];
+    static const CapZoom mZoomStages [];
+    static const CapEVComp mEVCompRanges [];
+    static const CapISO mISOStages [];
+
+    OMX_VERSIONTYPE mCompRevision;
+
+    //OMX Component UUID
+    OMX_UUIDTYPE mCompUUID;
 
     //AF callback
     status_t setFocusCallback(bool enabled);
@@ -448,6 +587,9 @@ private:
     bool mFaceDetectionRunning;
     //Buffer for storing face detection results
     char mFaceDectionResult [FACE_DETECTION_BUFFER_SIZE];
+
+    //Geo-tagging
+    GPSData mGPSData;
 
     //Image post-processing
     IPPMode mIPP;
@@ -526,7 +668,7 @@ private:
     bool mFirstTimeInit;
 
     ///Semaphores used internally
-    MessageQueue mEventSignalQ;
+    Vector<struct Message *> mEventSignalQ;
     Mutex mLock;
     bool mPreviewing;
     bool mCapturing;

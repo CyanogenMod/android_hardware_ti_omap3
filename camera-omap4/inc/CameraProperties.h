@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <libxml/parser.h>
 #include <libxml/xmlreader.h>
+#include <libxml/xmlwriter.h>
 #include <libxml/tree.h>
 #include <dirent.h>
 #include <errno.h>
@@ -108,6 +109,7 @@ public:
         PROP_INDEX_MANUALCONVERGENCE_VALUES,
         PROP_INDEX_VSTAB,
         PROP_INDEX_VSTAB_VALUES,
+        PROP_INDEX_REVISION,
         PROP_INDEX_MAX
         };
 
@@ -167,6 +169,7 @@ public:
     static const char PROP_KEY_AUTOCONVERGENCE[];
     static const char PROP_KEY_AUTOCONVERGENCE_MODE[];
     static const char PROP_KEY_MANUALCONVERGENCE_VALUES[];
+    static const char PROP_KEY_REVISION[];
     static const char PARAMS_DELIMITER [];
 
     static const char TICAMERA_FILE_PREFIX[];
@@ -198,22 +201,23 @@ public:
     ///Initializes the CameraProperties class
     status_t initialize();
     status_t loadProperties();
+    status_t storeProperties();
     int camerasSupported();
     CameraProperty** getProperties(int cameraIndex);
-
-
 
 private:
     status_t parseAndLoadProps(const char* file);
     status_t parseCameraElements(xmlTextReaderPtr &reader);
+    status_t storeCameraElements(xmlTextWriterPtr &writer);
     status_t freeCameraProps(int cameraIndex);
     status_t createPropertiesArray(CameraProperties::CameraProperty** &cameraProps);
     CameraProperties::CameraPropertyIndex getCameraPropertyIndex(const char* propName);
     const char* getCameraPropertyKey(CameraProperties::CameraPropertyIndex index);
     void refreshProperties();
 
+    ////Choosing 268 because "system/etc/"+ dir_name(0...255) can be max 268 chars
+    char mXMLFullPath[268];
 
-private:
     int32_t mCamerasSupported;
     CameraProperty *mCameraProps[MAX_CAMERAS_SUPPORTED][CameraProperties::PROP_INDEX_MAX];
 

@@ -31,6 +31,7 @@
 #include "ErrorUtils.h"
 #include "TICameraParameters.h"
 #include <signal.h>
+#include <math.h>
 
 #include <cutils/properties.h>
 #define UNLIKELY( exp ) (__builtin_expect( (exp) != 0, false ))
@@ -214,10 +215,9 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
              GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
              //Wait for the port enable event to occur
-         eventSem.Wait();
+             eventSem.Wait();
 
              CAMHAL_LOGDA("-Port enable event arrived");
-
             }
         else
             {
@@ -248,6 +248,8 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         CAMHAL_LOGEB("Sensor %d selected successfully", sensor_index);
         }
 
+    printComponentVersion(mCameraAdapterParameters.mHandleComp);
+
     mSensorIndex = sensor_index;
     mBracketingEnabled = false;
     mBracketingBuffersQueuedCount = 0;
@@ -275,6 +277,51 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mZoomInc = 1;
     mZoomParameterIdx = 0;
     mExposureBracketingValidEntries = 0;
+
+    mGPSData.mAltitudeValid = false;
+    mGPSData.mDatestampValid = false;
+    mGPSData.mLatValid = false;
+    mGPSData.mLongValid = false;
+    mGPSData.mMapDatumValid = false;
+    mGPSData.mProcMethodValid = false;
+    mGPSData.mVersionIdValid = false;
+
+    // initialize command handling thread
+    if(mCommandHandler.get() == NULL)
+        mCommandHandler = new CommandHandler(this);
+
+    if ( NULL == mCommandHandler.get() )
+    {
+        CAMHAL_LOGEA("Couldn't create command handler");
+        return NO_MEMORY;
+    }
+
+    ret = mCommandHandler->run("CallbackThread", PRIORITY_URGENT_DISPLAY);
+    if ( ret != NO_ERROR )
+    {
+        if( ret == INVALID_OPERATION){
+            CAMHAL_LOGDA("command handler thread already runnning!!");
+        }else
+        {
+            CAMHAL_LOGEA("Couldn't run command handlerthread");
+            return ret;
+        }
+    }
+
+    //Remove any unhandled events
+    if ( !mEventSignalQ.isEmpty() )
+        {
+        for (unsigned int i = 0 ; i < mEventSignalQ.size() ; i++ )
+            {
+            Message *msg = mEventSignalQ.itemAt(i);
+            //remove from queue and free msg
+            mEventSignalQ.removeAt(i);
+            if ( NULL != msg )
+                {
+                free(msg);
+                }
+            }
+        }
 
     //Setting this flag will that the first setParameter call will apply all 3A settings
     //and will not conditionally apply based on current values.
@@ -581,14 +628,6 @@ void OMXCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameT
 
 }
 
-status_t OMXCameraAdapter::getCaps()
-{
-    LOG_FUNCTION_NAME
-    status_t ret = NO_ERROR;
-    LOG_FUNCTION_NAME_EXIT
-    return ret;
-}
-
 status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 {
     LOG_FUNCTION_NAME
@@ -598,8 +637,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     status_t ret = NO_ERROR;
     bool updateImagePortParams = false;
     const char *valstr = NULL;
-
-    mParams = params;
+    const char *oldstr = NULL;
 
     ///@todo Include more camera parameters
     int w, h;
@@ -864,6 +902,8 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
              ( mode == OMX_IMAGE_FocusControlAutoInfinity ) )
             {
             mPending3Asettings |= SetFocus;
+            mParameters3A.Focus = mode;
+            apply3Asettings(mParameters3A);
             }
         else if ( mParameters3A.Focus == OMX_IMAGE_FocusControlAuto )
             {
@@ -874,7 +914,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
 
         mParameters3A.Focus = mode;
-        CAMHAL_LOGEB("Focus %d", mParameters3A.Focus);
+        CAMHAL_LOGEB("Focus %x", mParameters3A.Focus);
         }
 
     str = params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS);
@@ -887,6 +927,8 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     str = params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE);
     if ( NULL != str ) {
         parseExpRange(str, mExposureBracketingValues, EXP_BRACKET_RANGE, mExposureBracketingValidEntries);
+    } else {
+        mExposureBracketingValidEntries = 0;
     }
 
     str = params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION);
@@ -928,10 +970,10 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             {
             mParameters3A.FlashMode = OMX_Manual;
             }
-
-        CAMHAL_LOGEB("SceneMode %d", mParameters3A.FlashMode);
         }
 
+    LOGE("Flash Setting %s", str);
+    LOGE("FlashMode %d", mParameters3A.FlashMode);
 
     str = params.get(CameraParameters::KEY_EFFECT);
     mode = getLUTvalue_HALtoOMX( str, EffLUT);
@@ -982,6 +1024,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
 
+    /// Configure IPP, LDCNSF, GBCE and GLBCE only in HQ mode
     if(mCapMode == OMXCameraAdapter::HIGH_QUALITY)
         {
           if ( (valstr = params.get(TICameraParameters::KEY_IPP)) != NULL )
@@ -1013,11 +1056,87 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
 
         CAMHAL_LOGEB("IPP Mode set %d", mIPP);
+
+        if (((valstr = params.get(TICameraParameters::KEY_GBCE)) != NULL) )
+            {
+            // Configure GBCE only if the setting has changed since last time
+            oldstr = mParams.get(TICameraParameters::KEY_GBCE);
+            bool cmpRes = true;
+            if ( NULL != oldstr )
+                {
+                cmpRes = strcmp(valstr, oldstr) != 0;
+                }
+            else
+                {
+                cmpRes = true;
+                }
+
+
+            if( cmpRes )
+                {
+                if (strcmp(valstr, ( const char * ) TICameraParameters::GBCE_ENABLE ) == 0)
+                    {
+                    setGBCE(OMXCameraAdapter::BRIGHTNESS_ON);
+                    }
+                else if (strcmp(valstr, ( const char * ) TICameraParameters::GBCE_DISABLE ) == 0)
+                    {
+                    setGBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
+                    }
+                else
+                    {
+                    setGBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
+                    }
+                }
+            }
+        else
+            {
+            //Disable GBCE by default
+            setGBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
+            }
+
+        if ( ( valstr = params.get(TICameraParameters::KEY_GLBCE) ) != NULL )
+            {
+            // Configure GLBCE only if the setting has changed since last time
+
+            oldstr = mParams.get(TICameraParameters::KEY_GLBCE);
+            bool cmpRes = true;
+            if ( NULL != oldstr )
+                {
+                cmpRes = strcmp(valstr, oldstr) != 0;
+                }
+            else
+                {
+                cmpRes = true;
+                }
+
+
+            if( cmpRes )
+                {
+                if (strcmp(valstr, ( const char * ) TICameraParameters::GLBCE_ENABLE ) == 0)
+                    {
+                    setGLBCE(OMXCameraAdapter::BRIGHTNESS_ON);
+                    }
+                else if (strcmp(valstr, ( const char * ) TICameraParameters::GLBCE_DISABLE ) == 0)
+                    {
+                    setGLBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
+                    }
+                else
+                    {
+                    setGLBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
+                    }
+                }
+            }
+        else
+            {
+            //Disable GLBCE by default
+            setGLBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
+            }
         }
     else
         {
         mIPP = OMXCameraAdapter::IPP_NONE;
         }
+
 
     if ( params.getInt(TICameraParameters::KEY_BURST)  >= 1 )
         {
@@ -1030,25 +1149,42 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Burst Frames set %d", mBurstFrames);
 
-    if ( (valstr = params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE)) != NULL )
+    // FD enabled ONLY for HQ/HS mode. In VIDEO_MODE
+    // this is causing regression when VSTAB is enabled
+    // SO disabling it for VIDEO_MODE as VIDEO_MODE dont need FD
+    if (mCapMode != OMXCameraAdapter::VIDEO_MODE)
         {
-        if (strcmp(valstr, (const char *) TICameraParameters::FACE_DETECTION_ENABLE) == 0)
+        if ( ((valstr = params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE)) != NULL) )
             {
-            setFaceDetection(true);
+            // Configure FD only if the setting has changed since last time
+            oldstr = mParams.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE);
+            bool cmpRes = true;
+            if ( NULL != oldstr )
+                {
+                cmpRes = strcmp(valstr, oldstr) != 0;
+                }
+            else
+                {
+                cmpRes = true;
+                }
+
+            if ( cmpRes )
+                {
+                if (strcmp(valstr, (const char *) TICameraParameters::FACE_DETECTION_ENABLE) == 0)
+                    {
+                    setFaceDetection(true);
+                    }
+               else if (strcmp(valstr, (const char *) TICameraParameters::FACE_DETECTION_DISABLE) == 0)
+                    {
+                    setFaceDetection(false);
+                    }
+               else
+                    {
+                    setFaceDetection(false);
+                    }
+                }
+
             }
-        else if (strcmp(valstr, (const char *) TICameraParameters::FACE_DETECTION_DISABLE) == 0)
-            {
-            setFaceDetection(false);
-            }
-        else
-            {
-            setFaceDetection(false);
-            }
-        }
-    else
-        {
-        //Disable face detection by default
-        setFaceDetection(false);
         }
 
     if ( (valstr = params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE)) != NULL )
@@ -1195,10 +1331,295 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             }
         }
 
+    double gpsPos;
+
+    if( (params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) )
+        {
+        gpsPos = strtod( params.get(CameraParameters::KEY_GPS_LATITUDE), NULL);
+
+        if ( convertGPSCoord(gpsPos, &mGPSData.mLatDeg, &mGPSData.mLatMin, &mGPSData.mLatSec) == NO_ERROR )
+            {
+
+            if ( 0 < gpsPos )
+                {
+                strncpy(mGPSData.mLatRef, GPS_NORTH_REF, GPS_REF_SIZE);
+                }
+            else
+                {
+                strncpy(mGPSData.mLatRef, GPS_SOUTH_REF, GPS_REF_SIZE);
+                }
+
+
+            mGPSData.mLatValid = true;
+
+            }
+        else
+            {
+            mGPSData.mLatValid = false;
+            }
+        }
+    else
+        {
+        mGPSData.mLatValid = false;
+        }
+
+    if( (params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) )
+        {
+        gpsPos = strtod( params.get(CameraParameters::KEY_GPS_LONGITUDE), NULL);
+
+        if ( convertGPSCoord(gpsPos, &mGPSData.mLongDeg, &mGPSData.mLongMin, &mGPSData.mLongSec) == NO_ERROR )
+            {
+
+            if ( 0 < gpsPos )
+                {
+                strncpy(mGPSData.mLongRef, GPS_EAST_REF, GPS_REF_SIZE);
+                }
+            else
+                {
+                strncpy(mGPSData.mLongRef, GPS_WEST_REF, GPS_REF_SIZE);
+                }
+
+            mGPSData.mLongValid= true;
+
+            }
+        else
+            {
+            mGPSData.mLongValid = false;
+            }
+        }
+    else
+        {
+        mGPSData.mLongValid = false;
+        }
+
+    if( (params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL ) )
+        {
+        gpsPos = strtod( params.get(CameraParameters::KEY_GPS_ALTITUDE), NULL);
+        mGPSData.mAltitude = gpsPos;
+        mGPSData.mAltitudeValid = true;
+        }
+    else
+        {
+        mGPSData.mAltitudeValid= false;
+        }
+
+    if( (params.get(CameraParameters::KEY_GPS_TIMESTAMP) != NULL ) )
+        {
+        long gpsTimestamp = strtol( params.get(CameraParameters::KEY_GPS_TIMESTAMP), NULL, 10);
+        struct tm *timeinfo = localtime( ( time_t * ) & (gpsTimestamp) );
+        if ( NULL != timeinfo )
+            {
+            strftime(mGPSData.mDatestamp, GPS_DATESTAMP_SIZE, "%Y:%m:%d", timeinfo);
+            mGPSData.mDatestampValid = true;
+            }
+        else
+            {
+            mGPSData.mDatestampValid = false;
+            }
+        }
+    else
+        {
+        mGPSData.mDatestampValid = false;
+        }
+
+    if( (params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD) != NULL ) )
+        {
+        strncpy(mGPSData.mProcMethod, params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD), GPS_PROCESSING_SIZE);
+        mGPSData.mProcMethodValid = true;
+        }
+    else
+        {
+        mGPSData.mProcMethodValid = false;
+        }
+
+    if( (params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF) != NULL ) )
+        {
+        strncpy(mGPSData.mAltitudeRef, params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF), GPS_REF_SIZE );
+        mGPSData.mAltitudeValid = true;
+        }
+    else
+        {
+        mGPSData.mAltitudeValid = false;
+        }
+
+    if( (params.get(TICameraParameters::KEY_GPS_MAPDATUM ) != NULL ) )
+        {
+        strncpy(mGPSData.mMapDatum, params.get(TICameraParameters::KEY_GPS_MAPDATUM), GPS_MAPDATUM_SIZE);
+        mGPSData.mMapDatumValid = true;
+        }
+    else
+        {
+        mGPSData.mMapDatumValid = false;
+        }
+
+    if( (params.get(TICameraParameters::KEY_GPS_VERSION ) != NULL ) )
+        {
+        strncpy(mGPSData.mVersionId, params.get(TICameraParameters::KEY_GPS_VERSION), GPS_VERSION_SIZE);
+        mGPSData.mVersionIdValid = true;
+        }
+    else
+        {
+        mGPSData.mVersionIdValid = false;
+        }
+
+    mParams = params;
     mFirstTimeInit = false;
 
     LOG_FUNCTION_NAME_EXIT
     return ret;
+}
+
+//Only Geo-tagging is currently supported
+status_t OMXCameraAdapter::setupEXIF()
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_CONFIG_SHAREDBUFFER sharedBuffer;
+    OMX_TI_CONFIG_EXIF_TAGS exifTags;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&exifTags, OMX_TI_CONFIG_EXIF_TAGS);
+        exifTags.nPortIndex = mCameraAdapterParameters.mImagePortIndex;;
+
+        OMX_INIT_STRUCT_PTR (&sharedBuffer, OMX_TI_CONFIG_SHAREDBUFFER);
+        sharedBuffer.nPortIndex = mCameraAdapterParameters.mImagePortIndex;;
+        sharedBuffer.nSharedBuffSize = sizeof(OMX_TI_CONFIG_EXIF_TAGS);
+        sharedBuffer.pSharedBuff = ( OMX_U8 * ) &exifTags;
+
+        eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexConfigExifTags, &sharedBuffer);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while retrieving EXIF configuration structure 0x%x", eError);
+            ret = -1;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+         if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsLatitude ) && ( mGPSData.mLatValid ) )
+            {
+            exifTags.ulGpsLatitude[0] = mGPSData.mLatDeg;
+            exifTags.ulGpsLatitude[2] = mGPSData.mLatMin;
+            exifTags.ulGpsLatitude[4] = mGPSData.mLatSec;
+            exifTags.ulGpsLatitude[1] = 1;
+            exifTags.ulGpsLatitude[3] = 1;
+            exifTags.ulGpsLatitude[5] = 1;
+            exifTags.eStatusGpsLatitude = OMX_TI_TagUpdated;
+            }
+
+        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpslatitudeRef ) && ( mGPSData.mLatValid ) )
+            {
+            exifTags.cGpslatitudeRef[0] = ( OMX_S8 ) mGPSData.mLatRef[0];
+            exifTags.eStatusGpslatitudeRef = OMX_TI_TagUpdated;
+            }
+
+         if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsLongitude ) && ( mGPSData.mLongValid ) )
+            {
+            exifTags.ulGpsLongitude[0] = mGPSData.mLongDeg;
+            exifTags.ulGpsLongitude[2] = mGPSData.mLongMin;
+            exifTags.ulGpsLongitude[4] = mGPSData.mLongSec;
+            exifTags.ulGpsLongitude[1] = 1;
+            exifTags.ulGpsLongitude[3] = 1;
+            exifTags.ulGpsLongitude[5] = 1;
+            exifTags.eStatusGpsLongitude = OMX_TI_TagUpdated;
+            }
+
+        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsLongitudeRef ) && ( mGPSData.mLongValid) )
+            {
+            exifTags.cGpsLongitudeRef[0] = ( OMX_S8 ) mGPSData.mLongRef[0];
+            exifTags.eStatusGpsLongitudeRef = OMX_TI_TagUpdated;
+            }
+
+        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsAltitude ) && ( mGPSData.mAltitudeValid) )
+            {
+            exifTags.ulGpsAltitude[0] = ( OMX_U32 ) mGPSData.mAltitude;
+            exifTags.eStatusGpsAltitude = OMX_TI_TagUpdated;
+            }
+
+        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsMapDatum ) && ( mGPSData.mMapDatumValid ) )
+            {
+            exifTags.pGpsMapDatumBuff = ( OMX_S8 * ) mGPSData.mMapDatum;
+            exifTags.ulGpsMapDatumBuffSizeBytes = GPS_MAPDATUM_SIZE;
+            exifTags.eStatusGpsMapDatum = OMX_TI_TagUpdated;
+            }
+
+        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsProcessingMethod ) && ( mGPSData.mProcMethodValid ) )
+            {
+            exifTags.pGpsProcessingMethodBuff = ( OMX_S8 * ) mGPSData.mProcMethod;
+            exifTags.ulGpsProcessingMethodBuffSizeBytes = GPS_PROCESSING_SIZE;
+            exifTags.eStatusGpsProcessingMethod = OMX_TI_TagUpdated;
+            }
+
+        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsVersionId ) && ( mGPSData.mVersionIdValid ) )
+            {
+            exifTags.ucGpsVersionId[0] = ( OMX_U8 ) mGPSData.mVersionId[0];
+            exifTags.ucGpsVersionId[1] =  ( OMX_U8 ) mGPSData.mVersionId[1];
+            exifTags.ucGpsVersionId[2] = ( OMX_U8 ) mGPSData.mVersionId[2];
+            exifTags.ucGpsVersionId[3] = ( OMX_U8 ) mGPSData.mVersionId[3];
+            exifTags.eStatusGpsVersionId = OMX_TI_TagUpdated;
+            }
+
+        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsDateStamp ) && ( mGPSData.mDatestampValid) )
+            {
+            strncpy( ( char * ) exifTags.cGpsDateStamp, ( char * ) mGPSData.mDatestamp, GPS_DATESTAMP_SIZE);
+            exifTags.eStatusGpsDateStamp = OMX_TI_TagUpdated;
+            }
+
+        eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexConfigExifTags, &sharedBuffer);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while setting EXIF configuration 0x%x", eError);
+            ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::convertGPSCoord(double coord, int *deg, int *min, int *sec)
+{
+    double tmp;
+
+    LOG_FUNCTION_NAME
+
+    if ( coord == 0 ) {
+
+        LOGE("Invalid GPS coordinate");
+
+        return -EINVAL;
+    }
+
+    *deg = (int) floor(coord);
+    tmp = ( coord - floor(coord) )*60;
+    *min = (int) floor(tmp);
+    tmp = ( tmp - floor(tmp) )*60;
+    *sec = (int) floor(tmp);
+
+    if( *sec >= 60 ) {
+        *sec = 0;
+        *min += 1;
+    }
+
+    if( *min >= 60 ) {
+        *min = 0;
+        *deg += 1;
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return NO_ERROR;
 }
 
 void saveFile(unsigned char   *buff, int width, int height, int format) {
@@ -1917,6 +2338,14 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 
     LOG_FUNCTION_NAME
 
+    ///Flag to determine whether it is 3D camera or not
+    bool isS3d = false;
+    const char *valstr = NULL;
+    if ( (valstr = mParams.get(TICameraParameters::KEY_S3D_SUPPORTED)) != NULL) {
+        isS3d = (strcmp(valstr, "true") == 0);
+    }
+
+
     if(mComponentState!=OMX_StateLoaded)
         {
         CAMHAL_LOGEA("Calling UseBuffersPreview() when not in LOADED state");
@@ -2051,22 +2480,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-    //Disable GBCE by default
-    ret = setGBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
-    if ( NO_ERROR != ret)
-        {
-        CAMHAL_LOGEB("Error configuring GBCE %x", ret);
-        return ret;
-        }
-
-    //Disable GLBCE by default
-    ret = setGLBCE(OMXCameraAdapter::BRIGHTNESS_OFF);
-    if ( NO_ERROR != ret)
-        {
-        CAMHAL_LOGEB("Error configuring GLBCE %x", ret);
-        return ret;
-        }
-
     ret = setImageQuality(mPictureQuality);
     if ( NO_ERROR != ret)
         {
@@ -2089,14 +2502,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         }
 
 
-    ret = setFlashMode(mParameters3A);
-    if (NO_ERROR != ret)
-        {
-        CAMHAL_LOGEB("Error configuring flash mode %x", ret);
-        return ret;
-        }
-
-    if(mCapMode == OMXCameraAdapter::VIDEO_MODE || mCapMode == OMXCameraAdapter::HIGH_QUALITY)
+    if(mCapMode == OMXCameraAdapter::VIDEO_MODE || (isS3d && (mCapMode == OMXCameraAdapter::HIGH_QUALITY)))
         {
         ///Enable/Disable Video Noise Filter
         ret = enableVideoNoiseFilter(mVnfEnabled);
@@ -2106,6 +2512,24 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
             return ret;
             }
 
+        ///Enable/Disable Video Stabilization
+        ret = enableVideoStabilization(mVstabEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
+            return ret;
+            }
+        }
+    else
+        {
+        mVnfEnabled = false;
+        ret = enableVideoNoiseFilter(mVnfEnabled);
+        if ( NO_ERROR != ret)
+            {
+            CAMHAL_LOGEB("Error configuring VNF %x", ret);
+            return ret;
+            }
+        mVstabEnabled = false;
         ///Enable/Disable Video Stabilization
         ret = enableVideoStabilization(mVstabEnabled);
         if ( NO_ERROR != ret)
@@ -2272,11 +2696,8 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
         return ret;
         }
 
-    if ( 0 < mExposureBracketingValidEntries )
-        {
-        ret = setExposureBracketing( mExposureBracketingValues,
-                                                   mExposureBracketingValidEntries, mBurstFrames);
-        }
+    ret = setExposureBracketing( mExposureBracketingValues,
+                                               mExposureBracketingValidEntries, mBurstFrames);
     if ( ret != NO_ERROR )
         {
         CAMHAL_LOGEB("setExposureBracketing() failed %d", ret);
@@ -2326,6 +2747,15 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     CAMHAL_LOGDA("Waiting for port enable");
     camSem.Wait();
     CAMHAL_LOGDA("Port enabled");
+
+    if ( NO_ERROR == ret )
+        {
+        ret = setupEXIF();
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("Error configuring EXIF Buffer %x", ret);
+            }
+        }
 
     mCapturedFrames = mBurstFrames;
 
@@ -2535,7 +2965,8 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
             if( mPending3Asettings )
                 apply3Asettings(mParameters3A);
 
-            ret = startImageCapture();
+            msg.command = CommandHandler::CAMERA_START_IMAGE_CAPTURE;
+            mCommandHandler->put(&msg);
             break;
             }
         case CameraAdapter::CAMERA_STOP_IMAGE_CAPTURE:
@@ -2580,9 +3011,8 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
                 }
 
 #endif
-
-            ret = doAutoFocus();
-
+            msg.command = CommandHandler::CAMERA_PERFORM_AUTOFOCUS;
+            mCommandHandler->put(&msg);
             break;
 
         default:
@@ -2776,7 +3206,7 @@ status_t OMXCameraAdapter::stopPreview()
         goto EXIT;
         }
 
-    ret = OMX_SendCommand (mCameraAdapterParameters.mHandleComp,
+    eError = OMX_SendCommand (mCameraAdapterParameters.mHandleComp,
                                 OMX_CommandStateSet, OMX_StateIdle, NULL);
     if(eError!=OMX_ErrorNone)
         {
@@ -3271,23 +3701,20 @@ status_t OMXCameraAdapter::setExposureBracketing(int *evValues, size_t evCount, 
         ret = -EINVAL;
         }
 
-    if ( 1 > evCount )
-        {
-        CAMHAL_LOGEB("Exposure compensation values count set to %d", evCount);
-        ret = -EINVAL;
-        }
-
-    if ( 1 > frameCount )
-        {
-        ret = -EINVAL;
-        }
-
     if ( NO_ERROR == ret )
         {
         OMX_INIT_STRUCT_PTR (&expCapMode, OMX_CONFIG_CAPTUREMODETYPE);
         expCapMode.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
-        expCapMode.bFrameLimited = OMX_TRUE;
-        expCapMode.nFrameLimit = frameCount;
+
+        if ( 0 == evCount )
+            {
+            expCapMode.bFrameLimited = OMX_FALSE;
+            }
+        else
+            {
+            expCapMode.bFrameLimited = OMX_TRUE;
+            expCapMode.nFrameLimit = frameCount;
+            }
 
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCaptureMode, &expCapMode);
         if ( OMX_ErrorNone != eError )
@@ -3304,9 +3731,17 @@ status_t OMXCameraAdapter::setExposureBracketing(int *evValues, size_t evCount, 
         {
         OMX_INIT_STRUCT_PTR (&extExpCapMode, OMX_CONFIG_EXTCAPTUREMODETYPE);
         extExpCapMode.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
-        extExpCapMode.bEnableBracketing = OMX_TRUE;
-        extExpCapMode.tBracketConfigType.eBracketMode = OMX_BracketExposureRelativeInEV;
-        extExpCapMode.tBracketConfigType.nNbrBracketingValues = evCount;
+
+        if ( 0 == evCount )
+            {
+            extExpCapMode.bEnableBracketing = OMX_FALSE;
+            }
+        else
+            {
+            extExpCapMode.bEnableBracketing = OMX_TRUE;
+            extExpCapMode.tBracketConfigType.eBracketMode = OMX_BracketExposureRelativeInEV;
+            extExpCapMode.tBracketConfigType.nNbrBracketingValues = evCount;
+            }
 
         for ( unsigned int i = 0 ; i < evCount ; i++ )
             {
@@ -3640,7 +4075,7 @@ OMX_ERRORTYPE OMXCameraAdapter::setScene(Gen3A_settings& Gen3A)
     return eError;
 }
 
-status_t OMXCameraAdapter::setFlashMode(Gen3A_settings& Gen3A)
+OMX_ERRORTYPE OMXCameraAdapter::setFlashMode(Gen3A_settings& Gen3A)
 {
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
@@ -3648,9 +4083,9 @@ status_t OMXCameraAdapter::setFlashMode(Gen3A_settings& Gen3A)
 
     LOG_FUNCTION_NAME
 
-    if ( OMX_StateLoaded != mComponentState )
+    if ( OMX_StateInvalid == mComponentState )
         {
-        CAMHAL_LOGEA("OMX component is not in loaded state");
+        CAMHAL_LOGEA("OMX component is in invalid state");
         ret = -EINVAL;
         }
 
@@ -3661,7 +4096,7 @@ status_t OMXCameraAdapter::setFlashMode(Gen3A_settings& Gen3A)
         flash.eFlashControl = ( OMX_IMAGE_FLASHCONTROLTYPE ) Gen3A.FlashMode;
 
         CAMHAL_LOGEB("Configuring flash mode 0x%x", flash.eFlashControl);
-        eError =  OMX_SetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE) OMX_IndexParamFlashControl, &flash);
+        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE) OMX_IndexConfigFlashControl, &flash);
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEB("Error while configuring flash mode 0x%x", eError);
@@ -3674,7 +4109,7 @@ status_t OMXCameraAdapter::setFlashMode(Gen3A_settings& Gen3A)
 
     LOG_FUNCTION_NAME_EXIT
 
-    return ret;
+    return eError;
 }
 
 
@@ -3701,8 +4136,7 @@ status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
         eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonRotate, &rotation);
         if ( OMX_ErrorNone != eError )
             {
-            CAMHAL_LOGEA("Error while configuring rotation");
-            ret = -1;
+            CAMHAL_LOGEB("Error while configuring rotation 0x%x", eError);
             }
         }
 
@@ -3850,6 +4284,105 @@ status_t OMXCameraAdapter::setNSF(OMXCameraAdapter::IPPMode mode)
     return ret;
 }
 
+int OMXCameraAdapter::getRevision()
+{
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return mCompRevision.nVersion;
+}
+
+status_t OMXCameraAdapter::printComponentVersion(OMX_HANDLETYPE handle)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_VERSIONTYPE compVersion;
+    char compName[OMX_MAX_STRINGNAME_SIZE];
+    char *currentUUID = NULL;
+    size_t offset = 0;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == handle )
+        {
+        CAMHAL_LOGEB("Invalid OMX Handle =0x%x",  ( unsigned int ) handle);
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        eError = OMX_GetComponentVersion(handle,
+                                      compName,
+                                      &compVersion,
+                                      &mCompRevision,
+                                      &mCompUUID
+                                    );
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("OMX_GetComponentVersion returned 0x%x", eError);
+            ret = -1;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        CAMHAL_LOGDB("OMX Component name: [%s]", compName);
+        CAMHAL_LOGDB("OMX Component version: [%u]", ( unsigned int ) compVersion.nVersion);
+        CAMHAL_LOGDB("Spec version: [%u]", ( unsigned int ) mCompRevision.nVersion);
+        CAMHAL_LOGDB("Git Commit ID: [%s]", mCompUUID);
+        currentUUID = ( char * ) mCompUUID;
+        }
+
+    if ( NULL != currentUUID )
+        {
+        offset = strlen( ( const char * ) mCompUUID) + 1;
+        if ( offset < OMX_MAX_STRINGNAME_SIZE )
+            {
+            currentUUID += offset;
+            CAMHAL_LOGDB("Git Branch: [%s]", currentUUID);
+            }
+        else
+            {
+            ret = -1;
+            }
+    }
+
+    if ( NO_ERROR == ret )
+        {
+        offset += strlen( ( const char * ) currentUUID) + 1;
+
+        if ( offset < OMX_MAX_STRINGNAME_SIZE )
+            {
+            currentUUID += offset;
+            CAMHAL_LOGDB("Build date and time: [%s]", currentUUID);
+            }
+        else
+            {
+            ret = -1;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        offset += strlen( ( const char * ) currentUUID) + 1;
+
+        if ( offset < OMX_MAX_STRINGNAME_SIZE )
+            {
+            currentUUID += offset;
+            CAMHAL_LOGDB("Build description: [%s]", currentUUID);
+            }
+        else
+            {
+            ret = -1;
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::setGBCE(OMXCameraAdapter::BrightnessMode mode)
 {
     status_t ret = NO_ERROR;
@@ -3866,7 +4399,6 @@ status_t OMXCameraAdapter::setGBCE(OMXCameraAdapter::BrightnessMode mode)
 
     if ( NO_ERROR == ret )
         {
-
         OMX_INIT_STRUCT_PTR (&bControl,
                                                OMX_TI_CONFIG_LOCAL_AND_GLOBAL_BRIGHTNESSCONTRASTTYPE);
 
@@ -3898,11 +4430,10 @@ status_t OMXCameraAdapter::setGBCE(OMXCameraAdapter::BrightnessMode mode)
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEB("Error while setting GBCE 0x%x", eError);
-            ret = -1;
             }
         else
             {
-            CAMHAL_LOGDA("GBCE configured successfully");
+            CAMHAL_LOGDB("GBCE configured successfully 0x%x", mode);
             }
         }
 
@@ -3958,7 +4489,6 @@ status_t OMXCameraAdapter::setGLBCE(OMXCameraAdapter::BrightnessMode mode)
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEB("Error while configure GLBCE 0x%x", eError);
-            ret = -1;
             }
         else
             {
@@ -3976,9 +4506,12 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_CONFIG_CAMOPERATINGMODETYPE camMode;
-
+    OMX_CONFIG_BOOLEANTYPE bCAC;
 
     LOG_FUNCTION_NAME
+
+    OMX_INIT_STRUCT_PTR (&bCAC, OMX_CONFIG_BOOLEANTYPE);
+    bCAC.bEnabled = OMX_FALSE;
 
     if ( NO_ERROR == ret )
         {
@@ -3998,6 +4531,7 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             {
             CAMHAL_LOGDA("Camera mode: HIGH QUALITY");
             camMode.eCamOperatingMode = OMX_CaptureImageProfileBase;
+            bCAC.bEnabled = OMX_TRUE;
             }
         else if( OMXCameraAdapter::VIDEO_MODE == mode )
             {
@@ -4021,6 +4555,22 @@ status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
             else
                 {
                 CAMHAL_LOGDA("Camera mode configured successfully");
+                }
+            }
+
+        if(ret != -1)
+            {
+            //Configure CAC
+            eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp,
+                                    ( OMX_INDEXTYPE ) OMX_IndexConfigChromaticAberrationCorrection, &bCAC);
+            if ( OMX_ErrorNone != eError )
+                {
+                CAMHAL_LOGEB("Error while configuring CAC 0x%x", eError);
+                ret = -1;
+                }
+            else
+                {
+                CAMHAL_LOGDA("CAC configured successfully");
                 }
             }
         }
@@ -4212,7 +4762,7 @@ status_t OMXCameraAdapter::doAutoFocus()
             setTouchFocus(mTouchFocusPosX, mTouchFocusPosY, mPreviewData->mWidth, mPreviewData->mHeight);
 
             //Do normal focus afterwards
-            focusControl.eFocusControl = OMX_IMAGE_FocusControlAutoLock;
+            focusControl.eFocusControl = ( OMX_IMAGE_FOCUSCONTROLTYPE ) OMX_IMAGE_FocusControlExtended;
 
             }
         else if ( FOCUS_FACE_PRIORITY == focusControl.eFocusControl )
@@ -4225,7 +4775,7 @@ status_t OMXCameraAdapter::doAutoFocus()
             setAlgoPriority(FACE_PRIORITY, FOCUS_ALGO, true);
 
             //Do normal focus afterwards
-            focusControl.eFocusControl = OMX_IMAGE_FocusControlAutoLock;
+            focusControl.eFocusControl = ( OMX_IMAGE_FOCUSCONTROLTYPE ) OMX_IMAGE_FocusControlExtended;
 
             }
         else
@@ -4835,12 +5385,7 @@ status_t OMXCameraAdapter::startImageCapture()
             mBracketingEnabled = false;
             mCapturedFrames = mBracketingRange;
             ret = sendBracketFrames();
-            /*
-            if ( NULL != mBracketingBuffersQueued )
-                {
-                  delete mBracketingBuffersQueued;
-                }
-            */
+            goto EXIT;
             }
         }
 
@@ -4938,7 +5483,7 @@ status_t OMXCameraAdapter::startImageCapture()
         ret = -1;
 
         }
-
+    LOG_FUNCTION_NAME_EXIT
     return ret;
 }
 
@@ -5100,7 +5645,7 @@ status_t OMXCameraAdapter::startVideoCapture()
 
 status_t OMXCameraAdapter::stopVideoCapture()
 {
-    Mutex::Autolock lock(mVideoBufferLock);
+
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
     OMXCameraPortParameters *port = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];;
@@ -5113,40 +5658,8 @@ status_t OMXCameraAdapter::stopVideoCapture()
 
     for(unsigned int i=0;i<mVideoBuffersAvailable.size();i++)
         {
-        int refCount = 0;
         void *frameBuf = (void*) mVideoBuffersAvailable.keyAt(i);
-
-        refCount = mVideoBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
-        if ( 0 >= refCount )
-            {
-            CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", (uint32_t)refCount, (uint32_t)frameBuf);
-            return BAD_VALUE;
-            }
-
-        refCount--;
-        mVideoBuffersAvailable.replaceValueFor(  ( unsigned int ) frameBuf, refCount);
-
-        //Query preview subscribers for this buffer
-        refCount += mPreviewBuffersAvailable.valueFor( ( unsigned int ) frameBuf);
-
-        //check if someone is holding this buffer
-        if ( 0 == refCount )
-            {
-            for ( int i = 0 ; i < port->mNumBufs ; i++)
-                {
-
-                if ( port->mBufferHeader[i]->pBuffer == frameBuf )
-                    {
-                    CAMHAL_LOGDB("Sending Frame 0x%x back to Ducati for filling", (unsigned int) frameBuf);
-                    eError = OMX_FillThisBuffer(mCameraAdapterParameters.mHandleComp, port->mBufferHeader[i]);
-                    if ( eError != OMX_ErrorNone )
-                        {
-                        CAMHAL_LOGEB("OMX_FillThisBuffer %d", eError);
-                        return BAD_VALUE;
-                        }
-                    }
-                }
-              }
+        returnFrame(frameBuf, CameraFrame::VIDEO_FRAME_SYNC);
         }
 
     mVideoBuffersAvailable.clear();
@@ -5477,7 +5990,14 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETY
         case OMX_EventError:
             CAMHAL_LOGDB("OMX interface failed to execute OMX command %d", (int)nData1);
             CAMHAL_LOGDA("See OMX_INDEXTYPE for reference");
-        break;
+            if ( NULL != mErrorNotifier && ( ( OMX_U32 ) OMX_ErrorHardware == nData1 ) && mComponentState != OMX_StateInvalid)
+              {
+                LOGD("***Got MMU FAULT***\n");
+                mComponentState = OMX_StateInvalid;
+                ///Report Error to App
+                mErrorNotifier->errorNotify((int)nData1);
+              }
+            break;
 
         case OMX_EventMark:
         break;
@@ -5523,58 +6043,35 @@ OMX_ERRORTYPE OMXCameraAdapter::SignalEvent(OMX_IN OMX_HANDLETYPE hComponent,
                                           OMX_IN OMX_U32 nData2,
                                           OMX_IN OMX_PTR pEventData)
 {
-    int64_t startId, nextId;
     Mutex::Autolock lock(mEventLock);
+    Message *msg;
 
     LOG_FUNCTION_NAME
 
     if ( !mEventSignalQ.isEmpty() )
         {
         CAMHAL_LOGDA("Event queue not empty");
-        Message msg;
-        mEventSignalQ.get(&msg);
 
-        startId = msg.id;
-
-        //Iterate through the FIFO until we either find our event
-        //or reach the end of the queue
-        do
+        for ( unsigned int i = 0 ; i < mEventSignalQ.size() ; i++ )
             {
-
-            CAMHAL_LOGDB("msg.id = %d msg.command = %d, msg.arg1 = %d, msg.arg2 = %d, msg.arg3 = %d", ( int ) msg.id,
-                                                                               ( int ) msg.command,
-                                                                               ( int ) msg.arg1,
-                                                                               ( int ) msg.arg2,
-                                                                               ( int ) msg.arg3 );
-
-            if( ( msg.command != 0 || msg.command == ( unsigned int ) ( eEvent ) )
-                && ( !msg.arg1 || ( OMX_U32 ) msg.arg1 == nData1 )
-                && ( !msg.arg2 || ( OMX_U32 ) msg.arg2 == nData2 )
-                && msg.arg3)
+            msg = mEventSignalQ.itemAt(i);
+            if ( NULL != msg )
                 {
-                Semaphore *sem  = (Semaphore*) msg.arg3;
-                CAMHAL_LOGDA("Event matched, signalling sem");
-                //Signal the semaphore provided
-                sem->Signal();
-                break;
+                if( ( msg->command != 0 || msg->command == ( unsigned int ) ( eEvent ) )
+                    && ( !msg->arg1 || ( OMX_U32 ) msg->arg1 == nData1 )
+                    && ( !msg->arg2 || ( OMX_U32 ) msg->arg2 == nData2 )
+                    && msg->arg3)
+                    {
+                    Semaphore *sem  = (Semaphore*) msg->arg3;
+                    CAMHAL_LOGDA("Event matched, signalling sem");
+                    mEventSignalQ.removeAt(i);
+                    //Signal the semaphore provided
+                    sem->Signal();
+                    free(msg);
+                    break;
+                    }
                 }
-            else if ( mEventSignalQ.isEmpty() )
-                {
-                //Put the message back in the queue
-                CAMHAL_LOGDA("Event didnt match, putting the message back in Q");
-                mEventSignalQ.put(&msg);
-                break;
-                }
-
-            CAMHAL_LOGDA("Event didnt match, putting the message back in Q");
-            mEventSignalQ.put(&msg);
-
-            //Get the next one
-            mEventSignalQ.get(&msg);
-            nextId = msg.id;
-
-            } while ( startId != nextId );
-
+            }
         }
     else
         {
@@ -5593,23 +6090,31 @@ status_t OMXCameraAdapter::RegisterForEvent(OMX_IN OMX_HANDLETYPE hComponent,
                                           OMX_IN Semaphore &semaphore,
                                           OMX_IN OMX_U32 timeout)
 {
-    static int64_t id = 0;
+    status_t ret = NO_ERROR;
+    ssize_t res;
+    Mutex::Autolock lock(mEventLock);
 
     LOG_FUNCTION_NAME
 
-    Message msg;
-    msg.command = (unsigned int)eEvent;
-    msg.arg1 = (void*)nData1;
-    msg.arg2 = (void*)nData2;
-    msg.arg3 = (void*)&semaphore;
-    msg.arg4 = (void*)hComponent;
-    msg.id = id;
-
-    id++;
+    Message * msg = ( struct Message * ) malloc(sizeof(struct Message));
+    if ( NULL != msg )
+        {
+        msg->command = ( unsigned int ) eEvent;
+        msg->arg1 = ( void * ) nData1;
+        msg->arg2 = ( void * ) nData2;
+        msg->arg3 = ( void * ) &semaphore;
+        msg->arg4 =  ( void * ) hComponent;
+        res = mEventSignalQ.add(msg);
+        if ( NO_MEMORY == res )
+            {
+            CAMHAL_LOGEA("No ressources for inserting OMX events");
+            ret = -ENOMEM;
+            }
+        }
 
     LOG_FUNCTION_NAME_EXIT
 
-    return mEventSignalQ.put(&msg);
+    return ret;
 }
 
 /*========================================================*/
@@ -5700,6 +6205,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
     pPortParam = &(mCameraAdapterParameters.mCameraPortParams[pBuffHeader->nOutputPortIndex]);
     if (pBuffHeader->nOutputPortIndex == OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW)
         {
+
         recalculateFPS();
 
             {
@@ -5707,7 +6213,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             if ( mFaceDetectionRunning )
                 {
                 detectFaces(pBuffHeader);
-                CAMHAL_LOGDB("Faces detected: %s", mFaceDectionResult);
+                CAMHAL_LOGVB("Faces detected: %s", mFaceDectionResult);
                 }
             }
 
@@ -6242,6 +6748,12 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                     break;
                     }
 
+                case SetFlash:
+                    {
+                    ret = setFlashMode(mParameters3A);
+                    break;
+                    }
+
                 default:
                     CAMHAL_LOGEB("this setting (0x%x) is still not supported in CameraAdapter ", currSett);
                     break;
@@ -6335,6 +6847,43 @@ status_t OMXCameraAdapter::getAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE *pA
     return ret;
 }
 
+bool OMXCameraAdapter::CommandHandler::Handler()
+{
+    Message msg;
+    volatile int forever = 1;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    while(forever){
+        CAMHAL_LOGDA("waiting for messsage...");
+        MessageQueue::waitForMsg(&mCommandMsgQ, NULL, NULL, -1);
+        mCommandMsgQ.get(&msg);
+        CAMHAL_LOGDB("msg.command = %d", msg.command);
+        switch ( msg.command ) {
+            case CommandHandler::CAMERA_START_IMAGE_CAPTURE:
+            {
+                ret = mCameraAdapter->startImageCapture();
+                break;
+            }
+            case CommandHandler::CAMERA_PERFORM_AUTOFOCUS:
+            {
+                ret = mCameraAdapter->doAutoFocus();
+                break;
+            }
+            case CommandHandler::COMMAND_EXIT:
+            {
+                CAMHAL_LOGEA("Exiting command handler");
+                forever = 0;
+                break;
+            }
+        }
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+    return false;
+}
+
 OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
 {
     LOG_FUNCTION_NAME
@@ -6364,6 +6913,16 @@ OMXCameraAdapter::~OMXCameraAdapter()
         {
         OMX_Deinit();
         }
+
+    //Exit and free ref to command handling thread
+    if ( NULL != mCommandHandler.get() )
+    {
+        Message msg;
+        msg.command = CommandHandler::COMMAND_EXIT;
+        mCommandHandler->put(&msg);
+        mCommandHandler->requestExitAndWait();
+        mCommandHandler.clear();
+    }
 
     LOG_FUNCTION_NAME_EXIT
 }

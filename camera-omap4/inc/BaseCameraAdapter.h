@@ -48,7 +48,10 @@ public:
     virtual void getParameters(CameraParameters& params)  = 0;
 
     //API to get the caps
-    virtual status_t getCaps() = 0;
+    virtual status_t getCaps(CameraParameters &params) = 0;
+
+    //Used together with capabilities
+    virtual int getRevision() = 0;
 
     //API to send a command to the camera
     virtual status_t sendCommand(int operation, int value1=0, int value2=0, int value3=0) = 0;
