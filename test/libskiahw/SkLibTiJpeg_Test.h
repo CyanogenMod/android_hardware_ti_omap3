@@ -578,155 +578,155 @@ const struct JPGD_TEST_OUTPUT_FILE_LIST {
 "0",
 },
 //Sub-region decoding tests
-{ //L_SKIA_JPGD_0081
+{ // L_SKIA_JPGD_0081:
 "I_000066_SVGA_SR_LT_256x256_rgb16.raw",
-"0",
+"7dcfc9c092414e136b300b336743091b",
 "3bc350a02438afd1affb0e4d403118a7",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0082
+{ // L_SKIA_JPGD_0082:
 "I_000066_SVGA_SR_RT_256x256_rgb16.raw",
-"0",
+"6c65fb2ef76c9e1d689eac63a99033e0",
 "9aec56961b08f857f7c133fbae58ae6a",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0083
+{ // L_SKIA_JPGD_0083:
 "I_000066_SVGA_SR_LB_256x256_rgb16.raw",
-"0",
+"a83e083a53569abfe9765dd1496fb969",
 "1492db6dab4ed6cff2276ab9f41d5deb",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0084
+{ // L_SKIA_JPGD_0084:
 "I_000066_SVGA_SR_RB_256x256_rgb16.raw",
-"0",
+"d25a66ed606b8619a684932db1373a8f",
 "330e34b246153b4fc8cfdcf3b8951f28",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0085
+{ // L_SKIA_JPGD_0085:
 "I_000066_SVGA_SR_M_256x256_rgb16.raw",
-"0",
+"9023e5e7e2e5d2964680d12aceea139f",
 "a216e47d2428f8ee457787a569f3b5ad",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0086
+{ // L_SKIA_JPGD_0086:
 "I_000272_2MP_SR_LT_256x256_seq_rgb16.raw",
-"0",
+"49061b49814951b2049de63523e2f34f",
 "342da694feb99e82a3e79802db36696f",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0087
+{ // L_SKIA_JPGD_0087:
 "I_000272_2MP_SR_RT_256x256_seq_rgb16.raw",
-"0",
+"b8b4e11a605e0ee474ceb4f0ff5619c1",
 "54ef3d1b7b1a5a12bcfd0f37f9680b18",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0088
+{ // L_SKIA_JPGD_0088:
 "I_000272_2MP_SR_LB_256x256_seq_rgb16.raw",
-"0",
+"c2ad832354b0a7754d509b7873b8c454",
 "8666b904945c90a287c246dc826e87e3",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0089
+{ // L_SKIA_JPGD_0089:
 "I_000272_2MP_SR_RB_256x256_seq_rgb16.raw",
-"0",
+"66c341461c71b28897fa0133f6b2461c",
 "d6aef82f8917fc0d867dcec025686ac6",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0090
+{ // L_SKIA_JPGD_0090:
 "I_000272_2MP_SR_M_256x256_seq_rgb16.raw",
-"0",
+"00b56f7eb6e94d1ba7de45ac32ab66b4",
 "4b3a59288d7d666bda9d89864cf8ae28",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0091
+{ // L_SKIA_JPGD_0091:
 "I_000259_5MP_SR_LT_512x512_rgb16.raw",
-"0",
+"2963868e8bf73521642756a0de72bd3a",
 "d976cbf524391a306ee9a9b0a3cd7478",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0092
+{ // L_SKIA_JPGD_0092:
 "I_000259_5MP_SR_RT_512x512_rgb16.raw",
-"0",
+"2e2cd7f21e906365cd4b740b7bc35248",
 "4b927aaec8a6a2057bf05fff998ffe56",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0093
+{ // L_SKIA_JPGD_0093:
 "I_000259_5MP_SR_LB_512x512_rgb16.raw",
-"0",
+"191ce3f65ce5e7f862f66e70ce658ee9",
 "41d4e79f2e635cefaaf546f48ce11a41",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0094
+{ // L_SKIA_JPGD_0094:
 "I_000259_5MP_SR_RB_512x512_rgb16.raw",
-"0",
+"d75cab20b69ba4da04e09174152be997",
 "d61c0bdf7fdf94861ed6ab34ceaae7f7",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0095
+{ // L_SKIA_JPGD_0095:
 "I_000259_5MP_SR_M_512x512_rgb16.raw",
-"0",
+"77a2b5b0aea34e8c1d1ceff4da86e1f9",
 "cea7c673adeab41fae6398e2aadfb863",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0096
+{ // L_SKIA_JPGD_0096:
 "I_000261_8MP_SR_LT_512x512_rgb16.raw",
-"0",
+"97bd0f40d8ef9c34b076d71a12389312",
 "042cee6a54ff9980dc689fa253c72cea",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0097
+{ // L_SKIA_JPGD_0097:
 "I_000261_8MP_SR_RT_512x512_rgb16.raw",
-"0",
+"43b37f1b5311f098be6f85ce481693cf",
 "b7420037b1d8b336c3013cdd8ece77f3",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0098
+{ // L_SKIA_JPGD_0098:
 "I_000261_8MP_SR_LB_512x512_rgb16.raw",
-"0",
+"b9289a7ac0e29c04e856394dc2041efb",
 "a019c232f57c0eca231d7116c36a7584",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0099
+{ // L_SKIA_JPGD_0099:
 "I_000261_8MP_SR_RB_512x512_rgb16.raw",
-"0",
+"c3fc111b95b32a862c7907e5c6c74f88",
 "5d5107a7defeb55a34d5d41f05243887",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0100
+{ // L_SKIA_JPGD_0100:
 "I_000261_8MP_SR_M_512x512_rgb16.raw",
-"0",
+"bf2c6fe8f630596e958ebf312205cd82",
 "437a4c5026a6bc3542718832ade49606",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0101
+{ // L_SKIA_JPGD_0101:
 "I_000265_12MP_SR_LT_1024x1024_rgb16.raw",
-"0",
+"75a077bd7f5e69bc011f3a930131daf4",
 "be67c6c78e90fbc787e2cac77ebbe25b",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0102
+{ // L_SKIA_JPGD_0102:
 "I_000265_12MP_SR_RT_1024x1024_rgb16.raw",
-"0",
+"f846f517ef440fd96e86c82ad93e89bb",
 "b00498ed37e53bde123097864d2ef59a",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0103
+{ // L_SKIA_JPGD_0103:
 "I_000265_12MP_SR_LB_1024x1024_rgb16.raw",
-"0",
+"afc104cdc2b376c61b119c92fd495f96",
 "078e996e3f2c7fb6928f4bba35135a65",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0104
+{ // L_SKIA_JPGD_0104:
 "I_000265_12MP_SR_RB_1024x1024_rgb16.raw",
-"0",
+"9c1c81646f849932bff7ed4b09eb69dd",
 "e04edc98f3107cf620c9375bbdf92431",
-"0",
+"0"
 },
-{ //L_SKIA_JPGD_0105
+{ // L_SKIA_JPGD_0105:
 "I_000265_12MP_SR_M_1024x1024_rgb16.raw",
-"0",
+"1a810c22411e8bf4df937b59fb4c82e9",
 "9fa62caca8b65d3d4c288bdf5c027bc9",
-"0",
+"0"
 },
 { //L_SKIA_JPGD_0106
 "I_000282_QVGA_SR_LT_128x128_prog_rgb16.raw",
