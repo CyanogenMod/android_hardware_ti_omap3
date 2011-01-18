@@ -9,9 +9,11 @@ include $(CLEAR_VARS)
 
 ifeq ($(PLATFORM_VERSION),1.6)
     BTIPS_SDK_VER=1.6
-else
-    BTIPS_SDK_VER=2.0
-endif
+endif	
+ifeq ($(PLATFORM_VERSION),2.2)
+    BTIPS_SDK_VER=2.2
+endif	
+BTIPS_SDK_VER?=2.0
 
 LOCAL_CFLAGS+= -DANDROID -W -Wall 
 

@@ -254,16 +254,17 @@ McpBtsSpStatus _MCP_BTS_SP_VerifyMagicNumber(McpBtsSpContext *context)
 /*
     The main state machine of the script processor
 */
-McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             *context,
-                                                    McpBtsSpProcessingEvent processingEvent,
-                                                    void                    *eventData)
+McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(McpBtsSpContext *context,
+                                                 McpBtsSpProcessingEvent processingEvent,
+                                                 void *eventData)
 {
     McpBtsSpStatus  spStatus = MCP_BTS_SP_STATUS_SUCCESS;
     McpBool keepProcessing;
 
     MCP_UNUSED_PARAMETER(eventData);
     
-    MCP_LOG_DEBUG(("_MCP_BTS_SP_ProcessScriptCommands: Processing Event: %d", processingEvent));
+    MCP_LOG_DEBUG(("_MCP_BTS_SP_ProcessScriptCommands: Processing Event: %d",
+                   processingEvent));
 
     keepProcessing = MCP_TRUE;
     
@@ -271,7 +272,8 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             
     {
         keepProcessing = MCP_FALSE;
 
-        MCP_LOG_DEBUG(("_MCP_BTS_SP_ProcessScriptCommands: State = %d", context->processingState));
+        MCP_LOG_DEBUG(("_MCP_BTS_SP_ProcessScriptCommands: State = %d",
+                       context->processingState));
         
         switch (context->processingState)
         {
@@ -303,7 +305,12 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessScriptCommands(   McpBtsSpContext             
                     spStatus = _MCP_BTS_SP_ProcessNextScriptAction(context, &moreActions);
                 } while ((spStatus == MCP_BTS_SP_STATUS_SUCCESS) && (moreActions == MCP_TRUE));
 
-                /* [ToDo] - Handle the case of the last actio in the script being a "Send Command" (illegal) */
+                MCP_LOG_DEBUG(("_MCP_BTS_SP_ProcessScriptCommands: State = %d, spStatus %d, moreActions %d",
+                               context->processingState,
+                               spStatus,
+                               moreActions));
+                
+                /* [ToDo] - Handle the case of the last action in the script being a "Send Command" (illegal) */
                 if (spStatus == MCP_BTS_SP_STATUS_PENDING)
                 {
                     /* The first time we wait for a command complete event we will record that fact */
@@ -443,6 +450,8 @@ McpBtsSpStatus _MCP_BTS_SP_ProcessNextScriptAction(McpBtsSpContext *context, Mcp
             McpU8   hciParmLen = context->scriptActionData[3];
             McpU16  hciOpcode;
             McpU8   *hciParms = &context->scriptActionData[4];
+            MCP_LOG_DEBUG(("_MCP_BTS_SP_ProcessNextScriptAction: hciParmLen %d", 
+                           hciParmLen));
             /*[ToDo Zvi] We should use utils general function here */
             hciOpcode = (McpU16)( ((McpU16) *(&context->scriptActionData[1]+1) << 8) | ((McpU16) *&context->scriptActionData[1]) ); 
                         
@@ -535,6 +544,9 @@ McpBtsSpStatus _MCP_BTS_SP_GetNextAction(   McpBtsSpContext             *context
 
     /* Read the action header */
     spStatus = _MCP_BTS_SP_ReadActionHeader(context, &actionHeader);
+    MCP_LOG_DEBUG(("_MCP_BTS_SP_ReadActionHeader returned: actionType %d, actionDataLen %d",
+                   actionHeader.actionType,
+                   actionHeader.actionDataLen));
 
     if (spStatus != MCP_BTS_SP_STATUS_SUCCESS)
     {
@@ -548,7 +560,7 @@ McpBtsSpStatus _MCP_BTS_SP_GetNextAction(   McpBtsSpContext             *context
 
         [ToDo] How is the binary data represented? Do we need to handle endianity?
     */
-      *actionType = actionHeader.actionType;
+    *actionType = actionHeader.actionType;
     *actionDataActualLen = actionHeader.actionDataLen;
 
     /* Verify that actual action data len doesn't exceed the action data buffer max size */
@@ -563,6 +575,10 @@ McpBtsSpStatus _MCP_BTS_SP_GetNextAction(   McpBtsSpContext             *context
 
     spStatus = _MCP_BTS_SP_ReadScript(context, actionData, *actionDataActualLen);
 
+    MCP_LOG_DEBUG(("_MCP_BTS_SP_ReadScript returned: actionDataActualLen %d, actionData: 0x%02x",
+                   *actionDataActualLen,
+                   actionData[0]));
+    
     if (spStatus != MCP_BTS_SP_STATUS_SUCCESS)
     {
         MCP_LOG_FATAL(("_MCP_BTS_SP_GetNextAction: Failed reading action Data (%s)",
@@ -618,6 +634,8 @@ void MCP_BTS_SP_HciCmdCompleted(    McpBtsSpContext         *context,
 {
     MCP_UNUSED_PARAMETER(eventParms);
     MCP_UNUSED_PARAMETER(eventParmsLen);
+    
+    MCP_LOG_DEBUG(("MCP_BTS_SP_HciCmdCompleted"));
     
 /* 
     [ToDo] The eventParms currentl doens't include the HCI opcode, event status, etc. Only the HCI return parms 

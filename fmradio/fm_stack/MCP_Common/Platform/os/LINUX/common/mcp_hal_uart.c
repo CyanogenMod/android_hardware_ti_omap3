@@ -568,7 +568,7 @@ static EMcpfRes uartPortDestroy (THalUartObj  *pHalUart)
     return RES_OK;
 }
 
-#define MCPHAL_OS_SERIAL_PORT_NAME                                   "/dev/ttyS1"
+#define MCPHAL_OS_SERIAL_PORT_NAME                                   "/dev/ttyO1"
 
 /**
  * \fn     uartPortInit
@@ -711,6 +711,11 @@ static void *uartThreadFun (void * pParam)
         FD_SET (pHalUart->hOsPort,   &readFds);
         FD_SET (pHalUart->pipeFd[0], &readFds);
 
+#ifdef GPSC_DRV_DEBUG
+		MCPF_REPORT_INFORMATION(pHalUart->hMcpf, HAL_UART_MODULE_LOG, ("%s: waiting on select...\n", __FUNCTION__));
+#endif
+
+
 		MCPF_REPORT_DEBUG_CONTROL(pHalUart->hMcpf, HAL_UART_MODULE_LOG, ("%s: waiting on select...\n", __FUNCTION__));
 
 		iRetCode = select (FD_SETSIZE, &readFds, NULL, NULL, NULL);
@@ -719,43 +724,52 @@ static void *uartThreadFun (void * pParam)
 
 		if (iRetCode > 0)
         {
-			/* Determine which file descriptor is ready for read */
-			if (FD_ISSET(pHalUart->hOsPort, &readFds))
-			{
-				McpS32	iReadNum, iBytesRead;
-
-                iRetCode = ioctl (pHalUart->hOsPort, FIONREAD, &pHalUart->iRxAvailNum);
-
-                MCPF_REPORT_DEBUG_CONTROL(pHalUart->hMcpf, HAL_UART_MODULE_LOG, ("%s: ReadReady event,  res=%d avail=%d\n", __FUNCTION__, iRetCode, pHalUart->iRxAvailNum));
-
-				/* read requested number of bytes */
-				iReadNum = MIN(pHalUart->iRxReadNum, pHalUart->iRxAvailNum);
-
-				if (iReadNum > 0)
+				/* Determine which file descriptor is ready for read */
+				if (FD_ISSET(pHalUart->hOsPort, &readFds))
 				{
-					/* Read received bytes from UART device */
-					iBytesRead = read (pHalUart->hOsPort, pHalUart->pInData, iReadNum);
+					McpS32	iReadNum, iBytesRead;
 
-					if (iBytesRead >= 0)
+					iRetCode = ioctl (pHalUart->hOsPort, FIONREAD, &pHalUart->iRxAvailNum);
+
+					/*cmcm check return of ioctl*/
+					if (iRetCode >= 0 )
 					{
-						pHalUart->iRxAvailNum -= iBytesRead;
-                        pHalUart->iRxRepNum = iBytesRead;
+					//MCPF_REPORT_DEBUG_CONTROL(pHalUart->hMcpf, HAL_UART_MODULE_LOG, ("%s: ReadReady event,  res=%d avail=%d\n", __FUNCTION__, iRetCode, pHalUart->iRxAvailNum));
+
+					/* read requested number of bytes */
+					iReadNum = MIN(pHalUart->iRxReadNum, pHalUart->iRxAvailNum);
+
+					if (iReadNum > 0)
+					{
+						/* Read received bytes from UART device */
+						iBytesRead = read (pHalUart->hOsPort, pHalUart->pInData, iReadNum);
+
+						if (iBytesRead >= 0)
+						{
+							pHalUart->iRxAvailNum -= iBytesRead;
+							pHalUart->iRxRepNum = iBytesRead;
+						}
+						else
+						{
+							MCPF_REPORT_ERROR (pHalUart->hMcpf, HAL_UART_MODULE_LOG,
+											   ("%s: Read failed, err=%u\n", __FUNCTION__, errno));
+						}
 					}
 					else
 					{
 						MCPF_REPORT_ERROR (pHalUart->hMcpf, HAL_UART_MODULE_LOG,
-										   ("%s: Read failed, err=%u\n", __FUNCTION__, errno));
+										   ("%s: uexpected num zero\n", __FUNCTION__));
 					}
-				}
-				else
-				{
-					MCPF_REPORT_ERROR (pHalUart->hMcpf, HAL_UART_MODULE_LOG,
-									   ("%s: uexpected num zero\n", __FUNCTION__));
-				}
 
-				tEvent.eEventType = Txn_ReadReadylInd;
-				pHalUart->fEventHandlerCb (pHalUart->hHandleCb, &tEvent);
+					tEvent.eEventType = Txn_ReadReadylInd;
+					pHalUart->fEventHandlerCb (pHalUart->hHandleCb, &tEvent);
+				}
+			else
+			 {
+				MCPF_REPORT_ERROR(pHalUart->hMcpf, HAL_UART_MODULE_LOG, ("uartThreadFun: ioctl error %d", strerror(errno)));
+			 }
 			}
+
 
 			if (FD_ISSET(pHalUart->pipeFd[0], &readFds))
 			{
@@ -801,6 +815,8 @@ static void *uartThreadFun (void * pParam)
 
     /* Termination flag is set. Exit from this context */
     MCPF_REPORT_DEBUG_CONTROL(pHalUart->hMcpf, HAL_UART_MODULE_LOG, ("%s: exit thread\n",__FUNCTION__));
+	MCPF_REPORT_INFORMATION(pHalUart->hMcpf, HAL_UART_MODULE_LOG, ("LPOINT: uartThreadFun EXITED..."));
+
     uartPortDestroy (pHalUart);
 
     signalSem (pHalUart->hMcpf, &pHalUart->tSem);  /* signal semaphore the thread is about to exit */

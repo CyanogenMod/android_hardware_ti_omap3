@@ -614,6 +614,34 @@ McpHalFsStatus MCP_HAL_FS_IsAbsoluteName( const McpUtf8 *fileName, McpBool *isAb
  */
 void     MCP_HAL_FS_ExtractDateAndTime(time_t st_time, McpHalDateAndTime *dateAndTimeStruct);
 
+/*---------------------------------------------------------------------------
+ *            MCP_HAL_FS_fopen
+ *---------------------------------------------------------------------------
+ *
+ *
+ */
+McpFILE MCP_HAL_FS_fopen(McpS8* filename, McpS8* param);
+
+
+/*---------------------------------------------------------------------------
+ *            MCP_HAL_FS_fclose
+ *---------------------------------------------------------------------------
+ *
+ * 
+ *
+ */
+McpBool MCP_HAL_FS_fclose(McpFILE file);
+/*---------------------------------------------------------------------------
+ *            MCP_HAL_FS_fgets
+ *---------------------------------------------------------------------------
+ *
+ * 
+ *
+ */
+McpBool MCP_HAL_FS_fgets(McpS8* str1, McpU16 size, McpFILE file);
+
+
+
 #endif /* __MCP_HAL_FS_H */
 
 

@@ -10,9 +10,11 @@ LOCAL_CFLAGS+= -DANDROID -DMCP_STK_ENABLE -W -Wall
 
 ifeq ($(PLATFORM_VERSION),1.6)
     BTIPS_SDK_VER=1.6
-else
-    BTIPS_SDK_VER=2.0
-endif
+endif	
+ifeq ($(PLATFORM_VERSION),2.2)
+    BTIPS_SDK_VER=2.2
+endif	
+BTIPS_SDK_VER?=2.0
 
 ifeq ($(BTIPS_DEBUG),1)
     LOCAL_CFLAGS+= -g -O0

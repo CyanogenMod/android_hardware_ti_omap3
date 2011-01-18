@@ -8,6 +8,7 @@ include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES:= system/bluetooth/bluez-clean-headers
 
+LOCAL_SHARED_LIBRARIES := libcutils
 
 LOCAL_SRC_FILES:= fm_chrlib.c
 

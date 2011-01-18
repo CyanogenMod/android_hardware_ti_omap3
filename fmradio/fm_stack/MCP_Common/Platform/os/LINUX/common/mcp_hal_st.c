@@ -353,7 +353,6 @@ EMcpfRes HAL_ST_Read (	const handle_t    	hHalSt,
 
 	if (!pHalSt->terminationFlag)
     {
-    		iRetCode = ioctl (pHalSt->hOsPort, FIONREAD, &pHalSt->iRxAvailNum);
 			
 		iReadNum = MIN(uLen, pHalSt->iRxAvailNum);
 		if (iReadNum > 0)
@@ -853,10 +852,8 @@ static void *stThreadFun (void * pParam)
 
         /* initialize file descr. bit sets */
         FD_ZERO (&readFds);
-	if(pHalSt->iRxReadNum > 0)
-	{
 		FD_SET (pHalSt->hOsPort,   &readFds);
-	}
+
         FD_SET (pHalSt->pipeFd[0], &readFds);
 
 		MCPF_REPORT_DEBUG_CONTROL(pHalSt->hMcpf, HAL_ST_MODULE_LOG, ("%s: waiting on select...\n", __FUNCTION__));

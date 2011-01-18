@@ -144,7 +144,7 @@
  * zero will result in ignoring size limitation.
  */
 #define LOG_FILE_MAX_SIZE                                       0
-#define CORE_DUMP_LOCATION                                      "/btips/"
+#define CORE_DUMP_LOCATION                                      "/data/btips/"
 
 #endif /* __MCP_HAL_CONFIG_CONFIG_H */
 

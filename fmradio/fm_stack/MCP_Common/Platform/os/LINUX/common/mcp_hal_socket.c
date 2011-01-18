@@ -28,6 +28,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <errno.h>
 #include "mcpf_services.h"
 #include "mcp_hal_os.h"
 #include "mcp_hal_fs.h"
@@ -241,11 +242,14 @@ void serverSocket_ThreadFunc(void* hSocket)
 	while(bInLoop)
 	{
 		clienSockId = accept(pHalSock->sockId,(struct sockaddr *)&from,&fromlen);
+		MCPF_REPORT_INFORMATION(pHalSock->hMcpf, HAL_SOCKET_MODULE_LOG,
+			("serverSocket_ThreadFunc: accept() for sockId %d, socket descriptor is %d", pHalSock->sockId, clienSockId ));
 
 		if(clienSockId < 0)
 		{
 			MCPF_REPORT_INFORMATION(pHalSock->hMcpf, HAL_SOCKET_MODULE_LOG,
-				("serverSocket_ThreadFunc: accept() returned INVALID_SOCKET!"));
+				("serverSocket_ThreadFunc: accept() returned INVALID_SOCKET! clienSockId is %d", clienSockId ));
+			continue;
 		}
 
 		hClientHandle = (client_handle_t *)mcpf_mem_alloc_from_pool(pHalSock->hMcpf, pHalSock->hClientsPool);
@@ -283,7 +287,7 @@ void clientSocket_ThreadFunc(void* hClientHandle)
 {
 	client_handle_t	*pClientHandle = (client_handle_t *)hClientHandle;
 	hal_socket_t	*pHalSock = (hal_socket_t *)pClientHandle->hHalSock;
-	McpS8		IncData[3000];
+	McpS8		IncData[9000];
 	McpS32		recvLen = 0;
 	McpU32		uMoreBytesToRead;
 	McpBool			bInLoop = MCP_TRUE;
@@ -295,6 +299,10 @@ void clientSocket_ThreadFunc(void* hClientHandle)
 		{
 			recvLen += recv(pClientHandle->clientSockId, &IncData[recvLen],
 				pClientHandle->uNumOfBytesToRead-recvLen, 0);
+
+			MCPF_REPORT_INFORMATION(pHalSock->hMcpf, HAL_SOCKET_MODULE_LOG,
+				("serverSocket_ThreadFunc: recv() is passed the clienSockId of %d", pClientHandle->clientSockId));
+
 		} while ( (recvLen > 0) && (recvLen < pClientHandle->uNumOfBytesToRead) );
 
 		if(recvLen < 0)
@@ -314,7 +322,7 @@ void clientSocket_ThreadFunc(void* hClientHandle)
 			uMoreBytesToRead = pHalSock->onRecvCb(pClientHandle->hCaller, IncData, (McpS16)recvLen);
 
 
-			memset((void*)&IncData, 0, 3000);
+			memset((void*)&IncData, 0, 9000);
 
 			if(uMoreBytesToRead != 0)
 			{
@@ -329,7 +337,7 @@ void clientSocket_ThreadFunc(void* hClientHandle)
 				if(recvLen < 0)
 				{
 					MCPF_REPORT_ERROR(pHalSock->hMcpf, HAL_SOCKET_MODULE_LOG,
-						("clientSocket_ThreadFunc: Error on recv() 2"));
+						("clientSocket_ThreadFunc: Error on recv() 2, Error code returned is %s",strerror(errno) ));
 					break;
 				}
 				else if(recvLen == 0)
@@ -342,7 +350,7 @@ void clientSocket_ThreadFunc(void* hClientHandle)
 				{
 					uMoreBytesToRead = pHalSock->onRecvCb(pClientHandle->hCaller, IncData, (McpS16)recvLen);
 
-					memset((void*)&IncData, 0, 3000);
+					memset((void*)&IncData, 0, 9000);
 				}
 			}
 		}

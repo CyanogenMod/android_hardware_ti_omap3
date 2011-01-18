@@ -45,72 +45,10 @@
 #ifndef FMTI_VERSION_H
 #define FMTI_VERSION_H
 
-
-
-/********************************************************************************
- *
- * Constants
- *
- *******************************************************************************/
-
-
-/*---------------------------------------------------------------------------
- * Target OS Types
- *      
- *  FMTIS_OS_WIN       "W" - Windows
- *  FMTIS_OS_LINUX     "L" - LINUX
- *  
- */
-
-/* 
- * Target OS Types
- * Target OS type - Windows PC 
- */
-#define FMTIS_OS_WIN                   "W"
-
-/* 
- * Target OS Types
- * Target OS type - Linux 
- */
-#define FMTIS_OS_LINUX                 "L"
-
-/*******************************************************************************\
- *                                                                              *
- * FMTIS Release:   FMTIS L2.01.4 11.07.10                                      *
- *                                                                              *
- * Details:         FMTIS L2.01.4 release                                       *
- *                                                                              *
- *                                                                              *
-\*******************************************************************************/
-
+#include "FMTIS_version_common.h"
 
 /* FMTIS Target OS */
 #define FMTIS_TARGET_OS                    (FMTIS_OS_LINUX)
-
-/* FMTIS Major stack version */
-#define FMTIS_SOFTWARE_VERSION_X               (2)
-
-/* FMTIS Major API version */
-#define FMTIS_SOFTWARE_VERSION_Y               (0)
-
-/* FMTIS Additional features / profiles */
-#define FMTIS_SOFTWARE_VERSION_Z               (1)
-
-/* FMTIS Bug Fixes */
-#define FMTIS_SOFTWARE_VERSION_B               (4)
-
-/* FMTIS version day */
-#define FMTIS_SOFTWARE_VERSION_DAY              (11)
-
-/* FMTIS version month */
-#define FMTIS_SOFTWARE_VERSION_MONTH            (07)
-
-/* FMTIS version day year */
-#define FMTIS_SOFTWARE_VERSION_YEAR             (2010)
-
-/* Platform Types */
-#define PLATFORM_WINDOWS                        (1)
-#define PLATFORM_ANDROID_ZOOM2                  (2)
 
 /* Anchor Platform */
 #define FMTIS_ANCHOR_VERSION_X                (PLATFORM_ANDROID_ZOOM2)
