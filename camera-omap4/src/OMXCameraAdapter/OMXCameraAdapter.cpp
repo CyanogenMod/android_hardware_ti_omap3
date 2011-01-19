@@ -1300,9 +1300,12 @@ status_t OMXCameraAdapter::setupEXIF()
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_TI_CONFIG_SHAREDBUFFER sharedBuffer;
-    OMX_TI_CONFIG_EXIF_TAGS exifTags;
+    OMX_TI_CONFIG_EXIF_TAGS *exifTags;
+    unsigned char *sharedPtr = NULL;
 
     LOG_FUNCTION_NAME
+
+    sharedBuffer.pSharedBuff = NULL;
 
     if ( OMX_StateInvalid == mComponentState )
         {
@@ -1312,13 +1315,33 @@ status_t OMXCameraAdapter::setupEXIF()
 
     if ( NO_ERROR == ret )
         {
-        OMX_INIT_STRUCT_PTR (&exifTags, OMX_TI_CONFIG_EXIF_TAGS);
-        exifTags.nPortIndex = mCameraAdapterParameters.mImagePortIndex;;
-
         OMX_INIT_STRUCT_PTR (&sharedBuffer, OMX_TI_CONFIG_SHAREDBUFFER);
-        sharedBuffer.nPortIndex = mCameraAdapterParameters.mImagePortIndex;;
-        sharedBuffer.nSharedBuffSize = sizeof(OMX_TI_CONFIG_EXIF_TAGS);
-        sharedBuffer.pSharedBuff = ( OMX_U8 * ) &exifTags;
+        sharedBuffer.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
+
+        //We allocate the shared buffer dynamically based on the
+        //requirements of the EXIF tags. The additional buffers will
+        //get stored after the EXIF configuration structure and the pointers
+        //will contain offsets within the shared buffer itself.
+        sharedBuffer.nSharedBuffSize = sizeof(OMX_TI_CONFIG_EXIF_TAGS) +
+                                                       ( GPS_MAPDATUM_SIZE ) +
+                                                       ( GPS_DATESTAMP_SIZE );
+
+        sharedBuffer.pSharedBuff =  ( OMX_U8 * ) malloc (sharedBuffer.nSharedBuffSize);
+        if ( NULL == sharedBuffer.pSharedBuff )
+            {
+            CAMHAL_LOGEA("No resources to allocate OMX shared buffer");
+            ret = -1;
+            }
+
+        //Extra data begins right after the EXIF configuration structure.
+        sharedPtr = sharedBuffer.pSharedBuff + sizeof(OMX_TI_CONFIG_EXIF_TAGS);
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        exifTags = ( OMX_TI_CONFIG_EXIF_TAGS * ) sharedBuffer.pSharedBuff;
+        OMX_INIT_STRUCT_PTR (exifTags, OMX_TI_CONFIG_EXIF_TAGS);
+        exifTags->nPortIndex = mCameraAdapterParameters.mImagePortIndex;
 
         eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexConfigExifTags, &sharedBuffer);
         if ( OMX_ErrorNone != eError )
@@ -1331,73 +1354,81 @@ status_t OMXCameraAdapter::setupEXIF()
     if ( NO_ERROR == ret )
         {
 
-         if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsLatitude ) && ( mGPSData.mLatValid ) )
+         if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsLatitude ) && ( mGPSData.mLatValid ) )
             {
-            exifTags.ulGpsLatitude[0] = mGPSData.mLatDeg;
-            exifTags.ulGpsLatitude[2] = mGPSData.mLatMin;
-            exifTags.ulGpsLatitude[4] = mGPSData.mLatSec;
-            exifTags.ulGpsLatitude[1] = 1;
-            exifTags.ulGpsLatitude[3] = 1;
-            exifTags.ulGpsLatitude[5] = 1;
-            exifTags.eStatusGpsLatitude = OMX_TI_TagUpdated;
+            exifTags->ulGpsLatitude[0] = mGPSData.mLatDeg;
+            exifTags->ulGpsLatitude[2] = mGPSData.mLatMin;
+            exifTags->ulGpsLatitude[4] = mGPSData.mLatSec;
+            exifTags->ulGpsLatitude[1] = 1;
+            exifTags->ulGpsLatitude[3] = 1;
+            exifTags->ulGpsLatitude[5] = 1;
+            exifTags->eStatusGpsLatitude = OMX_TI_TagUpdated;
             }
 
-        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpslatitudeRef ) && ( mGPSData.mLatValid ) )
+        if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpslatitudeRef ) && ( mGPSData.mLatValid ) )
             {
-            exifTags.cGpslatitudeRef[0] = ( OMX_S8 ) mGPSData.mLatRef[0];
-            exifTags.eStatusGpslatitudeRef = OMX_TI_TagUpdated;
+            exifTags->cGpslatitudeRef[0] = ( OMX_S8 ) mGPSData.mLatRef[0];
+            exifTags->cGpslatitudeRef[1] = '\0';
+            exifTags->eStatusGpslatitudeRef = OMX_TI_TagUpdated;
             }
 
-         if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsLongitude ) && ( mGPSData.mLongValid ) )
+         if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsLongitude ) && ( mGPSData.mLongValid ) )
             {
-            exifTags.ulGpsLongitude[0] = mGPSData.mLongDeg;
-            exifTags.ulGpsLongitude[2] = mGPSData.mLongMin;
-            exifTags.ulGpsLongitude[4] = mGPSData.mLongSec;
-            exifTags.ulGpsLongitude[1] = 1;
-            exifTags.ulGpsLongitude[3] = 1;
-            exifTags.ulGpsLongitude[5] = 1;
-            exifTags.eStatusGpsLongitude = OMX_TI_TagUpdated;
+            exifTags->ulGpsLongitude[0] = mGPSData.mLongDeg;
+            exifTags->ulGpsLongitude[2] = mGPSData.mLongMin;
+            exifTags->ulGpsLongitude[4] = mGPSData.mLongSec;
+            exifTags->ulGpsLongitude[1] = 1;
+            exifTags->ulGpsLongitude[3] = 1;
+            exifTags->ulGpsLongitude[5] = 1;
+            exifTags->eStatusGpsLongitude = OMX_TI_TagUpdated;
             }
 
-        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsLongitudeRef ) && ( mGPSData.mLongValid) )
+        if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsLongitudeRef ) && ( mGPSData.mLongValid) )
             {
-            exifTags.cGpsLongitudeRef[0] = ( OMX_S8 ) mGPSData.mLongRef[0];
-            exifTags.eStatusGpsLongitudeRef = OMX_TI_TagUpdated;
+            exifTags->cGpsLongitudeRef[0] = ( OMX_S8 ) mGPSData.mLongRef[0];
+            exifTags->cGpsLongitudeRef[1] = '\0';
+            exifTags->eStatusGpsLongitudeRef = OMX_TI_TagUpdated;
             }
 
-        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsAltitude ) && ( mGPSData.mAltitudeValid) )
+        if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsAltitude ) && ( mGPSData.mAltitudeValid) )
             {
-            exifTags.ulGpsAltitude[0] = ( OMX_U32 ) mGPSData.mAltitude;
-            exifTags.eStatusGpsAltitude = OMX_TI_TagUpdated;
+            exifTags->ulGpsAltitude[0] = ( OMX_U32 ) mGPSData.mAltitude;
+            exifTags->eStatusGpsAltitude = OMX_TI_TagUpdated;
             }
 
-        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsMapDatum ) && ( mGPSData.mMapDatumValid ) )
+        if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsMapDatum ) && ( mGPSData.mMapDatumValid ) )
             {
-            exifTags.pGpsMapDatumBuff = ( OMX_S8 * ) mGPSData.mMapDatum;
-            exifTags.ulGpsMapDatumBuffSizeBytes = GPS_MAPDATUM_SIZE;
-            exifTags.eStatusGpsMapDatum = OMX_TI_TagUpdated;
+            memcpy(sharedPtr, mGPSData.mMapDatum, GPS_MAPDATUM_SIZE);
+
+            exifTags->pGpsMapDatumBuff = ( OMX_S8 * ) ( sharedPtr - sharedBuffer.pSharedBuff );
+            exifTags->ulGpsMapDatumBuffSizeBytes = GPS_MAPDATUM_SIZE;
+            exifTags->eStatusGpsMapDatum = OMX_TI_TagUpdated;
+            sharedPtr += GPS_MAPDATUM_SIZE;
             }
 
-        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsProcessingMethod ) && ( mGPSData.mProcMethodValid ) )
+        if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsProcessingMethod ) && ( mGPSData.mProcMethodValid ) )
             {
-            exifTags.pGpsProcessingMethodBuff = ( OMX_S8 * ) mGPSData.mProcMethod;
-            exifTags.ulGpsProcessingMethodBuffSizeBytes = GPS_PROCESSING_SIZE;
-            exifTags.eStatusGpsProcessingMethod = OMX_TI_TagUpdated;
+            memcpy(sharedPtr, mGPSData.mProcMethod, GPS_PROCESSING_SIZE);
+
+            exifTags->pGpsProcessingMethodBuff = ( OMX_S8 * ) ( sharedPtr - sharedBuffer.pSharedBuff );
+            exifTags->ulGpsProcessingMethodBuffSizeBytes = GPS_PROCESSING_SIZE;
+            exifTags->eStatusGpsProcessingMethod = OMX_TI_TagUpdated;
+            sharedPtr += GPS_PROCESSING_SIZE;
             }
 
-        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsVersionId ) && ( mGPSData.mVersionIdValid ) )
+        if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsVersionId ) && ( mGPSData.mVersionIdValid ) )
             {
-            exifTags.ucGpsVersionId[0] = ( OMX_U8 ) mGPSData.mVersionId[0];
-            exifTags.ucGpsVersionId[1] =  ( OMX_U8 ) mGPSData.mVersionId[1];
-            exifTags.ucGpsVersionId[2] = ( OMX_U8 ) mGPSData.mVersionId[2];
-            exifTags.ucGpsVersionId[3] = ( OMX_U8 ) mGPSData.mVersionId[3];
-            exifTags.eStatusGpsVersionId = OMX_TI_TagUpdated;
+            exifTags->ucGpsVersionId[0] = ( OMX_U8 ) mGPSData.mVersionId[0];
+            exifTags->ucGpsVersionId[1] =  ( OMX_U8 ) mGPSData.mVersionId[1];
+            exifTags->ucGpsVersionId[2] = ( OMX_U8 ) mGPSData.mVersionId[2];
+            exifTags->ucGpsVersionId[3] = ( OMX_U8 ) mGPSData.mVersionId[3];
+            exifTags->eStatusGpsVersionId = OMX_TI_TagUpdated;
             }
 
-        if ( ( OMX_TI_TagReadWrite == exifTags.eStatusGpsDateStamp ) && ( mGPSData.mDatestampValid) )
+        if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsDateStamp ) && ( mGPSData.mDatestampValid) )
             {
-            strncpy( ( char * ) exifTags.cGpsDateStamp, ( char * ) mGPSData.mDatestamp, GPS_DATESTAMP_SIZE);
-            exifTags.eStatusGpsDateStamp = OMX_TI_TagUpdated;
+            strncpy( ( char * ) exifTags->cGpsDateStamp, ( char * ) mGPSData.mDatestamp, GPS_DATESTAMP_SIZE);
+            exifTags->eStatusGpsDateStamp = OMX_TI_TagUpdated;
             }
 
         eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, ( OMX_INDEXTYPE ) OMX_TI_IndexConfigExifTags, &sharedBuffer);
@@ -1406,6 +1437,11 @@ status_t OMXCameraAdapter::setupEXIF()
             CAMHAL_LOGEB("Error while setting EXIF configuration 0x%x", eError);
             ret = -1;
             }
+        }
+
+    if ( NULL != sharedBuffer.pSharedBuff )
+        {
+        free(sharedBuffer.pSharedBuff);
         }
 
     LOG_FUNCTION_NAME_EXIT
