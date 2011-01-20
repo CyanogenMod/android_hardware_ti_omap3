@@ -27,7 +27,7 @@
 #define PRINTOVER(arg...)     LOGD(#arg)
 #define LOG_FUNCTION_NAME         LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
-#define KEY_POST_PROC   "ipp"
+#define KEY_GBCE   "gbce"
 #define KEY_CAMERA          "camera-index"
 #define KEY_SATURATION      "saturation"
 #define KEY_BRIGHTNESS      "brightness"
@@ -43,7 +43,7 @@
 #define KEY_FACE_DETECTION_ENABLE "face-detection-enable"
 #define KEY_FACE_DETECTION_DATA "face-detection-data"
 #define KEY_COMPENSATION    "exposure-compensation"
-#define KEY_IPP             "ippMode"
+#define KEY_IPP             "ipp"
 #define KEY_BUFF_STARV      "buff-starvation"
 #define KEY_METERING_MODE   "meter-mode"
 #define KEY_AUTOCONVERGENCE "auto-convergence"
@@ -104,7 +104,7 @@ int expBracketIdx = 0;
 int AutoConvergenceModeIDX = 0;
 int ManualConvergenceValuesIDX = 0;
 const int ManualConvergenceDefaultValueIDX = 2;
-int postProcIDX = 0;
+int gbceIDX = 0;
 int rotation = 0;
 bool reSizePreview = true;
 bool hardwareActive = false;
@@ -123,6 +123,7 @@ int iso_mode = 0;
 int capture_mode = 0;
 int exposure_mode = 0;
 int ippIDX = 0;
+int ippIDX_old = 0;
 int previewFormat = 0;
 int jpegQuality = 85;
 int thumbQuality = 85;
@@ -141,7 +142,7 @@ const char *expBracketing[] = {"disable", "enable"};
 const char *expBracketingRange[] = {"", "-30,0,30,0,-30"};
 const char *tempBracketing[] = {"disable", "enable"};
 const char *faceDetection[] = {"disable", "enable"};
-const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
+const char *ipp_mode[] = { "off", "ldc", "nsf", "ldc-nsf" };
 const char *iso [] = { "auto", "100", "200", "400", "800", "1200", "1600"};
 const char *effects [] = {
     "none",
@@ -236,7 +237,7 @@ const char *focus[] = {
 int focus_mode = 0;
 const char *pixelformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw"};
 const char *codingformat[] = {"yuv422i-yuyv", "yuv420sp", "rgb565", "jpeg", "raw", "jps", "mpo", "raw+jpeg", "raw+mpo"};
-const char *post_proc[] = {"off", "nsf", "ldc", "ldc-nsf"};
+const char *gbce[] = {"enable", "disable"};
 int pictureFormat = 3; // jpeg
 const char *exposure[] = {"auto", "macro", "portrait", "landscape", "sports", "night", "night-portrait", "backlighting", "manual"};
 const char *capture[] = { "high-performance", "high-quality", "video-mode" };
@@ -1052,7 +1053,7 @@ void initDefaults() {
     rotation = 0;
     zoomIDX = 0;
     videoCodecIDX = 0;
-    postProcIDX = 0;
+    gbceIDX = 0;
 #ifdef TARGET_OMAP4
     ///Temporary fix until OMAP3 and OMAP4 3A values are synced
     contrast = 90;
@@ -1068,7 +1069,8 @@ void initDefaults() {
     iso_mode = 0;
     capture_mode = 1;
     exposure_mode = 0;
-    ippIDX = 0;
+    ippIDX = 3;//set the ipp to ldc-nsf as the capture mode is set to HQ by default
+    ippIDX_old = ippIDX;
     jpegQuality = 85;
     bufferStarvationTest = 0;
     meter_mode = 0;
@@ -1083,7 +1085,7 @@ void initDefaults() {
     params.set(params.KEY_SCENE_MODE, scene[scene_mode]);
     params.set(KEY_CAF, caf_mode);
     params.set(KEY_ISO, iso_mode);
-    params.set(KEY_POST_PROC, post_proc[postProcIDX]);
+    params.set(KEY_GBCE, gbce[gbceIDX]);
     params.set(KEY_SHARPNESS, sharpness);
     params.set(KEY_CONTRAST, contrast);
     params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx);
@@ -1229,7 +1231,7 @@ int functional_menu() {
         printf("   i. ISO mode:       %s\n", iso[iso_mode]);
         printf("   u. Capture Mode:   %s\n", capture[capture_mode]);
         printf("   k. IPP Mode:       %s\n", ipp_mode[ippIDX]);
-        printf("   K. Post-Processing: %s\n", post_proc[postProcIDX]);
+        printf("   K. GBCE: %s\n", gbce[gbceIDX]);
         printf("   o. Jpeg Quality:   %d\n", jpegQuality);
         printf("   #. Burst Images:  %3d\n", burst);
         printf("   :. Thumbnail Size:  %4d x %4d - %s\n",previewSize[thumbSizeIDX].width, previewSize[thumbSizeIDX].height, previewSize[thumbSizeIDX].desc);
@@ -1574,7 +1576,8 @@ int functional_menu() {
         case 'k':
             ippIDX += 1;
             ippIDX %= ARRAY_SIZE(ipp_mode);
-            params.set(KEY_IPP, ippIDX);
+            ippIDX_old = ippIDX;
+            params.set(KEY_IPP, ipp_mode[ippIDX]);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1582,9 +1585,9 @@ int functional_menu() {
             break;
 
         case 'K':
-            postProcIDX+= 1;
-            postProcIDX %= ARRAY_SIZE(post_proc);
-            params.set(KEY_POST_PROC, post_proc[postProcIDX]);
+            gbceIDX+= 1;
+            gbceIDX %= ARRAY_SIZE(gbce);
+            params.set(KEY_GBCE, gbce[gbceIDX]);
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -1658,6 +1661,17 @@ int functional_menu() {
         case 'u':
             capture_mode++;
             capture_mode %= ARRAY_SIZE(capture);
+
+            // HQ should always be in ldc-nsf
+            // if not HQ, then return the ipp to its previous state
+            if( !strcmp(capture[capture_mode], "high-quality") ) {
+                ippIDX_old = ippIDX;
+                ippIDX = 3;
+                params.set(KEY_IPP, ipp_mode[ippIDX]);
+            } else {
+                ippIDX = ippIDX_old;
+            }
+
             params.set(KEY_MODE, (capture[capture_mode]));
 
             if ( hardwareActive )
@@ -2426,6 +2440,7 @@ int execute_functional_script(char *script) {
 
 
             case 'k':
+                ippIDX_old = atoi(cmd + 1);
                 params.set(KEY_IPP, atoi(cmd + 1));
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
@@ -2433,13 +2448,23 @@ int execute_functional_script(char *script) {
                 break;
 
             case 'K':
-                params.set(KEY_POST_PROC, (cmd+1));
+                params.set(KEY_GBCE, (cmd+1));
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
 
                 break;
 
             case 'u':
+                // HQ should always be in ldc-nsf
+                // if not HQ, then return the ipp to its previous state
+                if( !strcmp(capture[capture_mode], "high-quality") ) {
+                    ippIDX_old = ippIDX;
+                    ippIDX = 3;
+                    params.set(KEY_IPP, ipp_mode[ippIDX]);
+                } else {
+                    ippIDX = ippIDX_old;
+                }
+
                 params.set(KEY_MODE, (cmd + 1));
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
