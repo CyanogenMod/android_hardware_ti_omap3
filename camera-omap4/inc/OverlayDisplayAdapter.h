@@ -99,6 +99,7 @@ public:
 public:
 
     static const int DISPLAY_TIMEOUT;
+    static const int FAILED_DQS_TO_SUSPEND;
 
     class DisplayThread : public Thread
         {
@@ -137,6 +138,9 @@ private:
     int postBuffer(void* displayBuf);
 
 private:
+    bool mFirstInit;
+    bool mSuspend;
+    int mFailedDQs;
     bool mPaused; //Pause state
     sp<Overlay>  mOverlay;
     sp<DisplayThread> mDisplayThread;
