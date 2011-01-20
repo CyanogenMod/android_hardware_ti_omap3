@@ -1844,6 +1844,174 @@ const struct JPGD_TEST_OUTPUT_FILE_LIST {
 "a31f2b4d7c15c45fac1c20aa31bf231e",
 "0"
 },
+{ // L_SKIA_JPGD_0061:
+"JPEGD_0001_320x240_420.raw",
+"bab085c34db19e2e82b1569dbd71078f",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0062:
+"JPEGD_0002_64x64_420.raw",
+"3812b7ce755e8c17857aef99d78207a4",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0063:
+"JPEGD_0002_80x60_420.raw",
+"caf11adf97072c647fd449865f1be29e",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0064:
+"JPEGD_0003_eagle_1600x1200_420.raw",
+"2b46c4658da03e60f35bcd884d6f2be5",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0065:
+"JPEGD_0004_market_5120x3200_16MP_420.raw",
+"be7cf03ee941a5abf7ce691c6a71652f",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0066:
+"JPEGD_0005_5120x3200_16MP_420.raw",
+"eca7e91e3c2a25b04f63fd7ff1045a11",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0067:
+"JPEGD_0006_chile_3072x2048_420.raw",
+"46307af624727272b832f2794e269975",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0068:
+"JPEGD_0006_waste_3072x2048_420.raw",
+"036f0bf2f84cb474f9ae6285a6e3831e",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0069:
+"JPEGD_0007_ametlles_1280x1024_420.raw",
+"973e422a81e551b30fd3d45ed9bb00a8",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0070:
+"JPEGD_0008_flowers_5120x3200_16MP_420.raw",
+"b09ab8713d4a4f39b2cf191885b1ecc4",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0071:
+"JPEGD_0009_3072x2304_7MP_420.raw",
+"7366a3e42492d7e67fc03d8062bb8f79",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0072:
+"JPEGD_0009_3072x2304_7MP_422.raw",
+"6836d0f921f03de48ae3f0550d62950c",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0073:
+"JPEGD_0010_5088x3392_16MP_422.raw",
+"d0cf635fbe2dbd377c1a92cf14fb2481",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0074:
+"JPEGD_0011_5120x3200_color_16MP_420.raw",
+"51544a6433b92840a041c5b0d6bbfe8b",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0075:
+"JPEGD_0012_5088x3392_16MP_422.raw",
+"d0cf635fbe2dbd377c1a92cf14fb2481",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0076:
+"JPEGD_0013_villa_4096x3072_12MP_420.raw",
+"48cd0dd007ad3dffc65f0aebece9d4ce",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0077:
+"JPEGD_0014_shredder_3072x3072_9MP_420.raw",
+"580d7df36dc4c4d0f4574c1c18b9e7e6",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0078:
+"JPEGD_0015_3072x2048_6MP_420.raw",
+"036f0bf2f84cb474f9ae6285a6e3831e",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0079:
+"JPEGD_0016_fall_3072x2304_7MP_420.raw",
+"fb419b439a9df2ced071046763beacfa",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0080:
+"JPEGD_0016_park_3072x2304_7MP_420.raw",
+"4fed235c2ab2c31a53136a909e8a2d6c",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0081:
+"JPEGD_0017_lily_2048x1536_422.raw",
+"8d3f8a6d7cecbfbd9ad6f75e4f701149",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0082:
+"JPEGD_0018_352x288_420.raw",
+"b302f076d3d07d39ca30eaed05c92d52",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0083:
+"JPEGD_0019_market_640x480_420.raw",
+"fb1c01fa8584d02a10fce4b0270069c2",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0085:
+"JPEGD_0021_eagle_800x480_420.raw",
+"0af8ee453c941e7bb131ce28430638f0",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0086:
+"JPEGD_0003_eagle_1600x1200_420_25.raw",
+"6977e6fd9632907228c4268c3751043e",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0087:
+"JPEGD_0003_eagle_1600x1200_420_50.raw",
+"135aa64086da02bf19d7ef14897b060a",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0088:
+"JPEGD_0003_eagle_1600x1200_420_RGB32.raw",
+"1010944b67e41e614f52705a62203034",
+"0",
+"0"
+},
+{ // L_SKIA_JPGD_0089:
+"6_640x640_panda_nv12.raw",
+"17eac6ef9eaa36c00afb26444a5b3acd",
+"0",
+"0"
+},
 {   /*add the new test output filename and its md5sum before this comment line*/
 "",
 "",
