@@ -115,6 +115,8 @@ public:
         PROP_INDEX_FOCAL_LENGTH,
         PROP_INDEX_HOR_ANGLE,
         PROP_INDEX_VER_ANGLE,
+        PROP_INDEX_EXIF_MAKE,
+        PROP_INDEX_EXIF_MODEL,
         PROP_INDEX_MAX
         };
 
@@ -178,7 +180,8 @@ public:
     static const char FOCAL_LENGTH[];
     static const char HOR_ANGLE[];
     static const char VER_ANGLE[];
-
+    static const char EXIF_MAKE[];
+    static const char EXIF_MODEL[];
 
     static const char PARAMS_DELIMITER [];
 

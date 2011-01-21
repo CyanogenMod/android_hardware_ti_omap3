@@ -100,6 +100,8 @@ const char CameraProperties::HOR_ANGLE[] = "prop-horizontal-angle";
 const char CameraProperties::VER_ANGLE[] = "prop-vertical-angle";
 const char CameraProperties::VIDEO_MINFRAMERATE[]="prop-video-min-framerate";
 const char CameraProperties::VIDEO_MINFRAMERATE_VALUES[]="prop-video-min-framerate-values";
+const char CameraProperties::EXIF_MAKE[] = "prop-exif-make";
+const char CameraProperties::EXIF_MODEL[] = "prop-exif-model";
 
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
@@ -1091,6 +1093,18 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES;
         }
+    else if(!strcmp(propName,CameraProperties::EXIF_MAKE))
+        {
+        CAMHAL_LOGDA("Returning EXIF Make");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_EXIF_MAKE;
+        }
+    else if(!strcmp(propName,CameraProperties::EXIF_MODEL))
+        {
+        CAMHAL_LOGDA("Returning EXIF Model");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_EXIF_MODEL;
+        }
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
     LOG_FUNCTION_NAME_EXIT
@@ -1435,6 +1449,15 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::VIDEO_MINFRAMERATE_VALUES);
             LOG_FUNCTION_NAME_EXIT
 	    return CameraProperties::VIDEO_MINFRAMERATE_VALUES;
+        case CameraProperties::PROP_INDEX_EXIF_MAKE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::EXIF_MAKE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::EXIF_MAKE;
+
+        case CameraProperties::PROP_INDEX_EXIF_MODEL:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::EXIF_MODEL);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::EXIF_MODEL;
 
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );

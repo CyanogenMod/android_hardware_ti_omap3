@@ -82,6 +82,8 @@ static void SigHandler(int sig)
 
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
+const char OMXCameraAdapter::EXIFASCIIPrefix [] = { 0x41, 0x53, 0x43, 0x49, 0x49, 0x0, 0x0, 0x0 };
+
 const int32_t OMXCameraAdapter::ZOOM_STEPS [ZOOM_STAGES] =  {
                                                                             65536, 68157, 70124, 72745,
                                                                             75366, 77988, 80609, 83231,
@@ -282,6 +284,9 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         mEXIFData.mGPSData.mMapDatumValid = false;
         mEXIFData.mGPSData.mProcMethodValid = false;
         mEXIFData.mGPSData.mVersionIdValid = false;
+        mEXIFData.mGPSData.mTimeStampValid = false;
+        mEXIFData.mModelValid = false;
+        mEXIFData.mMakeValid = false;
 
         // initialize command handling thread
         if(mCommandHandler.get() == NULL)
@@ -1254,19 +1259,19 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             mEXIFData.mGPSData.mTimeStampHour = timeinfo->tm_hour;
             mEXIFData.mGPSData.mTimeStampMin = timeinfo->tm_min;
             mEXIFData.mGPSData.mTimeStampSec = timeinfo->tm_sec;
-            mEXIFData.mGPSData.mDatestampValid = true;
+            mEXIFData.mGPSData.mTimeStampValid = true;
             }
         else
             {
-            mEXIFData.mGPSData.mDatestampValid = false;
+            mEXIFData.mGPSData.mTimeStampValid = false;
             }
         }
     else
         {
-        mEXIFData.mGPSData.mDatestampValid = false;
+        mEXIFData.mGPSData.mTimeStampValid = false;
         }
 
-    if( ( valstr = params.get(TICameraParameters::KEY_GPS_DATESTAMP) ) != NULL )
+    if( ( valstr = params.get(CameraParameters::KEY_GPS_TIMESTAMP) ) != NULL )
         {
         long gpsDatestamp = strtol(valstr, NULL, 10);
         struct tm *timeinfo = localtime( ( time_t * ) & (gpsDatestamp) );
@@ -1362,10 +1367,12 @@ status_t OMXCameraAdapter::setupEXIF()
     unsigned char *sharedPtr = NULL;
     struct timeval sTv;
     struct tm *pTime;
+    OMXCameraPortParameters * capData = NULL;
 
     LOG_FUNCTION_NAME
 
     sharedBuffer.pSharedBuff = NULL;
+    capData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
     if ( OMX_StateInvalid == mComponentState )
         {
@@ -1429,6 +1436,8 @@ status_t OMXCameraAdapter::setupEXIF()
 
             exifTags->pModelBuff = ( OMX_S8 * ) ( sharedPtr - sharedBuffer.pSharedBuff );
             sharedPtr += EXIF_MODEL_SIZE;
+            exifTags->ulModelBuffSizeBytes = EXIF_MODEL_SIZE;
+            exifTags->eStatusModel = OMX_TI_TagUpdated;
             }
 
          if ( ( OMX_TI_TagReadWrite == exifTags->eStatusMake) &&
@@ -1440,6 +1449,8 @@ status_t OMXCameraAdapter::setupEXIF()
 
              exifTags->pMakeBuff = ( OMX_S8 * ) ( sharedPtr - sharedBuffer.pSharedBuff );
              sharedPtr += EXIF_MAKE_SIZE;
+             exifTags->ulMakeBuffSizeBytes = EXIF_MAKE_SIZE;
+             exifTags->eStatusMake = OMX_TI_TagUpdated;
              }
 
          if ( OMX_TI_TagReadWrite == exifTags->eStatusDateTime )
@@ -1459,6 +1470,20 @@ status_t OMXCameraAdapter::setupEXIF()
 
              exifTags->pDateTimeBuff = ( OMX_S8 * ) ( sharedPtr - sharedBuffer.pSharedBuff );
              sharedPtr += EXIF_DATE_TIME_SIZE;
+             exifTags->ulDateTimeBuffSizeBytes = EXIF_DATE_TIME_SIZE;
+             exifTags->eStatusDateTime = OMX_TI_TagUpdated;
+             }
+
+         if ( OMX_TI_TagReadWrite == exifTags->eStatusImageWidth )
+             {
+             exifTags->ulImageWidth = capData->mWidth;
+             exifTags->eStatusImageWidth = OMX_TI_TagUpdated;
+             }
+
+         if ( OMX_TI_TagReadWrite == exifTags->eStatusImageHeight )
+             {
+             exifTags->ulImageHeight = capData->mHeight;
+             exifTags->eStatusImageHeight = OMX_TI_TagUpdated;
              }
 
          if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsLatitude ) &&
@@ -1522,9 +1547,11 @@ status_t OMXCameraAdapter::setupEXIF()
         if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsProcessingMethod ) &&
              ( mEXIFData.mGPSData.mProcMethodValid ) )
             {
-            memcpy(sharedPtr, mEXIFData.mGPSData.mProcMethod, GPS_PROCESSING_SIZE);
-
             exifTags->pGpsProcessingMethodBuff = ( OMX_S8 * ) ( sharedPtr - sharedBuffer.pSharedBuff );
+            memcpy(sharedPtr, EXIFASCIIPrefix, sizeof(EXIFASCIIPrefix));
+            sharedPtr += sizeof(EXIFASCIIPrefix);
+
+            memcpy(sharedPtr, mEXIFData.mGPSData.mProcMethod, ( GPS_PROCESSING_SIZE - sizeof(EXIFASCIIPrefix) ) );
             exifTags->ulGpsProcessingMethodBuffSizeBytes = GPS_PROCESSING_SIZE;
             exifTags->eStatusGpsProcessingMethod = OMX_TI_TagUpdated;
             sharedPtr += GPS_PROCESSING_SIZE;

@@ -190,6 +190,9 @@ public:
     ///Five second timeout
     static const int CAMERA_ADAPTER_TIMEOUT = 5000*1000;
 
+    //EXIF ASCII prefix
+    static const char EXIFASCIIPrefix[];
+
     enum OMXCameraEvents
         {
         CAMERA_PORT_ENABLE  = 0x1,

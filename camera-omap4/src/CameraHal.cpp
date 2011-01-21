@@ -3113,6 +3113,8 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VER_ANGLE]->mPropValue);
     p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE]->mPropValue);
     p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE_VALUES,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES]->mPropValue);
+    p.set(TICameraParameters::KEY_EXIF_MAKE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXIF_MAKE]->mPropValue);
+    p.set(TICameraParameters::KEY_EXIF_MODEL, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXIF_MODEL]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }
