@@ -80,15 +80,6 @@ typedef struct
 */
 #define V4L2_CID_TI_DISPC_OVERLAY 0x08000000
 
-#ifdef TARGET_OMAP4
-/* this constant should be insync with that defined in kernel v4l2 header
-* The rotation constant is redefined here, to make this in sync with 2.6.35 kernel
-* header. Once bionic headers are updated, this definition can be removed.
-* this is defined only for omap4 as omap3 is still on 2.6.32 kernel
-*/
-#define V4L2_CID_ROTATE	 0x00980900 + 34  //(V4L2_CID_BASE+34)
-#endif
-
 /*S3D private definitions, should be in sync with S3D V4L2 kernel header*/
 #define VIDIOC_PRIVATE_S3D_S_OFFS \
     _IOWR('V', BASE_VIDIOC_PRIVATE + 1, struct v4l2_s3d_offsets)
