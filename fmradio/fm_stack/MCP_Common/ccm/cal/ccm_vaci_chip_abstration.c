@@ -183,7 +183,7 @@ void CCM_CAL_StaticInit(void)
 
     /* no need to do anything - everything is per object */
 
-    MCP_FUNC_END();
+    MCP_FUNC_END ();
 }
 
 void CAL_Create(McpHalChipId chipId,
@@ -248,13 +248,13 @@ MCP_STATIC void CAL_Init_id_data (Cal_Config_ID *pConfigid, handle_t ccmaObj)
             (resourceindex == CAL_RESOURCE_CORTEX)||
             (resourceindex == CAL_RESOURCE_FM_CORE))
         {
-            MCP_HciSeq_CreateSequence(&(pConfigid->resourcedata.tResourceConfig[resourceindex].hciseq), 
+            MCP_HciSeq_CreateSequence(&(pConfigid->resourcedata.tResourceConfig[ resourceindex ].hciseq), 
                                       ccmaObj,
                                       MCP_HAL_CORE_ID_FM);           
         }
         else
         {
-            MCP_HciSeq_CreateSequence(&(pConfigid->resourcedata.tResourceConfig[resourceindex].hciseq), 
+            MCP_HciSeq_CreateSequence(&(pConfigid->resourcedata.tResourceConfig[ resourceindex ].hciseq), 
                                       ccmaObj,
                                       MCP_HAL_CORE_ID_BT);           
         }
@@ -279,6 +279,8 @@ void CCM_CAL_Configure(Cal_Config_ID *pConfigid,
      * function arguments
      */
      
+    MCP_LOG_INFO(("CCM_CAL_Configure:called with projectType:%d versionMajor:%d versionMinor:%d",projectType,versionMajor,versionMinor));
+
 	if (MCP_CONFIG_PARSER_STATUS_SUCCESS == MCP_CONFIG_PARSER_GetIntegerKey (pConfigid->pConfigParser, 
 												 (McpU8 *)CCM_VAC_CONFIG_INI_OVERRIDE_SECTION_NAME,
 												 (McpU8 *)CCM_VAC_CONFIG_INI_OVERRIDE_PROJECT_TYPE,
@@ -297,6 +299,8 @@ void CCM_CAL_Configure(Cal_Config_ID *pConfigid,
 												 (McpU8 *)CCM_VAC_CONFIG_INI_OVERRIDE_VERSION_MINOR,
 												 (McpS32*)&ovr_versionMinor))
         versionMinor = (McpU16)ovr_versionMinor;
+
+    MCP_LOG_INFO(("CCM_CAL_Configure:after reading override section projectType:%d versionMajor:%d versionMinor:%d",projectType,versionMajor,versionMinor));
 
     
     /* Update the Chip Version that we are working with */
@@ -329,18 +333,9 @@ void CCM_CAL_Configure(Cal_Config_ID *pConfigid,
     case 7:
 	fmDigitalAudioConfSupported = MCP_TRUE;
 	  if (1 == versionMajor)
-	{
 		pConfigid->chip_version = CAL_CHIP_1273;
-	}
-	else if (2 == versionMajor)
-	{
+    	else
 		pConfigid->chip_version = CAL_CHIP_1273_2;
-	}
-	else
-	{
-		MCP_LOG_FATAL (("CCM_CAL_Configure: unrecognized chip version %d.%d.%d",
-						projectType, versionMajor, versionMinor));
-	}
         break;
 
     case 8:
@@ -505,27 +500,27 @@ ECAL_RetValue CAL_ConfigResource(Cal_Config_ID *pConfigid,
             break;
 
         case (CAL_CHIP_6450_2):   
-		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB=Cal_Prep_Mux_Config_6450_2;
-		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].pUserData=(void*)(&(pConfigid->resourcedata.tResourceConfig[eResource]));
-		uCommandcount=1;
-            break;
+    		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB=Cal_Prep_Mux_Config_6450_2;
+    		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].pUserData=(void*)(&(pConfigid->resourcedata.tResourceConfig[eResource]));
+    		uCommandcount=1;
+                break;
 		case (CAL_CHIP_5500):   
             pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB=Cal_Prep_Mux_Config_6450_1_0;
             pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].pUserData=(void*)(&(pConfigid->resourcedata.tResourceConfig[eResource]));
             uCommandcount=1;
             break;
 
-	case (CAL_CHIP_1273):	
-		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB=Cal_Prep_Mux_Config_1273;
-		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].pUserData=(void*)(&(pConfigid->resourcedata.tResourceConfig[eResource]));
-		uCommandcount=1;
-		break;
+    	case (CAL_CHIP_1273):	
+    		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB=Cal_Prep_Mux_Config_1273;
+    		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].pUserData=(void*)(&(pConfigid->resourcedata.tResourceConfig[eResource]));
+    		uCommandcount=1;
+    		break;
 
-	case (CAL_CHIP_1273_2):	
-		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB=Cal_Prep_Mux_Config_1273_2;
-		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].pUserData=(void*)(&(pConfigid->resourcedata.tResourceConfig[eResource]));
-		uCommandcount=1;
-		break;
+    	case (CAL_CHIP_1273_2):	
+    		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB=Cal_Prep_Mux_Config_1273_2;
+    		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].pUserData=(void*)(&(pConfigid->resourcedata.tResourceConfig[eResource]));
+    		uCommandcount=1;
+    		break;
     	case (CAL_CHIP_1283):	
     		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB=Cal_Prep_Mux_Config_1283;
     		pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].pUserData=(void*)(&(pConfigid->resourcedata.tResourceConfig[eResource]));
@@ -836,17 +831,17 @@ ECAL_RetValue CAL_StopResourceConfiguration (Cal_Config_ID *pConfigid,
 {
     CcmaStatus HciSeqstatus;
 	McpU32 uCommandcount = 0;
-    ECAL_RetValue status = CAL_STATUS_SUCCESS;
+    ECAL_RetValue       status = CAL_STATUS_SUCCESS;
 
     MCP_FUNC_START("CalGenericHciCB");
 
         /* copy parameters */
-        pConfigid->resourcedata.tResourceConfig[eResource].CB = fCB;
-        pConfigid->resourcedata.tResourceConfig[eResource].pUserData = (void *)pUserData;
-        pConfigid->resourcedata.tResourceConfig[eResource].eOperation = eOperation;
-        pConfigid->resourcedata.tResourceConfig[eResource].eResource = eResource;
-        MCP_HAL_MEMORY_MemCopy(&(pConfigid->resourcedata.tResourceConfig[ eResource ].tProperties),
-                               ptProperties, sizeof (TCAL_ResourceProperties));        
+        pConfigid->resourcedata.tResourceConfig[eResource].CB=fCB;
+        pConfigid->resourcedata.tResourceConfig[eResource].pUserData=(void*)pUserData;
+        pConfigid->resourcedata.tResourceConfig[eResource].eOperation=eOperation;
+        pConfigid->resourcedata.tResourceConfig[eResource].eResource=eResource;
+        MCP_HAL_MEMORY_MemCopy (&(pConfigid->resourcedata.tResourceConfig[ eResource ].tProperties),
+                                ptProperties, sizeof (TCAL_ResourceProperties));        
         /* Indicate this is a STOP FM RX over SCO command */
         pConfigid->resourcedata.tResourceConfig[eResource].bIsStart = MCP_FALSE;
 
@@ -860,16 +855,16 @@ ECAL_RetValue CAL_StopResourceConfiguration (Cal_Config_ID *pConfigid,
 		case (CAL_RESOURCE_PCMT_4):
 		case (CAL_RESOURCE_PCMT_5):
 		case (CAL_RESOURCE_PCMT_6):
-        if ((CAL_OPERATION_FM_RX == eOperation)||
-				(CAL_OPERATION_FM_TX == eOperation))
-			{
-            if (pConfigid->chip_version == CAL_CHIP_6450_2)
+            if ((CAL_OPERATION_FM_RX == eOperation)||
+        		(CAL_OPERATION_FM_TX == eOperation))
+    		{
+                if (pConfigid->chip_version == CAL_CHIP_6450_2)
 				{
 					pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB =
 						Cal_Prep_Mux_Disable_6450_2;
 					uCommandcount =1;
 				}
-            else if (pConfigid->chip_version == CAL_CHIP_1273_2)
+                else if (pConfigid->chip_version == CAL_CHIP_1273_2)
 				{
 					pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB =
 						Cal_Prep_Mux_Disable_1273_2;
@@ -881,10 +876,10 @@ ECAL_RetValue CAL_StopResourceConfiguration (Cal_Config_ID *pConfigid,
 						Cal_Prep_Mux_Disable_1283;
 					uCommandcount =1;
 				}
-				else 
-				{
-					status= CAL_STATUS_SUCCESS;
-				}
+    			else 
+    			{
+    				status= CAL_STATUS_SUCCESS;
+    			}
 			}
 			else
 			{
@@ -934,7 +929,7 @@ ECAL_RetValue CAL_StopResourceConfiguration (Cal_Config_ID *pConfigid,
 				case CAL_CHIP_1283:
 					pConfigid->resourcedata.tResourceConfig[eResource].hciseqCmd[0].fCommandPrepCB =
 						Cal_Prep_BtOverFm_Config_1283;
-								uCommandcount =1;
+					uCommandcount =1;
                 break;
 
 		        }
@@ -1099,8 +1094,8 @@ MCP_STATIC const char *ChipToString(ECAL_ChipVersion chip)
         return "6450_2";
     case CAL_CHIP_1273:
         return "1273";
-case CAL_CHIP_1273_2:
-	return "1273_2";
+    case CAL_CHIP_1273_2:
+    	return "1273_2";
     case CAL_CHIP_1283:
         return "1283";
     case CAL_CHIP_5500:

@@ -150,6 +150,9 @@ typedef McpInt McpBool;
 #define NULL    0
 #endif
 
+/* FILE */
+typedef void* McpFILE;
+
 /* -------------------------------------------------------------
  *					LIMITS						
  */

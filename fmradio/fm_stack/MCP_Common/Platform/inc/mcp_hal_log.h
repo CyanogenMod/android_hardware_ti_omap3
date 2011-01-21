@@ -43,6 +43,12 @@
  * Include files
  *
  *******************************************************************************/
+#include <stdio.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netinet/in.h>
 #include "mcp_hal_types.h"
 
 /*---------------------------------------------------------------------------
@@ -178,6 +184,8 @@ typedef enum {
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_CLIENT_XXX,
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_CLIENT_SPP,
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_CLIENT_HID_BRIDGE,
+    MCP_HAL_LOG_MODULE_TYPE_BTBUS_CLIENT_GAPLE,
+    MCP_HAL_LOG_MODULE_TYPE_BTBUS_CLIENT_GATT,
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_SERVER_MAIN,
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_SERVER_OSA,
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_SERVER_A2DP,
@@ -203,6 +211,8 @@ typedef enum {
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_SERVER_PBAPS,
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_SERVER_XXX,
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_SERVER_SPP,
+    MCP_HAL_LOG_MODULE_TYPE_BTBUS_SERVER_GAPLE,
+    MCP_HAL_LOG_MODULE_TYPE_BTBUS_SERVER_GATT,
     MCP_HAL_LOG_MODULE_TYPE_BTBUS_UTILS,
 /* MCPF */
     MCP_HAL_LOG_MODULE_TYPE_NAVC_MODULE,
@@ -282,6 +292,52 @@ extern McpHalLogModule_t MCP_HAL_LOG_Modules[];
 #define MCPHAL_LOG_MAX_FILENAME_LENGTH   150
 #define MCPHAL_LOG_MAX_MESSAGE_LENGTH    150
 #define MCPHAL_LOG_MAX_MODULENAME_LENGTH  30
+#define MCPHAL_LOG_MAX_IPADDR_LENGTH  30
+#define MCPHAL_LOG_MAX_FILENAME_LENGTH   150
+#define MCPHAL_LOG_MAX_MESSAGE_LENGTH    150
+#define MCPHAL_LOG_MAX_MODULENAME_LENGTH  30
+
+/*---------------------------------------------------------------------------
+ * McpHalLogTags and TagId's 
+ *
+ *	   Represents the TAGS that needs to be appended to the log message 
+ *	   before sending out
+ */
+typedef enum
+{
+  MCP_HAL_LOG_INTERNAL_TAG_ID             = 0x0,           
+  MCP_HAL_LOG_TOSENSOR_TAG_ID            = 0x1,           
+  MCP_HAL_LOG_FROMSENSOR_TAG_ID        = 0x2,
+  MCP_HAL_LOG_NULL_TAG_ID			= 0x3
+}EMcpf_LogTagId;
+
+
+#define MCP_HAL_LOG_INTERNAL_TAG       	"<I>"
+#define MCP_HAL_LOG_TOSENSOR_TAG      	"<T>"
+#define MCP_HAL_LOG_FROMSENSOR_TAG   	"<F>"
+#define MCP_HAL_LOG_NULL_TAG   		"\0"
+
+#define MCP_HAL_LOG_ERROR_STRING		"ERR: Invalid TagId"
+
+#define MCP_LOG_MODE_NORMAL		1
+#define MCP_LOG_MODE_TAG			3
+
+#define MCP_LOG_NORMAL_INDEX		0
+#define MCP_LOG_RE_ROUTE_INDEX	1
+#define MCP_LOG_MAX_INDEX			2
+
+#define MCP_LOG_PORT_DEFAULT		5555
+
+
+
+typedef struct _mcp_log_socket_t
+{
+        int     udp_sock;
+        char mcpLogUdpTargetAddress[MCPHAL_LOG_MAX_IPADDR_LENGTH]; /*IP Address*/
+        unsigned long mcpLogUdpTargetPort ; /*port number*/
+        struct sockaddr_in mcpSockAddr;
+
+} mcp_log_socket_t;
 
 /*-------------------------------------------------------------------------------
  * Platform dependent functions
@@ -306,6 +362,14 @@ void MCP_HAL_LOG_Init(void);
 void MCP_HAL_LOG_Deinit(void);
 
 void MCP_HAL_LOG_SetThreadName(const char* name);
+
+void MCP_HAL_LOG_Set_Mode(McpU8 udpMode);
+
+void MCP_HAL_LOG_LogBinBuf( const McpU8	logMode,
+									McpU8	tagId,
+						 			const McpU8	*pBuf,
+						 			const McpU32	len);
+
 
 #ifdef EBTIPS_RELEASE
 #define GENERAL_RELEASE

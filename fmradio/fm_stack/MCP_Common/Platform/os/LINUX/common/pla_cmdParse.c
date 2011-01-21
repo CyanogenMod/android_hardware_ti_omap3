@@ -20,7 +20,7 @@
 /** Include Files **/
 #include <stdarg.h>
 #include <stdio.h>
-
+#include "string.h"
 #include "pla_cmdParse.h"
 
 
@@ -32,6 +32,8 @@
 #ifndef Report
 #define Report(x) printf x
 #endif
+
+#define PATHCONFIGFILE "-c/system/bin/pathconfigfile.txt"
 
 
 /************************************************************************/
@@ -80,12 +82,15 @@ McpU32 pla_cmdParse_GeneralCmdLine(LPSTR CmdLine, char **bt_str, char **nav_str)
     McpU32      uPortNum = -1;
     
     char        *pParam;
+    char        *paramParse;
+    char        pathfile[256] = "";
     char        logName[30] = "";
     char        logFile[256] = "";
     char        logIp[30] = "";
     char        portStr[30] = "";
     unsigned long port = 0;
     char        *pPort;
+    int         i=0;
 
     MCPF_UNUSED_PARAMETER(bt_str);
     
@@ -95,9 +100,37 @@ McpU32 pla_cmdParse_GeneralCmdLine(LPSTR CmdLine, char **bt_str, char **nav_str)
 		uPortNum = atoi(pPort+2);
 		sprintf((*nav_str), "%s%d", "-p", uPortNum); 
 	}
-	else
-		(*nav_str) = NULL;
+
     
+    /*Issue Fix -nav*/
+    if (0 != (pParam = strstr((const char *)CmdLine, "-nav")))
+    {
+	
+	paramParse = pParam;   
+	paramParse += 5;	 
+	
+	strcat (*nav_str, " ");
+
+	while(*paramParse != '"')
+	{
+		
+              pathfile[i] = *paramParse;
+		paramParse++;
+		i++;
+       }
+       strcat (*nav_str, pathfile);
+
+	   		MCP_HAL_LOG_INFO(__FILE__,
+                                      __LINE__,
+                                      MCP_HAL_LOG_MODULE_TYPE_MCP_MAIN,
+                                      ("pla_cmdParse_GeneralCmdLine111: NAV Cmd line \"%s\"", *nav_str));
+    }
+    else
+    {
+	strcat (*nav_str, " ");
+	strcat (*nav_str, PATHCONFIGFILE);
+    }
+
 #ifdef ANDROID
     if (0 != (pParam = strstr((const char *)CmdLine, "--android_log")))
     {
@@ -223,7 +256,14 @@ void pla_cmdParse_NavcCmdLine(char *nav_str, TcmdLineParams *tCmdLineParams)
             continue;
         }
 
-    }
+	   if( (strncmp( pHyphen, "-c", 2 ) == 0) )
+			{
+				/* Path Control File */
+				sscanf(pHyphen+2, "%s", &tCmdLineParams->s_PathCtrlFile);
+
+				continue;
+			}
+	}
 }
 
 static void getParamString(char *paramName, char *buf)

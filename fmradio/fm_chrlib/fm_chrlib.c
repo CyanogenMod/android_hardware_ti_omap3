@@ -60,6 +60,10 @@ FM_DRV_CmdComplCb        fCmdCompCallback;
 typedef void             (*_FM_DRV_IF_InterruptCb) (void);
 _FM_DRV_IF_InterruptCb   fInterruptCallback;
 
+static int fm_fd = INVALID_DESC;
+static int dev_state = RADIO_DEV_CLOSE;
+pthread_t recv_thread;
+
 int fm_send_cmd(int dd, uint16_t ogf, uint16_t ocf, uint8_t plen, void *param)
 {
 	hci_command_hdr hc;
@@ -118,9 +122,10 @@ void fm_receiver_thread(void)
 	evt_cmd_complete *cc;
 	while(dev_state != RADIO_DEV_EXIT) {
 		do {
-			struct pollfd p={0};
+			struct pollfd p;
 			int n;
 
+			memset(&p, 0, sizeof(p));
 			p.fd = fm_fd; p.events = POLLIN;
 			if ((n = poll(&p, 1, pollcnt)) < 0) {
 				if (errno == EAGAIN || errno == EINTR)
@@ -203,6 +208,8 @@ int fm_open_dev(int dev_id, void* fm_interrupt_cb, void* cmd_cmplt_cb, void *hHa
 	fInterruptCallback = fm_interrupt_cb;
 	retval = 0;
 
+	/* should always throw up on logcat */
+	LOGE("fm_chrlib: FM Stack version MCPv2.5 Beta \n");
 	/* If not closed, open the device only once. Avoid multiplr open*/
 	if (fm_fd == INVALID_DESC) {
 		FM_CHRLIB_DBG("	Opening %s device ", TI_FMRADIO);
@@ -231,7 +238,7 @@ int fm_open_dev(int dev_id, void* fm_interrupt_cb, void* cmd_cmplt_cb, void *hHa
 	signal(SIGINT, fm_sig_handler);
 	/* create a receiver thread */
 	pthread_create(&recv_thread, NULL,
-			fm_receiver_thread, NULL);
+			(void*(*)(void*))fm_receiver_thread, NULL);
 
 	return fm_fd;
 }

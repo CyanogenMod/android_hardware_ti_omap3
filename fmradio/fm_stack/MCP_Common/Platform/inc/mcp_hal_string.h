@@ -304,6 +304,29 @@ void MCP_HAL_STRING_ItoA(McpU16 Num,McpU8* Buff);
 
 
 /*-------------------------------------------------------------------------------
+ * MCP_HAL_STRING_AtoI(char * Buff)
+ *
+ * Brief: 
+ *      Convert Num to String and store in Buff
+ *
+ * Description:
+  *
+ * Type:
+ *		Synchronous
+ *
+ * Parameters:
+ *		Buff [in] - String that needs to be converted to integer
+ *
+ *
+ * Returns:
+ *	
+ *		McpU16
+ */
+
+McpS16 MCP_HAL_STRING_AtoI(McpU8* Buff);
+
+
+/*-------------------------------------------------------------------------------
  * MCP_HAL_STRING_strtok()
  *
  * Brief: 

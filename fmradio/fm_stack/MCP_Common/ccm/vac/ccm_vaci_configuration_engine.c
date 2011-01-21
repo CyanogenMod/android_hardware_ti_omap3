@@ -331,8 +331,7 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_StartOperation (TCCM_VAC_Configurat
                                                              TCCM_VAC_UnavailResourceList *ptUnavailResources)
 {
     McpHalOsStatus          eOsStatus;
-    TCAL_ResourceList       *pResourceList = 
-        &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
+    TCAL_ResourceList       *pResourceList;
     ECCM_VAC_Status         eConfigStatus;
     ECCM_VAC_Status         eAllocationStatus, status = CCM_VAC_STATUS_FAILURE_UNSPECIFIED; 
 
@@ -345,13 +344,23 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_StartOperation (TCCM_VAC_Configurat
     MCP_VERIFY_FATAL ((NULL != ptConfigEngine), CCM_VAC_STATUS_FAILURE_UNSPECIFIED,
                       ("_CCM_VAC_ConfigurationEngine_StartOperation: NULL object!"));
 
+/* verify operation is valid */
+    MCP_VERIFY_ERR ((eOperation < CAL_OPERATION_MAX_NUM),
+                    CCM_VAC_STATUS_FAILURE_INVALID_CONFIGURATION,
+                    ("_CCM_VAC_ConfigurationEngine_StartOperation: invalid operation %s",
+                     _CCM_VAC_DebugOperationStr(eOperation)));
+
+
     /* verify operation is supported */
     MCP_VERIFY_ERR ((MCP_TRUE == ptConfigEngine->tOperations[ eOperation ].bSupported),
                     CCM_VAC_STATUS_FAILURE_OPERATION_NOT_SUPPORTED,
                     ("_CCM_VAC_ConfigurationEngine_StartOperation: unsupported operation %s",
                      _CCM_VAC_DebugOperationStr(eOperation)));
 
-    /* lock the semaphore (while accessing the mapping and allocation engines) */
+    pResourceList = &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
+	
+
+	/* lock the semaphore (while accessing the mapping and allocation engines) */
     eOsStatus = MCP_HAL_OS_LockSemaphore (ptConfigEngine->tSemaphore, MCP_HAL_OS_TIME_INFINITE);
     MCP_VERIFY_FATAL ((MCP_HAL_OS_STATUS_SUCCESS == eOsStatus), CCM_VAC_STATUS_FAILURE_UNSPECIFIED,
                       ("_CCM_VAC_ConfigurationEngine_StartOperation: semaphore returned error %d",
@@ -495,9 +504,8 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_StopOperation (TCCM_VAC_Configurati
 {
     ECCM_VAC_Status         status;
     McpHalOsStatus          eOsStatus;
-    TCAL_ResourceList       *pResourceList = 
-        &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
-
+    TCAL_ResourceList       *pResourceList;
+ 
 
     MCP_FUNC_START ("_CCM_VAC_ConfigurationEngine_StopOperation");
 
@@ -508,11 +516,19 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_StopOperation (TCCM_VAC_Configurati
     MCP_VERIFY_FATAL ((NULL != ptConfigEngine), CCM_VAC_STATUS_FAILURE_UNSPECIFIED,
                       ("_CCM_VAC_ConfigurationEngine_StopOperation: NULL object!"));
 
-    /* verify operation is supported */
+   /* verify operation is valid */
+    MCP_VERIFY_ERR ((eOperation < CAL_OPERATION_MAX_NUM),
+                    CCM_VAC_STATUS_FAILURE_INVALID_CONFIGURATION,
+                    ("_CCM_VAC_ConfigurationEngine_StartOperation: invalid operation %s",
+                     _CCM_VAC_DebugOperationStr(eOperation)));
+
+   /* verify operation is supported */
     MCP_VERIFY_ERR ((MCP_TRUE == ptConfigEngine->tOperations[ eOperation ].bSupported),
                     CCM_VAC_STATUS_FAILURE_OPERATION_NOT_SUPPORTED,
                     ("_CCM_VAC_ConfigurationEngine_StopOperation: unsupported operation %s",
                      _CCM_VAC_DebugOperationStr(eOperation)));
+    
+    pResourceList = &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
 
     /* lock the semaphore (while accessing the mapping engine and operation state) */
     eOsStatus = MCP_HAL_OS_LockSemaphore (ptConfigEngine->tSemaphore, MCP_HAL_OS_TIME_INFINITE);
@@ -637,8 +653,7 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_ChangeResource (TCCM_VAC_Configurat
 {
     McpHalOsStatus          eOsStatus;
     TCAL_ResourceList       tCurrentOptionalresources, tNewOptionalResources;
-    TCAL_ResourceList       *pResourceList = 
-        &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
+    TCAL_ResourceList       *pResourceList;	
     ECCM_VAC_Status         eAllocationStatus, status = CCM_VAC_STATUS_FAILURE_UNSPECIFIED;
     ECCM_VAC_Status         eConfigStatus;
 
@@ -651,11 +666,19 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_ChangeResource (TCCM_VAC_Configurat
     MCP_VERIFY_FATAL ((NULL != ptConfigEngine), CCM_VAC_STATUS_FAILURE_UNSPECIFIED,
                       ("_CCM_VAC_ConfigurationEngine_ChangeResource: NULL object!"));
 
+    /* verify operation is valid */
+    MCP_VERIFY_ERR ((eOperation < CAL_OPERATION_MAX_NUM),
+                    CCM_VAC_STATUS_FAILURE_INVALID_CONFIGURATION,
+                    ("_CCM_VAC_ConfigurationEngine_StartOperation: invalid operation %s",
+                     _CCM_VAC_DebugOperationStr(eOperation)));
+
     /* verify operation is supported */
     MCP_VERIFY_ERR ((MCP_TRUE == ptConfigEngine->tOperations[ eOperation ].bSupported),
                     CCM_VAC_STATUS_FAILURE_OPERATION_NOT_SUPPORTED,
                     ("_CCM_VAC_ConfigurationEngine_ChangeResource: unsupported operation %s",
                     _CCM_VAC_DebugOperationStr(eOperation)));
+
+    pResourceList = &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
 
     /* lock the semaphore (while accessing the mapping and allocation engines) */
     eOsStatus = MCP_HAL_OS_LockSemaphore (ptConfigEngine->tSemaphore, MCP_HAL_OS_TIME_INFINITE);
@@ -821,8 +844,7 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_ChangeConfiguration (TCCM_VAC_Confi
                                                                   TCAL_DigitalConfig *ptConfig)
 {
     McpHalOsStatus          eOsStatus;
-    TCAL_ResourceList       *pResourceList = 
-        &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
+    TCAL_ResourceList       *pResourceList;
     ECCM_VAC_Status         eConfigStatus, status;
 
     MCP_FUNC_START ("CCM_VAC_ConfigurationEngine_ChangeConfiguration");
@@ -834,11 +856,19 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_ChangeConfiguration (TCCM_VAC_Confi
     MCP_VERIFY_FATAL ((NULL != ptConfigEngine), CCM_VAC_STATUS_FAILURE_UNSPECIFIED,
                       ("CCM_VAC_ConfigurationEngine_ChangeConfiguration: NULL object!"));
 
+    /* verify operation is valid */
+    MCP_VERIFY_ERR ((eOperation < CAL_OPERATION_MAX_NUM),
+                    CCM_VAC_STATUS_FAILURE_INVALID_CONFIGURATION,
+                    ("_CCM_VAC_ConfigurationEngine_StartOperation: invalid operation %s",
+                     _CCM_VAC_DebugOperationStr(eOperation)));	
+
     /* verify operation is supported */
     MCP_VERIFY_ERR ((MCP_TRUE == ptConfigEngine->tOperations[ eOperation ].bSupported),
                     CCM_VAC_STATUS_FAILURE_OPERATION_NOT_SUPPORTED,
                     ("_CCM_VAC_ConfigurationEngine_ChangeConfiguration: unsupported operation %s",
                      _CCM_VAC_DebugOperationStr(eOperation)));
+
+    pResourceList = &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
 
     /* lock the semaphore (while accessing the mapping and allocation engines) */
     eOsStatus = MCP_HAL_OS_LockSemaphore (ptConfigEngine->tSemaphore, MCP_HAL_OS_TIME_INFINITE);
@@ -930,8 +960,7 @@ void _CCM_VAC_ConfigurationEngine_CalCb (void *pUserData,
         ((TCCM_VAC_CECALUserData *)pUserData)->ptConfigEngine;
     ECAL_Operation                  eOperation = 
         ((TCCM_VAC_CECALUserData *)pUserData)->eOperation;
-    TCAL_ResourceList               *pResourceList = 
-        &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
+    TCAL_ResourceList               *pResourceList;
     ECCM_VAC_Status                 eConfigStatus;
     McpHalOsStatus                  eOsStatus;
     McpU32                          uIndex;
@@ -944,6 +973,13 @@ void _CCM_VAC_ConfigurationEngine_CalCb (void *pUserData,
     /* verify object pointer */
     MCP_VERIFY_FATAL_NO_RETVAR ((NULL != ptConfigEngine),
                                 ("_CCM_VAC_ConfigurationEngine_CalCb: NULL object!"));
+	
+    /* verify operation is valid */	
+    MCP_VERIFY_FATAL_NO_RETVAR ((eOperation < CAL_OPERATION_MAX_NUM),
+                                ("_CCM_VAC_ConfigurationEngine_StartOperation: invalid operation %s",
+                     _CCM_VAC_DebugOperationStr(eOperation)));
+		
+    pResourceList = &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
 
     /* if configuration failed for current resource */
     if (CAL_STATUS_SUCCESS != eRetValue)
@@ -1063,8 +1099,7 @@ void _CCM_VAC_ConfigurationEngine_CalStopCb (void *pUserData,
         ((TCCM_VAC_CECALUserData *)pUserData)->ptConfigEngine;
     ECAL_Operation                  eOperation = 
         ((TCCM_VAC_CECALUserData *)pUserData)->eOperation;
-    TCAL_ResourceList               *pResourceList = 
-        &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
+    TCAL_ResourceList               *pResourceList;
     ECCM_VAC_Status                 eConfigStatus;
     McpU32                          uIndex;
     McpHalOsStatus                  eOsStatus;
@@ -1077,6 +1112,13 @@ void _CCM_VAC_ConfigurationEngine_CalStopCb (void *pUserData,
     /* verify object pointer */
     MCP_VERIFY_FATAL_NO_RETVAR ((NULL != ptConfigEngine),
                                 ("_CCM_VAC_ConfigurationEngine_CalStopCb: NULL object!"));
+
+    /* verify operation is valid */	
+    MCP_VERIFY_FATAL_NO_RETVAR ((eOperation < CAL_OPERATION_MAX_NUM),
+                                ("_CCM_VAC_ConfigurationEngine_StartOperation: invalid operation %s",
+                     _CCM_VAC_DebugOperationStr(eOperation)));
+		
+    pResourceList = &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
 
     /* if configuration failed for current resource */
     if (CAL_STATUS_SUCCESS != eRetValue)
@@ -1190,9 +1232,8 @@ void _CCM_VAC_ConfigurationEngine_CalStopCb (void *pUserData,
 ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_ConfigResources (TCCM_VAC_ConfigurationEngine *ptConfigEngine,
                                                               ECAL_Operation eOperation)
 {
-    TCAL_ResourceList       *pResourceList = 
-        &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
-    ECAL_RetValue           eConfigStatus;
+    TCAL_ResourceList       *pResourceList;
+    ECAL_RetValue           eConfigStatus = CAL_STATUS_FAILURE;
 
     /*
      * it is assumed the VAC semaphore is NOT locked when calling this function. This must hold to
@@ -1204,6 +1245,13 @@ ECCM_VAC_Status _CCM_VAC_ConfigurationEngine_ConfigResources (TCCM_VAC_Configura
 
     MCP_LOG_INFO (("_CCM_VAC_ConfigurationEngine_ConfigResources: continuing configuration for operation %s",
                    _CCM_VAC_DebugOperationStr(eOperation)));
+
+    /* verify operation is valid */	
+    MCP_VERIFY_FATAL_NO_RETVAR ((eOperation < CAL_OPERATION_MAX_NUM),
+                                ("_CCM_VAC_ConfigurationEngine_StartOperation: invalid operation %s",
+                     _CCM_VAC_DebugOperationStr(eOperation)));
+	
+    pResourceList = &(ptConfigEngine->tOperations[ eOperation ].tCurrentRequiredResources);
 
     eConfigStatus = CAL_STATUS_SUCCESS;
     /* 

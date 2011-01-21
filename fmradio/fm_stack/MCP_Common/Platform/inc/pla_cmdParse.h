@@ -32,6 +32,7 @@ typedef struct
 	McpInt	x_AdsPort[MAX_ADS_PORTS];
 	McpU16	x_AdsPortsCounter;
 	McpU16	w_AlmanacDataBlockFlag;
+	McpS8  s_PathCtrlFile[50];
 } TcmdLineParams;
 
 /** 
@@ -67,3 +68,4 @@ void pla_cmdParse_NavcCmdLine(char *nav_str, TcmdLineParams *tCmdLineParams);
 
 
 #endif
+	McpS8  s_PathCtrlFile[50];

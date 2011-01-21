@@ -160,6 +160,14 @@ void MCP_HAL_STRING_ItoA(McpU16 Num,McpU8* Buff)
 	itoa(Num, Buff);
 }
 
+McpS16 MCP_HAL_STRING_AtoI(McpU8* Buff)
+{
+	if (Buff)
+		return atoi(Buff);
+	else
+		return 0;
+}
+
 /******************************************************
 *				Internal Functions 					          *
 ******************************************************/

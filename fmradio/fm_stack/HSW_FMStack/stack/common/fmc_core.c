@@ -233,6 +233,9 @@ FmcStatus FMC_CORE_TransportOff(void)
 	FMC_LOG_INFO(("FMC_CORE_TransportOff: Calling TI_CHIP_MNGR_FMOff"));
 
 #ifdef BLUEZ_SOLUTION
+	/* remove unused vars warnings, since we ignore these status-es */
+	(void) stIfStatus;
+	(void) ccmImStatus;
 	status = fm_close_dev(0);
 #endif
 
@@ -752,6 +755,10 @@ FmcStatus FMC_CORE_TransportOn(void)
     FMC_FUNC_START("FMC_CORE_TransportOn");
 
 #ifdef BLUEZ_SOLUTION
+	/* remove unused vars warning, since we are ignoring these status-es*/
+	(void) stStatus;
+	(void) ccmStatus;
+	(void) ccmImStatus;
     /* _FM_DRV_IF_InterruptCb func callback with which
        pthread_create needs to be called
      */

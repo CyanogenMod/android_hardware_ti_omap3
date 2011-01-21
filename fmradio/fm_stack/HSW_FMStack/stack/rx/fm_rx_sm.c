@@ -371,7 +371,7 @@ FMC_STATIC void HandleStopSeekStart(void);
 FMC_STATIC void HandleStopSeekWaitCmdCompleteOrInt(void);
 FMC_STATIC void HandleSeekStopSeekFinishedReadFreq(void);
 /*todo ram - This is a workaround due to a FW defect we must Set the current  frequency again at the end of the seek sequence 
-			THIS NEED TO BE REMOVED FOR PG 2.0 */
+            THIS NEED TO BE REMOVED FOR PG 2.0 */
 FMC_STATIC void HandleSeekStopSeekFinishedSetFreq(void);
 FMC_STATIC void HandleSeekStopSeekFinishedEnableDefaultInts(void);
 FMC_STATIC void HandleSeekStopSeekFinish(void);
@@ -717,8 +717,8 @@ FMC_STATIC FmRxOpCurHandler seekHandler[] = {HandleSeekStart,
                                     HandleSeekWaitStartTuneCmdComplete,
                                     HandleSeekStopSeekFinishedReadFreq,
 /*todo ram - This is a work around due to a FW defect we must Set the current  frequency again at the end of the seek sequence 
-			THIS NEED TO BE REMOVED FOR PG 2.0 */
-					 HandleSeekStopSeekFinishedSetFreq,	
+            THIS NEED TO BE REMOVED FOR PG 2.0 */
+                     HandleSeekStopSeekFinishedSetFreq, 
                                     HandleSeekStopSeekFinishedEnableDefaultInts,
                                     HandleSeekStopSeekFinish};
 
@@ -1082,7 +1082,7 @@ FMC_STATIC void _FM_RX_SM_ResetRdsData(void)
     _fmRxSmData.rdsParams.nextPsIndex = RDS_NEXT_PS_INDEX_RESET; 
     _fmRxSmData.curStationParams.piCode = NO_PI_CODE; 
     _fmRxSmData.curStationParams.afListSize = 0; 
-    FMC_OS_MemCopy(_fmRxSmData.curStationParams.psName, (FMC_U8*)("\0"), RDS_PS_NAME_SIZE); 
+    FMC_OS_MemCopy(_fmRxSmData.curStationParams.psName, (FMC_U8*)("\0\0\0\0\0\0\0\0"), RDS_PS_NAME_SIZE); 
     
     _fmRxSmData.rdsParams.prevABFlag = RDS_PREV_RT_AB_FLAG_RESET; 
     /*when we reset the rds data should be cleaned*/
@@ -1311,7 +1311,7 @@ FMC_STATIC void _FM_RX_SM_Events_Process(void)
         {
             _fmRxSmData.currCmdInfo.smState = _FM_RX_SM_STATE_NONE;
             _fmRxSmData.context.transportEventData.eventWaitsForProcessing = FMC_FALSE;
-                        
+            
             /* If the upper event waited for the cmd complete - call the 
                Operation handler with upper event and ignore the cmd complete */
             if(_fmRxSmData.upperEventWait) 
@@ -1686,10 +1686,12 @@ FMC_STATIC void HandleFmcPowerOnStartInitScript(void)
     McpBtsSpExecuteScriptCbData scriptCbData;
     char                        fileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS *
                                          MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
-    McpUtf8                     scriptFullFileName[MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS *
-                                                   MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
+    McpUtf8                     scriptFullFileName[(MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS * MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR) + 
+					      (MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS * MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR)];
 
 
+    FMC_LOG_DEBUG(("HandleFmcPowerOnStartInitScript"));
+    
     _fmRxSmData.fmAsicVersion = _fmRxSmData.context.transportEventData.read_param;
     
     MCP_HAL_STRING_Sprintf(fileName, "%s_%x.%d.bts", 
@@ -1761,6 +1763,8 @@ FMC_STATIC void HandleFmcPowerOnStartInitScript(void)
 }
 FMC_STATIC void HandlePowerOnRunScript(void)
 {
+//    FMC_LOG_DEBUG(("HandlePowerOnRunScript"));
+    
     if(_fmRxSmData.context.state == FM_RX_SM_CONTEXT_STATE_ENABLING)
     {
         _fmRxSmData.currCmdInfo.smState = _FM_RX_SM_STATE_WAITING_FOR_CC;
@@ -1777,9 +1781,11 @@ FMC_STATIC void HandleFmRxPowerOnStartInitScript(void)
     McpBtsSpExecuteScriptCbData scriptCbData;
     char                        fileName[MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS *
                                          MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
-    McpUtf8                     scriptFullFileName[MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS *
-                                                   MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR];
+    McpUtf8                     scriptFullFileName[(MCP_HAL_CONFIG_FS_MAX_PATH_LEN_CHARS * MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR) + 
+					      (MCP_HAL_CONFIG_FS_MAX_FILE_NAME_LEN_CHARS * MCP_HAL_CONFIG_MAX_BYTES_IN_UTF8_CHAR)];
 
+    FMC_LOG_DEBUG(("HandleFmRxPowerOnStartInitScript"));
+    
     MCP_HAL_STRING_Sprintf(fileName, "%s_%x.%d.bts", 
                            FMC_CONFIG_SCRIPT_FILES_FM_RX_INIT_NAME,
                            _fmRxSmData.fmAsicId,
@@ -1851,6 +1857,8 @@ FMC_STATIC void HandleFmRxPowerOnStartInitScript(void)
 }
 FMC_STATIC void HandlePowerOnRxRunScript(void)
 {
+//    FMC_LOG_DEBUG(("HandlePowerOnRxRunScript"));
+    
     if(_fmRxSmData.context.state == FM_RX_SM_CONTEXT_STATE_ENABLING)
     {
         _fmRxSmData.currCmdInfo.smState = _FM_RX_SM_STATE_WAITING_FOR_CC;
@@ -1948,7 +1956,7 @@ FMC_STATIC void HandlePowerOffDisableAudioRoutingStopVacFmOBtOperation(void)
 FMC_STATIC void HandlePowerOffTransportOff(void)
 {
     FmcStatus status;
-
+    
     status = FMC_CORE_TransportOff();
     
     if (status == FMC_STATUS_SUCCESS)
@@ -2111,7 +2119,7 @@ FMC_STATIC void HandleVolumeSetStart(void)
 }
 FMC_STATIC void HandleVolumeSetFinish(void)
 {
-	_fmRxSmData.volume = (FMC_UINT)((FmRxVolumeSetCmd *)_fmRxSmData.currCmdInfo.baseCmd)->gain;
+    _fmRxSmData.volume = (FMC_UINT)((FmRxVolumeSetCmd *)_fmRxSmData.currCmdInfo.baseCmd)->gain;
 
     /* Send event to the applicatoin */
     _FM_RX_SM_HandleCompletionOfCurrCmd(NULL,NULL,NULL,FM_RX_EVENT_CMD_DONE);
@@ -2599,7 +2607,7 @@ FMC_STATIC void HandleSeekStopSeekFinishedReadFreq(void)
 /********************************************START - WORKAROUND*************************************************/
 
 /*todo ram - This is a workaround due to a FW defect we must Set the current  frequency again at the end of the seek sequence 
-			THIS NEED TO BE REMOVED FOR PG 2.0 */
+            THIS NEED TO BE REMOVED FOR PG 2.0 */
 FMC_STATIC void HandleSeekStopSeekFinishedSetFreq(void)
 {   
 
@@ -2608,7 +2616,7 @@ FMC_STATIC void HandleSeekStopSeekFinishedSetFreq(void)
     /* Update to next handler */
     prepareNextStage(_FM_RX_SM_STATE_WAITING_FOR_CC, 0);
 
-    /*Get the current Freq from the evnt */	
+    /*Get the current Freq from the evnt */ 
     index = _fmRxSmData.context.transportEventData.read_param;
     
     /* Send Set_Frequency command  with the current frequency*/    
@@ -3182,6 +3190,11 @@ ECCM_VAC_Status StartAudioOperation(ECAL_Operation operation)
     ptConfig.eSampleFreq = _fmRxSmData.vacParams.eSampleFreq;
     ptConfig.uChannelNumber = _getRxChannelNumber();
     
+    if (operation >= CAL_OPERATION_MAX_NUM)
+    	{
+    	   return  CCM_VAC_STATUS_FAILURE_OPERATION_NOT_SUPPORTED;
+    	}
+		
     /*  remember the starting operation. this is needed if recieving unavailible resources we need to 
     *   forward the app the operation, which can be ither the fm rx op or the fm_o_sco/a3dp 
     */
@@ -3201,7 +3214,7 @@ FMC_STATIC void HandleEnableAudioRoutingStart(void)
     if(_fmRxSmData.vacParams.audioTargetsMask&FM_RX_VAC_RX_OPERATION_MASK)
     {
         /* start vac opration and move to next stage sync or async*/
-       _handleVacOpStateAndMove2NextStage( StartAudioOperation(CAL_OPERATION_FM_RX));
+        _handleVacOpStateAndMove2NextStage( StartAudioOperation(CAL_OPERATION_FM_RX));
     }
     else
     {   /* if fm rx operation not needed simulate success in vac call to move to next stage*/
@@ -3324,6 +3337,11 @@ ECCM_VAC_Status SendChangeAudioTargets(ECAL_Operation operation)
     ECAL_ResourceMask targetsMask;
     FmRxSetAudioTargetCmd *setAudioTargetsCmd = (FmRxSetAudioTargetCmd*)_fmRxSmData.currCmdInfo.baseCmd;
 
+     if (operation >= CAL_OPERATION_MAX_NUM)
+     	{
+     	   return CCM_VAC_STATUS_FAILURE_OPERATION_NOT_SUPPORTED;
+     	}
+	 
     /* get the digital configuration*/
     ptConfig.eSampleFreq = setAudioTargetsCmd->eSampleFreq;
     ptConfig.uChannelNumber = _getRxChannelNumber();
@@ -3843,7 +3861,7 @@ FMC_STATIC void HandleAfJumpFinished(void)
      
     /* If the frequency was changed the jump succeeded */
     if(read_freq != _fmRxSmData.freqBeforeJump) 
-    {   	
+    {       
         /* There was a jump - make sure it was to the frequency we set */
         FMC_ASSERT(jumped_freq == read_freq);
 
@@ -4260,11 +4278,21 @@ FMC_STATIC void handleRdsGroup2(FmRxRdsDataFormat  *rdsFormat)
         }
         if(!wasRepertoireUpdated)
         {/*I the repertoire was updated the first 2 bytes are not data bytes - they only indicate the reperetoire - and therefor should be ignored*/
+        
+            /* The array index (rtLength) should be less than RDS_RADIO_TEXT_SIZE-1 in order to allow the writting of two consecutive bytes without overflow */ 
+            if (_fmRxSmData.rdsParams.rtLength <  RDS_RADIO_TEXT_SIZE-1)
+            	{
             _fmRxSmData.rdsParams.radioText[_fmRxSmData.rdsParams.rtLength++] = rdsFormat->rdsData.group2A.firstRtByte;  
             _fmRxSmData.rdsParams.radioText[_fmRxSmData.rdsParams.rtLength++] = rdsFormat->rdsData.group2A.secondRtByte; 
         }
+
+        }
+       /* The array index (rtLength) should be less than RDS_RADIO_TEXT_SIZE-1 in order to allow the writting of two consecutive bytes without overflow */ 
+	if (_fmRxSmData.rdsParams.rtLength <  RDS_RADIO_TEXT_SIZE-1)
+	  {
         _fmRxSmData.rdsParams.radioText[_fmRxSmData.rdsParams.rtLength++] = rdsFormat->rdsData.group2A.thirdRtByte; 
         _fmRxSmData.rdsParams.radioText[_fmRxSmData.rdsParams.rtLength++] = rdsFormat->rdsData.group2A.fourthRtByte; 
+    }       
     }       
     else
     {
@@ -4275,9 +4303,14 @@ FMC_STATIC void handleRdsGroup2(FmRxRdsDataFormat  *rdsFormat)
         }
         if(!wasRepertoireUpdated)
         {/*I the repertoire was updated the first 2 bytes are not data bytes - they only indicate the reperetoire - and therefor should be ignored*/
+        
+            /* The array index (rtLength) should be less than RDS_RADIO_TEXT_SIZE-1 in order to allow the writting of two consecutive bytes without overflow */ 
+           if (_fmRxSmData.rdsParams.rtLength <  RDS_RADIO_TEXT_SIZE-1)
+           	{
             _fmRxSmData.rdsParams.radioText[_fmRxSmData.rdsParams.rtLength++] =  rdsFormat->rdsData.group2B.firstRtByte; 
             _fmRxSmData.rdsParams.radioText[_fmRxSmData.rdsParams.rtLength++] = rdsFormat->rdsData.group2B.secondRtByte; 
         }
+    }
     }
     _fmRxSmData.rdsParams.nextRtIndex = (FMC_U8)(rtIndex + 1); 
     /* Is this the last index? */
@@ -4643,7 +4676,7 @@ FMC_U16 _FM_RX_UTILS_findNextIndex(FmcBand band,FmRxSeekDirection dir, FMC_U16 i
 /*If we got to an out of scop index while the direction is up start from min_index
     If we got to an out of scop index while the direction is down start from max_index */
     if(new_index < 0)
-    {
+    {       
       new_index = (FMC_S16)(max_index);                
     }
     else if((FMC_U32)new_index > max_index)
@@ -4679,6 +4712,8 @@ void _FM_RX_SM_TiSpExecuteCompleteCb(McpBtsSpContext *context, McpBtsSpStatus st
     FMC_UNUSED_PARAMETER(context);
     FMC_UNUSED_PARAMETER(status);
     /* Update to next handler */
+    
+    FMC_LOG_DEBUG(("FM RX: _FM_RX_SM_TiSpExecuteCompleteCb"));
     
     prepareNextStage(_FM_RX_SM_STATE_NONE, INCREMENT_STAGE);
 
@@ -4807,12 +4842,12 @@ FmRxStatus _FM_RX_SM_HandleCompletionOfCurrCmd( _FmRxSmSetCmdCompleteFunc   cmdC
     
 	status = _FM_RX_SM_RemoveFromQueueAndFreeCmd(&_fmRxSmData.currCmdInfo.baseCmd);
 	FMC_VERIFY_FATAL((status == FM_RX_STATUS_SUCCESS), status, ("_FM_RX_SM_HandleCompletionOfCurrCmd"));
-
-	/* Notify the appliction about completion of the command */
-	_FM_RX_SM_SendAppEvent( currCmd.context, 
-		    cmdCompletionStatus, 
-		    currCmd.cmdType,
-		    evtType);
+    
+    /* Notify the appliction about completion of the command */
+    _FM_RX_SM_SendAppEvent( currCmd.context, 
+                                            cmdCompletionStatus, 
+                                            currCmd.cmdType,
+                                            evtType);
 	}
 	else
 	{
@@ -4842,7 +4877,7 @@ void _FM_RX_SM_SendAppEvent( FmRxContext                        *context,
 
     if(evtType == FM_RX_EVENT_CMD_DONE)
         _fmRxSmData.context.appEvent.p.cmdDone.cmd = cmdType;
-    
+
     /*Verify if the event is a disable event sent by the FM_RX_Init_Async
       If it is dont pass the event to the App*/
      if((evtType == FM_RX_EVENT_CMD_DONE)&&
@@ -4967,9 +5002,9 @@ void _FM_RX_SM_TccmVacCb(ECAL_Operation eOperation,ECCM_VAC_Event eEvent, ECCM_V
 {
     /* Handel vac events only if waiting for VAC Op to complete*/
     if((_fmRxSmData.currCmdInfo.smState == _FM_RX_SM_STATE_WAITING_FOR_CC)&&
-		((eOperation == CAL_OPERATION_FM_RX)||
-		(eOperation == CAL_OPERATION_FM_RX_OVER_SCO)||
-		(eOperation == CAL_OPERATION_FM_RX_OVER_A3DP)))
+        ((eOperation == CAL_OPERATION_FM_RX)||
+        (eOperation == CAL_OPERATION_FM_RX_OVER_SCO)||
+        (eOperation == CAL_OPERATION_FM_RX_OVER_A3DP)))
     {
         FmcCoreEvent fmEventParms;
         FMC_UNUSED_PARAMETER(eOperation);
@@ -5014,7 +5049,7 @@ void _FM_RX_SM_TransportEventCb(const FmcCoreEvent *eventParms)
             case FMC_VAC_EVENT_OPERATION_STARTED:
             case FMC_VAC_EVENT_OPERATION_STOPPED:
             case FMC_VAC_EVENT_RESOURCE_CHANGED:
-	     case FMC_VAC_EVENT_CONFIGURATION_CHANGED:
+         case FMC_VAC_EVENT_CONFIGURATION_CHANGED:
             case FMC_CORE_EVENT_WRITE_COMPLETE:
             case FMC_CORE_EVENT_POWER_MODE_COMMAND_COMPLETE:
                 fm_recvd_writeCmdCmplt();

@@ -47,10 +47,6 @@ int fm_close_dev(int);
 int fm_send_req(unsigned short hci_op, unsigned char *cmd_params,
                 unsigned short params_len, unsigned char *user_data);
 
-static int fm_fd = INVALID_DESC;
-static int dev_state = RADIO_DEV_CLOSE;
-pthread_t recv_thread;
-
 typedef struct {
 	uint8_t         evt;
 	uint8_t         plen;

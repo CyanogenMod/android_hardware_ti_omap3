@@ -128,13 +128,14 @@ FmcStatus FMCI_Init(handle_t hMcpf)
     _fmcInitState = _FMC_INIT_STATE_INIT_FAILED;
     
 /* Print FMTIS version */
-    FMC_LOG_INFO(("FMTIS Software Version - %s%d.%d%d.%d",
+    FMC_LOG_INFO(("FMTIS Software Version - %s%d.%d%d.%d,Build Number - %d",
                   FMTIS_TARGET_OS,
                   FMTIS_SOFTWARE_VERSION_X,
                   FMTIS_SOFTWARE_VERSION_Y,
                   FMTIS_SOFTWARE_VERSION_Z,
-                  FMTIS_SOFTWARE_VERSION_B));
-    
+                  FMTIS_SOFTWARE_VERSION_B,
+                  FMTIS_SOFTWARE_BUILD_NUMBER));
+
     /* Init Common FM RX & TX OS Issues (task, mutex, etc) */
     status = _FMC_OsInit();
     FMC_VERIFY_FATAL((status == FMC_STATUS_SUCCESS), FMC_STATUS_INTERNAL_ERROR, 
@@ -155,7 +156,7 @@ FmcStatus FMCI_Init(handle_t hMcpf)
     /* Initialize common transport layer */
     status = FMC_CORE_Init(hMcpf);
     FMC_VERIFY_FATAL((status == FM_TX_STATUS_SUCCESS), status, ("FMCI_Init"));
-    
+
     /* Initialization completed successfully */
     _fmcInitState = _FMC_INIT_STATE_INITIALIZED;
 
@@ -186,7 +187,7 @@ FmcStatus FMCI_Deinit(void)
     _fmcInitState =_FMC_INIT_STATE_DEINIT_STARTED;
 
     /* Last client de-initializing  - Actually de-initialize */
-    FMC_LOG_INFO(("FMCI_Deinit: Last Client Deinitializing")); 
+    FMC_LOG_INFO(("FMCI_Deinit: Last Client Deinitializing"));
 
     /* De-Initialize common transport layer */
     status = FMC_CORE_Deinit();
