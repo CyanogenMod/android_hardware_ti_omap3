@@ -63,6 +63,11 @@ namespace android {
 #define ZOOM_STAGES 61
 #define FACE_DETECTION_BUFFER_SIZE  0x1000
 
+#define EXIF_MODEL_SIZE 100
+#define EXIF_MAKE_SIZE  100
+#define EXIF_DATE_TIME_SIZE 20
+
+#define GPS_TIMESTAMP_SIZE       6
 #define GPS_DATESTAMP_SIZE      11
 #define GPS_REF_SIZE                    2
 #define GPS_MAPDATUM_SIZE       100
@@ -256,6 +261,18 @@ public:
                 bool mProcMethodValid;
                 char mDatestamp[GPS_DATESTAMP_SIZE];
                 bool mDatestampValid;
+                uint32_t mTimeStampHour;
+                uint32_t mTimeStampMin;
+                uint32_t mTimeStampSec;
+                bool mTimeStampValid;
+    };
+
+    class EXIFData
+    {
+        public:
+            GPSData mGPSData;
+            bool mMakeValid;
+            bool mModelValid;
     };
 
     ///Parameters specific to any port of the OMX Camera component
@@ -573,7 +590,7 @@ private:
     uint32_t mFaceDetectionThreshold;
 
     //Geo-tagging
-    GPSData mGPSData;
+    EXIFData mEXIFData;
 
     //Image post-processing
     IPPMode mIPP;

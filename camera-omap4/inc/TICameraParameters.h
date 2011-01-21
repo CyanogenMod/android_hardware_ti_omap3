@@ -109,9 +109,15 @@ static const char KEY_MANUAL_GAIN_ISO_RIGHT[];
 static const char KEY_MANUAL_GAIN_ISO_LEFT[];
 static const char KEY_MANUAL_GAIN_MODES[];
 
+//TI extensions for setting EXIF tags
+static const char KEY_EXIF_MODEL[];
+static const char KEY_EXIF_MAKE[];
+
+//TI extensions for additional GPS data
 static const char  KEY_GPS_ALTITUDE_REF[];
 static const char  KEY_GPS_MAPDATUM[];
 static const char  KEY_GPS_VERSION[];
+static const char  KEY_GPS_DATESTAMP[];
 
 //TI extensions for enabling/disabling shutter sound
 static const char SHUTTER_ENABLE[];

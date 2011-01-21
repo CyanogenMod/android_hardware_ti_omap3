@@ -617,6 +617,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_GPS_TIMESTAMP, valstr);
         }
 
+    if( (valstr = params.get(TICameraParameters::KEY_GPS_DATESTAMP)) != NULL )
+        {
+        CAMHAL_LOGDB("GPS datestamp set %s", params.get(TICameraParameters::KEY_GPS_DATESTAMP));
+        mParameters.set(TICameraParameters::KEY_GPS_DATESTAMP, valstr);
+        }
+
     if( (valstr = params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD)) != NULL )
         {
         CAMHAL_LOGDB("GPS processing method set %s", params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD));
@@ -639,6 +645,18 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         {
         CAMHAL_LOGDB("GPS MAPDATUM set %s", params.get(TICameraParameters::KEY_GPS_VERSION));
         mParameters.set(TICameraParameters::KEY_GPS_VERSION, valstr);
+        }
+
+    if( (valstr = params.get(TICameraParameters::KEY_EXIF_MODEL)) != NULL )
+        {
+        CAMHAL_LOGDB("EXIF Model set %s", params.get(TICameraParameters::KEY_EXIF_MODEL));
+        mParameters.set(TICameraParameters::KEY_EXIF_MODEL, valstr);
+        }
+
+    if( (valstr = params.get(TICameraParameters::KEY_EXIF_MAKE)) != NULL )
+        {
+        CAMHAL_LOGDB("EXIF Make set %s", params.get(TICameraParameters::KEY_EXIF_MAKE));
+        mParameters.set(TICameraParameters::KEY_EXIF_MAKE, valstr);
         }
 
     if( (valstr = params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE)) != NULL )
