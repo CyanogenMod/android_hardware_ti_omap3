@@ -87,10 +87,10 @@ enum rfkill_operation {
  * used for events from the kernel and control to the kernel.
  */
 struct rfkill_event {
-	__u32 idx;
-	__u8  type;
-	__u8  op;
-	__u8  soft, hard;
+	uint32_t idx;
+	uint8_t  type;
+	uint8_t  op;
+	uint8_t  soft, hard;
 } __packed;
 
 /* to read events and filter notifications for us */
@@ -118,7 +118,7 @@ void read_firmware_version()
 
 	printf("\n");
 }
-#endif
+#endif /* UIM_DEBUG */
 
 /*****************************************************************************/
 #ifdef ANDROID                 /* library for android to do insmod/rmmod  */
@@ -168,7 +168,7 @@ static int rmmod(const char *modname)
 				modname, strerror(errno));
 	return ret;
 }
-#endif /*ANDROID*/
+#endif /* ANDROID */
 
 /*****************************************************************************/
 /* Function to read the HCI event from the given file descriptor
@@ -372,10 +372,10 @@ static int set_custom_baud_rate()
 
 /*
  * Handling the Signals sent from the Kernel Init Manager.
- * After receiving the signals, configure the baud rate, flow
- * control and Install the N_TI_WL line discipline
+ * After receiving the indication from rfkill subsystem, configure the
+ * baud rate, flow control and Install the N_TI_WL line discipline
  */
-int st_sig_handler(int signo)
+int st_uart_config()
 {
 	int ldisc, len;
 	uim_speed_change_cmd cmd;
@@ -384,19 +384,9 @@ int st_sig_handler(int signo)
 
 	UIM_START_FUNC();
 
-	/* Raise a signal after when UIM is killed.
-	 * This will exit UIM, and remove the inserted kernel
-	 * modules
-	 */
-	if (signo == SIGINT) {
-		UIM_DBG(" Exiting. . .");
-		exiting = 1;
-		return -1;
-	}
-
-	/* Install the line discipline when the signal is received by UIM.
+	/* Install the line discipline when the rfkill signal is received by UIM.
 	 * Whenever the first protocol tries to register with the ST core, the
-	 * ST KIM will send a signal SIGUSR2 to the UIM to install the N_TI_WL
+	 * ST KIM will inform the UIM through rfkill subsystem to install the N_TI_WL
 	 * line discipline and do the host side UART configurations.
 	 *
 	 * On failure, ST KIM's line discipline installation times out, and the
@@ -535,7 +525,6 @@ int remove_modules()
 	UIM_DBG(" Removed fm_drv module");
 
 	UIM_VER(" Removing bt_drv ");
-
 	if (rmmod("bt_drv") != 0) {
 		UIM_ERR(" Error removing bt_drv module");
 		err = -1;
@@ -546,7 +535,6 @@ int remove_modules()
 
 	/*Remove the Shared Transport */
 	UIM_VER(" Removing st_drv ");
-
 	if (rmmod("st_drv") != 0) {
 		UIM_ERR(" Error removing st_drv module");
 		err = -1;
@@ -563,9 +551,16 @@ int remove_modules()
 		UIM_DBG(" Removed bt_drv module");
 	}
 
+	UIM_VER(" Removing fm_drv ");
+	if (system("rmmod fm_drv") != 0) {
+		UIM_ERR(" Error removing fm_drv module");
+		err = -1;
+	} else {
+		UIM_DBG(" Removed fm_drv module ");
+	}
+
 	/*Remove the Shared Transport */
 	UIM_VER(" Removing st_drv ");
-
 	if (system("rmmod st_drv") != 0) {
 		UIM_ERR(" Error removing st_drv module");
 		err = -1;
@@ -599,12 +594,14 @@ int change_rfkill_perms(void)
 	if (id == 50) {
 		return -1;
 	}
+#ifdef ANDROID
 	sprintf(path, "/sys/class/rfkill/rfkill%d/state", id);
 	sz = chown(path, AID_BLUETOOTH, AID_BLUETOOTH);
 	if (sz < 0) {
 		UIM_ERR("change mode failed for %s (%d)\n", path, errno);
 		return -1;
 	}
+#endif
 	/*
 	 * bluetooth group's user system needs write permission
 	 */
@@ -734,50 +731,12 @@ int main(int argc, char *argv[])
 			return -1;
 		}
 	}
-#endif
-
-#ifndef ANDROID
-	/*-- Insmod of ST driver --*/
-	asprintf(&tist_ko_path,
-			"/lib/modules/%s/kernel/drivers/staging/ti-st/st_drv.ko",name.release);
-	if (0 == lstat(tist_ko_path, &file_stat)) {
-		if (system("insmod /lib/modules/`uname -r`/kernel/drivers/staging/ti-st/st_drv.ko") != 0) {
-			UIM_ERR(" Error inserting st_drv module");
-			free(tist_ko_path);
-			return -1;
-		} else {
-			UIM_DBG(" Inserted st_drv module");
-		}
-	} else {
-		UIM_ERR("ST driver built into the kernel ?");
-	}
-	free(tist_ko_path);
-#endif
 
 	if (change_rfkill_perms() < 0) {
 		/* possible error condition */
 		UIM_ERR("rfkill not enabled in st_drv - BT on from UI might fail\n");
 	}
 
-#ifndef ANDROID
-	/*-- Insmod of BT driver --*/
-	asprintf(&tist_ko_path,
-			"/lib/modules/%s/kernel/drivers/staging/ti-st/bt_drv.ko",name.release);
-	if (0 == lstat(tist_ko_path, &file_stat)) {
-		if (system("insmod /lib/modules/`uname -r`/kernel/drivers/staging/ti-st/bt_drv.ko") != 0) {
-			UIM_ERR(" Error inserting bt_drv module");
-			system("rmmod st_drv");
-			free(tist_ko_path);
-			return -1;
-		} else {
-			UIM_DBG(" Inserted bt_drv module");
-		}
-	} else {
-		UIM_ERR("BT driver built into the kernel ?");
-	}
-	free(tist_ko_path);
-
-#else  /* if ANDROID */
 	if (0 == lstat("/bt_drv.ko", &file_stat)) {
 		if (insmod("/bt_drv.ko", "") < 0) {
 			UIM_ERR(" Error inserting bt_drv module, NO BT? ");
@@ -814,7 +773,7 @@ int main(int argc, char *argv[])
 	if (chmod("/dev/tifm", 0666) < 0) {
 		UIM_ERR("unable to chmod /dev/tifm");
 	}
-#endif
+#endif /* ANDROID */
 	/* rfkill device's open/poll/read */
 	st_fd = open("/dev/rfkill", O_RDONLY);
 	if (st_fd < 0) {
@@ -822,7 +781,6 @@ int main(int argc, char *argv[])
 		remove_modules();
 		return -1;
 	}
-
 
 	p.fd = st_fd;
 	p.events = POLLERR | POLLHUP | POLLOUT | POLLIN;
@@ -850,7 +808,7 @@ RE_POLL:
 				st_state = INSTALL_N_TI_WL;
 
 			if (prev_st_state != st_state)
-				st_sig_handler(SIGUSR2);
+				st_uart_config();
 		}
 		goto RE_POLL;
 	}
