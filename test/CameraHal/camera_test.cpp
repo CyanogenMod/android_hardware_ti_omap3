@@ -56,6 +56,8 @@
 #define KEY_MEASUREMENT "measurement"
 #define KEY_S3D2D_PREVIEW_MODE "s3d2d-preview"
 #define KEY_STEREO_CAMERA "s3d-supported"
+#define KEY_EXIF_MODEL "exif-model"
+#define KEY_EXIF_MAKE "exif-make"
 
 #define SDCARD_PATH "/sdcard/"
 
@@ -72,6 +74,9 @@
 
 #define MAX_PREVIEW_SURFACE_WIDTH   800
 #define MAX_PREVIEW_SURFACE_HEIGHT  480
+
+#define MODEL "camera_test"
+#define MAKE "camera_test"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -1110,6 +1115,8 @@ void initDefaults() {
     params.set(KEY_MANUALCONVERGENCE_VALUES, manualconvergencevalues[ManualConvergenceValuesIDX]);
     params.set(KEY_S3D2D_PREVIEW_MODE, "off");
     params.set(KEY_STEREO_CAMERA, "false");
+    params.set(KEY_EXIF_MODEL, MODEL);
+    params.set(KEY_EXIF_MAKE, MAKE);
 }
 
 int menu_gps() {
