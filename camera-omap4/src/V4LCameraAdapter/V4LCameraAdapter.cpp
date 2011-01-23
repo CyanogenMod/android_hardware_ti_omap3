@@ -386,14 +386,6 @@ status_t V4LCameraAdapter::stopPreview()
     mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     mVideoInfo->buf.memory = V4L2_MEMORY_MMAP;
 
-    /* Dequeue everything */
-    int DQcount = nQueued - nDequeued;
-
-    for (int i = 0; i < DQcount-1; i++) {
-        ret = ioctl(mCameraHandle, VIDIOC_DQBUF, &mVideoInfo->buf);
-        if (ret < 0)
-            CAMHAL_LOGEA("IDIOC_DQBUF Failed");
-    }
     nQueued = 0;
     nDequeued = 0;
 
@@ -546,6 +538,10 @@ int V4LCameraAdapter::previewThread()
         {
         int index = 0;
         char *fp = this->GetFrame(index);
+        if(!fp)
+            {
+            return BAD_VALUE;
+            }
 
         uint8_t* ptr = (uint8_t*) mPreviewBufs.keyAt(index);
 
