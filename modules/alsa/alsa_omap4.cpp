@@ -487,10 +487,10 @@ status_t setSoftwareParams(alsa_handle_t *handle)
     // Configure ALSA to start the transfer when the buffer is almost full.
     snd_pcm_get_params(handle->handle, &bufferSize, &periodSize);
 
-    if (handle->devices & AudioSystem::DEVICE_OUT_ALL) {
-        // For playback, configure ALSA to start the transfer when the
-        // buffer is full.
-        startThreshold = bufferSize - 1;
+    if (handle->devices & AudioSystem::DEVICE_OUT_ALL ||
+        handle->devices & AudioSystem::DEVICE_OUT_LOW_POWER) {
+        // For playback, configure ALSA to start the transfer at period full
+        startThreshold = periodSize;
         stopThreshold = bufferSize;
     } else {
         // For recording, configure ALSA to start the transfer on the
