@@ -84,6 +84,7 @@
 #define SATURATION_OFFSET       100
 #define PARM_ZOOM_SCALE  100
 
+#define MAX_CAMERAS_SUPPORTED   2
 
 #endif
 

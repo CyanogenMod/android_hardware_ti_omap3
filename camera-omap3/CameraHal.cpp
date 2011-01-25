@@ -67,7 +67,7 @@ typedef struct {
 } mapping_data_t;
 
 int CameraHal::camera_device = 0;
-wp<CameraHardwareInterface> CameraHal::singleton;
+wp<CameraHardwareInterface> CameraHal::singleton[];
 const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240";
 const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
@@ -101,29 +101,30 @@ int camerahal_strcat(char *dst, const char *src, size_t size)
     return 0;
 }
 
-CameraHal::CameraHal()
-			:mParameters(),
-			mOverlay(NULL),
-			mPreviewRunning(0),
-			mRecordingFrameSize(0),
-			mVideoBufferCount(0),
-			nOverlayBuffersQueued(0),
-			nCameraBuffersQueued(0),
-			mfirstTime(0),
-			pictureNumber(0),
+CameraHal::CameraHal(int cameraId)
+                     :mParameters(),
+                     mOverlay(NULL),
+                     mPreviewRunning(0),
+                     mRecordingFrameSize(0),
+                     mVideoBufferCount(0),
+                     nOverlayBuffersQueued(0),
+                     nCameraBuffersQueued(0),
+                     mfirstTime(0),
+                     pictureNumber(0),
 #ifdef FW3A
-			fobj(NULL),
+                     fobj(NULL),
 #endif
-			file_index(0),
-			mflash(2),
-			mcapture_mode(1),
-			mcaf(0),
-			j(0)
+                     file_index(0),
+                     mflash(2),
+                     mcapture_mode(1),
+                     mcaf(0),
+                     j(0)
 {
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     gettimeofday(&ppm_start, NULL);
 #endif
 
+    mCameraIndex = cameraId;
     isStart_FW3A = false;
     isStart_FW3A_AF = false;
     isStart_FW3A_CAF = false;
@@ -403,11 +404,11 @@ void CameraHal::initDefaultParameters()
 CameraHal::~CameraHal()
 {
     int err = 0;
-	int procMessage [1];
-	sp<PROCThread> procThread;
-	sp<RawThread> rawThread;
-	sp<ShutterThread> shutterThread;
-	sp<SnapshotThread> snapshotThread;
+    int procMessage [1];
+    sp<PROCThread> procThread;
+    sp<RawThread> rawThread;
+    sp<ShutterThread> shutterThread;
+    sp<SnapshotThread> snapshotThread;
 
     LOG_FUNCTION_NAME
 
@@ -479,7 +480,7 @@ CameraHal::~CameraHal()
     procMessage[0] = RAW_THREAD_EXIT;
     write(rawPipe[1], procMessage, sizeof(unsigned int));
 
-	{ // scope for the lock
+    { // scope for the lock
         Mutex::Autolock lock(mLock);
         rawThread = mRawThread;
     }
@@ -545,7 +546,7 @@ CameraHal::~CameraHal()
         mOverlay->destroy();
     }
 
-    singleton.clear();
+    singleton[mCameraIndex].clear();
 
     LOGD("<<< Release");
 }
@@ -799,7 +800,7 @@ void CameraHal::previewThread()
             case PREVIEW_AF_START:
             {
                 LOGD("Receive Command: PREVIEW_AF_START");
-				err = 0;
+                err = 0;
 
                 if( !mPreviewRunning ){
                     LOGD("WARNING PREVIEW NOT RUNNING!");
@@ -1331,7 +1332,7 @@ int CameraHal::CameraStop()
 
 #ifdef DEBUG_LOG
 
-	LOGD("Done dequeuing from Camera!");
+    LOGD("Done dequeuing from Camera!");
 
 #endif
 
@@ -1341,8 +1342,8 @@ int CameraHal::CameraStop()
         goto fail_streamoff;
     }
 
-	//Force the zoom to be updated next time preview is started.
-	mZoomCurrentIdx = 0;
+    //Force the zoom to be updated next time preview is started.
+    mZoomCurrentIdx = 0;
 
 #ifdef DEBUG_LOG
 
@@ -1555,7 +1556,7 @@ void CameraHal::nextPreview()
     }
     else
     {
-        if (overlaybufferindex != -1) {	// dequeued a valid buffer from overlay
+        if (overlaybufferindex != -1) {    // dequeued a valid buffer from overlay
             if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[overlaybufferindex]) < 0) {
                 LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
             }else{
@@ -1599,7 +1600,7 @@ int  CameraHal::ICapturePerform()
     unsigned int procMessage[PROC_THREAD_NUM_ARGS],
             shutterMessage[SHUTTER_THREAD_NUM_ARGS],
             rawMessage[RAW_THREAD_NUM_ARGS];
-	int pixelFormat;
+    int pixelFormat;
     exif_buffer *exif_buf;
     mode = ICAP_PROCESS_MODE_CONTINUOUS;
 
@@ -1627,7 +1628,7 @@ int  CameraHal::ICapturePerform()
 
 #ifdef DEBUG_LOG
 
-	LOGD("MakerNote 0x%x, size %d", ( unsigned int ) fobj->mnote.buffer,fobj->mnote.filled_size);
+    LOGD("MakerNote 0x%x, size %d", ( unsigned int ) fobj->mnote.buffer,fobj->mnote.filled_size);
 
     LOGD("shutter_cap = %d ; again_cap = %d ; awb_index = %d; %d %d %d %d\n",
         (int)fobj->status.ae.shutter_cap, (int)fobj->status.ae.again_cap,
@@ -1740,7 +1741,7 @@ int  CameraHal::ICapturePerform()
 
 #if DEBUG_LOG
 
-	PPM("Before ICapture Config");
+    PPM("Before ICapture Config");
 
 #endif
 
@@ -1757,7 +1758,7 @@ int  CameraHal::ICapturePerform()
 
     PPM("ICapture config OK");
 
-	LOGD("iobj->cfg.image_width = %d = 0x%x iobj->cfg.image_height=%d = 0x%x , iobj->cfg.sizeof_img_buf = %d", (int)iobj->cfg.width, (int)iobj->cfg.width, (int)iobj->cfg.height, (int)iobj->cfg.height, (int) spec_res.buffer_size);
+    LOGD("iobj->cfg.image_width = %d = 0x%x iobj->cfg.image_height=%d = 0x%x , iobj->cfg.sizeof_img_buf = %d", (int)iobj->cfg.width, (int)iobj->cfg.width, (int)iobj->cfg.height, (int)iobj->cfg.height, (int) spec_res.buffer_size);
 
 #endif
 
@@ -1796,7 +1797,7 @@ int  CameraHal::ICapturePerform()
 
 #if DEBUG_LOG
 
-	PPM("BEFORE ICapture Process");
+    PPM("BEFORE ICapture Process");
 
 #endif
 
@@ -1969,7 +1970,7 @@ int CameraHal::ICapturePerform(){
     int image_width, image_height;
     int image_rotation;
     double image_zoom;
-	int preview_width, preview_height;
+    int preview_width, preview_height;
     unsigned long base, offset;
     struct v4l2_buffer buffer;
     struct v4l2_format format;
@@ -1981,7 +1982,7 @@ int CameraHal::ICapturePerform(){
     void * outBuffer;
     sp<MemoryHeapBase>  mJPEGPictureHeap;
     sp<MemoryBase>          mJPEGPictureMemBase;
-	unsigned int vppMessage[3];
+    unsigned int vppMessage[3];
     int err, i;
     int snapshot_buffer_index;
     void* snapshot_buffer;
@@ -1994,8 +1995,8 @@ int CameraHal::ICapturePerform(){
 
     LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
 
-	if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && mShutterEnable)
-		mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
+    if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && mShutterEnable)
+        mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
 
     mParameters.getPictureSize(&image_width, &image_height);
     mParameters.getPreviewSize(&preview_width, &preview_height);
@@ -2061,7 +2062,7 @@ int CameraHal::ICapturePerform(){
     base = (unsigned long)mPictureHeap->getBase();
 
 #if ALIGMENT
-	base = (base + 0xfff) & 0xfffff000;
+    base = (base + 0xfff) & 0xfffff000;
 #else
     /*Align buffer to 32 byte boundary */
     while ((base & 0x1f) != 0)
@@ -2124,9 +2125,9 @@ int CameraHal::ICapturePerform(){
         return -1;
     }
 
-	if( msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ){
-		mDataCb(CAMERA_MSG_RAW_IMAGE, mPictureBuffer,mCallbackCookie);
-	}
+    if( msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ){
+        mDataCb(CAMERA_MSG_RAW_IMAGE, mPictureBuffer,mCallbackCookie);
+    }
 
     yuv_buffer = (uint8_t*)buffer.m.userptr;
     LOGD("PictureThread: generated a picture, yuv_buffer=%p yuv_len=%d",yuv_buffer,yuv_len);
@@ -2179,42 +2180,42 @@ int CameraHal::ICapturePerform(){
 #ifdef IMAGE_PROCESSING_PIPELINE
 #if 1
 
-	if(mippMode ==-1 ){
-		mippMode=IPP_EdgeEnhancement_Mode;
-	}
+    if(mippMode ==-1 ){
+        mippMode=IPP_EdgeEnhancement_Mode;
+    }
 
 #else
 
-	if(mippMode ==-1){
-		mippMode=IPP_CromaSupression_Mode;
-	}
-	if(mippMode == IPP_CromaSupression_Mode){
-		mippMode=IPP_EdgeEnhancement_Mode;
-	}
-	else if(mippMode == IPP_EdgeEnhancement_Mode){
-		mippMode=IPP_CromaSupression_Mode;
-	}
+    if(mippMode ==-1){
+        mippMode=IPP_CromaSupression_Mode;
+    }
+    if(mippMode == IPP_CromaSupression_Mode){
+        mippMode=IPP_EdgeEnhancement_Mode;
+    }
+    else if(mippMode == IPP_EdgeEnhancement_Mode){
+        mippMode=IPP_CromaSupression_Mode;
+    }
 
 #endif
 
-	LOGD("IPPmode=%d",mippMode);
-	if(mippMode == IPP_CromaSupression_Mode){
-		LOGD("IPP_CromaSupression_Mode");
-	}
-	else if(mippMode == IPP_EdgeEnhancement_Mode){
-		LOGD("IPP_EdgeEnhancement_Mode");
-	}
-	else if(mippMode == IPP_Disabled_Mode){
-		LOGD("IPP_Disabled_Mode");
-	}
+    LOGD("IPPmode=%d",mippMode);
+    if(mippMode == IPP_CromaSupression_Mode){
+        LOGD("IPP_CromaSupression_Mode");
+    }
+    else if(mippMode == IPP_EdgeEnhancement_Mode){
+        LOGD("IPP_EdgeEnhancement_Mode");
+    }
+    else if(mippMode == IPP_Disabled_Mode){
+        LOGD("IPP_Disabled_Mode");
+    }
 
-	if(mippMode){
+    if(mippMode){
 
-		if(mippMode != IPP_CromaSupression_Mode && mippMode != IPP_EdgeEnhancement_Mode){
-			LOGE("ERROR ippMode unsupported");
-			return -1;
-		}
-		PPM("Before init IPP");
+        if(mippMode != IPP_CromaSupression_Mode && mippMode != IPP_EdgeEnhancement_Mode){
+            LOGE("ERROR ippMode unsupported");
+            return -1;
+        }
+        PPM("Before init IPP");
 
         if(mIPPToEnable)
         {
@@ -2227,15 +2228,15 @@ int CameraHal::ICapturePerform(){
             mIPPToEnable = false;
         }
 
-		err = PopulateArgsIPP(image_width,image_height, jpegFormat, mippMode);
-		if( err ) {
-			LOGE("ERROR PopulateArgsIPP() failed");
-			return -1;
-		}
-		PPM("BEFORE IPP Process Buffer");
+        err = PopulateArgsIPP(image_width,image_height, jpegFormat, mippMode);
+        if( err ) {
+            LOGE("ERROR PopulateArgsIPP() failed");
+            return -1;
+        }
+        PPM("BEFORE IPP Process Buffer");
 
-		LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
-	err = ProcessBufferIPP(yuv_buffer, yuv_len,
+        LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
+    err = ProcessBufferIPP(yuv_buffer, yuv_len,
                     jpegFormat,
                     mippMode,
                     -1, // EdgeEnhancementStrength
@@ -2258,32 +2259,32 @@ int CameraHal::ICapturePerform(){
                     -1, // shadingGainOffset
                     -1, // shadingGainMaxValue
                     -1); // ratioDownsampleCbCr
-		if( err ) {
-			LOGE("ERROR ProcessBufferIPP() failed");
-			return -1;
-		}
-		PPM("AFTER IPP Process Buffer");
+        if( err ) {
+            LOGE("ERROR ProcessBufferIPP() failed");
+            return -1;
+        }
+        PPM("AFTER IPP Process Buffer");
 
-  	if(!(pIPP.ippconfig.isINPLACE)){
-		yuv_buffer = pIPP.pIppOutputBuffer;
-	}
+      if(!(pIPP.ippconfig.isINPLACE)){
+        yuv_buffer = pIPP.pIppOutputBuffer;
+    }
 
-	#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
-		jpegFormat = PIX_YUV422I;
-		LOGD("YUV422 !!!!");
-	#else
-		yuv_len=  ((image_width * image_height *3)/2);
+    #if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
+        jpegFormat = PIX_YUV422I;
+        LOGD("YUV422 !!!!");
+    #else
+        yuv_len=  ((image_width * image_height *3)/2);
         jpegFormat = PIX_YUV420P;
-		LOGD("YUV420 !!!!");
+        LOGD("YUV420 !!!!");
     #endif
 
-	}
-	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len);
+    }
+    //SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len);
 
 #endif
 
-	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
-	{
+    if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
+    {
 
 #ifdef HARDWARE_OMX
 #if JPEG
@@ -2293,21 +2294,21 @@ int CameraHal::ICapturePerform(){
 
         exif_buffer *exif_buf = get_exif_buffer(&mExifParams, gpsLocation);
 
-		PPM("BEFORE JPEG Encode Image");
-		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
-		jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
-				image_width, image_height, quality, exif_buf, jpegFormat, DEFAULT_THUMB_WIDTH, DEFAULT_THUMB_HEIGHT, image_width, image_height,
-				image_rotation, image_zoom, 0, 0, image_width, image_height);
-		PPM("AFTER JPEG Encode Image");
+        PPM("BEFORE JPEG Encode Image");
+        LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
+        jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
+                image_width, image_height, quality, exif_buf, jpegFormat, DEFAULT_THUMB_WIDTH, DEFAULT_THUMB_HEIGHT, image_width, image_height,
+                image_rotation, image_zoom, 0, 0, image_width, image_height);
+        PPM("AFTER JPEG Encode Image");
 
-		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
+        mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
-	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) ){
-		mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,mJPEGPictureMemBase,mCallbackCookie);
+    if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) ){
+        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,mJPEGPictureMemBase,mCallbackCookie);
     }
 
 
-		PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
+        PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
         if((exif_buf != NULL) && (exif_buf->data != NULL))
             exif_buf_free (exif_buf);
 
@@ -2320,8 +2321,8 @@ int CameraHal::ICapturePerform(){
 
 #else
 
-	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
-		mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,NULL,mCallbackCookie);
+    if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
+        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,NULL,mCallbackCookie);
 
 #endif
 
@@ -2337,9 +2338,9 @@ int CameraHal::ICapturePerform(){
 
 #ifdef HARDWARE_OMX
 #if VPP_THREAD
-	LOGD("CameraHal thread before waiting increment in semaphore\n");
-	sem_wait(&mIppVppSem);
-	LOGD("CameraHal thread after waiting increment in semaphore\n");
+    LOGD("CameraHal thread before waiting increment in semaphore\n");
+    sem_wait(&mIppVppSem);
+    LOGD("CameraHal thread after waiting increment in semaphore\n");
 #endif
 #endif
 
@@ -3036,7 +3037,7 @@ int CameraHal::ICaptureCreate(void)
 #ifdef HARDWARE_OMX
 #ifdef IMAGE_PROCESSING_PIPELINE
 
-	mippMode = IPP_Disabled_Mode;
+    mippMode = IPP_Disabled_Mode;
 
 #endif
 
@@ -3155,13 +3156,13 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     if (mFalsePreview)   // Eclair HAL
     {
      // Restart the preview (Only for Overlay Case)
-	//LOGD("In else overlay");
+    //LOGD("In else overlay");
         mPreviewRunning = false;
         Message msg;
         msg.command = PREVIEW_START;
         previewThreadCommandQ.put(&msg);
         previewThreadAckQ.get(&msg);
-    }	// Eclair HAL
+    }    // Eclair HAL
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -3172,12 +3173,12 @@ status_t CameraHal::startPreview()
 {
     LOG_FUNCTION_NAME
 
-    if(mOverlay == NULL)	//Eclair HAL
+    if(mOverlay == NULL)    //Eclair HAL
     {
-	    LOGD("Return from camera Start Preview");
-	    mPreviewRunning = true;
-	    mFalsePreview = true;
-	    return NO_ERROR;
+        LOGD("Return from camera Start Preview");
+        mPreviewRunning = true;
+        mFalsePreview = true;
+        return NO_ERROR;
     }      //Eclair HAL
 
     mFalsePreview = false;   //Eclair HAL
@@ -3373,9 +3374,9 @@ status_t CameraHal::takePicture( )
 status_t CameraHal::cancelPicture( )
 {
     LOG_FUNCTION_NAME
-	disableMsgType(CAMERA_MSG_RAW_IMAGE);
-	disableMsgType(CAMERA_MSG_COMPRESSED_IMAGE);
-//	mCallbackCookie = NULL;   // done in destructor
+    disableMsgType(CAMERA_MSG_RAW_IMAGE);
+    disableMsgType(CAMERA_MSG_COMPRESSED_IMAGE);
+//    mCallbackCookie = NULL;   // done in destructor
 
     LOGE("Callbacks set to null");
     return -1;
@@ -3425,8 +3426,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     int zoom, compensation, saturation, sharpness;
     int zoom_save;
     int contrast, brightness, caf;
-	int error;
-	int base;
+    int error;
+    int base;
     const char *valstr;
     char *af_coord;
     Message msg;
@@ -3502,11 +3503,11 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-	mParameters.getPictureSize(&w, &h);
-	LOGD("Picture Size by CamHal %d x %d", w, h);
+    mParameters.getPictureSize(&w, &h);
+    LOGD("Picture Size by CamHal %d x %d", w, h);
 
-	mParameters.getPreviewSize(&w, &h);
-	LOGD("Preview Resolution by CamHal %d x %d", w, h);
+    mParameters.getPreviewSize(&w, &h);
+    LOGD("Preview Resolution by CamHal %d x %d", w, h);
 
     quality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
     if ( ( quality < 0 ) || (quality > 100) ){
@@ -4640,20 +4641,20 @@ sp<IMemoryHeap> CameraHal::getPreviewHeap() const
     return 0;
 }
 
-sp<CameraHardwareInterface> CameraHal::createInstance()
+sp<CameraHardwareInterface> CameraHal::createInstance(int cameraId)
 {
     LOG_FUNCTION_NAME
 
-    if (singleton != 0) {
-        sp<CameraHardwareInterface> hardware = singleton.promote();
+    if (singleton[cameraId] != 0) {
+        sp<CameraHardwareInterface> hardware = singleton[cameraId].promote();
         if (hardware != 0) {
             return hardware;
         }
     }
 
-    sp<CameraHardwareInterface> hardware(new CameraHal());
+    sp<CameraHardwareInterface> hardware(new CameraHal(cameraId));
 
-    singleton = hardware;
+    singleton[cameraId] = hardware;
     return hardware;
 }
 
@@ -4733,11 +4734,40 @@ status_t CameraHal::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2)
     return ret;
 }
 
-
-extern "C" sp<CameraHardwareInterface> openCameraHardware()
+extern "C" int HAL_getNumberOfCameras()
 {
-    LOGD("opening ti camera hal\n");
-    return CameraHal::createInstance();
+    int numCameras = 0;
+
+    // FIXME: Zoom3 has only one camera device.
+    numCameras = 1;
+    if ( 0 == numCameras )
+    {
+        LOGE("No cameras supported in Camera HAL implementation");
+        return 0;
+    }
+    else
+    {
+        LOGD("Cameras found %d", numCameras);
+    }
+
+    return numCameras;
+}
+
+extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
+{
+    int face_value = CAMERA_FACING_BACK;
+    int orientation = 0;
+    char *valstr = NULL;
+
+    // FIXME: Zoom3 has only one camera facing back.
+    cameraInfo->facing = face_value;
+    cameraInfo->orientation = orientation;
+}
+
+extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId)
+{
+    LOGD("opening ti camera hal (cameraId:%d)\n", cameraId);
+    return CameraHal::createInstance(cameraId);
 }
 
 
