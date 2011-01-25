@@ -948,6 +948,7 @@ int stopRecording() {
 
 int openCamera() {
 
+    printf("openCamera(camera_index=%d)\n", camera_index);
     camera = Camera::connect(camera_index);
 
     if ( NULL == camera.get() ) {
@@ -2364,8 +2365,12 @@ int execute_functional_script(char *script) {
 
                 printf("%s selected.\n", cameras[camera_index]);
 
-                if ( hardwareActive )
+                if ( hardwareActive ) {
+                    stopPreview();
+                    openCamera();
+                    hardwareActive = true;
                     camera->setParameters(params.flatten());
+                }
                 break;
 
             case 'a':
