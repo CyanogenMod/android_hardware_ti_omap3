@@ -261,85 +261,80 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         mWaitingForSnapshot = false;
         mSnapshotCount = 0;
         mComponentState = OMX_StateLoaded;
-    }
 
-    mCapMode = HIGH_QUALITY;
-    mBurstFrames = 1;
-    mCapturedFrames = 0;
-    mPictureQuality = 100;
-    mCurrentZoomIdx = 0;
-    mTargetZoomIdx = 0;
-    mReturnZoomStatus = false;
-    mSmoothZoomEnabled = false;
-    mZoomInc = 1;
-    mZoomParameterIdx = 0;
-    mExposureBracketingValidEntries = 0;
-    mFaceDetectionThreshold = FACE_THRESHOLD_DEFAULT;
+        mCapMode = HIGH_QUALITY;
+        mBurstFrames = 1;
+        mCapturedFrames = 0;
+        mPictureQuality = 100;
+        mCurrentZoomIdx = 0;
+        mTargetZoomIdx = 0;
+        mReturnZoomStatus = false;
+        mSmoothZoomEnabled = false;
+        mZoomInc = 1;
+        mZoomParameterIdx = 0;
+        mExposureBracketingValidEntries = 0;
+        mFaceDetectionThreshold = FACE_THRESHOLD_DEFAULT;
 
-    mEXIFData.mGPSData.mAltitudeValid = false;
-    mEXIFData.mGPSData.mDatestampValid = false;
-    mEXIFData.mGPSData.mLatValid = false;
-    mEXIFData.mGPSData.mLongValid = false;
-    mEXIFData.mGPSData.mMapDatumValid = false;
-    mEXIFData.mGPSData.mProcMethodValid = false;
-    mEXIFData.mGPSData.mVersionIdValid = false;
-    mEXIFData.mGPSData.mTimeStampValid = false;
-    mEXIFData.mModelValid = false;
-    mEXIFData.mMakeValid = false;
+        mEXIFData.mGPSData.mAltitudeValid = false;
+        mEXIFData.mGPSData.mDatestampValid = false;
+        mEXIFData.mGPSData.mLatValid = false;
+        mEXIFData.mGPSData.mLongValid = false;
+        mEXIFData.mGPSData.mMapDatumValid = false;
+        mEXIFData.mGPSData.mProcMethodValid = false;
+        mEXIFData.mGPSData.mVersionIdValid = false;
 
-    // initialize command handling thread
-    if(mCommandHandler.get() == NULL)
-        mCommandHandler = new CommandHandler(this);
+        // initialize command handling thread
+        if(mCommandHandler.get() == NULL)
+            mCommandHandler = new CommandHandler(this);
 
-    if ( NULL == mCommandHandler.get() )
-    {
-        CAMHAL_LOGEA("Couldn't create command handler");
-        return NO_MEMORY;
-    }
-
-    ret = mCommandHandler->run("CallbackThread", PRIORITY_URGENT_DISPLAY);
-    if ( ret != NO_ERROR )
-    {
-        if( ret == INVALID_OPERATION){
-            CAMHAL_LOGDA("command handler thread already runnning!!");
-        }else
+        if ( NULL == mCommandHandler.get() )
         {
-            CAMHAL_LOGEA("Couldn't run command handlerthread");
-            return ret;
+            CAMHAL_LOGEA("Couldn't create command handler");
+            return NO_MEMORY;
         }
-    }
 
-    //Remove any unhandled events
-    if ( !mEventSignalQ.isEmpty() )
+        ret = mCommandHandler->run("CallbackThread", PRIORITY_URGENT_DISPLAY);
+        if ( ret != NO_ERROR )
         {
-        for (unsigned int i = 0 ; i < mEventSignalQ.size() ; i++ )
+            if( ret == INVALID_OPERATION){
+                CAMHAL_LOGDA("command handler thread already runnning!!");
+            }else
             {
-            Message *msg = mEventSignalQ.itemAt(i);
-            //remove from queue and free msg
-            mEventSignalQ.removeAt(i);
-            if ( NULL != msg )
-                {
-                free(msg);
-                }
+                CAMHAL_LOGEA("Couldn't run command handlerthread");
+                return ret;
             }
         }
 
-    //Setting this flag will that the first setParameter call will apply all 3A settings
-    //and will not conditionally apply based on current values.
-    mFirstTimeInit = true;
+        //Remove any unhandled events
+        if ( !mEventSignalQ.isEmpty() )
+            {
+            for (unsigned int i = 0 ; i < mEventSignalQ.size() ; i++ )
+                {
+                Message *msg = mEventSignalQ.itemAt(i);
+                //remove from queue and free msg
+                mEventSignalQ.removeAt(i);
+                if ( NULL != msg )
+                    {
+                    free(msg);
+                    }
+                }
+            }
 
-    memset(mExposureBracketingValues, 0, EXP_BRACKET_RANGE*sizeof(int));
-    mTouchFocusPosX = 0;
-    mTouchFocusPosY = 0;
-    mMeasurementEnabled = false;
-    mFaceDetectionRunning = false;
+        //Setting this flag will that the first setParameter call will apply all 3A settings
+        //and will not conditionally apply based on current values.
+        mFirstTimeInit = true;
 
-    if ( NULL != mFaceDectionResult )
-        {
-        memset(mFaceDectionResult, '\0', FACE_DETECTION_BUFFER_SIZE);
-        }
+        memset(mExposureBracketingValues, 0, EXP_BRACKET_RANGE*sizeof(int));
+        mTouchFocusPosX = 0;
+        mTouchFocusPosY = 0;
+        mMeasurementEnabled = false;
+        mFaceDetectionRunning = false;
 
-    if ( mComponentState != OMX_StateExecuting ){
+        if ( NULL != mFaceDectionResult )
+            {
+            memset(mFaceDectionResult, '\0', FACE_DETECTION_BUFFER_SIZE);
+            }
+
         memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex], 0, sizeof(OMXCameraPortParameters));
         memset(&mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex], 0, sizeof(OMXCameraPortParameters));
     }
