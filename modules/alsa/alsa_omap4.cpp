@@ -712,6 +712,9 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             control.set("Analog Right Capture Route", "Headset Mic");	// Headset Mic -> Mic Mux
             control.set("Capture Preamplifier Volume", 1);
             control.set("Capture Volume", 4);
+            control.set("AMIC_UL PDM Switch", 1);
+            control.set("MUX_UL00", "AMic1");
+            control.set("MUX_UL11", "AMic0");
         } else if (devices & OMAP4_IN_FM) {
             /* TWL6040 */
             control.set("Analog Left Capture Route", "Aux/FM Left");     // FM -> Mic Mux
