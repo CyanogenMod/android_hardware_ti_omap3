@@ -38,7 +38,7 @@ static int mDebugFps = 0;
 #define Q16_OFFSET 16
 
 #define TOUCH_FOCUS_RANGE 0xFF
-#define AF_CALLBACK_TIMEOUT 3000000
+#define AF_CALLBACK_TIMEOUT 10000000 //10 seconds timeout
 
 #define HERE(Msg) {CAMHAL_LOGEB("--===line %d, %s===--\n", __LINE__, Msg);}
 
@@ -2848,7 +2848,7 @@ status_t OMXCameraAdapter::startSmoothZoom(int targetIdx)
 
     Mutex::Autolock lock(mZoomLock);
 
-    CAMHAL_LOGDB("Start smooth zoom target = %d, mCurrentIdx = %d", value1, mCurrentZoomIdx);
+    CAMHAL_LOGDB("Start smooth zoom target = %d, mCurrentIdx = %d", targetIdx, mCurrentZoomIdx);
 
     if ( ( targetIdx >= 0 ) && ( targetIdx < ZOOM_STAGES ) )
         {
@@ -4713,6 +4713,15 @@ status_t OMXCameraAdapter::doAutoFocus()
         if ( NO_ERROR == ret )
             {
             ret = eventSem.WaitTimeout(AF_CALLBACK_TIMEOUT);
+            //Disable auto focus callback from Ducati
+            ret |= setFocusCallback(false);
+            //Signal a dummy AF event so that in case the callback from ducati does come then it doesnt crash after
+            //exiting this function since eventSem will go out of scope.
+            ret |= SignalEvent(mCameraAdapterParameters.mHandleComp,
+                                        (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
+                                        OMX_ALL,
+                                        OMX_IndexConfigCommonFocusStatus,
+                                        NULL );
             }
 
         if ( NO_ERROR == ret )
@@ -4753,6 +4762,12 @@ status_t OMXCameraAdapter::stopAutoFocus()
         CAMHAL_LOGEA("OMX component not in executing state");
         ret = -1;
         }
+
+    if ( NO_ERROR == ret )
+       {
+       //Disable the callback first
+       ret = setFocusCallback(false);
+       }
 
     if ( NO_ERROR == ret )
         {
