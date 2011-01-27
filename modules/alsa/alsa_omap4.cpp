@@ -647,6 +647,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             /* OMAP4 ABE */
             control.set("DL1 Mixer Multimedia", 1);		// MM_DL    -> DL1 Mixer
             control.set("Sidetone Mixer Playback", 1);		// DL1 Mixer-> Sidetone Mixer
+            control.set("SDT DL Volume", 118);
             if (devices & OMAP4_OUT_FM) {
               /* FM Tx: DL1 MM_EXT Switch */
               control.set("DL1 MM_EXT Switch", 1);
@@ -665,6 +666,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             /* OMAP4 ABE */
             control.set("DL1 Mixer Multimedia", 0, 0);
             control.set("Sidetone Mixer Playback", 0, 0);
+            control.set("SDT DL Volume", 0, 0);
             control.set("DL1 PDM Switch", 0, 0);
             control.set("DL1 Media Playback Volume", 0, -1);
             control.set("DL1 Capture Playback Volume", 0, -1);
@@ -674,9 +676,10 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             (devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)) {
             /* OMAP4 ABE */
             /* Bluetooth: DL1 Mixer */
-            control.set("DL1 Mixer Multimedia", 1);		// MM_DL    -> DL1 Mixer
-            control.set("Sidetone Mixer Playback", 1);		// DL1 Mixer-> Sidetone Mixer
-            control.set("DL1 BT_VX Switch", 1);			// Sidetone Mixer -> BT-VX-DL
+            control.set("DL1 Mixer Multimedia", 1);        // MM_DL    -> DL1 Mixer
+            control.set("Sidetone Mixer Playback", 1);     // DL1 Mixer-> Sidetone Mixer
+            control.set("SDT DL Volume", 118);
+            control.set("DL1 BT_VX Switch", 1);            // Sidetone Mixer -> BT-VX-DL
             control.set("DL1 Media Playback Volume", 118);
         } else {
             control.set("DL1 BT_VX Switch", 0, 0);
