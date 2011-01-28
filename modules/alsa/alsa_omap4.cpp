@@ -311,6 +311,11 @@ const char *deviceName(alsa_handle_t *handle, uint32_t device, int mode)
     if (device & OMAP4_IN_DEFAULT)
         return MM_DEFAULT_DEVICE;
 
+    // Hostless loopback is not supported in kernel for FM with  0,6
+    // so for FM Rx, the default playback device retured is MM_DEFAULT_DEVICE i.e. 0,0
+    if (fm_enable)
+        return MM_DEFAULT_DEVICE;
+
     // now that low-power is flexible in buffer size and sample rate
     // a system property can be used to toggle
     if ((device & OMAP4_OUT_LP) ||
@@ -824,9 +829,9 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     LOGI("Initialized ALSA %s device '%s'", stream, devName);
 
     if (fm_enable) {
-       LOGI("Triggering McPDM DL");
-      snd_pcm_start(handle->handle);
-     }
+        LOGI("Triggering McPDM DL");
+        snd_pcm_start(handle->handle);
+    }
 
     // For FM Rx through ABE, McPDM UL needs to be triggered
     if (devices &  OMAP4_IN_FM) {
