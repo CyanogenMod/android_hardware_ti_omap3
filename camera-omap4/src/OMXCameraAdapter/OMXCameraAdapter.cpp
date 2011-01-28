@@ -3200,8 +3200,16 @@ status_t OMXCameraAdapter::setTimeOut(int sec)
 
     LOG_FUNCTION_NAME
 
-    ret = alarm(sec);
-
+    if( mComponentState == OMX_StateInvalid)
+      {
+        delete this;
+        gCameraAdapter = NULL;
+        return 0;
+      }
+    else
+      {
+      ret = alarm(sec);
+      }
     //At this point ErrorNotifier becomes invalid
     mErrorNotifier = NULL;
 
