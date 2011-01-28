@@ -98,7 +98,8 @@ const char CameraProperties::REVISION[] = "prop-revision";
 const char CameraProperties::FOCAL_LENGTH[] = "prop-focal-length";
 const char CameraProperties::HOR_ANGLE[] = "prop-horizontal-angle";
 const char CameraProperties::VER_ANGLE[] = "prop-vertical-angle";
-
+const char CameraProperties::VIDEO_MINFRAMERATE[]="prop-video-min-framerate";
+const char CameraProperties::VIDEO_MINFRAMERATE_VALUES[]="prop-video-min-framerate-values";
 
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
@@ -1078,7 +1079,18 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_VER_ANGLE;
         }
-
+    else if(!strcmp(propName,CameraProperties::VIDEO_MINFRAMERATE))
+        {
+        CAMHAL_LOGDA("Returning MIN Frame Rate");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE;
+        }
+    else if(!strcmp(propName,CameraProperties::VIDEO_MINFRAMERATE_VALUES))
+        {
+        CAMHAL_LOGDA("Returning MIN Frame RateValues");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES;
+        }
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
     LOG_FUNCTION_NAME_EXIT
@@ -1413,6 +1425,16 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::VER_ANGLE);
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::VER_ANGLE;
+
+        case CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::VIDEO_MINFRAMERATE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::VIDEO_MINFRAMERATE;
+
+	case CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::VIDEO_MINFRAMERATE_VALUES);
+            LOG_FUNCTION_NAME_EXIT
+	    return CameraProperties::VIDEO_MINFRAMERATE_VALUES;
 
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );

@@ -338,6 +338,10 @@ public:
     // API
     virtual status_t setFormat(OMX_U32 port, OMXCameraPortParameters &cap);
 
+   //API to set FrameRate using VFR interface
+
+   virtual status_t setVFramerate(OMX_U32 minFrameRate,OMX_U32 maxFrameRate);
+
     //API to get the frame size required to be allocated. This size is used to override the size passed
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height);

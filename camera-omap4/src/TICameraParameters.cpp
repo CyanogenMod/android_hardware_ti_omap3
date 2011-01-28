@@ -72,6 +72,9 @@ const char TICameraParameters::KEY_MEASUREMENT_ENABLE[] = "measurement";
 const char TICameraParameters::KEY_GBCE[] = "gbce";
 const char TICameraParameters::KEY_GLBCE[] = "glbce";
 const char TICameraParameters::KEY_CURRENT_ISO[] = "current-iso";
+const char TICameraParameters::KEY_VIDEO_MINFRAMERATE[] = "video-minframerate";
+const char TICameraParameters::KEY_VIDEO_MINFRAMERATE_VALUES[] = "video-minframerate-values";
+
 
 //TI extensions for enabling/disabling GLBCE
 const char TICameraParameters::GLBCE_ENABLE[] = "enable";

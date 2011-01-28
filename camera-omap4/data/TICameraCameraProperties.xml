@@ -63,6 +63,8 @@
 <prop-saturation-default>100</prop-saturation-default>
 <prop-sharpness-default>100</prop-sharpness-default>
 <prop-vstab-default>0</prop-vstab-default>
+<prop-video-min-framerate>30</prop-video-min-framerate>
+<prop-video-min-framerate-values>10,15,20,24,25,30,33</prop-video-min-framerate-values>
 <prop-flash-mode-default>off</prop-flash-mode-default>
 <prop-s3d2d-preview>0</prop-s3d2d-preview>
 </CameraInstance>
@@ -129,6 +131,8 @@
 <prop-saturation-default>100</prop-saturation-default>
 <prop-sharpness-default>100</prop-sharpness-default>
 <prop-vstab-default>0</prop-vstab-default>
+<prop-video-min-framerate>30</prop-video-min-framerate>
+<prop-video-min-framerate-values>10,15,20,24,25,30,33</prop-video-min-framerate-values>
 </CameraInstance>
 <CameraInstance>
 <prop-camera-name>DualCamera</prop-camera-name>
@@ -194,6 +198,8 @@
 <prop-saturation-default>100</prop-saturation-default>
 <prop-sharpness-default>100</prop-sharpness-default>
 <prop-vstab-default>0</prop-vstab-default>
+<prop-video-min-framerate>30</prop-video-min-framerate>
+<prop-video-min-framerate-values>10,15,20,24,25,30,33</prop-video-min-framerate-values>
 </CameraInstance>
 <CameraInstance>
 <prop-camera-name>USBCamera</prop-camera-name>
@@ -256,6 +262,8 @@
 <prop-saturation-default>100</prop-saturation-default>
 <prop-sharpness-default>100</prop-sharpness-default>
 <prop-vstab-default>0</prop-vstab-default>
+<prop-video-min-framerate>30</prop-video-min-framerate>
+<prop-video-min-framerate-values>10,15,20,24,25,30,33</prop-video-min-framerate-values>
 <prop-flash-mode-default>off</prop-flash-mode-default>
 <prop-s3d2d-preview>off</prop-s3d2d-preview>
 </CameraInstance>

@@ -461,7 +461,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     const char *valstr = NULL;
     const char *oldstr = NULL;
 
-    ///@todo Include more camera parameters
+   ///@todo Include more camera parameters
     int w, h;
     OMX_COLOR_FORMATTYPE pixFormat;
     if ( (valstr = params.getPreviewFormat()) != NULL )
@@ -495,7 +495,14 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     params.getPreviewSize(&w, &h);
     int frameRate = params.getPreviewFrameRate();
+    int minframeRate = params.getInt(TICameraParameters::KEY_VIDEO_MINFRAMERATE);
+   CAMHAL_LOGDB("  Min Frame Rate is %d ",minframeRate);
 
+    if(minframeRate > frameRate)
+        {
+         CAMHAL_LOGEA(" Min FPS set higher than MAX. So setting MIN and MAX to the higher value");
+         frameRate = minframeRate;
+        }
     CAMHAL_LOGVB("Preview frame rate %d", frameRate);
 
     OMXCameraPortParameters *cap;
@@ -625,6 +632,16 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *cap);
             }
         }
+     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
+        {
+               setVFramerate(minframeRate, frameRate);
+               CAMHAL_LOGDA("Configuring VFR for Video Mode");
+        }
+     else
+       {
+            setVFramerate(frameRate, frameRate); // In Imaging preview VFR is diabled by setting MIN = MAX
+            CAMHAL_LOGDA("Configuring VFR ( MIN ==MAX)for Image Preview Mode");
+       }
 
     str = params.get(TICameraParameters::KEY_EXPOSURE_MODE);
     mode = getLUTvalue_HALtoOMX( str, ExpLUT);
@@ -1092,7 +1109,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mVstabEnabled = false;
         }
 
-    // Set Auto Convergence Mode
+	 //Set Auto Convergence Mode
     str = params.get((const char *) TICameraParameters::KEY_AUTOCONVERGENCE);
     if ( str != NULL )
         {
@@ -1819,6 +1836,41 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
 
     LOG_FUNCTION_NAME_EXIT
 }
+
+
+status_t OMXCameraAdapter::setVFramerate(OMX_U32 minFrameRate, OMX_U32 maxFrameRate)
+{
+     status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_CONFIG_VARFRMRANGETYPE vfr;
+
+    LOG_FUNCTION_NAME
+    OMX_INIT_STRUCT_PTR (&vfr, OMX_TI_CONFIG_VARFRMRANGETYPE);
+
+    vfr.xMin = minFrameRate<<16;
+    vfr.xMax = maxFrameRate<<16;
+
+    CAMHAL_LOGDB("VALUES SET ARE : Min = %d Max =%d", vfr.xMin>>16, vfr.xMax>>16);
+    eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexConfigVarFrmRange, &vfr);
+     if ( OMX_ErrorNone != eError )
+     {
+         CAMHAL_LOGEB("Error while configuring FrameRate 0x%x", eError);
+         return -1;
+      }
+
+      CAMHAL_LOGDA("FrameRate Configured Successfully");
+      CAMHAL_LOGDA("Read Frame Rate after setting");
+       if(OMX_ErrorNone != eError)
+       {
+                CAMHAL_LOGEB("Error while Reading FrameRate 0x%x", eError);
+       }
+    else
+      {
+                CAMHAL_LOGDB("AFTER SETTING: Min = %d Max =%d", vfr.xMin>>16, vfr.xMax>>16);
+      }
+
+     return 0;
+ }
 
 status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &portParams)
 {
@@ -5426,7 +5478,7 @@ void OMXCameraAdapter::getFrameSize(int &width, int &height)
             {
             CAMHAL_LOGEB("Error configuring VSTAB %x", ret);
             }
-        }
+         }
     else
         {
         if ( NO_ERROR == ret )
@@ -5462,7 +5514,7 @@ void OMXCameraAdapter::getFrameSize(int &width, int &height)
             width = tFrameDim.nWidth;
             height = tFrameDim.nHeight;
             }
-        else
+       else
             {
             width = -1;
             height = -1;

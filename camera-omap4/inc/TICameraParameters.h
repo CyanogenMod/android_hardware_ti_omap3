@@ -72,6 +72,9 @@ static const char  KEY_MEASUREMENT_ENABLE[];
 static const char  KEY_INITIAL_VALUES[];
 static const char  KEY_GBCE[];
 static const char  KEY_GLBCE[];
+static const char  KEY_VIDEO_MINFRAMERATE[];
+static const char  KEY_VIDEO_MINFRAMERATE_VALUES[];
+
 static const char  KEY_CURRENT_ISO[];
 
 //TI extensions for zoom
@@ -98,6 +101,16 @@ static const char GLBCE_DISABLE[];
 //TI extensions for enabling/disabling GBCE
 static const char GBCE_ENABLE[];
 static const char GBCE_DISABLE[];
+
+// TI extensions to add Min frame rate Values
+static const char VIDEO_MINFRAMERATE_5[];
+static const char VIDEO_MINFRAMERATE_10[];
+static const char VIDEO_MINFRAMERATE_15[];
+static const char VIDEO_MINFRAMERATE_20[];
+static const char VIDEO_MINFRAMERATE_24[];
+static const char VIDEO_MINFRAMERATE_25[];
+static const char VIDEO_MINFRAMERATE_30[];
+static const char VIDEO_MINFRAMERATE_33[];
 
 //  TI extensions for Manual Gain and Manual Exposure
 static const char KEY_MANUAL_EXPOSURE_LEFT[];
