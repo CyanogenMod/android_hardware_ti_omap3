@@ -372,7 +372,7 @@ protected:
     virtual status_t startBracketing(int range);
     virtual status_t stopBracketing();
     virtual status_t autoFocus();
-    virtual status_t setTimeOut(unsigned int sec);
+    virtual status_t setTimeOut(int sec);
     virtual status_t cancelTimeOut();
     virtual status_t startSmoothZoom(int targetIdx);
     virtual status_t stopSmoothZoom();

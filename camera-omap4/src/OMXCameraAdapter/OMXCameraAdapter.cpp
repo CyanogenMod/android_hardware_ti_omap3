@@ -3185,7 +3185,7 @@ status_t OMXCameraAdapter::stopPreview()
 
 }
 
-status_t OMXCameraAdapter::setTimeOut(unsigned int sec)
+status_t OMXCameraAdapter::setTimeOut(int sec)
 {
     status_t ret = NO_ERROR;
 
