@@ -3053,6 +3053,11 @@ status_t OMXCameraAdapter::stopPreview()
         return NO_INIT;
         }
 
+    mComponentState = OMX_StateLoaded;
+    ///Clear the previewing flag, we are no longer previewing
+    mPreviewing = false;
+
+
     CAMHAL_LOGEB("Average framerate: %f", mFPS);
 
     ///Register for EXECUTING state transition.
@@ -3086,8 +3091,6 @@ status_t OMXCameraAdapter::stopPreview()
     eventSem.Wait();
 
     CAMHAL_LOGDA("EXECUTING->IDLE state changed");
-
-    mComponentState = OMX_StateIdle;
 
     ///Register for LOADED state transition.
     ///This method just inserts a message in Event Q, which is checked in the callback
@@ -3153,16 +3156,13 @@ status_t OMXCameraAdapter::stopPreview()
     eventSem.Wait();
     CAMHAL_LOGDA("IDLE->LOADED state changed");
 
-    mComponentState = OMX_StateLoaded;
-
         {
         Mutex::Autolock lock(mPreviewBufferLock);
         ///Clear all the available preview buffers
         mPreviewBuffersAvailable.clear();
         }
 
-    ///Clear the previewing flag, we are no longer previewing
-    mPreviewing = false;
+
 
     LOG_FUNCTION_NAME_EXIT
 
