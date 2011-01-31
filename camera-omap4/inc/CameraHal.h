@@ -456,6 +456,9 @@ public:
                                             data_callback_timestamp dataCbTimestamp,
                                             void* user);
 
+    //Set Burst mode
+    void setBurst(bool burst);
+
     //Notifications from CameraHal for video recording case
     status_t startRecording();
     status_t stopRecording();
@@ -526,6 +529,8 @@ private:
     KeyedVector<unsigned int, sp<MemoryBase> > mSharedPreviewBuffers;
     bool mAppSupportsStride;
 
+    //Burst mode active
+    bool mBurst;
     mutable Mutex mRecordingLock;
     bool mRecording;
     bool mMeasurementEnabled;

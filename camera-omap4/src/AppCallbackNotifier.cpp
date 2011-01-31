@@ -409,6 +409,7 @@ void AppCallbackNotifier::notifyFrame()
                              ( NULL != mCameraHal.get() ) &&
                              ( NULL != mDataCb) )
                     {
+                    Mutex::Autolock lock(mLock);
 
 #ifdef COPY_IMAGE_BUFFER
 
@@ -418,7 +419,14 @@ void AppCallbackNotifier::notifyFrame()
                         if (buf)
                           memcpy(buf, ( void * ) ( (unsigned int) frame->mBuffer + frame->mOffset) , frame->mLength);
 
-                        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                        if ( mBurst )
+                            {
+                            mDataCb(CAMERA_MSG_BURST_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                            }
+                        else
+                            {
+                            mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                            }
 
 #else
 
@@ -1052,6 +1060,16 @@ sp<IMemoryHeap> AppCallbackNotifier::getPreviewHeap()
         }
 }
 
+void AppCallbackNotifier::setBurst(bool burst)
+{
+    LOG_FUNCTION_NAME
+
+    Mutex::Autolock lock(mLock);
+
+    mBurst = burst;
+
+    LOG_FUNCTION_NAME_EXIT
+}
 
 status_t AppCallbackNotifier::stopPreviewCallbacks()
 {

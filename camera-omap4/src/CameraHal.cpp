@@ -1838,6 +1838,14 @@ status_t CameraHal::startImageBracketing()
 
         if ( NO_ERROR == ret )
             {
+            if ( NULL != mAppCallbackNotifier.get() )
+                 {
+                 mAppCallbackNotifier->setBurst(true);
+                 }
+            }
+
+        if ( NO_ERROR == ret )
+            {
             mParameters.getPictureSize(&width, &height);
 
             ret = allocImageBufs(width, height, pictureBufferLength, mParameters.getPictureFormat(), ( mBracketRangeNegative + 1 ));
@@ -1958,6 +1966,17 @@ status_t CameraHal::takePicture( )
          if ( burst > 1 )
              {
              bufferCount = CameraHal::NO_BUFFERS_IMAGE_CAPTURE;
+             if ( NULL != mAppCallbackNotifier.get() )
+                 {
+                 mAppCallbackNotifier->setBurst(true);
+                 }
+             }
+         else
+             {
+             if ( NULL != mAppCallbackNotifier.get() )
+                 {
+                 mAppCallbackNotifier->setBurst(false);
+                 }
              }
 
         //Pause Preview during capture
