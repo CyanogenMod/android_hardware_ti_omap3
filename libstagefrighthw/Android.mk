@@ -15,8 +15,8 @@ LOCAL_CFLAGS +:= $(PV_CFLAGS_MINUS_VISIBILITY)
 
 LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/base/include/media/stagefright/openmax \
-        $(TOP)/hardware/ti/omap3/liboverlay
-
+        $(TOP)/hardware/ti/omap3/liboverlay \
+	$(TOP)/hardware/ti/omx/ducati/domx/system/omx_core/inc
 LOCAL_SHARED_LIBRARIES :=       \
         libbinder               \
         libutils                \
