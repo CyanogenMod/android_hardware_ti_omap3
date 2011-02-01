@@ -4849,6 +4849,8 @@ status_t OMXCameraAdapter::returnFocusStatus(bool timeoutReached)
 
     LOG_FUNCTION_NAME
 
+    OMX_INIT_STRUCT(eFocusStatus, OMX_PARAM_FOCUSSTATUSTYPE);
+
     if ( NO_ERROR == ret )
         {
 

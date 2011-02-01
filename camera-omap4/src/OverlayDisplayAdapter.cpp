@@ -74,7 +74,7 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
     mPaused = false;
     mXOff = 0;
     mYOff = 0;
-
+    mFirstInit = false;
 
     LOG_FUNCTION_NAME_EXIT
 }

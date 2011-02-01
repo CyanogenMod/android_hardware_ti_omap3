@@ -35,6 +35,30 @@ BaseCameraAdapter::BaseCameraAdapter()
     mEndCaptureData = NULL;
     mReleaseData = NULL;
     mRecording = false;
+
+    mPreviewBuffers = NULL;
+    mPreviewBufferCount = 0;
+    mPreviewBuffersLength = 0;
+
+    mVideoBuffers = NULL;
+    mVideoBuffersCount = 0;
+    mVideoBuffersLength = 0;
+
+    mCaptureBuffers = NULL;
+    mCaptureBuffersCount = 0;
+    mCaptureBuffersLength = 0;
+
+    mPreviewDataBuffers = NULL;
+    mPreviewDataBuffersCount = 0;
+    mPreviewDataBuffersLength = 0;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+    mStartFocus.tv_sec = 0;
+    mStartFocus.tv_usec = 0;
+    mStartCapture.tv_sec = 0;
+    mStartCapture.tv_usec = 0;
+#endif
+
 }
 
 status_t BaseCameraAdapter::registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data)
