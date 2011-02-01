@@ -263,12 +263,11 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime, S3DParameters 
     ///Set the optimal buffer count to 0 since we have a display thread which monitors the
     ///fd of overlay
     mOverlay->setParameter(OPTIMAL_QBUF_CNT, 0x0);
-    // TODO: renable this when s3d is ported to gingerbread
-#if 0
+
     if(s3dParams)
         mOverlay->set_s3d_params(s3dParams->mode, s3dParams->framePacking,
                                     s3dParams->order, s3dParams->subSampling);
-#endif
+
     mFrameWidth = mOverlay->getWidth();
     mFrameHeight = mOverlay->getHeight();
 
