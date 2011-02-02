@@ -95,6 +95,9 @@ const char CameraProperties::PROP_KEY_MANUALCONVERGENCE_VALUES[] = "manual-conve
 const char CameraProperties::PROP_KEY_VSTAB[] = "vstab";
 const char CameraProperties::PROP_KEY_VSTAB_VALUES[] = "vstab-values";
 const char CameraProperties::PROP_KEY_REVISION[] = "revision";
+const char CameraProperties::PROP_KEY_FOCAL_LENGTH[] = "focal-length";
+const char CameraProperties::PROP_KEY_HOR_ANGLE[] = "horizontal-angle";
+const char CameraProperties::PROP_KEY_VER_ANGLE[] = "vertical-angle";
 
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
@@ -1054,6 +1057,25 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_REVISION;
         }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_FOCAL_LENGTH))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_FOCAL_LENGTH");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_FOCAL_LENGTH;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_HOR_ANGLE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_HOR_ANGLE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_HOR_ANGLE;
+        }
+    else if(!strcmp(propName,CameraProperties::PROP_KEY_VER_ANGLE))
+        {
+        CAMHAL_LOGDA("Returning PROP_KEY_VER_ANGLE");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_VER_ANGLE;
+        }
+
 
     CAMHAL_LOGVA("Returning PROP_INDEX_INVALID");
     LOG_FUNCTION_NAME_EXIT
@@ -1373,6 +1395,21 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_PREVIEW_SIZE);
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::PROP_KEY_PREVIEW_SIZE;
+
+        case CameraProperties::PROP_INDEX_FOCAL_LENGTH:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_FOCAL_LENGTH);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_FOCAL_LENGTH;
+
+        case CameraProperties::PROP_INDEX_HOR_ANGLE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_HOR_ANGLE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_HOR_ANGLE;
+
+        case CameraProperties::PROP_INDEX_VER_ANGLE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::PROP_KEY_VER_ANGLE);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::PROP_KEY_VER_ANGLE;
 
         default:
             CAMHAL_LOGVB("Returning key: %s ","none" );

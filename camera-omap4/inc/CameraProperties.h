@@ -110,6 +110,9 @@ public:
         PROP_INDEX_VSTAB,
         PROP_INDEX_VSTAB_VALUES,
         PROP_INDEX_REVISION,
+        PROP_INDEX_FOCAL_LENGTH,
+        PROP_INDEX_HOR_ANGLE,
+        PROP_INDEX_VER_ANGLE,
         PROP_INDEX_MAX
         };
 
@@ -170,6 +173,9 @@ public:
     static const char PROP_KEY_AUTOCONVERGENCE_MODE[];
     static const char PROP_KEY_MANUALCONVERGENCE_VALUES[];
     static const char PROP_KEY_REVISION[];
+    static const char PROP_KEY_FOCAL_LENGTH[];
+    static const char PROP_KEY_HOR_ANGLE[];
+    static const char PROP_KEY_VER_ANGLE[];
     static const char PARAMS_DELIMITER [];
 
     static const char TICAMERA_FILE_PREFIX[];

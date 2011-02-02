@@ -69,6 +69,9 @@
 <manual-gain-iso-left>0</manual-gain-iso-left>
 <manual-gain-iso-right>0</manual-gain-iso-right>
 <manual-gain-modes>0</manual-gain-modes>
+<focal-length>4.6</focal-length>
+<horizontal-angle>62.1</horizontal-angle>
+<vertical-angle>48.2</vertical-angle>
 </CameraInstance>
 <CameraInstance>
 <camera-name>SecondaryCamera</camera-name>
@@ -138,6 +141,9 @@
 <manual-gain-iso-left>0</manual-gain-iso-left>
 <manual-gain-iso-right>0</manual-gain-iso-right>
 <manual-gain-modes>0</manual-gain-modes>
+<focal-length>4.76</focal-length>
+<horizontal-angle>60.4</horizontal-angle>
+<vertical-angle>48.2</vertical-angle>
 </CameraInstance>
 <CameraInstance>
 <camera-name>DualCamera</camera-name>
@@ -200,5 +206,8 @@
 <manual-convergence-values>-100,-50,-30,-25,0,25,50,100</manual-convergence-values>
 <vstab>0</vstab>
 <vstab-values>0,1</vstab-values>
+<focal-length>4.76</focal-length>
+<horizontal-angle>60.4</horizontal-angle>
+<vertical-angle>48.2</vertical-angle>
 </CameraInstance>
 </CameraRoot>

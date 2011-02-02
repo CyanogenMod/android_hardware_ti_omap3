@@ -3007,6 +3007,9 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB_VALUES,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB_VALUES]->mPropValue);
+    p.set(CameraParameters::KEY_FOCAL_LENGTH, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_FOCAL_LENGTH]->mPropValue);
+    p.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_HOR_ANGLE]->mPropValue);
+    p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VER_ANGLE]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }
