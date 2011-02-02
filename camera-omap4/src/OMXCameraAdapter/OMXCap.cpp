@@ -77,7 +77,6 @@ const CapResolution OMXCameraAdapter::mThumbRes [] = {
     { 352, 144, "352x144" },
     { 176, 144, "176x144" },
     { 96, 96, "96x96" },
-    { 0, 0, "0x0" },
 };
 
 const CapPixelformat OMXCameraAdapter::mPixelformats [] = {
@@ -409,6 +408,8 @@ status_t OMXCameraAdapter::insertThumbSizes(CameraParameters &params, OMX_TI_CAP
             }
         else
             {
+            //CTS Requirement: 0x0 should always be supported
+            strncat(supported, "0x0", MAX_PROP_NAME_LENGTH);
             params.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, supported);
             }
         }

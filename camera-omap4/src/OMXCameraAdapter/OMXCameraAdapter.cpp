@@ -2474,13 +2474,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-    ret = setThumbnailParams(mThumbWidth, mThumbHeight, mThumbQuality);
-    if ( NO_ERROR != ret)
-        {
-        CAMHAL_LOGEB("Error configuring thumbnail size %x", ret);
-        return ret;
-        }
-
     ret = setScene(mParameters3A);
     if ( NO_ERROR != ret )
         {
@@ -2680,6 +2673,13 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
         {
         CAMHAL_LOGEB("setFormat() failed %d", ret);
         LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
+
+    ret = setThumbnailParams(mThumbWidth, mThumbHeight, mThumbQuality);
+    if ( NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring thumbnail size %x", ret);
         return ret;
         }
 
@@ -3143,9 +3143,9 @@ status_t OMXCameraAdapter::setThumbnailParams(unsigned int width, unsigned int h
 
     LOG_FUNCTION_NAME
 
-    if ( OMX_StateLoaded != mComponentState )
+    if ( OMX_StateInvalid == mComponentState )
         {
-        CAMHAL_LOGEA("OMX component is not in loaded state");
+        CAMHAL_LOGEA("OMX component is in invalid state");
         ret = -EINVAL;
         }
 
@@ -3161,18 +3161,19 @@ status_t OMXCameraAdapter::setThumbnailParams(unsigned int width, unsigned int h
             ret = -1;
             }
 
-        thumbConf.nWidth = width;
-        thumbConf.nHeight = height;
-        thumbConf.nQuality = quality;
-
         //CTS Requirement: width or height equal to zero should
         //result in absent EXIF thumbnail
         if ( ( 0 == width ) || ( 0 == height ) )
             {
+            thumbConf.nWidth = mThumbRes[0].width;
+            thumbConf.nHeight = mThumbRes[0].height;
             thumbConf.eCompressionFormat = OMX_IMAGE_CodingUnused;
             }
         else
             {
+            thumbConf.nWidth = width;
+            thumbConf.nHeight = height;
+            thumbConf.nQuality = quality;
             thumbConf.eCompressionFormat = OMX_IMAGE_CodingJPEG;
             }
 
