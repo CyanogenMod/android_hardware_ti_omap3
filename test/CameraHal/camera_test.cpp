@@ -2361,6 +2361,23 @@ int execute_functional_script(char *script) {
                     camera->setParameters(params.flatten());
                 break;
 
+            case 'a':
+                char * temp_str;
+
+                temp_str = strtok(cmd+1,"!");
+                printf("Latitude %s \n",temp_str);
+                params.set(params.KEY_GPS_LATITUDE, temp_str);
+                temp_str=strtok(NULL,"!");
+                printf("Longitude %s \n",temp_str);
+                params.set(params.KEY_GPS_LONGITUDE, temp_str);
+                temp_str=strtok(NULL,"!");
+                printf("Altitude %s \n",temp_str);
+                params.set(params.KEY_GPS_ALTITUDE, temp_str);
+
+                if ( hardwareActive )
+                    camera->setParameters(params.flatten());
+                break;
+
             case 'l':
             case 'L':
                 for(i = 0; i < ARRAY_SIZE(VcaptureSize); i++)
