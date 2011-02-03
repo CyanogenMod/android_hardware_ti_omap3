@@ -31,6 +31,8 @@
 #include "TICameraParameters.h"
 #include "CameraProperties.h"
 #include "overlay_common.h"
+#include <cutils/properties.h>
+
 
 #include <poll.h>
 #include <math.h>
