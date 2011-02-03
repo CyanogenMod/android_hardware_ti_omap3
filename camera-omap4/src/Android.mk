@@ -159,6 +159,58 @@ LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_SHARED_LIBRARY)
 
+################################################
+
+#USB Camera Adapter
+
+include $(CLEAR_VARS)
+
+LOCAL_PRELINK_MODULE := false
+
+LOCAL_SRC_FILES:= \
+	BaseCameraAdapter.cpp \
+	V4LCameraAdapter/V4LCameraAdapter.cpp \
+
+
+LOCAL_C_INCLUDES += \
+    $(LOCAL_PATH)/../inc/ \
+    $(LOCAL_PATH)/../inc/V4LCameraAdapter \
+    external/icu4c/common \
+
+LOCAL_SHARED_LIBRARIES:= \
+    libdl \
+    libui \
+    libbinder \
+    libutils \
+    libcutils \
+    libtiutils \
+    libsysmgr \
+    librcm \
+    libipc \
+    libcamera \
+    libicuuc \
+    libcamera_client \
+    libomx_rpc \
+
+LOCAL_C_INCLUDES += \
+    kernel/android-2.6.29/include \
+	frameworks/base/include/ui \
+	hardware/ti/omap3/liboverlay \
+	hardware/ti/omap3/libtiutils \
+	frameworks/base/include/utils \
+	hardware/ti/omx/ducati/domx/system/omx_core/inc \
+	hardware/ti/omx/ducati/domx/system/mm_osal/inc \
+	$(LOCAL_PATH)/../../../../../external/libxml2/include \
+
+
+
+LOCAL_CFLAGS += -fno-short-enums -DTARGET_OMAP4
+
+LOCAL_MODULE:= libusbcameraadapter
+LOCAL_MODULE_TAGS := optional
+
+include $(BUILD_SHARED_LIBRARY)
+
 endif
 endif
 
