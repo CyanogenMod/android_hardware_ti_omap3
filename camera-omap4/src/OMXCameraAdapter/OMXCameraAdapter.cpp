@@ -3373,7 +3373,7 @@ status_t OMXCameraAdapter::setExposureBracketing(int *evValues, size_t evCount, 
             {
             extExpCapMode.bEnableBracketing = OMX_TRUE;
             extExpCapMode.tBracketConfigType.eBracketMode = OMX_BracketExposureRelativeInEV;
-            extExpCapMode.tBracketConfigType.nNbrBracketingValues = evCount;
+            extExpCapMode.tBracketConfigType.nNbrBracketingValues = evCount - 1;
             }
 
         for ( unsigned int i = 0 ; i < evCount ; i++ )
