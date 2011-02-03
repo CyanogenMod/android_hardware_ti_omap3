@@ -1333,9 +1333,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     double gpsPos;
 
-    if( (params.get(CameraParameters::KEY_GPS_LATITUDE) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_LATITUDE)) != NULL )
         {
-        gpsPos = strtod( params.get(CameraParameters::KEY_GPS_LATITUDE), NULL);
+        gpsPos = strtod(valstr, NULL);
 
         if ( convertGPSCoord(gpsPos, &mGPSData.mLatDeg, &mGPSData.mLatMin, &mGPSData.mLatSec) == NO_ERROR )
             {
@@ -1363,9 +1363,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mGPSData.mLatValid = false;
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_LONGITUDE) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_LONGITUDE)) != NULL )
         {
-        gpsPos = strtod( params.get(CameraParameters::KEY_GPS_LONGITUDE), NULL);
+        gpsPos = strtod(valstr, NULL);
 
         if ( convertGPSCoord(gpsPos, &mGPSData.mLongDeg, &mGPSData.mLongMin, &mGPSData.mLongSec) == NO_ERROR )
             {
@@ -1392,9 +1392,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mGPSData.mLongValid = false;
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_ALTITUDE) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_ALTITUDE)) != NULL )
         {
-        gpsPos = strtod( params.get(CameraParameters::KEY_GPS_ALTITUDE), NULL);
+        gpsPos = strtod(valstr, NULL);
         mGPSData.mAltitude = gpsPos;
         mGPSData.mAltitudeValid = true;
         }
@@ -1403,9 +1403,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mGPSData.mAltitudeValid= false;
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_TIMESTAMP) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_TIMESTAMP)) != NULL )
         {
-        long gpsTimestamp = strtol( params.get(CameraParameters::KEY_GPS_TIMESTAMP), NULL, 10);
+        long gpsTimestamp = strtol(valstr, NULL, 10);
         struct tm *timeinfo = localtime( ( time_t * ) & (gpsTimestamp) );
         if ( NULL != timeinfo )
             {
@@ -1422,9 +1422,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mGPSData.mDatestampValid = false;
         }
 
-    if( (params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD) != NULL ) )
+    if( (valstr = params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD)) != NULL )
         {
-        strncpy(mGPSData.mProcMethod, params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD), GPS_PROCESSING_SIZE);
+        strncpy(mGPSData.mProcMethod, valstr, GPS_PROCESSING_SIZE-1);
         mGPSData.mProcMethodValid = true;
         }
     else
@@ -1432,9 +1432,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mGPSData.mProcMethodValid = false;
         }
 
-    if( (params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF) != NULL ) )
+    if( (valstr = params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF)) != NULL )
         {
-        strncpy(mGPSData.mAltitudeRef, params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF), GPS_REF_SIZE );
+        strncpy(mGPSData.mAltitudeRef, valstr, GPS_REF_SIZE-1);
         mGPSData.mAltitudeValid = true;
         }
     else
@@ -1442,9 +1442,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mGPSData.mAltitudeValid = false;
         }
 
-    if( (params.get(TICameraParameters::KEY_GPS_MAPDATUM ) != NULL ) )
+    if( (valstr = params.get(TICameraParameters::KEY_GPS_MAPDATUM)) != NULL )
         {
-        strncpy(mGPSData.mMapDatum, params.get(TICameraParameters::KEY_GPS_MAPDATUM), GPS_MAPDATUM_SIZE);
+        strncpy(mGPSData.mMapDatum, valstr, GPS_MAPDATUM_SIZE-1);
         mGPSData.mMapDatumValid = true;
         }
     else
@@ -1452,9 +1452,9 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mGPSData.mMapDatumValid = false;
         }
 
-    if( (params.get(TICameraParameters::KEY_GPS_VERSION ) != NULL ) )
+    if( (valstr = params.get(TICameraParameters::KEY_GPS_VERSION)) != NULL )
         {
-        strncpy(mGPSData.mVersionId, params.get(TICameraParameters::KEY_GPS_VERSION), GPS_VERSION_SIZE);
+        strncpy(mGPSData.mVersionId, valstr, GPS_VERSION_SIZE-1);
         mGPSData.mVersionIdValid = true;
         }
     else
@@ -2997,7 +2997,8 @@ status_t OMXCameraAdapter::sendCommand(int operation, int value1, int value2, in
             }
         case CameraAdapter::CAMERA_STOP_BRACKET_CAPTURE:
             {
-            ret = stopBracketing();
+              if (mBracketingEnabled)
+                ret = stopBracketing();
             break;
             }
          case CameraAdapter::CAMERA_PERFORM_AUTOFOCUS:
@@ -3645,12 +3646,12 @@ status_t OMXCameraAdapter::parseExpRange(const char *rangeStr, int * expRange, s
 
     if ( NULL == rangeStr )
         {
-        ret = -EINVAL;
+        return -EINVAL;
         }
 
     if ( NULL == expRange )
         {
-        ret = -EINVAL;
+        return -EINVAL;
         }
 
     if ( NO_ERROR == ret )
@@ -3660,7 +3661,7 @@ status_t OMXCameraAdapter::parseExpRange(const char *rangeStr, int * expRange, s
         if ( NULL == tmp )
             {
             CAMHAL_LOGEA("No resources for temporary buffer");
-            ret = -1;
+            return -1;
             }
         memset(tmp, '\0', strlen(rangeStr) + 1);
 
@@ -5327,48 +5328,20 @@ status_t OMXCameraAdapter::sendBracketFrames()
 
 status_t OMXCameraAdapter::stopBracketing()
 {
-    status_t ret = NO_ERROR;
+  status_t ret = NO_ERROR;
 
     LOG_FUNCTION_NAME
 
-    if ( OMX_StateExecuting != mComponentState )
-        {
-        CAMHAL_LOGEA("OMX component is not in executing state");
-        ret = -EINVAL;
-        }
-
-        {
-        Mutex::Autolock lock(mBracketingLock);
-
-        if ( !mBracketingEnabled )
-            {
-              if ( NULL != mBracketingBuffersQueued )
-                {
-                  delete mBracketingBuffersQueued;
-                }
-            return ret;
-            }
-
-        }
-
-    if ( NO_ERROR == ret )
-        {
-
-        ret = stopImageCapture();
-
-            {
-            Mutex::Autolock lock(mBracketingLock);
-            mBracketingEnabled = false;
-            }
-
-        }
-
     Mutex::Autolock lock(mBracketingLock);
-    if ( NULL != mBracketingBuffersQueued )
-      {
-        delete mBracketingBuffersQueued;
-      }
 
+    if ( NULL != mBracketingBuffersQueued )
+    {
+        delete [] mBracketingBuffersQueued;
+    }
+
+    ret = stopImageCapture();
+    mBracketingBuffersQueued = NULL;
+    mBracketingEnabled = false;
     mBracketingBuffersQueuedCount = 0;
     mLastBracetingBufferIdx = 0;
 

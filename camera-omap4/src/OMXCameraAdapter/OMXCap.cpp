@@ -36,7 +36,7 @@ namespace android {
 ///Maintain a separate tag for OMXCameraAdapter logs to isolate issues OMX specific
 #define LOG_TAG "OMXCameraAdapter"
 
-#define PARAM_SEP   ","
+const char PARAM_SEP[] = ",";
 
 const CapResolution OMXCameraAdapter::mImageCapRes [] = {
     { 4032, 3024, "4032x3024" },
@@ -619,26 +619,26 @@ status_t OMXCameraAdapter::insertIPPModes(CameraParameters &params, OMX_TI_CAPTY
         memset(supported, '\0', MAX_PROP_VALUE_LENGTH);
 
         //Off is always supported
-        strncat(supported, TICameraParameters::IPP_NONE, MAX_PROP_VALUE_LENGTH -1);
-        strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+        strncat(supported, TICameraParameters::IPP_NONE, MAX_PROP_NAME_LENGTH);
+        strncat(supported, PARAM_SEP, 1);
 
         if ( caps.bLensDistortionCorrectionSupported )
             {
-            strncat(supported, TICameraParameters::IPP_LDC, MAX_PROP_VALUE_LENGTH -1);
-            strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+            strncat(supported, TICameraParameters::IPP_LDC, MAX_PROP_NAME_LENGTH);
+            strncat(supported, PARAM_SEP, 1);
             }
 
         if ( caps.bISONoiseFilterSupported )
             {
-            strncat(supported, TICameraParameters::IPP_NSF, MAX_PROP_VALUE_LENGTH -1);
-            strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+            strncat(supported, TICameraParameters::IPP_NSF, MAX_PROP_NAME_LENGTH);
+            strncat(supported, PARAM_SEP, 1);
             }
 
 
         if ( caps.bISONoiseFilterSupported && caps.bLensDistortionCorrectionSupported )
             {
-            strncat(supported, TICameraParameters::IPP_LDCNSF, MAX_PROP_VALUE_LENGTH -1);
-            strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+            strncat(supported, TICameraParameters::IPP_LDCNSF, MAX_PROP_NAME_LENGTH);
+            strncat(supported, PARAM_SEP, 1);
             }
 
         params.set(TICameraParameters::KEY_SUPPORTED_IPP, supported);
@@ -666,13 +666,13 @@ status_t OMXCameraAdapter::insertWBModes(CameraParameters &params, OMX_TI_CAPTYP
             p = getLUTvalue_OMXtoHAL(caps.eWhiteBalanceModes[i], WBalLUT);
             if ( NULL != p )
                 {
-                strncat(supported, p, MAX_PROP_VALUE_LENGTH - 1);
-                strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+                strncat(supported, p, MAX_PROP_NAME_LENGTH);
+                strncat(supported, PARAM_SEP, 1);
                 }
             }
 
         //These modes are not supported by the capability feature
-        strncat(supported, TICameraParameters::WHITE_BALANCE_FACE, MAX_PROP_VALUE_LENGTH - 1);
+        strncat(supported, TICameraParameters::WHITE_BALANCE_FACE, MAX_PROP_NAME_LENGTH);
 
         params.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE, supported);
         }
@@ -696,11 +696,11 @@ status_t OMXCameraAdapter::insertEffects(CameraParameters &params, OMX_TI_CAPTYP
 
         for ( unsigned int i = 0 ; i < caps.ulColorEffectCount; i++ )
             {
-            p = getLUTvalue_OMXtoHAL(caps.eColorEffects[i], EffLUT);
+              p = getLUTvalue_OMXtoHAL(caps.eColorEffects[i], EffLUT);
             if ( NULL != p )
                 {
-                strncat(supported, p, MAX_PROP_VALUE_LENGTH - 1);
-                strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+                strncat(supported, p, MAX_PROP_NAME_LENGTH);
+                strncat(supported, PARAM_SEP, 1);
                 }
             }
 
@@ -729,13 +729,13 @@ status_t OMXCameraAdapter::insertExpModes(CameraParameters &params, OMX_TI_CAPTY
             p = getLUTvalue_OMXtoHAL(caps.eExposureModes[i], ExpLUT);
             if ( NULL != p )
                 {
-                strncat(supported, p, MAX_PROP_VALUE_LENGTH - 1);
-                strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+                strncat(supported, p, MAX_PROP_NAME_LENGTH);
+                strncat(supported, PARAM_SEP, 1);
                 }
             }
 
         //These modes are not supported by the capability feature
-        strncat(supported, TICameraParameters::EXPOSURE_MODE_FACE, MAX_PROP_VALUE_LENGTH - 1);
+        strncat(supported, TICameraParameters::EXPOSURE_MODE_FACE, MAX_PROP_NAME_LENGTH);
 
         params.set(TICameraParameters::KEY_SUPPORTED_EXPOSURE, supported);
         }
@@ -762,8 +762,8 @@ status_t OMXCameraAdapter::insertSceneModes(CameraParameters &params, OMX_TI_CAP
             p = getLUTvalue_OMXtoHAL(caps.eSceneModes[i], SceneLUT);
             if ( NULL != p )
                 {
-                strncat(supported, p, MAX_PROP_VALUE_LENGTH - 1);
-                strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+                strncat(supported, p, MAX_PROP_NAME_LENGTH);
+                strncat(supported, PARAM_SEP, 1);
                 }
             }
 
@@ -792,15 +792,15 @@ status_t OMXCameraAdapter::insertFocusModes(CameraParameters &params, OMX_TI_CAP
             p = getLUTvalue_OMXtoHAL(caps.eFocusModes[i], FocusLUT);
             if ( NULL != p )
                 {
-                strncat(supported, p, MAX_PROP_VALUE_LENGTH - 1);
-                strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+                strncat(supported, p, MAX_PROP_NAME_LENGTH);
+                strncat(supported, PARAM_SEP, 1);
                 }
             }
 
         //These modes are not supported by the capability feature
-        strncat(supported, TICameraParameters::FOCUS_MODE_FACE, MAX_PROP_VALUE_LENGTH - 1);
-        strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
-        strncat(supported, TICameraParameters::FOCUS_MODE_TOUCH, MAX_PROP_VALUE_LENGTH - 1);
+        strncat(supported, TICameraParameters::FOCUS_MODE_FACE, MAX_PROP_NAME_LENGTH);
+        strncat(supported, PARAM_SEP, 1);
+        strncat(supported, TICameraParameters::FOCUS_MODE_TOUCH, MAX_PROP_NAME_LENGTH);
 
         params.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, supported);
         }
@@ -827,8 +827,8 @@ status_t OMXCameraAdapter::insertFlickerModes(CameraParameters &params, OMX_TI_C
             p = getLUTvalue_OMXtoHAL(caps.eFlicker[i], FlickerLUT);
             if ( NULL != p )
                 {
-                strncat(supported, p, MAX_PROP_VALUE_LENGTH - 1);
-                strncat(supported, PARAM_SEP, MAX_PROP_VALUE_LENGTH - 1);
+                strncat(supported, p, MAX_PROP_NAME_LENGTH);
+                strncat(supported, PARAM_SEP, 1);
                 }
             }
 
