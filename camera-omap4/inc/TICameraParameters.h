@@ -71,6 +71,7 @@ static const char  KEY_MEASUREMENT_ENABLE[];
 static const char  KEY_INITIAL_VALUES[];
 static const char  KEY_GBCE[];
 static const char  KEY_GLBCE[];
+static const char  KEY_CURRENT_ISO[];
 
 //TI extensions for zoom
 static const char ZOOM_SUPPORTED[];
