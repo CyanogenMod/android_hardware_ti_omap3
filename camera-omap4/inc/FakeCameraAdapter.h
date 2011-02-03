@@ -44,8 +44,6 @@ public:
     ///Initialzes the camera adapter creates any resources required
     virtual status_t initialize(int sensor_index=0);
 
-    virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
-
     virtual int setErrorHandler(ErrorNotifier *errorNotifier);
 
     //APIs to configure Camera adapter and get the current parameter set
@@ -58,12 +56,6 @@ public:
     //Used together with capabilities
     virtual int getRevision();
 
-    //API to send a command to the camera
-    virtual status_t sendCommand(int operation, int value1=0, int value2=0, int value3=0);
-
-    //API to cancel a currently executing command
-    virtual status_t cancelCommand(int operation);
-
     //API to get the frame size required to be allocated. This size is used to override the size passed
     //by camera service when VSTAB/VNF is turned ON for example
     virtual void getFrameSize(int &width, int &height);
@@ -74,7 +66,16 @@ public:
 
 
 protected:
-    status_t takePicture();
+
+    //----------Parent class method implementation------------------------------------
+    virtual status_t takePicture();
+    virtual status_t autoFocus();
+    virtual status_t startPreview();
+    virtual status_t stopPreview();
+    virtual status_t useBuffers(CameraMode mode, void* bufArr, int num, size_t length);
+    virtual status_t fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType);
+    //-----------------------------------------------------------------------------
+
     status_t doAutofocus();
     virtual void frameThread();
     virtual void frameCallbackThread();
@@ -82,6 +83,7 @@ protected:
     // and type
     void setBuffer(void *previewBuffer, int index, int width, int height, int pixelFormat, PreviewFrameType frame);
     virtual void sendNextFrame(PreviewFrameType frame);
+    status_t startImageCapture();
 
 //Internal class definitions
 
@@ -118,39 +120,28 @@ class FramePreview : public Thread {
         CALLBACK_EXIT
     };
 
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+    //Storage for released buffers
+    Vector<unsigned int> mFreePreviewBuffers;
+    mutable Mutex mPreviewVectorLock;
 
-    //startPreview timestamp from CameraHAL
-    struct timeval *mStartPreview;
-    //autoFocus timestamp from CameraHAL
-    struct timeval *mStartFocus;
-    //takePicture timestamp from CameraHAL
-    struct timeval *mStartCapture;
+    Vector<unsigned int> mFreeVideoBuffers;
+    mutable Mutex mVideoVectorLock;
 
-#endif
+    Vector<unsigned int> mFreeImageBuffers;
+    mutable Mutex mImageVectorLock;
+
+    Vector<unsigned int> mFreePreviewDataBuffers;
+    mutable Mutex mPreviewDataVectorLock;
 
     sp<FramePreview> mFrameThread;
     sp<FrameCallback> mCallbackThread;
-    int mImageBufferCount;
-    int *mImageBuffers;
-    uint32_t *mImageOffsets;
-    int mImageFd;
-    int mPreviewBufferCount;
-    int *mPreviewBuffers;
-    uint32_t *mPreviewOffsets;
-    int mPreviewFd;
-    KeyedVector<int, int> mPreviewBuffersRefCount;
     int mPreviewWidth, mPreviewHeight, mPreviewFormat;
     int mCaptureWidth, mCaptureHeight, mCaptureFormat;
     int mFrameRate;
     CameraParameters mParameters;
     MessageQueue mCallbackQ;
-    mutable Mutex mPreviewBufferLock;
     MessageQueue mFrameQ;
     MessageQueue mAdapterQ;
-
-
-
 };
 
 };

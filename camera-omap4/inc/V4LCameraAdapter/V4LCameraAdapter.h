@@ -78,29 +78,17 @@ public:
     virtual status_t setParameters(const CameraParameters& params);
     virtual void getParameters(CameraParameters& params);
 
-    virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
-
     //API to get the caps
     virtual status_t getCaps(CameraParameters &params);
 
     //Used together with capabilities
     virtual int getRevision();
 
-
-    //API to give the buffers to Adapter
-    virtual status_t useBuffers(CameraMode mode, void* bufArr, int num);
-
     // API
     virtual status_t UseBuffersPreview(void* bufArr, int num);
 
     //API to flush the buffers for preview
     status_t flushBuffers();
-
-    //API to send a command to the camera
-    virtual status_t sendCommand(int operation, int value1=0, int value2=0, int value3=0);
-
-    //API to cancel a currently executing command
-    virtual status_t cancelCommand(int operation);
 
     //API to get the frame size required to be allocated. This size is used to override the size passed
     //by camera service when VSTAB/VNF is turned ON for example
@@ -109,6 +97,17 @@ public:
     virtual status_t getPictureBufferSize(size_t &length, size_t bufferCount);
 
     virtual status_t getFrameDataSize(size_t &dataFrameSize, size_t bufferCount);
+
+protected:
+
+//----------Parent class method implementation------------------------------------
+    virtual status_t setTimeOut(unsigned int sec);
+    virtual status_t startPreview();
+    virtual status_t stopPreview();
+    virtual status_t useBuffers(CameraMode mode, void* bufArr, int num, size_t length);
+    virtual status_t fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType);
+//-----------------------------------------------------------------------------
+
 
 private:
 
@@ -134,32 +133,10 @@ private:
             }
         };
 
-
-    void setFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType, int refCount);
-    int getFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType);
-    size_t getSubscriberCount(CameraFrame::FrameType frameType);
-
-    //Instance timeout methods
-    status_t setTimeOut(unsigned int sec);
-    status_t cancelTimeOut();
-
-    // Preview Service
-    status_t startPreview();
-    status_t stopPreview();
-
-    //Video recording service
-    status_t startVideoCapture();
-    status_t stopVideoCapture();
-
     //Used for calculation of the average frame rate during preview
     status_t recalculateFPS();
 
     char * GetFrame(int &index);
-
-    status_t sendFrameToSubscribers(void* frame, int typeOfFrame);
-
-    ///Send the buffer back for refilling
-    status_t FillThisBuffer(void* frameBuf);
 
     int previewThread();
 
@@ -167,24 +144,13 @@ public:
 
 private:
     int mPreviewBufferCount;
-    int *mPreviewBuffers;
-    KeyedVector<int, int> mPreviewBuffersAvailable;
-
     KeyedVector<int, int> mPreviewBufs;
-
-    int *mVideoBuffers;
-    KeyedVector<int, int> mVideoBuffersAvailable;
-    int mVideoBuffersCount;
-    size_t mVideoBuffersLength;
-    mutable Mutex mVideoBufferLock;
+    mutable Mutex mPreviewBufsLock;
 
     CameraParameters mParams;
 
     bool mPreviewing;
     bool mCapturing;
-    bool mRecording;
-    mutable Mutex mSubscriberLock;
-    mutable Mutex mPreviewBufferLock;
     Mutex mLock;
 
     int mFrameCount;

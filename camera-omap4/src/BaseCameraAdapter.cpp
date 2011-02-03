@@ -25,7 +25,6 @@
 
 namespace android {
 
-
 /*--------------------Camera Adapter Class STARTS here-----------------------------*/
 
 BaseCameraAdapter::BaseCameraAdapter()
@@ -35,6 +34,7 @@ BaseCameraAdapter::BaseCameraAdapter()
     mErrorNotifier = NULL;
     mEndCaptureData = NULL;
     mReleaseData = NULL;
+    mRecording = false;
 }
 
 status_t BaseCameraAdapter::registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data)
@@ -227,10 +227,844 @@ void BaseCameraAdapter::disableMsgType(int32_t msgs, void* cookie)
     LOG_FUNCTION_NAME_EXIT
 }
 
+void BaseCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameType)
+{
+    status_t res = NO_ERROR;
+    size_t subscriberCount = 0;
+    int refCount = -1;
+
+    if ( NULL == frameBuf )
+        {
+        CAMHAL_LOGEA("Invalid frameBuf");
+        res = -EINVAL;
+        }
+
+    if ( NO_ERROR == res)
+        {
+
+        refCount = getFrameRefCount(frameBuf,  frameType);
+        subscriberCount = getSubscriberCount(frameType);
+
+        if ( 0 < refCount )
+            {
+
+            refCount--;
+            setFrameRefCount(frameBuf, frameType, refCount);
+
+            if ( ( mRecording ) && (  CameraFrame::VIDEO_FRAME_SYNC == frameType ) )
+                {
+                refCount += getFrameRefCount(frameBuf, CameraFrame::PREVIEW_FRAME_SYNC);
+                }
+            else if ( ( mRecording ) && (  CameraFrame::PREVIEW_FRAME_SYNC == frameType ) )
+                {
+                refCount += getFrameRefCount(frameBuf, CameraFrame::VIDEO_FRAME_SYNC);
+                }
+
+            }
+        else if ( 0 < subscriberCount )
+            {
+            CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", ( uint32_t ) refCount, ( uint32_t ) frameBuf);
+            return;
+            }
+        }
+
+
+    if ( NO_ERROR == res )
+        {
+        //check if someone is holding this buffer
+        if ( 0 == refCount )
+            {
+            res = fillThisBuffer(frameBuf, frameType);
+            }
+        }
+
+}
+
+status_t BaseCameraAdapter::sendCommand(int operation, int value1, int value2, int value3)
+{
+    status_t ret = NO_ERROR;
+    CameraAdapter::CameraMode mode;
+    struct timeval *refTimestamp;
+    BuffersDescriptor *desc = NULL;
+
+    LOG_FUNCTION_NAME
+
+    switch ( operation ) {
+        case CameraAdapter::CAMERA_USE_BUFFERS:
+                {
+                CAMHAL_LOGDA("Use Buffers");
+                mode = ( CameraAdapter::CameraMode ) value1;
+                desc = ( BuffersDescriptor * ) value2;
+
+                if ( CameraAdapter::CAMERA_PREVIEW == mode )
+                    {
+                    if ( NULL == desc )
+                        {
+                        CAMHAL_LOGEA("Invalid preview buffers!");
+                        ret = -1;
+                        }
+
+                    if ( ret == NO_ERROR )
+                        {
+                        Mutex::Autolock lock(mPreviewBufferLock);
+                        mPreviewBuffers = (int *) desc->mBuffers;
+                        mPreviewBuffersLength = desc->mLength;
+                        mPreviewBuffersAvailable.clear();
+                        for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
+                            {
+                            mPreviewBuffersAvailable.add(mPreviewBuffers[i], 0);
+                            }
+                        }
+                    }
+                else if( CameraAdapter::CAMERA_MEASUREMENT == mode )
+                    {
+                    if ( NULL == desc )
+                        {
+                        CAMHAL_LOGEA("Invalid preview data buffers!");
+                        ret = -1;
+                        }
+                    if ( ret == NO_ERROR )
+                        {
+                        Mutex::Autolock lock(mPreviewDataBufferLock);
+                        mPreviewDataBuffers = (int *) desc->mBuffers;
+                        mPreviewDataBuffersLength = desc->mLength;
+                        mPreviewDataBuffersAvailable.clear();
+                        for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
+                            {
+                            mPreviewDataBuffersAvailable.add(mPreviewDataBuffers[i], true);
+                            }
+                        }
+                    }
+                else if( CameraAdapter::CAMERA_IMAGE_CAPTURE == mode )
+                    {
+                    if ( NULL == desc )
+                        {
+                        CAMHAL_LOGEA("Invalid capture buffers!");
+                        ret = -1;
+                        }
+                    if ( ret == NO_ERROR )
+                        {
+                        Mutex::Autolock lock(mCaptureBufferLock);
+                        mCaptureBuffers = (int *) desc->mBuffers;
+                        mCaptureBuffersLength = desc->mLength;
+                        mCaptureBuffersAvailable.clear();
+                        for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
+                            {
+                            mCaptureBuffersAvailable.add(mCaptureBuffers[i], true);
+                            }
+                        }
+                    }
+                else
+                    {
+                    CAMHAL_LOGEB("Camera Mode %x still not supported!", mode);
+                    }
+
+                if ( NULL != desc )
+                    {
+                    useBuffers(mode, desc->mBuffers, desc->mCount, desc->mLength);
+                    }
+                break;
+            }
+
+        case CameraAdapter::CAMERA_START_SMOOTH_ZOOM:
+            {
+            ret = startSmoothZoom(value1);
+            break;
+            }
+
+        case CameraAdapter::CAMERA_STOP_SMOOTH_ZOOM:
+            {
+            ret = stopSmoothZoom();
+            break;
+            }
+
+        case CameraAdapter::CAMERA_START_PREVIEW:
+            {
+            CAMHAL_LOGDA("Start Preview");
+            ret = startPreview();
+            break;
+            }
+
+        case CameraAdapter::CAMERA_STOP_PREVIEW:
+            {
+            CAMHAL_LOGDA("Stop Preview");
+            ret = stopPreview();
+            break;
+            }
+        case CameraAdapter::CAMERA_START_VIDEO:
+            {
+            CAMHAL_LOGDA("Start video recording");
+            startVideoCapture();
+            break;
+            }
+        case CameraAdapter::CAMERA_STOP_VIDEO:
+            {
+            CAMHAL_LOGDA("Stop video recording");
+            stopVideoCapture();
+            break;
+            }
+        case CameraAdapter::CAMERA_SET_TIMEOUT:
+            {
+            CAMHAL_LOGDA("Set time out");
+            setTimeOut(value1);
+            break;
+            }
+        case CameraAdapter::CAMERA_CANCEL_TIMEOUT:
+            {
+            CAMHAL_LOGDA("Cancel time out");
+            cancelTimeOut();
+            break;
+            }
+        case CameraAdapter::CAMERA_PREVIEW_FLUSH_BUFFERS:
+            {
+            flushBuffers();
+            break;
+            }
+
+        case CameraAdapter::CAMERA_START_IMAGE_CAPTURE:
+            {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            refTimestamp = ( struct timeval * ) value1;
+            if ( NULL != refTimestamp )
+                {
+                memcpy( &mStartCapture, refTimestamp, sizeof( struct timeval ));
+                }
+
+#endif
+
+            ret = takePicture();
+            break;
+            }
+        case CameraAdapter::CAMERA_STOP_IMAGE_CAPTURE:
+            {
+            ret = stopImageCapture();
+            break;
+            }
+        case CameraAdapter::CAMERA_START_BRACKET_CAPTURE:
+            {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            refTimestamp = ( struct timeval * ) value2;
+            if ( NULL != refTimestamp )
+                {
+                memcpy( &mStartCapture, refTimestamp, sizeof( struct timeval ));
+                }
+
+#endif
+
+            ret = startBracketing(value1);
+            break;
+            }
+        case CameraAdapter::CAMERA_STOP_BRACKET_CAPTURE:
+            {
+            ret = stopBracketing();
+            break;
+            }
+         case CameraAdapter::CAMERA_PERFORM_AUTOFOCUS:
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+            refTimestamp = ( struct timeval * ) value1;
+            if ( NULL != refTimestamp )
+                {
+                memcpy( &mStartFocus, refTimestamp, sizeof( struct timeval ));
+                }
+
+#endif
+
+            ret = autoFocus();
+            break;
+
+        default:
+            CAMHAL_LOGEB("Command 0x%x unsupported!", operation);
+            break;
+    };
+
+    LOG_FUNCTION_NAME_EXIT
+    return ret;
+}
+
+status_t BaseCameraAdapter::cancelCommand(int operation)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::notifyFocusSubscribers(bool status)
+{
+    event_callback eventCb;
+    CameraHalEvent focusEvent;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+        if ( mFocusSubscribers.size() == 0 )
+            {
+            CAMHAL_LOGDA("No Focus Subscribers!");
+            ret = -1;
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+         //dump the AF latency
+         CameraHal::PPM("Focus finished in: ", &mStartFocus);
+
+#endif
+
+        focusEvent.mEventType = CameraHalEvent::EVENT_FOCUS_LOCKED;
+        focusEvent.mEventData.focusEvent.focusLocked = status;
+        focusEvent.mEventData.focusEvent.focusError = !status;
+
+        for (unsigned int i = 0 ; i < mFocusSubscribers.size(); i++ )
+            {
+            focusEvent.mCookie = (void *) mFocusSubscribers.keyAt(i);
+            eventCb = (event_callback) mFocusSubscribers.valueAt(i);
+            eventCb ( &focusEvent );
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::notifyShutterSubscribers()
+{
+    CameraHalEvent shutterEvent;
+    event_callback eventCb;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+
+        if ( mShutterSubscribers.size() == 0 )
+            {
+            CAMHAL_LOGEA("No shutter Subscribers!");
+            return ret;
+            }
+
+        shutterEvent.mEventType = CameraHalEvent::EVENT_SHUTTER;
+        shutterEvent.mEventData.shutterEvent.shutterClosed = true;
+
+        for (unsigned int i = 0 ; i < mShutterSubscribers.size() ; i++ )
+            {
+            shutterEvent.mCookie = ( void * ) mShutterSubscribers.keyAt(i);
+            eventCb = ( event_callback ) mShutterSubscribers.valueAt(i);
+
+            CAMHAL_LOGEA("Sending shutter callback");
+
+            eventCb ( &shutterEvent );
+            }
+        }
+
+    LOG_FUNCTION_NAME
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::notifyZoomSubscribers(int zoomIdx, bool targetReached)
+{
+    event_callback eventCb;
+    CameraHalEvent zoomEvent;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    zoomEvent.mEventType = CameraHalEvent::EVENT_ZOOM_INDEX_REACHED;
+    zoomEvent.mEventData.zoomEvent.currentZoomIndex = zoomIdx;
+    zoomEvent.mEventData.zoomEvent.targetZoomIndexReached = targetReached;
+
+    if ( mZoomSubscribers.size() == 0 )
+        {
+        CAMHAL_LOGDA("No Focus Subscribers!");
+        }
+
+    for (unsigned int i = 0 ; i < mZoomSubscribers.size(); i++ )
+        {
+        zoomEvent.mCookie = (void *) mZoomSubscribers.keyAt(i);
+        eventCb = (event_callback) mZoomSubscribers.valueAt(i);
+
+        eventCb ( &zoomEvent );
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::sendFrameToSubscribers(CameraFrame *frame)
+{
+    status_t ret = NO_ERROR;
+    frame_callback callback;
+    uint32_t i = 0;
+    KeyedVector<int, frame_callback> *subscribers = NULL;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == frame )
+        {
+        CAMHAL_LOGEA("Invalid CameraFrame");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+
+        switch(frame->mFrameType)
+            {
+                case CameraFrame::IMAGE_FRAME:
+                    {
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+                    CameraHal::PPM("Shot to Jpeg: ", &mStartCapture);
+
+#endif
+
+                    subscribers = &mImageSubscribers;
+                    break;
+                    }
+                case CameraFrame::RAW_FRAME:
+                    {
+                    subscribers = &mRawSubscribers;
+                    break;
+                    }
+                case CameraFrame::VIDEO_FRAME_SYNC:
+                    {
+                    subscribers = &mVideoSubscribers;
+                    break;
+                    }
+                case CameraFrame::FRAME_DATA_SYNC:
+                    {
+                    subscribers = &mFrameDataSubscribers;
+                    break;
+                    }
+                case CameraFrame::PREVIEW_FRAME_SYNC:
+                case CameraFrame::SNAPSHOT_FRAME:
+                    {
+                    subscribers = &mFrameSubscribers;
+                    break;
+                    }
+                default:
+                    {
+                    ret = -EINVAL;
+                    break;
+                    }
+            };
+
+        }
+
+    if ( ( NO_ERROR == ret ) &&
+         ( NULL != subscribers ) )
+        {
+        for ( i = 0 ; i < subscribers->size(); i++ )
+            {
+            frame->mCookie = ( void * ) subscribers->keyAt(i);
+            callback = (frame_callback) subscribers->valueAt(i);
+            callback(frame);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    if ( 0 == i )
+        {
+        //No subscribers for this frame
+        ret = -1;
+        }
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::resetFrameRefCount(CameraFrame &frame)
+{
+    status_t ret = NO_ERROR;
+    size_t refCount = 0;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+        refCount = getSubscriberCount(( CameraFrame::FrameType ) frame.mFrameType);
+        CAMHAL_LOGVB("Type of Frame: 0x%x address: 0x%x refCount start %d",
+                                    frame.mFrameType,
+                                    ( uint32_t ) frame.mBuffer,
+                                    refCount);
+
+        setFrameRefCount(frame.mBuffer, (  CameraFrame::FrameType ) frame.mFrameType, refCount);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+int BaseCameraAdapter::getFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType)
+{
+    int res = -1;
+
+    LOG_FUNCTION_NAME
+
+    switch ( frameType )
+        {
+        case CameraFrame::IMAGE_FRAME:
+        case CameraFrame::RAW_FRAME:
+                {
+                Mutex::Autolock lock(mCaptureBufferLock);
+                res = mCaptureBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
+                }
+            break;
+        case CameraFrame::PREVIEW_FRAME_SYNC:
+        case CameraFrame::SNAPSHOT_FRAME:
+                {
+                Mutex::Autolock lock(mPreviewBufferLock);
+                res = mPreviewBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
+                }
+            break;
+        case CameraFrame::FRAME_DATA_SYNC:
+                {
+                Mutex::Autolock lock(mPreviewDataBufferLock);
+                res = mPreviewDataBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
+                }
+            break;
+        case CameraFrame::VIDEO_FRAME_SYNC:
+                {
+                Mutex::Autolock lock(mVideoBufferLock);
+                res = mVideoBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
+                }
+            break;
+        default:
+            break;
+        };
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return res;
+}
+
+void BaseCameraAdapter::setFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType, int refCount)
+{
+
+    LOG_FUNCTION_NAME
+
+    switch ( frameType )
+        {
+        case CameraFrame::IMAGE_FRAME:
+        case CameraFrame::RAW_FRAME:
+                {
+                Mutex::Autolock lock(mCaptureBufferLock);
+                mCaptureBuffersAvailable.replaceValueFor(  ( unsigned int ) frameBuf, refCount);
+                }
+            break;
+        case CameraFrame::PREVIEW_FRAME_SYNC:
+        case CameraFrame::SNAPSHOT_FRAME:
+                {
+                Mutex::Autolock lock(mPreviewBufferLock);
+                mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) frameBuf, refCount);
+                }
+            break;
+        case CameraFrame::FRAME_DATA_SYNC:
+                {
+                Mutex::Autolock lock(mPreviewDataBufferLock);
+                mPreviewDataBuffersAvailable.replaceValueFor(  ( unsigned int ) frameBuf, refCount);
+                }
+            break;
+        case CameraFrame::VIDEO_FRAME_SYNC:
+                {
+                Mutex::Autolock lock(mVideoBufferLock);
+                mVideoBuffersAvailable.replaceValueFor(  ( unsigned int ) frameBuf, refCount);
+                }
+            break;
+        default:
+            break;
+        };
+
+    LOG_FUNCTION_NAME_EXIT
+
+}
+
+size_t BaseCameraAdapter::getSubscriberCount(CameraFrame::FrameType frameType)
+{
+    size_t ret = 0;
+
+    LOG_FUNCTION_NAME
+
+    switch ( frameType )
+        {
+        case CameraFrame::IMAGE_FRAME:
+        case CameraFrame::RAW_FRAME:
+                {
+                Mutex::Autolock lock(mSubscriberLock);
+                ret = mImageSubscribers.size();
+                }
+            break;
+        case CameraFrame::PREVIEW_FRAME_SYNC:
+        case CameraFrame::SNAPSHOT_FRAME:
+                {
+                Mutex::Autolock lock(mSubscriberLock);
+                ret = mFrameSubscribers.size();
+                }
+            break;
+        case CameraFrame::FRAME_DATA_SYNC:
+                {
+                Mutex::Autolock lock(mSubscriberLock);
+                ret = mFrameDataSubscribers.size();
+                }
+            break;
+        case CameraFrame::VIDEO_FRAME_SYNC:
+                {
+                Mutex::Autolock lock(mSubscriberLock);
+                ret = mVideoSubscribers.size();
+                }
+            break;
+        default:
+            break;
+        };
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::setTimeOut(int sec)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    //Subscriptions are also invalid
+    Mutex::Autolock lock(mSubscriberLock);
+
+    mFrameSubscribers.clear();
+    mImageSubscribers.clear();
+    mRawSubscribers.clear();
+    mVideoSubscribers.clear();
+    mFocusSubscribers.clear();
+    mShutterSubscribers.clear();
+    mZoomSubscribers.clear();
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::startVideoCapture()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    Mutex::Autolock lock(mVideoBufferLock);
+
+    //If the capture is already ongoing, return from here.
+    if ( mRecording )
+        {
+        ret = NO_INIT;
+        }
+
+
+    if ( NO_ERROR == ret )
+        {
+
+        for ( unsigned int i = 0 ; i < mPreviewBuffersAvailable.size() ; i++ )
+            {
+            mVideoBuffersAvailable.add(mPreviewBuffersAvailable.keyAt(i), 0);
+            }
+
+        mRecording = true;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::stopVideoCapture()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( !mRecording )
+        {
+        ret = NO_INIT;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        for ( unsigned int i = 0 ; i < mVideoBuffersAvailable.size() ; i++ )
+            {
+            void *frameBuf = ( void * ) mVideoBuffersAvailable.keyAt(i);
+            returnFrame(frameBuf, CameraFrame::VIDEO_FRAME_SYNC);
+            }
+
+        mVideoBuffersAvailable.clear();
+
+        mRecording = false;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+//-----------------Stub implementation of the interface ------------------------------
+
+status_t BaseCameraAdapter::takePicture()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::stopImageCapture()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::startBracketing(int range)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::stopBracketing()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::autoFocus()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    notifyFocusSubscribers(false);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::cancelTimeOut()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::startSmoothZoom(int targetIdx)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::stopSmoothZoom()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::startPreview()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::stopPreview()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, size_t length)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+//-----------------------------------------------------------------------------
+
+
+
 };
 
-
 /*--------------------Camera Adapter Class ENDS here-----------------------------*/
-
-
 

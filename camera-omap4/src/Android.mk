@@ -71,7 +71,6 @@ LOCAL_SRC_FILES:= \
 	BaseCameraAdapter.cpp \
 	FakeCameraAdapter.cpp \
 
-
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../inc \
     external/icu4c/common \
@@ -94,8 +93,6 @@ LOCAL_C_INCLUDES += \
 	hardware/ti/omap3/libtiutils \
 	frameworks/base/include/utils \
 	$(LOCAL_PATH)/../../../../../external/libxml2/include \
-
-
 
 LOCAL_CFLAGS += -fno-short-enums -DTARGET_OMAP4
 

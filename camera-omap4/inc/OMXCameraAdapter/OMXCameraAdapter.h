@@ -298,7 +298,6 @@ public:
     OMXCameraAdapter();
     ~OMXCameraAdapter();
 
-
     ///Initialzes the camera adapter creates any resources required
     virtual status_t initialize(int sensor_index=0);
 
@@ -306,28 +305,18 @@ public:
     virtual status_t setParameters(const CameraParameters& params);
     virtual void getParameters(CameraParameters& params);
 
-    virtual void returnFrame(void* frameBuf, CameraFrame::FrameType frameType);
-
     //API to get the caps
     virtual status_t getCaps(CameraParameters &params);
 
     //Used together with capabilities
     virtual int getRevision();
 
-    //API to give the buffers to Adapter
-    virtual status_t useBuffers(CameraMode mode, void* bufArr, int num);
 
     // API
     virtual status_t UseBuffersPreview(void* bufArr, int num);
 
     //API to flush the buffers for preview
     status_t flushBuffers();
-
-    //API to send a command to the camera
-    virtual status_t sendCommand(int operation, int value1=0, int value2=0, int value3=0);
-
-    //API to cancel a currently executing command
-    virtual status_t cancelCommand(int operation);
 
     // API
     virtual status_t setFormat(OMX_U32 port, OMXCameraPortParameters &cap);
@@ -351,15 +340,28 @@ public:
 
  OMX_ERRORTYPE OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLETYPE hComponent,
                                     OMX_IN OMX_BUFFERHEADERTYPE* pBuffHeader);
+protected:
 
+    //Parent class method implementation
+    virtual status_t takePicture();
+    virtual status_t stopImageCapture();
+    virtual status_t startBracketing(int range);
+    virtual status_t stopBracketing();
+    virtual status_t autoFocus();
+    virtual status_t setTimeOut(unsigned int sec);
+    virtual status_t cancelTimeOut();
+    virtual status_t startSmoothZoom(int targetIdx);
+    virtual status_t stopSmoothZoom();
+    virtual status_t startVideoCapture();
+    virtual status_t stopVideoCapture();
+    virtual status_t startPreview();
+    virtual status_t stopPreview();
+    virtual status_t useBuffers(CameraMode mode, void* bufArr, int num, size_t length);
+    virtual status_t fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType);
 
 private:
 
     OMXCameraPortParameters *getPortParams(CameraFrame::FrameType frameType);
-    void setFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType, int refCount);
-    int getFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType);
-    size_t getSubscriberCount(CameraFrame::FrameType frameType);
-    status_t fillThisBuffer(void* frameBuf, OMXCameraPortParameters *port);
 
     OMX_ERRORTYPE SignalEvent(OMX_IN OMX_HANDLETYPE hComponent,
                                                   OMX_IN OMX_EVENTTYPE eEvent,
@@ -374,10 +376,6 @@ private:
                                           OMX_IN Semaphore &semaphore,
                                           OMX_IN OMX_U32 timeout);
 
-    //Instance timeout methods
-    status_t setTimeOut(unsigned int sec);
-    status_t cancelTimeOut();
-
     status_t setPictureRotation(unsigned int degree);
     status_t setImageQuality(unsigned int quality);
     status_t setThumbnailParams(unsigned int width, unsigned int height, unsigned int quality);
@@ -389,8 +387,8 @@ private:
     //Focus functionality
     status_t doAutoFocus();
     status_t stopAutoFocus();
-    status_t notifyFocusSubscribers(bool override, bool status);
     status_t checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus);
+    status_t returnFocusStatus(bool timeoutReached);
 
     //VSTAB and VNF Functionality
     status_t enableVideoNoiseFilter(bool enable);
@@ -398,7 +396,6 @@ private:
 
     //Digital zoom
     status_t doZoom(int index);
-    status_t notifyZoomSubscribers(int zoomIdx, bool targetReached);
     status_t advanceZoom();
 
     //Scenes
@@ -439,10 +436,6 @@ private:
     //Sensor overclocking
     status_t setSensorOverclock(bool enable);
 
-    // Preview Service
-    status_t startPreview();
-    status_t stopPreview();
-
     //OMX capabilities query
     status_t getOMXCaps(OMX_TI_CAPTYPE *caps);
 
@@ -470,26 +463,18 @@ private:
     status_t insertFocusModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
     status_t insertFlickerModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
 
-    //Video recording service
-    status_t startVideoCapture();
-    status_t stopVideoCapture();
-
     //Exposure Bracketing
     status_t setExposureBracketing(int *evValues, size_t evCount, size_t frameCount);
     status_t parseExpRange(const char *rangeStr, int * expRange, size_t count, size_t &validEntries);
 
     //Temporal Bracketing
-    status_t stopBracketing();
-    status_t startBracketing();
     status_t doBracketing(OMX_BUFFERHEADERTYPE *pBuffHeader, CameraFrame::FrameType typeOfFrame);
     status_t sendBracketFrames();
 
     // Image Capture Service
     status_t startImageCapture();
-    status_t stopImageCapture();
 
     //Shutter callback notifications
-    status_t notifyShutterSubscribers();
     status_t setShutterCallback(bool enabled);
 
     //Sets eithter HQ or HS mode and the frame count
@@ -500,8 +485,11 @@ private:
     //Used for calculation of the average frame rate during preview
     status_t recalculateFPS();
 
-    ///Send the frame to subscribers
-    status_t  sendFrameToSubscribers(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame,  OMXCameraPortParameters *port);
+    //Helper method for initializing a CameFrame object
+    status_t initCameraFrame(CameraFrame &frame, OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame, OMXCameraPortParameters *port);
+
+    //Sends the incoming OMX buffer header to subscribers
+    status_t sendFrame(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame, OMXCameraPortParameters *port);
 
     const char* getLUTvalue_OMXtoHAL(int OMXValue, LUTtype LUT);
     int getLUTvalue_HALtoOMX(const char * HalValue, LUTtype LUT);
@@ -543,6 +531,9 @@ public:
 
 private:
 
+    //AF callback
+    status_t setFocusCallback(bool enabled);
+
     //OMX Capabilities data
     static const CapResolution mImageCapRes [];
     static const CapResolution mPreviewRes [];
@@ -558,9 +549,6 @@ private:
     //OMX Component UUID
     OMX_UUIDTYPE mCompUUID;
 
-    //AF callback
-    status_t setFocusCallback(bool enabled);
-
     char mTouchCoords[TOUCH_DATA_SIZE];
     unsigned int mTouchFocusPosX;
     unsigned int mTouchFocusPosY;
@@ -570,13 +558,6 @@ private:
     size_t mCapturedFrames;
 
     bool mMeasurementEnabled;
-
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-    struct timeval mStartFocus;
-    struct timeval mStartCapture;
-
-#endif
 
     //Exposure Bracketing
     int mExposureBracketingValues[EXP_BRACKET_RANGE];
@@ -637,34 +618,14 @@ private:
     bool mFocusStarted;
     bool mWaitingForSnapshot;
     int mSnapshotCount;
-    int mPreviewBufferCount;
-    int *mPreviewBuffers;
-    KeyedVector<int, int> mPreviewBuffersAvailable;
 
-    int *mCaptureBuffers;
-    KeyedVector<int, bool> mCaptureBuffersAvailable;
-    int mCaptureBuffersCount;
-    size_t mCaptureBuffersLength;
-    mutable Mutex mCaptureBufferLock;
-
-    int *mPreviewDataBuffers;
-    KeyedVector<int, bool> mPreviewDataBuffersAvailable;
-    int mPreviewDataBuffersCount;
-    size_t mPreviewDataBuffersLength;
-    mutable Mutex mPreviewDataBufferLock;
-
+    //Temporal bracketing management data
     mutable Mutex mBracketingLock;
     bool *mBracketingBuffersQueued;
     int mBracketingBuffersQueuedCount;
     int mLastBracetingBufferIdx;
     bool mBracketingEnabled;
     int mBracketingRange;
-
-    int *mVideoBuffers;
-    KeyedVector<int, int> mVideoBuffersAvailable;
-    int mVideoBuffersCount;
-    size_t mVideoBuffersLength;
-    mutable Mutex mVideoBufferLock;
 
     CameraParameters mParameters;
     OMXCameraAdapterComponentContext mCameraAdapterParameters;
@@ -675,10 +636,7 @@ private:
     Mutex mLock;
     bool mPreviewing;
     bool mCapturing;
-    bool mRecording;
     bool mFlushBuffers;
-    mutable Mutex mSubscriberLock;
-    mutable Mutex mPreviewBufferLock;
 
     OMX_STATETYPE mComponentState;
 

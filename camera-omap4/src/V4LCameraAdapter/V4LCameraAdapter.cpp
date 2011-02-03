@@ -117,145 +117,15 @@ status_t V4LCameraAdapter::initialize(int sensor_index)
     return ret;
 }
 
-int V4LCameraAdapter::getFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType)
-{
-    int res = -1;
-
-    switch ( frameType )
-        {
-        case CameraFrame::PREVIEW_FRAME_SYNC:
-                {
-                Mutex::Autolock lock(mPreviewBufferLock);
-                res = mPreviewBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
-                }
-            break;
-        case CameraFrame::VIDEO_FRAME_SYNC:
-                {
-                Mutex::Autolock lock(mVideoBufferLock);
-                res = mVideoBuffersAvailable.valueFor( ( unsigned int ) frameBuf );
-                }
-            break;
-        default:
-            break;
-        };
-
-    return res;
-}
-
-void V4LCameraAdapter::setFrameRefCount(void* frameBuf, CameraFrame::FrameType frameType, int refCount)
-{
-
-    switch ( frameType )
-        {
-        case CameraFrame::PREVIEW_FRAME_SYNC:
-                {
-                Mutex::Autolock lock(mPreviewBufferLock);
-                mPreviewBuffersAvailable.replaceValueFor(  ( unsigned int ) frameBuf, refCount);
-                }
-            break;
-        case CameraFrame::VIDEO_FRAME_SYNC:
-                {
-                Mutex::Autolock lock(mVideoBufferLock);
-                mVideoBuffersAvailable.replaceValueFor(  ( unsigned int ) frameBuf, refCount);
-                }
-            break;
-        default:
-            break;
-        };
-
-}
-
-size_t V4LCameraAdapter::getSubscriberCount(CameraFrame::FrameType frameType)
-{
-    size_t ret = 0;
-
-    switch ( frameType )
-        {
-        case CameraFrame::PREVIEW_FRAME_SYNC:
-                {
-                Mutex::Autolock lock(mSubscriberLock);
-                ret = mFrameSubscribers.size();
-                }
-            break;
-        case CameraFrame::VIDEO_FRAME_SYNC:
-                {
-                Mutex::Autolock lock(mSubscriberLock);
-                ret = mVideoSubscribers.size();
-                }
-            break;
-        default:
-            break;
-        };
-
-    return ret;
-}
-
-void V4LCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frameType)
-{
-    status_t res = NO_ERROR;
-    size_t subscriberCount = 0;
-    int refCount = -1;
-
-    if ( !mVideoInfo->isStreaming )
-        {
-        return;
-        }
-
-    if ( NULL == frameBuf )
-        {
-        CAMHAL_LOGEA("Invalid frameBuf");
-        res = -EINVAL;
-        }
-
-    if ( NO_ERROR == res)
-        {
-
-        refCount = getFrameRefCount(frameBuf,  frameType);
-        subscriberCount = getSubscriberCount(frameType);
-
-        if ( 0 < refCount )
-            {
-
-            refCount--;
-            setFrameRefCount(frameBuf, frameType, refCount);
-
-            if ( ( mRecording ) && (  CameraFrame::VIDEO_FRAME_SYNC == frameType ) )
-                {
-                refCount += getFrameRefCount(frameBuf, CameraFrame::PREVIEW_FRAME_SYNC);
-                }
-            else if ( ( mRecording ) && (  CameraFrame::PREVIEW_FRAME_SYNC == frameType ) )
-                {
-                refCount += getFrameRefCount(frameBuf, CameraFrame::VIDEO_FRAME_SYNC);
-                }
-
-            }
-        else if ( 0 < subscriberCount )
-            {
-            CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", ( uint32_t ) refCount, ( uint32_t ) frameBuf);
-            return;
-            }
-        }
-
-
-    if ( NO_ERROR == res )
-        {
-        //check if someone is holding this buffer
-        if ( 0 == refCount )
-            {
-            //This is not working somehow currently, the camera preview hangs after displaying frames for 10 secs or so
-            //For now releasing the buffers in the callback itself, after copying the data
-            //res = FillThisBuffer(frameBuf);
-            }
-        }
-    return;
-
-}
-
-
-status_t V4LCameraAdapter::FillThisBuffer(void* frameBuf)
+status_t V4LCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType)
 {
 
     status_t ret = NO_ERROR;
+
+    if ( !mVideoInfo->isStreaming )
+        {
+        return NO_ERROR;
+        }
 
     int i = mPreviewBufs.valueFor(( unsigned int )frameBuf);
     if(i<0)
@@ -279,7 +149,6 @@ status_t V4LCameraAdapter::FillThisBuffer(void* frameBuf)
 
 }
 
-
 status_t V4LCameraAdapter::getCaps(CameraParameters &params)
 {
     LOG_FUNCTION_NAME
@@ -300,7 +169,6 @@ int V4LCameraAdapter::getRevision()
     //@todo Need to query and report the version of the V4L driver
     return 0;
 }
-
 
 status_t V4LCameraAdapter::setParameters(const CameraParameters &params)
 {
@@ -350,7 +218,7 @@ void V4LCameraAdapter::getParameters(CameraParameters& params)
 
 
 ///API to give the buffers to Adapter
-status_t V4LCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num)
+status_t V4LCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, size_t length)
 {
     status_t ret = NO_ERROR;
 
@@ -439,114 +307,11 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
     return ret;
 }
 
-//API to send a command to the camera
-status_t V4LCameraAdapter::sendCommand(int operation, int value1, int value2, int value3)
-{
-    LOG_FUNCTION_NAME
-
-    status_t ret = NO_ERROR;
-    CameraAdapter::CameraMode mode;
-    struct timeval *refTimestamp;
-    BuffersDescriptor *desc = NULL;
-    Message msg;
-
-    switch ( operation ) {
-        case CameraAdapter::CAMERA_USE_BUFFERS:
-                {
-                CAMHAL_LOGDA("Use Buffers");
-                mode = ( CameraAdapter::CameraMode ) value1;
-                desc = ( BuffersDescriptor * ) value2;
-
-                if ( CameraAdapter::CAMERA_PREVIEW == mode )
-                    {
-                    if ( NULL == desc )
-                        {
-                        CAMHAL_LOGEA("Invalid preview buffers!");
-                        ret = -1;
-                        }
-
-                    if ( ret == NO_ERROR )
-                        {
-                        Mutex::Autolock lock(mPreviewBufferLock);
-
-                        mPreviewBuffers = (int *) desc->mBuffers;
-
-                        mPreviewBuffersAvailable.clear();
-                        for ( uint32_t i = 0 ; i < desc->mCount ; i++ )
-                            {
-                            mPreviewBuffersAvailable.add(mPreviewBuffers[i], 0);
-                            }
-                        }
-                    }
-
-                if ( NULL != desc )
-                    {
-                    useBuffers(mode, desc->mBuffers, desc->mCount);
-                    }
-                break;
-            }
-
-        case CameraAdapter::CAMERA_START_PREVIEW:
-            {
-            CAMHAL_LOGDA("Start Preview");
-            ret = startPreview();
-
-            break;
-            }
-
-        case CameraAdapter::CAMERA_STOP_PREVIEW:
-            {
-            CAMHAL_LOGDA("Stop Preview");
-            stopPreview();
-            break;
-            }
-
-        //@todo Image capture is not supported yet.
-
-        case CameraAdapter::CAMERA_START_VIDEO:
-            {
-            CAMHAL_LOGDA("Start video recording");
-            startVideoCapture();
-            break;
-            }
-        case CameraAdapter::CAMERA_STOP_VIDEO:
-            {
-            CAMHAL_LOGDA("Stop video recording");
-            stopVideoCapture();
-            break;
-            }
-        case CameraAdapter::CAMERA_SET_TIMEOUT:
-            {
-            CAMHAL_LOGDA("Set time out");
-            setTimeOut(value1);
-            break;
-            }
-        case CameraAdapter::CAMERA_CANCEL_TIMEOUT:
-            {
-            CAMHAL_LOGDA("Cancel time out");
-            cancelTimeOut();
-            break;
-            }
-        case CameraAdapter::CAMERA_PREVIEW_FLUSH_BUFFERS:
-            {
-            break;
-            }
-
-        default:
-            CAMHAL_LOGEB("Command 0x%x unsupported!", operation);
-            break;
-    };
-
-    LOG_FUNCTION_NAME_EXIT
-    return ret;
-
-}
-
 status_t V4LCameraAdapter::startPreview()
 {
     status_t ret = NO_ERROR;
 
-  Mutex::Autolock lock(mPreviewBufferLock);
+  Mutex::Autolock lock(mPreviewBufsLock);
 
   if(mPreviewing)
     {
@@ -599,7 +364,7 @@ status_t V4LCameraAdapter::stopPreview()
     enum v4l2_buf_type bufType;
     int ret = NO_ERROR;
 
-    Mutex::Autolock lock(mPreviewBufferLock);
+    Mutex::Autolock lock(mPreviewBufsLock);
 
     if(!mPreviewing)
         {
@@ -637,12 +402,7 @@ status_t V4LCameraAdapter::stopPreview()
         if (munmap(mVideoInfo->mem[i], mVideoInfo->buf.length) < 0)
             CAMHAL_LOGEA("Unmap failed");
 
-    {
-    ///Clear all the available preview buffers
-    mPreviewBuffersAvailable.clear();
-
     mPreviewBufs.clear();
-    }
 
     mPreviewThread->requestExitAndWait();
     mPreviewThread.clear();
@@ -679,43 +439,6 @@ status_t V4LCameraAdapter::setTimeOut(unsigned int sec)
     delete this;
 
     return ret;
-}
-
-status_t V4LCameraAdapter::cancelTimeOut()
-{
-    status_t ret = NO_ERROR;
-
-    //Do nothing as this adapter doesn't support the timeout functionality yet
-
-    LOG_FUNCTION_NAME
-
-    LOG_FUNCTION_NAME_EXIT
-
-    return ret;
-}
-
-status_t V4LCameraAdapter::startVideoCapture()
-{
-    //@todo Video capture to be supported
-    return NO_ERROR;
-}
-
-status_t V4LCameraAdapter::stopVideoCapture()
-{
-    //@todo Video capture to be supported
-    return NO_ERROR;
-}
-
-
-//API to cancel a currently executing command
-status_t V4LCameraAdapter::cancelCommand(int operation)
-{
-    LOG_FUNCTION_NAME
-
-    //@todo We dont support this method, there is no need for it now.
-
-    LOG_FUNCTION_NAME_EXIT
-    return NO_ERROR;
 }
 
 //API to get the frame size required to be allocated. This size is used to override the size passed
@@ -816,9 +539,8 @@ V4LCameraAdapter::~V4LCameraAdapter()
 int V4LCameraAdapter::previewThread()
 {
     status_t ret = NO_ERROR;
-
-     CameraFrame::FrameType typeOfFrame = CameraFrame::ALL_FRAMES;
-     unsigned int refCount = 0;
+    int width, height;
+    CameraFrame frame;
 
     if (mPreviewing)
         {
@@ -845,72 +567,22 @@ int V4LCameraAdapter::previewThread()
                 dest += 4096/2-width;
             }
 
-        // Call FillThisBuffer here itself as calling it inside returnFrame doesnt work
-        //@todo Need to look into this issue
-        FillThisBuffer(ptr);
-
-        typeOfFrame = CameraFrame::PREVIEW_FRAME_SYNC;
-        refCount = getSubscriberCount(typeOfFrame);
-        setFrameRefCount((void*) ptr, typeOfFrame, refCount);
-        CAMHAL_LOGDB("Preview Frame 0x%x refCount start %d", ( uint32_t ) ptr, refCount);
-
-        ret = sendFrameToSubscribers(ptr, typeOfFrame);
-
-        }
-
-    return ret;
-}
-
-status_t V4LCameraAdapter::sendFrameToSubscribers(void* frame, int typeOfFrame)
-{
-    status_t ret = NO_ERROR;
-    int refCount;
-
-    frame_callback callback;
-    CameraFrame cFrame;
-    uint32_t i = 0;
-
-    if ( NO_ERROR == ret )
-        {
-        int width, height;
         mParams.getPreviewSize(&width, &height);
-        cFrame.mFrameType = typeOfFrame;
-        cFrame.mBuffer = frame;
-        cFrame.mLength = width*height*2;
-        cFrame.mAlignment = width*2;
-        cFrame.mOffset = 0;
+        frame.mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
+        frame.mBuffer = ptr;
+        frame.mLength = width*height*2;
+        frame.mAlignment = width*2;
+        frame.mOffset = 0;
+        frame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);;
 
+        resetFrameRefCount(frame);
 
-        cFrame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);;
+        ret = sendFrameToSubscribers(&frame);
 
-        if ( ( CameraFrame::PREVIEW_FRAME_SYNC == typeOfFrame ) || ( CameraFrame::SNAPSHOT_FRAME == typeOfFrame ) )
-            {
-
-
-            cFrame.mWidth = width;
-            cFrame.mHeight = height;
-            for( i = 0 ; i < mFrameSubscribers.size(); i++ )
-                {
-                cFrame.mCookie = (void *) mFrameSubscribers.keyAt(i);
-                callback = (frame_callback) mFrameSubscribers.valueAt(i);
-                callback(&cFrame);
-                }
-            }
-        else
-            {
-            ret = -EINVAL;
-            }
-        }
-
-    if ( 0 == i )
-        {
-        //No subscribers for this frame
-        ret = -1;
         }
 
     return ret;
 }
-
 
 extern "C" CameraAdapter* CameraAdapter_Factory()
 {
