@@ -3373,9 +3373,8 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
     }
     else
     {
-        OMX_DBG_SET_ERROR_BAIL(eError, OMX_ErrorUnsupportedSetting,
-                               pComponentPrivate->dbg, OMX_PRDSP2,
-                               "Unsupported level.\n");
+        OMX_PRDSP4(pComponentPrivate->dbg, "Unsupported level. (%x)\n", pH264->eLevel);
+        pCreatePhaseArgs->ucLevel = 30;
     }
 
     /* override parameters for VGA & D1 encoding */
@@ -3685,8 +3684,8 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
         }
         else
         {
-                OMX_PRDSP2(pComponentPrivate->dbg, "Unsupported level.\n");
-            OMX_CONF_SET_ERROR_BAIL(eError, OMX_ErrorUnsupportedSetting);
+            OMX_PRDSP4(pComponentPrivate->dbg, "Unsupported level. (%x)\n", pMpeg4->eLevel);
+            pCreatePhaseArgs->ucLevel = 0;
         }
 #else
         pCreatePhaseArgs->ucLevel = pMpeg4->eLevel;
@@ -3732,8 +3731,8 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
         }
         else
         {
-            OMX_PRDSP2(pComponentPrivate->dbg, "Unsupported level.\n");
-            OMX_CONF_SET_ERROR_BAIL(eError, OMX_ErrorUnsupportedSetting);
+            OMX_PRDSP4(pComponentPrivate->dbg, "Unsupported level. (%x)\n", pH263->eLevel);
+            pCreatePhaseArgs->ucLevel = 70;
         }
 
         pCreatePhaseArgs->enableH263AnnexI  = 0;
