@@ -664,9 +664,21 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         ret = -EINVAL;
         }
 
+    CameraParameters adapterParams = mParameters;
+
+    //If the app has not set the capture mode, set the capture resolution as preview resolution
+    //so that black bars are not displayed in preview.
+    //Later in takePicture we will configure the correct picture size
+    if(params.get(TICameraParameters::KEY_CAP_MODE) == NULL)
+        {
+        CAMHAL_LOGDA("Capture mode not set by app, setting picture res to preview res");
+        mParameters.getPreviewSize(&w, &h);
+        adapterParams.setPictureSize(w,h);
+        }
+
     if ( NULL != mCameraAdapter )
         {
-        ret |= mCameraAdapter->setParameters(mParameters);
+        ret |= mCameraAdapter->setParameters(adapterParams);
         }
 
     if( NULL != params.get(TICameraParameters::KEY_TEMP_BRACKETING_RANGE_POS) )
@@ -1026,6 +1038,22 @@ status_t CameraHal::signalEndImageCapture()
     if ( restartImageCapture )
         {
         ret = takePicture();
+        }
+    else
+        {
+        CameraParameters adapterParams = mParameters;
+        int w,h;
+
+        //If the app has not set the capture mode, restore the capture resolution
+        //back to the preview resolution to get rid of the black bars issue
+        if(mParameters.get(TICameraParameters::KEY_CAP_MODE) == NULL)
+            {
+            CAMHAL_LOGDA("Capture mode not set by app, setting picture res back to preview res");
+            mParameters.getPreviewSize(&w, &h);
+            adapterParams.setPictureSize(w,h);
+            }
+
+        ret = mCameraAdapter->setParameters(adapterParams);
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -1931,7 +1959,17 @@ status_t CameraHal::takePicture( )
 
         if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
             {
-            ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength, bufferCount);
+
+            //Configure the correct picture resolution now if the capture mode is not set
+            if(mParameters.get(TICameraParameters::KEY_CAP_MODE) == NULL)
+                {
+                ret = mCameraAdapter->setParameters(mParameters);
+                }
+
+            if ( NO_ERROR == ret )
+                {
+                ret = mCameraAdapter->getPictureBufferSize(pictureBufferLength, bufferCount);
+                }
 
             if ( NO_ERROR != ret )
                 {
