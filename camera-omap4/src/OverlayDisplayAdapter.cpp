@@ -20,7 +20,7 @@
 
 
 
-#define LOG_TAG "CameraHal"
+#define LOG_TAG "OverlayDisplayAdapter"
 
 #include "OverlayDisplayAdapter.h"
 #include "overlay_common.h"
@@ -30,6 +30,10 @@ namespace android {
 ///Constant declarations
 ///@todo Check the time units
 const int OverlayDisplayAdapter::DISPLAY_TIMEOUT = 1000; //seconds
+
+//Suspends buffers after given amount of failed dq's
+const int OverlayDisplayAdapter::FAILED_DQS_TO_SUSPEND = 3;
+
 
 
 /*--------------------OverlayDisplayAdapter Class STARTS here-----------------------------*/
@@ -64,6 +68,8 @@ OverlayDisplayAdapter::OverlayDisplayAdapter():mDisplayThread(NULL),
     mFrameProvider = NULL;
     mFrameWidth = 0;
     mFrameHeight = 0;
+    mSuspend = false;
+    mFailedDQs = 0;
 
     mPaused = false;
     mXOff = 0;
@@ -338,7 +344,6 @@ int OverlayDisplayAdapter::disableDisplay()
 
         }
 
-
     ///Dequeue the remaining buffers
     while(!handleFrameReturn());
 
@@ -454,6 +459,7 @@ void* OverlayDisplayAdapter::allocateBuffer(int width, int height, const char* f
             LOGE("Adding buffer index=%d, address=0x%x", i, buffers[i]);
         }
 
+    mFirstInit = true;
     mPixelFormat = format;
 
     return buffers;
@@ -745,16 +751,16 @@ status_t OverlayDisplayAdapter::PostFrame(OverlayDisplayAdapter::DisplayFrame &d
         }
     overlay_buffer_t buf = (overlay_buffer_t)  i;// = (overlay_buffer_t) mPreviewBufferMap.valueFor((int) dispFrame.mBuffer);
 
-    //If paused state is set, and we have a preview frame, then return buffer
+    //If paused state is set and we have a preview frame or display got suspended, then return buffer
     {
         Mutex::Autolock lock(mLock);
-        if ( ( mPaused ) && ( CameraFrame::CameraFrame::PREVIEW_FRAME_SYNC == dispFrame.mType ) )
+        if ( ( ( mPaused ) && ( CameraFrame::CameraFrame::PREVIEW_FRAME_SYNC == dispFrame.mType ) ) ||
+               ( mSuspend ) )
             {
             mFrameProvider->returnFrame(dispFrame.mBuffer, CameraFrame::PREVIEW_FRAME_SYNC);
 
             return NO_ERROR;
             }
-
     }
 
     if ( NAME_NOT_FOUND != mFramesWithDisplayMap.indexOfKey( (int) dispFrame.mBuffer) )
@@ -911,14 +917,14 @@ bool OverlayDisplayAdapter::handleFrameReturn()
         return true;
         }
 
-
     ///This case implies that a stream off happened. In this case, there are no buffers to dequeue
     ///Buffers already queued will  be dequeued by PostFrame when it detects skew in the count
     ///of frames with overlay and internal count value
 
     if ( (ret=mOverlay->dequeueBuffer(&buf)) == -1 )
         {
-        CAMHAL_LOGEA("Looks like STREAM OFF happened inside overlay");
+
+        CAMHAL_LOGEA("Looks like STREAM OFF happened inside overlay status" );
         ///Skew detected. Overlay has gone through a stream off sequence due to trigger from Surface flinger
         /// Reclaim all the buffers back except the one we posted
         for(unsigned int i=0;i<mFramesWithDisplayMap.size();i++)
@@ -932,7 +938,23 @@ bool OverlayDisplayAdapter::handleFrameReturn()
         ///Clear the frames with display map
         mFramesWithDisplayMap.clear();
 
+        if ( !mFirstInit )
+            {
+            mFailedDQs++;
+            if ( FAILED_DQS_TO_SUSPEND <= mFailedDQs )
+                {
+                CAMHAL_LOGEA("Looks like we entered suspend");
+                mSuspend = true;
+                }
+            }
+
         return true;
+        }
+    else
+        {
+        mFirstInit = false;
+        mSuspend = false;
+        mFailedDQs = 0;
         }
 
     if(ret<0)
