@@ -137,7 +137,7 @@ int prevcnt = 0;
 
 char dir_path[80] = SDCARD_PATH;
 
-const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Stereo Camera"};
+const char *cameras[] = {"Primary Camera", "Secondary Camera 1", "Stereo Camera", "USB Camera", "Fake Camera"};
 const char *measurement[] = {"disable", "enable"};
 const char *expBracketing[] = {"disable", "enable"};
 const char *expBracketingRange[] = {"", "-30,0,30,0,-30"};
