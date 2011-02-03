@@ -5635,8 +5635,8 @@ status_t OMXCameraAdapter::startVideoCapture()
 {
     Mutex::Autolock lock(mVideoBufferLock);
 
-    ///If the capture mode is not video mode, return immediately
-    if((mCapMode != VIDEO_MODE) || (mRecording))
+    ///If the capture is already ongoing, return from here.
+    if(mRecording)
         {
         return NO_INIT;
         }
