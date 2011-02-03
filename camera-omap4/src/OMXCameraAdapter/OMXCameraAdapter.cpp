@@ -4038,7 +4038,8 @@ status_t OMXCameraAdapter::encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *fa
                                                            ( unsigned int ) faceResult->nWidth,
                                                            ( unsigned int ) faceResult->nHeight);
 
-                    count = snprintf(p, faceResultSize, "%dx%d,%dx%d,",
+                    count = snprintf(p, faceResultSize, "%d,%dx%d,%dx%d,",
+                                                           ( unsigned int ) faceResult->nOrientationRoll,
                                                            ( unsigned int ) faceResult->nLeft,
                                                            ( unsigned int ) faceResult->nTop,
                                                            ( unsigned int ) faceResult->nWidth,
