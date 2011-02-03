@@ -63,6 +63,7 @@
 #define BURST_INC     5
 #define TEMP_BRACKETING_MAX_RANGE 4
 
+#define MEDIASERVER_DUMP "procmem -w $(ps | grep mediaserver | grep -Eo '[0-9]+' | head -n 1) | grep \"\\(Name\\|libcamera.so\\|libOMX\\|libomxcameraadapter.so\\|librcm.so\\|libnotify.so\\|libipcutils.so\\|libipc.so\\|libsysmgr.so\\|TOTAL\\)\""
 #define MEMORY_DUMP "procrank -u"
 #define KEY_METERING_MODE   "meter-mode"
 
@@ -1940,6 +1941,7 @@ int functional_menu() {
 }
 
 status_t dump_mem_status() {
+  system(MEDIASERVER_DUMP);
   return system(MEMORY_DUMP);
 }
 
@@ -2693,6 +2695,7 @@ int execute_functional_script(char *script) {
                 break;
 
             case 'q':
+                dump_mem_status();
                 stopPreview();
 
                 if ( recordingMode ) {
