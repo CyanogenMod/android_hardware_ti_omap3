@@ -501,6 +501,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(TICameraParameters::KEY_FACE_DETECTION_ENABLE, valstr);
         }
 
+    if( (valstr = params.get(TICameraParameters::KEY_FACE_DETECTION_THRESHOLD)) != NULL )
+        {
+        CAMHAL_LOGDB("Face detection threshold set to %s", params.get(TICameraParameters::KEY_FACE_DETECTION_THRESHOLD));
+        mParameters.set(TICameraParameters::KEY_FACE_DETECTION_THRESHOLD, valstr);
+        }
+
     if( (valstr = params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE)) != NULL )
         {
         CAMHAL_LOGDB("Measurements set to %s", params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE));

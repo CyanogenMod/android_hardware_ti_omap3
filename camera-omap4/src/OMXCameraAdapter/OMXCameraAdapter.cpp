@@ -277,6 +277,7 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mZoomInc = 1;
     mZoomParameterIdx = 0;
     mExposureBracketingValidEntries = 0;
+    mFaceDetectionThreshold = FACE_THRESHOLD_DEFAULT;
 
     mGPSData.mAltitudeValid = false;
     mGPSData.mDatestampValid = false;
@@ -1178,6 +1179,15 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
            }
        }
    }
+
+    if ( 0 <= params.getInt(TICameraParameters::KEY_FACE_DETECTION_THRESHOLD ) )
+        {
+        mFaceDetectionThreshold = params.getInt(TICameraParameters::KEY_FACE_DETECTION_THRESHOLD);
+        }
+    else
+        {
+        mFaceDetectionThreshold = FACE_THRESHOLD_DEFAULT;
+        }
 
     if ( (valstr = params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE)) != NULL )
         {
@@ -4019,17 +4029,22 @@ status_t OMXCameraAdapter::encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *fa
             {
             for ( int i = 0  ; i < faceData->ulFaceCount ; i++)
                 {
-                CAMHAL_LOGVB("Face %d: left = %d, top = %d, width = %d, height = %d", i,
-                                                       ( unsigned int ) faceResult->nLeft,
-                                                       ( unsigned int ) faceResult->nTop,
-                                                       ( unsigned int ) faceResult->nWidth,
-                                                       ( unsigned int ) faceResult->nHeight);
 
-                count = snprintf(p, faceResultSize, "%dx%d,%dx%d,",
-                                                       ( unsigned int ) faceResult->nLeft,
-                                                       ( unsigned int ) faceResult->nTop,
-                                                       ( unsigned int ) faceResult->nWidth,
-                                                       ( unsigned int ) faceResult->nHeight);
+                if ( mFaceDetectionThreshold <= faceResult->nScore )
+                    {
+                    CAMHAL_LOGVB("Face %d: left = %d, top = %d, width = %d, height = %d", i,
+                                                           ( unsigned int ) faceResult->nLeft,
+                                                           ( unsigned int ) faceResult->nTop,
+                                                           ( unsigned int ) faceResult->nWidth,
+                                                           ( unsigned int ) faceResult->nHeight);
+
+                    count = snprintf(p, faceResultSize, "%dx%d,%dx%d,",
+                                                           ( unsigned int ) faceResult->nLeft,
+                                                           ( unsigned int ) faceResult->nTop,
+                                                           ( unsigned int ) faceResult->nWidth,
+                                                           ( unsigned int ) faceResult->nHeight);
+                    }
+
                 p += count;
                 faceResultSize -= count;
                 faceResult++;

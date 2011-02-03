@@ -587,6 +587,9 @@ private:
     bool mFaceDetectionRunning;
     //Buffer for storing face detection results
     char mFaceDectionResult [FACE_DETECTION_BUFFER_SIZE];
+    //Face detection threshold
+    static const uint32_t FACE_THRESHOLD_DEFAULT = 100;
+    uint32_t mFaceDetectionThreshold;
 
     //Geo-tagging
     GPSData mGPSData;

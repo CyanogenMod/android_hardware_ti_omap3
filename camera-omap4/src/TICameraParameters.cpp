@@ -42,6 +42,7 @@ const char TICameraParameters::KEY_SHUTTER_ENABLE[] = "shutter-enable";
 const char TICameraParameters::KEY_CAMERA_NAME[] = "camera-name";
 const char TICameraParameters::KEY_FACE_DETECTION_ENABLE[] = "face-detection-enable";
 const char TICameraParameters::KEY_FACE_DETECTION_DATA[] = "face-detection-data";
+const char TICameraParameters::KEY_FACE_DETECTION_THRESHOLD[] = "face-detection-threshold";
 const char TICameraParameters::KEY_BURST[] = "burst-capture";
 const char TICameraParameters::KEY_CAP_MODE[] = "mode";
 const char TICameraParameters::KEY_VSTAB[] = "vstab";

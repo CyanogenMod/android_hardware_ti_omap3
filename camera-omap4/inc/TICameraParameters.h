@@ -42,6 +42,7 @@ static const char KEY_CAMERA_NAME[];
 static const  char KEY_S3D_SUPPORTED[];
 static const char  KEY_FACE_DETECTION_ENABLE[];
 static const char  KEY_FACE_DETECTION_DATA[];
+static const char  KEY_FACE_DETECTION_THRESHOLD[];
 static const char  KEY_BURST[];
 static const  char KEY_CAP_MODE[];
 static const  char KEY_VSTAB[];
