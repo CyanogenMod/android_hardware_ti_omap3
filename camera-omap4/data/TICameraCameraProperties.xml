@@ -13,7 +13,7 @@
 <prop-orientation>0</prop-orientation>
 <prop-facing>back</prop-facing>
 <prop-s3d-supported>false</prop-s3d-supported>
-<prop-preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</prop-preview-size-values>
+<prop-preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96</prop-preview-size-values>
 <prop-preview-format-values>yuv422i-yuyv,yuv420sp,rgb565</prop-preview-format-values>
 <prop-preview-frame-rate-values>33,30,25,24,20,15,10</prop-preview-frame-rate-values>
 <prop-zoom-ratios>100,104,107,111,115,119,123,127,132,137,141,146,152,157,162,168,174,180,187,193,200,207,214,222,230,238,246,255,264,273,283,293,303,314,325,336,348,361,373,386,400,414,429,444,459,476,492,510,528,546,566,586,606,628,650,673,696,721,746,773,800</prop-zoom-ratios>
@@ -79,7 +79,7 @@
 <prop-orientation>0</prop-orientation>
 <prop-facing>front</prop-facing>
 <prop-s3d-supported>false</prop-s3d-supported>
-<prop-preview-size-values>1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</prop-preview-size-values>
+<prop-preview-size-values>1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96</prop-preview-size-values>
 <prop-preview-format-values>yuv422i-yuyv,yuv420sp,rgb565</prop-preview-format-values>
 <prop-preview-frame-rate-values>33,30,25,24,20,15,10</prop-preview-frame-rate-values>
 <prop-zoom-ratios>100,104,107,111,115,119,123,127,132,137,141,146,152,157,162,168,174,180,187,193,200,207,214,222,230,238,246,255,264,273,283,293,303,314,325,336,348,361,373,386,400,414,429,444,459,476,492,510,528,546,566,586,606,628,650,673,696,721,746,773,800</prop-zoom-ratios>
@@ -143,7 +143,7 @@
 <prop-vertical-angle>48.2</prop-vertical-angle>
 <prop-orientation>0</prop-orientation>
 <prop-facing>back</prop-facing>
-<prop-preview-size-values>1280x1440,800x960,720x1152,720x960,768x1152,640x960,320x480,352x576,176x288,128x192,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,176x144,128x96</prop-preview-size-values>
+<prop-preview-size-values>1280x1440,800x960,720x1152,720x960,768x1152,640x960,320x480,352x576,176x288,128x192,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96</prop-preview-size-values>
 <prop-preview-format-values>yuv422i-yuyv,yuv420sp,rgb565</prop-preview-format-values>
 <prop-preview-frame-rate-values>33,30,25,24,20,15,10</prop-preview-frame-rate-values>
 <prop-zoom-ratios>100,104,107,111,115,119,123,127,132,137,141,146,152,157,162,168,174,180,187,193,200,207,214,222,230,238,246,255,264,273,283,293,303,314,325,336,348,361,373,386,400,414,429,444,459,476,492,510,528,546,566,586,606,628,650,673,696,721,746,773,800</prop-zoom-ratios>
