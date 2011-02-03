@@ -6599,7 +6599,7 @@ OMXCameraAdapter::~OMXCameraAdapter()
         }
 
     ///De-init the OMX
-    if(mComponentState==OMX_StateLoaded)
+    if( (mComponentState==OMX_StateLoaded) || (mComponentState==OMX_StateInvalid))
         {
         OMX_Deinit();
         }
