@@ -40,10 +40,6 @@
 #define ALSA_DEFAULT_SAMPLE_RATE 48000 // in Hz
 #endif
 
-// FIXME Temporary defines until we add framework support for FM feature
-#define DEVICE_IN_FM_ANALOG 0x1000000
-#define DEVICE_OUT_FM_TRANSMIT 0x800
-
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 static bool fm_enable = false;
 static bool mActive = false;
@@ -131,13 +127,8 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode);
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |\
         AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
-#ifdef DEVICE_OUT_FM_TRANSMIT
-#define OMAP4_OUT_FM        (\
-        DEVICE_OUT_FM_TRANSMIT)
-#else
 #define OMAP4_OUT_FM        (\
         AudioSystem::DEVICE_OUT_FM_TRANSMIT)
-#endif
 
 #define OMAP4_OUT_HDMI        (\
         AudioSystem::DEVICE_OUT_AUX_DIGITAL)
@@ -151,13 +142,8 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode);
 #define OMAP4_IN_SCO        (\
         AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET)
 
-#ifdef DEVICE_IN_FM_ANALOG
-#define OMAP4_IN_FM        (\
-        DEVICE_IN_FM_ANALOG)
-#else
 #define OMAP4_IN_FM        (\
         AudioSystem::DEVICE_IN_FM_ANALOG)
-#endif
 
 #define OMAP4_IN_DEFAULT    (\
         AudioSystem::DEVICE_IN_ALL &\
@@ -604,11 +590,7 @@ LOGV("%s", __FUNCTION__);
         if ((devices & AudioSystem::DEVICE_OUT_SPEAKER) ||
             (devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
             (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
-#ifdef DEVICE_OUT_FM_TRANSMIT
-            (devices & DEVICE_OUT_FM_TRANSMIT)) {
-#else
             (devices & AudioSystem::DEVICE_OUT_FM_TRANSMIT)) {
-#endif
             /* OMAP4 ABE */
             /* Headset: DL1 Mixer */
             control.set("DL1 Mixer Multimedia", 1);		// MM_DL    -> DL1 Mixer
@@ -917,11 +899,7 @@ void configMicChoices (uint32_t devices) {
             (devices & AudioSystem::DEVICE_IN_BACK_MIC) ||
             (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
             (devices & AudioSystem::DEVICE_IN_AUX_DIGITAL) ||
-#ifdef DEVICE_IN_FM_ANALOG
-            (devices & DEVICE_IN_FM_ANALOG)) {
-#else
             (devices & AudioSystem::DEVICE_IN_FM_ANALOG)) {
-#endif
             control.set("AMIC Equalizer Profile", 0, 0);
         }
     }
@@ -948,11 +926,7 @@ void configMicChoices (uint32_t devices) {
             (devices & AudioSystem::DEVICE_IN_BACK_MIC) ||
             (devices & AudioSystem::DEVICE_IN_WIRED_HEADSET) ||
             (devices & AudioSystem::DEVICE_IN_AUX_DIGITAL) ||
-#ifdef DEVICE_IN_FM_ANALOG
-            (devices & DEVICE_IN_FM_ANALOG)) {
-#else
             (devices & AudioSystem::DEVICE_IN_FM_ANALOG)) {
-#endif
             control.set("AMIC Equalizer Profile", 0, 0);
         }
 
