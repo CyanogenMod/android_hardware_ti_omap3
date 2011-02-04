@@ -391,6 +391,8 @@ void CameraHal::initDefaultParameters()
 
     p.set(CameraParameters::KEY_ROTATION, 0);
     p.set(KEY_ROTATION_TYPE, ROTATION_PHYSICAL);
+    //set the video frame format needed by video capture framework
+    p.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, CameraParameters::PIXEL_FORMAT_YUV422I);
 
     if (setParameters(p) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
