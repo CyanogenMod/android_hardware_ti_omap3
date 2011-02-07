@@ -27,7 +27,7 @@
 <prop-effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap,blackwhite,whiteboard,blackboard,aqua,posterize</prop-effect-values>
 <prop-antibanding-values>off,auto,50hz,60hz</prop-antibanding-values>
 <prop-exposure-mode-values>off,auto,night,backlighting,spotlight,sports,snow,beach,aperture,smallaperture,face-priority</prop-exposure-mode-values>
-<prop-ipp-values>gbce,off</prop-ipp-values>
+<prop-ipp-values>ldc-nsf,ldc,nsf,off</prop-ipp-values>
 <prop-ev-compensation-min>-30</prop-ev-compensation-min>
 <prop-ev-compensation-max>30</prop-ev-compensation-max>
 <prop-ev-compensation-step>0.1</prop-ev-compensation-step>
