@@ -1278,13 +1278,6 @@ int CameraHal::CameraStart()
 
     }
 
-    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    err = ioctl(camera_device, VIDIOC_STREAMON, &type);
-    if ( err < 0) {
-        LOGE("VIDIOC_STREAMON Failed");
-        goto fail_loop;
-    }
-
     if( ioctl(camera_device, VIDIOC_G_CROP, &mInitialCrop) < 0 ){
         LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
         return -1;
@@ -1299,7 +1292,13 @@ int CameraHal::CameraStart()
 
         mZoomCurrentIdx = mZoomTargetIdx;
         mParameters.set("zoom", (int) mZoomCurrentIdx);
-        mNotifyCb(CAMERA_MSG_ZOOM, (int) mZoomCurrentIdx, 1, mCallbackCookie);
+    }
+
+    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    err = ioctl(camera_device, VIDIOC_STREAMON, &type);
+    if ( err < 0) {
+        LOGE("VIDIOC_STREAMON Failed");
+        goto fail_loop;
     }
 
     LOG_FUNCTION_NAME_EXIT
