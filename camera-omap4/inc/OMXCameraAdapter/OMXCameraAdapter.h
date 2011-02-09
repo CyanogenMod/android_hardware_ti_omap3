@@ -296,6 +296,7 @@ public:
             OMX_CONFIG_FRAMESTABTYPE        mVidStabConfig;
             OMX_U32                         mCapFrame;
             OMX_U32                         mFrameRate;
+            OMX_U32                         mMinFrameRate;
             CameraFrame::FrameType mImageType;
     };
 

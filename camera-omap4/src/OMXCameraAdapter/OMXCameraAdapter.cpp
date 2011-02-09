@@ -501,14 +501,12 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     params.getPreviewSize(&w, &h);
     int frameRate = params.getPreviewFrameRate();
     int minframeRate = params.getInt(TICameraParameters::KEY_VIDEO_MINFRAMERATE);
-   CAMHAL_LOGDB("  Min Frame Rate is %d ",minframeRate);
 
     if(minframeRate > frameRate)
         {
          CAMHAL_LOGEA(" Min FPS set higher than MAX. So setting MIN and MAX to the higher value");
          frameRate = minframeRate;
         }
-    CAMHAL_LOGVB("Preview frame rate %d", frameRate);
 
     OMXCameraPortParameters *cap;
     cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
@@ -517,11 +515,15 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mWidth = w;
     cap->mHeight = h;
     cap->mFrameRate = frameRate;
+    cap->mMinFrameRate = minframeRate;
+
+
 
     CAMHAL_LOGVB("Prev: cap.mColorFormat = %d", (int)cap->mColorFormat);
     CAMHAL_LOGVB("Prev: cap.mWidth = %d", (int)cap->mWidth);
     CAMHAL_LOGVB("Prev: cap.mHeight = %d", (int)cap->mHeight);
     CAMHAL_LOGVB("Prev: cap.mFrameRate = %d", (int)cap->mFrameRate);
+    CAMHAL_LOGVB("Prev: cap.mFrameRate = %d", (int)cap->mMinFrameRate);
 
     //TODO: Add an additional parameter for video resolution
    //use preview resolution for now
@@ -530,11 +532,13 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     cap->mWidth = w;
     cap->mHeight = h;
     cap->mFrameRate = frameRate;
+    cap->mMinFrameRate = minframeRate;
 
     CAMHAL_LOGVB("Video: cap.mColorFormat = %d", (int)cap->mColorFormat);
     CAMHAL_LOGVB("Video: cap.mWidth = %d", (int)cap->mWidth);
     CAMHAL_LOGVB("Video: cap.mHeight = %d", (int)cap->mHeight);
     CAMHAL_LOGVB("Video: cap.mFrameRate = %d", (int)cap->mFrameRate);
+    CAMHAL_LOGVB("Video: cap.mFrameRate = %d", (int)cap->mMinFrameRate);
 
 
     ///mStride is set from setBufs() while passing the APIs
@@ -637,16 +641,14 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *cap);
             }
         }
-     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
+
+    //Configure variable frame rate only for video mode and in executing state of camera
+    //Idle configuration is done in useBuffersPreview after port reconfiguration
+     if((mCapMode == OMXCameraAdapter::VIDEO_MODE) && (mComponentState == OMX_StateExecuting))
         {
-               setVFramerate(minframeRate, frameRate);
-               CAMHAL_LOGDA("Configuring VFR for Video Mode");
+        setVFramerate(minframeRate, frameRate);
+        CAMHAL_LOGDA("Configuring VFR for Video Mode");
         }
-     else
-       {
-            setVFramerate(frameRate, frameRate); // In Imaging preview VFR is diabled by setting MIN = MAX
-            CAMHAL_LOGDA("Configuring VFR ( MIN ==MAX)for Image Preview Mode");
-       }
 
     str = params.get(TICameraParameters::KEY_EXPOSURE_MODE);
     mode = getLUTvalue_HALtoOMX( str, ExpLUT);
@@ -1877,7 +1879,7 @@ status_t OMXCameraAdapter::setVFramerate(OMX_U32 minFrameRate, OMX_U32 maxFrameR
     vfr.xMin = minFrameRate<<16;
     vfr.xMax = maxFrameRate<<16;
 
-    CAMHAL_LOGDB("VALUES SET ARE : Min = %d Max =%d", vfr.xMin>>16, vfr.xMax>>16);
+    CAMHAL_LOGDB("VALUES SET ARE : Min = %d Max =%d", (int)vfr.xMin>>16, (int)vfr.xMax>>16);
     eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexConfigVarFrmRange, &vfr);
      if ( OMX_ErrorNone != eError )
      {
@@ -1893,7 +1895,7 @@ status_t OMXCameraAdapter::setVFramerate(OMX_U32 minFrameRate, OMX_U32 maxFrameR
        }
     else
       {
-                CAMHAL_LOGDB("AFTER SETTING: Min = %d Max =%d", vfr.xMin>>16, vfr.xMax>>16);
+                CAMHAL_LOGDB("AFTER SETTING: Min = %d Max =%d", (int)vfr.xMin>>16, (int)vfr.xMax>>16);
       }
 
      return 0;
@@ -2545,6 +2547,13 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         LOG_FUNCTION_NAME_EXIT
         return ret;
         }
+
+    ///Configure VFR after setting the port fps because the port fps will override min and max set in setParameter
+    if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
+       {
+       setVFramerate(mPreviewData->mMinFrameRate, mPreviewData->mFrameRate);
+       CAMHAL_LOGDA("Configuring VFR for Video Mode");
+       }
 
     ret = setImageQuality(mPictureQuality);
     if ( NO_ERROR != ret)
