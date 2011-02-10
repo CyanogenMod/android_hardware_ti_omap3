@@ -1491,9 +1491,9 @@ status_t OMXCameraAdapter::setupEXIF()
          if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsLatitude ) &&
               ( mEXIFData.mGPSData.mLatValid ) )
             {
-            exifTags->ulGpsLatitude[0] = mEXIFData.mGPSData.mLatDeg;
-            exifTags->ulGpsLatitude[2] = mEXIFData.mGPSData.mLatMin;
-            exifTags->ulGpsLatitude[4] = mEXIFData.mGPSData.mLatSec;
+            exifTags->ulGpsLatitude[0] = abs(mEXIFData.mGPSData.mLatDeg);
+            exifTags->ulGpsLatitude[2] = abs(mEXIFData.mGPSData.mLatMin);
+            exifTags->ulGpsLatitude[4] = abs(mEXIFData.mGPSData.mLatSec);
             exifTags->ulGpsLatitude[1] = 1;
             exifTags->ulGpsLatitude[3] = 1;
             exifTags->ulGpsLatitude[5] = 1;
@@ -1511,9 +1511,9 @@ status_t OMXCameraAdapter::setupEXIF()
          if ( ( OMX_TI_TagReadWrite == exifTags->eStatusGpsLongitude ) &&
               ( mEXIFData.mGPSData.mLongValid ) )
             {
-            exifTags->ulGpsLongitude[0] = mEXIFData.mGPSData.mLongDeg;
-            exifTags->ulGpsLongitude[2] = mEXIFData.mGPSData.mLongMin;
-            exifTags->ulGpsLongitude[4] = mEXIFData.mGPSData.mLongSec;
+            exifTags->ulGpsLongitude[0] = abs(mEXIFData.mGPSData.mLongDeg);
+            exifTags->ulGpsLongitude[2] = abs(mEXIFData.mGPSData.mLongMin);
+            exifTags->ulGpsLongitude[4] = abs(mEXIFData.mGPSData.mLongSec);
             exifTags->ulGpsLongitude[1] = 1;
             exifTags->ulGpsLongitude[3] = 1;
             exifTags->ulGpsLongitude[5] = 1;
