@@ -24,6 +24,8 @@
 #include <binder/IServiceManager.h>
 #include <cutils/properties.h>
 
+#include <sys/wait.h>
+
 #define PRINTOVER(arg...)     LOGD(#arg)
 #define LOG_FUNCTION_NAME         LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
@@ -1960,7 +1962,6 @@ char *load_script(char *config) {
     char *script;
     size_t nRead = 0;
     char dir_name[40];
-    char log_cmd[60];
     int count;
 
     count = 0;
@@ -2016,22 +2017,79 @@ char *load_script(char *config) {
 
     fclose(infile);
 
-    /*Start logcat before executing script*/
+    return script;
+}
 
-    if(!sprintf(log_cmd,"logcat > /sdcard/%s/log.txt &",dir_name))
-          printf(" Sprintf Error");
-    if(system(log_cmd))
-          printf("\nCould not execute %s command\n",log_cmd);
+int start_logging(char *config, int &pid) {
+    char dir_name[40];
+    int count = 0;
+    int status = 0;
 
-    /*Start Syslink trace before executing script*/
-    if(bLogSysLinkTrace) {
-        if(!sprintf(log_cmd,"/system/bin/syslink_trace_daemon.out > /sdcard/%s/syslink_trace.txt &",dir_name))
+    // remove just the '.txt' part of the config
+    while((config[count] != '.') && (count < sizeof(dir_name)/sizeof(dir_name[0])))
+        count++;
+
+    if(strncpy(dir_name,config,count) == NULL)
+        printf("Strcpy error");
+
+    dir_name[count]=NULL;
+
+    pid = fork();
+    if (pid == 0)
+    {
+        char *command_list[] = {"sh", "-c", NULL, NULL};
+        char log_cmd[120];
+        // child process to run logging
+
+        // set group id of this process to itself
+        // we will use this group id to kill the
+        // application logging
+        setpgid(getpid(), getpid());
+
+        /* Start logcat */
+        if(!sprintf(log_cmd,"logcat > /sdcard/%s/log.txt &",dir_name))
             printf(" Sprintf Error");
-        if(system(log_cmd))
-            printf("\nCould not execute %s command\n",log_cmd);
+
+        /* Start Syslink Trace */
+        if(bLogSysLinkTrace) {
+            if(!sprintf(log_cmd,"%s /system/bin/syslink_trace_daemon.out -l /sdcard/%s/syslink_trace.txt -f &",log_cmd, dir_name))
+                printf(" Sprintf Error");
+        }
+
+        command_list[2] = (char *)log_cmd;
+        execvp("/system/bin/sh", command_list);
+    } if(pid < 0)
+    {
+        printf("failed to fork logcat\n");
+        return -1;
     }
 
-    return script;
+    //wait for logging to start
+    if(waitpid(pid, &status, 0) != pid)
+    {
+        printf("waitpid failed in log fork\n");
+        return -1;
+    }else
+        printf("logging started... status=%d\n", status);
+
+    return 0;
+}
+
+int stop_logging(int &pid)
+{
+    if(pid > 0)
+    {
+        if(killpg(pid, SIGKILL))
+        {
+            printf("Exit command failed");
+            return -1;
+        } else {
+            printf("\nlogging for script %s is complete\n   logcat saved @ location: %s\n",script_name,dir_path);
+            if (bLogSysLinkTrace)
+                printf("   syslink_trace is saved @ location: %s\n\n",dir_path);
+        }
+    }
+    return 0;
 }
 
 char * get_cycle_cmd(const char *aSrc) {
@@ -2742,14 +2800,6 @@ int execute_functional_script(char *script) {
 
                     recordingMode = false;
                 }
-
-                if(system("exit"))
-                      printf("Exit command failed");
-                else {
-                      printf("\nlogcat for script %s is complete\n Saved @ location: %s\n",script_name,dir_path);
-                      if (bLogSysLinkTrace)
-                          printf("\nsyslink_trace is saved @ location: %s\n",dir_path);
-                }
                 goto exit;
 
             case '\n':
@@ -3290,6 +3340,7 @@ int error_scenario() {
 
 int main(int argc, char *argv[]) {
     char *cmd;
+    int pid;
     sp<ProcessState> proc(ProcessState::self());
 
     unsigned long long st, end, delay;
@@ -3397,8 +3448,10 @@ int main(int argc, char *argv[]) {
         cmd = load_script(argv[2]);
 
         if ( cmd != NULL) {
+            start_logging(argv[2], pid);
             execute_functional_script(cmd);
             free(cmd);
+            stop_logging(pid);
         }
     } else if ( ( argc == 3) && ( ( *argv[1] == 'E' ) || ( *argv[1] == 'e') ) ) {
 
@@ -3418,8 +3471,10 @@ int main(int argc, char *argv[]) {
         cmd = load_script(argv[2]);
 
         if ( cmd != NULL) {
+            start_logging(argv[2], pid);
             execute_error_script(cmd);
             free(cmd);
+            stop_logging(pid);
         }
 
     } else {
