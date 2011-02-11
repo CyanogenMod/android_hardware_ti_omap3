@@ -4673,7 +4673,33 @@ status_t OMXCameraAdapter::doAutoFocus()
 
             }
 
+        if ( ( mParameters3A.Focus != OMX_IMAGE_FocusControlAuto )  &&
+             ( mParameters3A.Focus != OMX_IMAGE_FocusControlAutoInfinity ) )
+            {
+
+            if ( NO_ERROR == ret )
+                {
+                ret = eventSem.Create(0);
+                }
+
+            if ( NO_ERROR == ret )
+                {
+                ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
+                                            (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
+                                            OMX_ALL,
+                                            OMX_IndexConfigCommonFocusStatus,
+                                            eventSem,
+                                            -1 );
+                }
+
+            if ( NO_ERROR == ret )
+                {
+                ret = setFocusCallback(true);
+                }
+            }
+
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
+
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEB("Error while starting focus 0x%x", eError);
@@ -4689,26 +4715,6 @@ status_t OMXCameraAdapter::doAutoFocus()
     if ( ( mParameters3A.Focus != OMX_IMAGE_FocusControlAuto )  &&
          ( mParameters3A.Focus != OMX_IMAGE_FocusControlAutoInfinity ) )
         {
-
-        if ( NO_ERROR == ret )
-            {
-            ret = eventSem.Create(0);
-            }
-
-        if ( NO_ERROR == ret )
-            {
-            ret = RegisterForEvent(mCameraAdapterParameters.mHandleComp,
-                                        (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
-                                        OMX_ALL,
-                                        OMX_IndexConfigCommonFocusStatus,
-                                        eventSem,
-                                        -1 );
-            }
-
-        if ( NO_ERROR == ret )
-            {
-            ret = setFocusCallback(true);
-            }
 
         if ( NO_ERROR == ret )
             {
