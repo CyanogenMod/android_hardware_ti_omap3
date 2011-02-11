@@ -225,11 +225,24 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_MODEM_PCM_HANDLE_NAME    "hw:0,5"
 #define AUDIO_MODEM_PCM_LATENCY     500000
 
+// Voice Call Volume
+struct voiceCallVolumeInfo
+{
+    unsigned int      min;
+    unsigned int      max;
+};
+
+struct voiceCallVolumeList
+{
+    const uint32_t  device;
+    const char      *volumeName;
+    voiceCallVolumeInfo *mInfo;
+};
 
 class AudioModemAlsa
 {
 public:
-                AudioModemAlsa();
+                AudioModemAlsa(ALSAControl *alsaControl);
     virtual    ~AudioModemAlsa();
 
     class AudioModemDeviceProperties
@@ -302,6 +315,7 @@ public:
         status_t     voiceCallCodecBTPCMSet(void);
         status_t     voiceCallCodecBTPCMReset(void);
     #endif
+    status_t voiceCallVolume(ALSAControl *alsaControl, float volume);
 
     char        *mBoardName;
     ALSAControl *mAlsaControl;

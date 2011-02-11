@@ -40,13 +40,40 @@
 namespace android
 {
 // ----------------------------------------------------------------------------
+// Voice call volume
+#define VOICE_CALL_VOLUME_PROP(dev, name) \
+    {\
+        dev, name, NULL\
+    }
+
+static voiceCallVolumeList
+voiceCallVolumeProp[] = {
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_HANDSET,
+                            "DL1 Voice Playback Volume"),
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_HANDFREE,
+                            "DL2 Voice Playback Volume"),
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_HEADSET,
+                            "DL1 Voice Playback Volume"),
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_AUX,
+                            "DL1 Voice Playback Volume"),
+    VOICE_CALL_VOLUME_PROP(AudioModemInterface::AUDIO_MODEM_BLUETOOTH,
+                            "DL1 Voice Playback Volume"),
+    VOICE_CALL_VOLUME_PROP(0, "")
+};
+
+#define WORKAROUND_AVOID_VOICE_VOLUME_MAX   1
+#define WORKAROUND_MAX_VOICE_VOLUME         120
+#define WORKAROUND_AVOID_VOICE_VOLUME_MIN   1
+#define WORKAROUND_MIN_VOICE_VOLUME         90
+
+// ----------------------------------------------------------------------------
 #define CHECK_ERROR(func, error)   if ((error = func) != NO_ERROR) { \
                                 return error; \
                             }
 
 // ----------------------------------------------------------------------------
 
-AudioModemAlsa::AudioModemAlsa()
+AudioModemAlsa::AudioModemAlsa(ALSAControl *alsaControl)
 {
     status_t error;
 
@@ -69,6 +96,36 @@ AudioModemAlsa::AudioModemAlsa()
         exit(-1);
     }
     mVoiceCallState = AUDIO_MODEM_VOICE_CALL_OFF;
+
+    // Initialize Min and Max volume
+    int i = 0;
+    while(voiceCallVolumeProp[i].device) {
+        voiceCallVolumeInfo *info = voiceCallVolumeProp[i].mInfo = new voiceCallVolumeInfo;
+
+#if WORKAROUND_AVOID_VOICE_VOLUME_MAX
+        LOGV("Workaround: Voice call max volume name %s limited to: %d",
+                voiceCallVolumeProp[i].volumeName, WORKAROUND_MAX_VOICE_VOLUME);
+        info->max = WORKAROUND_MAX_VOICE_VOLUME;
+#else
+        error = alsaControl->getmax(voiceCallVolumeProp[i].volumeName, info->max);
+#endif
+#if WORKAROUND_AVOID_VOICE_VOLUME_MIN
+        LOGV("Workaround: Voice call min volume name %s limited to: %d",
+                voiceCallVolumeProp[i].volumeName, WORKAROUND_MIN_VOICE_VOLUME);
+        info->min = WORKAROUND_MIN_VOICE_VOLUME;
+#else
+        error = alsaControl->getmin(voiceCallVolumeProp[i].volumeName, info->min);
+#endif
+        LOGV("Voice call volume name: %s min: %d max: %d", voiceCallVolumeProp[i].volumeName,
+                 info->min, info->max);
+
+        if (error != NO_ERROR) {
+            LOGE("Audio Voice Call volume was not correctly initialized.");
+            delete mModem;
+            exit(error);
+        }
+        i++;
+    }
 }
 
 AudioModemAlsa::~AudioModemAlsa()
@@ -948,4 +1005,31 @@ status_t AudioModemAlsa::voiceCallModemReset()
     return error;
 }
 
+status_t AudioModemAlsa::voiceCallVolume(ALSAControl *alsaControl, float volume)
+{
+    status_t error = NO_ERROR;
+    unsigned int setVolume;
+    int i = 0;
+
+    while(voiceCallVolumeProp[i].device) {
+        voiceCallVolumeInfo *info = voiceCallVolumeProp[i].mInfo;
+
+        // Make sure volume is between bounds.
+        setVolume = info->min + volume * (info->max - info->min);
+        if (setVolume > info->max) setVolume = info->max;
+        if (setVolume < info->min) setVolume = info->min;
+
+        LOGV("%s: in call volume level to apply: %d", voiceCallVolumeProp[i].volumeName,
+                setVolume);
+
+        error = alsaControl->set(voiceCallVolumeProp[i].volumeName, setVolume, 0);
+        if (error < 0) {
+            LOGE("%s: error applying in call volume: %d", voiceCallVolumeProp[i].volumeName,
+                    setVolume);
+            return error;
+        }
+        i++;
+    }
+    return NO_ERROR;
+}
 } // namespace android

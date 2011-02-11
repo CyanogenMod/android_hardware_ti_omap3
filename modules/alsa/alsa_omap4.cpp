@@ -60,6 +60,7 @@ static status_t s_open(alsa_handle_t *, uint32_t, int);
 static status_t s_close(alsa_handle_t *);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
+static status_t s_voicevolume(float);
 
 #ifdef AUDIO_MODEM_TI
     AudioModemAlsa *audioModem;
@@ -100,6 +101,7 @@ static int s_device_open(const hw_module_t* module, const char* name,
     dev->close = s_close;
     dev->standby = s_standby;
     dev->route = s_route;
+    dev->voicevolume = s_voicevolume;
 
     *device = &dev->common;
 
@@ -776,7 +778,8 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
     }
 
 #ifdef AUDIO_MODEM_TI
-    audioModem = new AudioModemAlsa();
+    ALSAControl control("hw:00");
+    audioModem = new AudioModemAlsa(&control);
 #endif
 
     return NO_ERROR;
@@ -885,10 +888,27 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
         }
     }
 
-    #ifdef AUDIO_MODEM_TI
+#ifdef AUDIO_MODEM_TI
         ALSAControl control("hw:00");
         status = audioModem->voiceCallControls(devices, mode, &control);
-    #endif
+#endif
+
+    return status;
+}
+
+static status_t s_voicevolume(float volume)
+{
+    status_t status = NO_ERROR;
+
+#ifdef AUDIO_MODEM_TI
+        ALSAControl control("hw:00");
+        if (audioModem) {
+            status = audioModem->voiceCallVolume(&control, volume);
+        } else {
+            LOGE("Audio Modem not initialized: voice volume can't be applied");
+            status = NO_INIT;
+        }
+#endif
 
     return status;
 }
