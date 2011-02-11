@@ -400,6 +400,12 @@ bool bLogSysLinkTrace = true;
 
 //forward declarations
 int closeCamera();
+void stopPreview() ;
+void initDefaults();
+int stopRecording();
+int closeRecorder();
+bool stressTest = false;
+bool stopScript = false;
 
 namespace android {
 
@@ -646,6 +652,28 @@ void CameraHandler::notify(int32_t msgType, int32_t ext1, int32_t ext2) {
     if ( msgType & CAMERA_MSG_SHUTTER )
         printf("Shutter done in %llu us\n", timeval_delay(&picture_start));
 
+    if ( msgType & CAMERA_MSG_ERROR )
+      {
+        printf("Camera Test CAMERA_MSG_ERROR.....\n");
+        if (stressTest)
+          {
+            printf("Camera Test Notified of Error Restarting.....\n");
+            stopScript = true;
+          }
+        else
+          {
+            printf("Camera Test Notified of Error Stopping.....\n");
+            stopScript =false;
+            stopPreview();
+
+            if (recordingMode)
+              {
+                stopRecording();
+                closeRecorder();
+                recordingMode = false;
+              }
+          }
+      }
 }
 
 void CameraHandler::postData(int32_t msgType, const sp<IMemory>& dataPtr) {
@@ -2120,7 +2148,7 @@ int execute_functional_script(char *script) {
 
     cmd = strtok_r((char *) script, DELIMITER, &ctx);
 
-    while ( NULL != cmd ) {
+    while ( NULL != cmd && (stopScript == false)) {
         id = cmd[0];
         printf("Full Command: %s \n", cmd);
         printf("Command: %c \n", cmd[0]);
@@ -2180,7 +2208,8 @@ int execute_functional_script(char *script) {
 
                 for (int ind = 0; ind < cycleCounter; ind++) {
                     strcpy(temp_cmd, cycle_cmd);
-                    execute_functional_script(temp_cmd);
+                    if ( execute_functional_script(temp_cmd) != 0 )
+                      return -1;
                     temp_cmd[0] = '\0';
 
                     //patch for image capture
@@ -2931,8 +2960,14 @@ int execute_functional_script(char *script) {
     }
 
 exit:
-
-    return 0;
+    if (stopScript == true)
+      {
+        return -1;
+      }
+    else
+      {
+        return 0;
+      }
 }
 
 int execute_error_script(char *script) {
@@ -3338,6 +3373,37 @@ int error_scenario() {
     return 0;
 }
 
+int restartCamera() {
+
+  printf("+++Restarting Camera After Error+++\n");
+  stopPreview();
+
+  if (recordingMode) {
+    stopRecording();
+    closeRecorder();
+
+    recordingMode = false;
+  }
+
+  sleep(3); //Wait a bit before restarting
+
+  if ( openCamera() < 0 ) {
+    printf("+++Camera Restarted Failed+++\n");
+    system("echo camerahal_test > /sys/power/wake_unlock");
+    return -1;
+  }
+
+  hardwareActive = true;
+
+  params.unflatten(camera->getParameters());
+  initDefaults();
+
+  stopScript = false;
+
+  printf("+++Camera Restarted Successfully+++\n");
+  return 0;
+}
+
 int main(int argc, char *argv[]) {
     char *cmd;
     int pid;
@@ -3449,7 +3515,28 @@ int main(int argc, char *argv[]) {
 
         if ( cmd != NULL) {
             start_logging(argv[2], pid);
-            execute_functional_script(cmd);
+            stressTest = true;
+
+            while (1)
+              {
+                if ( execute_functional_script(cmd) == 0 )
+                  {
+                    break;
+                  }
+                else
+                  {
+                    printf("CameraTest Restarting Camera...\n");
+
+                    free(cmd);
+                    cmd = NULL;
+
+                    if ( (restartCamera() != 0)  || ((cmd = load_script(argv[2])) == NULL) )
+                      {
+                        printf("ERROR::CameraTest Restarting Camera...\n");
+                        break;
+                      }
+                  }
+              }
             free(cmd);
             stop_logging(pid);
         }
