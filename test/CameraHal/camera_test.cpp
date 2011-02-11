@@ -406,6 +406,7 @@ int stopRecording();
 int closeRecorder();
 bool stressTest = false;
 bool stopScript = false;
+static int restartCount = 0;
 
 namespace android {
 
@@ -652,7 +653,7 @@ void CameraHandler::notify(int32_t msgType, int32_t ext1, int32_t ext2) {
     if ( msgType & CAMERA_MSG_SHUTTER )
         printf("Shutter done in %llu us\n", timeval_delay(&picture_start));
 
-    if ( msgType & CAMERA_MSG_ERROR )
+    if ( msgType & CAMERA_MSG_ERROR && (ext1 == 1))
       {
         printf("Camera Test CAMERA_MSG_ERROR.....\n");
         if (stressTest)
@@ -1991,6 +1992,7 @@ char *load_script(char *config) {
     size_t nRead = 0;
     char dir_name[40];
     int count;
+    char rCount [5];
 
     count = 0;
 
@@ -2010,6 +2012,14 @@ char *load_script(char *config) {
 
     if(strcat(dir_path,dir_name) == NULL)
         printf("Strcat error");
+
+    if(restartCount)
+    {
+      sprintf(rCount,"_%d",restartCount);
+      if(strcat(dir_path, rCount) == NULL)
+        printf("Strcat error RestartCount");
+    }
+
     printf("\n COMPLETE FOLDER PATH : %s \n",dir_path);
     if(mkdir(dir_path,0777) == -1) {
         printf("\n Directory %s was not created \n",dir_path);
@@ -3375,6 +3385,8 @@ int error_scenario() {
 
 int restartCamera() {
 
+  const char dir_path_name[80] = SDCARD_PATH;
+
   printf("+++Restarting Camera After Error+++\n");
   stopPreview();
 
@@ -3387,7 +3399,16 @@ int restartCamera() {
 
   sleep(3); //Wait a bit before restarting
 
-  if ( openCamera() < 0 ) {
+  restartCount++;
+
+  if (strcpy(dir_path, dir_path_name) == NULL)
+  {
+    printf("Error reseting dir name");
+    return -1;
+  }
+
+  if ( openCamera() < 0 )
+  {
     printf("+++Camera Restarted Failed+++\n");
     system("echo camerahal_test > /sys/power/wake_unlock");
     return -1;
