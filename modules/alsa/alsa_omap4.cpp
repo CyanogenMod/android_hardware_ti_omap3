@@ -788,13 +788,17 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     if (err == NO_ERROR) err = setSoftwareParams(handle);
 
     LOGI("Initialized ALSA %s device '%s'", stream, devName);
+
+    if (fm_enable) {
+       LOGI("Triggering McPDM DL");
+      snd_pcm_start(handle->handle);
+     }
+
     // For FM Rx through ABE, McPDM UL needs to be triggered
     if (devices &  OMAP4_IN_FM) {
        LOGI("Triggering McPDM UL");
        fm_enable = true;
        snd_pcm_start(handle->handle);
-    } else if (0 == devices) {
-       fm_enable = false;
     }
     return err;
 }
@@ -844,6 +848,7 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
     LOGD("route called for devices %08x in mode %d...", devices, mode);
 
     if (!devices) {
+        fm_enable = false;
         LOGV("Ignore the audio routing change as there's no device specified");
         return NO_ERROR;
     }
