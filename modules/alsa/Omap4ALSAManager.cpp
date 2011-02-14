@@ -16,6 +16,9 @@
  */
 
 //includes
+#define LOG_TAG "Omap4ALSAManager"
+#include <utils/Log.h>
+
 #include "Omap4ALSAManager.h"
 
 namespace android {
