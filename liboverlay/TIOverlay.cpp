@@ -1057,6 +1057,8 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     int strmatch;
     int fd = overlayobj->getctrl_videofd();
     overlay_data_t eCropData;
+    int index = 0;
+    char clrkey[16];
 
 #ifndef TARGET_OMAP4
     /** NOTE: In order to support HDMI without app explicitly requesting for
@@ -1311,6 +1313,66 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
                 LOGE("zorder setting failed");
                 ret = -1;
                 goto end;
+            }
+        }
+
+        if (data->colorkey != stage->colorkey) {
+            data->colorkey = stage->colorkey;
+            /* Enable/disable the color key **/
+            /** in order to findout which manager to set, check for the name
+            * and set the properties for that lcd manager
+            */
+            for (int i = 0; i < MAX_MANAGER_CNT; i++) {
+                if (strcmp(managerMetaData[i].managername, "lcd") == 0) {
+                    LOGD("found LCD manager @ [%d]", i);
+                    index = i;
+                    break;
+                }
+            }
+            if (data->colorkey < 0 ) {
+                if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "0", strlen("1")) < 0) {
+                    goto end;
+                }
+            }
+            else {
+                sprintf(clrkey, "%d", data->colorkey);
+                if (sysfile_write(managerMetaData[index].managertrans_key_value, &clrkey, strlen("0")) < 0) {
+                    goto end;
+                }
+
+                if (sysfile_write(managerMetaData[index].managertrans_key_type, "video-source", strlen("video-source")) < 0) {
+                    goto end;
+                }
+
+                if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
+                    goto end;
+                }
+            }
+
+            for (int i = 0; i < MAX_MANAGER_CNT; i++) {
+                if (strcmp(managerMetaData[i].managername, "tv") == 0) {
+                    LOGD("found LCD manager @ [%d]", i);
+                    index = i;
+                    break;
+                }
+            }
+            if (data->colorkey < 0 ) {
+                if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "0", strlen("1")) < 0) {
+                    goto end;
+                }
+            }
+            else {
+                if (sysfile_write(managerMetaData[index].managertrans_key_value, &clrkey, strlen("0")) < 0) {
+                    goto end;
+                }
+
+                if (sysfile_write(managerMetaData[index].managertrans_key_type, "video-source", strlen("video-source")) < 0) {
+                    goto end;
+                }
+
+                if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
+                    goto end;
+                }
             }
         }
     }

@@ -63,7 +63,7 @@ public:
   uint32_t posY;
   uint32_t posW;
   uint32_t posH;
-  uint32_t colorkey;
+  int32_t colorkey;
   uint32_t rotation;
   uint32_t alpha;
   uint32_t zorder;
