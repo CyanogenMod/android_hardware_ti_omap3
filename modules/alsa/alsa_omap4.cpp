@@ -750,11 +750,9 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
     status = propMgr.set((String8)Omap4ALSAManager::DL1_EQ_PROFILE,
                          (String8)Omap4ALSAManager::EqualizerProfileList[0]);
     status = propMgr.set((String8)Omap4ALSAManager::AMIC_EQ_PROFILE,
-                         (String8)Omap4ALSAManager::EqualizerProfileList[0]);
-    status = propMgr.set((String8)Omap4ALSAManager::AMIC_EQ_PROFILE,
-                         (String8)Omap4ALSAManager::EqualizerProfileList[0]);
-    status = propMgr.set((String8)Omap4ALSAManager::AMIC_EQ_PROFILE,
-                         (String8)Omap4ALSAManager::EqualizerProfileList[0]);
+                         (String8)Omap4ALSAManager::EqualizerProfileList[1]);
+    status = propMgr.set((String8)Omap4ALSAManager::DMIC_EQ_PROFILE,
+                         (String8)Omap4ALSAManager::EqualizerProfileList[1]);
 
     return NO_ERROR;
 }
