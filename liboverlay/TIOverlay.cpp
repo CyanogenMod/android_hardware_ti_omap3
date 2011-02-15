@@ -672,6 +672,20 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         return NULL;
     }
 
+    v4l2_overlay_getId(fd, &pipelineId);
+
+    if ((pipelineId >= 0) && (pipelineId <= MAX_NUM_OVERLAYS)) {
+        sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
+        sprintf(overlayobj->overlayzorderpath, "/sys/devices/platform/omapdss/overlay%d/zorder", pipelineId);
+        sprintf(overlayobj->overlayenabled, "/sys/devices/platform/omapdss/overlay%d/enabled", pipelineId);
+    }
+    //lets reset the manager to the lcd to start with
+    if (!isS3D) {
+      if (sysfile_write(overlayobj->overlaymanagerpath, "lcd", sizeof("lcd")) < 0) {
+            LOGE("Overlay Manager set failed, but proceed anyway");
+        }
+    }
+
     if (v4l2_overlay_init(fd, w, h, format)) {
         LOGE("Failed initializing overlays\n");
         goto error1;
@@ -685,14 +699,6 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     if (v4l2_overlay_set_crop(fd, 0, 0, w, h)) {
         LOGE("Failed defaulting crop window\n");
         goto error1;
-    }
-
-    v4l2_overlay_getId(fd, &pipelineId);
-
-    if ((pipelineId >= 0) && (pipelineId <= MAX_NUM_OVERLAYS)) {
-        sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
-        sprintf(overlayobj->overlayzorderpath, "/sys/devices/platform/omapdss/overlay%d/zorder", pipelineId);
-        sprintf(overlayobj->overlayenabled, "/sys/devices/platform/omapdss/overlay%d/enabled", pipelineId);
     }
 
 #ifndef TARGET_OMAP4
@@ -894,13 +900,6 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
     int index = overlayobj->getIndex();
 
     overlay_data_context_t::disable_streaming(overlayobj, false);
-
-    //lets reset the manager to the lcd
-    if (!overlayobj->mData.s3d_active) {
-        if (sysfile_write(overlayobj->overlaymanagerpath, "lcd", sizeof("lcd")) < 0) {
-            LOGE("Overlay Manager reset failed, but proceed anyway");
-        }
-    }
 
     LOGI("Destroying overlay/fd=%d/obj=%08lx", fd, (unsigned long)overlay);
 
