@@ -690,7 +690,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-    if (v4l2_overlay_set_rotation(fd, 0, 0)) {
+    if (v4l2_overlay_set_rotation(fd, 0, 0, 0)) {
         LOGE("Failed defaulting rotation\n");
         goto error1;
     }
@@ -801,7 +801,7 @@ int overlay_control_context_t::overlay_requestOverlayClone(struct overlay_contro
         goto error1;
     }
 
-    if (v4l2_overlay_set_rotation(linkfd, 0, 0)) {
+    if (v4l2_overlay_set_rotation(linkfd, 0, 0, 0)) {
         LOGE("Failed defaulting rotation\n");
         goto error1;
     }
@@ -1016,15 +1016,27 @@ int overlay_control_context_t::overlay_setParameter(struct overlay_control_devic
         switch ( value ) {
         case 0:
             stage->rotation = 0;
+            stage->mirror = false;
             break;
         case OVERLAY_TRANSFORM_ROT_90:
             stage->rotation = 90;
+            stage->mirror = false;
             break;
         case OVERLAY_TRANSFORM_ROT_180:
             stage->rotation = 180;
+            stage->mirror = false;
             break;
         case OVERLAY_TRANSFORM_ROT_270:
             stage->rotation = 270;
+            stage->mirror = false;
+            break;
+        case OVERLAY_TRANSFORM_FLIP_H:
+            stage->rotation = 180;
+            stage->mirror = true;
+            break;
+        case OVERLAY_TRANSFORM_FLIP_V:
+            stage->rotation = 0;
+            stage->mirror = true;
             break;
         default:
             rc = -EINVAL;
@@ -1114,6 +1126,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         data->rotation == stage->rotation &&
 #ifdef TARGET_OMAP4
         data->alpha == stage->alpha &&
+        data->mirror == stage->mirror &&
 #endif
         data->panel == stage->panel) {
         LOGI("Nothing to do!\n");
@@ -1140,6 +1153,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     data->alpha      = stage->alpha;
     data->colorkey   = stage->colorkey;
     data->zorder     = stage->zorder;
+    data->mirror     = stage->mirror;
 
     // Adjust the coordinate system to match the V4L change
     switch ( data->rotation ) {
@@ -1158,8 +1172,8 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 #endif
         break;
     case 180:
-        finalWindow.posX = ((overlayobj->dispW - data->posX) - data->posW);
-        finalWindow.posY = ((overlayobj->dispH - data->posY) - data->posH);
+        finalWindow.posX = data->posX;
+        finalWindow.posY = data->posY;
         finalWindow.posW = data->posW;
         finalWindow.posH = data->posH;
         break;
@@ -1316,7 +1330,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 
-    if ((ret = v4l2_overlay_set_rotation(fd, data->rotation, 0))) {
+    if ((ret = v4l2_overlay_set_rotation(fd, data->rotation, 0, data->mirror))) {
         LOGE("Set Rotation Failed!/%d\n", ret);
         goto end;
     }
@@ -1499,7 +1513,7 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
         goto end;
     }
 
-    if ((ret = v4l2_overlay_set_rotation(linkfd, data->rotation, 0))) {
+    if ((ret = v4l2_overlay_set_rotation(linkfd, data->rotation, 0, data->mirror))) {
         LOGE("Set Rotation Failed!/%d\n", ret);
         goto end;
     }
@@ -1682,6 +1696,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     overlay_data_t eCropData;
     int degree = 0;
     int link_fd = -1;
+    uint32_t mirror = 0;
 
     // Position and output width and heigh
     int32_t _x = 0;
@@ -1739,7 +1754,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         goto end;
     }
 
-    if ((ret = v4l2_overlay_get_rotation(fd, &degree, NULL))) {
+    if ((ret = v4l2_overlay_get_rotation(fd, &degree, NULL, &mirror))) {
         LOGD("Get rotation value failed! \n");
         goto end;
     }
@@ -1757,7 +1772,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     ctx->omap_overlay->w = w;
     ctx->omap_overlay->h = h;
 
-    if ((ret = v4l2_overlay_set_rotation(fd, degree, 0))) {
+    if ((ret = v4l2_overlay_set_rotation(fd, degree, 0, mirror))) {
         LOGE("Failed rotation\n");
         goto end;
     }

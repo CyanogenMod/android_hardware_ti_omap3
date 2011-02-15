@@ -57,6 +57,8 @@ public:
         alpha = 0;
         zorder = 3;
         panel = 0x0;
+        mirror = 0x0;
+
     };
 public:
   uint32_t posX;
@@ -68,6 +70,7 @@ public:
   uint32_t alpha;
   uint32_t zorder;
   uint32_t panel;
+  uint32_t mirror;
 } ;
 
 class overlay_data_t {

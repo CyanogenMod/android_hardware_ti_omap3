@@ -393,12 +393,17 @@ int v4l2_overlay_get_crop(int fd, uint32_t *x, uint32_t *y, uint32_t *w, uint32_
 }
 
 
-int v4l2_overlay_set_rotation(int fd, int degree, int step)
+int v4l2_overlay_set_rotation(int fd, int degree, int step, uint32_t mirror)
 {
     LOG_FUNCTION_NAME
 
     int ret;
     struct v4l2_control ctrl;
+    memset(&ctrl, 0, sizeof(ctrl));
+    ctrl.id = V4L2_CID_VFLIP;
+    ctrl.value = mirror;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "set FLIP");
+
     memset(&ctrl, 0, sizeof(ctrl));
     ctrl.id = V4L2_CID_ROTATE;
     ctrl.value = degree;
@@ -410,14 +415,13 @@ int v4l2_overlay_set_rotation(int fd, int degree, int step)
     return ret;
 }
 
-int v4l2_overlay_get_rotation(int fd, int* degree, int step)
+int v4l2_overlay_get_rotation(int fd, int* degree, int step, uint32_t* mirror)
 {
     LOG_FUNCTION_NAME
     int ret;
     struct v4l2_control control;
     memset(&control, 0, sizeof(control));
     control.id = V4L2_CID_ROTATE;
-
     ret = ioctl (fd, VIDIOC_G_CTRL, &control);
     if (ret < 0) {
         error (fd, "VIDIOC_G_CTRL id: V4L2_CID_ROTATE ioctl");
@@ -428,6 +432,17 @@ int v4l2_overlay_get_rotation(int fd, int* degree, int step)
         control.value = 90;
     }
     *degree = control.value;
+
+    memset(&control, 0, sizeof(control));
+    control.id = V4L2_CID_VFLIP;
+    ret = ioctl (fd, VIDIOC_G_CTRL, &control);
+    if (ret < 0) {
+        error (fd, "VIDIOC_G_CTRL id: V4L2_CID_VFLIP ioctl");
+        return ret;
+    }
+
+    *mirror = control.value;
+
     return ret;
 }
 
