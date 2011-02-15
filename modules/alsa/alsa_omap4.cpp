@@ -361,7 +361,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
     // device name will only return LP device hw06 if the property is set
     // or if the system is explicitly opening and routing to OMAP4_OUT_LP
     const char* device = deviceName(handle,
-                                    handle->devices,
+                                    handle->curDev,
                                     AudioSystem::MODE_NORMAL);
 
     if (snd_pcm_hw_params_malloc(&hardwareParams) < 0) {
