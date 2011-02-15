@@ -76,18 +76,14 @@ public:
     sp<SurfaceComposerClient> mClient1;
     sp<SurfaceComposerClient> mClient2;
 
-    sp<SurfaceControl> mSurfaceCtrlLcd1;
-    sp<SurfaceControl> mSurfaceCtrlLcd2;
-    sp<SurfaceControl> mSurfaceCtrlTv;
-    sp<SurfaceControl> mSurfaceCtrlDlp;
+    sp<SurfaceControl> mSurfaceCtrl1;
+    sp<SurfaceControl> mSurfaceCtrl2;
 
     sp<Overlay> mOverlay1;
     sp<Overlay> mOverlay2;
 
-    sp<ISurface> mSurfaceLcd1;
-    sp<ISurface> mSurfaceLcd2;
-    sp<ISurface> mSurfaceTv;
-    sp<ISurface> mSurfaceDlp;
+    sp<ISurface> mSurface1;
+    sp<ISurface> mSurface2;
 
     float alpha1;
     float alpha2;
@@ -175,43 +171,15 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     int bytesPerPixel2 = 2;
 
     // now request an overlay
-    sp<ISurface> firstSurface;
-    sp<SurfaceComposerClient> firstClient;
-    sp<SurfaceControl> firstSurfaceCtrl;
+    sp<ISurface> firstSurface = mSurface1;
+    sp<SurfaceComposerClient> firstClient = mClient1;
+    sp<SurfaceControl> firstSurfaceCtrl = mSurfaceCtrl1;
     sp<OverlayRef> ref1;
 
-    sp<ISurface> secondSurface;
-    sp<SurfaceComposerClient> secondClient;
-    sp<SurfaceControl> secondSurfaceCtrl;
+    sp<ISurface> secondSurface = mSurface2;
+    sp<SurfaceComposerClient> secondClient = mClient2;
+    sp<SurfaceControl> secondSurfaceCtrl = mSurfaceCtrl2;
     sp<OverlayRef> ref2;
-
-    switch(panel1)
-    {
-    case 0:
-        firstSurface = mSurfaceLcd1;
-        firstClient = mClient1;
-        firstSurfaceCtrl = mSurfaceCtrlLcd1;
-        break;
-    case 1:
-        firstSurface = mSurfaceLcd2;
-        firstClient = mClient2;
-        firstSurfaceCtrl = mSurfaceCtrlLcd2;
-        break;
-    case 2:
-        firstSurface = mSurfaceTv;
-        firstClient = mClient1;
-        firstSurfaceCtrl = mSurfaceCtrlTv;
-        break;
-    case 3:
-        firstSurface = mSurfaceDlp;
-        firstClient = mClient2;
-        firstSurfaceCtrl = mSurfaceCtrlDlp;
-        break;
-    default:
-        firstSurface = mSurfaceLcd1;
-        firstClient = mClient1;
-        firstSurfaceCtrl = mSurfaceCtrlLcd1;
-    };
 
     int format;
     switch(fmt1)
@@ -291,34 +259,6 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
 
     if (img2 != NULL)
     {
-        switch(panel2)
-        {
-        case 0:
-            secondSurface = mSurfaceLcd1;
-            secondClient = mClient1;
-            secondSurfaceCtrl = mSurfaceCtrlLcd1;
-            break;
-        case 1:
-            secondSurface = mSurfaceLcd2;
-            secondClient = mClient2;
-            secondSurfaceCtrl = mSurfaceCtrlLcd2;
-            break;
-        case 2:
-            secondSurface = mSurfaceTv;
-            secondClient = mClient1;
-            secondSurfaceCtrl = mSurfaceCtrlTv;
-            break;
-        case 3:
-            secondSurface = mSurfaceDlp;
-            secondClient = mClient2;
-            secondSurfaceCtrl = mSurfaceCtrlDlp;
-            break;
-        default:
-            secondSurface = mSurfaceLcd1;
-            secondClient = mClient1;
-            secondSurfaceCtrl = mSurfaceCtrlLcd1;
-        };
-
     int format;
     switch(fmt2)
     {
@@ -374,6 +314,8 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         LOGE("NoMemory for overlay[%d]", __LINE__);
         return;
     }
+    mOverlay2->setParameter(OVERLAY_NUM_BUFFERS, 10);
+    mOverlay2->resizeInput(w2, h2);
     }
 
     firstClient->openTransaction();
@@ -414,6 +356,9 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
     firstSurfaceCtrl->setAlpha(alpha1);
     firstClient->closeTransaction();
 
+    //Set Display ID on ISurface directly
+    firstSurface->setDisplayId(panel1);
+
     if (img2 != NULL)
     {
         secondClient->openTransaction();
@@ -452,6 +397,10 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         }
     secondSurfaceCtrl->setAlpha(alpha2);
     secondClient->closeTransaction();
+
+    //Set Display ID on ISurface directly
+    secondSurface->setDisplayId(panel2);
+
     }
 
     int filedes1 = -1;
@@ -538,7 +487,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
             close(filedes2);
             return;
         }
-        mBuffers1[i2] = data2->ptr;
+        mBuffers2[i2] = data2->ptr;
         }
     }
 
@@ -902,9 +851,9 @@ void OverlayTest::testErrorScenarios()
     *<15>call resizeInput multiple times
     */
 
-    sp<ISurface> firstSurface = mSurfaceLcd1;
+    sp<ISurface> firstSurface = mSurface1;
     sp<SurfaceComposerClient> firstClient = mClient1;
-    sp<SurfaceControl> firstSurfaceCtrl = mSurfaceCtrlLcd1;
+    sp<SurfaceControl> firstSurfaceCtrl = mSurfaceCtrl1;
     sp<OverlayRef> ref1;
 
     /** create overlay with invalid sizes*/
@@ -1101,27 +1050,71 @@ void OverlayTest::testErrorScenarios()
     //set invalid screen ID
     // create pushbuffer surface for Invalid screen and virtual sink
     //surface would be created normally, but for the default screen:Primary LCD
-    mSurfaceCtrlDlp = (mClient2->createSurface(getpid(), OVERLAY_ON_VIRTUAL_SINK, LCD_WIDTH, LCD_HEIGHT,
+    mSurfaceCtrl2 = (mClient2->createSurface(getpid(), OVERLAY_ON_VIRTUAL_SINK, LCD_WIDTH, LCD_HEIGHT,
     PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
-    RET_CHECK_NOTEQ(mSurfaceCtrlDlp, NULL, __LINE__);
+    RET_CHECK_NOTEQ(mSurfaceCtrl2, NULL, __LINE__);
 
     // create pushbuffer surface for Invalid screen and virtual sink
-    mSurfaceCtrlDlp = (mClient2->createSurface(getpid(), OVERLAY_ON_VIRTUAL_SINK+1, LCD_WIDTH, LCD_HEIGHT,
+    mSurfaceCtrl2 = (mClient2->createSurface(getpid(), OVERLAY_ON_VIRTUAL_SINK+1, LCD_WIDTH, LCD_HEIGHT,
     PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
-    RET_CHECK_NOTEQ(mSurfaceCtrlDlp, NULL, __LINE__);
+    RET_CHECK_NOTEQ(mSurfaceCtrl2, NULL, __LINE__);
 
     sp<OverlayRef> ref2;
     sp<OverlayRef> ref3;
     sp<OverlayRef> ref4;
 
     //correct format & size: 2nd overlay
-    ref2 = mSurfaceLcd2->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
+    ref2 = mSurface2->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_NOTEQ(ref2, NULL, __LINE__);
+
+    //create two  more surfaces for error scenario testing
+    sp<SurfaceControl> mSurfaceCtrl3;
+    sp<SurfaceControl> mSurfaceCtrl4;
+
+    sp<ISurface> mSurface3;
+    sp<ISurface> mSurface4;
+
+    // create pushbuffer surface
+    mSurfaceCtrl3 = (mClient1->createSurface(getpid(), OVERLAY_ON_PRIMARY, LCD_WIDTH, LCD_HEIGHT,
+                        PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
+    if (mSurfaceCtrl3 == NULL)
+    {
+        LOGE("No Memory[%d]", __LINE__);
+        return;
+    }
+
+    // get to the isurface
+    Test::getISurface(mSurfaceCtrl3);
+    mSurface3 = mSurface;
+    if (mSurface3 == NULL)
+    {
+        LOGE("No Memory[%d]", __LINE__);
+        return;
+    }
+
+    // create pushbuffer surface
+    mSurfaceCtrl4 = (mClient2->createSurface(getpid(), OVERLAY_ON_PRIMARY, LCD_WIDTH, LCD_HEIGHT,
+                        PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
+    if (mSurfaceCtrl4 == NULL)
+    {
+        LOGE("No Memory[%d]", __LINE__);
+        return;
+    }
+
+    // get to the isurface
+    Test::getISurface(mSurfaceCtrl4);
+    mSurface4 = mSurface;
+    if (mSurface4 == NULL)
+    {
+        LOGE("No Memory[%d]", __LINE__);
+        return;
+    }
+
     //correct format & size: 3rd Overlay
-    ref3 = mSurfaceTv->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
+    ref3 = mSurface3->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref3, NULL, __LINE__);
     //correct format & size 4th Overlay
-    ref4 = mSurfaceDlp->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
+    ref4 = mSurface4->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref4, NULL, __LINE__);
 
     mOverlay1->destroy();
@@ -1148,18 +1141,18 @@ int OverlayTest::init()
         return -1;
     }
     // create pushbuffer surface
-    mSurfaceCtrlLcd1 = (mClient1->createSurface(getpid(), OVERLAY_ON_PRIMARY, LCD_WIDTH, LCD_HEIGHT,
+    mSurfaceCtrl1 = (mClient1->createSurface(getpid(), OVERLAY_ON_PRIMARY, LCD_WIDTH, LCD_HEIGHT,
                         PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
-    if (mSurfaceCtrlLcd1 == NULL)
+    if (mSurfaceCtrl1 == NULL)
     {
         LOGE("No Memory[%d]", __LINE__);
         return -1;
     }
 
     // get to the isurface
-    Test::getISurface(mSurfaceCtrlLcd1);
-    mSurfaceLcd1 = mSurface;
-    if (mSurfaceLcd1 == NULL)
+    Test::getISurface(mSurfaceCtrl1);
+    mSurface1 = mSurface;
+    if (mSurface1 == NULL)
     {
         LOGE("No Memory[%d]", __LINE__);
         return -1;
@@ -1173,58 +1166,23 @@ int OverlayTest::init()
         return -1;
     }
     // create pushbuffer surface
-    mSurfaceCtrlLcd2 = (mClient2->createSurface(getpid(), OVERLAY_ON_SECONDARY, LCD_WIDTH, LCD_HEIGHT,
+    mSurfaceCtrl2 = (mClient2->createSurface(getpid(), OVERLAY_ON_PRIMARY, LCD_WIDTH, LCD_HEIGHT,
                         PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
-    if (mSurfaceCtrlLcd2 == NULL)
+    if (mSurfaceCtrl2 == NULL)
     {
         LOGE("No Memory[%d]", __LINE__);
         return -1;
     }
 
     // get to the isurface
-    Test::getISurface(mSurfaceCtrlLcd2);
-    mSurfaceLcd2 = mSurface;
-    if (mSurfaceLcd2 == NULL)
+    Test::getISurface(mSurfaceCtrl2);
+    mSurface2 = mSurface;
+    if (mSurface2 == NULL)
     {
         LOGE("No Memory[%d]", __LINE__);
         return -1;
     }
 
-    // create pushbuffer surface
-    mSurfaceCtrlTv = (mClient1->createSurface(getpid(), OVERLAY_ON_TV, LCD_WIDTH, LCD_HEIGHT,
-                    PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
-    if (mSurfaceCtrlTv == NULL)
-    {
-        LOGE("No Memory[%d]", __LINE__);
-        return -1;
-    }
-
-    // get to the isurface
-    Test::getISurface(mSurfaceCtrlTv);
-    mSurfaceTv = mSurface;
-    if (mSurfaceTv == NULL)
-    {
-        LOGE("No Memory[%d]", __LINE__);
-        return -1;
-    }
-
-    // create pushbuffer surface
-    mSurfaceCtrlDlp = (mClient2->createSurface(getpid(), OVERLAY_ON_PICODLP, LCD_WIDTH, LCD_HEIGHT,
-                    PIXEL_FORMAT_UNKNOWN, ISurfaceComposer::ePushBuffers | ISurfaceComposer::eFXSurfaceNormal));
-    if (mSurfaceCtrlDlp == NULL)
-    {
-        LOGE("No Memory[%d]", __LINE__);
-        return -1;
-    }
-
-    // get to the isurface
-    Test::getISurface(mSurfaceCtrlDlp);
-    mSurfaceDlp = mSurface;
-    if (mSurfaceDlp == NULL)
-    {
-        LOGE("No Memory[%d]", __LINE__);
-        return -1;
-    }
     resetParams();
     return 0;
     LOGE("init--");
