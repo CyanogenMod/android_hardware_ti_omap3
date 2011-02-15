@@ -676,7 +676,6 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
 
     if ((pipelineId >= 0) && (pipelineId <= MAX_NUM_OVERLAYS)) {
         sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
-        sprintf(overlayobj->overlayzorderpath, "/sys/devices/platform/omapdss/overlay%d/zorder", pipelineId);
         sprintf(overlayobj->overlayenabled, "/sys/devices/platform/omapdss/overlay%d/enabled", pipelineId);
     }
     //lets reset the manager to the lcd to start with
@@ -709,17 +708,9 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     /* Enable the video zorder and video transparency
     * for the controls to be visible on top of video, give the graphics highest zOrder
     **/
-
-    if (sysfile_write("sys/devices/platform/omapdss/overlay0/zorder", "3",  strlen("0")) < 0) {
-        goto error1;
-    }
-
-    if (sysfile_write("sys/devices/platform/omapdss/overlay1/zorder", "3",  strlen("0")) < 0) {
-        goto error1;
-    }
-
     if (!isS3D) {
-        if (sysfile_write(overlayobj->overlayzorderpath, "1",  strlen("0")) < 0) {
+        if ((ret = v4l2_overlay_set_zorder(fd, 1))) {
+            LOGE("Failed setting zorder\n");
             goto error1;
         }
     }
@@ -1048,9 +1039,9 @@ int overlay_control_context_t::overlay_setParameter(struct overlay_control_devic
         stage->alpha = MIN(value, 0xFF);
         break;
     case OVERLAY_PLANE_Z_ORDER:
-        //limit the max value of z-order to hw limit i.e.3
-        //make sure that video is behind graphics so it to only 2
-        stage->zorder = MIN(value, 2);
+        //limit the max value of z-order to hw limit i.e.3 and gfx and vid1 are 3 & 2 respectively
+        //make sure that video is behind graphics so it to either 0 or 1
+        stage->zorder = MIN(value, 1);
         break;
     case OVERLAY_SET_DISPLAY_WIDTH:
         overlayobj->dispW = value;
@@ -1148,6 +1139,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     data->rotation   = stage->rotation;
     data->alpha      = stage->alpha;
     data->colorkey   = stage->colorkey;
+    data->zorder     = stage->zorder;
 
     // Adjust the coordinate system to match the V4L change
     switch ( data->rotation ) {
@@ -1369,18 +1361,13 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 #ifdef TARGET_OMAP4
     //Currently not supported with V4L2_S3D driver
     if (!overlayobj->mData.s3d_active) {
-        if (data->zorder != stage->zorder) {
-            data->zorder = stage->zorder;
-            //Set up the z-order for the overlay:
-            //TBD:Surface flinger or the driver has to re-work the zorder of all the
-            //other active overlays for a given manager to service the current request.
-            char z_order[16];
-            sprintf(z_order, "%d", data->zorder);
-            if (sysfile_write(overlayobj->overlayzorderpath, &z_order,  strlen("0")) < 0) {
-                LOGE("zorder setting failed");
-                ret = -1;
-                goto end;
-            }
+        //Set up the z-order for the overlay:
+        //TBD:Surface flinger or the driver has to re-work the zorder of all the
+        //other active overlays for a given manager to service the current request.
+        if ((ret = v4l2_overlay_set_zorder(fd, stage->zorder))) {
+             LOGE("Failed setting zorder\n");
+             goto end;
+
         }
     }
 #endif

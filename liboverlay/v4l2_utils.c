@@ -486,6 +486,37 @@ int v4l2_overlay_set_colorkey(int fd, int enable, int colorkey)
     return ret;
 }
 
+int v4l2_overlay_set_zorder(int fd, int value)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_format fmt;
+    memset(&fmt, 0, sizeof(fmt));
+    fmt.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &fmt, "get zorder");
+    if (ret)
+        return ret;
+
+    fmt.fmt.win.zorder = value & 0x3;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &fmt, "set zorder");
+    return ret;
+}
+
+int v4l2_overlay_get_zorder(int fd, int* value)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_format fmt;
+    memset(&fmt, 0, sizeof(fmt));
+    fmt.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &fmt, "get zorder");
+    if (ret)
+        return ret;
+
+    *value = fmt.fmt.win.zorder;
+    return ret;
+}
+
 int v4l2_overlay_set_global_alpha(int fd, int enable, int alpha)
 {
     LOG_FUNCTION_NAME

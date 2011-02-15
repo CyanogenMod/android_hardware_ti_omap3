@@ -135,7 +135,6 @@ public:
     int attributes_changed;
 
     char overlaymanagerpath[PATH_MAX];
-    char overlayzorderpath[PATH_MAX];
     char overlayenabled[PATH_MAX];
 
     struct displayMetaData {
