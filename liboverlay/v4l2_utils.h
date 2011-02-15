@@ -26,16 +26,30 @@
 #define OVERLAY_FORMAT_ARGB_8888 100
 #define OVERLAY_FORMAT_ARGB_4444 200
 
+typedef struct
+{
+    int fd;
+    size_t length;
+    uint32_t offset;
+    void *ptr;
+} mapping_data_t;
+
+enum
+{
+    EMEMORY_MMAP   = 0x0,
+    EMEMORY_USRPTR = 0x1
+};
+
 int v4l2_overlay_open(int id);
 int v4l2_overlay_get_caps(int fd, struct v4l2_capability *caps);
-int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers, int maintain_coherency);
+int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers, int maintain_coherency, int memtype);
 int v4l2_overlay_query_buffer(int fd, int index, struct v4l2_buffer *buf);
 int v4l2_overlay_map_buf(int fd, int index, void **start, size_t *len);
 int v4l2_overlay_unmap_buf(void *start, size_t len);
 int v4l2_overlay_stream_on(int fd);
 int v4l2_overlay_stream_off(int fd);
-int v4l2_overlay_q_buf(int fd, int index);
-int v4l2_overlay_dq_buf(int fd, int *index);
+int v4l2_overlay_q_buf(int fd, int index, int memtype, void* buffer, size_t length);
+int v4l2_overlay_dq_buf(int fd, int *index, int memtype, void* buffer, size_t length);
 int v4l2_overlay_init(int fd, uint32_t w, uint32_t h, uint32_t fmt);
 int v4l2_overlay_get_input_size(int fd, uint32_t *w, uint32_t *h, uint32_t *fmt);
 int v4l2_overlay_set_position(int fd, int32_t x, int32_t y, int32_t w,
@@ -67,14 +81,6 @@ enum {
   V4L2_OVERLAY_PLANE_VIDEO1,
   V4L2_OVERLAY_PLANE_VIDEO2,
 };
-
-typedef struct
-{
-  int fd;
-  size_t length;
-  uint32_t offset;
-  void *ptr;
-} mapping_data_t;
 
 /* this constant should be insync with that defined in kernel v4l2 header
 */

@@ -536,7 +536,7 @@ int v4l2_overlay_set_local_alpha(int fd, int enable)
     return ret;
 }
 
-int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers, int maintain_coherency)
+int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers, int maintain_coherency, int memtype)
 {
     LOG_FUNCTION_NAME
 
@@ -544,6 +544,10 @@ int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers, int 
     int ret, i;
     reqbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     reqbuf.memory = V4L2_MEMORY_MMAP;
+    if (memtype == EMEMORY_USRPTR)
+    {
+        reqbuf.memory = V4L2_MEMORY_USERPTR;
+    }
     reqbuf.count = *num_bufs;
     reqbuf.reserved[0] = cacheable_buffers | (maintain_coherency << 1); /* Bit 0 = cacheable_buffers, Bit 1 = maintain_coherency */
     LOGV("reqbuf.reserved[0] = %x", reqbuf.reserved[0]);
@@ -651,7 +655,7 @@ int v4l2_overlay_stream_off(int fd)
     return v4l2_overlay_ioctl(fd, VIDIOC_STREAMOFF, &type, "stream off");
 }
 
-int v4l2_overlay_q_buf(int fd, int index)
+int v4l2_overlay_q_buf(int fd, int index, int memtype, void* buffer, size_t length)
 {
     //LOG_FUNCTION_NAME
     struct v4l2_buffer buf;
@@ -669,12 +673,18 @@ int v4l2_overlay_q_buf(int fd, int index)
     buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     buf.index = index;
     buf.memory = V4L2_MEMORY_MMAP;
+    if (memtype == EMEMORY_USRPTR)
+    {
+        buf.memory = V4L2_MEMORY_USERPTR;
+        buf.m.userptr = (unsigned long)buffer;
+        buf.length = length;
+    }
     buf.flags = 0;
 
     return v4l2_overlay_ioctl(fd, VIDIOC_QBUF, &buf, "qbuf");
 }
 
-int v4l2_overlay_dq_buf(int fd, int *index)
+int v4l2_overlay_dq_buf(int fd, int *index, int memtype, void* buffer, size_t length)
 {
     struct v4l2_buffer buf;
     int ret;
@@ -703,7 +713,12 @@ int v4l2_overlay_dq_buf(int fd, int *index)
 
     buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     buf.memory = V4L2_MEMORY_MMAP;
-
+    if (memtype == EMEMORY_USRPTR)
+    {
+        buf.memory = V4L2_MEMORY_USERPTR;
+        buf.m.userptr = (unsigned long)buffer;
+        buf.length = length;
+    }
     ret = v4l2_overlay_ioctl(fd, VIDIOC_DQBUF, &buf, "dqbuf");
     if (ret)
       return errno;

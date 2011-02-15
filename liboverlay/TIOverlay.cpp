@@ -57,6 +57,7 @@ extern "C" {
 #define PANEL_NAME_FOR_TV "tv"
 #endif
 
+const int KCloneDevice = OVERLAY_ON_PRIMARY;
 
 static displayPanelMetaData screenMetaData[MAX_DISPLAY_CNT];
 static displayManagerMetaData managerMetaData[MAX_MANAGER_CNT];
@@ -479,17 +480,26 @@ int overlay_data_context_t::enable_streaming_locked(overlay_object* overlayobj, 
         return -1;
     }
     overlayobj->streamEn = 1;
-    int fd;
+    int fd, linkfd;
     if (isDatapath) {
         fd = overlayobj->getdata_videofd();
+        linkfd = overlayobj->getdata_linkvideofd();
     }
     else {
         fd = overlayobj->getctrl_videofd();
+        linkfd = overlayobj->getctrl_linkvideofd();
     }
     rc = v4l2_overlay_stream_on(fd);
     if (rc) {
         LOGE("Stream Enable Failed!/%d\n", rc);
         overlayobj->streamEn = 0;
+    }
+    if (linkfd > 0) {
+        rc = v4l2_overlay_stream_on(linkfd);
+        if (rc) {
+            LOGE("link device Stream Enable Failed!/%d\n", rc);
+            overlayobj->streamEn = 0;
+        }
     }
     LOG_FUNCTION_NAME_EXIT
     return rc;
@@ -523,13 +533,21 @@ int overlay_data_context_t::disable_streaming_locked(overlay_object* overlayobj,
 
     if (overlayobj->streamEn) {
         int fd;
+        int linkfd;
+
         if (isDatapath) {
             fd = overlayobj->getdata_videofd();
+            linkfd = overlayobj->getdata_linkvideofd();
         }
         else {
             fd = overlayobj->getctrl_videofd();
+            linkfd = overlayobj->getctrl_linkvideofd();
         }
         ret = v4l2_overlay_stream_off( fd );
+        if (linkfd > 0 ) {
+            v4l2_overlay_stream_off( linkfd );
+        }
+
         if (ret) {
             LOGE("Stream Off Failed!/%d\n", ret);
         } else {
@@ -746,11 +764,9 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
         goto error1;
     }
-
-
 #endif
 
-    if (v4l2_overlay_req_buf(fd, &num, 0, 0)) {
+    if (v4l2_overlay_req_buf(fd, &num, 0, 0, EMEMORY_MMAP)) {
         LOGE("Failed requesting buffers\n");
         goto error1;
     }
@@ -775,6 +791,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     self->mOmapOverlays[overlayid] = overlayobj;
 
     LOGD("overlay_createOverlay: OUT");
+
     return overlayobj;
 
     LOG_FUNCTION_NAME_EXIT;
@@ -789,6 +806,73 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
 {
     // For Non-3D case
     return overlay_createOverlay(dev, w, h, format, 0);
+}
+
+int overlay_control_context_t::overlay_requestOverlayClone(struct overlay_control_device_t* dev,
+                                                           overlay_t* overlay,int enable)
+{
+    overlay_control_context_t *self = (overlay_control_context_t *)dev;
+    overlay_object *overlayobj = static_cast<overlay_object *>(overlay);
+    LOGD("TIOVerlay: req Clone[%d]", enable);
+
+    int overlayid = -1;
+    int linkfd = -1;
+    if (!enable) {
+        linkfd = overlayobj->getctrl_linkvideofd();
+        if (linkfd > 0) {
+            overlayobj->setctrl_linkvideofd(-1);
+            close(linkfd);
+            return -1;
+        }
+    }
+
+    //NOTE : do we need mutex protection here??
+    //may not be needed here, because Overlay creation happens only from Surface flinger context
+    for (int i = 0; i < MAX_NUM_OVERLAYS; i++) {
+        if (self->mOmapOverlays[i] == NULL) {
+            overlayid = i;
+            break;
+        }
+    }
+
+    if (overlayid < 0) {
+        LOGE("No free overlay available");
+        return -1;
+    }
+
+    linkfd = v4l2_overlay_open(overlayid);
+    if (linkfd < 0) {
+        LOGE("Failed to open overlay linked device\n");
+        return -1;
+    }
+
+    if (v4l2_overlay_init(linkfd, overlayobj->w, overlayobj->h, overlayobj->format)) {
+        LOGE("Failed initializing overlays\n");
+        goto error1;
+    }
+
+    if (v4l2_overlay_set_rotation(linkfd, 0, 0)) {
+        LOGE("Failed defaulting rotation\n");
+        goto error1;
+    }
+
+    if (v4l2_overlay_set_crop(linkfd, 0, 0, overlayobj->w, overlayobj->h)) {
+        LOGE("Failed defaulting crop window\n");
+        goto error1;
+    }
+
+    if (v4l2_overlay_req_buf(linkfd, (uint32_t*)&overlayobj->num_buffers, 0, 0, EMEMORY_USRPTR)) {
+        LOGE("Error creating linked buffers1");
+        goto error1;
+    }
+
+    overlayobj->setctrl_linkvideofd(linkfd);
+    LOGD("link_fd = %d", linkfd);
+    return (linkfd);
+
+error1:
+    close(linkfd);
+    return -1;
 }
 
 void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_device_t *dev,
@@ -806,6 +890,7 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
 
     int rc;
     int fd = overlayobj->getctrl_videofd();
+    int linkfd = overlayobj->getctrl_linkvideofd();
     int index = overlayobj->getIndex();
 
     overlay_data_context_t::disable_streaming(overlayobj, false);
@@ -821,6 +906,12 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
 
     if (close(fd)) {
         LOGI( "Error closing overly fd/%d\n", errno);
+    }
+
+    if (linkfd > 0 ) {
+        if (close(linkfd)) {
+            LOGI( "Error closing link fd/%d\n", errno);
+        }
     }
 
     self->destroy_shared_overlayobj(overlayobj);
@@ -1377,11 +1468,193 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 #endif
 
+    if (overlayobj->getctrl_linkvideofd() > 0) {
+        CommitLinkDevice(dev, overlayobj);
+    }
+
 end:
     pthread_mutex_unlock(&overlayobj->lock);
     LOG_FUNCTION_NAME_EXIT;
     return ret;
 
+}
+
+
+/**
+* Precondition:
+* This function has to be called after setting the crop window parameters
+*/
+void overlay_control_context_t::calculateLinkWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow, int panelId)
+{
+    LOG_FUNCTION_NAME_ENTRY
+    /*
+    * If default UI is on TV, android UI will receive 1920x1080 for screen size, and w & h will be 1920x1080 by default.
+    * It will remain 1920x1080 even if overlay is requested on LCD. A better choice would be to query the display size:
+    * and use the full resolution only for TV, for LCD lets respect whatever surface flinger asks for: this is required to
+    * maintain the aspect ratio decided by media player
+    */
+    uint32_t dummy, w2, h2;
+    if (sscanf(screenMetaData[panelId].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
+        &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
+        w2 = finalWindow->posW;
+        h2 = finalWindow->posH; /* use default value, if could not read timings */
+    }
+    LOGD("calculateWindow(): w2=%d, h2=%d", w2, h2);
+    overlay_ctrl_t   *data   = overlayobj->data();
+    switch (panelId) {
+        case OVERLAY_ON_PRIMARY:
+        case OVERLAY_ON_SECONDARY:
+        case OVERLAY_ON_PICODLP:
+            LOGD("Nothing to Adjust");
+            // Adjust the coordinate system to match the V4L change
+            switch ( data->rotation ) {
+                case 90:
+                    finalWindow->posX = data->posY;
+                    finalWindow->posY = data->posX;
+                    finalWindow->posW = data->posH;
+                    finalWindow->posH = data->posW;
+                    break;
+                case 180:
+                    finalWindow->posX = ((overlayobj->dispW - data->posX) - data->posW);
+                    finalWindow->posY = ((overlayobj->dispH - data->posY) - data->posH);
+                    finalWindow->posW = data->posW;
+                    finalWindow->posH = data->posH;
+                    break;
+                case 270:
+                    finalWindow->posX = data->posY;
+                    finalWindow->posY = data->posX;
+                    finalWindow->posW = data->posH;
+                    finalWindow->posH = data->posW;
+                    break;
+                default: // 0
+                    finalWindow->posX = data->posX;
+                    finalWindow->posY = data->posY;
+                    finalWindow->posW = data->posW;
+                    finalWindow->posH = data->posH;
+                    break;
+            }
+            break;
+        case OVERLAY_ON_TV:
+            {
+                finalWindow->posX = 0;
+                finalWindow->posY= 0;
+                if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
+                    finalWindow->posW= w2;
+                    finalWindow->posH= overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
+                    finalWindow->posY = (h2 - finalWindow->posH) / 2;
+                } else {
+                    finalWindow->posH = h2;
+                    finalWindow->posW = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
+                    finalWindow->posX = (w2 - finalWindow->posW) / 2;
+                }
+            LOGD("calculateWindow(): posW=%d, posH=%d, cropW=%d, cropH=%d",
+                finalWindow->posW, finalWindow->posH, overlayobj->mData.cropW, overlayobj->mData.cropH);
+            }
+            break;
+        default:
+            LOGE("Leave the default  values");
+        };
+        LOG_FUNCTION_NAME_EXIT
+}
+
+int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t *dev,
+                          overlay_object* overlayobj) {
+    LOG_FUNCTION_NAME_ENTRY;
+    if ((dev == NULL) || (overlayobj == NULL)) {
+        LOGE("Null Arguments / Overlay not initd");
+        return -1;
+    }
+
+    overlay_control_context_t *self = (overlay_control_context_t *)dev;
+    int pipelineId = -1;
+    overlay_ctrl_t   *data   = overlayobj->data();
+    int ret = 0;
+    overlay_ctrl_t finalWindow;
+    int linkfd = overlayobj->getctrl_linkvideofd();
+    overlay_data_t eCropData;
+
+    pthread_mutex_lock(&overlayobj->lock);
+
+    //Calculate window size. As of now this is applicable only for non-LCD panels
+    calculateLinkWindow(overlayobj, &finalWindow, KCloneDevice);
+
+    LOGI("Link Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
+    LOGI("Link Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
+    LOGI("Rotation/%d\n", data->rotation );
+    LOGI("alpha/%d\n", data->alpha );
+    LOGI("zorder/%d\n", data->zorder );
+
+    // Disable streaming to ensure that stream_on is called again which indirectly sets overlayenabled to 1
+    if ((ret = overlay_data_context_t::disable_streaming_locked(overlayobj, false))) {
+        LOGE("Stream Off Failed!/%d\n", ret);
+        goto end;
+    }
+
+    if ((ret = v4l2_overlay_get_crop(linkfd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
+        LOGE("commit:Get crop value Failed!/%d\n", ret);
+        goto end;
+    }
+
+    if ((ret = v4l2_overlay_set_rotation(linkfd, data->rotation, 0))) {
+        LOGE("Set Rotation Failed!/%d\n", ret);
+        goto end;
+    }
+
+    if ((ret = v4l2_overlay_set_crop(linkfd,
+                    eCropData.cropX,
+                    eCropData.cropY,
+                    eCropData.cropW,
+                    eCropData.cropH))) {
+        LOGE("Set Cropping Failed!/%d\n",ret);
+        goto end;
+    }
+
+    v4l2_overlay_getId(linkfd, &pipelineId);
+
+    if ((pipelineId >= 0) && (pipelineId <= MAX_NUM_OVERLAYS)) {
+        char overlaymanagerpath[PATH_MAX];
+        sprintf(overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
+        static const char* managername = "lcd";
+        switch(KCloneDevice){
+            case OVERLAY_ON_PRIMARY: {
+                LOGD("REQUEST FOR LCD1");
+                managername = "lcd";
+            }
+            break;
+            case OVERLAY_ON_SECONDARY: {
+                LOGD("REQUEST FOR LCD2");
+                managername ="2lcd";
+            }
+            break;
+            case OVERLAY_ON_TV: {
+                LOGD("REQUEST FOR TV");
+                managername = "tv";
+            }
+            break;
+            case OVERLAY_ON_PICODLP: {
+                LOGD("REQUEST FOR PICO DLP");
+                managername = "2lcd";
+            }
+            break;
+            case OVERLAY_ON_VIRTUAL_SINK:
+                LOGD("REQUEST FOR VIRTUAL SINK: Setting the Default display for now");
+            default: {
+                managername = "lcd";
+            }
+        break;
+        };
+        sysfile_write(overlaymanagerpath, managername, sizeof("2lcd"));
+    }
+
+    if ((ret = v4l2_overlay_set_position(linkfd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
+        LOGE("Set Position Failed!/%d\n", ret);
+        goto end;
+    }
+
+end:
+    pthread_mutex_unlock(&overlayobj->lock);
+    LOG_FUNCTION_NAME_EXIT;
+    return ret;
 }
 
 int overlay_control_context_t::overlay_control_close(struct hw_device_t *dev)
@@ -1429,7 +1702,6 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
     int ovlyfd = static_cast<const struct handle_t *>(handle)->overlayobj_sharedfd;
     int size = static_cast<const struct handle_t *>(handle)->overlayobj_size;
     int video_fd = static_cast<const struct handle_t *>(handle)->video_fd;
-
     overlay_object* overlayobj = overlay_control_context_t::open_shared_overlayobj(ovlyfd, size);
     if (overlayobj == NULL) {
         LOGE("Overlay Initialization failed");
@@ -1505,6 +1777,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     uint32_t numb = NUM_OVERLAY_BUFFERS_REQUESTED;
     overlay_data_t eCropData;
     int degree = 0;
+    int link_fd = -1;
 
     // Position and output width and heigh
     int32_t _x = 0;
@@ -1534,6 +1807,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
 
     int fd = ctx->omap_overlay->getdata_videofd();
     overlay_ctrl_t *stage = ctx->omap_overlay->staging();
+    int linkfd = ctx->omap_overlay->getdata_linkvideofd();
 
     if ((ctx->omap_overlay->w == (unsigned int)w) && (ctx->omap_overlay->h == (unsigned int)h) && (ctx->omap_overlay->attributes_changed == 0)){
         LOGE("Same as current width and height. Attributes did not change either. So do nothing.");
@@ -1600,7 +1874,15 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         goto end;
     }
 
-    if ((ret = v4l2_overlay_req_buf(fd, (uint32_t *)(&ctx->omap_overlay->num_buffers), ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency))) {
+    if (link_fd > 0) {
+        if ((ret = v4l2_overlay_req_buf(linkfd, (uint32_t *)(&ctx->omap_overlay->num_buffers),
+            ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency, EMEMORY_USRPTR))) {
+            LOGE("Error creating linked buffers2");
+            goto end;
+        }
+    }
+
+    if ((ret = v4l2_overlay_req_buf(fd, (uint32_t *)(&ctx->omap_overlay->num_buffers), ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency, EMEMORY_MMAP))) {
         LOGE("Error creating buffers");
         goto end;
     }
@@ -1640,11 +1922,6 @@ int overlay_data_context_t::overlay_data_setParameter(struct overlay_data_device
         return -1;
     }
 
-    if ( ctx->omap_overlay->dataReady ) {
-        LOGI("Too late. Cant set it now!\n");
-        return -1;
-    }
-
     switch(param) {
     case CACHEABLE_BUFFERS:
         ctx->omap_overlay->cacheable_buffers = value;
@@ -1670,6 +1947,17 @@ int overlay_data_context_t::overlay_data_setParameter(struct overlay_data_device
         ctx->omap_overlay->num_buffers = MIN(value, NUM_OVERLAY_BUFFERS_MAX);
         ctx->omap_overlay->attributes_changed = 1;
         break;
+
+    case SET_CLONE_FD:
+        if (value <= 0) {
+            int linkfd = ctx->omap_overlay->getdata_linkvideofd();
+            if (linkfd >= 0) {
+                ctx->omap_overlay->setdata_linkvideofd(-1);
+                close(linkfd);
+            }
+            return 0;
+        }
+        ctx->omap_overlay->setdata_linkvideofd(value);
     }
 
     LOG_FUNCTION_NAME_EXIT;
@@ -1765,10 +2053,13 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
     }
     if (ctx->omap_overlay->mData.cropX == x && ctx->omap_overlay->mData.cropY == y && ctx->omap_overlay->mData.cropW == w
         && ctx->omap_overlay->mData.cropH == h) {
-        //LOGI("Nothing to do!\n");
-        return 0;
+        LOGI("Nothing to do!\n");
+        if (ctx->omap_overlay->getdata_linkvideofd() <= 0) {
+            return 0;
+        }
     }
     int fd = ctx->omap_overlay->getdata_videofd();
+    int linkfd = ctx->omap_overlay->getdata_linkvideofd();
 
     pthread_mutex_lock(&ctx->omap_overlay->lock);
 
@@ -1823,10 +2114,26 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
             LOGE("Set Crop Window Failed!/%d\n", rc);
             goto end;
         }
+
         overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow);
         if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
             LOGD(" Could not set the position when setting the crop \n");
             goto end;
+        }
+
+        if (linkfd > 0) {
+            rc = v4l2_overlay_set_crop(linkfd, x, y, w, h);
+            if (rc) {
+                LOGE("LINK: Set Crop Window Failed!/%d\n", rc);
+                goto end;
+            }
+
+            overlay_control_context_t::calculateLinkWindow(ctx->omap_overlay, &finalWindow, KCloneDevice);
+
+            if ((rc = v4l2_overlay_set_position(linkfd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
+                LOGD(" LINK: Could not set the position when setting the crop \n");
+                goto end;
+            }
         }
     }
     else {
@@ -1844,6 +2151,12 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
         rc = v4l2_overlay_set_crop(fd, x, y, w, h);
         if (rc) {
             LOGE("Set Crop Window Failed!/%d\n", rc);
+        }
+        if (linkfd > 0) {
+            rc = v4l2_overlay_set_crop(linkfd, x, y, w, h);
+            if (rc) {
+                LOGE("Set Crop Window Failed!/%d\n", rc);
+            }
         }
     }
 #endif
@@ -1878,9 +2191,11 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
 
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
     int fd = ctx->omap_overlay->getdata_videofd();
-
+    int linkfd = ctx->omap_overlay->getdata_linkvideofd();
     int rc;
+    int rc1;
     int i = -1;
+    int ii = -1;
 
     pthread_mutex_lock(&ctx->omap_overlay->lock);
     if (ctx->omap_overlay->streamEn == 0) {
@@ -1893,7 +2208,7 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
         rc = -EPERM;
     }
 
-    else if ( (rc = v4l2_overlay_dq_buf(fd, &i )) != 0 ) {
+    else if ( (rc = v4l2_overlay_dq_buf(fd, &i, EMEMORY_MMAP, NULL, 0 )) != 0 ) {
         LOGE("Failed to DQ/%d\n", rc);
        //in order to recover from DQ failure scenario, let's disable the stream.
        //the stream gets re-enabled in the subsequent Q buffer call
@@ -1901,7 +2216,6 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
        rc = disable_streaming_locked(ctx->omap_overlay, true);
        if (rc == 0) { rc = -1; } //this is required for TIHardwareRenderer
     }
-
     else if ( i < 0 || i > ctx->omap_overlay->num_buffers ) {
         LOGE("dqbuffer i=%d",i);
         rc = -EPERM;
@@ -1911,6 +2225,13 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
         ctx->omap_overlay->qd_buf_count --;
         LOGV("INDEX DEQUEUE = %d", i);
         LOGV("qd_buf_count --");
+    }
+
+    if (linkfd > 0) {
+        if ( (rc1 = v4l2_overlay_dq_buf(linkfd, &ii, EMEMORY_USRPTR, ctx->omap_overlay->buffers[i],
+            ctx->omap_overlay->mapping_data->length)) != 0 ) {
+            LOGE("Failed to DQ link/%d\n", rc1);
+        }
     }
 
     LOGV("qd_buf_count = %d", ctx->omap_overlay->qd_buf_count);
@@ -1937,6 +2258,7 @@ int overlay_data_context_t::overlay_queueBuffer(struct overlay_data_device_t *de
         return -1;
     }
     int fd = ctx->omap_overlay->getdata_videofd();
+    int linkfd = ctx->omap_overlay->getdata_linkvideofd();
 
     if ( !ctx->omap_overlay->controlReady ) {
         LOGI("Control not ready but queue buffer requested!!!\n");
@@ -1952,13 +2274,23 @@ int overlay_data_context_t::overlay_queueBuffer(struct overlay_data_device_t *de
    noofbuffer++;
 #endif
 
-   pthread_mutex_lock(&ctx->omap_overlay->lock);
-   int rc = v4l2_overlay_q_buf(fd, (int)buffer);
-   if (rc < 0) {
-       LOGD("queueBuffer failed. rc = %d", rc);
-       rc = -EPERM;
-       goto EXIT;
-   }
+    pthread_mutex_lock(&ctx->omap_overlay->lock);
+
+    int rc = v4l2_overlay_q_buf(fd, (int)buffer, EMEMORY_MMAP, NULL, 0);
+    if (rc < 0) {
+        LOGD("queueBuffer failed. rc = %d", rc);
+        rc = -EPERM;
+        goto EXIT;
+    }
+
+    if (linkfd > 0) {
+        rc = v4l2_overlay_q_buf(linkfd, (int)buffer, EMEMORY_USRPTR, ctx->omap_overlay->buffers[(int)buffer],
+                  ctx->omap_overlay->mapping_data->length);
+        if (rc < 0) {
+            LOGE("link queueBuffer failed. rc = %d", rc);
+            rc = 0;
+        }
+    }
 
     if (ctx->omap_overlay->qd_buf_count < ctx->omap_overlay->num_buffers && rc == 0) {
         ctx->omap_overlay->qd_buf_count ++;
@@ -2011,6 +2343,7 @@ void* overlay_data_context_t::overlay_getBufferAddress(struct overlay_data_devic
     }
 
     return (void *)ctx->omap_overlay->mapping_data;
+
 }
 
 int overlay_data_context_t::overlay_getBufferCount(struct overlay_data_device_t *dev)
@@ -2057,6 +2390,11 @@ int overlay_data_context_t::overlay_data_close(struct hw_device_t *dev) {
         ctx->omap_overlay->mapping_data = NULL;
         ctx->omap_overlay->buffers = NULL;
         ctx->omap_overlay->buffers_len = NULL;
+
+        int linkfd = ctx->omap_overlay->getdata_linkvideofd();
+        if (linkfd >= 0) {
+            close(linkfd);
+        }
 
         pthread_mutex_unlock(&ctx->omap_overlay->lock);
 
@@ -2105,6 +2443,8 @@ static int overlay_device_open(const struct hw_module_t* module,
         dev->setParameter = overlay_control_context_t::overlay_setParameter;
         dev->stage = overlay_control_context_t::overlay_stage;
         dev->commit = overlay_control_context_t::overlay_commit;
+        //clone
+        dev->requestOverlayClone = overlay_control_context_t::overlay_requestOverlayClone;
 
         *device = &dev->common;
         for (int i = 0; i < MAX_NUM_OVERLAYS; i++)

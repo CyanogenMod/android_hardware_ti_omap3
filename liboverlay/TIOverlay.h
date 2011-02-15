@@ -101,6 +101,8 @@ class overlay_object : public overlay_t {
 public:
     handle_t mControlHandle;
     handle_t mDataHandle;
+    int mLinkVideoCtrlfd; //fd for the video device getting linked
+    int mLinkVideoDatafd; //fd for the video device getting linked
     uint32_t marker;
     volatile int32_t refCnt;
 
@@ -136,12 +138,12 @@ public:
     char overlayzorderpath[PATH_MAX];
     char overlayenabled[PATH_MAX];
 
-	struct displayMetaData {
-		int mPanelIndex;
-		int mManagerIndex;
-		int mTobeDisabledPanelIndex;
-		};
-	displayMetaData mDisplayMetaData;
+    struct displayMetaData {
+        int mPanelIndex;
+        int mManagerIndex;
+        int mTobeDisabledPanelIndex;
+        };
+    displayMetaData mDisplayMetaData;
     static overlay_handle_t getHandleRef(struct overlay_t* overlay) {
         /* returns a reference to the handle, caller doesn't take ownership */
         return &(static_cast<overlay_object *>(overlay)->mControlHandle);
@@ -162,7 +164,8 @@ public:
         this->h_stride = 0;
         this->format = format;
         this->num_buffers = numbuffers;
-
+        this->mLinkVideoCtrlfd = -1;
+        this->mLinkVideoDatafd = -1;
         memset( &mCtl, 0, sizeof( mCtl ) );
         memset( &mCtlStage, 0, sizeof( mCtlStage ) );
     }
@@ -171,6 +174,11 @@ public:
     int  getdata_videofd()const   { return mDataHandle.video_fd;}
     int  getctrl_ovlyobjfd()const {return mControlHandle.overlayobj_sharedfd;}
     int  getdata_ovlyobjfd()const {return mDataHandle.overlayobj_sharedfd;}
+
+    int  getctrl_linkvideofd()const {return mLinkVideoCtrlfd;}
+    int  getdata_linkvideofd()const {return mLinkVideoDatafd;}
+    void  setctrl_linkvideofd(int fd) {mLinkVideoCtrlfd = fd;}
+    void  setdata_linkvideofd(int fd) {mLinkVideoDatafd = fd;}
 
     int  getIndex() const    { return mControlHandle.overlayobj_index; }
     int  getsize() const    { return mControlHandle.overlayobj_size; }
@@ -206,6 +214,8 @@ public:
                               overlay_t* overlay);
     static int overlay_control_close(struct hw_device_t *dev);
 
+    static int overlay_requestOverlayClone(struct overlay_control_device_t* dev, overlay_t* overlay,int enable);
+
 public:
     /* this method has to index the correct overly object and map to the current process and
      * return the overlay object to the current data path.
@@ -214,9 +224,12 @@ public:
     static void destroy_shared_overlayobj(overlay_object *overlayobj, bool isCtrlpath = true);
     static overlay_object* open_shared_overlayobj(int ovlyfd, int ovlysize);
     static void close_shared_overlayobj(overlay_object *overlayobj);
-	static void calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow);
-	static void calculateDisplayMetaData(overlay_object *overlayobj);
+    static void calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow);
+    static void calculateDisplayMetaData(overlay_object *overlayobj);
 
+    //methods for link device
+     static int CommitLinkDevice(overlay_control_device_t *dev, overlay_object* overlayobj);
+     static void calculateLinkWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow, int panelId);
 public:
     /**
      * inorder to avoid the static data in this .so we are making this array non-static

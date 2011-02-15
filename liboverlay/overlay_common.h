@@ -60,6 +60,7 @@
 #define CACHEABLE_BUFFERS 0x1
 #define MAINTAIN_COHERENCY 0x2
 #define OPTIMAL_QBUF_CNT    0x4
+#define SET_CLONE_FD 0x8
 
 #ifdef TARGET_OMAP4
 /* The following defines are used to set the maximum values supported
