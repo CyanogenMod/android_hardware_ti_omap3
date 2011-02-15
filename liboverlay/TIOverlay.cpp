@@ -1782,11 +1782,6 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         goto end;
     }
 
-    if ((ret = v4l2_overlay_set_colorkey(fd,1, 0x00))) {
-        LOGE("Failed enabling color key\n");
-        goto end;
-    }
-
     if ((ret = v4l2_overlay_set_position(fd, _x,  _y, _w, _h))) {
         LOGD(" Could not set the position when creating overlay \n");
         goto end;
