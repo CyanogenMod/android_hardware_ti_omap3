@@ -964,8 +964,6 @@ int overlay_control_context_t::overlay_setParameter(struct overlay_control_devic
                                 overlay_t* overlay, int param, int value)
 {
     LOG_FUNCTION_NAME_ENTRY;
-    if (value < 0)
-        return -EINVAL;
 
     if ((dev == NULL) || (overlay == NULL)) {
         LOGE("Null Arguments / Overlay not initd");
@@ -1093,7 +1091,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     data->posW       = stage->posW;
     data->posH       = stage->posH;
     data->rotation   = stage->rotation;
-    data->colorkey   = stage->colorkey;
     data->alpha      = stage->alpha;
 
 
@@ -1294,6 +1291,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     pthread_mutex_unlock(&overlayobj->lock);
 
 #ifndef TARGET_OMAP4
+    data->colorkey = stage->colorkey;
     if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00))) {
         LOGE("Failed enabling color key\n");
         goto end;
@@ -1315,7 +1313,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
                 goto end;
             }
         }
-
         if (data->colorkey != stage->colorkey) {
             data->colorkey = stage->colorkey;
             /* Enable/disable the color key **/
@@ -1351,7 +1348,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
             for (int i = 0; i < MAX_MANAGER_CNT; i++) {
                 if (strcmp(managerMetaData[i].managername, "tv") == 0) {
-                    LOGD("found LCD manager @ [%d]", i);
+                    LOGD("found TV manager @ [%d]", i);
                     index = i;
                     break;
                 }
