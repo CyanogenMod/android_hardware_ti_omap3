@@ -1177,6 +1177,18 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 
+    /* If Rotation has changed but window has not changed yet, ignore this commit.
+        SurfaceFlinger will set the right window parameters and call commit again. */
+    if ((data->rotation != stage->rotation) &&
+        (data->posX == stage->posX) &&
+        (data->posY == stage->posY) &&
+        (data->posW == stage->posW) &&
+        (data->posH == stage->posH))
+    {
+        LOGI("Nothing to do");
+        goto end;
+    }
+
     data->posX       = stage->posX;
     data->posY       = stage->posY;
     data->posW       = stage->posW;
