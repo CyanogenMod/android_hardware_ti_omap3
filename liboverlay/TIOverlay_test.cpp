@@ -125,8 +125,8 @@ public:
     deg1 = -1;
     deg2 = -1;
 
-    mirror1 = -1;
-    mirror2 = -1;
+    mirror1 = 0;
+    mirror2 = 0;
 
     newwidth1 = -1;
     newheight1 = -1;
@@ -257,7 +257,8 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         break;
     };
 
-    ref1 = firstSurface->createOverlay(w1, h1, format, 0);
+
+    ref1 = firstSurface->createOverlay(w1, h1, format, mirror1);
     if(ref1 == NULL)
     {
         LOGE("NoMemory for overlayRef[%d]", __LINE__);
@@ -361,7 +362,7 @@ void OverlayTest::testOverlay(char* img1, uint32_t w1, uint32_t h1, uint8_t fmt1
         format = fmt2;
         break;
     };
-    ref2 = secondSurface->createOverlay(w2, h2, format, 0);
+    ref2 = secondSurface->createOverlay(w2, h2, format, mirror2);
     if(ref2 == NULL)
     {
         LOGE("NoMemory for overlayRef[%d]", __LINE__);
