@@ -1097,22 +1097,24 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     // Adjust the coordinate system to match the V4L change
     switch ( data->rotation ) {
     case 90:
+    case 270:
+#ifdef TARGET_OMAP4
+        finalWindow.posX = data->posX;
+        finalWindow.posY = data->posY;
+        finalWindow.posW = data->posH;
+        finalWindow.posH = data->posW;
+#else
         finalWindow.posX = data->posY;
         finalWindow.posY = data->posX;
         finalWindow.posW = data->posH;
         finalWindow.posH = data->posW;
+#endif
         break;
     case 180:
         finalWindow.posX = ((overlayobj->dispW - data->posX) - data->posW);
         finalWindow.posY = ((overlayobj->dispH - data->posY) - data->posH);
         finalWindow.posW = data->posW;
         finalWindow.posH = data->posH;
-        break;
-    case 270:
-        finalWindow.posX = data->posY;
-        finalWindow.posY = data->posX;
-        finalWindow.posW = data->posH;
-        finalWindow.posH = data->posW;
         break;
     default: // 0
         finalWindow.posX = data->posX;
