@@ -701,29 +701,14 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-#ifndef TARGET_OMAP4
     if (v4l2_overlay_set_colorkey(fd, 1, 0)){
         LOGE("Failed enabling color key\n");
         goto error1;
     }
-#else
-
+#ifdef TARGET_OMAP4
     /* Enable the video zorder and video transparency
     * for the controls to be visible on top of video, give the graphics highest zOrder
-    * and set the video source as the tranparency key type
-    * set black as the transparency key value
-    * and enable the trasparency feature
     **/
-    /** in order to findout which manager to set, check for the name
-    * and set the properties for that lcd manager
-    */
-    for (int i = 0; i < MAX_MANAGER_CNT; i++) {
-        if (strcmp(managerMetaData[i].managername, "lcd") == 0) {
-            LOGD("found LCD manager @ [%d]", i);
-            index = i;
-            break;
-        }
-    }
 
     if (sysfile_write("sys/devices/platform/omapdss/overlay0/zorder", "3",  strlen("0")) < 0) {
         goto error1;
@@ -737,38 +722,6 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         if (sysfile_write(overlayobj->overlayzorderpath, "1",  strlen("0")) < 0) {
             goto error1;
         }
-    }
-
-    if (sysfile_write(managerMetaData[index].managertrans_key_value, "0", strlen("0")) < 0) {
-        goto error1;
-    }
-
-    if (sysfile_write(managerMetaData[index].managertrans_key_type, "video-source", strlen("video-source")) < 0) {
-        goto error1;
-    }
-
-    if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
-        goto error1;
-    }
-
-   for (int i = 0; i < MAX_MANAGER_CNT; i++) {
-        if (strcmp(managerMetaData[i].managername, "tv") == 0) {
-            LOGD("found LCD manager @ [%d]", i);
-            index = i;
-            break;
-        }
-    }
-
-    if (sysfile_write(managerMetaData[index].managertrans_key_value, "0", strlen("0")) < 0) {
-        goto error1;
-    }
-
-    if (sysfile_write(managerMetaData[index].managertrans_key_type, "video-source", strlen("video-source")) < 0) {
-        goto error1;
-    }
-
-    if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
-        goto error1;
     }
 #endif
 
@@ -1194,7 +1147,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     data->posH       = stage->posH;
     data->rotation   = stage->rotation;
     data->alpha      = stage->alpha;
-
+    data->colorkey   = stage->colorkey;
 
     // Adjust the coordinate system to match the V4L change
     switch ( data->rotation ) {
@@ -1393,15 +1346,27 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     //unlock the mutex here as the subsequent operations are file operations
     //otherwise it may hang
     pthread_mutex_unlock(&overlayobj->lock);
-
-#ifndef TARGET_OMAP4
-    data->colorkey = stage->colorkey;
+#ifdef TARGET_OMAP4
+    if (data->colorkey < 0) {
+        if ((ret = v4l2_overlay_set_colorkey(fd, 0, 0x00))) {
+            LOGE("Failed enabling color key\n");
+            goto end;
+        }
+    }
+    else {
+        if ((ret = v4l2_overlay_set_colorkey(fd, 1, data->colorkey))) {
+            LOGE("Failed enabling color key\n");
+            goto end;
+        }
+    }
+#else
     if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00))) {
         LOGE("Failed enabling color key\n");
         goto end;
     }
-#else
+#endif
 
+#ifdef TARGET_OMAP4
     //Currently not supported with V4L2_S3D driver
     if (!overlayobj->mData.s3d_active) {
         if (data->zorder != stage->zorder) {
@@ -1415,65 +1380,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
                 LOGE("zorder setting failed");
                 ret = -1;
                 goto end;
-            }
-        }
-        if (data->colorkey != stage->colorkey) {
-            data->colorkey = stage->colorkey;
-            /* Enable/disable the color key **/
-            /** in order to findout which manager to set, check for the name
-            * and set the properties for that lcd manager
-            */
-            for (int i = 0; i < MAX_MANAGER_CNT; i++) {
-                if (strcmp(managerMetaData[i].managername, "lcd") == 0) {
-                    LOGD("found LCD manager @ [%d]", i);
-                    index = i;
-                    break;
-                }
-            }
-            if (data->colorkey < 0 ) {
-                if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "0", strlen("1")) < 0) {
-                    goto end;
-                }
-            }
-            else {
-                sprintf(clrkey, "%d", data->colorkey);
-                if (sysfile_write(managerMetaData[index].managertrans_key_value, &clrkey, strlen("0")) < 0) {
-                    goto end;
-                }
-
-                if (sysfile_write(managerMetaData[index].managertrans_key_type, "video-source", strlen("video-source")) < 0) {
-                    goto end;
-                }
-
-                if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
-                    goto end;
-                }
-            }
-
-            for (int i = 0; i < MAX_MANAGER_CNT; i++) {
-                if (strcmp(managerMetaData[i].managername, "tv") == 0) {
-                    LOGD("found TV manager @ [%d]", i);
-                    index = i;
-                    break;
-                }
-            }
-            if (data->colorkey < 0 ) {
-                if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "0", strlen("1")) < 0) {
-                    goto end;
-                }
-            }
-            else {
-                if (sysfile_write(managerMetaData[index].managertrans_key_value, &clrkey, strlen("0")) < 0) {
-                    goto end;
-                }
-
-                if (sysfile_write(managerMetaData[index].managertrans_key_type, "video-source", strlen("video-source")) < 0) {
-                    goto end;
-                }
-
-                if (sysfile_write(managerMetaData[index].managertrans_key_enabled, "1", strlen("1")) < 0) {
-                    goto end;
-                }
             }
         }
     }
@@ -1873,12 +1779,11 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         LOGE("Failed crop window\n");
         goto end;
     }
-#ifndef TARGET_OMAP4
+
     if ((ret = v4l2_overlay_set_colorkey(fd,1, 0x00))) {
         LOGE("Failed enabling color key\n");
         goto end;
     }
-#endif
 
     if ((ret = v4l2_overlay_set_position(fd, _x,  _y, _w, _h))) {
         LOGD(" Could not set the position when creating overlay \n");
