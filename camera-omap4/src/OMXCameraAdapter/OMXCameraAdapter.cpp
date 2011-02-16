@@ -1116,7 +1116,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mVstabEnabled = false;
         }
 
-	 //Set Auto Convergence Mode
+        //Set Auto Convergence Mode
     str = params.get((const char *) TICameraParameters::KEY_AUTOCONVERGENCE);
     if ( str != NULL )
         {
@@ -6254,7 +6254,20 @@ status_t OMXCameraAdapter::initCameraFrame(CameraFrame &frame,
         frame.mOffset = pBuffHeader->nOffset;
         frame.mWidth = port->mWidth;
         frame.mHeight = port->mHeight;
-        frame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+
+        // Calculating the time source delta of Ducati & system time only once at the start of camera.
+        // It's seen that there is a one-time constant diff between the ducati source clock &
+        // System monotonic timer, although both derived from the same 32KHz clock.
+        // This delta is offsetted to/from ducati timestamp to match with system time so that
+        // video timestamps are aligned with Audio with a periodic timestamp intervals.
+        if ( onlyOnce )
+            {
+            mTimeSourceDelta = (pBuffHeader->nTimeStamp * 1000) - systemTime(SYSTEM_TIME_MONOTONIC);
+            onlyOnce = false;
+            }
+
+        // Calculating the new video timestamp based on offset from ducati source.
+        frame.mTimestamp = (pBuffHeader->nTimeStamp * 1000) - mTimeSourceDelta;
         frame.mOffset = pBuffHeader->nOffset;
         }
 
@@ -6605,6 +6618,9 @@ OMXCameraAdapter::OMXCameraAdapter():mComponentState (OMX_StateInvalid)
 
     mFocusStarted = false;
     mPictureRotation = 0;
+    // Initial values
+    mTimeSourceDelta = 0;
+    onlyOnce = true;
 
     mCameraAdapterParameters.mHandleComp = 0;
     signal(SIGTERM, SigHandler);
