@@ -87,13 +87,13 @@ const CapPixelformat OMXCameraAdapter::mPixelformats [] = {
 };
 
 const CapFramerate OMXCameraAdapter::mFramerates [] = {
-    { 33 << 16, "33" },
-    { 30 << 16, "30" },
-    { 25 << 16, "25" },
-    { 24 << 16, "24" },
-    { 20 << 16, "20" },
-    { 15 << 16, "15" },
-    { 10 << 16, "10" },
+    { 33, "33" },
+    { 30, "30" },
+    { 25, "25" },
+    { 24, "24" },
+    { 20, "20" },
+    { 15, "15" },
+    { 10, "10" },
 };
 
 const CapZoom OMXCameraAdapter::mZoomStages [] = {
