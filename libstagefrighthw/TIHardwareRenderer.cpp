@@ -501,5 +501,16 @@ void TIHardwareRenderer::set_s3d_frame_layout(uint32_t s3d_mode, uint32_t s3d_fm
         LOGE("Error Setting S3D params \n");
 }
 
+void TIHardwareRenderer::requestRendererClone(bool enable) {
+    LOGD("requestRendererClone[%d]", enable);
+    int clonefd = mISurface->requestOverlayClone(enable);
+    //this one would return the duped fd for the clone device
+    //set this with the data context
+    mOverlay->setParameter(SET_CLONE_FD, clonefd);
+    if (enable) {
+        mOverlay->setCrop((uint32_t)mCropX, (uint32_t)mCropY, mDisplayWidth, mDisplayHeight);
+    }
+}
+
 }  // namespace android
 
