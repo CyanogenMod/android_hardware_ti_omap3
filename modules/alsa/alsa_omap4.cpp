@@ -869,6 +869,12 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
         } else {
             setAlsaControls(handle, devices, mode);
         }
+    }else if (fm_enable) {
+        /* FM Rx requires re-opening of playback path
+         * for FM Rx mixer settings to come into effect
+         * else FM Rx audio is not heard
+         */
+         status = s_open(handle, devices, mode);
     }
 
 #ifdef AUDIO_MODEM_TI
