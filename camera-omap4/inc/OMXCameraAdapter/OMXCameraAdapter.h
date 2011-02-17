@@ -676,6 +676,10 @@ private:
     int mSensorIndex;
     CodingMode mCodingMode;
     Mutex mEventLock;
+
+    // Time source delta of ducati & system time
+    OMX_TICKS mTimeSourceDelta;
+    bool onlyOnce;
 };
 }; //// namespace
 #endif //OMX_CAMERA_ADAPTER_H
