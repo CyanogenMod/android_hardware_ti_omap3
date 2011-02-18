@@ -412,6 +412,7 @@ private:
     //Focus functionality
     status_t doAutoFocus();
     status_t stopAutoFocus();
+    status_t cancelAutoFocus();
     status_t checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus);
     status_t returnFocusStatus(bool timeoutReached);
 

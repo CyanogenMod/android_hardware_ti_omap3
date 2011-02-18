@@ -3047,6 +3047,14 @@ status_t OMXCameraAdapter::stopPreview()
     measurementData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mMeasurementPortIndex];
 
     Semaphore eventSem;
+
+    ret = cancelAutoFocus();
+    if(ret!=NO_ERROR)
+    {
+        CAMHAL_LOGEB("Error canceling autofocus %d", ret);
+        // Error, but we probably still want to continue to stop preview
+    }
+
     ret = eventSem.Create(0);
     if(ret!=NO_ERROR)
         {
@@ -4810,6 +4818,31 @@ status_t OMXCameraAdapter::stopAutoFocus()
         }
 
     mFocusStarted = false;
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+
+}
+
+status_t OMXCameraAdapter::cancelAutoFocus()
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    LOG_FUNCTION_NAME
+
+    if(mFocusStarted)
+    {
+        stopAutoFocus();
+        //Signal a dummy AF event so that in case the callback from ducati does come then it doesnt crash after
+        //exiting this function since eventSem will go out of scope.
+        ret |= SignalEvent(mCameraAdapterParameters.mHandleComp,
+                                    (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
+                                    OMX_ALL,
+                                    OMX_IndexConfigCommonFocusStatus,
+                                    NULL );
+    }
 
     LOG_FUNCTION_NAME_EXIT
 
