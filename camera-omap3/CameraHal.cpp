@@ -2906,8 +2906,12 @@ void CameraHal::procThread()
 
 #if JPEG
 
-                    JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
-
+                    if ( mBurstShots > 1 ){
+                        JpegPictureCallback(CAMERA_MSG_BURST_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
+                    }
+                    else {
+                        JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
+                    }
 #else
 
                     JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, PictureCallbackCookie);
