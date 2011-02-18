@@ -52,6 +52,7 @@ class AudioModemInterface
     enum audio_modem_sample_rate {
         PCM_8_KHZ = 0,
         PCM_16_KHZ,
+        PCM_44_1_KHZ,
         INVALID_SAMPLE_RATE
     };
 
