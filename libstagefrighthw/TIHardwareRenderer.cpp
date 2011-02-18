@@ -91,7 +91,7 @@ TIHardwareRenderer::TIHardwareRenderer(
         OMX_COLOR_FORMATTYPE colorFormat)
 {
 
-    TIHardwareRenderer(surface, displayWidth, displayHeight, decodedWidth, decodedHeight, colorFormat, 0);
+    TIHardwareRenderer(surface, displayWidth, displayHeight, decodedWidth, decodedHeight, colorFormat, 0, -1);
 }
 
 //S3D
@@ -99,7 +99,7 @@ TIHardwareRenderer::TIHardwareRenderer(
         const sp<ISurface> &surface,
         size_t displayWidth, size_t displayHeight,
         size_t decodedWidth, size_t decodedHeight,
-        OMX_COLOR_FORMATTYPE colorFormat, int isS3D)
+        OMX_COLOR_FORMATTYPE colorFormat, int isS3D, int numOfOpBuffers)
     : mISurface(surface),
       mDisplayWidth(displayWidth),
       mDisplayHeight(displayHeight),
@@ -169,16 +169,24 @@ TIHardwareRenderer::TIHardwareRenderer(
     mOverlay = new Overlay(ref);
 
 #ifdef TARGET_OMAP4
-    /* Calculate the number of overlay buffers required, based on the video resolution
-    * and resize the overlay for the new number of buffers
-    */
-    int overlaybuffcnt = Calculate_TotalRefFrames(mDisplayWidth, mDisplayHeight);
-    int initialcnt = mOverlay->getBufferCount();
-    if (overlaybuffcnt != initialcnt) {
-        mOverlay->setParameter(OVERLAY_NUM_BUFFERS, overlaybuffcnt);
-        mOverlay->resizeInput(mDecodedWidth, mDecodedHeight);
+    if(numOfOpBuffers == -1) {
+        /* Calculate the number of overlay buffers required, based on the video resolution
+        * and resize the overlay for the new number of buffers
+        */
+        int overlaybuffcnt = Calculate_TotalRefFrames(mDisplayWidth, mDisplayHeight);
+        int initialcnt = mOverlay->getBufferCount();
+        if (overlaybuffcnt != initialcnt) {
+            mOverlay->setParameter(OVERLAY_NUM_BUFFERS, overlaybuffcnt);
+            mOverlay->resizeInput(mDecodedWidth, mDecodedHeight);
+        }
+        mOverlay->setParameter(OPTIMAL_QBUF_CNT, 2*NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE);
+    } else {
+       /* Number of buffers will be set as recommended by user or codec */
+       LOGD("Overlay Buffer Count [as recommneded] %d",numOfOpBuffers);
+       mOverlay->setParameter(OVERLAY_NUM_BUFFERS, numOfOpBuffers);
+       mOverlay->resizeInput(mDecodedWidth, mDecodedHeight);
+       mOverlay->setParameter(OPTIMAL_QBUF_CNT, NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE*2);
     }
-    mOverlay->setParameter(OPTIMAL_QBUF_CNT, 2*NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE);
 #endif
 
     for (size_t i = 0; i < (size_t)mOverlay->getBufferCount(); ++i) {

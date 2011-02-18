@@ -34,13 +34,13 @@ VideoRenderer *createRenderer(
         const char *componentName,
         OMX_COLOR_FORMATTYPE colorFormat,
         size_t displayWidth, size_t displayHeight,
-        size_t decodedWidth, size_t decodedHeight, int isS3D) {
+        size_t decodedWidth, size_t decodedHeight, int isS3D, int numOfOpBuffers) {
     using android::TIHardwareRenderer;
     TIHardwareRenderer *renderer =
         new TIHardwareRenderer(
                 surface, displayWidth, displayHeight,
                 decodedWidth, decodedHeight,
-                colorFormat, isS3D);
+                colorFormat, isS3D, numOfOpBuffers);
     if (renderer->initCheck() != android::OK) {
         delete renderer;
         renderer = NULL;

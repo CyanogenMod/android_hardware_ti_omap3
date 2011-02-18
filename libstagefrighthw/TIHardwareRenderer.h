@@ -44,7 +44,7 @@ public:
             const sp<ISurface> &surface,
             size_t displayWidth, size_t displayHeight,
             size_t decodedWidth, size_t decodedHeight,
-            OMX_COLOR_FORMATTYPE colorFormat, int isS3D);
+            OMX_COLOR_FORMATTYPE colorFormat, int isS3D, int numOfOpBuffers = -1);
 
     virtual ~TIHardwareRenderer();
     void set_s3d_frame_layout(uint32_t s3d_mode, uint32_t s3d_fmt, uint32_t s3d_order, uint32_t s3d_subsampling);
