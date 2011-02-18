@@ -238,11 +238,11 @@ class Gen3A_settings{
 */
 enum E3ASettingsFlags
 {
-    SetExposure             = 1 << 0,
+    SetSceneMode            = 1 << 0,
     SetEVCompensation       = 1 << 1,
     SetWhiteBallance        = 1 << 2,
     SetFlicker              = 1 << 3,
-    SetSceneMode            = 1 << 4,
+    SetExposure             = 1 << 4,
     SetSharpness            = 1 << 5,
     SetBrightness           = 1 << 6,
     SetContrast             = 1 << 7,

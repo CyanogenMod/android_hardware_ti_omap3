@@ -749,14 +749,12 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             {
             mPending3Asettings |= SetFocus;
             mParameters3A.Focus = mode;
-            apply3Asettings(mParameters3A);
             }
         else if ( mParameters3A.Focus == OMX_IMAGE_FocusControlAuto )
             {
             //If we switch from CAF to something else, then disable CAF
             mPending3Asettings |= SetFocus;
             mParameters3A.Focus = OMX_IMAGE_FocusControlOff;
-            apply3Asettings(mParameters3A);
             }
 
         mParameters3A.Focus = mode;
@@ -2562,14 +2560,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
         }
 
-    ret = setScene(mParameters3A);
-    if ( NO_ERROR != ret )
-        {
-        CAMHAL_LOGEB("Error configuring scene mode %x", ret);
-        return ret;
-        }
-
-
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE || (isS3d && (mCapMode == OMXCameraAdapter::HIGH_QUALITY)))
         {
         ///Enable/Disable Video Noise Filter
@@ -2926,9 +2916,6 @@ status_t OMXCameraAdapter::startPreview()
     mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
     measurementData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mMeasurementPortIndex];
 
-    if ( mPending3Asettings )
-        apply3Asettings(mParameters3A);
-
     ///Register for EXECUTING state transition.
     ///This method just inserts a message in Event Q, which is checked in the callback
     ///The sempahore passed is signalled by the callback
@@ -3000,6 +2987,10 @@ status_t OMXCameraAdapter::startPreview()
             }
 
         }
+
+
+    if ( mPending3Asettings )
+        apply3Asettings(mParameters3A);
 
     mComponentState = OMX_StateExecuting;
 
@@ -5279,9 +5270,6 @@ status_t OMXCameraAdapter::startImageCapture()
 
     LOG_FUNCTION_NAME
 
-    if( mPending3Asettings )
-        apply3Asettings(mParameters3A);
-
         //During bracketing image capture is already active
         {
         Mutex::Autolock lock(mBracketingLock);
@@ -6331,6 +6319,26 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
     unsigned int currSett; // 32 bit
     int portIndex;
 
+    /*
+     * Scenes have a priority during the process
+     * of applying 3A related parameters.
+     * They can override pretty much all other 3A
+     * settings and similarly get overridden when
+     * for instance the focus mode gets switched.
+     * There is only one exception to this rule,
+     * the manual a.k.a. auto scene.
+     */
+    if ( ( SetSceneMode & mPending3Asettings ) )
+        {
+        mPending3Asettings &= ~SetSceneMode;
+        return setScene(Gen3A);
+        }
+    else if ( OMX_Manual != Gen3A.SceneMode )
+        {
+        mPending3Asettings = 0;
+        return OMX_ErrorNone;
+        }
+
     for( currSett = 1; currSett < E3aSettingMax; currSett <<= 1)
         {
         if( currSett & mPending3Asettings )
@@ -6340,9 +6348,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetEVCompensation:
                     {
                     OMX_CONFIG_EXPOSUREVALUETYPE expValues;
-                    expValues.nSize = sizeof(OMX_CONFIG_EXPOSUREVALUETYPE);
-                    expValues.nVersion = mLocalVersionParam;
-                    expValues.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&expValues, OMX_CONFIG_EXPOSUREVALUETYPE);
+                    expValues.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
 
                     OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
                     CAMHAL_LOGDB("old EV Compensation for OMX = 0x%x", (int)expValues.xEVCompensation);
@@ -6375,9 +6382,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                         }
 
                     OMX_CONFIG_WHITEBALCONTROLTYPE wb;
-                    wb.nSize = sizeof(OMX_CONFIG_WHITEBALCONTROLTYPE);
-                    wb.nVersion = mLocalVersionParam;
-                    wb.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&wb, OMX_CONFIG_WHITEBALCONTROLTYPE);
+                    wb.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
                     wb.eWhiteBalControl = (OMX_WHITEBALCONTROLTYPE)Gen3A.WhiteBallance;
 
                     CAMHAL_LOGDB("White Ballance for Hal = %d", Gen3A.WhiteBallance);
@@ -6389,9 +6395,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetFlicker:
                     {
                     OMX_CONFIG_FLICKERCANCELTYPE flicker;
-                    flicker.nSize = sizeof(OMX_CONFIG_FLICKERCANCELTYPE);
-                    flicker.nVersion = mLocalVersionParam;
-                    flicker.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&flicker, OMX_CONFIG_FLICKERCANCELTYPE);
+                    flicker.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
                     flicker.eFlickerCancel = (OMX_COMMONFLICKERCANCELTYPE)Gen3A.Flicker;
 
                     CAMHAL_LOGDB("Flicker for Hal = %d", Gen3A.Flicker);
@@ -6403,9 +6408,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetBrightness:
                     {
                     OMX_CONFIG_BRIGHTNESSTYPE brightness;
-                    brightness.nSize = sizeof(OMX_CONFIG_BRIGHTNESSTYPE);
-                    brightness.nVersion = mLocalVersionParam;
-                    brightness.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&brightness, OMX_CONFIG_BRIGHTNESSTYPE);
+                    brightness.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
                     brightness.nBrightness = Gen3A.Brightness;
 
                     CAMHAL_LOGDB("Brightness for Hal and OMX= %d", (int)Gen3A.Brightness);
@@ -6416,9 +6420,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetContrast:
                     {
                     OMX_CONFIG_CONTRASTTYPE contrast;
-                    contrast.nSize = sizeof(OMX_CONFIG_CONTRASTTYPE);
-                    contrast.nVersion = mLocalVersionParam;
-                    contrast.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&contrast, OMX_CONFIG_CONTRASTTYPE);
+                    contrast.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
                     contrast.nContrast = Gen3A.Contrast;
 
                     CAMHAL_LOGDB("Contrast for Hal and OMX= %d", (int)Gen3A.Contrast);
@@ -6429,9 +6432,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetSharpness:
                     {
                     OMX_IMAGE_CONFIG_PROCESSINGLEVELTYPE procSharpness;
-                    procSharpness.nSize = sizeof( OMX_IMAGE_CONFIG_PROCESSINGLEVELTYPE );
-                    procSharpness.nVersion = mLocalVersionParam;
-                    procSharpness.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&procSharpness, OMX_IMAGE_CONFIG_PROCESSINGLEVELTYPE);
+                    procSharpness.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
                     procSharpness.nLevel = Gen3A.Sharpness;
 
                     if( procSharpness.nLevel == 0 )
@@ -6446,9 +6448,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetSaturation:
                     {
                     OMX_CONFIG_SATURATIONTYPE saturation;
-                    saturation.nSize = sizeof(OMX_CONFIG_SATURATIONTYPE);
-                    saturation.nVersion = mLocalVersionParam;
-                    saturation.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&saturation, OMX_CONFIG_SATURATIONTYPE);
+                    saturation.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
                     saturation.nSaturation = Gen3A.Saturation;
 
                     CAMHAL_LOGDB("Saturation for Hal and OMX= %d", (int)Gen3A.Saturation);
@@ -6459,9 +6460,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetISO:
                     {
                     OMX_CONFIG_EXPOSUREVALUETYPE expValues;
-                    expValues.nSize = sizeof(OMX_CONFIG_EXPOSUREVALUETYPE);
-                    expValues.nVersion = mLocalVersionParam;
-                    expValues.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&expValues, OMX_CONFIG_EXPOSUREVALUETYPE);
+                    expValues.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
 
                     OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValues);
                     if( 0 == Gen3A.ISO )
@@ -6481,9 +6481,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetEffect:
                     {
                     OMX_CONFIG_IMAGEFILTERTYPE effect;
-                    effect.nSize = sizeof(OMX_CONFIG_IMAGEFILTERTYPE);
-                    effect.nVersion = mLocalVersionParam;
-                    effect.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&effect, OMX_CONFIG_IMAGEFILTERTYPE);
+                    effect.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
                     effect.eImageFilter = (OMX_IMAGEFILTERTYPE)Gen3A.Effect;
 
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonImageFilter, &effect);
@@ -6500,9 +6499,8 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                     setAlgoPriority(REGION_PRIORITY, FOCUS_ALGO, false);
 
                     OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE focus;
-                    focus.nSize = sizeof(OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
-                    focus.nVersion = mLocalVersionParam;
-                    focus.nPortIndex = OMX_ALL;
+                    OMX_INIT_STRUCT_PTR (&focus, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
+                    focus.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
 
                     focus.eFocusControl = (OMX_IMAGE_FOCUSCONTROLTYPE)Gen3A.Focus;
 
@@ -6512,12 +6510,6 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                     break;
                     }
 
-                case SetSceneMode:
-                    {
-                    ret = setScene(Gen3A);
-
-                    break;
-                    }
                 case SetExpMode:
                     {
                     ret = setExposureMode(Gen3A);
