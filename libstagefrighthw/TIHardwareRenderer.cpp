@@ -254,7 +254,7 @@ TIHardwareRenderer::~TIHardwareRenderer() {
         mOverlay.clear();
 
         // XXX apparently destroying an overlay is an asynchronous process...
-        sleep(1);
+        //sleep(1);
     }
 }
 
