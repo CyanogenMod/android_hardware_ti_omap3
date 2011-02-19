@@ -285,6 +285,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
               mParameters.setPreviewFormat(valstr);
               // in gingerbread, preview format and video format are still the same
               // so set video format accordingly here.
+            if ( (valstr = params.getPreviewFormat()) != NULL)
               mParameters.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, valstr);
           }
 
