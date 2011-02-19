@@ -8,7 +8,8 @@ endif
 LOCAL_SRC_FILES := \
     stagefright_overlay_output.cpp \
     TIHardwareRenderer.cpp \
-    TIOMXPlugin.cpp
+    TIOMXPlugin.cpp \
+    TIOMXCodec.cpp
 
 LOCAL_CFLAGS +:= $(PV_CFLAGS_MINUS_VISIBILITY)
 
@@ -22,7 +23,10 @@ LOCAL_SHARED_LIBRARIES :=       \
         libcutils               \
         libui                   \
         libdl					\
-        libsurfaceflinger_client
+        libsurfaceflinger_client \
+        libstagefright \
+        libmedia \
+        liblog \
 
 LOCAL_MODULE := libstagefrighthw
 
