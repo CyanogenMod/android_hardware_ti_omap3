@@ -5376,6 +5376,22 @@ status_t OMXCameraAdapter::stopImageCapture()
     bOMX.bEnabled = OMX_FALSE;
     imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
+    if ( NO_ERROR == ret )
+    {
+        //Disable the callback first
+        ret = setShutterCallback(false);
+
+        //Unblock startImageCapture incase it is waiting for a callback.
+        if ( HIGH_QUALITY == mCapMode )
+        {
+            ret |= SignalEvent(mCameraAdapterParameters.mHandleComp,
+                                            (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
+                                            OMX_ALL,
+                                            OMX_TI_IndexConfigShutterCallback,
+                                            NULL );
+        }
+    }
+
     eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCapturing, &bOMX);
 
     if ( OMX_ErrorNone != eError )
