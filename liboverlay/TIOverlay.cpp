@@ -1072,6 +1072,7 @@ int overlay_control_context_t::overlay_setParameter(struct overlay_control_devic
         rc = -1;
 
     }
+
     LOG_FUNCTION_NAME_EXIT;
     return rc;
 }
@@ -1101,8 +1102,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     int strmatch;
     int fd = overlayobj->getctrl_videofd();
     overlay_data_t eCropData;
-    int index = 0;
-    char clrkey[16];
+    int rotation_degree = stage->rotation;
 
 #ifndef TARGET_OMAP4
     /** NOTE: In order to support HDMI without app explicitly requesting for
@@ -1196,6 +1196,24 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         stage->panel = OVERLAY_ON_TV;
     }
 #endif
+    // Disable streaming to ensure that stream_on is called again which indirectly sets overlayenabled to 1
+    if ((ret = overlay_data_context_t::disable_streaming_locked(overlayobj, false))) {
+        LOGE("Stream Off Failed!/%d\n", ret);
+        goto end;
+    }
+
+    if ((stage->panel == OVERLAY_ON_TV) && (data->rotation != 180)) {
+        /** 90 and 270 degree rotation is not applicable for TV
+        * hence reset the rotation to 0 deg if the panel is TV
+        * 180 degree rotation is required to handle mirroring scenario
+        */
+        rotation_degree = 0;
+    }
+
+    if ((ret = v4l2_overlay_set_rotation(fd, rotation_degree, 0, data->mirror))) {
+        LOGE("Set Rotation Failed!/%d\n", ret);
+        goto end;
+    }
 
     if (data->panel != stage->panel) {
         LOGD("data->panel/0x%x / stage->panel/0x%x\n", data->panel, stage->panel );
@@ -1294,11 +1312,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         LOGD("Display timings [%s]\n", screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displaytimings);
 #endif
 
-        // Disable streaming to ensure that stream_on is called again which indirectly sets overlayenabled to 1
-        if ((ret = overlay_data_context_t::disable_streaming_locked(overlayobj, false))) {
-            LOGE("Stream Off Failed!/%d\n", ret);
-            goto end;
-        }
         if (overlayobj->mData.s3d_active) {
             //Currently need to disable streaming to change display id
             ret = v4l2_overlay_set_display_id(fd,data->panel);
@@ -1321,17 +1334,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
     if ((ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
         LOGE("commit:Get crop value Failed!/%d\n", ret);
-        goto end;
-    }
-
-    // Disable streaming to ensure that stream_on is called again which indirectly sets overlayenabled to 1
-    if ((ret = overlay_data_context_t::disable_streaming_locked(overlayobj, false))) {
-        LOGE("Stream Off Failed!/%d\n", ret);
-        goto end;
-    }
-
-    if ((ret = v4l2_overlay_set_rotation(fd, data->rotation, 0, data->mirror))) {
-        LOGE("Set Rotation Failed!/%d\n", ret);
         goto end;
     }
 
@@ -1426,31 +1428,26 @@ void overlay_control_context_t::calculateLinkWindow(overlay_object *overlayobj, 
             LOGD("Nothing to Adjust");
             // Adjust the coordinate system to match the V4L change
             switch ( data->rotation ) {
-                case 90:
-                    finalWindow->posX = data->posY;
-                    finalWindow->posY = data->posX;
-                    finalWindow->posW = data->posH;
-                    finalWindow->posH = data->posW;
-                    break;
-                case 180:
-                    finalWindow->posX = ((overlayobj->dispW - data->posX) - data->posW);
-                    finalWindow->posY = ((overlayobj->dispH - data->posY) - data->posH);
-                    finalWindow->posW = data->posW;
-                    finalWindow->posH = data->posH;
-                    break;
-                case 270:
-                    finalWindow->posX = data->posY;
-                    finalWindow->posY = data->posX;
-                    finalWindow->posW = data->posH;
-                    finalWindow->posH = data->posW;
-                    break;
-                default: // 0
-                    finalWindow->posX = data->posX;
-                    finalWindow->posY = data->posY;
-                    finalWindow->posW = data->posW;
-                    finalWindow->posH = data->posH;
-                    break;
-            }
+            case 90:
+            case 270:
+                finalWindow->posX = data->posX;
+                finalWindow->posY = data->posY;
+                finalWindow->posW = data->posH;
+                finalWindow->posH = data->posW;
+                break;
+            case 180:
+                finalWindow->posX = data->posX;
+                finalWindow->posY = data->posY;
+                finalWindow->posW = data->posW;
+                finalWindow->posH = data->posH;
+                break;
+            default: // 0
+                finalWindow->posX = data->posX;
+                finalWindow->posY = data->posY;
+                finalWindow->posW = data->posW;
+                finalWindow->posH = data->posH;
+                break;
+           }
             break;
         case OVERLAY_ON_TV:
             {
