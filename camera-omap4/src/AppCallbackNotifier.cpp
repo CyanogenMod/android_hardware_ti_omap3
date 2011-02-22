@@ -928,6 +928,7 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params, vo
     sp<MemoryBase> buffer;
     status_t ret = NO_ERROR;
     unsigned int *bufArr;
+    size_t size = 0;
 
     LOG_FUNCTION_NAME
 
@@ -963,9 +964,25 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params, vo
     ///Get preview size
     params.getPreviewSize(&w, &h);
 
+    //Get the preview pixel format
+    mPreviewPixelFormat = params.getPreviewFormat();
+
+     if(strcmp(mPreviewPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
+        {
+        size = w*h*2;
+        }
+    else if(strcmp(mPreviewPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
+        {
+        size = (w*h*3)/2;
+        }
+    else if(strcmp(mPreviewPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
+        {
+        size = w*h*2;
+        }
+
    if(!mAppSupportsStride)
        {
-        mPreviewHeap = new MemoryHeapBase(w*h*2*AppCallbackNotifier::MAX_BUFFERS);
+        mPreviewHeap = new MemoryHeapBase(size*AppCallbackNotifier::MAX_BUFFERS);
         if(!mPreviewHeap.get())
             {
             return NO_MEMORY;
@@ -973,7 +990,7 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params, vo
 
         for(int i=0;i<AppCallbackNotifier::MAX_BUFFERS;i++)
             {
-            mPreviewBuffers[i] = new MemoryBase(mPreviewHeap,(w*h*2)*i, (w*h*2));
+            mPreviewBuffers[i] = new MemoryBase(mPreviewHeap,size*i, size);
             if(!mPreviewBuffers[i].get())
                 {
                 for(int j=0;j<i-1;j++)
@@ -1024,10 +1041,6 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params, vo
             mSharedPreviewBuffers.add( bufArr[i], buffer);
             }
         }
-
-   //Get the preview pixel format
-    mPreviewPixelFormat = params.getPreviewFormat();
-
 
     if ( (NO_ERROR == ret)  && mCameraHal->msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
         {
