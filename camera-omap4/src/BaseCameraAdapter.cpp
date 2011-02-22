@@ -935,7 +935,10 @@ status_t BaseCameraAdapter::stopVideoCapture()
         for ( unsigned int i = 0 ; i < mVideoBuffersAvailable.size() ; i++ )
             {
             void *frameBuf = ( void * ) mVideoBuffersAvailable.keyAt(i);
-            returnFrame(frameBuf, CameraFrame::VIDEO_FRAME_SYNC);
+            if( getFrameRefCount(frameBuf,  CameraFrame::VIDEO_FRAME_SYNC) > 0)
+                {
+                returnFrame(frameBuf, CameraFrame::VIDEO_FRAME_SYNC);
+                }
             }
 
         mVideoBuffersAvailable.clear();
