@@ -3025,6 +3025,13 @@ void CameraHal::initDefaultParameters()
 
     LOG_FUNCTION_NAME
 
+
+    if ( NULL != mCameraAdapter &&
+            (NO_ERROR == mCameraAdapter->getCaps(mParameters)))
+    {
+        extractSupportedParams();
+    }
+
     ret = parseResolution((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PREVIEW_SIZE]->mPropValue, width, height);
 
     if ( NO_ERROR == ret )
@@ -3061,27 +3068,6 @@ void CameraHal::initDefaultParameters()
         }
 
     insertSupportedParams();
-
-    if ( NULL != mCameraAdapter )
-        {
-        adapterRevision = mCameraAdapter->getRevision();
-        currentRevision = atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REVISION]->mPropValue);
-
-        if ( adapterRevision != currentRevision )
-            {
-            if ( NO_ERROR == mCameraAdapter->getCaps(mParameters) )
-                {
-
-                    extractSupportedParams();
-
-                    snprintf(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REVISION]->mPropValue, MAX_PROP_VALUE_LENGTH - 1,
-                                "%d",
-                                adapterRevision);
-
-                    gCameraProperties->storeProperties();
-                }
-            }
-    }
 
     //Insert default values
     p.setPreviewFrameRate(atoi((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PREVIEW_FRAME_RATE]->mPropValue));
