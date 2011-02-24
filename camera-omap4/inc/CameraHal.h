@@ -498,6 +498,7 @@ private:
 
 private:
     mutable Mutex mLock;
+    mutable Mutex mBurstLock;
     sp<CameraHardwareInterface> mCameraHal;
     notify_callback mNotifyCb;
     data_callback   mDataCb;
