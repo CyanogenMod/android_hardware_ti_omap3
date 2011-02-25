@@ -128,7 +128,7 @@ const userToOMX_LUT antibanding_UserToOMX [] = {
 const userToOMX_LUT focus_UserToOMX [] = {
     { CameraParameters::FOCUS_MODE_AUTO, OMX_IMAGE_FocusControlAutoLock },
     { CameraParameters::FOCUS_MODE_INFINITY, OMX_IMAGE_FocusControlAutoInfinity },
-    { CameraParameters::FOCUS_MODE_MACRO, OMX_IMAGE_FocusControAutoMacro },
+    { CameraParameters::FOCUS_MODE_MACRO, OMX_IMAGE_FocusControlAutoMacro },
     { TICameraParameters::FOCUS_MODE_PORTRAIT, OMX_IMAGE_FocusControlPortrait },
     { TICameraParameters::FOCUS_MODE_EXTENDED, OMX_IMAGE_FocusControlExtended },
     { TICameraParameters::FOCUS_MODE_CAF, OMX_IMAGE_FocusControlAuto },
