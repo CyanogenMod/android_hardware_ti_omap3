@@ -725,6 +725,7 @@ status_t AudioModemAlsa::voiceCallCodecSetBluetooth()
     // Enable Capture voice path
     CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
                                 AUDIO_ABE_AUDUL_VOICE_VOL_BLUETOOTH, -1), error);
+    CHECK_ERROR(mAlsaControl->set("DL1 BT_VX Switch", 1), error);
     CHECK_ERROR(configMicrophones(), error);
     CHECK_ERROR(configEqualizers(), error);
 
