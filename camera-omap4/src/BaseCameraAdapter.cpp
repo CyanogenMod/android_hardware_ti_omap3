@@ -285,9 +285,12 @@ void BaseCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frame
                 }
 
             }
-        else if ( 0 < subscriberCount )
+        else
             {
-            CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", ( uint32_t ) refCount, ( uint32_t ) frameBuf);
+             if ( 0 < subscriberCount )
+                {
+                CAMHAL_LOGEB("Error trying to decrement refCount %d for buffer 0x%x", ( uint32_t ) refCount, ( uint32_t ) frameBuf);
+                }
             return;
             }
         }
