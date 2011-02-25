@@ -64,8 +64,8 @@ static displayManagerMetaData managerMetaData[MAX_MANAGER_CNT];
 
 /*****************************************************************************/
 
-#define LOG_FUNCTION_NAME_ENTRY    LOGD(" ###### Calling %s() ++ ######",  __FUNCTION__);
-#define LOG_FUNCTION_NAME_EXIT    LOGD(" ###### Calling %s() -- ######",  __FUNCTION__);
+#define LOG_FUNCTION_NAME_ENTRY    LOGV(" ###### Calling %s() ++ ######",  __FUNCTION__);
+#define LOG_FUNCTION_NAME_EXIT    LOGV(" ###### Calling %s() -- ######",  __FUNCTION__);
 
 /** This variable is to make sure that the overlay control device is opened
 * only once from the surface flinger process;
@@ -1680,7 +1680,7 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
 
 int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, uint32_t h)
 {
-    LOGD("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+    LOGD("overlay_resizeInput %dx%d %d", (int)w, (int)h, (int) ((struct overlay_data_context_t*)dev)->omap_overlay->num_buffers);
     LOG_FUNCTION_NAME_ENTRY;
     if (dev == NULL) {
         LOGE("Null Arguments ");
