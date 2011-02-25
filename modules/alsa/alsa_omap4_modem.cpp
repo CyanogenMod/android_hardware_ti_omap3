@@ -311,16 +311,19 @@ status_t AudioModemAlsa::voiceCallControls(uint32_t devices, int mode, bool mult
 {
     LOGV("%s: devices %04x mode %d MultimediaUpdate %d", __FUNCTION__, devices, mode, multimediaUpdate);
 
-    if ((mVoiceCallControlMainInfo.devices != devices) ||
-        (mVoiceCallControlMainInfo.mode != mode) ||
-        (multimediaUpdate)) {
-        voiceCallControlsMutexLock();
-        mVoiceCallControlMainInfo.devices = devices;
-        mVoiceCallControlMainInfo.mode = mode;
-        mVoiceCallControlMainInfo.updateFlag = true;
-        mVoiceCallControlMainInfo.multimediaUpdate = multimediaUpdate;
-        voiceCallControlsMutexUnlock();
-        pthread_cond_signal(&mVoiceCallControlNewParams);
+    // Ignore input devices
+    if (!(devices & AudioSystem::DEVICE_IN_ALL)) {
+        if ((mVoiceCallControlMainInfo.devices != devices) ||
+            (mVoiceCallControlMainInfo.mode != mode) ||
+            (multimediaUpdate)) {
+            voiceCallControlsMutexLock();
+            mVoiceCallControlMainInfo.devices = devices;
+            mVoiceCallControlMainInfo.mode = mode;
+            mVoiceCallControlMainInfo.updateFlag = true;
+            mVoiceCallControlMainInfo.multimediaUpdate = multimediaUpdate;
+            voiceCallControlsMutexUnlock();
+            pthread_cond_signal(&mVoiceCallControlNewParams);
+        }
     }
     return NO_ERROR;
 }

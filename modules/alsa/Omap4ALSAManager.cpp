@@ -27,6 +27,22 @@ const char *Omap4ALSAManager::MAIN_MIC = "omap.audio.mic.main";
 const char *Omap4ALSAManager::SUB_MIC = "omap.audio.mic.sub";
 const char *Omap4ALSAManager::POWER_MODE = "omap.audio.power";
 
+// Voice record during voice call voice uplink gain
+// value: -120dB..29dB step 1dB (-120 is mute)
+const char *Omap4ALSAManager::VOICEMEMO_VUL_GAIN =
+                                "omap.audio.voicerecord.vul.gain";
+// Voice record during voice call voice downling gain
+// value: -120dB..29dB step 1dB (-120 is mute)
+const char *Omap4ALSAManager::VOICEMEMO_VDL_GAIN =
+                                "omap.audio.voicerecord.vdl.gain";
+// Voice record during voice call multimedia gain
+// value: -120dB..29dB step 1dB (-120 is mute)
+const char *Omap4ALSAManager::VOICEMEMO_MM_GAIN =
+                                "omap.audio.voicerecord.mm.gain";
+// Voice record during voice call tone gain
+// value: -120dB..29dB step 1dB (-120 is mute)
+const char *Omap4ALSAManager::VOICEMEMO_TONE_GAIN =
+                                "omap.audio.voicerecord.tone.gain";
 const char *Omap4ALSAManager::DL2L_EQ_PROFILE = "omap.audio.dl2l.eq";
 const char *Omap4ALSAManager::DL2R_EQ_PROFILE = "omap.audio.dl2r.eq";
 const char *Omap4ALSAManager::DL1_EQ_PROFILE = "omap.audio.dl1.eq";
@@ -119,10 +135,24 @@ status_t Omap4ALSAManager::get(const String8& key, String8& value)
     }
 }
 
+status_t Omap4ALSAManager::get(const String8& key, int& value)
+{
+    String8 stringValue;
+    if (mParams.indexOfKey(key) >= 0) {
+        stringValue = mParams.valueFor(key);
+        value = atoi((const char *)stringValue);
+        return NO_ERROR;
+    } else {
+        return BAD_VALUE;
+    }
+}
+
+
 status_t Omap4ALSAManager::validateValueForKey(const String8& key, String8& value)
 {
     int noMatch = 1;
     int i = 0;
+    int gain;
 
     if (key == (String8)MAIN_MIC) {
         LOGV("validate main mic");
@@ -201,6 +231,17 @@ status_t Omap4ALSAManager::validateValueForKey(const String8& key, String8& valu
                 return BAD_VALUE;
             else
                 return NO_ERROR;
+    }
+    else if ((key == (String8)VOICEMEMO_VUL_GAIN) ||
+             (key == (String8)VOICEMEMO_VDL_GAIN) ||
+             (key == (String8)VOICEMEMO_MM_GAIN) ||
+             (key == (String8)VOICEMEMO_TONE_GAIN)) {
+        LOGV("validate Voice Memo gains");
+        gain = atoi((const char *)value);
+        if ((-120 <= gain) && (gain <= 29))
+            return NO_ERROR;
+        else
+            return BAD_VALUE;
     }
     else {
         // @TODO: add constraints as required

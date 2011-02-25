@@ -31,7 +31,7 @@ namespace android
 static int s_device_open(const hw_module_t*, const char*, hw_device_t**);
 static int s_device_close(hw_device_t*);
 static status_t s_init(alsa_device_t *, ALSAHandleList &);
-static status_t s_open(alsa_handle_t *, uint32_t, int);
+static status_t s_open(alsa_handle_t *, uint32_t, int, uint32_t);
 static status_t s_close(alsa_handle_t *);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
@@ -102,9 +102,10 @@ static int s_device_close(hw_device_t* device)
 
 static const int DEFAULT_SAMPLE_RATE = ALSA_DEFAULT_SAMPLE_RATE;
 
-static void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode);
+static void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t channels);
 void configMicChoices(uint32_t);
 void configEqualizer (uint32_t);
+void configVoiceMemo (uint32_t);
 
 static alsa_handle_t _defaults[] = {
 /*
@@ -115,6 +116,7 @@ static alsa_handle_t _defaults[] = {
         devices     : mapping Android devices to OMAP4 Front end devices
         curDev      : current Android device used by this handle
         curMode     : current Android mode used by this handle
+        curChannels : current Android audio channels used by this handle
         handle      : pointer to a snd_pcm_t ALSA handle
         format      : bit, endianess according to ALSA definitions
         channels    : Integer number of channels
@@ -129,6 +131,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP4_OUT_SCO,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE,
         channels    : 2,
@@ -143,6 +146,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP4_OUT_FM,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE,
         channels    : 2,
@@ -157,6 +161,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP4_OUT_HDMI,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE,
         channels    : 2,
@@ -171,6 +176,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP4_OUT_DEFAULT,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE,
         channels    : 2,
@@ -186,6 +192,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP4_OUT_LP,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE,
         channels    : 2,
@@ -200,6 +207,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP4_IN_SCO,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE,
         channels    : 1,
@@ -214,6 +222,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP4_IN_DEFAULT,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE,
         channels    : 1,
@@ -228,6 +237,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP4_IN_FM,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S32_LE,
         channels    : 2,
@@ -543,9 +553,9 @@ status_t setSoftwareParams(alsa_handle_t *handle)
 }
 
 
-void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
+void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t channels)
 {
-    LOGV("%s", __FUNCTION__);
+    LOGV("%s: devices %08x mode %d channels %08x", __FUNCTION__, devices, mode, channels);
     ALSAControl control("hw:00");
 
     /* check whether the devices is input or not */
@@ -705,6 +715,11 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             control.set("MUX_UL11", "BT Left");
             control.set("BT UL Volume", 120);
             control.set("Voice Capture Mixer Capture", 1);
+        } else if (devices & AudioSystem::DEVICE_IN_VOICE_CALL) {
+            LOGI("OMAP4 ABE set for VXREC");
+            configVoiceMemo (channels);
+            control.set("MUX_UL00", "VX Right");
+            control.set("MUX_UL01", "VX Left");
         } else {
             /* TWL6040 */
             control.set("Analog Left Capture Route", "Off");
@@ -724,6 +739,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
 
     handle->curDev = devices;
     handle->curMode = mode;
+    handle->curChannels = channels;
 }
 
 // ----------------------------------------------------------------------------
@@ -770,10 +786,20 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
     status = propMgr.set((String8)Omap4ALSAManager::DMIC_EQ_PROFILE,
                          (String8)Omap4ALSAManager::EqualizerProfileList[1]);
 
+    // initialize voice memo gains: multimedia and tone are not recorded by default
+    status = propMgr.set((String8)Omap4ALSAManager::VOICEMEMO_VUL_GAIN,
+                         (String8)"0");
+    status = propMgr.set((String8)Omap4ALSAManager::VOICEMEMO_VDL_GAIN,
+                         (String8)"0");
+    status = propMgr.set((String8)Omap4ALSAManager::VOICEMEMO_MM_GAIN,
+                         (String8)"-120");
+    status = propMgr.set((String8)Omap4ALSAManager::VOICEMEMO_TONE_GAIN,
+                         (String8)"-120");
+
     return NO_ERROR;
 }
 
-static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
+static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t channels)
 {
     // Close off previously opened device.
     // It would be nice to determine if the underlying device actually
@@ -782,7 +808,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     //
     s_close(handle);
 
-    LOGD("open called for devices %08x in mode %d...", devices, mode);
+    LOGD("open called for devices %08x in mode %d channels %08x...", devices, mode, channels);
 
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
@@ -793,7 +819,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 
     // ASoC multicomponent requires a valid path (frontend/backend) for
     // the device to be opened
-    setAlsaControls(handle, devices, mode);
+    setAlsaControls(handle, devices, mode, channels);
 
 #ifdef AUDIO_MODEM_TI
     audioModem->voiceCallControlsMutexUnlock();
@@ -839,6 +865,7 @@ static status_t s_close(alsa_handle_t *handle)
     handle->handle = 0;
     handle->curDev = 0;
     handle->curMode = 0;
+    handle->curChannels = 0;
     if (h) {
         snd_pcm_drain(h);
         err = snd_pcm_close(h);
@@ -884,12 +911,12 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
 
     if (handle->curDev != devices) {
         if (mActive) {
-            status = s_open(handle, devices, mode);
+            status = s_open(handle, devices, mode, handle->curChannels);
         } else {
 #ifdef AUDIO_MODEM_TI
             audioModem->voiceCallControlsMutexLock();
 #endif
-            setAlsaControls(handle, devices, mode);
+            setAlsaControls(handle, devices, mode, handle->curChannels);
 #ifdef AUDIO_MODEM_TI
             audioModem->voiceCallControlsMutexUnlock();
 #endif
@@ -899,7 +926,7 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
          * for FM Rx mixer settings to come into effect
          * else FM Rx audio is not heard
          */
-         status = s_open(handle, devices, mode);
+         status = s_open(handle, devices, mode, handle->curChannels);
     }
 
 #ifdef AUDIO_MODEM_TI
@@ -1019,5 +1046,61 @@ void configEqualizer (uint32_t devices) {
 static status_t s_resetDefaults(alsa_handle_t *handle)
 {
     return setHardwareParams(handle);
+}
+
+void configVoiceMemo (uint32_t channels) {
+
+    ALSAControl control("hw:00");
+    int voiceUlGain = -120;
+    int voiceDlGain = -120;
+    int voiceMmGain = -120;
+    int voiceToneGain = -120;
+
+    propMgr.get((String8)Omap4ALSAManager::VOICEMEMO_VUL_GAIN, voiceUlGain);
+    propMgr.get((String8)Omap4ALSAManager::VOICEMEMO_VDL_GAIN, voiceDlGain);
+    propMgr.get((String8)Omap4ALSAManager::VOICEMEMO_MM_GAIN, voiceMmGain);
+    propMgr.get((String8)Omap4ALSAManager::VOICEMEMO_TONE_GAIN, voiceToneGain);
+
+    // conversion from properties to ABE HAL gains:
+    // Voice call record gains properties:
+    // value: -120dB..29dB step 1dB (-120 is mute)
+
+    // ABE VXREC volumes
+    //  index       gain            step
+    //  0..149      -120dB..29dB    1dB
+    voiceUlGain += 120;
+    voiceDlGain += 120;
+    voiceMmGain += 120;
+    voiceToneGain += 120;
+
+    if (voiceMmGain)
+        control.set("Capture Mixer Media Playback", 1);
+    else
+        control.set("Capture Mixer Media Playback", 0, 0);
+    if (voiceToneGain)
+        control.set("Capture Mixer Tones", 1);
+    else
+        control.set("Capture Mixer Tones", 0, 0);
+
+    control.set("VXREC Media Volume", voiceMmGain);
+    control.set("VXREC Tones Volume", voiceToneGain);
+
+
+    if (channels & AudioSystem::CHANNEL_IN_VOICE_UPLINK) {
+        control.set("Capture Mixer Voice Capture", 1);
+        control.set("Capture Mixer Voice Playback", 0, 0);
+        control.set("VXREC Voice UL Volume", voiceUlGain);
+        control.set("VXREC Voice DL Volume", 0 ,0);
+    } else if (channels & AudioSystem::CHANNEL_IN_VOICE_DNLINK) {
+        control.set("Capture Mixer Voice Capture", 0, 0);
+        control.set("Capture Mixer Voice Playback", 1);
+        control.set("VXREC Voice DL Volume", voiceDlGain);
+        control.set("VXREC Voice UL Volume", 0, 0);
+    } else if (channels & AudioSystem::CHANNEL_IN_VOICE_UPLINK_DNLINK) {
+        control.set("Capture Mixer Voice Capture", 1);
+        control.set("Capture Mixer Voice Playback", 1);
+        control.set("VXREC Voice UL Volume", voiceUlGain);
+        control.set("VXREC Voice DL Volume", voiceDlGain);
+    }
 }
 }

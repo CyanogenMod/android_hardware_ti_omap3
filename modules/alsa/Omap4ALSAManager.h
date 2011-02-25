@@ -18,6 +18,7 @@
 #include <utils/String8.h>
 #include <utils/KeyedVector.h>
 #include <cutils/properties.h>
+#include <stdlib.h>
 
 namespace android
 {
@@ -32,6 +33,7 @@ class Omap4ALSAManager
 
         status_t remove(const String8& key);
         status_t get(const String8& key, String8& value);
+        status_t get(const String8& key, int& value);
 
         status_t set(const String8& key, const String8& value);
         status_t setFromProperty(const String8& key);
@@ -49,6 +51,10 @@ class Omap4ALSAManager
         static const char* AMIC_EQ_PROFILE;
         static const char* DMIC_EQ_PROFILE;
         static const char* SDT_EQ_PROFILE;
+        static const char* VOICEMEMO_VUL_GAIN;
+        static const char* VOICEMEMO_VDL_GAIN;
+        static const char* VOICEMEMO_MM_GAIN;
+        static const char* VOICEMEMO_TONE_GAIN;
 
         // list of properties per devices
         KeyedVector <String8, String8> mParams;
