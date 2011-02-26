@@ -333,17 +333,29 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
             break;
         case OVERLAY_ON_TV:
             {
-                finalWindow->posX = 0;
-                finalWindow->posY= 0;
+                if ((overlayobj->mData.cropH > 720) || (overlayobj->mData.cropW > 1280) \
+                    || (overlayobj->data()->rotation % 180)) {
+                    //since no downscaling on TV, for 1080p resolution we go for full screen
+                    finalWindow->posX = 0;
+                    finalWindow->posY = 0;
+                } else {
+                    finalWindow->posX = (w2 * overlayobj->data()->posX)/LCD_WIDTH;
+                    finalWindow->posY=  (h2 * overlayobj->data()->posY)/LCD_HEIGHT;
+
+                    w2 = (w2 * overlayobj->data()->posW) / LCD_WIDTH;
+                    h2 = (h2 * overlayobj->data()->posH) / LCD_HEIGHT;
+                }
 #ifdef TARGET_OMAP4
                 if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
                     finalWindow->posW= w2;
                     finalWindow->posH= overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
-                    finalWindow->posY = (h2 - finalWindow->posH) / 2;
+                    if (finalWindow->posY == 0)
+                        finalWindow->posY = (h2 - finalWindow->posH) / 2;
                 } else {
                     finalWindow->posH = h2;
                     finalWindow->posW = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
-                    finalWindow->posX = (w2 - finalWindow->posW) / 2;
+                    if (finalWindow->posX == 0)
+                        finalWindow->posX = (w2 - finalWindow->posW) / 2;
                 }
 #else
                 overlay_ctrl_t   *data   = overlayobj->data();
@@ -1464,16 +1476,28 @@ void overlay_control_context_t::calculateLinkWindow(overlay_object *overlayobj, 
             break;
         case OVERLAY_ON_TV:
             {
-                finalWindow->posX = 0;
-                finalWindow->posY= 0;
+               if ((overlayobj->mData.cropH > 720) || (overlayobj->mData.cropW > 1280) \
+                   || (data->rotation % 180)) {
+                    //since no downscaling on TV, for 1080p resolution we go for full screen
+                    finalWindow->posX = 0;
+                    finalWindow->posY = 0;
+                } else {
+                    finalWindow->posX = (w2 * data->posX)/LCD_WIDTH;
+                    finalWindow->posY=  (h2 * data->posY)/LCD_HEIGHT;
+
+                    w2 = (w2 * data->posW) / LCD_WIDTH;
+                    h2 = (h2 * data->posH) / LCD_HEIGHT;
+                }
                 if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
                     finalWindow->posW= w2;
                     finalWindow->posH= overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
-                    finalWindow->posY = (h2 - finalWindow->posH) / 2;
+                    if (finalWindow->posY == 0)
+                        finalWindow->posY = (h2 - finalWindow->posH) / 2;
                 } else {
                     finalWindow->posH = h2;
                     finalWindow->posW = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
-                    finalWindow->posX = (w2 - finalWindow->posW) / 2;
+                    if (finalWindow->posX == 0)
+                        finalWindow->posX = (w2 - finalWindow->posW) / 2;
                 }
             LOGD("calculateWindow(): posW=%d, posH=%d, cropW=%d, cropH=%d",
                 finalWindow->posW, finalWindow->posH, overlayobj->mData.cropW, overlayobj->mData.cropH);
