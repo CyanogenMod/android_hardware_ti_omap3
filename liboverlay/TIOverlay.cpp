@@ -1038,6 +1038,14 @@ int overlay_control_context_t::overlay_setParameter(struct overlay_control_devic
             stage->rotation = 0;
             stage->mirror = true;
             break;
+        case (HAL_TRANSFORM_FLIP_V | OVERLAY_TRANSFORM_ROT_90):
+            stage->rotation = 90;
+            stage->mirror = true;
+            break;
+        case (HAL_TRANSFORM_FLIP_H | OVERLAY_TRANSFORM_ROT_90):
+            stage->rotation = 270;
+            stage->mirror = true;
+            break;
         default:
             rc = -EINVAL;
             break;
