@@ -207,7 +207,9 @@ TIHardwareRenderer::TIHardwareRenderer(
     mInitCheck = OK;
 }
 
-void TIHardwareRenderer::resizeRenderer(uint32_t width, uint32_t height) {
+void TIHardwareRenderer::resizeRenderer(uint32_t width, uint32_t height, uint32_t buffercount) {
+
+    LOGD("resizeRenderer %dx%d buff(%d)",width, height, buffercount);
     //first check if the size is different or not
     if ((mDecodedWidth != width) || (mDecodedHeight != height)) {
         //update the renderer's new width and height
@@ -228,6 +230,11 @@ void TIHardwareRenderer::resizeRenderer(uint32_t width, uint32_t height) {
             }
             mOverlayAddresses.clear();
         }
+
+        if(sz != buffercount){
+            mOverlay->setParameter(OVERLAY_NUM_BUFFERS, buffercount);
+        }
+
         //resize the overlay for the new width and height
         mOverlay->resizeInput(width, height);
         //create imem for the new buffers
