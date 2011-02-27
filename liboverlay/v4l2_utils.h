@@ -40,6 +40,13 @@ enum
     EMEMORY_USRPTR = 0x1
 };
 
+enum
+{
+   EVIDEO_SOURCE         = 0x0,
+   EGRAPHICS_DESTINATION = 0x1
+
+};
+
 int v4l2_overlay_open(int id);
 int v4l2_overlay_get_caps(int fd, struct v4l2_capability *caps);
 int v4l2_overlay_req_buf(int fd, uint32_t *num_bufs, int cacheable_buffers, int maintain_coherency, int memtype);
@@ -62,7 +69,7 @@ int v4l2_overlay_get_crop(int fd, uint32_t *x, uint32_t *y, uint32_t *w,
                               uint32_t *h);
 int v4l2_overlay_set_rotation(int fd, int degree, int step, uint32_t mirror);
 int v4l2_overlay_get_rotation(int fd, int* degree, int step, uint32_t* mirror);
-int v4l2_overlay_set_colorkey(int fd, int enable, int colorkey);
+int v4l2_overlay_set_colorkey(int fd, int enable, int colorkey, int keyType);
 int v4l2_overlay_set_global_alpha(int fd, int enable, int alpha);
 int v4l2_overlay_set_local_alpha(int fd, int enable);
 int v4l2_overlay_set_zorder(int fd, int value);

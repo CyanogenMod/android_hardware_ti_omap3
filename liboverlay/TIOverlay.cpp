@@ -700,7 +700,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-    if (v4l2_overlay_set_colorkey(fd, 1, 0)){
+    if (v4l2_overlay_set_colorkey(fd, 1, 0, 0)){
         LOGE("Failed enabling color key\n");
         goto error1;
     }
@@ -1103,6 +1103,9 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     int fd = overlayobj->getctrl_videofd();
     overlay_data_t eCropData;
     int rotation_degree = stage->rotation;
+    int transparency_type = EVIDEO_SOURCE;
+    int videopipezorder = stage->zorder;
+    int transkey = stage->colorkey;
 
 #ifndef TARGET_OMAP4
     /** NOTE: In order to support HDMI without app explicitly requesting for
@@ -1202,12 +1205,17 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 
-    if ((stage->panel == OVERLAY_ON_TV) && (data->rotation != 180)) {
+    if (stage->panel == OVERLAY_ON_TV) {
         /** 90 and 270 degree rotation is not applicable for TV
         * hence reset the rotation to 0 deg if the panel is TV
         * 180 degree rotation is required to handle mirroring scenario
         */
-        rotation_degree = 0;
+        if (data->rotation != 180) {
+            rotation_degree = 0;
+        }
+        transparency_type = EGRAPHICS_DESTINATION;
+        videopipezorder = 1;
+        transkey = 0;
     }
 
     if ((ret = v4l2_overlay_set_rotation(fd, rotation_degree, 0, data->mirror))) {
@@ -1351,24 +1359,21 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 
-    //unlock the mutex here as the subsequent operations are file operations
-    //otherwise it may hang
-    pthread_mutex_unlock(&overlayobj->lock);
 #ifdef TARGET_OMAP4
-    if (data->colorkey < 0) {
-        if ((ret = v4l2_overlay_set_colorkey(fd, 0, 0x00))) {
+    if (transkey < 0) {
+        if ((ret = v4l2_overlay_set_colorkey(fd, 0, 0x00, 0x00))) {
             LOGE("Failed enabling color key\n");
             goto end;
         }
     }
     else {
-        if ((ret = v4l2_overlay_set_colorkey(fd, 1, data->colorkey))) {
+        if ((ret = v4l2_overlay_set_colorkey(fd, 1, transkey, transparency_type))) {
             LOGE("Failed enabling color key\n");
             goto end;
         }
     }
 #else
-    if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00))) {
+    if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00, 0x00))) {
         LOGE("Failed enabling color key\n");
         goto end;
     }
@@ -1380,7 +1385,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         //Set up the z-order for the overlay:
         //TBD:Surface flinger or the driver has to re-work the zorder of all the
         //other active overlays for a given manager to service the current request.
-        if ((ret = v4l2_overlay_set_zorder(fd, stage->zorder))) {
+        if ((ret = v4l2_overlay_set_zorder(fd, videopipezorder))) {
              LOGE("Failed setting zorder\n");
              goto end;
 
@@ -1488,8 +1493,6 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
     int linkfd = overlayobj->getctrl_linkvideofd();
     overlay_data_t eCropData;
 
-    pthread_mutex_lock(&overlayobj->lock);
-
     //Calculate window size. As of now this is applicable only for non-LCD panels
     calculateLinkWindow(overlayobj, &finalWindow, KCloneDevice);
 
@@ -1566,8 +1569,33 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
         goto end;
     }
 
+    if (data->colorkey < 0) {
+        if ((ret = v4l2_overlay_set_colorkey(linkfd, 0, 0x00, 0x00))) {
+            LOGE("Failed enabling color key\n");
+            goto end;
+        }
+    }
+    else {
+        if ((ret = v4l2_overlay_set_colorkey(linkfd, 1, data->colorkey, EVIDEO_SOURCE))) {
+            LOGE("Failed enabling color key\n");
+            goto end;
+        }
+    }
+
+    //Currently not supported with V4L2_S3D driver
+    if (!overlayobj->mData.s3d_active) {
+        //Set up the z-order for the overlay:
+        //TBD:Surface flinger or the driver has to re-work the zorder of all the
+        //other active overlays for a given manager to service the current request.
+        if ((ret = v4l2_overlay_set_zorder(linkfd, data->zorder))) {
+             LOGE("Failed setting zorder\n");
+             goto end;
+
+        }
+    }
+
+
 end:
-    pthread_mutex_unlock(&overlayobj->lock);
     LOG_FUNCTION_NAME_EXIT;
     return ret;
 }

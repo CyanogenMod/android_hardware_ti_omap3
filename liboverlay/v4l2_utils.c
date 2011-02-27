@@ -447,7 +447,7 @@ int v4l2_overlay_get_rotation(int fd, int* degree, int step, uint32_t* mirror)
 }
 
 
-int v4l2_overlay_set_colorkey(int fd, int enable, int colorkey)
+int v4l2_overlay_set_colorkey(int fd, int enable, int colorkey, int keyType)
 {
     LOG_FUNCTION_NAME
 
@@ -463,12 +463,17 @@ int v4l2_overlay_set_colorkey(int fd, int enable, int colorkey)
 #ifdef TARGET_OMAP4
     if (enable)
     {
-        fbuf.flags &= ~V4L2_FBUF_FLAG_CHROMAKEY;
-        fbuf.flags |= V4L2_FBUF_FLAG_SRC_CHROMAKEY;
+        if (keyType == EVIDEO_SOURCE) {
+            fbuf.flags &= ~V4L2_FBUF_FLAG_CHROMAKEY;
+            fbuf.flags |= V4L2_FBUF_FLAG_SRC_CHROMAKEY;
+        } else {
+            fbuf.flags |= V4L2_FBUF_FLAG_CHROMAKEY;
+            fbuf.flags &= ~V4L2_FBUF_FLAG_SRC_CHROMAKEY;
+        }
     }
     else
     {
-        fbuf.flags |= V4L2_FBUF_FLAG_CHROMAKEY;
+        fbuf.flags &= ~V4L2_FBUF_FLAG_CHROMAKEY;
         fbuf.flags &= ~V4L2_FBUF_FLAG_SRC_CHROMAKEY;
     }
 #else
