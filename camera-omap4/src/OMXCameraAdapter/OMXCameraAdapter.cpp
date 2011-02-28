@@ -2552,13 +2552,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
        CAMHAL_LOGDA("Configuring VFR for Video Mode");
        }
 
-    ret = setImageQuality(mPictureQuality);
-    if ( NO_ERROR != ret)
-        {
-        CAMHAL_LOGEB("Error configuring image quality %x", ret);
-        return ret;
-        }
-
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE || (isS3d && (mCapMode == OMXCameraAdapter::HIGH_QUALITY)))
         {
         ///Enable/Disable Video Noise Filter
@@ -2761,10 +2754,17 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
         }
 
     ret = setExposureBracketing( mExposureBracketingValues,
-                                               mExposureBracketingValidEntries, mBurstFrames);
+                                 mExposureBracketingValidEntries, mBurstFrames);
     if ( ret != NO_ERROR )
         {
         CAMHAL_LOGEB("setExposureBracketing() failed %d", ret);
+        return ret;
+        }
+
+    ret = setImageQuality(mPictureQuality);
+    if ( NO_ERROR != ret)
+        {
+        CAMHAL_LOGEB("Error configuring image quality %x", ret);
         return ret;
         }
 
@@ -3294,9 +3294,9 @@ status_t OMXCameraAdapter::setImageQuality(unsigned int quality)
 
     LOG_FUNCTION_NAME
 
-    if ( OMX_StateLoaded != mComponentState )
+    if ( OMX_StateInvalid == mComponentState )
         {
-        CAMHAL_LOGEA("OMX component is not in loaded state");
+        CAMHAL_LOGEA("OMX component is in invalid state");
         ret = -EINVAL;
         }
 
