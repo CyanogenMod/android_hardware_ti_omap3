@@ -1394,8 +1394,7 @@ status_t OMXCameraAdapter::setupEXIF()
                                                        ( EXIF_MAKE_SIZE ) +
                                                        ( EXIF_DATE_TIME_SIZE ) +
                                                        ( GPS_MAPDATUM_SIZE ) +
-                                                       ( GPS_DATESTAMP_SIZE );
-
+                                                       ( GPS_PROCESSING_SIZE );
 
         sharedBuffer.pSharedBuff =  ( OMX_U8 * ) malloc (sharedBuffer.nSharedBuffSize);
         if ( NULL == sharedBuffer.pSharedBuff )
