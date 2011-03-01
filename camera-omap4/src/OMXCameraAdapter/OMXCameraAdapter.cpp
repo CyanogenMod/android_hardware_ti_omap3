@@ -6111,6 +6111,14 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
         mCapturedFrames--;
 
+
+        //The usual jpeg capture does not include raw data.
+        //Use empty raw frames intead.
+        if ( CodingNone == mCodingMode )
+            {
+            sendEmptyRawFrame();
+            }
+
         stat |= sendFrame(pBuffHeader, typeOfFrame, pPortParam);
         }
     else
@@ -6231,9 +6239,28 @@ status_t OMXCameraAdapter::recalculateFPS()
     return NO_ERROR;
 }
 
-status_t OMXCameraAdapter::sendFrame(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader,
-                                                                          int typeOfFrame,
-                                                                          OMXCameraPortParameters *port)
+status_t OMXCameraAdapter::sendEmptyRawFrame()
+{
+    status_t ret = NO_ERROR;
+    CameraFrame frame;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+        memset(&frame, 0, sizeof(CameraFrame));
+        frame.mFrameType = CameraFrame::RAW_FRAME;
+        ret = sendFrameToSubscribers(&frame);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::sendFrame( OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader,
+                                      int typeOfFrame,
+                                      OMXCameraPortParameters *port)
 {
     status_t ret = NO_ERROR;
     CameraFrame frame;
@@ -6260,10 +6287,10 @@ status_t OMXCameraAdapter::sendFrame(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader,
     return ret;
 }
 
-status_t OMXCameraAdapter::initCameraFrame(CameraFrame &frame,
-                                                                                          OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader,
-                                                                                          int typeOfFrame,
-                                                                                          OMXCameraPortParameters *port)
+status_t OMXCameraAdapter::initCameraFrame( CameraFrame &frame,
+                                            OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader,
+                                            int typeOfFrame,
+                                            OMXCameraPortParameters *port)
 {
     status_t ret = NO_ERROR;
 

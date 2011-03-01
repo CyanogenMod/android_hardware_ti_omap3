@@ -517,6 +517,9 @@ private:
     //Sends the incoming OMX buffer header to subscribers
     status_t sendFrame(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame, OMXCameraPortParameters *port);
 
+    //Sends empty raw frames in case there aren't any during image capture
+    status_t sendEmptyRawFrame();
+
     const char* getLUTvalue_OMXtoHAL(int OMXValue, LUTtype LUT);
     int getLUTvalue_HALtoOMX(const char * HalValue, LUTtype LUT);
     OMX_ERRORTYPE apply3Asettings( Gen3A_settings& Gen3A );

@@ -29,7 +29,7 @@
 namespace android {
 
 const int AppCallbackNotifier::NOTIFIER_TIMEOUT = -1;
-
+const size_t AppCallbackNotifier::EMPTY_RAW_SIZE = 1;
 
 /*--------------------NotificationHandler Class STARTS here-----------------------------*/
 
@@ -388,6 +388,11 @@ void AppCallbackNotifier::notifyFrame()
 
 #ifdef COPY_IMAGE_BUFFER
 
+                    //MTS tests always require a raw callback during image capture.
+                    //In some cases raw data is not available. Currently empty raw callbacks
+                    //are the only remedy for these cases.
+                    if ( 0 < frame->mLength )
+                        {
                         sp<MemoryHeapBase> RAWPictureHeap = new MemoryHeapBase(frame->mLength);
                         sp<MemoryBase> RAWPictureMemBase = new MemoryBase(RAWPictureHeap, 0, frame->mLength);
                         buf = RAWPictureMemBase->pointer();
@@ -396,13 +401,22 @@ void AppCallbackNotifier::notifyFrame()
 
                         mDataCb(CAMERA_MSG_RAW_IMAGE, RAWPictureMemBase, mCallbackCookie);
 
+                        mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
+                        }
+                    else
+                        {
+                        sp<MemoryHeapBase> RAWPictureHeap = new MemoryHeapBase(EMPTY_RAW_SIZE);
+                        sp<MemoryBase> RAWPictureMemBase = new MemoryBase(RAWPictureHeap, 0, EMPTY_RAW_SIZE);
+
+                        mDataCb(CAMERA_MSG_RAW_IMAGE, RAWPictureMemBase, mCallbackCookie);
+                        }
+
 #else
 
                      //TODO: Find a way to map a Tiler buffer to a MemoryHeapBase
 
 #endif
 
-                        mFrameProvider->returnFrame(frame->mBuffer,  ( CameraFrame::FrameType ) frame->mFrameType);
 
                     }
                 else if ( ( CameraFrame::IMAGE_FRAME == frame->mFrameType ) &&
