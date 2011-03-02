@@ -35,6 +35,7 @@ class Omap4ALSAManager
 
         status_t set(const String8& key, const String8& value);
         status_t setFromProperty(const String8& key);
+        status_t setFromProperty(const String8& key, const String8& init);
 
         status_t validateValueForKey(const String8& key, String8& value);
 
@@ -47,6 +48,7 @@ class Omap4ALSAManager
         static const char* DL1_EQ_PROFILE;
         static const char* AMIC_EQ_PROFILE;
         static const char* DMIC_EQ_PROFILE;
+        static const char* SDT_EQ_PROFILE;
 
         // list of properties per devices
         KeyedVector <String8, String8> mParams;

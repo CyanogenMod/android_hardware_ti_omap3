@@ -27,12 +27,12 @@ const char *Omap4ALSAManager::MAIN_MIC = "omap.audio.mic.main";
 const char *Omap4ALSAManager::SUB_MIC = "omap.audio.mic.sub";
 const char *Omap4ALSAManager::POWER_MODE = "omap.audio.power";
 
-/* below are not implemented/used yet */
 const char *Omap4ALSAManager::DL2L_EQ_PROFILE = "omap.audio.dl2l.eq";
 const char *Omap4ALSAManager::DL2R_EQ_PROFILE = "omap.audio.dl2r.eq";
 const char *Omap4ALSAManager::DL1_EQ_PROFILE = "omap.audio.dl1.eq";
 const char *Omap4ALSAManager::AMIC_EQ_PROFILE = "omap.audio.amic.eq";
 const char *Omap4ALSAManager::DMIC_EQ_PROFILE = "omap.audio.dmic.eq";
+const char *Omap4ALSAManager::SDT_EQ_PROFILE = "omap.audio.sdt.eq";
 
 
 const char  *Omap4ALSAManager::MicNameList[]= {
@@ -54,7 +54,7 @@ const char  *Omap4ALSAManager::PowerModeList[] = {
 };
 
 const char  *Omap4ALSAManager::EqualizerProfileList[] = {
-    "Flat response",  // all-pass filter
+    "Flat response",  // all-pass filter not used for AMIC and DMIC
     "High-pass 0dB",
     "High-pass -12dB",
     "High-pass -20dB",
@@ -81,8 +81,23 @@ status_t Omap4ALSAManager::setFromProperty(const String8& key) {
     status_t status = NO_ERROR;
     char value[PROPERTY_VALUE_MAX];
 
-    // assumes that the value is valid
     if (property_get(key.string(), value, ""))
+    {
+        LOGV("setFromProperty:: %s::%s", key.string(), value);
+        String8 temp = String8(value);
+        if (validateValueForKey(key, temp) == NO_ERROR) {
+            mParams.add(key, (String8)value);
+            return NO_ERROR;
+        }
+    }
+    return BAD_VALUE;
+}
+
+status_t Omap4ALSAManager::setFromProperty(const String8& key, const String8& init) {
+    status_t status = NO_ERROR;
+    char value[PROPERTY_VALUE_MAX];
+
+    if (property_get(key.string(), value, init.string()))
     {
         LOGV("setFromProperty:: %s::%s", key.string(), value);
         String8 temp = String8(value);
@@ -150,6 +165,35 @@ status_t Omap4ALSAManager::validateValueForKey(const String8& key, String8& valu
         LOGV("validate power mode");
         while (noMatch && strcmp(PowerModeList[i], "eof")) {
                 noMatch = strcmp(PowerModeList[i], value.string());
+                if (noMatch) i++;
+                else break;
+            }
+            if(noMatch)
+                return BAD_VALUE;
+            else
+                return NO_ERROR;
+    }
+    else if ((key == (String8)DL2L_EQ_PROFILE) ||
+             (key == (String8)DL2R_EQ_PROFILE) ||
+             (key == (String8)DL1_EQ_PROFILE) ||
+             (key == (String8)SDT_EQ_PROFILE)) {
+        LOGV("validate equalizer profile");
+        while (noMatch && strcmp(EqualizerProfileList[i], "eof")) {
+                noMatch = strcmp(EqualizerProfileList[i], value.string());
+                if (noMatch) i++;
+                else break;
+            }
+            if(noMatch)
+                return BAD_VALUE;
+            else
+                return NO_ERROR;
+    }
+    else if ((key == (String8)AMIC_EQ_PROFILE) ||
+             (key == (String8)DMIC_EQ_PROFILE)) {
+        LOGV("validate DMIC/AMIC equalizer profile");
+        i++; // "Flat response" is not supported by DMIC/AMIC
+        while (noMatch && strcmp(EqualizerProfileList[i], "eof")) {
+                noMatch = strcmp(EqualizerProfileList[i], value.string());
                 if (noMatch) i++;
                 else break;
             }
