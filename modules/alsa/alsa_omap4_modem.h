@@ -187,9 +187,9 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 //  2           18dB
 //  3           24dB
 //  4           30dB
-#define AUDIO_CODEC_CAPTURE_VOL_HANDSET             4
-#define AUDIO_CODEC_CAPTURE_VOL_HANDFREE            4
-#define AUDIO_CODEC_CAPTURE_VOL_HEADSET             4
+#define AUDIO_CODEC_CAPTURE_VOL_HANDSET             3
+#define AUDIO_CODEC_CAPTURE_VOL_HANDFREE            3
+#define AUDIO_CODEC_CAPTURE_VOL_HEADSET             3
 
 // amplifier volumes are
 //  index       gain
@@ -226,6 +226,25 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_ABE_AUDUL_VOICE_VOL_HEADSET       120
 #define AUDIO_ABE_AUDUL_VOICE_VOL_BLUETOOTH     120
 
+// DMIC ABE Uplink Volume
+// Range values: min=0,max=149,step=1
+// dBscale-min=-120.00dB,step=1.00dB,mute=0
+#define AUDIO_ABE_DMIC_MAIN_UL_VOL_HANDFREE     140
+#define AUDIO_ABE_DMIC_SUB_UL_VOL_HANDFREE      140
+#define AUDIO_ABE_DMIC_MAIN_UL_VOL_HANDSET      140
+#define AUDIO_ABE_DMIC_SUB_UL_VOL_HANDSET       140
+
+// AMIC ABE Uplink Volume
+// Range values: min=0,max=149,step=1
+// dBscale-min=-120.00dB,step=1.00dB,mute=0
+#define AUDIO_ABE_AMIC_UL_VOL_HANDFREE          120
+#define AUDIO_ABE_AMIC_UL_VOL_HANDSET           120
+
+// Bluetooth MIC ABE Uplink Volume
+// Range values: min=0,max=149,step=1
+// dBscale-min=-120.00dB,step=1.00dB,mute=0
+#define AUDIO_ABE_BT_MIC_UL_VOL 120
+
 // Sidetone Downlink Volume
 // Range values: min=0,max=149,step=1
 // dBscale-min=-120.00dB,step=1.00dB,mute=0
@@ -234,7 +253,7 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 #define AUDIO_ABE_SIDETONE_DL_VOL_HEADSET       120
 #define AUDIO_ABE_SIDETONE_DL_VOL_BLUETOOTH     120
 
-// Sidetone Ulink Volume
+// Sidetone Uplink Volume
 // Range values: min=0,max=149,step=1
 // dBscale-min=-120.00dB,step=1.00dB,mute=0
 #define AUDIO_ABE_SIDETONE_UL_VOL_HANDSET       90
@@ -264,36 +283,6 @@ struct voiceCallVolumeList
     const uint32_t  device;
     const char      *volumeName;
     voiceCallVolumeInfo *mInfo;
-};
-
-// DMIC or AMIC allocation feature
-enum MicType {
-    OMAP_MIC_TYPE_ANALOG = 0,
-    OMAP_MIC_TYPE_DIGITAL,
-    OMAP_MIC_TYPE_UNKNOWN,
-};
-
-struct MicConfig {
-    char     name[PROPERTY_VALUE_MAX];
-    MicType  type;
-};
-
-#define AMIC_MAX_INDEX 2
-#define DMIC_MAX_INDEX 8
-
-static const char *MicNameList[] = {
-    "AMic0",  // for Analog Main mic
-    "AMic1",  //  for Analog Sub mic
-
-    "DMic0L", // for Digital Left mic 0
-    "DMic1L", // for Digital Left mic 1
-    "DMic2L", // for Digital Left mic 2
-
-    "DMic0R", // for Digital Right mic 0
-    "DMic1R", // for Digital Right mic 1
-    "DMic2R", // for Digital Right mic 2
-
-    "eof" // eof
 };
 
 struct voiceCallControlMainInfo
@@ -410,10 +399,7 @@ public:
 
     // DMIC/AMIC allocation
     status_t configMicrophones(void);
-    void micChosen(void);
-    int setMicType(MicConfig *mic);
-    MicConfig mainMic;
-    MicConfig subMic;
+    status_t microphoneChosen(void);
 
     // Equalizer
     status_t configEqualizers(void);
