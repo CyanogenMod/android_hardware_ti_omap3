@@ -38,6 +38,8 @@
 /** Subclass of Allocator that returns a pixelref that allocates its pixel
     memory from the heap. This is the default Allocator invoked by
     allocPixels().
+    This allocator will be set to bitmap-SetAllocator() or using
+    allocPixels().
 */
 class TIHeapAllocator : public SkBitmap::Allocator {
 public:
@@ -45,18 +47,18 @@ public:
 };
 
 
-/** We explicitly use the same allocator for our pixels that SkMask does,
-    so that we can freely assign memory allocated by one class to the other.
+/* This class handle will be passed to the bitmap->setPixelRef() and get
+   freed/deleted by bitmap class.
+   We have done this to use the TI specific memory allocation and deallocation.
 */
 class TISkMallocPixelRef : public SkPixelRef {
 public:
-    /** Allocate the specified buffer for pixels. The memory is freed when the
-        last owner of this pixelref is gone.
+    /** The memory held by *addr is freed in the destructor.
      */
     TISkMallocPixelRef(void* addr, size_t size, SkColorTable* ctable);
     virtual ~TISkMallocPixelRef();
 
-    //! Return the allocation size for the pixels
+    // Return the allocation size for the pixels
     size_t getSize() const { return fSize; }
 
     // overrides from SkPixelRef

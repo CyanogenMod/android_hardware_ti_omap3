@@ -46,10 +46,10 @@ bool TIHeapAllocator::allocPixelRef(SkBitmap* dst,
     size_t nBytesPerPixel = 2;
 
     /*round up if nWidth is not multiple of 32*/
-    ( (nWidth%32 ) !=0 ) ?  nWidth=32 * (  (  nWidth/32 ) + 1 )  : nWidth;
+    nWidth = (size_t)((nWidth + MULTIPLE_32) & ~MULTIPLE_32);
 
     /*round up if nHeight is not multiple of 16*/
-    ( (nHeight%16) !=0 ) ?  nHeight=16 * (  (  nHeight/16 ) + 1 )  : nHeight;
+    nHeight= (size_t)((nHeight + MULTIPLE_16) & ~MULTIPLE_16);
 
     if (dst->config() == 6) nBytesPerPixel = 4;
 
@@ -176,6 +176,7 @@ void TISkMallocPixelRef::flatten(SkFlattenableWriteBuffer& buffer) const {
         buffer.writeBool(false);
     }
 }
+
 
 TISkMallocPixelRef::TISkMallocPixelRef(SkFlattenableReadBuffer& buffer) : INHERITED(buffer, NULL) {
     fSize = buffer.readU32();
