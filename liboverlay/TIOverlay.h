@@ -226,11 +226,12 @@ public:
     static void destroy_shared_overlayobj(overlay_object *overlayobj, bool isCtrlpath = true);
     static overlay_object* open_shared_overlayobj(int ovlyfd, int ovlysize);
     static void close_shared_overlayobj(overlay_object *overlayobj);
-    static void calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow, int panelId);
+    static void calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow, int panelId, bool isCrtlpath = true);
     static void calculateDisplayMetaData(overlay_object *overlayobj, int panelId);
 
     //methods for link device
      static int CommitLinkDevice(overlay_control_device_t *dev, overlay_object* overlayobj);
+
 public:
     /**
      * inorder to avoid the static data in this .so we are making this array non-static

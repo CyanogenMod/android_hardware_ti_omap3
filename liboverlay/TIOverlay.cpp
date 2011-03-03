@@ -307,7 +307,7 @@ overlay_object* overlay_control_context_t::open_shared_overlayobj(int ovlyfd, in
 * This function has to be called after setting the crop window parameters
 */
 void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow, \
-                                                int panelId)
+                                                int panelId, bool isCtrlpath)
 {
     LOG_FUNCTION_NAME_ENTRY
     overlay_ctrl_t   *stage  = overlayobj->staging();
@@ -319,6 +319,8 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
     */
     uint32_t dummy, w2, h2;
     overlay_ctrl_t   *data   = overlayobj->data();
+    int fd;
+    uint32_t tempW, tempH;
     if (sscanf(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
         &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
         w2 = finalWindow->posW;
@@ -359,6 +361,7 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                 finalWindow->posH = data->posH;
                 break;
            }
+
             break;
         case OVERLAY_ON_TV:
             {
@@ -411,7 +414,56 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
             LOGE("Leave the default  values");
         };
 
-     LOG_FUNCTION_NAME_EXIT
+    /**
+    * check the final window scaling factors against H/W caps
+    * and adjust
+    * (1) Crop window keeping the Aspect ratio same--> For downscaling limit
+    * (2) Final Output Window --> For Upsclaing limit
+    * Before start checks, roundup the Window width & height to even integer
+    */
+    finalWindow->posH = finalWindow->posH - (finalWindow->posH % 2);
+    finalWindow->posW = finalWindow->posW - (finalWindow->posW % 2);
+    /* Handling the Downscaling scenario for Height */
+    if (overlayobj->mData.cropH > (finalWindow->posH * MAX_DSS_DOWNSCALING_FACTOR)) {
+        tempH = MAX(overlayobj->mData.cropH, 1); //this is to avoid cropH being zero scenario
+        overlayobj->mData.cropH = MAX_DSS_DOWNSCALING_FACTOR * finalWindow->posH;
+        //adjust the cropW for the new cropH, to maintain aspect ratio
+        overlayobj->mData.cropW = (overlayobj->mData.cropW * overlayobj->mData.cropH) / tempH;
+    } else if (finalWindow->posH > (overlayobj->mData.cropH * MAX_DSS_UPSCALING_FACTOR)) {
+        /* Handling the upscaling scenario for Height*/
+        tempH = MAX(finalWindow->posH, 1); //this is to avoid posH being zero scenario
+        finalWindow->posH = MAX_DSS_UPSCALING_FACTOR * overlayobj->mData.cropH;
+        //adjust the window width to maintain aspect ratio
+        finalWindow->posW = (finalWindow->posW * finalWindow->posH ) / tempH;
+    }
+
+    /* Handling the Downscaling scenario for Width*/
+    if (overlayobj->mData.cropW > (finalWindow->posW * MAX_DSS_DOWNSCALING_FACTOR)) {
+        tempW = MAX(overlayobj->mData.cropW, 1); //this is to avoid cropW being zero scenario
+        overlayobj->mData.cropW = MAX_DSS_DOWNSCALING_FACTOR * finalWindow->posW;
+        //adjust the cropH for the new cropW, to maintain aspect ratio
+        overlayobj->mData.cropH = (overlayobj->mData.cropH * overlayobj->mData.cropW) / tempW;
+    } else if (finalWindow->posW > (overlayobj->mData.cropW * MAX_DSS_UPSCALING_FACTOR)) {
+        /* Handling the upscaling scenario for width */
+        tempW = MAX(finalWindow->posW, 1); //this is to avoid posW being zero scenario
+        finalWindow->posW = MAX_DSS_UPSCALING_FACTOR * overlayobj->mData.cropW;
+        //adjust the window height to maintain aspect ratio
+        finalWindow->posH = (finalWindow->posH * finalWindow->posW ) / tempW;
+    }
+
+    if (isCtrlpath) {
+        fd = overlayobj->getctrl_videofd();
+    } else {
+        fd = overlayobj->getdata_videofd();
+    }
+
+    if (v4l2_overlay_set_crop(fd, overlayobj->mData.cropX, overlayobj->mData.cropY,\
+                              overlayobj->mData.cropW, overlayobj->mData.cropH)) {
+        LOGE("Failed defaulting crop window\n");
+        return;
+    }
+    LOG_FUNCTION_NAME_EXIT
+
 }
 
 void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlayobj, int panelId)
@@ -1457,22 +1509,14 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
         goto end;
     }
 
-    if ((ret = v4l2_overlay_get_crop(linkfd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
-        LOGE("commit:Get crop value Failed!/%d\n", ret);
-        goto end;
-    }
-
     if ((ret = v4l2_overlay_set_rotation(linkfd, data->rotation, 0, data->mirror))) {
         LOGE("Set Rotation Failed!/%d\n", ret);
         goto end;
     }
 
-    if ((ret = v4l2_overlay_set_crop(linkfd,
-                    eCropData.cropX,
-                    eCropData.cropY,
-                    eCropData.cropW,
-                    eCropData.cropH))) {
-        LOGE("Set Cropping Failed!/%d\n",ret);
+    if (v4l2_overlay_set_crop(linkfd, overlayobj->mData.cropX, overlayobj->mData.cropY,\
+                              overlayobj->mData.cropW, overlayobj->mData.cropH)) {
+        LOGE("Failed defaulting crop window\n");
         goto end;
     }
 
@@ -1950,7 +1994,8 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
     }
 
     overlay_control_context_t::calculateDisplayMetaData(ctx->omap_overlay, ctx->omap_overlay->data()->panel);
-    overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, ctx->omap_overlay->data()->panel);
+    overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, ctx->omap_overlay->data()->panel, false);
+
     if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
         LOGD(" Could not set the position when setting the crop \n");
         goto end;
@@ -1976,7 +2021,8 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
         }
 
         overlay_control_context_t::calculateDisplayMetaData(ctx->omap_overlay, ctx->omap_overlay->data()->panel);
-        overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, ctx->omap_overlay->data()->panel);
+        overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, ctx->omap_overlay->data()->panel, false);
+
         if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
             LOGD(" Could not set the position when setting the crop \n");
             goto end;
@@ -1988,8 +2034,9 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
                 LOGE("LINK: Set Crop Window Failed!/%d\n", rc);
                 goto end;
             }
+
             overlay_control_context_t::calculateDisplayMetaData(ctx->omap_overlay, KCloneDevice);
-            overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, KCloneDevice);
+            overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, KCloneDevice, false);
 
             if ((rc = v4l2_overlay_set_position(linkfd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
                 LOGD(" LINK: Could not set the position when setting the crop \n");

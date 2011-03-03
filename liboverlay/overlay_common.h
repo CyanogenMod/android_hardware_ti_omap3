@@ -70,6 +70,10 @@
 #define MAX_OVERLAY_WIDTH_VAL (2400)
 #define MAX_OVERLAY_HEIGHT_VAL (2048)
 #define MAX_OVERLAY_RESOLUTION ((2048) * (2048))
+
+#define MAX_DSS_UPSCALING_FACTOR 8
+#define MAX_DSS_DOWNSCALING_FACTOR 4
+
 #else
 /* The following defines are used to set the maximum values supported
  * by the overlay.
@@ -79,6 +83,10 @@
 #define MAX_OVERLAY_WIDTH_VAL (1280)
 #define MAX_OVERLAY_HEIGHT_VAL (1280)
 #define MAX_OVERLAY_RESOLUTION (1280 * 720)
+
+#define MAX_DSS_UPSCALING_FACTOR 8
+#define MAX_DSS_DOWNSCALING_FACTOR 4
+
 #endif
 
 #endif  // OVERLAY_COMMON_H_
