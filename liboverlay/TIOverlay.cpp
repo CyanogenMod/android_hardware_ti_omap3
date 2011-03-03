@@ -365,6 +365,7 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
             break;
         case OVERLAY_ON_TV:
             {
+#ifdef TARGET_OMAP4
                 if ((overlayobj->mData.cropH > 720) || (overlayobj->mData.cropW > 1280) \
                     || (overlayobj->data()->rotation % 180)) {
                     //since no downscaling on TV, for 1080p resolution we go for full screen
@@ -377,7 +378,7 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                     w2 = (w2 * overlayobj->data()->posW) / LCD_WIDTH;
                     h2 = (h2 * overlayobj->data()->posH) / LCD_HEIGHT;
                 }
-#ifdef TARGET_OMAP4
+
                 if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
                     finalWindow->posW= w2;
                     finalWindow->posH= overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
@@ -390,6 +391,8 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                         finalWindow->posX = (w2 - finalWindow->posW) / 2;
                 }
 #else
+                finalWindow->posX = 0;
+                finalWindow->posY = 0;
                 overlay_ctrl_t   *data   = overlayobj->data();
                 if (data->rotation == 0) {
                     unsigned int aspect_ratio = 0;
