@@ -597,20 +597,11 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
         }
         if ((devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
             (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
-            (devices & AudioSystem::DEVICE_OUT_FM_TRANSMIT) ||
             (devices & AudioSystem::DEVICE_OUT_LOW_POWER)) {
             /* OMAP4 ABE */
             control.set("DL1 Mixer Multimedia", 1);		// MM_DL    -> DL1 Mixer
             control.set("Sidetone Mixer Playback", 1);		// DL1 Mixer-> Sidetone Mixer
             control.set("SDT DL Volume", 118);
-            if (devices & OMAP4_OUT_FM) {
-              /* FM Tx: DL1 MM_EXT Switch */
-              control.set("DL1 MM_EXT Switch", 1);
-              control.set("DL1 PDM Switch", 0, 0);
-            } else {
-              control.set("DL1 PDM Switch", 1);                 // Sidetone Mixer -> PDM_DL1
-              control.set("DL1 MM_EXT Switch", 0, 0);
-            }
             control.set("DL1 Media Playback Volume", 118);
             if (fm_enable) {
                 LOGI("FM Enabled, DL1 Capture-Playback Vol ON");
@@ -625,6 +616,18 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             control.set("DL1 PDM Switch", 0, 0);
             control.set("DL1 Media Playback Volume", 0, -1);
             control.set("DL1 Capture Playback Volume", 0, -1);
+        }
+        if (devices & AudioSystem::DEVICE_OUT_FM_TRANSMIT) {
+            /* OMAP4 ABE */
+            control.set("DL1 Mixer Multimedia", 1);             // MM_DL    -> DL1 Mixer
+            control.set("Sidetone Mixer Playback", 1);          // DL1 Mixer-> Sidetone Mixer
+            control.set("SDT DL Volume", 118);
+            control.set("DL1 Media Playback Volume", 118);
+            control.set("DL1 MM_EXT Switch", 1);
+            control.set("DL1 PDM Switch", 0, 0);
+        }else {
+            /* Disable MM_EXT Switch */
+            control.set("DL1 MM_EXT Switch", 0, 0);
         }
         if ((devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO) ||
             (devices & AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
