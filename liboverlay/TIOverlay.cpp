@@ -306,7 +306,8 @@ overlay_object* overlay_control_context_t::open_shared_overlayobj(int ovlyfd, in
 * Precondition:
 * This function has to be called after setting the crop window parameters
 */
-void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow)
+void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow, \
+                                                int panelId)
 {
     LOG_FUNCTION_NAME_ENTRY
     overlay_ctrl_t   *stage  = overlayobj->staging();
@@ -317,6 +318,7 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
     * maintain the aspect ratio decided by media player
     */
     uint32_t dummy, w2, h2;
+    overlay_ctrl_t   *data   = overlayobj->data();
     if (sscanf(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
         &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
         w2 = finalWindow->posW;
@@ -324,12 +326,39 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
     }
     LOGD("calculateWindow(): w2=%d, h2=%d", w2, h2);
 
-    switch (stage->panel) {
+    switch (panelId) {
         case OVERLAY_ON_PRIMARY:
         case OVERLAY_ON_SECONDARY:
         case OVERLAY_ON_PICODLP:
-            LOGE("Nothing to Adjust");
-            //This is  added as a place holder for future enhancements if any required
+            // Adjust the coordinate system to match the V4L change
+            switch ( data->rotation ) {
+            case 90:
+            case 270:
+#ifdef TARGET_OMAP4
+                finalWindow->posX = data->posX;
+                finalWindow->posY = data->posY;
+                finalWindow->posW = data->posH;
+                finalWindow->posH = data->posW;
+#else
+                finalWindow->posX = data->posY;
+                finalWindow->posY = data->posX;
+                finalWindow->posW = data->posH;
+                finalWindow->posH = data->posW;
+#endif
+                break;
+            case 180:
+                finalWindow->posX = data->posX;
+                finalWindow->posY = data->posY;
+                finalWindow->posW = data->posW;
+                finalWindow->posH = data->posH;
+                break;
+            default: // 0
+                finalWindow->posX = data->posX;
+                finalWindow->posY = data->posY;
+                finalWindow->posW = data->posW;
+                finalWindow->posH = data->posH;
+                break;
+           }
             break;
         case OVERLAY_ON_TV:
             {
@@ -381,10 +410,11 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
         default:
             LOGE("Leave the default  values");
         };
-        LOG_FUNCTION_NAME_EXIT
+
+     LOG_FUNCTION_NAME_EXIT
 }
 
-void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlayobj)
+void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlayobj, int panelId)
 {
     LOG_FUNCTION_NAME_ENTRY
     const char* paneltobeDisabled = NULL;
@@ -392,7 +422,7 @@ void overlay_control_context_t::calculateDisplayMetaData(overlay_object *overlay
     static const char* managername = "lcd";
     overlay_ctrl_t   *stage  = overlayobj->staging();
 
-    switch(stage->panel){
+    switch(panelId){
         case OVERLAY_ON_PRIMARY: {
             LOGD("REQUEST FOR LCD1");
             panelname = "lcd";
@@ -972,7 +1002,7 @@ int overlay_control_context_t::overlay_setPosition(struct overlay_control_device
     }
 
     //Calculate window size. As of now this is applicable only for non-LCD panels
-    calculateWindow(overlayobj, &finalWindow);
+    calculateWindow(overlayobj, &finalWindow, stage->panel);
 
     LOGI("overlay_setPosition/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
@@ -1178,36 +1208,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     data->zorder     = stage->zorder;
     data->mirror     = stage->mirror;
 
-    // Adjust the coordinate system to match the V4L change
-    switch ( data->rotation ) {
-    case 90:
-    case 270:
-#ifdef TARGET_OMAP4
-        finalWindow.posX = data->posX;
-        finalWindow.posY = data->posY;
-        finalWindow.posW = data->posH;
-        finalWindow.posH = data->posW;
-#else
-        finalWindow.posX = data->posY;
-        finalWindow.posY = data->posX;
-        finalWindow.posW = data->posH;
-        finalWindow.posH = data->posW;
-#endif
-        break;
-    case 180:
-        finalWindow.posX = data->posX;
-        finalWindow.posY = data->posY;
-        finalWindow.posW = data->posW;
-        finalWindow.posH = data->posH;
-        break;
-    default: // 0
-        finalWindow.posX = data->posX;
-        finalWindow.posY = data->posY;
-        finalWindow.posW = data->posW;
-        finalWindow.posH = data->posH;
-        break;
-    }
-
 #ifndef TARGET_OMAP4
     /** NOTE: In order to support HDMI without app explicitly requesting for
     * the screen ID, this is the alternative path check for the overlay manager.
@@ -1243,11 +1243,11 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 
+    calculateDisplayMetaData(overlayobj, stage->panel);
     if (data->panel != stage->panel) {
         LOGD("data->panel/0x%x / stage->panel/0x%x\n", data->panel, stage->panel );
         data->panel = stage->panel;
 
-        calculateDisplayMetaData(overlayobj);
         LOGD("Panel path [%s]", screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled);
         LOGD("Manager display [%s]", managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managerdisplay);
         LOGD("Manager path [%s]", overlayobj->overlaymanagerpath);
@@ -1352,7 +1352,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         }
     }
     //Calculate window size. As of now this is applicable only for non-LCD panels
-    calculateWindow(overlayobj, &finalWindow);
+    calculateWindow(overlayobj, &finalWindow, stage->panel);
 
     LOGI("Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
@@ -1424,91 +1424,6 @@ end:
 
 }
 
-
-/**
-* Precondition:
-* This function has to be called after setting the crop window parameters
-*/
-void overlay_control_context_t::calculateLinkWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow, int panelId)
-{
-    LOG_FUNCTION_NAME_ENTRY
-    /*
-    * If default UI is on TV, android UI will receive 1920x1080 for screen size, and w & h will be 1920x1080 by default.
-    * It will remain 1920x1080 even if overlay is requested on LCD. A better choice would be to query the display size:
-    * and use the full resolution only for TV, for LCD lets respect whatever surface flinger asks for: this is required to
-    * maintain the aspect ratio decided by media player
-    */
-    uint32_t dummy, w2, h2;
-    if (sscanf(screenMetaData[panelId].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
-        &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
-        w2 = finalWindow->posW;
-        h2 = finalWindow->posH; /* use default value, if could not read timings */
-    }
-    LOGD("calculateWindow(): w2=%d, h2=%d", w2, h2);
-    overlay_ctrl_t   *data   = overlayobj->data();
-    switch (panelId) {
-        case OVERLAY_ON_PRIMARY:
-        case OVERLAY_ON_SECONDARY:
-        case OVERLAY_ON_PICODLP:
-            LOGD("Nothing to Adjust");
-            // Adjust the coordinate system to match the V4L change
-            switch ( data->rotation ) {
-            case 90:
-            case 270:
-                finalWindow->posX = data->posX;
-                finalWindow->posY = data->posY;
-                finalWindow->posW = data->posH;
-                finalWindow->posH = data->posW;
-                break;
-            case 180:
-                finalWindow->posX = data->posX;
-                finalWindow->posY = data->posY;
-                finalWindow->posW = data->posW;
-                finalWindow->posH = data->posH;
-                break;
-            default: // 0
-                finalWindow->posX = data->posX;
-                finalWindow->posY = data->posY;
-                finalWindow->posW = data->posW;
-                finalWindow->posH = data->posH;
-                break;
-           }
-            break;
-        case OVERLAY_ON_TV:
-            {
-               if ((overlayobj->mData.cropH > 720) || (overlayobj->mData.cropW > 1280) \
-                   || (data->rotation % 180)) {
-                    //since no downscaling on TV, for 1080p resolution we go for full screen
-                    finalWindow->posX = 0;
-                    finalWindow->posY = 0;
-                } else {
-                    finalWindow->posX = (w2 * data->posX)/LCD_WIDTH;
-                    finalWindow->posY=  (h2 * data->posY)/LCD_HEIGHT;
-
-                    w2 = (w2 * data->posW) / LCD_WIDTH;
-                    h2 = (h2 * data->posH) / LCD_HEIGHT;
-                }
-                if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
-                    finalWindow->posW= w2;
-                    finalWindow->posH= overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
-                    if (finalWindow->posY == 0)
-                        finalWindow->posY = (h2 - finalWindow->posH) / 2;
-                } else {
-                    finalWindow->posH = h2;
-                    finalWindow->posW = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
-                    if (finalWindow->posX == 0)
-                        finalWindow->posX = (w2 - finalWindow->posW) / 2;
-                }
-            LOGD("calculateWindow(): posW=%d, posH=%d, cropW=%d, cropH=%d",
-                finalWindow->posW, finalWindow->posH, overlayobj->mData.cropW, overlayobj->mData.cropH);
-            }
-            break;
-        default:
-            LOGE("Leave the default  values");
-        };
-        LOG_FUNCTION_NAME_EXIT
-}
-
 int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t *dev,
                           overlay_object* overlayobj) {
     LOG_FUNCTION_NAME_ENTRY;
@@ -1525,8 +1440,10 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
     int linkfd = overlayobj->getctrl_linkvideofd();
     overlay_data_t eCropData;
 
+    calculateDisplayMetaData(overlayobj, KCloneDevice);
+
     //Calculate window size. As of now this is applicable only for non-LCD panels
-    calculateLinkWindow(overlayobj, &finalWindow, KCloneDevice);
+    calculateWindow(overlayobj, &finalWindow, KCloneDevice);
 
     LOGI("Link Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
     LOGI("Link Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
@@ -1564,36 +1481,8 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
     if ((pipelineId >= 0) && (pipelineId <= MAX_NUM_OVERLAYS)) {
         char overlaymanagerpath[PATH_MAX];
         sprintf(overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
-        static const char* managername = "lcd";
-        switch(KCloneDevice){
-            case OVERLAY_ON_PRIMARY: {
-                LOGD("REQUEST FOR LCD1");
-                managername = "lcd";
-            }
-            break;
-            case OVERLAY_ON_SECONDARY: {
-                LOGD("REQUEST FOR LCD2");
-                managername ="2lcd";
-            }
-            break;
-            case OVERLAY_ON_TV: {
-                LOGD("REQUEST FOR TV");
-                managername = "tv";
-            }
-            break;
-            case OVERLAY_ON_PICODLP: {
-                LOGD("REQUEST FOR PICO DLP");
-                managername = "2lcd";
-            }
-            break;
-            case OVERLAY_ON_VIRTUAL_SINK:
-                LOGD("REQUEST FOR VIRTUAL SINK: Setting the Default display for now");
-            default: {
-                managername = "lcd";
-            }
-        break;
-        };
-        sysfile_write(overlaymanagerpath, managername, sizeof("2lcd"));
+        sysfile_write(overlaymanagerpath, managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername,\
+                                          sizeof("2lcd"));
     }
 
     if ((ret = v4l2_overlay_set_position(linkfd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
@@ -2060,7 +1949,8 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
         LOGE("Set Crop Window Failed!/%d\n", rc);
     }
 
-    overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow);
+    overlay_control_context_t::calculateDisplayMetaData(ctx->omap_overlay, ctx->omap_overlay->data()->panel);
+    overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, ctx->omap_overlay->data()->panel);
     if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
         LOGD(" Could not set the position when setting the crop \n");
         goto end;
@@ -2085,7 +1975,8 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
             goto end;
         }
 
-        overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow);
+        overlay_control_context_t::calculateDisplayMetaData(ctx->omap_overlay, ctx->omap_overlay->data()->panel);
+        overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, ctx->omap_overlay->data()->panel);
         if ((rc = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
             LOGD(" Could not set the position when setting the crop \n");
             goto end;
@@ -2097,8 +1988,8 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
                 LOGE("LINK: Set Crop Window Failed!/%d\n", rc);
                 goto end;
             }
-
-            overlay_control_context_t::calculateLinkWindow(ctx->omap_overlay, &finalWindow, KCloneDevice);
+            overlay_control_context_t::calculateDisplayMetaData(ctx->omap_overlay, KCloneDevice);
+            overlay_control_context_t::calculateWindow(ctx->omap_overlay, &finalWindow, KCloneDevice);
 
             if ((rc = v4l2_overlay_set_position(linkfd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
                 LOGD(" LINK: Could not set the position when setting the crop \n");
