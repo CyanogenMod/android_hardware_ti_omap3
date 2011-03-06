@@ -3585,7 +3585,9 @@ status_t OMXCameraAdapter::setExposureBracketing(int *evValues, size_t evCount, 
         OMX_INIT_STRUCT_PTR (&expCapMode, OMX_CONFIG_CAPTUREMODETYPE);
         expCapMode.nPortIndex = mCameraAdapterParameters.mImagePortIndex;
 
-        if ( 0 == evCount )
+        /// If frameCount>0 but evCount<=0, then this is the case of HQ burst. Otherwise, it is normal HQ capture
+        ///If frameCount>0 and evCount>0 then this is the cause of HQ Exposure bracketing.
+        if ( 0 == evCount && 0 == frameCount )
             {
             expCapMode.bFrameLimited = OMX_FALSE;
             }
