@@ -603,6 +603,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             control.set("Sidetone Mixer Playback", 1);		// DL1 Mixer-> Sidetone Mixer
             control.set("SDT DL Volume", 118);
             control.set("DL1 Media Playback Volume", 118);
+            control.set("DL1 PDM Switch", 1);
             if (fm_enable) {
                 LOGI("FM Enabled, DL1 Capture-Playback Vol ON");
                 control.set("DL1 Capture Playback Volume", 115);
@@ -625,7 +626,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             control.set("DL1 Media Playback Volume", 118);
             control.set("DL1 MM_EXT Switch", 1);
             control.set("DL1 PDM Switch", 0, 0);
-        }else {
+        } else {
             /* Disable MM_EXT Switch */
             control.set("DL1 MM_EXT Switch", 0, 0);
         }
