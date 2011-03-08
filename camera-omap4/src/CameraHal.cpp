@@ -3352,24 +3352,31 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
 
     //Get camera properties for camera index
     properties = ( CameraProperties::CameraProperty **) gCameraProperties->getProperties(cameraId);
-
-    valstr = properties[CameraProperties::PROP_INDEX_FACING_INDEX]->mPropValue;
-    if(valstr != NULL)
+    if(properties)
     {
-        if (strcmp(valstr, (const char *) TICameraParameters::FACING_FRONT) == 0)
+
+        valstr = properties[CameraProperties::PROP_INDEX_FACING_INDEX]->mPropValue;
+        if(valstr != NULL)
         {
-            face_value = CAMERA_FACING_FRONT;
-        }
-        else if (strcmp(valstr, (const char *) TICameraParameters::FACING_BACK) == 0)
-        {
-            face_value = CAMERA_FACING_BACK;
-        }
+            if (strcmp(valstr, (const char *) TICameraParameters::FACING_FRONT) == 0)
+            {
+                face_value = CAMERA_FACING_FRONT;
+            }
+            else if (strcmp(valstr, (const char *) TICameraParameters::FACING_BACK) == 0)
+            {
+                face_value = CAMERA_FACING_BACK;
+            }
+         }
+
+         valstr = properties[CameraProperties::PROP_INDEX_ORIENTATION_INDEX]->mPropValue;
+         if(valstr != NULL)
+         {
+             orientation = atoi(valstr);
+         }
     }
-
-    valstr = properties[CameraProperties::PROP_INDEX_ORIENTATION_INDEX]->mPropValue;
-    if(valstr != NULL)
+    else
     {
-        orientation = atoi(valstr);
+        CAMHAL_LOGEB("getProperties() returned a NULL property set for Camera id %d", cameraId);
     }
 
     cameraInfo->facing = face_value;
