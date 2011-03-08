@@ -6113,10 +6113,10 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
         mCapturedFrames--;
 
-
         //The usual jpeg capture does not include raw data.
         //Use empty raw frames intead.
-        if ( CodingNone == mCodingMode )
+        if ( ( CodingNone == mCodingMode ) &&
+             ( typeOfFrame == CameraFrame::IMAGE_FRAME ) )
             {
             sendEmptyRawFrame();
             }
