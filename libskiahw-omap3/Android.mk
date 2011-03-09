@@ -29,10 +29,8 @@ LOCAL_SRC_FILES+= \
    SkImageDecoder_libtijpeg.cpp \
    SkImageDecoder_libtijpeg_entry.cpp \
    SkImageEncoder_libtijpeg.cpp \
-   SkImageEncoder_libtijpeg_entry.cpp \
-   SkAllocator.cpp \
-   SkMemory.cpp \
-   
+   SkImageEncoder_libtijpeg_entry.cpp
+
 LOCAL_MODULE:= libskiahw
 LOCAL_MODULE_TAGS:= optional
 

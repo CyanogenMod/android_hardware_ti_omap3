@@ -492,7 +492,7 @@ void SkTIJPEGImageDecoder::FillBufferDone(OMX_U8* pBuffer, OMX_U32 nFilledLen)
             bitmap->setConfig(bitmap->config(), OutputResolution.nWidth, OutputResolution.nHeight);
         }
     }
-    bitmap->setPixelRef(new TISkMallocPixelRef(pBuffer, nFilledLen, NULL))->unref();
+    bitmap->setPixelRef(new SkMallocPixelRef(pBuffer, nFilledLen, NULL))->unref();
     bitmap->lockPixels();
 
 #if JPEG_DECODER_DUMP_INPUT_AND_OUTPUT
@@ -655,6 +655,7 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     OMX_S32 inputFileSize;
     OMX_S32 nCompId = 100;
     OMX_U32 outBuffSize;
+    OMX_U32 tempSize;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     JPEG_HEADER_INFO JpegHeaderInfo;
     OMX_PORT_PARAM_TYPE PortType;
@@ -1041,9 +1042,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
             PRINTF ("JPEGDec::%d:SubRegionDecode is set.\n", __LINE__ );
         }
 
-        outputBuffer = tisk_malloc_flags(outBuffSize, 0);  // returns NULL on failure
+        tempSize = (OMX_U32)((outBuffSize + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
+        outputBuffer = memalign(ALIGN_128_BYTE, tempSize);
         if (NULL == outputBuffer) {
-            PRINTF("xxxxxxxxxxxxxxxxxxxx tisk_malloc_flags failed\n");
+            PRINTF("xxxxxxxxxxxxxxxxxxxx outputBuffer memory allocation failed\n");
             iState = STATE_ERROR;
             goto EXIT;
         }
@@ -1139,9 +1141,10 @@ bool SkTIJPEGImageDecoder::onDecode(SkImageDecoder* dec_impl, SkStream* stream, 
     {
         PRINTF("REUSING HANDLE current state %d", iState);
 
-        outputBuffer = tisk_malloc_flags(outBuffSize, 0);  // returns NULL on failure
+        tempSize = (OMX_U32)((outBuffSize + ALIGN_128_BYTE - 1) & ~(ALIGN_128_BYTE - 1));
+        outputBuffer = memalign(ALIGN_128_BYTE, tempSize);
         if (NULL == outputBuffer) {
-            PRINTF("xxxxxxxxxxxxxxxxxxxx tisk_malloc_flags failed\n");
+            PRINTF("xxxxxxxxxxxxxxxxxxxx outputBuffer memory allocation failed\n");
             iState = STATE_ERROR;
             goto EXIT;
         }
@@ -1178,7 +1181,8 @@ EXIT:
     if(inputBuffer != NULL)
         free(inputBuffer);
 
-    tisk_free(outputBuffer);
+    if(outputBuffer != NULL)
+        free(outputBuffer);
 
     gTIJpegDecMutex.unlock();
     PRINTF("Leaving Critical Section 3 \n");

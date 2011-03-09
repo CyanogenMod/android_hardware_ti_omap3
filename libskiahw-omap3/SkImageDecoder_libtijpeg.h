@@ -31,7 +31,7 @@
 
 #include "SkBitmap.h"
 #include "SkStream.h"
-#include "SkAllocator.h"
+#include "SkMallocPixelRef.h"
 #include "SkImageDecoder.h"
 #include "SkImageUtility.h"
 #include <stdio.h>
@@ -150,7 +150,6 @@ private:
         JpegDecoderParams jpegDecParams;
         SkStream* inStream;
         SkBitmap* bitmap;
-        TIHeapAllocator allocator;
         android::Mutex       gTIJpegDecMutex;
     int mLoad;
     int mDeleteAttempts;

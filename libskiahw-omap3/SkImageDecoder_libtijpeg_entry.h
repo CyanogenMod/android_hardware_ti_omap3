@@ -31,7 +31,6 @@
 
 #include "SkBitmap.h"
 #include "SkStream.h"
-#include "SkAllocator.h"
 #include "SkImageDecoder.h"
 #include "SkImageDecoder_libtijpeg.h"
 #include "SkImageUtility.h"
