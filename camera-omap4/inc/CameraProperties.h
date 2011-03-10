@@ -117,6 +117,7 @@ public:
         PROP_INDEX_VER_ANGLE,
         PROP_INDEX_EXIF_MAKE,
         PROP_INDEX_EXIF_MODEL,
+        PROP_INDEX_JPEG_THUMBNAIL_QUALITY,
         PROP_INDEX_MAX
         };
 
@@ -182,6 +183,7 @@ public:
     static const char VER_ANGLE[];
     static const char EXIF_MAKE[];
     static const char EXIF_MODEL[];
+    static const char JPEG_THUMBNAIL_QUALITY[];
 
     static const char PARAMS_DELIMITER [];
 

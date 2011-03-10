@@ -3130,6 +3130,7 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE_VALUES,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_EXIF_MAKE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXIF_MAKE]->mPropValue);
     p.set(TICameraParameters::KEY_EXIF_MODEL, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXIF_MODEL]->mPropValue);
+    p.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_JPEG_THUMBNAIL_QUALITY]->mPropValue);
 
     LOG_FUNCTION_NAME_EXIT
 }

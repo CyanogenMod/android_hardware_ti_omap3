@@ -27,6 +27,7 @@
 <prop-picture-size-default>4032x3024</prop-picture-size-default>
 <prop-picture-format-default>jpeg</prop-picture-format-default>
 <prop-jpeg-thumbnail-size-default>160x120</prop-jpeg-thumbnail-size-default>
+<prop-jpeg-thumbnail-quality-default>60</prop-jpeg-thumbnail-quality-default>
 <prop-whitebalance-default>auto</prop-whitebalance-default>
 <prop-effect-default>none</prop-effect-default>
 <prop-antibanding-default>auto</prop-antibanding-default>
@@ -65,6 +66,7 @@
 <prop-s3d-supported>false</prop-s3d-supported>
 <prop-ev-compensation-step>0.1</prop-ev-compensation-step>
 <prop-flash-mode-values>off</prop-flash-mode-values>
+<prop-flash-mode-default>off</prop-flash-mode-default>
 <prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
 <prop-s3d2d-preview>0</prop-s3d2d-preview>
 <prop-auto-convergence-mode>0</prop-auto-convergence-mode>
@@ -78,6 +80,7 @@
 <prop-picture-size-default>2592x1944</prop-picture-size-default>
 <prop-picture-format-default>jpeg</prop-picture-format-default>
 <prop-jpeg-thumbnail-size-default>640x480</prop-jpeg-thumbnail-size-default>
+<prop-jpeg-thumbnail-quality-default>60</prop-jpeg-thumbnail-quality-default>
 <prop-whitebalance-default>auto</prop-whitebalance-default>
 <prop-effect-default>none</prop-effect-default>
 <prop-antibanding-default>auto</prop-antibanding-default>
@@ -146,6 +149,7 @@
 <prop-picture-size-default>2592x1944</prop-picture-size-default>
 <prop-picture-format-default>jpeg</prop-picture-format-default>
 <prop-jpeg-thumbnail-size-default>640x480</prop-jpeg-thumbnail-size-default>
+<prop-jpeg-thumbnail-quality-default>60</prop-jpeg-thumbnail-quality-default>
 <prop-whitebalance-default>auto</prop-whitebalance-default>
 <prop-effect-default>none</prop-effect-default>
 <prop-antibanding-default>auto</prop-antibanding-default>
@@ -188,6 +192,7 @@
 <prop-picture-size-values>640x480,320x240</prop-picture-size-values>
 <prop-picture-format-values>jpeg,yuv422i-yuyv,yuv420sp,rgb565</prop-picture-format-values>
 <prop-jpeg-thumbnail-size-values>0x0</prop-jpeg-thumbnail-size-values>
+<prop-jpeg-thumbnail-quality-default>60</prop-jpeg-thumbnail-quality-default>
 <prop-whitebalance-values>auto</prop-whitebalance-values>
 <prop-effect-values>none,negative,solarize,sepia,mono,natural,vivid,colourswap,blackwhite,whiteboard,blackboard,aqua,posterize</prop-effect-values>
 <prop-antibanding-values>off</prop-antibanding-values>
@@ -280,6 +285,7 @@
 <prop-picture-size-default>4032x3024</prop-picture-size-default>
 <prop-picture-format-default>jpeg</prop-picture-format-default>
 <prop-jpeg-thumbnail-size-default>160x120</prop-jpeg-thumbnail-size-default>
+<prop-jpeg-thumbnail-quality-default>60</prop-jpeg-thumbnail-quality-default>
 <prop-whitebalance-default>auto</prop-whitebalance-default>
 <prop-effect-default>none</prop-effect-default>
 <prop-antibanding-default>auto</prop-antibanding-default>
