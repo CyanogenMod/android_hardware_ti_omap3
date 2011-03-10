@@ -1374,6 +1374,17 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
             LOGI("Before assigning Overlay-Manager to Overlay");
             LOGI("overlaymanagerpath= %s, overlaymanagername= %s",overlayobj->overlaymanagerpath,overlaymanagername);
 
+            /**
+             * Before setting the manager, reset the overlay window to the default
+             * this is to support the panels of various timings. The Actual window
+             * is set after manager is set.
+             * Assumption# The lowest resolution panel is QQVGA
+             */
+            if ((ret = v4l2_overlay_set_position(fd, 0, 0, QQVGA_WIDTH, QQVGA_HEIGHT))) {
+                LOGE("Set Position Failed!/%d\n", ret);
+                goto end;
+            }
+
             if (sysfile_write(overlayobj->overlaymanagerpath, \
                 managerMetaData[overlayobj->mDisplayMetaData.mManagerIndex].managername, PATH_MAX) < 0) {
                 LOGE("Unable to set the overlay->manager");

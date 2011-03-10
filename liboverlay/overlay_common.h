@@ -89,5 +89,13 @@
 
 #endif
 
+/**
+* QQVGA resolution is used as the default overlay window
+* This is required to support panels with various display timings
+*/
+#define QQVGA_WIDTH  160
+#define QQVGA_HEIGHT 120
+
+
 #endif  // OVERLAY_COMMON_H_
 
