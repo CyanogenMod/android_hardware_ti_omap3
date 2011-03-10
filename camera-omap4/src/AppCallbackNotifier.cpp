@@ -130,21 +130,10 @@ void AppCallbackNotifier::notificationThread()
     while(shouldLive)
         {
         //CAMHAL_LOGDA("Notification Thread waiting for message");
-        if(mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED)
-            {
         ret = MessageQueue::waitForMsg(&mNotificationThread->msgQ()
                                                         , &mEventQ
                                                         , &mFrameQ
                                                         , AppCallbackNotifier::NOTIFIER_TIMEOUT);
-            }
-        else
-            {
-            ret = MessageQueue::waitForMsg(&mNotificationThread->msgQ()
-                                                            , NULL
-                                                            , NULL
-                                                            , AppCallbackNotifier::NOTIFIER_TIMEOUT);
-
-            }
 
         //CAMHAL_LOGDA("Notification Thread received message");
 
@@ -195,6 +184,11 @@ void AppCallbackNotifier::notifyEvent()
     CameraHalEvent *evt = NULL;
     CameraHalEvent::FocusEventData *focusEvtData;
     CameraHalEvent::ZoomEventData *zoomEvtData;
+
+    if(mNotifierState != AppCallbackNotifier::NOTIFIER_STARTED)
+    {
+        return;
+    }
 
     switch(msg.command)
         {
@@ -368,6 +362,11 @@ void AppCallbackNotifier::notifyFrame()
         }
 
     bool ret = true;
+
+    if(mNotifierState != AppCallbackNotifier::NOTIFIER_STARTED)
+    {
+        return;
+    }
 
     frame = NULL;
     switch(msg.command)
