@@ -94,7 +94,7 @@ struct overlay_module_t HAL_MODULE_INFO_SYM = {
 };
 
 int sysfile_write(const char* pathname, const void* buf, size_t size) {
-    int fd = open(pathname, O_RDWR);
+    int fd = open(pathname, O_WRONLY);
     if (fd == -1) {
         LOGE("Can't open [%s]", pathname);
         return -1;
@@ -113,7 +113,7 @@ int sysfile_write(const char* pathname, const void* buf, size_t size) {
 }
 
 int sysfile_read(const char* pathname, void* buf, size_t size) {
-    int fd = open(pathname, O_RDWR);
+    int fd = open(pathname, O_RDONLY);
     if (fd == -1) {
         LOGE("Can't open the file[%s]", pathname);
         return -1;
