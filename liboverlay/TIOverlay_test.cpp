@@ -113,6 +113,7 @@ public:
 
 public:
     int init();
+    void deinit();
     void resetParams()
     {
     alpha1 = 1.0;
@@ -803,16 +804,8 @@ if (fmt1 == 4) {
 
     printf("\n\nPlayback Done\n\n");
     //resetParams();
-    if (mOverlay1 != NULL)
-    {
-        mOverlay1->destroy();
-        mOverlay1 = NULL;
-    }
-    if (mOverlay2 != NULL)
-    {
-        mOverlay2->destroy();
-        mOverlay2 = NULL;
-    }
+    deinit();
+
     if (localbuffer1 != NULL)
     {
         delete []localbuffer1;
@@ -827,7 +820,7 @@ if (fmt1 == 4) {
     close(filedes1);
     close(filedes2);
     LOGD("testOverlay--");
-    }
+}
 
 /** menthod to test all possible error scenarios from overlay library
 */
@@ -1117,8 +1110,25 @@ void OverlayTest::testErrorScenarios()
     ref4 = mSurface4->createOverlay(MAX_OVERLAY_WIDTH_VAL/2, MAX_OVERLAY_HEIGHT_VAL/2, OVERLAY_FORMAT_RGB_565, 0);
     RET_CHECK_EQ(ref4, NULL, __LINE__);
 
-    mOverlay1->destroy();
-    mOverlay1.clear();
+    if ( NULL != mSurface3.get() ) {
+        mSurface3.clear();
+    }
+
+    if ( NULL != mSurface4.get() ) {
+        mSurface4.clear();
+    }
+
+    if ( NULL != mSurfaceCtrl3.get() ) {
+        mSurfaceCtrl3->clear();
+        mSurfaceCtrl3.clear();
+    }
+
+    if ( NULL != mSurfaceCtrl4.get() ) {
+        mSurfaceCtrl4->clear();
+        mSurfaceCtrl4.clear();
+    }
+
+    deinit();
 
     printf("\n\nError Scenario test completed\n\n");
 
@@ -1188,6 +1198,50 @@ int OverlayTest::init()
     LOGE("init--");
 
 }
+
+void OverlayTest::deinit()
+{
+    if (mOverlay1 != NULL)
+    {
+        mOverlay1->destroy();
+        mOverlay1 = NULL;
+    }
+    if (mOverlay2 != NULL)
+    {
+        mOverlay2->destroy();
+        mOverlay2 = NULL;
+    }
+
+    if ( NULL != mSurface1.get() ) {
+        mSurface1.clear();
+    }
+
+    if ( NULL != mSurface2.get() ) {
+        mSurface2.clear();
+    }
+
+    if ( NULL != mSurfaceCtrl1.get() ) {
+        mSurfaceCtrl1->clear();
+        mSurfaceCtrl1.clear();
+    }
+
+    if ( NULL != mSurfaceCtrl2.get() ) {
+        mSurfaceCtrl2->clear();
+        mSurfaceCtrl2.clear();
+    }
+
+    if ( NULL != mClient1.get() ) {
+        mClient1->dispose();
+        mClient1.clear();
+    }
+
+    if ( NULL != mClient2.get() ) {
+        mClient2->dispose();
+        mClient2.clear();
+    }
+
+}
+
 }; //android name space
 
 void printUsage()
