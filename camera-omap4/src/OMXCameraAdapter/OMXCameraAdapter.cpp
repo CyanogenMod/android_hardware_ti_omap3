@@ -1087,7 +1087,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         }
 
 
-    CAMHAL_LOGVB("Picture Thumb width set %d", mThumbWidth);
+    CAMHAL_LOGVB("Picture Thumb height set %d", mThumbHeight);
 
 
     ///Set VNF Configuration
@@ -4621,6 +4621,11 @@ status_t OMXCameraAdapter::autoFocus()
 
     LOG_FUNCTION_NAME
 
+    {
+        Mutex::Autolock lock(mFocusLock);
+        mFocusStarted = true;
+    }
+
     msg.command = CommandHandler::CAMERA_PERFORM_AUTOFOCUS;
     mCommandHandler->put(&msg);
 
@@ -4638,10 +4643,20 @@ status_t OMXCameraAdapter::doAutoFocus()
 
     LOG_FUNCTION_NAME
 
+    Mutex::Autolock lock(mFocusLock);
+
     if ( OMX_StateExecuting != mComponentState )
         {
         CAMHAL_LOGEA("OMX component not in executing state");
+        mFocusStarted = false;
         ret = -1;
+        }
+
+    if ( !mFocusStarted )
+        {
+        CAMHAL_LOGVA("Focus canceled before we could start");
+        ret = NO_ERROR;
+        return ret;
         }
 
     if ( NO_ERROR == ret )
@@ -4720,12 +4735,12 @@ status_t OMXCameraAdapter::doAutoFocus()
         if ( OMX_ErrorNone != eError )
             {
             CAMHAL_LOGEB("Error while starting focus 0x%x", eError);
+            mFocusStarted = false;
             ret = -1;
             }
         else
             {
             CAMHAL_LOGDA("Autofocus started successfully");
-            mFocusStarted = true;
             }
         }
 
@@ -4735,6 +4750,8 @@ status_t OMXCameraAdapter::doAutoFocus()
 
         if ( NO_ERROR == ret )
             {
+            // unlock before waiting...
+            mFocusLock.unlock();
             ret = eventSem.WaitTimeout(AF_CALLBACK_TIMEOUT);
             //Disable auto focus callback from Ducati
             ret |= setFocusCallback(false);
@@ -4823,6 +4840,8 @@ status_t OMXCameraAdapter::cancelAutoFocus()
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
     LOG_FUNCTION_NAME
+
+    Mutex::Autolock lock(mFocusLock);
 
     if(mFocusStarted)
     {

@@ -90,6 +90,9 @@ protected:
     //Should be implemented by deriving classes in oder to initiate autoFocus
     virtual status_t autoFocus();
 
+    //Should be implemented by deriving classes in oder to initiate autoFocus
+    virtual status_t cancelAutoFocus();
+
     //Should be called by deriving classes in order to deinit base class
     virtual status_t setTimeOut(int sec);
 

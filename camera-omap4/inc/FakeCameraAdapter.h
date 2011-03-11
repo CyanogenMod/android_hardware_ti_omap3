@@ -70,6 +70,7 @@ protected:
     //----------Parent class method implementation------------------------------------
     virtual status_t takePicture();
     virtual status_t autoFocus();
+    virtual status_t cancelAutoFocus();
     virtual status_t startPreview();
     virtual status_t stopPreview();
     virtual status_t useBuffers(CameraMode mode, void* bufArr, int num, size_t length);

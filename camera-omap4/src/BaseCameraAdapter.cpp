@@ -504,6 +504,9 @@ status_t BaseCameraAdapter::sendCommand(int operation, int value1, int value2, i
 
             ret = autoFocus();
             break;
+         case CameraAdapter::CAMERA_CANCEL_AUTOFOCUS:
+            ret = cancelAutoFocus();
+            break;
 
         default:
             CAMHAL_LOGEB("Command 0x%x unsupported!", operation);
@@ -1007,6 +1010,17 @@ status_t BaseCameraAdapter::autoFocus()
     LOG_FUNCTION_NAME
 
     notifyFocusSubscribers(false);
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t BaseCameraAdapter::cancelAutoFocus()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
 
     LOG_FUNCTION_NAME_EXIT
 

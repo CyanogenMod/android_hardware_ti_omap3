@@ -1744,7 +1744,11 @@ status_t CameraHal::autoFocus()
 status_t CameraHal::cancelAutoFocus()
 {
     LOG_FUNCTION_NAME
-    ///@todo Implement this when auto focus will be supported
+    if( NULL != mCameraAdapter )
+    {
+        mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_AUTOFOCUS);
+    }
+    LOG_FUNCTION_NAME_EXIT
     return NO_ERROR;
 }
 
