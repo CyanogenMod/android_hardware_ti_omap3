@@ -6484,9 +6484,14 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                     procSharpness.nLevel = Gen3A.Sharpness;
 
                     if( procSharpness.nLevel == 0 )
+                        {
                         procSharpness.bAuto = OMX_TRUE;
+                        }
+                    else
+                        {
+                        procSharpness.bAuto = OMX_FALSE;
+                        }
 
-                    procSharpness.bAuto = OMX_FALSE;
                     CAMHAL_LOGDB("Sharpness for Hal and OMX= %d", (int)Gen3A.Sharpness);
                     ret = OMX_SetConfig( mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_IndexConfigSharpeningLevel, &procSharpness);
                     break;
