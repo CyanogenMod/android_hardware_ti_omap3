@@ -155,14 +155,21 @@ void CameraHal::enableMsgType(int32_t msgType)
     mMsgEnabled |= msgType;
     }
 
-    if(mMsgEnabled &CAMERA_MSG_PREVIEW_FRAME)
+    if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME)
+    {
+        if(mDisplayPaused)
         {
-        CAMHAL_LOGDA("Enabling Preview Callback");
+            CAMHAL_LOGDA("Preview currently paused...will enable preview callback when restarted");
+            msgType &= ~CAMERA_MSG_PREVIEW_FRAME;
+        }else
+        {
+            CAMHAL_LOGDA("Enabling Preview Callback");
         }
+    }
     else
-        {
+    {
         CAMHAL_LOGDB("Preview callback not enabled %x", msgType);
-        }
+    }
 
 
     ///Configure app callback notifier with the message callback required
@@ -1164,7 +1171,11 @@ status_t CameraHal::startPreview()
                 CAMHAL_LOGEB("Display adapter resume failed %x", ret);
                 }
             }
-
+        //restart preview callbacks
+        if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME)
+        {
+            mAppCallbackNotifier->enableMsgType (CAMERA_MSG_PREVIEW_FRAME);
+        }
         return ret;
 
         }
@@ -1362,6 +1373,15 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
         {
         if(mDisplayAdapter.get() != NULL)
             {
+            // this case with preview paused and setOverlay(NULL) will only
+            // occur when preview is being restarted and overlay dimensions
+            // have changed. since preview dimensions have changed preview
+            // needs to be stopped for restart
+            if(mDisplayPaused)
+            {
+                stopPreview();
+            }
+
             ///NULL overlay passed, destroy the display adapter if present
             CAMHAL_LOGEA("NULL Overlay passed to setOverlay, destroying display adapter");
             mDisplayAdapter.clear();
@@ -2009,7 +2029,11 @@ status_t CameraHal::takePicture( )
             mDisplayAdapter->setSnapshotTimeRef(&mStartCapture);
 
 #endif
-
+            // since preview is paused we should stop sending preview frames too
+            if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME)
+                {
+                    mAppCallbackNotifier->disableMsgType (CAMERA_MSG_PREVIEW_FRAME);
+                }
             }
 
         if (  (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )

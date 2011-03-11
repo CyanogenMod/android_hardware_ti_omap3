@@ -516,6 +516,10 @@ void AppCallbackNotifier::notifyFrame()
                         if(!mAppSupportsStride)
                             {
                               buf = (buffer->pointer());
+
+                              CAMHAL_LOGVB("%d:copy2Dto1D(%p, %p, %d, %d, %d, %d, %d,%s)", __LINE__, buf, frame->mBuffer,
+                                        frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength, mPreviewPixelFormat);
+
                               if (buf)
                                 copy2Dto1D(buf, frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
                                            mPreviewPixelFormat);
@@ -581,6 +585,10 @@ void AppCallbackNotifier::notifyFrame()
                             ///CAMHAL_LOGDB("+Copy 0x%x to 0x%x frame-%dx%d", frame->mBuffer, buffer->pointer(), frame->mWidth,frame->mHeight );
                             ///Copy the data into 1-D buffer
                             buf = buffer->pointer();
+
+                            CAMHAL_LOGVB("%d:copy2Dto1D(%p, %p, %d, %d, %d, %d, %d,%s)", __LINE__, buf, frame->mBuffer,
+                                      frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength, mPreviewPixelFormat);
+
                             if (buf)
                               copy2Dto1D(buf, frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
                                          mPreviewPixelFormat);
@@ -986,14 +994,17 @@ status_t AppCallbackNotifier::startPreviewCallbacks(CameraParameters &params, vo
      if(strcmp(mPreviewPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
         {
         size = w*h*2;
+        mPreviewPixelFormat = CameraParameters::PIXEL_FORMAT_YUV422I;
         }
     else if(strcmp(mPreviewPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_YUV420SP) == 0)
         {
         size = (w*h*3)/2;
+        mPreviewPixelFormat = CameraParameters::PIXEL_FORMAT_YUV420SP;
         }
     else if(strcmp(mPreviewPixelFormat, (const char *) CameraParameters::PIXEL_FORMAT_RGB565) == 0)
         {
         size = w*h*2;
+        mPreviewPixelFormat = CameraParameters::PIXEL_FORMAT_RGB565;
         }
 
    if(!mAppSupportsStride)
