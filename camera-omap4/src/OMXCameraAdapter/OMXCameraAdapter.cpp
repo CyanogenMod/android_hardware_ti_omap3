@@ -1452,6 +1452,51 @@ status_t OMXCameraAdapter::setupEXIF()
              exifTags->eStatusMake = OMX_TI_TagUpdated;
              }
 
+        if ( ( OMX_TI_TagReadWrite == exifTags->eStatusFocalLength ))
+        {
+                char *ctx;
+                int len;
+                char* temp = (char*) mParams.get(CameraParameters::KEY_FOCAL_LENGTH);
+                char * tempVal = NULL;
+                if(temp != NULL)
+                {
+                    len = strlen(temp);
+                    tempVal = (char*) malloc( sizeof(char) * (len + 1));
+                }
+                if(tempVal != NULL)
+                {
+                    memset(tempVal, '\0', len + 1);
+                    strncpy(tempVal, temp, len);
+                    CAMHAL_LOGDB("KEY_FOCAL_LENGTH = %s", tempVal);
+
+                    // convert the decimal string into a rational
+                    size_t den_len;
+                    OMX_U32 numerator = 0;
+                    OMX_U32 denominator = 0;
+                    char* temp = strtok_r(tempVal, ".", &ctx);
+
+                    if(temp != NULL)
+                        numerator = atoi(temp);
+
+                    temp = strtok_r(NULL, ".", &ctx);
+                    if(temp != NULL)
+                    {
+                        den_len = strlen(temp);
+                        denominator = static_cast<OMX_U32>(pow(10, den_len));
+                        numerator = numerator*denominator + atoi(temp);
+                    }else{
+                        denominator = 1;
+                    }
+
+                    free(tempVal);
+
+                    exifTags->ulFocalLength[0] = numerator;
+                    exifTags->ulFocalLength[1] = denominator;
+                    CAMHAL_LOGVB("exifTags->ulFocalLength = [%u] [%u]", (unsigned int)(exifTags->ulFocalLength[0]), (unsigned int)(exifTags->ulFocalLength[1]));
+                    exifTags->eStatusFocalLength = OMX_TI_TagUpdated;
+                }
+        }
+
          if ( OMX_TI_TagReadWrite == exifTags->eStatusDateTime )
              {
              int status = gettimeofday (&sTv, NULL);

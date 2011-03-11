@@ -618,54 +618,72 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         {
         CAMHAL_LOGDB("GPS latitude set %s", params.get(CameraParameters::KEY_GPS_LATITUDE));
         mParameters.set(CameraParameters::KEY_GPS_LATITUDE, valstr);
+        }else{
+            mParameters.remove(CameraParameters::KEY_GPS_LATITUDE);
         }
 
     if( (valstr = params.get(CameraParameters::KEY_GPS_LONGITUDE)) != NULL )
         {
         CAMHAL_LOGDB("GPS longitude set %s", params.get(CameraParameters::KEY_GPS_LONGITUDE));
         mParameters.set(CameraParameters::KEY_GPS_LONGITUDE, valstr);
+        }else{
+            mParameters.remove(CameraParameters::KEY_GPS_LONGITUDE);
         }
 
     if( (valstr = params.get(CameraParameters::KEY_GPS_ALTITUDE)) != NULL )
         {
         CAMHAL_LOGDB("GPS altitude set %s", params.get(CameraParameters::KEY_GPS_ALTITUDE));
         mParameters.set(CameraParameters::KEY_GPS_ALTITUDE, valstr);
+        }else{
+            mParameters.remove(CameraParameters::KEY_GPS_ALTITUDE);
         }
 
     if( (valstr = params.get(CameraParameters::KEY_GPS_TIMESTAMP)) != NULL )
         {
         CAMHAL_LOGDB("GPS timestamp set %s", params.get(CameraParameters::KEY_GPS_TIMESTAMP));
         mParameters.set(CameraParameters::KEY_GPS_TIMESTAMP, valstr);
+        }else{
+            mParameters.remove(CameraParameters::KEY_GPS_TIMESTAMP);
         }
 
     if( (valstr = params.get(TICameraParameters::KEY_GPS_DATESTAMP)) != NULL )
         {
         CAMHAL_LOGDB("GPS datestamp set %s", params.get(TICameraParameters::KEY_GPS_DATESTAMP));
         mParameters.set(TICameraParameters::KEY_GPS_DATESTAMP, valstr);
+        }else{
+            mParameters.remove(TICameraParameters::KEY_GPS_DATESTAMP);
         }
 
     if( (valstr = params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD)) != NULL )
         {
         CAMHAL_LOGDB("GPS processing method set %s", params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD));
         mParameters.set(CameraParameters::KEY_GPS_PROCESSING_METHOD, valstr);
+        }else{
+            mParameters.remove(CameraParameters::KEY_GPS_PROCESSING_METHOD);
         }
 
     if( (valstr = params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF)) != NULL )
         {
         CAMHAL_LOGDB("GPS altitude ref set %s", params.get(TICameraParameters::KEY_GPS_ALTITUDE_REF));
         mParameters.set(TICameraParameters::KEY_GPS_ALTITUDE_REF, valstr);
+        }else{
+            mParameters.remove(TICameraParameters::KEY_GPS_ALTITUDE_REF);
         }
 
     if( (valstr = params.get(TICameraParameters::KEY_GPS_MAPDATUM )) != NULL )
         {
         CAMHAL_LOGDB("GPS MAPDATUM set %s", params.get(TICameraParameters::KEY_GPS_MAPDATUM));
         mParameters.set(TICameraParameters::KEY_GPS_MAPDATUM, valstr);
+        }else{
+            mParameters.remove(TICameraParameters::KEY_GPS_MAPDATUM);
         }
 
     if( (valstr = params.get(TICameraParameters::KEY_GPS_VERSION)) != NULL )
         {
         CAMHAL_LOGDB("GPS MAPDATUM set %s", params.get(TICameraParameters::KEY_GPS_VERSION));
         mParameters.set(TICameraParameters::KEY_GPS_VERSION, valstr);
+        }else{
+            mParameters.remove(TICameraParameters::KEY_GPS_VERSION);
         }
 
     if( (valstr = params.get(TICameraParameters::KEY_EXIF_MODEL)) != NULL )
