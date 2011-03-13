@@ -373,6 +373,7 @@ protected:
     virtual status_t startBracketing(int range);
     virtual status_t stopBracketing();
     virtual status_t autoFocus();
+    virtual status_t cancelAutoFocus();
     virtual status_t setTimeOut(int sec);
     virtual status_t cancelTimeOut();
     virtual status_t startSmoothZoom(int targetIdx);
@@ -412,7 +413,6 @@ private:
     //Focus functionality
     status_t doAutoFocus();
     status_t stopAutoFocus();
-    status_t cancelAutoFocus();
     status_t checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus);
     status_t returnFocusStatus(bool timeoutReached);
 
@@ -645,6 +645,7 @@ private:
     CameraParameters mParams;
     unsigned int mPictureRotation;
     bool mFocusStarted;
+    Mutex mFocusLock;
     bool mWaitingForSnapshot;
     int mSnapshotCount;
 

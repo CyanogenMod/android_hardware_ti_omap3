@@ -229,6 +229,17 @@ status_t FakeCameraAdapter::autoFocus()
     return ret;
 }
 
+status_t FakeCameraAdapter::cancelAutoFocus()
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 //API to get the frame size required to be allocated.
 void FakeCameraAdapter::getFrameSize(int &width, int &height)
 {
