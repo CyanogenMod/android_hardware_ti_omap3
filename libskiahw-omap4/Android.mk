@@ -15,7 +15,7 @@ LOCAL_SHARED_LIBRARIES := \
         libutils \
         libcutils \
         libOMX_Core \
-        libmemmgr \
+        libtimemmgr \
         libOMX_CoreOsal \
         $(BOARD_OPENCORE_LIBRARIES)
 
@@ -25,7 +25,7 @@ LOCAL_C_INCLUDES += \
         external/skia/include/images \
 	external/skia/src/images \
         hardware/ti/omx/ducati/domx/system/omx_core/inc \
-        hardware/ti/tiler/memmgr \
+        hardware/ti/tiler/ \
         hardware/ti/omx/ducati/domx/system/mm_osal/inc \
         $(OMX_VENDOR_INCLUDES)
 

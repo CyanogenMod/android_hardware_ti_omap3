@@ -24,7 +24,7 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/../inc \
-    $(LOCAL_PATH)/../../../tiler/memmgr \
+    $(LOCAL_PATH)/../../../tiler \
     $(LOCAL_PATH)/../../../../../external/libxml2/include \
     external/icu4c/common \
 
@@ -36,7 +36,7 @@ LOCAL_SHARED_LIBRARIES:= \
     libutils \
     libcutils \
     libtiutils \
-    libmemmgr \
+    libtimemmgr \
     libicuuc \
     libcamera_client \
 
