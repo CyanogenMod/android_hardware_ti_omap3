@@ -25,9 +25,6 @@ LOCAL_SHARED_LIBRARIES := \
     libicuuc \
     libopencore_player
 
-# do not prelink
-LOCAL_PRELINK_MODULE := false
-
 LOCAL_MODULE := libopencorehw
 
 LOCAL_LDLIBS += 

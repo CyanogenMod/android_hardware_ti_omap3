@@ -2,7 +2,7 @@ ifneq ($(BUILD_WITHOUT_PV),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 $(call add-prebuilt-files, ETC)
-LOCAL_PRELINK_MODULE := false
+
 LOCAL_SRC_FILES := \
 	src/ti_video_config_parser.cpp \
 	src/ti_m4v_config_parser.cpp \
