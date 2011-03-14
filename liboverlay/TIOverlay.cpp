@@ -302,6 +302,7 @@ overlay_object* overlay_control_context_t::open_shared_overlayobj(int ovlyfd, in
 }
 
 
+#include <stdlib.h>
 /**
 * Precondition:
 * This function has to be called after setting the crop window parameters
@@ -321,6 +322,12 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
     overlay_ctrl_t   *data   = overlayobj->data();
     int fd;
     uint32_t tempW, tempH;
+    char displayCode[16];
+    char displayMode[16];
+    char displayCodepath[PATH_MAX];
+    int interlaceMultiplier = 1;
+    int index = 0;
+
     if (sscanf(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
         &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
         w2 = finalWindow->posW;
@@ -366,17 +373,47 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
         case OVERLAY_ON_TV:
             {
 #ifdef TARGET_OMAP4
+                for (index = 0;index < MAX_DISPLAY_CNT; index++) {
+                    if (strcmp(screenMetaData[index].displayname, "hdmi") == 0) {
+                        LOGD("found Panel Id @ [%d]", index);
+                        break;
+                    }
+                }
+                sprintf(displayCodepath, "/sys/devices/platform/omapdss/display%d/code", index);
+                if (sysfile_read(displayCodepath, displayMode, PATH_MAX) < 0) {
+                    LOGE("HDMI Code get failed");
+                    return;
+                }
+                if(!strncmp(displayMode, "CEA:", 4)) {
+                    strcpy(displayCode, displayMode+4);
+                    switch (atoi(displayCode)) {
+                        case 20:
+                        case 5:
+                        case 6:
+                        case 21:
+                            interlaceMultiplier = 2;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+               /**
+                * For interlaced mode of the TV, modify the timings read, to convert them into
+                * progressive and finally update final window height for Interlaced mode
+                */
                 if ((overlayobj->mData.cropH > 720) || (overlayobj->mData.cropW > 1280) \
                     || (overlayobj->data()->rotation % 180)) {
                     //since no downscaling on TV, for 1080p resolution we go for full screen
                     finalWindow->posX = 0;
                     finalWindow->posY = 0;
+                    w2 = w2;
+                    h2 = h2 * interlaceMultiplier;
                 } else {
                     finalWindow->posX = (w2 * overlayobj->data()->posX)/LCD_WIDTH;
-                    finalWindow->posY=  (h2 * overlayobj->data()->posY)/LCD_HEIGHT;
+                    finalWindow->posY=  ((h2 * interlaceMultiplier) * overlayobj->data()->posY)/LCD_HEIGHT;
 
                     w2 = (w2 * overlayobj->data()->posW) / LCD_WIDTH;
-                    h2 = (h2 * overlayobj->data()->posH) / LCD_HEIGHT;
+                    h2 = ((h2 * interlaceMultiplier) * overlayobj->data()->posH) / LCD_HEIGHT;
                 }
 
                 if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
@@ -390,6 +427,7 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                     if (finalWindow->posX == 0)
                         finalWindow->posX = (w2 - finalWindow->posW) / 2;
                 }
+                finalWindow->posH = finalWindow->posH / interlaceMultiplier;
 #else
                 finalWindow->posX = 0;
                 finalWindow->posY = 0;
