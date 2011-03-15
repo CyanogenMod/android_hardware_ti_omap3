@@ -4630,6 +4630,8 @@ status_t OMXCameraAdapter::printComponentVersion(OMX_HANDLETYPE handle)
         ret = -EINVAL;
         }
 
+    mCompUUID[0] = 0;
+
     if ( NO_ERROR == ret )
         {
         eError = OMX_GetComponentVersion(handle,
@@ -4647,20 +4649,20 @@ status_t OMXCameraAdapter::printComponentVersion(OMX_HANDLETYPE handle)
 
     if ( NO_ERROR == ret )
         {
-        CAMHAL_LOGDB("OMX Component name: [%s]", compName);
-        CAMHAL_LOGDB("OMX Component version: [%u]", ( unsigned int ) compVersion.nVersion);
-        CAMHAL_LOGDB("Spec version: [%u]", ( unsigned int ) mCompRevision.nVersion);
-        CAMHAL_LOGDB("Git Commit ID: [%s]", mCompUUID);
+        CAMHAL_LOGEB("OMX Component name: [%s]", compName);
+        CAMHAL_LOGEB("OMX Component version: [%u]", ( unsigned int ) compVersion.nVersion);
+        CAMHAL_LOGEB("Spec version: [%u]", ( unsigned int ) mCompRevision.nVersion);
+        CAMHAL_LOGEB("Git Commit ID: [%s]", mCompUUID);
         currentUUID = ( char * ) mCompUUID;
         }
 
     if ( NULL != currentUUID )
         {
         offset = strlen( ( const char * ) mCompUUID) + 1;
-        if ( offset < OMX_MAX_STRINGNAME_SIZE )
+        if ( (int)currentUUID + (int)offset - (int)mCompUUID < OMX_MAX_STRINGNAME_SIZE )
             {
             currentUUID += offset;
-            CAMHAL_LOGDB("Git Branch: [%s]", currentUUID);
+            CAMHAL_LOGEB("Git Branch: [%s]", currentUUID);
             }
         else
             {
@@ -4670,12 +4672,12 @@ status_t OMXCameraAdapter::printComponentVersion(OMX_HANDLETYPE handle)
 
     if ( NO_ERROR == ret )
         {
-        offset += strlen( ( const char * ) currentUUID) + 1;
+        offset = strlen( ( const char * ) currentUUID) + 1;
 
-        if ( offset < OMX_MAX_STRINGNAME_SIZE )
+        if ( (int)currentUUID + (int)offset - (int)mCompUUID < OMX_MAX_STRINGNAME_SIZE )
             {
             currentUUID += offset;
-            CAMHAL_LOGDB("Build date and time: [%s]", currentUUID);
+            CAMHAL_LOGEB("Build date and time: [%s]", currentUUID);
             }
         else
             {
@@ -4685,12 +4687,12 @@ status_t OMXCameraAdapter::printComponentVersion(OMX_HANDLETYPE handle)
 
     if ( NO_ERROR == ret )
         {
-        offset += strlen( ( const char * ) currentUUID) + 1;
+        offset = strlen( ( const char * ) currentUUID) + 1;
 
-        if ( offset < OMX_MAX_STRINGNAME_SIZE )
+        if ( (int)currentUUID + (int)offset - (int)mCompUUID < OMX_MAX_STRINGNAME_SIZE )
             {
             currentUUID += offset;
-            CAMHAL_LOGDB("Build description: [%s]", currentUUID);
+            CAMHAL_LOGEB("Build description: [%s]", currentUUID);
             }
         else
             {
