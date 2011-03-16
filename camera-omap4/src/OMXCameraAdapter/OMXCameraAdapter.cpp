@@ -1725,10 +1725,133 @@ void saveFile(unsigned char   *buff, int width, int height, int format) {
 
     LOG_FUNCTION_NAME_EXIT
 }
+
+status_t OMXCameraAdapter::getFocusDistances(OMX_U32 &near,OMX_U32 &optimal, OMX_U32 &far)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError;
+
+    OMX_TI_CONFIG_FOCUSDISTANCETYPE focusDist;
+
+    LOG_FUNCTION_NAME
+
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = UNKNOWN_ERROR;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR(&focusDist, OMX_TI_CONFIG_FOCUSDISTANCETYPE);
+        focusDist.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+
+        eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp,
+                               ( OMX_INDEXTYPE ) OMX_TI_IndexConfigFocusDistance,
+                               &focusDist);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while querying focus distances 0x%x", eError);
+            ret = UNKNOWN_ERROR;
+            }
+
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        near = focusDist.nFocusDistanceNear;
+        optimal = focusDist.nFocusDistanceOptimal;
+        far = focusDist.nFocusDistanceFar;
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::encodeFocusDistance(OMX_U32 dist, char *buffer, size_t length)
+{
+    status_t ret = NO_ERROR;
+    uint32_t focusScale = 1000;
+    float distFinal;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+        if ( 0 == dist )
+            {
+            strncpy(buffer, CameraParameters::FOCUS_DISTANCE_INFINITY, ( length - 1 ));
+            }
+        else
+            {
+            distFinal = dist;
+            distFinal /= focusScale;
+            snprintf(buffer, ( length - 1 ) , "%5.3f", distFinal);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::addFocusDistances(OMX_U32 &near,
+                                             OMX_U32 &optimal,
+                                             OMX_U32 &far,
+                                             CameraParameters& params)
+{
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+        ret = encodeFocusDistance(near, mFocusDistNear, FOCUS_DIST_SIZE);
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("Error encoding near focus distance 0x%x", ret);
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = encodeFocusDistance(optimal, mFocusDistOptimal, FOCUS_DIST_SIZE);
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("Error encoding near focus distance 0x%x", ret);
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = encodeFocusDistance(far, mFocusDistFar, FOCUS_DIST_SIZE);
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("Error encoding near focus distance 0x%x", ret);
+            }
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        snprintf(mFocusDistBuffer, ( FOCUS_DIST_BUFFER_SIZE - 1) ,"%s,%s,%s", mFocusDistNear,
+                                                                              mFocusDistOptimal,
+                                                                              mFocusDistFar);
+
+        params.set(CameraParameters::KEY_FOCUS_DISTANCES, mFocusDistBuffer);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 void OMXCameraAdapter::getParameters(CameraParameters& params)
 {
     OMX_CONFIG_EXPOSUREVALUETYPE exp;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_U32 focusNear, focusOptimal, focusFar;
+    status_t stat = NO_ERROR;
 
     LOG_FUNCTION_NAME
 
@@ -1854,6 +1977,20 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
     params.set( TICameraParameters::KEY_SATURATION, saturation.nSaturation);
 
 #else
+
+    stat = getFocusDistances(focusNear, focusOptimal, focusFar);
+    if ( NO_ERROR == stat)
+        {
+        stat = addFocusDistances(focusNear, focusOptimal, focusFar, params);
+            if ( NO_ERROR != stat )
+                {
+                CAMHAL_LOGEB("Error in call to addFocusDistances() 0x%x", stat);
+                }
+        }
+    else
+        {
+        CAMHAL_LOGEB("Error in call to getFocusDistances() 0x%x", stat);
+        }
 
     OMX_INIT_STRUCT_PTR (&exp, OMX_CONFIG_EXPOSUREVALUETYPE);
     exp.nPortIndex = OMX_ALL;

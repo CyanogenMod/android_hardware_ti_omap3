@@ -56,6 +56,9 @@ namespace android {
 #define MAX_JPEG_QUALITY 100
 #define EXP_BRACKET_RANGE 10
 
+#define FOCUS_DIST_SIZE         100
+#define FOCUS_DIST_BUFFER_SIZE  500
+
 #define TOUCH_DATA_SIZE         200
 #define DEFAULT_THUMB_WIDTH     160
 #define DEFAULT_THUMB_HEIGHT    120
@@ -416,6 +419,14 @@ private:
     status_t checkFocus(OMX_PARAM_FOCUSSTATUSTYPE *eFocusStatus);
     status_t returnFocusStatus(bool timeoutReached);
 
+    //Focus distances
+    status_t addFocusDistances(OMX_U32 &near,
+                               OMX_U32 &optimal,
+                               OMX_U32 &far,
+                               CameraParameters& params);
+    status_t encodeFocusDistance(OMX_U32 dist, char *buffer, size_t length);
+    status_t getFocusDistances(OMX_U32 &near,OMX_U32 &optimal, OMX_U32 &far);
+
     //VSTAB and VNF Functionality
     status_t enableVideoNoiseFilter(bool enable);
     status_t enableVideoStabilization(bool enable);
@@ -577,6 +588,12 @@ private:
 
     //OMX Component UUID
     OMX_UUIDTYPE mCompUUID;
+
+    //Current Focus distances
+    char mFocusDistNear[FOCUS_DIST_SIZE];
+    char mFocusDistOptimal[FOCUS_DIST_SIZE];
+    char mFocusDistFar[FOCUS_DIST_SIZE];
+    char mFocusDistBuffer[FOCUS_DIST_BUFFER_SIZE];
 
     char mTouchCoords[TOUCH_DATA_SIZE];
     unsigned int mTouchFocusPosX;
