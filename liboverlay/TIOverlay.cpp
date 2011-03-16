@@ -844,10 +844,35 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
     * for the controls to be visible on top of video, give the graphics highest zOrder
     **/
     if (!isS3D) {
-        if ((ret = v4l2_overlay_set_zorder(fd, 1))) {
+        /* Omap has 3 video pipelines whose zOrders are 0,1,and 2.
+         * The graphics overlay is special with reserved zOrder of 3.
+         * Graphics calls are not coming to this module.
+         * Overlay with higher zOrder is displayed on top of the one
+         * with lower zOrder. Two overlays assigned to the same
+         * zOrder will result in distortions on the video output.
+         * An available zOrder is assigned to this overlay.
+         **/
+        int maxZorder = -1;
+        for (int i=0; i < MAX_NUM_OVERLAYS; i++) {
+            if (self->mOmapOverlays[i] != NULL) {
+                LOGD("mZorderUsage[%d] = %d is occupied", i, self->mZorderUsage[i]);
+                if (self->mZorderUsage[i] > maxZorder) {
+                    maxZorder = self->mZorderUsage[i];
+                }
+            }
+        }
+
+        if (maxZorder == MAX_NUM_OVERLAYS -1) {
+            LOGD("No zOrder is available\n");
+            goto error1;
+        }
+
+        self->mZorderUsage[overlayid] = maxZorder+1;
+        if (v4l2_overlay_set_zorder(fd, maxZorder+1)) {
             LOGE("Failed setting zorder\n");
             goto error1;
         }
+        LOGD("mZorderUsage[%d] is assigned to %d", overlayid, self->mZorderUsage[overlayid]);
     }
 #endif
 
@@ -997,6 +1022,32 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
     //NOTE : needs no protection, as the calls are already serialized at Surfaceflinger level
     self->mOmapOverlays[index] = NULL;
 
+    /* When this overlay is destructed, its zOrder should be
+     * freed and all other overlays whose zOrder is higher
+     * than this overlay's zOrder should be lowered by 1 in order
+     * to make zOrder consectively occupied.
+     **/
+
+    int targetedZorder = self->mZorderUsage[index];
+    LOGD("mZorderUsage[%d] = %d should be removed", index, targetedZorder);
+
+    self->mZorderUsage[index] = -1;
+    for (int i=0; i < MAX_NUM_OVERLAYS; i++) {
+        if (self->mOmapOverlays[i] != NULL) {
+            if (self->mZorderUsage[i] > targetedZorder) {
+                LOGD("mZorderUsage[%d]=%d should be lowered by 1",i, self->mZorderUsage[i]);
+                self->mZorderUsage[i] -= 1;
+                overlay_object *overlayobj = static_cast<overlay_object *>(self->mOmapOverlays[i]);
+                int fd = overlayobj->getctrl_videofd();
+
+                if (v4l2_overlay_set_zorder(fd, self->mZorderUsage[i])) {
+                    LOGE("Failed setting zorder\n");
+                    //There is nothing to do if failed
+                }
+            }
+        }
+    }
+
     LOGD("overlay_destroyOverlay:OUT");
     LOG_FUNCTION_NAME_EXIT;
 }
@@ -1016,6 +1067,15 @@ int overlay_control_context_t::overlay_setPosition(struct overlay_control_device
     int fd = overlayobj->getctrl_videofd();
     overlay_ctrl_t finalWindow;
     int rc = 0;
+
+    overlay_control_context_t *self = (overlay_control_context_t *)dev;
+
+    int targetedOverlay = overlayobj->getIndex();
+    int targetedZorder = self->mZorderUsage[targetedOverlay];
+    LOGD("mZorderUsage[%d] = %d needs to be assigned the highest zOrder", targetedOverlay, targetedZorder);
+    int maxZorder = -1;
+
+
 
     // FIXME:  This is a hack to deal with seemingly unintentional negative
     // offset that pop up now and again.  I believe the negative offsets are
@@ -1057,6 +1117,41 @@ int overlay_control_context_t::overlay_setPosition(struct overlay_control_device
     stage->posY = y;
     stage->posW = w;
     stage->posH = h;
+
+    /* Ideally, the zOrder of overlay should be matched to the order of corresponding Views at UI.
+     * The color of these views is currently set to 0 (color key) and overlays underneath these views punch
+     * holes and are allowed to see through. However, the order of views is not communicated to
+     * overlay module. The linkage is missing in the framework (or not I am aware of).
+     * In order to compensate this loss, it is assumed that the overlay whose position and/or size
+     * are changed is placed on top of all other overlays.
+     **/
+    for(int i=0; i < MAX_NUM_OVERLAYS; i++) {
+        if(self->mOmapOverlays[i] != NULL) {
+            if( self->mZorderUsage[i] > maxZorder) {
+                maxZorder = self->mZorderUsage[i];
+            }
+
+            if(self->mZorderUsage[i] > targetedZorder) {
+                LOGI("mZorderUsage[%d]=%d should be lowered by 1",i, self->mZorderUsage[i]);
+                self->mZorderUsage[i] -= 1;
+                overlay_object *overlayobj_selected = static_cast<overlay_object *>(self->mOmapOverlays[i]);
+                int fdd = overlayobj_selected->getctrl_videofd();
+
+                if (v4l2_overlay_set_zorder(fdd, self->mZorderUsage[i])) {
+                    LOGE("Failed setting zorder\n");
+                    //there is nothing to do if failed
+                }
+           }
+        }
+    }
+
+    if( maxZorder != targetedZorder ) {
+        self->mZorderUsage[targetedOverlay] = maxZorder;
+        if (v4l2_overlay_set_zorder(fd, maxZorder)) {
+            LOGE("Failed setting zorder\n");
+            //there is nothing to do if failed
+        }
+    }
 
 #ifndef TARGET_OMAP4
     pthread_mutex_lock(&overlayobj->lock);
@@ -1503,19 +1598,8 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 #endif
 
-#ifdef TARGET_OMAP4
-    //Currently not supported with V4L2_S3D driver
-    if (!overlayobj->mData.s3d_active) {
-        //Set up the z-order for the overlay:
-        //TBD:Surface flinger or the driver has to re-work the zorder of all the
-        //other active overlays for a given manager to service the current request.
-        if ((ret = v4l2_overlay_set_zorder(fd, videopipezorder))) {
-             LOGE("Failed setting zorder\n");
-             goto end;
-
-        }
-    }
-#endif
+//zOrder is assigned at the creation of overlay and removed at the destruction.
+//no need to assign again v4l2_overlay_set_zorder(fd, videopipezorder)
 
     if (overlayobj->getctrl_linkvideofd() > 0) {
         CommitLinkDevice(dev, overlayobj);
@@ -1599,18 +1683,8 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
         }
     }
 
-    //Currently not supported with V4L2_S3D driver
-    if (!overlayobj->mData.s3d_active) {
-        //Set up the z-order for the overlay:
-        //TBD:Surface flinger or the driver has to re-work the zorder of all the
-        //other active overlays for a given manager to service the current request.
-        if ((ret = v4l2_overlay_set_zorder(linkfd, data->zorder))) {
-             LOGE("Failed setting zorder\n");
-             goto end;
-
-        }
-    }
-
+//zOrder is assigned at the creation of overlay and removed at the destruction.
+//no need to assign again v4l2_overlay_set_zorder(linkfd, data->zorder)
 
 end:
     LOG_FUNCTION_NAME_EXIT;

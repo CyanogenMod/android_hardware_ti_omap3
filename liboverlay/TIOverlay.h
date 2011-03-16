@@ -239,6 +239,9 @@ public:
      */
     overlay_object* mOmapOverlays[MAX_NUM_OVERLAYS];
 
+    /* record zorder of each overlay */
+    int mZorderUsage[MAX_NUM_OVERLAYS];
+
 };
 
 // A separate instance is created per overlay data side user
