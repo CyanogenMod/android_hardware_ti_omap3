@@ -554,6 +554,10 @@ void printSupportedParams()
     printf("\n\r\tSupported Antibanding Options: %s", params.get(CameraParameters::KEY_SUPPORTED_ANTIBANDING));
     printf("\n\r\tSupported Flash Modes: %s", params.get(CameraParameters::KEY_SUPPORTED_FLASH_MODES));
 
+    if ( NULL != params.get(CameraParameters::KEY_FOCUS_DISTANCES) ) {
+        printf("\n\R\tFocus Distances: %s \n", params.get(CameraParameters::KEY_FOCUS_DISTANCES));
+    }
+
     return;
 }
 
