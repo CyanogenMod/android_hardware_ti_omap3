@@ -1132,7 +1132,9 @@ void releaseImageBuffers(void *userData)
 status_t CameraHal::signalEndImageCapture()
 {
     status_t ret = NO_ERROR;
+    int w,h;
     bool restartImageCapture = false;
+    CameraParameters adapterParams = mParameters;
 
     LOG_FUNCTION_NAME
 
@@ -1156,8 +1158,6 @@ status_t CameraHal::signalEndImageCapture()
         }
     else
         {
-        CameraParameters adapterParams = mParameters;
-        int w,h;
 
         //If the app has not set the capture mode, restore the capture resolution
         //back to the preview resolution to get rid of the black bars issue
@@ -1166,9 +1166,9 @@ status_t CameraHal::signalEndImageCapture()
             CAMHAL_LOGDA("Capture mode not set by app, setting picture res back to preview res");
             mParameters.getPreviewSize(&w, &h);
             adapterParams.setPictureSize(w,h);
+            ret = mCameraAdapter->setParameters(adapterParams);
             }
 
-        ret = mCameraAdapter->setParameters(adapterParams);
         }
 
     LOG_FUNCTION_NAME_EXIT

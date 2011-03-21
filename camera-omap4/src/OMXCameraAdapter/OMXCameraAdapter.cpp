@@ -1188,16 +1188,16 @@ CAMHAL_LOGEB("Sensor Orientation  set : %d", mSensorOrientation);
         if ( !mSmoothZoomEnabled )
             {
             int zoom = params.getInt(CameraParameters::KEY_ZOOM);
-            if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
+            if( ( zoom >= 0 ) && ( zoom < ZOOM_STAGES ) )
+                {
                 mTargetZoomIdx = zoom;
-            } else {
-                mTargetZoomIdx = 0;
-            }
-            //Immediate zoom should be applied instantly ( CTS requirement )
-            mCurrentZoomIdx = mTargetZoomIdx;
-            doZoom(mCurrentZoomIdx);
 
-            CAMHAL_LOGDB("Zoom by App %d", zoom);
+                //Immediate zoom should be applied instantly ( CTS requirement )
+                mCurrentZoomIdx = mTargetZoomIdx;
+                doZoom(mCurrentZoomIdx);
+
+                CAMHAL_LOGDB("Zoom by App %d", zoom);
+                }
             }
         }
 
