@@ -1477,7 +1477,11 @@ void CameraHal::nextPreview()
     struct timeval lowLightTime;
     int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
 
-    mParameters.getPreviewSize(&w, &h);
+    //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
+    {
+        Mutex::Autolock lock(mLock);
+        mParameters.getPreviewSize(&w, &h);
+    }
 
     //Zoom
     frame_count++;
@@ -1497,7 +1501,12 @@ void CameraHal::nextPreview()
         }
 
         ZoomPerform(zoom_step[mZoomCurrentIdx]);
-        mParameters.set("zoom", mZoomCurrentIdx);
+
+        //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
+        {
+            Mutex::Autolock lock(mLock);
+            mParameters.set("zoom", mZoomCurrentIdx);
+        }
 
         // Immediate zoom should not generate callbacks.
         if ( mSmoothZoomStatus == SMOOTH_START ||  mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)  {
@@ -1525,9 +1534,21 @@ void CameraHal::nextPreview()
         err = ICam_ReadStatus(fobj->hnd, &fobj->status);
         if (err == 0) {
             if (fobj->status.ae.camera_shake == ICAM_SHAKE_HIGH_RISK2) {
-                mParameters.set("low-light", "1");
+
+                //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
+                {
+                    Mutex::Autolock lock(mLock);
+                    mParameters.set("low-light", "1");
+                }
+
             } else {
-                mParameters.set("low-light", "0");
+
+                //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
+                {
+                    Mutex::Autolock lock(mLock);
+                    mParameters.set("low-light", "0");
+                }
+
             }
          }
 
