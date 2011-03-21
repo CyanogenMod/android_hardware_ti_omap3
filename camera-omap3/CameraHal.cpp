@@ -112,6 +112,7 @@ CameraHal::CameraHal(int cameraId)
                      nCameraBuffersQueued(0),
                      mfirstTime(0),
                      pictureNumber(0),
+                     mCaptureRunning(0),
 #ifdef FW3A
                      fobj(NULL),
 #endif
@@ -569,6 +570,8 @@ void CameraHal::previewThread()
     bool  shouldLive = true;
     bool has_message;
     int err;
+    int flg_AF = 0;
+    int flg_CAF = 0;
     struct pollfd pfd[2];
 
     LOG_FUNCTION_NAME
@@ -649,7 +652,21 @@ void CameraHal::previewThread()
                 LOGD("Receive Command: PREVIEW_START");
                 err = 0;
 
-                if( ! mPreviewRunning ) {
+                if ( mCaptureRunning ) {
+
+#ifdef FW3A
+
+                    if ( flg_CAF ) {
+                        if( FW3A_Start_CAF() < 0 ) {
+                            LOGE("Error while starting CAF");
+                            err = -1;
+                        }
+                    }
+
+#endif
+                }
+
+                else if( ! mPreviewRunning ) {
 
                     if( CameraCreate() < 0){
                         LOGE("ERROR CameraCreate()");
@@ -713,6 +730,7 @@ void CameraHal::previewThread()
                 if ( !err ) {
                     LOGD("Preview Started!");
                     mPreviewRunning = true;
+                    mCaptureRunning = false;
                 }
 
                 previewThreadAckQ.put(&msg);
@@ -912,8 +930,6 @@ void CameraHal::previewThread()
 
            case PREVIEW_CAPTURE:
            {
-                int flg_AF = 0;
-                int flg_CAF = 0;
                 err = 0;
 
 #ifdef DEBUG_LOG
@@ -1023,16 +1039,7 @@ void CameraHal::previewThread()
 
 #endif
 
-#ifdef FW3A
-
-                    if ( flg_CAF ) {
-                        if( FW3A_Start_CAF() < 0 )
-                            LOGE("Error while starting CAF");
-                    }
-
-#endif
-
-               mPreviewRunning = true;
+               mCaptureRunning = true;
 
                msg.command = PREVIEW_ACK;
                previewThreadAckQ.put(&msg);
