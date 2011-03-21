@@ -406,6 +406,11 @@ void CameraHal::initDefaultParameters()
     //set the video frame format needed by video capture framework
     p.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, CameraParameters::PIXEL_FORMAT_YUV422I);
 
+    //Set focus distances near=0.5, optimal=1.5, far="Infinity"
+    //Once when fw3A supports focus distances, update them in CameraHal::GetParameters()
+    sprintf(CameraHal::focusDistances, "%f,%f,%s", FOCUS_DISTANCE_NEAR, FOCUS_DISTANCE_OPTIMAL, CameraParameters::FOCUS_DISTANCE_INFINITY);
+    p.set(CameraParameters::KEY_FOCUS_DISTANCES, CameraHal::focusDistances);
+
     if (setParameters(p) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }

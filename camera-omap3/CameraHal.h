@@ -121,6 +121,9 @@ extern "C" {
 #define IMX046_VERTANGLE 24.8
 #define MIN_FPS 8
 #define MAX_FPS 30
+#define FOCUS_DISTANCE_NEAR 0.500000
+#define FOCUS_DISTANCE_OPTIMAL 1.500000
+#define FOCUS_DISTANCE_BUFFER_SIZE  30
 
 #define ZOOM_SCALE (1<<16)
 
@@ -536,6 +539,7 @@ public:
     static const char supportedFPS[];
     static const char supportedFpsRanges[];
     static const char supportedThumbnailSizes[];
+    char focusDistances[FOCUS_DISTANCE_BUFFER_SIZE];
     static const char PARAMS_DELIMITER[];
     int procPipe[2], shutterPipe[2], rawPipe[2], snapshotPipe[2], snapshotReadyPipe[2];
     int mippMode;
