@@ -387,6 +387,8 @@ void CameraHal::initDefaultParameters()
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_MACRO, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_FIXED, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO, PARAM_BUFFER)) return;
     p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_AUTO);
 
@@ -605,7 +607,11 @@ void CameraHal::previewThread()
 
             if ( isStart_FW3A_AF ) {
                 err = ICam_ReadStatus(fobj->hnd, &fobj->status);
-                if ( (err == 0) && ( ICAM_AF_STATUS_RUNNING != fobj->status.af.status ) ) {
+                //ICAM_AF_STATUS_IDLE is the state when AF algorithm is not working,
+                //but waiting for the lens to go to start position.
+                //In this case, AF is running, so we are waiting for AF to finish like
+                //in ICAM_AF_STATUS_RUNNING state.
+                if ( (err == 0) && ( ICAM_AF_STATUS_RUNNING != fobj->status.af.status ) && ( ICAM_AF_STATUS_IDLE != fobj->status.af.status ) ) {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -3470,9 +3476,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     int framerate_min, framerate_max;
     int zoom, compensation, saturation, sharpness;
     int zoom_save;
-    int contrast, brightness, caf;
+    int contrast, brightness;
     int error;
     int base;
+#ifdef FW3A
+    static int mLastFocusMode = ICAM_FOCUS_MODE_AF_AUTO;
+#endif
     const char *valstr;
     char *af_coord;
     Message msg;
@@ -3917,9 +3926,19 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
             } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_FIXED) == 0) {
 
-                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_MANUAL;
+                //FOCUS_MODE_FIXED in CameraParameters is actually HYPERFOCAL
+                //according to api
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_HYPERFOCAL;
 
+            } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO) == 0) {
+
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_CONTINUOUS;
+                //Disable touch focus if enabled
+                fobj->settings.general.face_tracking.enable = 0;
+                fobj->settings.general.face_tracking.count = 0;
+                fobj->settings.general.face_tracking.update = 0;
             }
+
         }
 
         valstr = mParameters.get(KEY_TOUCH_FOCUS);
@@ -3957,6 +3976,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
                 free(valstr_copy);
                 valstr_copy = NULL;
             }
+            //Disable touch focus if enabled.
+            mParameters.set(KEY_TOUCH_FOCUS, TOUCH_FOCUS_DISABLED);
         }
 
         if ( params.get(KEY_ISO) != NULL ) {
@@ -4120,7 +4141,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         sharpness = mParameters.getInt(KEY_SHARPNESS);
         contrast = mParameters.getInt(KEY_CONTRAST);
         brightness = mParameters.getInt(KEY_BRIGHTNESS);
-        caf = mParameters.getInt(KEY_CAF);
 
         if(contrast != -1) {
             contrast -= CONTRAST_OFFSET;
@@ -4152,16 +4172,40 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mExifParams.rotation = -1;
         }
 
-        if ((caf != -1) && (mcaf != caf)){
-            mcaf = caf;
+        if ( mLastFocusMode != fobj->settings.af.focus_mode ) {
             Message msg;
-            msg.command = mcaf ? PREVIEW_CAF_START : PREVIEW_CAF_STOP;
-            previewThreadCommandQ.put(&msg);
-            //unlock in order to read the message correctly
-            mLock.unlock();
-            previewThreadAckQ.get(&msg);
-            return msg.command == PREVIEW_ACK ? NO_ERROR : INVALID_OPERATION;
+            if ( mLastFocusMode == ICAM_FOCUS_MODE_AF_CONTINUOUS ) {
+                mcaf = false;
+                    msg.command = PREVIEW_CAF_STOP;
+                    previewThreadCommandQ.put(&msg);
+                    mLock.unlock();
+                    previewThreadAckQ.get(&msg);
+                    if ( msg.command != PREVIEW_ACK ) return INVALID_OPERATION;
+            }
+
+            if ( fobj->settings.af.focus_mode == ICAM_FOCUS_MODE_AF_CONTINUOUS ) {
+                mcaf = true;
+                    msg.command = PREVIEW_CAF_START;
+                    previewThreadCommandQ.put(&msg);
+                    mLock.unlock();
+                    previewThreadAckQ.get(&msg);
+                    if ( msg.command != PREVIEW_ACK ) return INVALID_OPERATION;
+            }
+
+            if (( fobj->settings.af.focus_mode == ICAM_FOCUS_MODE_AF_HYPERFOCAL )||
+                ( fobj->settings.af.focus_mode == ICAM_FOCUS_MODE_AF_INFINY )) {
+                if (mPreviewRunning) {
+                    msg.command = PREVIEW_AF_START;
+                    previewThreadCommandQ.put(&msg);
+                    mLock.unlock();
+                    previewThreadAckQ.get(&msg);
+                    if ( msg.command != PREVIEW_ACK ) return INVALID_OPERATION;
+                }
+            }
+
+            mLastFocusMode = fobj->settings.af.focus_mode;
         }
+
     }
 
 #endif
@@ -4302,20 +4346,24 @@ CameraParameters CameraHal::getParameters() const
                 params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_MACRO);
                 break;
             case ICAM_FOCUS_MODE_AF_MANUAL:
-                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_FIXED);
                 break;
             //TODO: Extend support for those
             case ICAM_FOCUS_MODE_AF_CONTINUOUS:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO);
                 break;
             case ICAM_FOCUS_MODE_AF_CONTINUOUS_NORMAL:
                 break;
             case ICAM_FOCUS_MODE_AF_PORTRAIT:
                 break;
             case ICAM_FOCUS_MODE_AF_HYPERFOCAL:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_FIXED);
                 break;
             case ICAM_FOCUS_MODE_AF_EXTENDED:
                 break;
             case ICAM_FOCUS_MODE_AF_CONTINUOUS_EXTENDED:
+                break;
+            default:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_AUTO);
                 break;
         };
 
