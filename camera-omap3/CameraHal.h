@@ -119,6 +119,8 @@ extern "C" {
 #define IMX046_FOCALLENGTH 4.68
 #define IMX046_HORZANGLE 62.9
 #define IMX046_VERTANGLE 24.8
+#define MIN_FPS 8
+#define MAX_FPS 30
 
 #define ZOOM_SCALE (1<<16)
 
@@ -532,6 +534,7 @@ public:
     static const char supportedPictureSizes[];
     static const char supportedPreviewSizes[];
     static const char supportedFPS[];
+    static const char supportedFpsRanges[];
     static const char supportedThumbnailSizes[];
     static const char PARAMS_DELIMITER[];
     int procPipe[2], shutterPipe[2], rawPipe[2], snapshotPipe[2], snapshotReadyPipe[2];
@@ -592,6 +595,7 @@ public:
     int mZoomCurrentIdx, mZoomTargetIdx, mZoomSpeed;
     int mcaf;
     int j;
+    bool useFramerateRange;
 
     enum SmoothZoomStatus {
         SMOOTH_START = 0,

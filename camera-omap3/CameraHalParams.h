@@ -42,6 +42,7 @@
 #define KEY_BRIGHTNESS          "brightness"
 #define KEY_CAF                 "caf"
 #define KEY_IPP                 "ippMode"
+#define KEY_PREVIEW_FPS_RANGE   "preview-fps-range"
 
 #define EFFECT_COOL             "cool"
 #define EFFECT_EMBOSS           "emboss"
