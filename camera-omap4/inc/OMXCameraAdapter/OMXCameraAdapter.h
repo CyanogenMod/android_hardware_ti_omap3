@@ -50,36 +50,37 @@ extern "C"
 
 namespace android {
 
-#define FOCUS_THRESHOLD  5 //[s.]
+#define FOCUS_THRESHOLD             5 //[s.]
 
-#define MIN_JPEG_QUALITY 1
-#define MAX_JPEG_QUALITY 100
-#define EXP_BRACKET_RANGE 10
+#define MIN_JPEG_QUALITY            1
+#define MAX_JPEG_QUALITY            100
+#define EXP_BRACKET_RANGE           10
 
-#define FOCUS_DIST_SIZE         100
-#define FOCUS_DIST_BUFFER_SIZE  500
+#define FOCUS_DIST_SIZE             100
+#define FOCUS_DIST_BUFFER_SIZE      500
 
-#define TOUCH_DATA_SIZE         200
-#define DEFAULT_THUMB_WIDTH     160
-#define DEFAULT_THUMB_HEIGHT    120
-#define FRAME_RATE_FULL_HD      27
-#define ZOOM_STAGES 61
+#define TOUCH_DATA_SIZE             200
+#define DEFAULT_THUMB_WIDTH         160
+#define DEFAULT_THUMB_HEIGHT        120
+#define FRAME_RATE_FULL_HD          27
+#define ZOOM_STAGES                 61
+
 #define FACE_DETECTION_BUFFER_SIZE  0x1000
 
-#define EXIF_MODEL_SIZE 100
-#define EXIF_MAKE_SIZE  100
-#define EXIF_DATE_TIME_SIZE 20
+#define EXIF_MODEL_SIZE             100
+#define EXIF_MAKE_SIZE              100
+#define EXIF_DATE_TIME_SIZE         20
 
-#define GPS_TIMESTAMP_SIZE       6
-#define GPS_DATESTAMP_SIZE      11
-#define GPS_REF_SIZE                    2
-#define GPS_MAPDATUM_SIZE       100
-#define GPS_PROCESSING_SIZE     100
+#define GPS_TIMESTAMP_SIZE          6
+#define GPS_DATESTAMP_SIZE          11
+#define GPS_REF_SIZE                2
+#define GPS_MAPDATUM_SIZE           100
+#define GPS_PROCESSING_SIZE         100
 #define GPS_VERSION_SIZE            4
-#define GPS_NORTH_REF                "N"
-#define GPS_SOUTH_REF                "S"
-#define GPS_EAST_REF                   "E"
-#define GPS_WEST_REF                  "W"
+#define GPS_NORTH_REF               "N"
+#define GPS_SOUTH_REF               "S"
+#define GPS_EAST_REF                "E"
+#define GPS_WEST_REF                "W"
 
 /* Default portstartnumber of Camera component */
 #define OMX_CAMERA_DEFAULT_START_PORT_NUM 0
@@ -299,7 +300,8 @@ public:
             OMX_CONFIG_FRAMESTABTYPE        mVidStabConfig;
             OMX_U32                         mCapFrame;
             OMX_U32                         mFrameRate;
-            OMX_U32                         mMinFrameRate;
+            OMX_S32                         mMinFrameRate;
+            OMX_S32                         mMaxFrameRate;
             CameraFrame::FrameType mImageType;
     };
 
@@ -344,10 +346,6 @@ public:
 
     // API
     virtual status_t setFormat(OMX_U32 port, OMXCameraPortParameters &cap);
-
-   //API to set FrameRate using VFR interface
-
-   virtual status_t setVFramerate(OMX_U32 minFrameRate,OMX_U32 maxFrameRate);
 
     //API to get the frame size required to be allocated. This size is used to override the size passed
     //by camera service when VSTAB/VNF is turned ON for example
@@ -445,6 +443,9 @@ private:
     //Exposure Modes
     OMX_ERRORTYPE setExposureMode(Gen3A_settings& Gen3A);
 
+    //API to set FrameRate using VFR interface
+    status_t setVFramerate(OMX_U32 minFrameRate,OMX_U32 maxFrameRate);
+
     //Noise filtering
     status_t setNSF(OMXCameraAdapter::IPPMode mode);
 
@@ -483,6 +484,7 @@ private:
     status_t encodeISOCap(OMX_U32 maxISO, const CapISO *cap, size_t capCount, char * buffer, size_t bufferSize);
     size_t encodeZoomCap(OMX_S32 maxZoom, const CapZoom *cap, size_t capCount, char * buffer, size_t bufferSize);
     status_t encodeFramerateCap(OMX_U32 framerateMax, OMX_U32 framerateMin, const CapFramerate *cap, size_t capCount, char * buffer, size_t bufferSize);
+    status_t encodeVFramerateCap(OMX_TI_CAPTYPE &caps, char * buffer, size_t bufferSize);
     status_t encodePixelformatCap(OMX_COLOR_FORMATTYPE format, const CapPixelformat *cap, size_t capCount, char * buffer, size_t bufferSize);
     status_t insertImageSizes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
     status_t insertPreviewSizes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
@@ -491,6 +493,7 @@ private:
     status_t insertImageFormats(CameraParameters &params, OMX_TI_CAPTYPE &caps);
     status_t insertPreviewFormats(CameraParameters &params, OMX_TI_CAPTYPE &caps);
     status_t insertFramerates(CameraParameters &params, OMX_TI_CAPTYPE &caps);
+    status_t insertVFramerates(CameraParameters &params, OMX_TI_CAPTYPE &caps);
     status_t insertEVs(CameraParameters &params, OMX_TI_CAPTYPE &caps);
     status_t insertISOModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);
     status_t insertIPPModes(CameraParameters &params, OMX_TI_CAPTYPE &caps);

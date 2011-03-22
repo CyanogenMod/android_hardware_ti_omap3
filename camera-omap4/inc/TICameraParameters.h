@@ -72,8 +72,8 @@ static const char  KEY_MEASUREMENT_ENABLE[];
 static const char  KEY_INITIAL_VALUES[];
 static const char  KEY_GBCE[];
 static const char  KEY_GLBCE[];
-static const char  KEY_VIDEO_MINFRAMERATE[];
-static const char  KEY_VIDEO_MINFRAMERATE_VALUES[];
+static const char  KEY_MINFRAMERATE[];
+static const char  KEY_MAXFRAMERATE[];
 
 static const char  KEY_CURRENT_ISO[];
 

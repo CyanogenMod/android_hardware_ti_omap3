@@ -728,7 +728,7 @@ public:
     ///Constants
     static const int NO_BUFFERS_PREVIEW;
     static const int NO_BUFFERS_IMAGE_CAPTURE;
-
+    static const uint32_t VFR_SCALE = 1000;
 
 
     /*--------------------Interface Methods---------------------------------*/

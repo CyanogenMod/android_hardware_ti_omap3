@@ -463,12 +463,13 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
     int mode = 0;
     status_t ret = NO_ERROR;
     bool updateImagePortParams = false;
+    int minFramerate, maxFramerate, frameRate;
     const char *valstr = NULL;
     const char *oldstr = NULL;
-
-   ///@todo Include more camera parameters
     int w, h;
     OMX_COLOR_FORMATTYPE pixFormat;
+
+    ///@todo Include more camera parameters
     if ( (valstr = params.getPreviewFormat()) != NULL )
         {
         if (strcmp(valstr, (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) == 0)
@@ -498,52 +499,65 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         pixFormat = OMX_COLOR_FormatCbYCrY;
         }
 
-    params.getPreviewSize(&w, &h);
-    int frameRate = params.getPreviewFrameRate();
-    int minframeRate = params.getInt(TICameraParameters::KEY_VIDEO_MINFRAMERATE);
-
-    if(minframeRate > frameRate)
-        {
-         CAMHAL_LOGEA(" Min FPS set higher than MAX. So setting MIN and MAX to the higher value");
-         frameRate = minframeRate;
-        }
-
     OMXCameraPortParameters *cap;
     cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
 
-    cap->mColorFormat = pixFormat;
-    cap->mWidth = w;
-    cap->mHeight = h;
-    cap->mFrameRate = frameRate;
-    cap->mMinFrameRate = minframeRate;
+    params.getPreviewSize(&w, &h);
+    frameRate = params.getPreviewFrameRate();
+    minFramerate = params.getInt(TICameraParameters::KEY_MINFRAMERATE);
+    maxFramerate = params.getInt(TICameraParameters::KEY_MAXFRAMERATE);
+    if ( ( 0 < minFramerate ) &&
+         ( 0 < maxFramerate ) )
+        {
+        if ( minFramerate > maxFramerate )
+            {
+             CAMHAL_LOGEA(" Min FPS set higher than MAX. So setting MIN and MAX to the higher value");
+             maxFramerate = minFramerate;
+            }
 
+        if ( 0 >= frameRate )
+            {
+            frameRate = maxFramerate;
+            }
 
+        if( ( cap->mMinFrameRate != minFramerate ) ||
+            ( cap->mMaxFrameRate != maxFramerate ) )
+            {
+            cap->mMinFrameRate = minFramerate;
+            cap->mMaxFrameRate = maxFramerate;
+            setVFramerate(cap->mMinFrameRate, cap->mMaxFrameRate);
+            }
+        }
 
-    CAMHAL_LOGVB("Prev: cap.mColorFormat = %d", (int)cap->mColorFormat);
-    CAMHAL_LOGVB("Prev: cap.mWidth = %d", (int)cap->mWidth);
-    CAMHAL_LOGVB("Prev: cap.mHeight = %d", (int)cap->mHeight);
-    CAMHAL_LOGVB("Prev: cap.mFrameRate = %d", (int)cap->mFrameRate);
-    CAMHAL_LOGVB("Prev: cap.mFrameRate = %d", (int)cap->mMinFrameRate);
+    if ( 0 < frameRate )
+        {
+        cap->mColorFormat = pixFormat;
+        cap->mWidth = w;
+        cap->mHeight = h;
+        cap->mFrameRate = frameRate;
 
-    //TODO: Add an additional parameter for video resolution
-   //use preview resolution for now
-    cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
-    cap->mColorFormat = pixFormat;
-    cap->mWidth = w;
-    cap->mHeight = h;
-    cap->mFrameRate = frameRate;
-    cap->mMinFrameRate = minframeRate;
+        CAMHAL_LOGVB("Prev: cap.mColorFormat = %d", (int)cap->mColorFormat);
+        CAMHAL_LOGVB("Prev: cap.mWidth = %d", (int)cap->mWidth);
+        CAMHAL_LOGVB("Prev: cap.mHeight = %d", (int)cap->mHeight);
+        CAMHAL_LOGVB("Prev: cap.mFrameRate = %d", (int)cap->mFrameRate);
 
-    CAMHAL_LOGVB("Video: cap.mColorFormat = %d", (int)cap->mColorFormat);
-    CAMHAL_LOGVB("Video: cap.mWidth = %d", (int)cap->mWidth);
-    CAMHAL_LOGVB("Video: cap.mHeight = %d", (int)cap->mHeight);
-    CAMHAL_LOGVB("Video: cap.mFrameRate = %d", (int)cap->mFrameRate);
-    CAMHAL_LOGVB("Video: cap.mFrameRate = %d", (int)cap->mMinFrameRate);
+        //TODO: Add an additional parameter for video resolution
+       //use preview resolution for now
+        cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+        cap->mColorFormat = pixFormat;
+        cap->mWidth = w;
+        cap->mHeight = h;
+        cap->mFrameRate = frameRate;
 
+        CAMHAL_LOGVB("Video: cap.mColorFormat = %d", (int)cap->mColorFormat);
+        CAMHAL_LOGVB("Video: cap.mWidth = %d", (int)cap->mWidth);
+        CAMHAL_LOGVB("Video: cap.mHeight = %d", (int)cap->mHeight);
+        CAMHAL_LOGVB("Video: cap.mFrameRate = %d", (int)cap->mFrameRate);
 
-    ///mStride is set from setBufs() while passing the APIs
-    cap->mStride = 4096;
-    cap->mBufSize = cap->mStride * cap->mHeight;
+        ///mStride is set from setBufs() while passing the APIs
+        cap->mStride = 4096;
+        cap->mBufSize = cap->mStride * cap->mHeight;
+        }
 
     cap = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
@@ -640,14 +654,6 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             {
             setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *cap);
             }
-        }
-
-    //Configure variable frame rate only for video mode and in executing state of camera
-    //Idle configuration is done in useBuffersPreview after port reconfiguration
-     if((mCapMode == OMXCameraAdapter::VIDEO_MODE) && (mComponentState == OMX_StateExecuting))
-        {
-        setVFramerate(minframeRate, frameRate);
-        CAMHAL_LOGDA("Configuring VFR for Video Mode");
         }
 
     str = params.get(TICameraParameters::KEY_EXPOSURE_MODE);
@@ -2067,36 +2073,43 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
 
 status_t OMXCameraAdapter::setVFramerate(OMX_U32 minFrameRate, OMX_U32 maxFrameRate)
 {
-     status_t ret = NO_ERROR;
+    status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_TI_CONFIG_VARFRMRANGETYPE vfr;
 
     LOG_FUNCTION_NAME
-    OMX_INIT_STRUCT_PTR (&vfr, OMX_TI_CONFIG_VARFRMRANGETYPE);
 
-    vfr.xMin = minFrameRate<<16;
-    vfr.xMax = maxFrameRate<<16;
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -EINVAL;
+        }
 
-    CAMHAL_LOGDB("VALUES SET ARE : Min = %d Max =%d", (int)vfr.xMin>>16, (int)vfr.xMax>>16);
-    eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexConfigVarFrmRange, &vfr);
-     if ( OMX_ErrorNone != eError )
-     {
-         CAMHAL_LOGEB("Error while configuring FrameRate 0x%x", eError);
-         return -1;
-      }
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT_PTR (&vfr, OMX_TI_CONFIG_VARFRMRANGETYPE);
 
-      CAMHAL_LOGDA("FrameRate Configured Successfully");
-      CAMHAL_LOGDA("Read Frame Rate after setting");
-       if(OMX_ErrorNone != eError)
-       {
-                CAMHAL_LOGEB("Error while Reading FrameRate 0x%x", eError);
-       }
-    else
-      {
-                CAMHAL_LOGDB("AFTER SETTING: Min = %d Max =%d", (int)vfr.xMin>>16, (int)vfr.xMax>>16);
-      }
+        vfr.xMin = minFrameRate<<16;
+        vfr.xMax = maxFrameRate<<16;
 
-     return 0;
+        eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexConfigVarFrmRange, &vfr);
+        if(OMX_ErrorNone != eError)
+            {
+            CAMHAL_LOGEB("Error while setting VFR min = %d, max = %d, error = 0x%x",
+                         ( unsigned int ) minFrameRate,
+                         ( unsigned int ) maxFrameRate,
+                         eError);
+            ret = -1;
+            }
+        else
+            {
+            CAMHAL_LOGEB("VFR Configured Successfully [%d:%d]",
+                        ( unsigned int ) minFrameRate,
+                        ( unsigned int ) maxFrameRate);
+            }
+        }
+
+    return ret;
  }
 
 status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &portParams)
@@ -2746,12 +2759,13 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         mSensorOrientation = 0;
         }
 
-    ///Configure VFR after setting the port fps because the port fps will override min and max set in setParameter
-    if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
-       {
-       setVFramerate(mPreviewData->mMinFrameRate, mPreviewData->mFrameRate);
-       CAMHAL_LOGDA("Configuring VFR for Video Mode");
-       }
+    ret = setVFramerate(mPreviewData->mMinFrameRate, mPreviewData->mMaxFrameRate);
+    if ( ret != NO_ERROR )
+        {
+        CAMHAL_LOGEB("VFR configuration failed 0x%x", ret);
+        LOG_FUNCTION_NAME_EXIT
+        return ret;
+        }
 
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE || (isS3d && (mCapMode == OMXCameraAdapter::HIGH_QUALITY)))
         {
@@ -2802,7 +2816,6 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         CAMHAL_LOGEB("Error in registering for event %d", ret);
         goto EXIT;
         }
-
 
     ///Once we get the buffers, move component state to idle state and pass the buffers to OMX comp using UseBuffer
     eError = OMX_SendCommand (mCameraAdapterParameters.mHandleComp , OMX_CommandStateSet, OMX_StateIdle, NULL);
@@ -4272,7 +4285,7 @@ status_t OMXCameraAdapter::setSensorOrientation(unsigned int degree)
             {
             CAMHAL_LOGEB("Error while Reading Sensor Orientation :  0x%x", eError);
             }
-        CAMHAL_LOGEB(" Currently Sensor Orientation is set to : %d",sensorOrientation.nRotation);
+        CAMHAL_LOGEB(" Currently Sensor Orientation is set to : %d", ( unsigned int ) sensorOrientation.nRotation);
         sensorOrientation.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
         sensorOrientation.nRotation = degree;
         eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonRotate, &sensorOrientation);
@@ -4286,8 +4299,8 @@ status_t OMXCameraAdapter::setSensorOrientation(unsigned int degree)
             {
             CAMHAL_LOGEB("Error while Reading Sensor Orientation :  0x%x", eError);
             }
-        CAMHAL_LOGEB(" Currently Sensor Orientation is set to : %d",sensorOrientation.nRotation);
-        CAMHAL_LOGEB(" Sensor Configured for Port : %d", sensorOrientation.nPortIndex);
+        CAMHAL_LOGEB(" Currently Sensor Orientation is set to : %d", ( unsigned int ) sensorOrientation.nRotation);
+        CAMHAL_LOGEB(" Sensor Configured for Port : %d", ( unsigned int ) sensorOrientation.nPortIndex);
         }
 
     /* Now set the required resolution as requested */

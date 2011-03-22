@@ -109,8 +109,8 @@ public:
         PROP_INDEX_MANUALCONVERGENCE_VALUES,
         PROP_INDEX_VSTAB,
         PROP_INDEX_VSTAB_VALUES,
-        PROP_INDEX_VIDEO_MINFRAMERATE,
-        PROP_INDEX_VIDEO_MINFRAMERATE_VALUES,
+        PROP_INDEX_FRAMERATE_RANGE,
+        PROP_INDEX_FRAMERATE_RANGE_SUPPORTED,
         PROP_INDEX_SENSOR_ORIENTATION,
         PROP_INDEX_SENSOR_ORIENTATION_VALUES,
         PROP_INDEX_REVISION,
@@ -197,8 +197,8 @@ public:
     static const char S3D2D_PREVIEW_MODES[];
     static const char VSTAB[];
     static const char VSTAB_VALUES[];
-    static const char VIDEO_MINFRAMERATE[];
-    static const char VIDEO_MINFRAMERATE_VALUES[];
+    static const char FRAMERATE_RANGE[];
+    static const char FRAMERATE_RANGE_SUPPORTED[];
 
     class CameraProperty
         {

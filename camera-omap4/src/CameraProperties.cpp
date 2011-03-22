@@ -98,8 +98,8 @@ const char CameraProperties::REVISION[] = "prop-revision";
 const char CameraProperties::FOCAL_LENGTH[] = "prop-focal-length";
 const char CameraProperties::HOR_ANGLE[] = "prop-horizontal-angle";
 const char CameraProperties::VER_ANGLE[] = "prop-vertical-angle";
-const char CameraProperties::VIDEO_MINFRAMERATE[]="prop-video-min-framerate";
-const char CameraProperties::VIDEO_MINFRAMERATE_VALUES[]="prop-video-min-framerate-values";
+const char CameraProperties::FRAMERATE_RANGE[]="prop-framerate-range-default";
+const char CameraProperties::FRAMERATE_RANGE_SUPPORTED[]="prop-framerate-range-values";
 const char CameraProperties::SENSOR_ORIENTATION[]= "sensor-orientation";
 const char CameraProperties::SENSOR_ORIENTATION_VALUES[]= "sensor-orientation-values";
 const char CameraProperties::EXIF_MAKE[] = "prop-exif-make";
@@ -1084,17 +1084,17 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_VER_ANGLE;
         }
-    else if(!strcmp(propName,CameraProperties::VIDEO_MINFRAMERATE))
+    else if(!strcmp(propName,CameraProperties::FRAMERATE_RANGE))
         {
-        CAMHAL_LOGDA("Returning MIN Frame Rate");
+        CAMHAL_LOGDA("Returning Framerate range");
         LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE;
+        return CameraProperties::PROP_INDEX_FRAMERATE_RANGE;
         }
-    else if(!strcmp(propName,CameraProperties::VIDEO_MINFRAMERATE_VALUES))
+    else if(!strcmp(propName,CameraProperties::FRAMERATE_RANGE_SUPPORTED))
         {
-        CAMHAL_LOGDA("Returning MIN Frame RateValues");
+        CAMHAL_LOGDA("Returning Framerate range values");
         LOG_FUNCTION_NAME_EXIT
-        return CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES;
+        return CameraProperties::PROP_INDEX_FRAMERATE_RANGE_SUPPORTED;
         }
     else if(!strcmp(propName,CameraProperties::EXIF_MAKE))
         {
@@ -1449,15 +1449,10 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::VER_ANGLE;
 
-        case CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::VIDEO_MINFRAMERATE);
+        case CameraProperties::PROP_INDEX_FRAMERATE_RANGE:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::FRAMERATE_RANGE);
             LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::VIDEO_MINFRAMERATE;
-
-        case CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::VIDEO_MINFRAMERATE_VALUES);
-            LOG_FUNCTION_NAME_EXIT
-            return CameraProperties::VIDEO_MINFRAMERATE_VALUES;
+            return CameraProperties::FRAMERATE_RANGE;
 
      case CameraProperties::PROP_INDEX_SENSOR_ORIENTATION:
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SENSOR_ORIENTATION);
@@ -1468,6 +1463,11 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SENSOR_ORIENTATION_VALUES);
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::SENSOR_ORIENTATION_VALUES;
+
+        case CameraProperties::PROP_INDEX_FRAMERATE_RANGE_SUPPORTED:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::FRAMERATE_RANGE_SUPPORTED);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::FRAMERATE_RANGE_SUPPORTED;
 
         case CameraProperties::PROP_INDEX_EXIF_MAKE:
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::EXIF_MAKE);

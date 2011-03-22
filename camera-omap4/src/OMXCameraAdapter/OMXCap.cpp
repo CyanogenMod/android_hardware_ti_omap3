@@ -37,6 +37,9 @@ namespace android {
 #define LOG_TAG "OMXCameraAdapter"
 
 const char PARAM_SEP[] = ",";
+const uint32_t VFR_OFFSET = 8;
+const char VFR_BACKET_START[] = "(";
+const char VFR_BRACKET_END[] = ")";
 
 const CapResolution OMXCameraAdapter::mImageCapRes [] = {
     { 4032, 3024, "4032x3024" },
@@ -87,7 +90,6 @@ const CapPixelformat OMXCameraAdapter::mPixelformats [] = {
 };
 
 const CapFramerate OMXCameraAdapter::mFramerates [] = {
-    { 33, "33" },
     { 30, "30" },
     { 25, "25" },
     { 24, "24" },
@@ -224,6 +226,65 @@ status_t OMXCameraAdapter::encodeFramerateCap(OMX_U32 framerateMax, OMX_U32 fram
                 strncat(buffer, cap[i].param, bufferSize - 1);
                 strncat(buffer, PARAM_SEP, bufferSize - 1);
                 }
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::encodeVFramerateCap(OMX_TI_CAPTYPE &caps, char * buffer, size_t bufferSize)
+{
+    status_t ret = NO_ERROR;
+    uint32_t minVFR, maxVFR;
+    char tmpBuffer[MAX_PROP_VALUE_LENGTH];
+    bool skipLast = false;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == buffer )
+        {
+        CAMHAL_LOGEA("Invalid input arguments");
+        ret = -EINVAL;
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        for ( unsigned int i = 0 ; i < caps.ulPrvVarFPSModesCount ; i++ )
+            {
+
+            if ( 0 < i )
+                {
+                if ( ( caps.tPrvVarFPSModes[i-1].nVarFPSMin == caps.tPrvVarFPSModes[i].nVarFPSMin ) &&
+                     ( caps.tPrvVarFPSModes[i-1].nVarFPSMax == caps.tPrvVarFPSModes[i].nVarFPSMax ) )
+                    {
+                    continue;
+                    }
+                else if (!skipLast)
+                    {
+                    strncat(buffer, PARAM_SEP, bufferSize - 1);
+                    }
+                }
+            if ( caps.tPrvVarFPSModes[i].nVarFPSMin == caps.tPrvVarFPSModes[i].nVarFPSMax )
+                {
+                skipLast = true;
+                continue;
+                }
+            else
+                {
+                skipLast = false;
+                }
+
+            CAMHAL_LOGEB("Min fps 0x%x, Max fps 0x%x", ( unsigned int ) caps.tPrvVarFPSModes[i].nVarFPSMin,
+                                                       ( unsigned int ) caps.tPrvVarFPSModes[i].nVarFPSMax);
+
+            minVFR = caps.tPrvVarFPSModes[i].nVarFPSMin >> VFR_OFFSET;
+            minVFR *= CameraHal::VFR_SCALE;
+            maxVFR = caps.tPrvVarFPSModes[i].nVarFPSMax >> VFR_OFFSET;
+            maxVFR *= CameraHal::VFR_SCALE;
+            snprintf(tmpBuffer, ( MAX_PROP_VALUE_LENGTH - 1 ), "(%d,%d)", minVFR, maxVFR);
+            strncat(buffer, tmpBuffer, ( bufferSize - 1 ));
             }
         }
 
@@ -547,6 +608,36 @@ status_t OMXCameraAdapter::insertFramerates(CameraParameters &params, OMX_TI_CAP
         else
             {
             params.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, supported);
+            }
+        }
+
+    LOG_FUNCTION_NAME
+
+    return ret;
+}
+
+status_t OMXCameraAdapter::insertVFramerates(CameraParameters &params, OMX_TI_CAPTYPE &caps)
+{
+    status_t ret = NO_ERROR;
+    char supported[MAX_PROP_VALUE_LENGTH];
+
+    LOG_FUNCTION_NAME
+
+    if ( NO_ERROR == ret )
+        {
+        memset(supported, '\0', MAX_PROP_VALUE_LENGTH);
+
+        ret = encodeVFramerateCap(caps, supported,
+                                  MAX_PROP_VALUE_LENGTH);
+
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("Error inserting supported preview framerate ranges 0x%x", ret);
+            }
+        else
+            {
+            params.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, supported);
+            CAMHAL_LOGEB("framerate ranges %s", supported);
             }
         }
 
@@ -881,6 +972,11 @@ status_t OMXCameraAdapter::insertCapabilities(CameraParameters &params, OMX_TI_C
     if ( NO_ERROR == ret )
         {
         ret = insertFramerates(params, caps);
+        }
+
+    if ( NO_ERROR == ret )
+        {
+        ret = insertVFramerates(params, caps);
         }
 
     if ( NO_ERROR == ret )

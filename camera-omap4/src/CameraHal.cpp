@@ -244,6 +244,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     int w, h;
     int w_orig, h_orig;
     int framerate,minframerate;
+    int maxFPS, minFPS;
     int error;
     int base;
     const char *valstr = NULL;
@@ -412,17 +413,61 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
     framerate = params.getPreviewFrameRate();
-    if ( !isParameterValid(framerate, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue))
-        {
-        CAMHAL_LOGEA("Invalid frame rate");
-        ret = -EINVAL;
-        }
-    else
+    if ( isParameterValid(framerate, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue))
         {
         mParameters.setPreviewFrameRate(framerate);
         }
 
     CAMHAL_LOGEB("FRAMERATE %d", framerate);
+
+    /*
+    * If the client uses the deprecated framerate,
+    * then it will have higher priority over framerate
+    * ranges. This is to ensure compatibility with
+    * older software.
+    */
+    if ( 0 < framerate )
+        {
+        maxFPS = framerate;
+        minFPS = framerate;
+
+        CAMHAL_LOGEB("FPS Range [%d, %d]", minFPS, maxFPS);
+        mParameters.set(TICameraParameters::KEY_MINFRAMERATE, minFPS);
+        mParameters.set(TICameraParameters::KEY_MAXFRAMERATE, maxFPS);
+        mParameters.set(CameraParameters::KEY_PREVIEW_FPS_RANGE,
+                        params.get(CameraParameters::KEY_PREVIEW_FPS_RANGE));
+        }
+    else if ( ( valstr = params.get(CameraParameters::KEY_PREVIEW_FPS_RANGE) ) != NULL )
+        {
+        CAMHAL_LOGEB("FPS Range = %s", valstr);
+        params.getPreviewFpsRange(&minFPS, &maxFPS);
+
+        if ( ( 0 > minFPS ) || ( 0 > maxFPS ) )
+            {
+            CAMHAL_LOGEA("FPS Range is negative!");
+            return -EINVAL;
+            }
+
+        minFPS /= CameraHal::VFR_SCALE;
+        maxFPS /= CameraHal::VFR_SCALE;
+
+        if ( ( 0 == minFPS ) || ( 0 == maxFPS ) )
+            {
+            CAMHAL_LOGEA("FPS Range is invalid!");
+            return -EINVAL;
+            }
+
+        if ( maxFPS < minFPS )
+            {
+            CAMHAL_LOGEA("Max FPS is smaller than Min FPS!");
+            return -EINVAL;
+            }
+
+        CAMHAL_LOGEB("FPS Range [%d, %d]", minFPS, maxFPS);
+        mParameters.set(TICameraParameters::KEY_MINFRAMERATE, minFPS);
+        mParameters.set(TICameraParameters::KEY_MAXFRAMERATE, maxFPS);
+        mParameters.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, valstr);
+        }
 
     if( ( valstr = params.get(TICameraParameters::KEY_GBCE) ) != NULL )
         {
@@ -434,20 +479,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         {
         CAMHAL_LOGDB("GLBCE Value = %s", valstr);
         mParameters.set(TICameraParameters::KEY_GLBCE, valstr);
-        }
-
-    minframerate = params.getInt(TICameraParameters::KEY_VIDEO_MINFRAMERATE);
-    CAMHAL_LOGDB(" Min Frame Rate read from params  is %d",minframerate);
-
-    if ( !isParameterValid(minframerate, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES]->mPropValue))
-        {
-        CAMHAL_LOGEA("Invalid Min frame rate");
-        ret = -EINVAL;
-        }
-    else
-        {
-        CAMHAL_LOGDA(" Doing a mparameters set on Min frame Rate");
-        mParameters.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE,minframerate);
         }
 
     ///Update the current parameter set
@@ -612,7 +643,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         CAMHAL_LOGDB("Rotation set %s", params.get(CameraParameters::KEY_ROTATION));
         mParameters.set(CameraParameters::KEY_ROTATION, valstr);
         }
-
 
     if(( (valstr = params.get(CameraParameters::KEY_JPEG_QUALITY)) != NULL)
         && (params.getInt(CameraParameters::KEY_JPEG_QUALITY) >=0))
@@ -2897,11 +2927,11 @@ void CameraHal::insertSupportedParams()
     p.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB_VALUES,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB_VALUES]->mPropValue);
-    p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE]->mPropValue);
-    p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE_VALUES,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES]->mPropValue);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_FRAMERATE_RANGE_SUPPORTED]->mPropValue);
     p.set(TICameraParameters::KEY_SENSOR_ORIENTATION, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_SENSOR_ORIENTATION]->mPropValue);
     p.set(TICameraParameters::KEY_SENSOR_ORIENTATION_VALUES, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_SENSOR_ORIENTATION_VALUES]->mPropValue);
-     LOG_FUNCTION_NAME_EXIT
+
+    LOG_FUNCTION_NAME_EXIT
 }
 
 void CameraHal::extractSupportedParams()
@@ -3086,6 +3116,13 @@ void CameraHal::extractSupportedParams()
                       pStr, MAX_PROP_VALUE_LENGTH - 1);
         }
 
+    pStr = p.get(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE);
+    if ( NULL != pStr )
+        {
+        strncpy(mCameraPropertiesArr[CameraProperties::PROP_INDEX_FRAMERATE_RANGE_SUPPORTED]->mPropValue,
+                      pStr, MAX_PROP_VALUE_LENGTH - 1);
+        }
+
     LOG_FUNCTION_NAME_EXIT
 }
 
@@ -3174,8 +3211,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_FOCAL_LENGTH, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_FOCAL_LENGTH]->mPropValue);
     p.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_HOR_ANGLE]->mPropValue);
     p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VER_ANGLE]->mPropValue);
-    p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE]->mPropValue);
-    p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE_VALUES,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES]->mPropValue);
+    p.set(CameraParameters::KEY_PREVIEW_FPS_RANGE,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_FRAMERATE_RANGE]->mPropValue);
     p.set(TICameraParameters::KEY_SENSOR_ORIENTATION, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_SENSOR_ORIENTATION]->mPropValue);
     p.set(TICameraParameters::KEY_SENSOR_ORIENTATION_VALUES, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_SENSOR_ORIENTATION_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_EXIF_MAKE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXIF_MAKE]->mPropValue);
