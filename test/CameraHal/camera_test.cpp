@@ -137,6 +137,7 @@ int jpegQuality = 85;
 int thumbQuality = 85;
 int flashIdx = 0;
 int faceIndex = 0;
+int fpsRangeIdx = 0;
 timeval autofocus_start, picture_start;
 char script_name[80];
 bool nullOverlay = false;
@@ -264,6 +265,16 @@ const struct {
     { 36, "3.5x"},
     { 40, "4x"},
     { 60, "8x"},
+};
+
+const struct {
+    const char *range;
+    const char *rangeDescription;
+} fpsRanges [] = {
+    { "5000,30000", "[5:30]" },
+    { "5000,10000", "[5:10]" },
+    { "5000,15000", "[5:15]" },
+    { "5000,20000", "[5:20]" },
 };
 
 const struct {
@@ -1078,6 +1089,7 @@ void initDefaults() {
     camera_index = 0;
     antibanding_mode = 0;
     focus_mode = 0;
+    fpsRangeIdx = 0;
     previewSizeIDX = ARRAY_SIZE(previewSize) - 6;  /* Default resolution set to WVGA */
     captureSizeIDX = ARRAY_SIZE(captureSize) - 3;  /* Default capture resolution is 8MP */
     frameRateIDX = ARRAY_SIZE(frameRate) - 1;      /* Default frame rate is 30 FPS */
@@ -1259,6 +1271,7 @@ int functional_menu() {
         printf("   2. Stop Preview\n");
         printf("   ~. Preview format %s\n", pixelformat[previewFormat]);
         printf("   4. Preview size:   %4d x %4d - %s\n",previewSize[previewSizeIDX].width, camera_index == 2 ? previewSize[previewSizeIDX].height*2 : previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
+        printf("   R. Preview framerate range: %s\n", fpsRanges[fpsRangeIdx].rangeDescription);
         printf("   &. Dump a preview frame\n");
         printf("   _. Auto Convergence mode: %s\n", autoconvergencemode[AutoConvergenceModeIDX]);
         printf("   ^. Manual Convergence Value: %s\n", manualconvergencevalues[ManualConvergenceValuesIDX]);
@@ -1883,6 +1896,18 @@ int functional_menu() {
                 camera->setParameters(params.flatten());
                 camera->startPreview();
             } else if ( hardwareActive ) {
+                camera->setParameters(params.flatten());
+            }
+
+            break;
+
+        case 'R':
+            fpsRangeIdx += 1;
+            fpsRangeIdx %= ARRAY_SIZE(fpsRanges);
+            params.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, fpsRanges[fpsRangeIdx].range);
+            params.remove(CameraParameters::KEY_PREVIEW_FRAME_RATE);
+
+            if ( hardwareActive ) {
                 camera->setParameters(params.flatten());
             }
 
@@ -2792,6 +2817,23 @@ int execute_functional_script(char *script) {
                     camera->setParameters(params.flatten());
                 }
 
+                break;
+
+            case 'R':
+                for(i = 0; i < ARRAY_SIZE(fpsRanges); i++)
+                {
+                    if( strcmp((cmd + 1), fpsRanges[i].rangeDescription) == 0)
+                    {
+                        fpsRangeIdx = i;
+                        printf("Selected Framerate range: %s\n", fpsRanges[i].rangeDescription);
+                        if ( hardwareActive ) {
+                            params.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, fpsRanges[i].range);
+                            params.remove(CameraParameters::KEY_PREVIEW_FRAME_RATE);
+                            camera->setParameters(params.flatten());
+                        }
+                        break;
+                    }
+                }
                 break;
 
             case 'x':
