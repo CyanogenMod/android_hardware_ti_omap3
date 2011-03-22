@@ -406,6 +406,7 @@ private:
                                           OMX_IN OMX_U32 timeout);
 
     status_t setPictureRotation(unsigned int degree);
+    status_t setSensorOrientation(unsigned int degree);
     status_t setImageQuality(unsigned int quality);
     status_t setThumbnailParams(unsigned int width, unsigned int height, unsigned int quality);
 
@@ -689,6 +690,9 @@ private:
 
     bool mVnfEnabled;
     bool mVstabEnabled;
+
+    int mSensorOrientation;
+
 
     int mFrameCount;
     int mLastFrameCount;

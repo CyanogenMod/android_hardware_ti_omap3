@@ -868,6 +868,25 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     CAMHAL_LOGVB("Capture Mode set %d", mCapMode);
 
+    // Read Sensor Orientation and set it based on perating mode
+
+     if (( params.getInt(TICameraParameters::KEY_SENSOR_ORIENTATION) != -1 ) && (mCapMode == OMXCameraAdapter::VIDEO_MODE))
+        {
+         mSensorOrientation = params.getInt(TICameraParameters::KEY_SENSOR_ORIENTATION);
+         if (mSensorOrientation == 270 ||mSensorOrientation==90)
+             {
+             CAMHAL_LOGEA(" Orientation is 270/90. So setting counter rotation  to Ducati");
+             mSensorOrientation +=180;
+             mSensorOrientation%=360;
+              }
+         }
+     else
+        {
+         mSensorOrientation = 0;
+        }
+
+CAMHAL_LOGEB("Sensor Orientation  set : %d", mSensorOrientation);
+
     /// Configure IPP, LDCNSF, GBCE and GLBCE only in HQ mode
     if(mCapMode == OMXCameraAdapter::HIGH_QUALITY)
         {
@@ -1114,7 +1133,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         mVstabEnabled = false;
         }
 
-        //Set Auto Convergence Mode
+    //Set Auto Convergence Mode
     str = params.get((const char *) TICameraParameters::KEY_AUTOCONVERGENCE);
     if ( str != NULL )
         {
@@ -2582,6 +2601,7 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 {
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
+    int tmpHeight, tmpWidth;
 
     LOG_FUNCTION_NAME
 
@@ -2719,12 +2739,11 @@ status_t OMXCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 
     CAMHAL_LOGDB("Camera Mode = %d", mCapMode);
 
-    ret = setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData);
-    if ( ret != NO_ERROR )
+    ret = setSensorOrientation(mSensorOrientation);
+    if ( NO_ERROR != ret )
         {
-        CAMHAL_LOGEB("setFormat() failed %d", ret);
-        LOG_FUNCTION_NAME_EXIT
-        return ret;
+        CAMHAL_LOGEB("Error configuring Sensor Orientation %x", ret);
+        mSensorOrientation = 0;
         }
 
     ///Configure VFR after setting the port fps because the port fps will override min and max set in setParameter
@@ -4213,6 +4232,82 @@ status_t OMXCameraAdapter::setPictureRotation(unsigned int degree)
 
     return ret;
 }
+
+status_t OMXCameraAdapter::setSensorOrientation(unsigned int degree)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_CONFIG_ROTATIONTYPE sensorOrientation;
+    int tmpHeight, tmpWidth;
+    OMXCameraPortParameters *mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+
+    LOG_FUNCTION_NAME
+    if ( OMX_StateInvalid == mComponentState )
+        {
+        CAMHAL_LOGEA("OMX component is in invalid state");
+        ret = -1;
+        }
+
+    /* Set Temproary Port resolution.
+    * For resolution with height > 1008,resolution cannot be set without configuring orientation.
+    * So we first set a temp resolution. We have used VGA
+    */
+    tmpHeight = mPreviewData->mHeight;
+    tmpWidth = mPreviewData->mWidth;
+    mPreviewData->mWidth = 640;
+    mPreviewData->mHeight = 480;
+    ret = setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData);
+    if ( ret != NO_ERROR )
+        {
+        CAMHAL_LOGEB("setFormat() failed %d", ret);
+        }
+
+    /* Now set Required Orientation*/
+    if ( NO_ERROR == ret )
+        {
+        OMX_INIT_STRUCT(sensorOrientation, OMX_CONFIG_ROTATIONTYPE);
+        sensorOrientation.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+        eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonRotate, &sensorOrientation);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while Reading Sensor Orientation :  0x%x", eError);
+            }
+        CAMHAL_LOGEB(" Currently Sensor Orientation is set to : %d",sensorOrientation.nRotation);
+        sensorOrientation.nPortIndex = mCameraAdapterParameters.mPrevPortIndex;
+        sensorOrientation.nRotation = degree;
+        eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonRotate, &sensorOrientation);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while configuring rotation 0x%x", eError);
+            }
+        CAMHAL_LOGEA(" Read the Parameters that are set");
+        eError = OMX_GetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCommonRotate, &sensorOrientation);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGEB("Error while Reading Sensor Orientation :  0x%x", eError);
+            }
+        CAMHAL_LOGEB(" Currently Sensor Orientation is set to : %d",sensorOrientation.nRotation);
+        CAMHAL_LOGEB(" Sensor Configured for Port : %d", sensorOrientation.nPortIndex);
+        }
+
+    /* Now set the required resolution as requested */
+
+    mPreviewData->mWidth = tmpWidth;
+    mPreviewData->mHeight = tmpHeight;
+    if ( NO_ERROR == ret )
+        {
+        ret = setFormat (mCameraAdapterParameters.mPrevPortIndex, mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex]);
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEB("setFormat() failed %d", ret);
+            }
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 
 status_t OMXCameraAdapter::setSensorOverclock(bool enable)
 {
@@ -5713,6 +5808,8 @@ void OMXCameraAdapter::getFrameSize(int &width, int &height)
     status_t ret = NO_ERROR;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_CONFIG_RECTTYPE tFrameDim;
+    //int tmpHeight, tmpWidth;
+    //OMXCameraPortParameters *mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
 
     LOG_FUNCTION_NAME
 
@@ -5752,14 +5849,13 @@ void OMXCameraAdapter::getFrameSize(int &width, int &height)
             }
         }
 
-    if ( NO_ERROR == ret )
+    ret = setSensorOrientation(mSensorOrientation);
+    if ( NO_ERROR != ret )
         {
-        ret = setFormat (mCameraAdapterParameters.mPrevPortIndex, mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex]);
-        if ( NO_ERROR != ret )
-            {
-            CAMHAL_LOGEB("setFormat() failed %d", ret);
-            }
+        CAMHAL_LOGEB("Error configuring Sensor Orientation %x", ret);
+        mSensorOrientation = 0;
         }
+
 
     if(mCapMode == OMXCameraAdapter::VIDEO_MODE)
         {

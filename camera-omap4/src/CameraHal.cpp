@@ -297,6 +297,28 @@ status_t CameraHal::setParameters(const CameraParameters &params)
           }
 
         params.getPreviewSize(&w, &h);
+        int orientation =0;
+        if((valstr = params.get(TICameraParameters::KEY_SENSOR_ORIENTATION)) != NULL)
+            {
+            CAMHAL_LOGDB("Sensor Orientation is set to %s", params.get(TICameraParameters::KEY_SENSOR_ORIENTATION));
+            mParameters.set(TICameraParameters::KEY_SENSOR_ORIENTATION, valstr);
+            orientation = params.getInt(TICameraParameters::KEY_SENSOR_ORIENTATION);
+            }
+
+        if(orientation ==90 || orientation ==270)
+       {
+          if ( !isResolutionValid(h,w, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
+           {
+            CAMHAL_LOGEB("Invalid preview resolution %d x %d", w, h);
+            ret = -EINVAL;
+           }
+          else
+          {
+            mParameters.setPreviewSize(w, h);
+           }
+       }
+       else
+       {
         if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
             {
             CAMHAL_LOGEB("Invalid preview resolution %d x %d", w, h);
@@ -306,6 +328,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             {
             mParameters.setPreviewSize(w, h);
             }
+        }
 
         CAMHAL_LOGDB("PreviewResolution by App %d x %d", w, h);
 
@@ -345,6 +368,11 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             {
             CAMHAL_LOGEB("AutoConvergence mode is %s", params.get(TICameraParameters::KEY_AUTOCONVERGENCE));
             mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE, valstr);
+            }
+        if((valstr = params.get(TICameraParameters::KEY_SENSOR_ORIENTATION)) != NULL)
+            {
+            CAMHAL_LOGDB("Sensor Orientation is set to %s", params.get(TICameraParameters::KEY_SENSOR_ORIENTATION));
+            mParameters.set(TICameraParameters::KEY_SENSOR_ORIENTATION, valstr);
             }
 
         }
@@ -427,7 +455,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         {
         CAMHAL_LOGDB("AutoConvergence Mode is set = %s", params.get(TICameraParameters::KEY_AUTOCONVERGENCE));
         mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE, valstr);
-        }
+       }
 
 //    if(params.get(TICameraParameters::KEY_AUTOCONVERGENCE_MODE)!=NULL)
 //        {
@@ -2871,6 +2899,8 @@ void CameraHal::insertSupportedParams()
     p.set(TICameraParameters::KEY_VSTAB_VALUES,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE]->mPropValue);
     p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE_VALUES,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES]->mPropValue);
+    p.set(TICameraParameters::KEY_SENSOR_ORIENTATION, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_SENSOR_ORIENTATION]->mPropValue);
+    p.set(TICameraParameters::KEY_SENSOR_ORIENTATION_VALUES, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_SENSOR_ORIENTATION_VALUES]->mPropValue);
      LOG_FUNCTION_NAME_EXIT
 }
 
@@ -3146,6 +3176,8 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VER_ANGLE]->mPropValue);
     p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE]->mPropValue);
     p.set(TICameraParameters::KEY_VIDEO_MINFRAMERATE_VALUES,(const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES]->mPropValue);
+    p.set(TICameraParameters::KEY_SENSOR_ORIENTATION, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_SENSOR_ORIENTATION]->mPropValue);
+    p.set(TICameraParameters::KEY_SENSOR_ORIENTATION_VALUES, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_SENSOR_ORIENTATION_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_EXIF_MAKE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXIF_MAKE]->mPropValue);
     p.set(TICameraParameters::KEY_EXIF_MODEL, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXIF_MODEL]->mPropValue);
     p.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_JPEG_THUMBNAIL_QUALITY]->mPropValue);

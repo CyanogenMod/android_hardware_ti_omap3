@@ -100,6 +100,8 @@ const char CameraProperties::HOR_ANGLE[] = "prop-horizontal-angle";
 const char CameraProperties::VER_ANGLE[] = "prop-vertical-angle";
 const char CameraProperties::VIDEO_MINFRAMERATE[]="prop-video-min-framerate";
 const char CameraProperties::VIDEO_MINFRAMERATE_VALUES[]="prop-video-min-framerate-values";
+const char CameraProperties::SENSOR_ORIENTATION[]= "sensor-orientation";
+const char CameraProperties::SENSOR_ORIENTATION_VALUES[]= "sensor-orientation-values";
 const char CameraProperties::EXIF_MAKE[] = "prop-exif-make";
 const char CameraProperties::EXIF_MODEL[] = "prop-exif-model";
 const char CameraProperties::JPEG_THUMBNAIL_QUALITY[] = "prop-jpeg-thumbnail-quality-default";
@@ -1452,10 +1454,21 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::VIDEO_MINFRAMERATE;
 
-	case CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES:
+        case CameraProperties::PROP_INDEX_VIDEO_MINFRAMERATE_VALUES:
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::VIDEO_MINFRAMERATE_VALUES);
             LOG_FUNCTION_NAME_EXIT
-	    return CameraProperties::VIDEO_MINFRAMERATE_VALUES;
+            return CameraProperties::VIDEO_MINFRAMERATE_VALUES;
+
+     case CameraProperties::PROP_INDEX_SENSOR_ORIENTATION:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SENSOR_ORIENTATION);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::SENSOR_ORIENTATION;
+
+     case CameraProperties::PROP_INDEX_SENSOR_ORIENTATION_VALUES:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SENSOR_ORIENTATION_VALUES);
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::SENSOR_ORIENTATION_VALUES;
+
         case CameraProperties::PROP_INDEX_EXIF_MAKE:
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::EXIF_MAKE);
             LOG_FUNCTION_NAME_EXIT

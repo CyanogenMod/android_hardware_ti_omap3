@@ -77,6 +77,9 @@ static const char  KEY_VIDEO_MINFRAMERATE_VALUES[];
 
 static const char  KEY_CURRENT_ISO[];
 
+static const char KEY_SENSOR_ORIENTATION[];
+static const char KEY_SENSOR_ORIENTATION_VALUES[];
+
 //TI extensions for zoom
 static const char ZOOM_SUPPORTED[];
 static const char ZOOM_UNSUPPORTED[];
@@ -230,6 +233,13 @@ static const char AUTOCONVERGENCE_MODE_MANUAL[];
 
 //TI extensions for flash mode settings
 static const char FLASH_MODE_FILL_IN[];
+
+//TI extensions to add sensor orientation parameters
+static const char ORIENTATION_SENSOR_NONE[];
+static const char ORIENTATION_SENSOR_90[];
+static const char ORIENTATION_SENSOR_180[];
+static const char ORIENTATION_SENSOR_270[];
+
 
 //TI values for camera direction
 static const char FACING_FRONT[];

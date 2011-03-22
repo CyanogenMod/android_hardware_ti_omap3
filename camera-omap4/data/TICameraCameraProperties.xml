@@ -20,6 +20,8 @@
 <prop-auto-convergence>0</prop-auto-convergence>
 <prop-manual-convergence-values>0</prop-manual-convergence-values>
 <prop-vstab-values>0,1</prop-vstab-values>
+<prop-sensor-orientation>0</prop-sensor-orientation>
+<prop-sensor-orientation-values>0,90,180,270</prop-sensor-orientation-values>
 <prop-manual-gain-modes>0</prop-manual-gain-modes>
 <prop-preview-size-default>640x480</prop-preview-size-default>
 <prop-preview-format-default>yuv420sp</prop-preview-format-default>
@@ -73,6 +75,8 @@
 <prop-auto-convergence>0</prop-auto-convergence>
 <prop-manual-convergence-values>0</prop-manual-convergence-values>
 <prop-vstab-values>0,1</prop-vstab-values>
+<prop-sensor-orientation>0</prop-sensor-orientation>
+<prop-sensor-orientation-values>0,90,180,270</prop-sensor-orientation-values>
 <prop-preview-size-default>640x480</prop-preview-size-default>
 <prop-zoom-default>0</prop-zoom-default>
 <prop-preview-frame-rate-default>30</prop-preview-frame-rate-default>
@@ -142,6 +146,8 @@
 <prop-auto-convergence>auto-convergence</prop-auto-convergence>
 <prop-manual-convergence-values>-100,-50,-30,-25,0,25,50,100</prop-manual-convergence-values>
 <prop-vstab-values>0,1</prop-vstab-values>
+<prop-sensor-orientation>0</prop-sensor-orientation>
+<prop-sensor-orientation-values>0,90,180,270</prop-sensor-orientation-values>
 <prop-preview-size-default>640x480</prop-preview-size-default>
 <prop-preview-format-default>yuv420sp</prop-preview-format-default>
 <prop-preview-frame-rate-default>30</prop-preview-frame-rate-default>
@@ -210,6 +216,8 @@
 <prop-auto-convergence>0</prop-auto-convergence>
 <prop-manual-convergence-values>0</prop-manual-convergence-values>
 <prop-vstab-values>0,1</prop-vstab-values>
+<prop-sensor-orientation>0</prop-sensor-orientation>
+<prop-sensor-orientation-values>0,90,180,270</prop-sensor-orientation-values>
 <prop-manual-gain-modes>0</prop-manual-gain-modes>
 <prop-preview-size-default>640x480</prop-preview-size-default>
 <prop-preview-format-default>yuv422i-yuyv</prop-preview-format-default>
@@ -278,6 +286,8 @@
 <prop-auto-convergence>0</prop-auto-convergence>
 <prop-manual-convergence-values>0</prop-manual-convergence-values>
 <prop-vstab-values>0,1</prop-vstab-values>
+<prop-sensor-orientation>0</prop-sensor-orientation>
+<prop-sensor-orientation-values>0,90,180,270</prop-sensor-orientation-values>
 <prop-manual-gain-modes>0</prop-manual-gain-modes>
 <prop-preview-size-default>640x480</prop-preview-size-default>
 <prop-preview-format-default>yuv420sp</prop-preview-format-default>

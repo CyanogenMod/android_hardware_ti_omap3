@@ -111,6 +111,8 @@ public:
         PROP_INDEX_VSTAB_VALUES,
         PROP_INDEX_VIDEO_MINFRAMERATE,
         PROP_INDEX_VIDEO_MINFRAMERATE_VALUES,
+        PROP_INDEX_SENSOR_ORIENTATION,
+        PROP_INDEX_SENSOR_ORIENTATION_VALUES,
         PROP_INDEX_REVISION,
         PROP_INDEX_FOCAL_LENGTH,
         PROP_INDEX_HOR_ANGLE,
@@ -177,6 +179,8 @@ public:
     static const char AUTOCONVERGENCE[];
     static const char AUTOCONVERGENCE_MODE[];
     static const char MANUALCONVERGENCE_VALUES[];
+    static const char SENSOR_ORIENTATION[];
+    static const char SENSOR_ORIENTATION_VALUES[];
     static const char REVISION[];
     static const char FOCAL_LENGTH[];
     static const char HOR_ANGLE[];

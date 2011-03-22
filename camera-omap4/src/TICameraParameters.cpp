@@ -74,6 +74,9 @@ const char TICameraParameters::KEY_GLBCE[] = "glbce";
 const char TICameraParameters::KEY_CURRENT_ISO[] = "current-iso";
 const char TICameraParameters::KEY_VIDEO_MINFRAMERATE[] = "video-minframerate";
 const char TICameraParameters::KEY_VIDEO_MINFRAMERATE_VALUES[] = "video-minframerate-values";
+const char TICameraParameters::KEY_SENSOR_ORIENTATION[] = "sensor-orientation";
+const char TICameraParameters::KEY_SENSOR_ORIENTATION_VALUES[] = "sensor-orientation-values";
+
 
 
 //TI extensions for enabling/disabling GLBCE
@@ -204,6 +207,13 @@ const char TICameraParameters::FACING_BACK[]="back";
 
 //TI extensions to flash settings
 const char TICameraParameters::FLASH_MODE_FILL_IN[] = "fill-in";
+
+//TI extensions to add sensor orientation parameters
+const char TICameraParameters::ORIENTATION_SENSOR_NONE[] = "0";
+const char TICameraParameters::ORIENTATION_SENSOR_90[] = "90";
+const char TICameraParameters::ORIENTATION_SENSOR_180[] = "180";
+const char TICameraParameters::ORIENTATION_SENSOR_270[] = "270";
+
 
 };
 
