@@ -2256,9 +2256,11 @@ int overlay_data_context_t::overlay_queueBuffer(struct overlay_data_device_t *de
     if (ctx->omap_overlay->streamEn == 0) {
         /*DSS2: 2 buffers need to be queue before enable streaming*/
         ctx->omap_overlay->dataReady = 1;
-        ctx->enable_streaming_locked(ctx->omap_overlay);
+        rc = ctx->enable_streaming_locked(ctx->omap_overlay);
     }
-    rc = ctx->omap_overlay->qd_buf_count;
+    if (rc == 0) {
+        rc = ctx->omap_overlay->qd_buf_count;
+    }
 
 EXIT:
     pthread_mutex_unlock(&ctx->omap_overlay->lock);
