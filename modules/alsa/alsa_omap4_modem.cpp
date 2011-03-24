@@ -619,6 +619,7 @@ status_t AudioModemAlsa::voiceCallCodecSetHandset()
     CHECK_ERROR(mAlsaControl->set("Earphone Playback Volume", AUDIO_CODEC_EARPIECE_GAIN), error);
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Playback", 1), error);
+    CHECK_ERROR(mAlsaControl->set("DL1 PDM Switch", 1), error);
     CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
                                 AUDIO_ABE_SIDETONE_DL_VOL_HANDSET, -1), error);
 
@@ -712,6 +713,7 @@ status_t AudioModemAlsa::voiceCallCodecSetHeadset()
     CHECK_ERROR(mAlsaControl->set("Headset Playback Volume", AUDIO_CODEC_HEADSET_GAIN), error);
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Playback", 1), error);
+    CHECK_ERROR(mAlsaControl->set("DL1 PDM Switch", 1), error);
     CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
                                 AUDIO_ABE_SIDETONE_DL_VOL_HEADSET, -1), error);
 
@@ -749,6 +751,7 @@ status_t AudioModemAlsa::voiceCallCodecSetBluetooth()
     // Enable Capture voice path
     CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume",
                                 AUDIO_ABE_AUDUL_VOICE_VOL_BLUETOOTH, -1), error);
+    CHECK_ERROR(mAlsaControl->set("DL1 PDM Switch", 0, 0), error);
     CHECK_ERROR(mAlsaControl->set("DL1 BT_VX Switch", 1), error);
     CHECK_ERROR(configMicrophones(), error);
     CHECK_ERROR(configEqualizers(), error);
