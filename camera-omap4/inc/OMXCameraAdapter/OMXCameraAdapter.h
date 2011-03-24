@@ -526,8 +526,15 @@ private:
     //Helper method for initializing a CameFrame object
     status_t initCameraFrame(CameraFrame &frame, OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame, OMXCameraPortParameters *port);
 
+    //Prepare the frame to be sent to subscribers
+    status_t prepareFrame(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader,
+                                      int typeOfFrame,
+                                      OMXCameraPortParameters *port,
+                                      CameraFrame &frame);
+
+
     //Sends the incoming OMX buffer header to subscribers
-    status_t sendFrame(OMX_IN OMX_BUFFERHEADERTYPE *pBuffHeader, int typeOfFrame, OMXCameraPortParameters *port);
+    status_t sendFrame(CameraFrame &frame);
 
     //Sends empty raw frames in case there aren't any during image capture
     status_t sendEmptyRawFrame();
