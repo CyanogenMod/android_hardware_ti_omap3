@@ -5,7 +5,7 @@
 <prop-camera-adapter-dll-name>libomxcameraadapter.so</prop-camera-adapter-dll-name>
 <prop-sensor-index>0</prop-sensor-index>
 <prop-revision>0</prop-revision>
-<prop-required-preview-bufs>8</prop-required-preview-bufs>
+<prop-required-preview-bufs>6</prop-required-preview-bufs>
 <prop-required-image-bufs>1</prop-required-image-bufs>
 <prop-focal-length>4.6</prop-focal-length>
 <prop-horizontal-angle>62.1</prop-horizontal-angle>
@@ -58,7 +58,7 @@
 <prop-camera-adapter-dll-name>libomxcameraadapter.so</prop-camera-adapter-dll-name>
 <prop-sensor-index>1</prop-sensor-index>
 <prop-revision>0</prop-revision>
-<prop-required-preview-bufs>8</prop-required-preview-bufs>
+<prop-required-preview-bufs>6</prop-required-preview-bufs>
 <prop-required-image-bufs>1</prop-required-image-bufs>
 <prop-focal-length>4.76</prop-focal-length>
 <prop-horizontal-angle>60.4</prop-horizontal-angle>
@@ -110,7 +110,7 @@
 <prop-camera-adapter-dll-name>libomxcameraadapter.so</prop-camera-adapter-dll-name>
 <prop-sensor-index>2</prop-sensor-index>
 <prop-revision>0</prop-revision>
-<prop-required-preview-bufs>8</prop-required-preview-bufs>
+<prop-required-preview-bufs>6</prop-required-preview-bufs>
 <prop-required-image-bufs>1</prop-required-image-bufs>
 <prop-s3d-supported>true</prop-s3d-supported>
 <prop-focal-length>4.76</prop-focal-length>
@@ -182,7 +182,7 @@
 <prop-camera-adapter-dll-name>libusbcameraadapter.so</prop-camera-adapter-dll-name>
 <prop-sensor-index>3</prop-sensor-index>
 <prop-revision>0</prop-revision>
-<prop-required-preview-bufs>8</prop-required-preview-bufs>
+<prop-required-preview-bufs>6</prop-required-preview-bufs>
 <prop-required-image-bufs>1</prop-required-image-bufs>
 <prop-focal-length>4.6</prop-focal-length>
 <prop-horizontal-angle>62.1</prop-horizontal-angle>
@@ -253,7 +253,7 @@
 <prop-camera-adapter-dll-name>libfakecameraadapter.so</prop-camera-adapter-dll-name>
 <prop-sensor-index>0</prop-sensor-index>
 <prop-revision>0</prop-revision>
-<prop-required-preview-bufs>8</prop-required-preview-bufs>
+<prop-required-preview-bufs>6</prop-required-preview-bufs>
 <prop-required-image-bufs>1</prop-required-image-bufs>
 <prop-focal-length>4.6</prop-focal-length>
 <prop-horizontal-angle>62.1</prop-horizontal-angle>
