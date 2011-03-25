@@ -84,22 +84,14 @@ static int Calculate_TotalRefFrames(int nWidth, int nHeight) {
 
 }
 
-TIHardwareRenderer::TIHardwareRenderer(
-        const sp<ISurface> &surface,
-        size_t displayWidth, size_t displayHeight,
-        size_t decodedWidth, size_t decodedHeight,
-        OMX_COLOR_FORMATTYPE colorFormat)
-{
-
-    TIHardwareRenderer(surface, displayWidth, displayHeight, decodedWidth, decodedHeight, colorFormat, 0, -1);
-}
-
 //S3D
 TIHardwareRenderer::TIHardwareRenderer(
         const sp<ISurface> &surface,
         size_t displayWidth, size_t displayHeight,
         size_t decodedWidth, size_t decodedHeight,
-        OMX_COLOR_FORMATTYPE colorFormat, int isS3D, int numOfOpBuffers)
+        OMX_COLOR_FORMATTYPE colorFormat,
+        int32_t rotationDegrees,
+        int isS3D, int numOfOpBuffers)
     : mISurface(surface),
       mDisplayWidth(displayWidth),
       mDisplayHeight(displayHeight),
@@ -153,13 +145,22 @@ TIHardwareRenderer::TIHardwareRenderer(
    return;
     }
 
+    uint32_t orientation;
+    switch (rotationDegrees) {
+        case 0: orientation = ISurface::BufferHeap::ROT_0; break;
+        case 90: orientation = ISurface::BufferHeap::ROT_90; break;
+        case 180: orientation = ISurface::BufferHeap::ROT_180; break;
+        case 270: orientation = ISurface::BufferHeap::ROT_270; break;
+        default: orientation = ISurface::BufferHeap::ROT_0; break;
+    }
+
 //S3D
 #ifdef TARGET_OMAP4
     sp<OverlayRef> ref = mISurface->createOverlay(
-        mDecodedWidth, mDecodedHeight, videoFormat, 0, isS3D);
+        mDecodedWidth, mDecodedHeight, videoFormat, orientation, isS3D);
 #else
     sp<OverlayRef> ref = mISurface->createOverlay(
-        mDecodedWidth, mDecodedHeight, videoFormat, 0);
+        mDecodedWidth, mDecodedHeight, videoFormat, orientation);
 #endif
 
     if (ref.get() == NULL) {
