@@ -167,10 +167,14 @@ CameraHal::CameraHal(int cameraId)
 #endif
 
     int i = 0;
-    for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++)
-    {
+    for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++) {
         mVideoBuffer[i] = 0;
         buffers_queued_to_dss[i] = 0;
+    }
+
+    for (i = 0; i < MAX_BURST; i++) {
+        mYuvBuffer[i] = 0;
+        mYuvBufferLen[i] = 0;
     }
 
     CameraCreate();
@@ -538,6 +542,8 @@ CameraHal::~CameraHal()
     }
 
     ICaptureDestroy();
+
+    freePictureBuffers();
 
 #ifdef FW3A
     FW3A_Release();
@@ -1843,13 +1849,14 @@ int  CameraHal::ICapturePerform()
         goto fail_config;
     }
 
-    allocatePictureBuffer(spec_res.buffer_size, mBurstShots);
+    allocatePictureBuffers(spec_res.buffer_size, mBurstShots);
 
     for ( int i = 0; i < mBurstShots; i++ ) {
-        capture_buffer.buffer = mYuvBuffer[i];
+        capture_buffer.buffer = (void *) NEXT_4K_ALIGN_ADDR((unsigned int) mYuvBuffer[i]);
         capture_buffer.alloc_size = spec_res.buffer_size;
 
-        LOGE ("ICapture push buffer 0x%x, len %d", ( unsigned int ) mYuvBuffer[i], spec_res.buffer_size);
+        LOGE ("ICapture push buffer 0x%x, len %d",
+                ( unsigned int ) capture_buffer.buffer, capture_buffer.alloc_size);
         status = icap_push_buffer(iobj->lib_private, &capture_buffer, &snapshotBuffer);
         if( ICAP_STATUS_FAIL == status){
             LOGE ("ICapture push buffer function failed");
@@ -1961,8 +1968,8 @@ int  CameraHal::ICapturePerform()
 #endif
 
     procMessage[26] = (unsigned int) mYuvBuffer[i];
-    procMessage[27] = mPictureOffset[i];
-    procMessage[28] = mPictureLength[i];
+    procMessage[27] = 0;
+    procMessage[28] = mYuvBufferLen[i];
     procMessage[29] = rotation;
 
     if ( mcapture_mode == 1 ) {
@@ -2127,7 +2134,7 @@ int CameraHal::ICapturePerform(){
     base = (unsigned long)mPictureHeap->getBase();
 
 #if ALIGMENT
-    base = (base + 0xfff) & 0xfffff000;
+    base = NEXT_4K_ALIGN_ADDR(base);
 #else
     /*Align buffer to 32 byte boundary */
     while ((base & 0x1f) != 0)
@@ -2719,7 +2726,7 @@ void CameraHal::procThread()
     int err;
     int pixelFormat;
     unsigned int procMessage [PROC_THREAD_NUM_ARGS];
-    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_offset, yuv_len, image_rotation, ippMode;
+    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_len, image_rotation, ippMode;
     unsigned int crop_top, crop_left, crop_width, crop_height;
     double image_zoom;
     bool ipp_to_enable;
@@ -2808,7 +2815,6 @@ void CameraHal::procThread()
                 shadingGainMaxValue = procMessage[24];
                 ratioDownsampleCbCr = procMessage[25];
                 yuv_buffer = (void *) procMessage[26];
-                yuv_offset =  procMessage[27];
                 yuv_len = procMessage[28];
                 image_rotation = procMessage[29];
                 image_zoom = zoom_step[procMessage[30]];
@@ -2841,14 +2847,14 @@ void CameraHal::procThread()
                 }
 
                 base = (unsigned long) JPEGPictureHeap->getBase();
-                base = (base + 0xfff) & 0xfffff000;
+                base = (unsigned long) NEXT_4K_ALIGN_ADDR(base);
                 offset = base - (unsigned long) JPEGPictureHeap->getBase();
                 outBuffer = (void *) base;
 
                 pixelFormat = PIX_YUV422I;
 
-                input_buffer = yuv_buffer;
-                input_length = yuv_len;
+                input_buffer = (void *) NEXT_4K_ALIGN_ADDR(yuv_buffer);
+                input_length = yuv_len - ((unsigned int) input_buffer - (unsigned int) yuv_buffer);
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -2893,7 +2899,7 @@ void CameraHal::procThread()
 
 #ifdef DEBUG_LOG
                      PPM("BEFORE IPP Process Buffer");
-                     LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
+                     LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", input_buffer, input_length);
 #endif
                     // TODO: Need to add support for new EENF 1.9 parameters from proc messages
                      err = ProcessBufferIPP(input_buffer, input_length,
@@ -2937,7 +2943,10 @@ void CameraHal::procThread()
                 err = 0;
 
 #ifdef DEBUG_LOG
-                LOGD(" outbuffer = %p, jpegSize = %d, input_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, input_buffer/*yuv_buffer*/, input_length/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
+                LOGD(" outbuffer = %p, jpegSize = %d, input_buffer = %p, input_length = %d, "
+                        "image_width = %d, image_height = %d, quality = %d, ippMode = %d",
+                        outBuffer , jpegSize, input_buffer, input_length,
+                        image_width, image_height, jpegQuality, ippMode);
 #endif
                 //workaround for thumbnail size  - it should be smaller than captured image
                 if ((image_width<thumb_width) || (image_height<thumb_width) ||
@@ -2999,7 +3008,6 @@ void CameraHal::procThread()
 #endif
 
                 JPEGPictureMemBase.clear();
-                free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
 
                 // Release constraint to DSP OPP by setting lowest Hz
                 SetDSPHz(DSP3630_HZ_MIN);
@@ -3017,59 +3025,51 @@ void CameraHal::procThread()
     LOG_FUNCTION_NAME_EXIT
 }
 
-#ifdef ICAP_EXPERIMENTAL
-
-int CameraHal::allocatePictureBuffer(size_t length, int burstCount)
+int CameraHal::allocatePictureBuffers(size_t length, int burstCount)
 {
-    unsigned int base, tmpBase;
+    if (burstCount > MAX_BURST) {
+        LOGE("Can't handle burstCount(%d) larger then MAX_BURST(%d)",
+                burstCount, MAX_BURST);
+        return -1;
+    }
 
-    length  += ((2*PAGE) - 1) + 10*PAGE;
+    length += ((2*PAGE) - 1) + 10*PAGE;
     length &= ~((2*PAGE) - 1);
-    length  += 2*PAGE;
+    length += 2*PAGE;
 
-    //allocate new buffers
-    for ( int i = 0; i < burstCount; i++) {
-        base = (unsigned int) malloc(length);
-        if ( ((void *) base ) == NULL )
+    for (int i = 0; i < burstCount; i++) {
+        if (mYuvBuffer[i] != NULL && mYuvBufferLen[i] == length) {
+            // proper buffer already allocated. skip alloc.
+            continue;
+        }
+
+        if (mYuvBuffer[i])
+            free(mYuvBuffer[i]);
+
+        mYuvBuffer[i] = (uint8_t *) malloc(length);
+        mYuvBufferLen[i] = length;
+
+        if (mYuvBuffer[i] == NULL) {
+            LOGE("mYuvBuffer[%d] malloc failed", i);
             return -1;
-
-        tmpBase = base;
-        base = (base + 0xfff) & 0xfffff000;
-        mPictureOffset[i] = base - tmpBase;
-        mYuvBuffer[i] = (uint8_t *) base;
-        mPictureLength[i] = length - mPictureOffset[i];
+        }
     }
 
     return NO_ERROR;
 }
 
-#else
-
-int CameraHal::allocatePictureBuffer(int width, int height, int burstCount)
+int CameraHal::freePictureBuffers(void)
 {
-    unsigned int base, tmpBase, length;
-
-    length  = width*height*2 + ((2*PAGE) - 1) + 10*PAGE;
-    length &= ~((2*PAGE) - 1);
-    length  += 2*PAGE;
-
-    //allocate new buffers
-    for ( int i = 0; i < burstCount; i++) {
-        base = (unsigned int) malloc(length);
-        if ( ((void *) base ) == NULL )
-            return -1;
-
-    tmpBase = base;
-    base = (base + 0xfff) & 0xfffff000;
-        mPictureOffset[i] = base - tmpBase;
-        mYuvBuffer[i] = (uint8_t *) base;
-        mPictureLength[i] = length - mPictureOffset[i];
+    for (int i = 0; i < MAX_BURST; i++) {
+        if (mYuvBuffer[i]) {
+            free(mYuvBuffer[i]);
+            mYuvBuffer[i] = NULL;
+            mYuvBufferLen[i] = 0;
+        }
     }
 
     return NO_ERROR;
 }
-
-#endif
 
 int CameraHal::ICaptureCreate(void)
 {

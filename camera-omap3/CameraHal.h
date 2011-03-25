@@ -56,7 +56,6 @@
 #define VPP 1
 
 #define PPM_INSTRUMENTATION 1
-#define ICAP_EXPERIMENTAL 1
 
 #define DEBUG_LOG 1
 
@@ -137,6 +136,7 @@ extern "C" {
 #define DSP3630_HZ_MAX 800000000
 
 #define __ALIGN(x,a) ( (x) & (~((a) - 1)))
+#define NEXT_4K_ALIGN_ADDR(x) (((unsigned int) x + 0xfff) & 0xfffff000)
 
 #define NONNEG_ASSIGN(x,y) \
     if(x > -1) \
@@ -462,15 +462,8 @@ public:
     int CameraStart();
     int CameraStop();
 
-#ifdef ICAP_EXPERIMENTAL
-
-    int allocatePictureBuffer(size_t length, int burstCount);
-
-#else
-
-    int allocatePictureBuffer(int width, int height, int burstCount, int len);
-
-#endif
+    int allocatePictureBuffers(size_t length, int burstCount);
+    int freePictureBuffers(void);
 
     int SaveFile(char *filename, char *ext, void *buffer, int jpeg_size);
     
@@ -497,11 +490,9 @@ public:
     bool mCAFafterPreview;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
-    int mPictureOffset[MAX_BURST];
     int mJPEGOffset, mJPEGLength;
-    int mPictureLength[MAX_BURST];
+    unsigned int mYuvBufferLen[MAX_BURST];
     void *mYuvBuffer[MAX_BURST];
-    void *mJPEGBuffer;
     int  mPreviewFrameSize;
     sp<Overlay>  mOverlay;
     sp<PreviewThread>  mPreviewThread;
