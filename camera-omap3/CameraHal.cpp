@@ -72,6 +72,7 @@ const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,
 const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
 const char CameraHal::supportedThumbnailSizes []= "512x384,320x240,80x60,0x0";
+const char CameraHal::supportedFpsRanges [] = "(10000,10000),(8000,10000),(15000,15000),(8000,15000),(20000,20000),(8000,20000),(24000,24000),(25000,25000),(8000,30000),(30000,30000),(33000,33000)";
 const char CameraHal::PARAMS_DELIMITER []= ",";
 
 const supported_resolution CameraHal::supportedPictureRes[] = { {3264, 2448} , {2560, 2048} ,
@@ -118,7 +119,8 @@ CameraHal::CameraHal(int cameraId)
                      mflash(2),
                      mcapture_mode(1),
                      mcaf(0),
-                     j(0)
+                     j(0),
+                     useFramerateRange(0)
 {
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     gettimeofday(&ppm_start, NULL);
@@ -268,7 +270,13 @@ void CameraHal::initDefaultParameters()
     LOG_FUNCTION_NAME
 
     p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
-    p.setPreviewFrameRate(30);
+    if ( useFramerateRange ) {
+        char fpsRange[32];
+        sprintf(fpsRange, "%d,%d", 30, 30);
+        p.set(KEY_PREVIEW_FPS_RANGE, fpsRange);
+    }
+    else p.setPreviewFrameRate(30);
+
     p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV422I);
 
     p.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
@@ -298,6 +306,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, 0);
 
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, CameraHal::supportedPictureSizes);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, CameraHal::supportedFpsRanges);
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
@@ -1137,6 +1146,7 @@ int CameraHal::CameraConfigure()
     int w, h, framerate;
     int image_width, image_height;
     int err;
+    int framerate_min = 0, framerate_max = 0;
     struct v4l2_format format;
     enum v4l2_buf_type type;
     struct v4l2_control vc;
@@ -1160,9 +1170,14 @@ int CameraHal::CameraConfigure()
 
     LOGI("CameraConfigure PreviewFormat: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);
 
-    framerate = mParameters.getPreviewFrameRate();
-
-    LOGD("CameraConfigure: framerate to set = %d",framerate);
+    if (useFramerateRange) {
+        mParameters.getPreviewFpsRange(&framerate_min, &framerate_max);
+        LOGD("CameraConfigure: framerate to set: min = %d, max = %d",framerate_min, framerate_max);
+    }
+    else {
+        framerate_max = mParameters.getPreviewFrameRate();
+        LOGD("CameraConfigure: framerate to set = %d", framerate_max);
+    }
 
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     err = ioctl(camera_device, VIDIOC_G_PARM, &parm);
@@ -1176,9 +1191,19 @@ int CameraHal::CameraConfigure()
     parm.parm.capture.timeperframe.numerator);
 
     parm.parm.capture.timeperframe.numerator = 1;
-    //Framerate 0 does not make sense in kernel context
-    if ( framerate!=0 ) parm.parm.capture.timeperframe.denominator = framerate;
-    else ( parm.parm.capture.timeperframe.denominator ) = 30;
+
+    if (useFramerateRange) {
+        //Gingerbread changes for FPS - set range of min and max fps
+        if ( (MIN_FPS <= framerate_min)&&(framerate_min <= framerate_max)&&(framerate_max<=MAX_FPS) ) {
+            parm.parm.capture.timeperframe.denominator = framerate_max;
+        }
+        else parm.parm.capture.timeperframe.denominator = 30;
+    }
+    else {
+        if ( framerate_max != 0 ) parm.parm.capture.timeperframe.denominator = framerate_max;
+        else  parm.parm.capture.timeperframe.denominator  = 30;
+    }
+
     err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
     if(err != 0) {
         LOGE("VIDIOC_S_PARM ");
@@ -3233,10 +3258,18 @@ status_t CameraHal::startRecording( )
     LOG_FUNCTION_NAME
     int w,h;
     int i = 0;
-
+    int framerate_min, framerate_max;
     mPrevTime = systemTime(SYSTEM_TIME_MONOTONIC);
-    int framerate = mParameters.getPreviewFrameRate();
-    frameInterval = 1000000000LL / framerate ;
+
+    if (useFramerateRange) {
+        mParameters.getPreviewFpsRange(&framerate_min, &framerate_max);
+        frameInterval = 1000000000LL / framerate_max ;
+    }
+    else {
+        framerate_max = mParameters.getPreviewFrameRate();
+        frameInterval = 1000000000LL / framerate_max ;
+    }
+
     mParameters.getPreviewSize(&w, &h);
     mRecordingFrameSize = w * h * 2;
     overlay_handle_t overlayhandle = mOverlay->getHandleRef();
@@ -3427,7 +3460,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     int w, h;
     int w_orig, h_orig, rot_orig;
-    int framerate;
+    int framerate_min, framerate_max;
     int zoom, compensation, saturation, sharpness;
     int zoom_save;
     int contrast, brightness, caf;
@@ -3477,8 +3510,20 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-    framerate = params.getPreviewFrameRate();
-    LOGD("FRAMERATE %d", framerate);
+    //KEY_PREVIEW_FRAME_RATE is deprecated. So if KEY_PREVIEW_FPS_RANGE is available use it first
+    // then fallback on KEY_PREVIEW_FRAME_RATE
+    params.getPreviewFpsRange(&framerate_min, &framerate_max);
+    if( (framerate_min != -1) && (framerate_max != -1) )
+    {
+        useFramerateRange = true;
+        LOGD("Setparameters(): Framerate range: MIN %d, MAX %d", framerate_min, framerate_max);
+    }
+    else
+    {
+        useFramerateRange = false;
+        framerate_max = params.getPreviewFrameRate();
+        LOGD("Setparameters(): Framerate: %d", framerate_max);
+    }
 
     rot_orig = rotation;
     rotation = params.getInt(CameraParameters::KEY_ROTATION);
@@ -3644,16 +3689,35 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             }
         }
 
-        //Set 3A config to disable variable fps
-        fobj->settings.ae.framerate = framerate;
-        fobj->settings.general.view_finder_mode = ICAM_VFMODE_VIDEO_RECORD;
-
         if ( params.get(KEY_CAPTURE) != NULL ) {
             if (strcmp(params.get(KEY_CAPTURE), (const char *) CAPTURE_STILL) == 0) {
                 //Set 3A config to enable variable fps
-                fobj->settings.ae.framerate = 0;
                 fobj->settings.general.view_finder_mode = ICAM_VFMODE_STILL_CAPTURE;
             }
+           else {
+               fobj->settings.general.view_finder_mode = ICAM_VFMODE_VIDEO_RECORD;
+           }
+        }
+        else {
+            fobj->settings.general.view_finder_mode = ICAM_VFMODE_STILL_CAPTURE;
+        }
+
+        if (useFramerateRange) {
+            //Gingerbread changes for FPS - set range of min and max fps. Minimum is 7.8 fps, maximum is 30 fps.
+            if ( (MIN_FPS <= framerate_min)&&(framerate_min < framerate_max)&&(framerate_max<=MAX_FPS) ) {
+                fobj->settings.ae.framerate = 0;
+            }
+            else if ( (MIN_FPS <= framerate_min)&&(framerate_min == framerate_max)&&(framerate_max<=MAX_FPS) )
+            {
+                fobj->settings.ae.framerate = framerate_max;
+            }
+            else {
+                fobj->settings.ae.framerate = 0;
+            }
+        }
+        //using deprecated previewFrameRate
+        else {
+            fobj->settings.ae.framerate = framerate_max;
         }
 
         if ( params.get(CameraParameters::KEY_SCENE_MODE) != NULL ) {
@@ -4352,7 +4416,26 @@ CameraParameters CameraHal::getParameters() const
         params.set(KEY_SHARPNESS, fobj->settings.general.sharpness);
         params.set(KEY_CONTRAST, ( fobj->settings.general.contrast + CONTRAST_OFFSET ));
         params.set(KEY_BRIGHTNESS, ( fobj->settings.general.brightness + BRIGHTNESS_OFFSET ));
-        params.setPreviewFrameRate(fobj->settings.ae.framerate);
+
+        if (useFramerateRange) {
+            //Gingerbread
+            int framerate_min, framerate_max;
+            params.getPreviewFpsRange(&framerate_min, &framerate_max);
+            char fpsrang[32];
+            //Scene may change the fps, so return fps range to upper layers. If VBR is set:
+            if ( 0 == fobj->settings.ae.framerate) {
+                sprintf(fpsrang, "%d,%d", ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate), framerate_max);
+                params.set(KEY_PREVIEW_FPS_RANGE, fpsrang);
+            }
+            //If CBR is set, fps range is e.g. (30,30):
+            else {
+                sprintf(fpsrang, "%d,%d", ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate), ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate));
+                params.set(KEY_PREVIEW_FPS_RANGE, fpsrang);
+            }
+        }
+        else {
+            params.setPreviewFrameRate(fobj->settings.ae.framerate);
+        }
     }
 #endif
 
