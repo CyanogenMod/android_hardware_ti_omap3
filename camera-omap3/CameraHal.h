@@ -540,6 +540,7 @@ public:
     int procPipe[2], shutterPipe[2], rawPipe[2], snapshotPipe[2], snapshotReadyPipe[2];
     int mippMode;
     int pictureNumber;
+    bool mCaptureRunning;
     int rotation;
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     struct timeval ppm;
