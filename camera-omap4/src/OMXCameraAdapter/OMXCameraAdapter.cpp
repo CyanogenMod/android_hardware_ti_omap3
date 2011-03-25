@@ -1802,6 +1802,11 @@ status_t OMXCameraAdapter::encodeFocusDistance(OMX_U32 dist, char *buffer, size_
 
     LOG_FUNCTION_NAME
 
+    if(mParameters3A.Focus == OMX_IMAGE_FocusControlAutoInfinity)
+        {
+        dist=0;
+        }
+
     if ( NO_ERROR == ret )
         {
         if ( 0 == dist )
