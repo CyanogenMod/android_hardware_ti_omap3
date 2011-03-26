@@ -1598,8 +1598,22 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
 #endif
 
-//zOrder is assigned at the creation of overlay and removed at the destruction.
-//no need to assign again v4l2_overlay_set_zorder(fd, videopipezorder)
+#ifdef TARGET_OMAP4
+    //Currently not supported with V4L2_S3D driver
+    if (!overlayobj->mData.s3d_active) {
+        /*zOrder is assigned at the creation of overlay and removed at the destruction.
+        *no need to assign again for LCD manager
+        * But for HDMI manager, inorder to support UI+Video together, the z-order values are fixed, 
+        * Hence configure zOrder again if the manager is TV
+        */
+        if (!strcmp(overlaymanagername, "tv")) {
+            if ((ret = v4l2_overlay_set_zorder(fd, videopipezorder))) {
+                LOGE("Failed setting zorder\n");
+                goto end;
+            }
+        }
+    }
+#endif
 
     if (overlayobj->getctrl_linkvideofd() > 0) {
         CommitLinkDevice(dev, overlayobj);
