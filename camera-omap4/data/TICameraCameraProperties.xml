@@ -34,7 +34,7 @@
 <prop-effect-default>none</prop-effect-default>
 <prop-antibanding-default>auto</prop-antibanding-default>
 <prop-exposure-mode-default>auto</prop-exposure-mode-default>
-<prop-preview-frame-rate-default>-1</prop-preview-frame-rate-default>
+<prop-preview-frame-rate-default>30</prop-preview-frame-rate-default>
 <prop-ipp-default>off</prop-ipp-default>
 <prop-ev-compensation-default>0</prop-ev-compensation-default>
 <prop-focus-mode-default>auto</prop-focus-mode-default>
@@ -46,7 +46,8 @@
 <prop-saturation-default>100</prop-saturation-default>
 <prop-sharpness-default>100</prop-sharpness-default>
 <prop-vstab-default>0</prop-vstab-default>
-<prop-framerate-range-default>1000,30000</prop-framerate-range-default>
+<prop-framerate-range-default>20000,30000</prop-framerate-range-default>
+<prop-framerate-range-values>(5000,15000),(10000,20000),(20000,30000)</prop-framerate-range-values>
 <prop-flash-mode-default>off</prop-flash-mode-default>
 <prop-s3d2d-preview>0</prop-s3d2d-preview>
 <prop-exif-make>default_make</prop-exif-make>
@@ -78,7 +79,7 @@
 <prop-sensor-orientation-values>0,90,180,270</prop-sensor-orientation-values>
 <prop-preview-size-default>640x480</prop-preview-size-default>
 <prop-zoom-default>0</prop-zoom-default>
-<prop-preview-frame-rate-default>-1</prop-preview-frame-rate-default>
+<prop-preview-frame-rate-default>30</prop-preview-frame-rate-default>
 <prop-preview-format-default>yuv420sp</prop-preview-format-default>
 <prop-picture-size-default>2592x1944</prop-picture-size-default>
 <prop-picture-format-default>jpeg</prop-picture-format-default>
@@ -99,7 +100,8 @@
 <prop-saturation-default>100</prop-saturation-default>
 <prop-sharpness-default>100</prop-sharpness-default>
 <prop-vstab-default>0</prop-vstab-default>
-<prop-framerate-range-default>5000,30000</prop-framerate-range-default>
+<prop-framerate-range-default>20000,30000</prop-framerate-range-default>
+<prop-framerate-range-values>(5000,15000),(10000,20000),(20000,30000)</prop-framerate-range-values>
 <prop-exif-make>default_make</prop-exif-make>
 <prop-exif-model>default_model</prop-exif-model>
 </CameraInstance>
@@ -148,7 +150,7 @@
 <prop-sensor-orientation-values>0,90,180,270</prop-sensor-orientation-values>
 <prop-preview-size-default>640x480</prop-preview-size-default>
 <prop-preview-format-default>yuv420sp</prop-preview-format-default>
-<prop-preview-frame-rate-default>-1</prop-preview-frame-rate-default>
+<prop-preview-frame-rate-default>30</prop-preview-frame-rate-default>
 <prop-zoom-default>0</prop-zoom-default>
 <prop-picture-size-default>2592x1944</prop-picture-size-default>
 <prop-picture-format-default>jpeg</prop-picture-format-default>
@@ -227,7 +229,7 @@
 <prop-effect-default>none</prop-effect-default>
 <prop-antibanding-default>auto</prop-antibanding-default>
 <prop-exposure-mode-default>auto</prop-exposure-mode-default>
-<prop-preview-frame-rate-default>-1</prop-preview-frame-rate-default>
+<prop-preview-frame-rate-default>30</prop-preview-frame-rate-default>
 <prop-ipp-default>off</prop-ipp-default>
 <prop-ev-compensation-default>0</prop-ev-compensation-default>
 <prop-focus-mode-default>auto</prop-focus-mode-default>
@@ -297,7 +299,7 @@
 <prop-effect-default>none</prop-effect-default>
 <prop-antibanding-default>auto</prop-antibanding-default>
 <prop-exposure-mode-default>auto</prop-exposure-mode-default>
-<prop-preview-frame-rate-default>-1</prop-preview-frame-rate-default>
+<prop-preview-frame-rate-default>30</prop-preview-frame-rate-default>
 <prop-framerate-range-default>1000,30000</prop-framerate-range-default>
 <prop-ipp-default>off</prop-ipp-default>
 <prop-ev-compensation-default>0</prop-ev-compensation-default>

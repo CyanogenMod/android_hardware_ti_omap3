@@ -244,6 +244,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     int w, h;
     int w_orig, h_orig;
     int framerate,minframerate;
+    bool framerateUpdated = true;
     int maxFPS, minFPS;
     int error;
     int base;
@@ -415,27 +416,36 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     framerate = params.getPreviewFrameRate();
     if ( isParameterValid(framerate, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES]->mPropValue))
         {
-        mParameters.setPreviewFrameRate(framerate);
+        if ( mLastPreviewFramerate != framerate )
+            {
+            mLastPreviewFramerate = framerate;
+            mParameters.setPreviewFrameRate(framerate);
+            framerateUpdated = true;
+            }
+        else
+            {
+            framerateUpdated = false;
+            }
+        }
+    else
+        {
+        framerateUpdated = false;
         }
 
     CAMHAL_LOGEB("FRAMERATE %d", framerate);
 
-    /*
-    * If the client uses the deprecated framerate,
-    * then it will have higher priority over framerate
-    * ranges. This is to ensure compatibility with
-    * older software.
-    */
-    if ( 0 < framerate )
+    //If client uses fixed framerate than
+    //give it a higher piority than VFR.
+    if ( framerateUpdated )
         {
-        maxFPS = framerate;
+
         minFPS = framerate;
+        maxFPS = framerate;
 
         CAMHAL_LOGEB("FPS Range [%d, %d]", minFPS, maxFPS);
         mParameters.set(TICameraParameters::KEY_MINFRAMERATE, minFPS);
         mParameters.set(TICameraParameters::KEY_MAXFRAMERATE, maxFPS);
-        mParameters.set(CameraParameters::KEY_PREVIEW_FPS_RANGE,
-                        params.get(CameraParameters::KEY_PREVIEW_FPS_RANGE));
+        mParameters.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, params.get(CameraParameters::KEY_PREVIEW_FPS_RANGE));
         }
     else if ( ( valstr = params.get(CameraParameters::KEY_PREVIEW_FPS_RANGE) ) != NULL )
         {
@@ -461,6 +471,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             {
             CAMHAL_LOGEA("Max FPS is smaller than Min FPS!");
             return -EINVAL;
+            }
+
+        if ( maxFPS > framerate )
+            {
+            framerate = maxFPS;
+            mParameters.setPreviewFrameRate(framerate);
             }
 
         CAMHAL_LOGEB("FPS Range [%d, %d]", minFPS, maxFPS);
@@ -2455,6 +2471,8 @@ status_t CameraHal::initialize()
     CameraAdapterFactory f = NULL;
 
     int sensor_index = 0;
+
+    mLastPreviewFramerate = 0;
 
     ///Initialize the event mask used for registering an event provider for AppCallbackNotifier
     ///Currently, registering all events as to be coming from CameraAdapter

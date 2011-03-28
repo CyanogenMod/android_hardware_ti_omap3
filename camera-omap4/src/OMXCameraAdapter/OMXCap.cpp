@@ -976,11 +976,6 @@ status_t OMXCameraAdapter::insertCapabilities(CameraParameters &params, OMX_TI_C
 
     if ( NO_ERROR == ret )
         {
-        ret = insertVFramerates(params, caps);
-        }
-
-    if ( NO_ERROR == ret )
-        {
         ret = insertEVs(params, caps);
         }
 
