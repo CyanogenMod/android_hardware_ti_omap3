@@ -775,11 +775,16 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
 
+#ifdef AUDIO_MODEM_TI
+    audioModem->voiceCallControlsMutexLock();
+#endif
+
     // ASoC multicomponent requires a valid path (frontend/backend) for
     // the device to be opened
     setAlsaControls(handle, devices, mode);
 
 #ifdef AUDIO_MODEM_TI
+    audioModem->voiceCallControlsMutexUnlock();
     audioModem->voiceCallControls(devices, mode, true);
 #endif
 
@@ -869,7 +874,13 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
         if (mActive) {
             status = s_open(handle, devices, mode);
         } else {
+#ifdef AUDIO_MODEM_TI
+            audioModem->voiceCallControlsMutexLock();
+#endif
             setAlsaControls(handle, devices, mode);
+#ifdef AUDIO_MODEM_TI
+            audioModem->voiceCallControlsMutexUnlock();
+#endif
         }
     }else if (fm_enable) {
         /* FM Rx requires re-opening of playback path

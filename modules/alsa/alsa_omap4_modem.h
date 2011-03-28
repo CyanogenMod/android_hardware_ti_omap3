@@ -350,6 +350,8 @@ public:
     status_t     voiceCallControls(uint32_t devices, int mode, bool multimediaUpdate);
     // Voice Call control thread
     void        voiceCallControlsThread(void);
+    void        voiceCallControlsMutexLock(void);
+    void        voiceCallControlsMutexUnlock(void);
 
     status_t     setCurrentAudioModemModes(uint32_t devices);
 

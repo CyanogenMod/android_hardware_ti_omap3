@@ -68,6 +68,10 @@ Omap4ALSAManager propModemMgr;
                             }
 #define mAlsaControl mInfo->mAlsaControl
 // ----------------------------------------------------------------------------
+#if !LOG_NDEBUG
+// Mutex counter for debug
+static int voiceCallControlMutexCount = 0;
+#endif
 extern "C"
 {
     void *VoiceCallControlsThreadStartup(void *_mAudioModemAlsa) {
@@ -162,9 +166,9 @@ AudioModemAlsa::AudioModemAlsa()
     pthread_attr_init(&mVoiceCallControlAttr);
     pthread_attr_setdetachstate(&mVoiceCallControlAttr, PTHREAD_CREATE_JOINABLE);
 
-    pthread_mutex_lock(&mVoiceCallControlMutex);
+    voiceCallControlsMutexLock();
     mVoiceCallControlMainInfo.updateFlag = false;
-    pthread_mutex_unlock(&mVoiceCallControlMutex);
+    voiceCallControlsMutexUnlock();
 
     // Create thread for voice control
     error = pthread_create(&mVoiceCallControlThread, &mVoiceCallControlAttr,
@@ -310,15 +314,27 @@ status_t AudioModemAlsa::voiceCallControls(uint32_t devices, int mode, bool mult
     if ((mVoiceCallControlMainInfo.devices != devices) ||
         (mVoiceCallControlMainInfo.mode != mode) ||
         (multimediaUpdate)) {
-        pthread_mutex_lock(&mVoiceCallControlMutex);
+        voiceCallControlsMutexLock();
         mVoiceCallControlMainInfo.devices = devices;
         mVoiceCallControlMainInfo.mode = mode;
         mVoiceCallControlMainInfo.updateFlag = true;
         mVoiceCallControlMainInfo.multimediaUpdate = multimediaUpdate;
-        pthread_mutex_unlock(&mVoiceCallControlMutex);
+        voiceCallControlsMutexUnlock();
         pthread_cond_signal(&mVoiceCallControlNewParams);
     }
     return NO_ERROR;
+}
+
+void AudioModemAlsa::voiceCallControlsMutexLock(void)
+{
+    LOGV("%s: %d", __FUNCTION__, ++voiceCallControlMutexCount);
+    pthread_mutex_lock(&mVoiceCallControlMutex);
+}
+
+void AudioModemAlsa::voiceCallControlsMutexUnlock(void)
+{
+    LOGV("%s: %d", __FUNCTION__, --voiceCallControlMutexCount);
+    pthread_mutex_unlock(&mVoiceCallControlMutex);
 }
 
 void AudioModemAlsa::voiceCallControlsThread(void)
@@ -351,7 +367,7 @@ void AudioModemAlsa::voiceCallControlsThread(void)
     mAlsaControl = &alsaControl;
 
     for (;;) {
-        pthread_mutex_lock(&mVoiceCallControlMutex);
+        voiceCallControlsMutexLock();
         // Wait for new parameters
         if (!mVoiceCallControlMainInfo.updateFlag) {
             pthread_cond_wait(&mVoiceCallControlNewParams, &mVoiceCallControlMutex);
@@ -365,7 +381,7 @@ void AudioModemAlsa::voiceCallControlsThread(void)
         mInfo->devices = mVoiceCallControlMainInfo.devices;
         mInfo->mode = mVoiceCallControlMainInfo.mode;
         mInfo->multimediaUpdate = mVoiceCallControlMainInfo.multimediaUpdate;
-        pthread_mutex_unlock(&mVoiceCallControlMutex);
+        voiceCallControlsMutexUnlock();
         LOGV("%s: devices %04x mode %d forceUpdate %d", __FUNCTION__, mInfo->devices, mInfo->mode,
                                                                     mInfo->multimediaUpdate);
 
@@ -381,7 +397,9 @@ void AudioModemAlsa::voiceCallControlsThread(void)
             mDeviceProp = mDevicePropList.valueFor(mCurrentAudioModemModes);
             error = voiceCallModemSet();
             if (error < 0) goto exit;
+            voiceCallControlsMutexLock();
             error = voiceCallCodecSet();
+            voiceCallControlsMutexUnlock();
             if (error < 0) goto exit;
             mVoiceCallState = AUDIO_MODEM_VOICE_CALL_ON;
         } else if ((mInfo->mode == AudioSystem::MODE_IN_CALL) &&
@@ -398,10 +416,14 @@ void AudioModemAlsa::voiceCallControlsThread(void)
             if (mCurrentAudioModemModes != mPreviousAudioModemModes) {
                 error = voiceCallModemUpdate();
                 if (error < 0) goto exit;
+                voiceCallControlsMutexLock();
                 error = voiceCallCodecUpdate();
+                voiceCallControlsMutexUnlock();
                 if (error < 0) goto exit;
             } else if (mInfo->multimediaUpdate) {
+                voiceCallControlsMutexLock();
                 error = multimediaCodecUpdate();
+                voiceCallControlsMutexUnlock();
                 if (error < 0) goto exit;
             } else {
                 LOGI("Audio Modem Mode doesn't changed: no update needed");
@@ -413,7 +435,9 @@ void AudioModemAlsa::voiceCallControlsThread(void)
             mDevicePropPrevious = mDeviceProp;
             error = voiceCallModemReset();
             if (error < 0) goto exit;
+            voiceCallControlsMutexLock();
             error = voiceCallCodecReset();
+            voiceCallControlsMutexUnlock();
             if (error < 0) goto exit;
             mVoiceCallState = AUDIO_MODEM_VOICE_CALL_OFF;
         }
