@@ -414,6 +414,7 @@ void CameraHal::initDefaultParameters()
     //Once when fw3A supports focus distances, update them in CameraHal::GetParameters()
     sprintf(CameraHal::focusDistances, "%f,%f,%s", FOCUS_DISTANCE_NEAR, FOCUS_DISTANCE_OPTIMAL, CameraParameters::FOCUS_DISTANCE_INFINITY);
     p.set(CameraParameters::KEY_FOCUS_DISTANCES, CameraHal::focusDistances);
+    p.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, 100);
 
     if (setParameters(p) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
@@ -3605,6 +3606,9 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     if ( ( quality < 0 ) || (quality > 100) ){
         quality = 100;
     }
+    //Keep the JPEG thumbnail quality same as JPEG quality.
+    //JPEG encoder uses the same quality for thumbnail as for the main image.
+    mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, quality);
 
     zoom = mParameters.getInt(CameraParameters::KEY_ZOOM);
     if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
@@ -4515,7 +4519,8 @@ CameraParameters CameraHal::getParameters() const
             }
         }
         else {
-            params.setPreviewFrameRate(fobj->settings.ae.framerate);
+            if ( 0 != fobj->settings.ae.framerate )
+            params.setPreviewFrameRate((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate);
         }
     }
 #endif
