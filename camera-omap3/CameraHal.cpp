@@ -2521,7 +2521,7 @@ void CameraHal::snapshotThread()
 
                 snapshot_buffer = getLastOverlayAddress();
                 if ( NULL == snapshot_buffer )
-                    continue;
+                    goto EXIT;
 
                 LOGE("Snapshot buffer 0x%x, yuv_buffer = 0x%x, zoomTarget = %5.2f", ( unsigned int ) snapshot_buffer, ( unsigned int ) yuv_buffer, ZoomTarget);
 
