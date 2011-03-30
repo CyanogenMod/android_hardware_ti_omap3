@@ -839,7 +839,6 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         LOGE("Failed enabling color key\n");
         goto error1;
     }
-#ifdef TARGET_OMAP4
     /* Enable the video zorder and video transparency
     * for the controls to be visible on top of video, give the graphics highest zOrder
     **/
@@ -874,7 +873,6 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         }
         LOGD("mZorderUsage[%d] is assigned to %d", overlayid, self->mZorderUsage[overlayid]);
     }
-#endif
 
     if (v4l2_overlay_req_buf(fd, &num, 0, 0, EMEMORY_MMAP)) {
         LOGE("Failed requesting buffers\n");
