@@ -72,7 +72,7 @@ const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,
 const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
 const char CameraHal::supportedThumbnailSizes []= "512x384,320x240,80x60,0x0";
-const char CameraHal::supportedFpsRanges [] = "(10000,10000),(8000,10000),(15000,15000),(8000,15000),(20000,20000),(8000,20000),(24000,24000),(25000,25000),(8000,30000),(30000,30000),(33000,33000)";
+const char CameraHal::supportedFpsRanges [] = "(8000,8000),(8000,10000),(10000,10000),(8000,15000),(15000,15000),(8000,20000),(20000,20000),(24000,24000),(25000,25000),(8000,30000),(30000,30000)";
 const char CameraHal::PARAMS_DELIMITER []= ",";
 
 const supported_resolution CameraHal::supportedPictureRes[] = { {3264, 2448} , {2560, 2048} ,
@@ -266,6 +266,69 @@ bool CameraHal::validateSize(size_t width, size_t height, const supported_resolu
     return ret;
 }
 
+bool CameraHal::validateRange(int min, int max, const char *supRang)
+{
+    bool ret = false;
+    char * myRange = NULL;
+    char supRang_copy[strlen(supRang)];
+    int myMin = 0;
+    int myMax = 0;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == supRang ) {
+        LOGE("Invalid range array passed");
+        return ret;
+    }
+
+    //make a copy of supRang
+    strcpy(supRang_copy, supRang);
+    LOGE("Range: %s", supRang_copy);
+
+    myRange = strtok((char *) supRang_copy, ",");
+    if (NULL != myRange) {
+        myMin = atoi(myRange + 1);
+    }
+
+    myRange = strtok(NULL, ",");
+    if (NULL != myRange) {
+        myRange[strlen(myRange)]='\0';
+        myMax = atoi(myRange);
+    }
+
+    LOGE("Validating range: %d,%d with %d,%d", myMin, myMax, min, max);
+
+    if ( ( myMin == min )&&( myMax == max ) ) {
+        LOGE("Range supported!");
+        return true;
+    }
+
+    for (;;) {
+        myRange = strtok(NULL, ",");
+        if (NULL != myRange) {
+            myMin = atoi(myRange + 1);
+        }
+        else break;
+
+        myRange = strtok(NULL, ",");
+        if (NULL != myRange) {
+            myRange[strlen(myRange)]='\0';
+            myMax = atoi(myRange);
+        }
+        else break;
+        LOGE("Validating range: %d,%d with %d,%d", myMin, myMax, min, max);
+        if ( ( myMin == min )&&( myMax == max ) ) {
+            LOGE("Range found");
+            ret = true;
+            break;
+        }
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 void CameraHal::initDefaultParameters()
 {
     CameraParameters p;
@@ -275,12 +338,14 @@ void CameraHal::initDefaultParameters()
     LOG_FUNCTION_NAME
 
     p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
-    if ( useFramerateRange ) {
-        char fpsRange[32];
-        sprintf(fpsRange, "%d,%d", 30, 30);
-        p.set(KEY_PREVIEW_FPS_RANGE, fpsRange);
-    }
-    else p.setPreviewFrameRate(30);
+
+    //We must initialize both framerate and fps range.
+    //Application will decide which to use.
+    //If application does not decide, framerate will be used in CameraHAL
+    char fpsRange[32];
+    sprintf(fpsRange, "%d,%d", 30000, 30000);
+    p.set(KEY_PREVIEW_FPS_RANGE, fpsRange);
+    p.setPreviewFrameRate(30);
 
     p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV422I);
 
@@ -1219,8 +1284,8 @@ int CameraHal::CameraConfigure()
 
     if (useFramerateRange) {
         //Gingerbread changes for FPS - set range of min and max fps
-        if ( (MIN_FPS <= framerate_min)&&(framerate_min <= framerate_max)&&(framerate_max<=MAX_FPS) ) {
-            parm.parm.capture.timeperframe.denominator = framerate_max;
+        if ( (MIN_FPS*1000 <= framerate_min)&&(framerate_min <= framerate_max)&&(framerate_max<=MAX_FPS*1000) ) {
+            parm.parm.capture.timeperframe.denominator = framerate_max/1000;
         }
         else parm.parm.capture.timeperframe.denominator = 30;
     }
@@ -3303,7 +3368,7 @@ status_t CameraHal::startRecording( )
 
     if (useFramerateRange) {
         mParameters.getPreviewFpsRange(&framerate_min, &framerate_max);
-        frameInterval = 1000000000LL / framerate_max ;
+        frameInterval = 1000000000LL / (framerate_max/1000) ;
     }
     else {
         framerate_max = mParameters.getPreviewFrameRate();
@@ -3553,17 +3618,34 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-    //KEY_PREVIEW_FRAME_RATE is deprecated. So if KEY_PREVIEW_FPS_RANGE is available use it first
-    // then fallback on KEY_PREVIEW_FRAME_RATE
+    //Try to get preview framerate.
+    //If we do not get framerate, try with fps range.
+    //This way we can support both fps or fps range in CameraHAL.
+    //Old applications set fps only and this is used as default in CameraHAL.
+    //New applications can use fps range, but should remove fps with
+    //cameraParameters.remove(KEY_FRAME_RATE) in order to use it.
+    //If both are not present in cameraParameters structure,
+    //or fps range is not supported then exit.
+    framerate_max = params.getPreviewFrameRate();
+    if ( framerate_max == -1 ) useFramerateRange = true;
+    else useFramerateRange = false;
+
+    //Camera documentation says that fps range given in cameraParameters must be present
+    //and must be in supported range. So no matter if we use fps or fps range, we check
+    //for correct parameters.
     params.getPreviewFpsRange(&framerate_min, &framerate_max);
-    if( (framerate_min != -1) && (framerate_max != -1) )
-    {
-        useFramerateRange = true;
+
+    if ( validateRange(framerate_min, framerate_max, supportedFpsRanges) == false ) {
+        LOGE("Range Not Supported");
+        return -EINVAL;
+    }
+
+    if (useFramerateRange){
         LOGD("Setparameters(): Framerate range: MIN %d, MAX %d", framerate_min, framerate_max);
     }
     else
     {
-        useFramerateRange = false;
+        //Get the framerate again:
         framerate_max = params.getPreviewFrameRate();
         LOGD("Setparameters(): Framerate: %d", framerate_max);
     }
@@ -3750,12 +3832,12 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
         if (useFramerateRange) {
             //Gingerbread changes for FPS - set range of min and max fps. Minimum is 7.8 fps, maximum is 30 fps.
-            if ( (MIN_FPS <= framerate_min)&&(framerate_min < framerate_max)&&(framerate_max<=MAX_FPS) ) {
+            if ( (MIN_FPS*1000 <= framerate_min)&&(framerate_min < framerate_max)&&(framerate_max<=MAX_FPS*1000) ) {
                 fobj->settings.ae.framerate = 0;
             }
-            else if ( (MIN_FPS <= framerate_min)&&(framerate_min == framerate_max)&&(framerate_max<=MAX_FPS) )
+            else if ( (MIN_FPS*1000 <= framerate_min)&&(framerate_min == framerate_max)&&(framerate_max <= MAX_FPS*1000) )
             {
-                fobj->settings.ae.framerate = framerate_max;
+                fobj->settings.ae.framerate = framerate_max/1000;
             }
             else {
                 fobj->settings.ae.framerate = 0;
@@ -4509,12 +4591,12 @@ CameraParameters CameraHal::getParameters() const
             char fpsrang[32];
             //Scene may change the fps, so return fps range to upper layers. If VBR is set:
             if ( 0 == fobj->settings.ae.framerate) {
-                sprintf(fpsrang, "%d,%d", ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate), framerate_max);
+                sprintf(fpsrang, "%d000,%d", ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate), framerate_max);
                 params.set(KEY_PREVIEW_FPS_RANGE, fpsrang);
             }
             //If CBR is set, fps range is e.g. (30,30):
             else {
-                sprintf(fpsrang, "%d,%d", ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate), ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate));
+                sprintf(fpsrang, "%d000,%d000", ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate), ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate));
                 params.set(KEY_PREVIEW_FPS_RANGE, fpsrang);
             }
         }

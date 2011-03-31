@@ -385,6 +385,7 @@ public:
     virtual ~CameraHal();
     void previewThread();
     bool validateSize(size_t width, size_t height, const supported_resolution *supRes, size_t count);
+    bool validateRange(int min, int max, const char *supRang);
     void procThread();
     void shutterThread();
     void rawThread();
