@@ -3609,7 +3609,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     }
 
     rot_orig = rotation;
-    rotation = params.getInt(CameraParameters::KEY_ROTATION);
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.video.force_rotation", value, "-1");
+    rotation = atoi(value);
+    if (0 > rotation) {
+        rotation = params.getInt(CameraParameters::KEY_ROTATION);
+    } else {
+        LOGI("Rotation force changed to %d", rotation);
+    }
 
     mParameters.getPictureSize(&w_orig, &h_orig);
     zoom_save = mParameters.getInt(CameraParameters::KEY_ZOOM);
