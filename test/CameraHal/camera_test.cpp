@@ -1373,8 +1373,10 @@ int functional_menu() {
         else
             params.set(KEY_STEREO_CAMERA, "false");
 
-        if ( hardwareActive )
-            camera->setParameters(params.flatten());
+        if ( hardwareActive ) {
+            stopPreview();
+        }
+
         break;
     case '[':
         if ( hardwareActive ) {
