@@ -465,6 +465,7 @@ private:
     status_t setTouchFocus(unsigned int posX, unsigned int posY, size_t width, size_t height);
 
     //Face detection
+    status_t updateFocusDistances(CameraParameters &params);
     status_t setFaceDetection(bool enable);
     status_t detectFaces(OMX_BUFFERHEADERTYPE* pBuffHeader);
     status_t encodeFaceCoordinates(const OMX_FACEDETECTIONTYPE *faceData, char *faceString, size_t faceStringSize);

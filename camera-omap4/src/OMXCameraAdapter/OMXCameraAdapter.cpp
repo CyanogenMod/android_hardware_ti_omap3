@@ -1751,6 +1751,32 @@ void saveFile(unsigned char   *buff, int width, int height, int format) {
     LOG_FUNCTION_NAME_EXIT
 }
 
+status_t OMXCameraAdapter::updateFocusDistances(CameraParameters &params)
+{
+    OMX_U32 focusNear, focusOptimal, focusFar;
+    status_t ret = NO_ERROR;
+
+    LOG_FUNCTION_NAME
+
+    ret = getFocusDistances(focusNear, focusOptimal, focusFar);
+    if ( NO_ERROR == ret)
+        {
+        ret = addFocusDistances(focusNear, focusOptimal, focusFar, params);
+            if ( NO_ERROR != ret )
+                {
+                CAMHAL_LOGEB("Error in call to addFocusDistances() 0x%x", ret);
+                }
+        }
+    else
+        {
+        CAMHAL_LOGEB("Error in call to getFocusDistances() 0x%x", ret);
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 status_t OMXCameraAdapter::getFocusDistances(OMX_U32 &near,OMX_U32 &optimal, OMX_U32 &far)
 {
     status_t ret = NO_ERROR;
@@ -1880,8 +1906,6 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
 {
     OMX_CONFIG_EXPOSUREVALUETYPE exp;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    OMX_U32 focusNear, focusOptimal, focusFar;
-    status_t stat = NO_ERROR;
 
     LOG_FUNCTION_NAME
 
@@ -2008,18 +2032,18 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
 
 #else
 
-    stat = getFocusDistances(focusNear, focusOptimal, focusFar);
-    if ( NO_ERROR == stat)
+    //Query focus distances only during CAF, Infinity
+    //or when focus is running
+    if ( mFocusStarted || ( mParameters3A.Focus == OMX_IMAGE_FocusControlAuto )  ||
+         ( mParameters3A.Focus == OMX_IMAGE_FocusControlAutoInfinity ) ||
+         ( NULL == mParameters.get(CameraParameters::KEY_FOCUS_DISTANCES) ) )
         {
-        stat = addFocusDistances(focusNear, focusOptimal, focusFar, params);
-            if ( NO_ERROR != stat )
-                {
-                CAMHAL_LOGEB("Error in call to addFocusDistances() 0x%x", stat);
-                }
+        updateFocusDistances(params);
         }
     else
         {
-        CAMHAL_LOGEB("Error in call to getFocusDistances() 0x%x", stat);
+        params.set(CameraParameters::KEY_FOCUS_DISTANCES,
+                   mParameters.get(CameraParameters::KEY_FOCUS_DISTANCES));
         }
 
     OMX_INIT_STRUCT_PTR (&exp, OMX_CONFIG_EXPOSUREVALUETYPE);
@@ -3211,6 +3235,10 @@ status_t OMXCameraAdapter::startPreview()
         apply3Asettings(mParameters3A);
 
     mComponentState = OMX_StateExecuting;
+
+    //Query current focus distance after
+    //starting the preview
+    updateFocusDistances(mParameters);
 
     //reset frame rate estimates
     mFPS = 0.0f;
@@ -5092,36 +5120,42 @@ status_t OMXCameraAdapter::stopAutoFocus()
 
     LOG_FUNCTION_NAME
 
-    if ( OMX_StateExecuting != mComponentState )
+    if ( mFocusStarted )
         {
-        CAMHAL_LOGEA("OMX component not in executing state");
-        ret = -1;
-        }
-
-    if ( NO_ERROR == ret )
-       {
-       //Disable the callback first
-       ret = setFocusCallback(false);
-       }
-
-    if ( NO_ERROR == ret )
-        {
-        OMX_INIT_STRUCT_PTR (&focusControl, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
-        focusControl.eFocusControl = OMX_IMAGE_FocusControlOff;
-
-        eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
-        if ( OMX_ErrorNone != eError )
+        if ( OMX_StateExecuting != mComponentState )
             {
-            CAMHAL_LOGEB("Error while stopping focus 0x%x", eError);
+            CAMHAL_LOGEA("OMX component not in executing state");
             ret = -1;
             }
-        else
-            {
-            CAMHAL_LOGDA("Autofocus stopped successfully");
-            }
-        }
 
-    mFocusStarted = false;
+        if ( NO_ERROR == ret )
+           {
+           //Disable the callback first
+           ret = setFocusCallback(false);
+           }
+
+        if ( NO_ERROR == ret )
+            {
+            OMX_INIT_STRUCT_PTR (&focusControl, OMX_IMAGE_CONFIG_FOCUSCONTROLTYPE);
+            focusControl.eFocusControl = OMX_IMAGE_FocusControlOff;
+
+            eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigFocusControl, &focusControl);
+            if ( OMX_ErrorNone != eError )
+                {
+                CAMHAL_LOGEB("Error while stopping focus 0x%x", eError);
+                ret = -1;
+                }
+            else
+                {
+                CAMHAL_LOGDA("Autofocus stopped successfully");
+                }
+            }
+
+        mFocusStarted = false;
+
+        //Query current focus distance after AF is complete
+        updateFocusDistances(mParameters);
+        }
 
     LOG_FUNCTION_NAME_EXIT
 
