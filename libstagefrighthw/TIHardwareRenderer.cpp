@@ -135,7 +135,7 @@ TIHardwareRenderer::TIHardwareRenderer(
 #ifdef TARGET_OMAP4
    videoFormat = OVERLAY_FORMAT_YCbCr_420_SP;
 #else
-    videoFormat = OVERLAY_FORMAT_YCbYCr_422_I;
+   videoFormat = OVERLAY_FORMAT_CbYCrY_422_I;
 #endif
    LOGI("Use YUV420_PLANAR -> YUV422_INTERLEAVED_UYVY converter or NV-12 converter needed");
     }
