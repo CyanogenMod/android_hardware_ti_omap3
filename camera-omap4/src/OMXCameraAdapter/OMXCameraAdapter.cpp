@@ -69,7 +69,7 @@ static void SigHandler(int sig)
             }
         exit(0);
         }
-    else if (SIGALRM )
+    else if (SIGALRM == sig)
         {
         CAMHAL_LOGDA("SIGALRM has been received");
         if ( NULL != gCameraAdapter )
@@ -6167,7 +6167,7 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterEventHandler(OMX_IN OMX_HANDLETY
             CAMHAL_LOGDA("See OMX_INDEXTYPE for reference");
             if ( NULL != mErrorNotifier && ( ( OMX_U32 ) OMX_ErrorHardware == nData1 ) && mComponentState != OMX_StateInvalid)
               {
-                LOGD("***Got MMU FAULT***\n");
+                LOGD("***Got Fatal Error Notification***\n");
                 mComponentState = OMX_StateInvalid;
                 ///Report Error to App
                 mErrorNotifier->errorNotify((int)nData1);
