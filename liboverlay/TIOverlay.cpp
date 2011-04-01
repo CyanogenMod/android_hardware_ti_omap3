@@ -447,14 +447,14 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                 }
                 else LOGD("Window settings not changed bcos Rotation != 0. Wouldnt rotation be zero when watching on TV???");
 #endif
-            LOGD("calculateWindow(): posW=%d, posH=%d, cropW=%d, cropH=%d",
-                finalWindow->posW, finalWindow->posH, overlayobj->mData.cropW, overlayobj->mData.cropH);
             }
             break;
         default:
             LOGE("Leave the default  values");
         };
 
+        LOGD("calculateWindow(): posW=%d, posH=%d, cropW=%d, cropH=%d",
+            finalWindow->posW, finalWindow->posH, overlayobj->mData.cropW, overlayobj->mData.cropH);
     /**
     * check the final window scaling factors against H/W caps
     * and adjust
@@ -1358,6 +1358,10 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
     pthread_mutex_lock(&overlayobj->lock);
 
+    if ((stage->posW == 0) || (stage->posH == 0)) {
+        LOGE("InValid Window size: posW[%d], posH[%d]", stage->posW, stage->posH);
+        goto end;
+    }
     overlayobj->controlReady = 1;
 
     if (data->posX == stage->posX && data->posY == stage->posY &&
@@ -2080,6 +2084,7 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
     }
 
     if (((int)x < 0)||((int)y < 0)||((int)w <= 0)||((int)h <= 0)||(w > MAX_OVERLAY_WIDTH_VAL)||(h > MAX_OVERLAY_HEIGHT_VAL)) {
+        LOGE("CropW = %d cropH = %d, cropX = %d, cropY=%d", w, h, x, y);
         LOGE("Invalid Arguments [%d]", __LINE__);
         return -1;
     }
