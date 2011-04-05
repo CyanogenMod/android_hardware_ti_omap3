@@ -45,7 +45,13 @@
 #define KEY_FACE_DETECTION_ENABLE "face-detection-enable"
 #define KEY_FACE_DETECTION_DATA "face-detection-data"
 #define KEY_COMPENSATION    "exposure-compensation"
+
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+#define KEY_IPP             "ippMode"
+#else
 #define KEY_IPP             "ipp"
+#endif
+
 #define KEY_BUFF_STARV      "buff-starvation"
 #define KEY_METERING_MODE   "meter-mode"
 #define KEY_AUTOCONVERGENCE "auto-convergence"
@@ -151,9 +157,27 @@ const char *expBracketing[] = {"disable", "enable"};
 const char *expBracketingRange[] = {"", "-30,0,30,0,-30"};
 const char *tempBracketing[] = {"disable", "enable"};
 const char *faceDetection[] = {"disable", "enable"};
+
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+const char *ipp_mode[] = { "off", "Chroma Suppression", "Edge Enhancement" };
+#else
 const char *ipp_mode[] = { "off", "ldc", "nsf", "ldc-nsf" };
+#endif
+
 const char *iso [] = { "auto", "100", "200", "400", "800", "1200", "1600"};
+
 const char *effects [] = {
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+    "none",
+    "mono",
+    "negative",
+    "solarize",
+    "sepia",
+    "whiteboard",
+    "blackboard",
+    "cool",
+    "emboss"
+#else
     "none",
     "mono",
     "negative",
@@ -167,6 +191,7 @@ const char *effects [] = {
     "blackwhite",
     "aqua",
     "posterize"
+#endif
 };
 
 const char CameraParameters::FLASH_MODE_OFF[] = "off";
@@ -190,6 +215,16 @@ const char *vstab [] = { "Off", "On" };
 
 
 const char *scene [] = {
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+    "auto",
+    "portrait",
+    "landscape",
+    "night",
+    "night-portrait",
+    "fireworks",
+    "snow",
+    "action",
+#else
     "auto",
     "portrait",
     "landscape",
@@ -213,6 +248,7 @@ const char *scene [] = {
     "sunset",
     "action",
     "theatre"
+#endif
 };
 const char *strawb_mode[] = {
     "auto",
@@ -239,7 +275,11 @@ const char *focus[] = {
     "auto",
     "infinity",
     "macro",
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+    "continuous-video",
+#else
     "caf",
+#endif
     "extended",
     "portrait",
 };
@@ -333,6 +373,11 @@ const struct {
     { 720, 480, "D1NTSC" },
     { 720, 576, "D1PAL" },
     { 800, 480, "WVGA" },
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+    { 848, 480, "WVGA2"},
+    { 864, 480, "WVGA3"},
+    { 992, 560, "WVGA4"},
+#endif
     { 1280, 720, "HD" },
     { 1920, 1080, "FULLHD"},
 };
@@ -618,6 +663,11 @@ void my_jpeg_callback(const sp<IMemory>& mem) {
     char        fn[256];
 
     LOG_FUNCTION_NAME
+
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+    //Start preview after capture.
+    camera->startPreview();
+#endif
 
     if (mem == NULL)
         goto out;
@@ -1096,7 +1146,11 @@ void initDefaults() {
     previewSizeIDX = ARRAY_SIZE(previewSize) - 6;  /* Default resolution set to WVGA */
     captureSizeIDX = ARRAY_SIZE(captureSize) - 3;  /* Default capture resolution is 8MP */
     frameRateIDX = ARRAY_SIZE(frameRate) - 1;      /* Default frame rate is 30 FPS */
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+    VcaptureSizeIDX = ARRAY_SIZE(VcaptureSize) - 6;/* Default video record is WVGA */
+#else
     VcaptureSizeIDX = ARRAY_SIZE(VcaptureSize) - 2;/* Default video record is WVGA */
+#endif
     VbitRateIDX = ARRAY_SIZE(VbitRate) - 4;        /*Default video bit rate is 4M */
     thumbSizeIDX = 3;
     compensation = 0.0;
@@ -1119,10 +1173,10 @@ void initDefaults() {
     sharpness = 0;
     saturation = 50;
 #else
-    contrast = 0;
+    contrast = 100;
     brightness = 100;
     sharpness = 0;
-    saturation = 0;
+    saturation = 100;
 #endif
     iso_mode = 0;
     capture_mode = 1;
@@ -1273,7 +1327,11 @@ int functional_menu() {
         printf("   1. Start Preview\n");
         printf("   2. Stop Preview\n");
         printf("   ~. Preview format %s\n", pixelformat[previewFormat]);
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+        printf("   4. Preview size:   %4d x %4d - %s\n",previewSize[previewSizeIDX].width,  previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
+#else
         printf("   4. Preview size:   %4d x %4d - %s\n",previewSize[previewSizeIDX].width, camera_index == 2 ? previewSize[previewSizeIDX].height*2 : previewSize[previewSizeIDX].height, previewSize[previewSizeIDX].desc);
+#endif
         printf("   R. Preview framerate range: %s\n", fpsRanges[fpsRangeIdx].rangeDescription);
         printf("   &. Dump a preview frame\n");
         printf("   _. Auto Convergence mode: %s\n", autoconvergencemode[AutoConvergenceModeIDX]);
@@ -1306,7 +1364,7 @@ int functional_menu() {
         printf("   l. Video Capture resolution:   %4d x %4d - %s\n",VcaptureSize[VcaptureSizeIDX].width,VcaptureSize[VcaptureSizeIDX].height, VcaptureSize[VcaptureSizeIDX].desc);
         printf("   ]. Video Bit rate :  %s\n", VbitRate[VbitRateIDX].desc);
         printf("   9. Video Codec:    %s\n", videoCodecs[videoCodecIDX].desc);
-        printf("   d. Audio Codec:    %s\n", audioCodecs[audioCodecIDX].desc);
+        printf("   D. Audio Codec:    %s\n", audioCodecs[audioCodecIDX].desc);
         printf("   v. Output Format:  %s\n", outputFormat[outputFormatIDX].desc);
         printf("   r. Framerate:     %3d\n", frameRate[frameRateIDX].fps);
         printf("   *. Start Video Recording dump ( 1 raw frame ) \n");
@@ -1630,6 +1688,8 @@ int functional_menu() {
         {
             meter_mode = (meter_mode + 1)%ARRAY_SIZE(metering);
             params.set(KEY_METERING_MODE, metering[meter_mode]);
+            if ( hardwareActive )
+                camera->setParameters(params.flatten());
             break;
         }
 
@@ -1643,7 +1703,12 @@ int functional_menu() {
             ippIDX += 1;
             ippIDX %= ARRAY_SIZE(ipp_mode);
             ippIDX_old = ippIDX;
+
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
             params.set(KEY_IPP, ipp_mode[ippIDX]);
+#else
+            params.set(KEY_IPP, ippIDX);
+#endif
 
             if ( hardwareActive )
                 camera->setParameters(params.flatten());
@@ -2757,6 +2822,11 @@ int execute_functional_script(char *script) {
 
             case 'z':
             case 'Z':
+
+#if defined(OMAP_ENHANCEMENT) && defined(TARGET_OMAP3)
+                params.set(CameraParameters::KEY_ZOOM, atoi(cmd + 1));
+#else
+
                 for(i = 0; i < ARRAY_SIZE(zoom); i++)
                 {
                     if( strcmp((cmd + 1), zoom[i].zoom_description) == 0)
@@ -2767,6 +2837,7 @@ int execute_functional_script(char *script) {
                 }
 
                 params.set(CameraParameters::KEY_ZOOM, zoom[zoomIDX].idx);
+#endif
 
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
