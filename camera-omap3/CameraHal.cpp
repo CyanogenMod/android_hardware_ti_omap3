@@ -1734,7 +1734,7 @@ int  CameraHal::ICapturePerform()
     icap_resolution_cap_t spec_res;
     icap_buffer_t capture_buffer;
     icap_process_mode_e mode;
-    unsigned int procMessage[PROC_THREAD_NUM_ARGS],
+    unsigned int procMessage[PROC_MSG_IDX_MAX],
             shutterMessage[SHUTTER_THREAD_NUM_ARGS],
             rawMessage[RAW_THREAD_NUM_ARGS];
     int pixelFormat;
@@ -2001,63 +2001,58 @@ int  CameraHal::ICapturePerform()
         gpsLocation = NULL;
     }
 
-    procMessage[0] = PROC_THREAD_PROCESS;
-    procMessage[1] = iobj->cfg.width;
-    procMessage[2] = iobj->cfg.height;
-    procMessage[3] = image_width;
-    procMessage[4] = image_height;
-    procMessage[5] = pixelFormat;
+    procMessage[PROC_MSG_IDX_ACTION] = PROC_THREAD_PROCESS;
+    procMessage[PROC_MSG_IDX_CAPTURE_W] = iobj->cfg.width;
+    procMessage[PROC_MSG_IDX_CAPTURE_H] = iobj->cfg.height;
+    procMessage[PROC_MSG_IDX_IMAGE_W] = image_width;
+    procMessage[PROC_MSG_IDX_IMAGE_H] = image_height;
+    procMessage[PROC_MSG_IDX_PIX_FMT] = pixelFormat;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
+    procMessage[PROC_MSG_IDX_IPP_EES]  = mIPPParams.EdgeEnhancementStrength;
+    procMessage[PROC_MSG_IDX_IPP_WET]  = mIPPParams.WeakEdgeThreshold;
+    procMessage[PROC_MSG_IDX_IPP_SET]  = mIPPParams.StrongEdgeThreshold;
+    procMessage[PROC_MSG_IDX_IPP_LFLNFS]  = mIPPParams.LowFreqLumaNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_MFLNFS] = mIPPParams.MidFreqLumaNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_HFLNFS] = mIPPParams.HighFreqLumaNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_LFCBNFS] = mIPPParams.LowFreqCbNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_MFCBNFS] = mIPPParams.MidFreqCbNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_HFCBNFS] = mIPPParams.HighFreqCbNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_LFCRNFS] = mIPPParams.LowFreqCrNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_MFCRNFS] = mIPPParams.MidFreqCrNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_HFCRNFS] = mIPPParams.HighFreqCrNoiseFilterStrength;
+    procMessage[PROC_MSG_IDX_IPP_SVP1] = mIPPParams.shadingVertParam1;
+    procMessage[PROC_MSG_IDX_IPP_SVP2] = mIPPParams.shadingVertParam2;
+    procMessage[PROC_MSG_IDX_IPP_SHP1] = mIPPParams.shadingHorzParam1;
+    procMessage[PROC_MSG_IDX_IPP_SHP2] = mIPPParams.shadingHorzParam2;
+    procMessage[PROC_MSG_IDX_IPP_SGS] = mIPPParams.shadingGainScale;
+    procMessage[PROC_MSG_IDX_IPP_SGO] = mIPPParams.shadingGainOffset;
+    procMessage[PROC_MSG_IDX_IPP_SGMV] = mIPPParams.shadingGainMaxValue;
+    procMessage[PROC_MSG_IDX_IPP_RDSCBCR] = mIPPParams.ratioDownsampleCbCr;
 
-    procMessage[6]  = mIPPParams.EdgeEnhancementStrength;
-    procMessage[7]  = mIPPParams.WeakEdgeThreshold;
-    procMessage[8]  = mIPPParams.StrongEdgeThreshold;
-    procMessage[9]  = mIPPParams.LowFreqLumaNoiseFilterStrength;
-    procMessage[10] = mIPPParams.MidFreqLumaNoiseFilterStrength;
-    procMessage[11] = mIPPParams.HighFreqLumaNoiseFilterStrength;
-    procMessage[12] = mIPPParams.LowFreqCbNoiseFilterStrength;
-    procMessage[13] = mIPPParams.MidFreqCbNoiseFilterStrength;
-    procMessage[14] = mIPPParams.HighFreqCbNoiseFilterStrength;
-    procMessage[15] = mIPPParams.LowFreqCrNoiseFilterStrength;
-    procMessage[16] = mIPPParams.MidFreqCrNoiseFilterStrength;
-    procMessage[17] = mIPPParams.HighFreqCrNoiseFilterStrength;
-    procMessage[18] = mIPPParams.shadingVertParam1;
-    procMessage[19] = mIPPParams.shadingVertParam2;
-    procMessage[20] = mIPPParams.shadingHorzParam1;
-    procMessage[21] = mIPPParams.shadingHorzParam2;
-    procMessage[22] = mIPPParams.shadingGainScale;
-    procMessage[23] = mIPPParams.shadingGainOffset;
-    procMessage[24] = mIPPParams.shadingGainMaxValue;
-    procMessage[25] = mIPPParams.ratioDownsampleCbCr;
-
+    procMessage[PROC_MSG_IDX_IPP_MODE] = mippMode;
+    procMessage[PROC_MSG_IDX_IPP_TO_ENABLE] = mIPPToEnable;
 #endif
 
-    procMessage[26] = (unsigned int) mYuvBuffer[i];
-    procMessage[27] = 0;
-    procMessage[28] = mYuvBufferLen[i];
-    procMessage[29] = rotation;
+    procMessage[PROC_MSG_IDX_YUV_BUFF] = (unsigned int) mYuvBuffer[i];
+    procMessage[PROC_MSG_IDX_YUV_BUFFLEN] = mYuvBufferLen[i];
+    procMessage[PROC_MSG_IDX_ROTATION] = rotation;
 
-    if ( mcapture_mode == 1 ) {
-        procMessage[30] = mZoomTargetIdx;
-    } else {
-        procMessage[30] = 0;
-    }
+    procMessage[PROC_MSG_IDX_ZOOM] = (mcapture_mode == 1)?mZoomTargetIdx:0;
 
-    procMessage[31] = mippMode;
-    procMessage[32] = mIPPToEnable;
-    procMessage[33] = quality;
-    procMessage[34] = (unsigned int) mDataCb;
-    procMessage[35] = 0;
-    procMessage[36] = (unsigned int) mCallbackCookie;
-    procMessage[37] = 0;
-    procMessage[38] = 0;
-    procMessage[39] = iobj->cfg.width;
-    procMessage[40] = iobj->cfg.height;
-    procMessage[41] = thumb_width;
-    procMessage[42] = thumb_height;
-
-    procMessage[43] = (unsigned int) exif_buf;
+    procMessage[PROC_MSG_IDX_JPEG_QUALITY] = quality;
+    procMessage[PROC_MSG_IDX_JPEG_CB] = (unsigned int) mDataCb;
+    procMessage[PROC_MSG_IDX_RAW_CB] = 0;
+    procMessage[PROC_MSG_IDX_CB_COOKIE] = (unsigned int) mCallbackCookie;
+    procMessage[PROC_MSG_IDX_CROP_L] = 0;
+    procMessage[PROC_MSG_IDX_CROP_T] = 0;
+    procMessage[PROC_MSG_IDX_CROP_W] = iobj->cfg.width;
+    procMessage[PROC_MSG_IDX_CROP_H] = iobj->cfg.height;
+    procMessage[PROC_MSG_IDX_THUMB_W] = thumb_width;
+    procMessage[PROC_MSG_IDX_THUMB_H] = thumb_height;
+#ifdef HARDWARE_OMX
+    procMessage[PROC_MSG_IDX_EXIF_BUFF] = (unsigned int) exif_buf;
+#endif
 
     write(procPipe[1], &procMessage, sizeof(procMessage));
 
@@ -2433,7 +2428,10 @@ int CameraHal::ICapturePerform(){
         exif_buffer *exif_buf = get_exif_buffer(&mExifParams, gpsLocation);
 
         PPM("BEFORE JPEG Encode Image");
-        LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
+        LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, "
+                "image_width = %d, image_height = %d,  quality = %d, mippMode = %d",
+                (unsigned int)outBuffer , jpegSize, (unsigned int)yuv_buffer, yuv_len,
+                image_width, image_height, quality, mippMode);
         jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
                 image_width, image_height, quality, exif_buf, jpegFormat, DEFAULT_THUMB_WIDTH, DEFAULT_THUMB_HEIGHT, image_width, image_height,
                 image_rotation, image_zoom, 0, 0, image_width, image_height);
@@ -2791,11 +2789,10 @@ void CameraHal::procThread()
     int max_fd;
     int err;
     int pixelFormat;
-    unsigned int procMessage [PROC_THREAD_NUM_ARGS];
-    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_len, image_rotation, ippMode;
+    unsigned int procMessage[PROC_MSG_IDX_MAX];
+    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_len, image_rotation;
     unsigned int crop_top, crop_left, crop_width, crop_height;
     double image_zoom;
-    bool ipp_to_enable;
     sp<MemoryHeapBase> JPEGPictureHeap;
     sp<MemoryBase> JPEGPictureMemBase;
     data_callback RawPictureCallback;
@@ -2804,17 +2801,19 @@ void CameraHal::procThread()
     int thumb_width, thumb_height;
 
 #ifdef HARDWARE_OMX
-
     exif_buffer *exif_buf;
-
 #endif
 
+#ifdef IMAGE_PROCESSING_PIPELINE
+    unsigned int ippMode = IPP_Disabled_Mode;
+    bool ipp_to_enable;
     unsigned short EdgeEnhancementStrength, WeakEdgeThreshold, StrongEdgeThreshold,
                    LowFreqLumaNoiseFilterStrength, MidFreqLumaNoiseFilterStrength, HighFreqLumaNoiseFilterStrength,
                    LowFreqCbNoiseFilterStrength, MidFreqCbNoiseFilterStrength, HighFreqCbNoiseFilterStrength,
                    LowFreqCrNoiseFilterStrength, MidFreqCrNoiseFilterStrength, HighFreqCrNoiseFilterStrength,
                    shadingVertParam1, shadingVertParam2, shadingHorzParam1, shadingHorzParam2, shadingGainScale,
                    shadingGainOffset, shadingGainMaxValue, ratioDownsampleCbCr;
+#endif
 
     void* input_buffer;
     unsigned int input_length;
@@ -2847,7 +2846,7 @@ void CameraHal::procThread()
 
             read(procPipe[0], &procMessage, sizeof(procMessage));
 
-            if(procMessage[0] == PROC_THREAD_PROCESS){
+            if(procMessage[PROC_MSG_IDX_ACTION] == PROC_THREAD_PROCESS) {
 
 #ifdef DEBUG_LOG
 
@@ -2855,55 +2854,56 @@ void CameraHal::procThread()
 
 #endif
 
-                capture_width = procMessage[1];
-                capture_height = procMessage[2];
-                image_width = procMessage[3];
-                image_height = procMessage[4];
-                pixelFormat = procMessage[5];
-                EdgeEnhancementStrength = procMessage[6];
-                WeakEdgeThreshold = procMessage[7];
-                StrongEdgeThreshold = procMessage[8];
-                LowFreqLumaNoiseFilterStrength = procMessage[9];
-                MidFreqLumaNoiseFilterStrength = procMessage[10];
-                HighFreqLumaNoiseFilterStrength = procMessage[11];
-                LowFreqCbNoiseFilterStrength = procMessage[12];
-                MidFreqCbNoiseFilterStrength = procMessage[13];
-                HighFreqCbNoiseFilterStrength = procMessage[14];
-                LowFreqCrNoiseFilterStrength = procMessage[15];
-                MidFreqCrNoiseFilterStrength = procMessage[16];
-                HighFreqCrNoiseFilterStrength = procMessage[17];
-                shadingVertParam1 = procMessage[18];
-                shadingVertParam2 = procMessage[19];
-                shadingHorzParam1 = procMessage[20];
-                shadingHorzParam2 = procMessage[21];
-                shadingGainScale = procMessage[22];
-                shadingGainOffset = procMessage[23];
-                shadingGainMaxValue = procMessage[24];
-                ratioDownsampleCbCr = procMessage[25];
-                yuv_buffer = (void *) procMessage[26];
-                yuv_len = procMessage[28];
-                image_rotation = procMessage[29];
-                image_zoom = zoom_step[procMessage[30]];
-                ippMode = procMessage[31];
-                ipp_to_enable = procMessage[32];
-                jpegQuality = procMessage[33];
-                JpegPictureCallback = (data_callback) procMessage[34];
-                RawPictureCallback = (data_callback) procMessage[35];
-                PictureCallbackCookie = (void *) procMessage[36];
-                crop_left = procMessage[37];
-                crop_top = procMessage[38];
-                crop_width = procMessage[39];
-                crop_height = procMessage[40];
-                thumb_width = procMessage[41];
-                thumb_height = procMessage[42];
+                capture_width = procMessage[PROC_MSG_IDX_CAPTURE_W];
+                capture_height = procMessage[PROC_MSG_IDX_CAPTURE_H];
+                image_width = procMessage[PROC_MSG_IDX_IMAGE_W];
+                image_height = procMessage[PROC_MSG_IDX_IMAGE_H];
+                pixelFormat = procMessage[PROC_MSG_IDX_PIX_FMT];
+#ifdef IMAGE_PROCESSING_PIPELINE
+                EdgeEnhancementStrength = procMessage[PROC_MSG_IDX_IPP_EES];
+                WeakEdgeThreshold = procMessage[PROC_MSG_IDX_IPP_WET];
+                StrongEdgeThreshold = procMessage[PROC_MSG_IDX_IPP_SET];
+                LowFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFLNFS];
+                MidFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFLNFS];
+                HighFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFLNFS];
+                LowFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFCBNFS];
+                MidFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFCBNFS];
+                HighFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFCBNFS];
+                LowFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFCRNFS];
+                MidFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFCRNFS];
+                HighFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFCRNFS];
+                shadingVertParam1 = procMessage[PROC_MSG_IDX_IPP_SVP1];
+                shadingVertParam2 = procMessage[PROC_MSG_IDX_IPP_SVP2];
+                shadingHorzParam1 = procMessage[PROC_MSG_IDX_IPP_SHP1];
+                shadingHorzParam2 = procMessage[PROC_MSG_IDX_IPP_SHP2];
+                shadingGainScale = procMessage[PROC_MSG_IDX_IPP_SGS];
+                shadingGainOffset = procMessage[PROC_MSG_IDX_IPP_SGO];
+                shadingGainMaxValue = procMessage[PROC_MSG_IDX_IPP_SGMV];
+                ratioDownsampleCbCr = procMessage[PROC_MSG_IDX_IPP_RDSCBCR];
+                ippMode = procMessage[PROC_MSG_IDX_IPP_MODE];
+                ipp_to_enable = procMessage[PROC_MSG_IDX_IPP_TO_ENABLE];
+#endif
+                yuv_buffer = (void *) procMessage[PROC_MSG_IDX_YUV_BUFF];
+                yuv_len = procMessage[PROC_MSG_IDX_YUV_BUFFLEN];
+                image_rotation = procMessage[PROC_MSG_IDX_ROTATION];
+                image_zoom = zoom_step[procMessage[PROC_MSG_IDX_ZOOM]];
+                jpegQuality = procMessage[PROC_MSG_IDX_JPEG_QUALITY];
+                JpegPictureCallback = (data_callback) procMessage[PROC_MSG_IDX_JPEG_CB];
+                RawPictureCallback = (data_callback) procMessage[PROC_MSG_IDX_RAW_CB];
+                PictureCallbackCookie = (void *) procMessage[PROC_MSG_IDX_CB_COOKIE];
+                crop_left = procMessage[PROC_MSG_IDX_CROP_L];
+                crop_top = procMessage[PROC_MSG_IDX_CROP_T];
+                crop_width = procMessage[PROC_MSG_IDX_CROP_W];
+                crop_height = procMessage[PROC_MSG_IDX_CROP_H];
+                thumb_width = procMessage[PROC_MSG_IDX_THUMB_W];
+                thumb_height = procMessage[PROC_MSG_IDX_THUMB_H];
 
 #ifdef HARDWARE_OMX
-
-                exif_buf = (exif_buffer *) procMessage[43];
-
+                exif_buf = (exif_buffer *)procMessage[PROC_MSG_IDX_EXIF_BUFF];
 #endif
 
-                LOGD("JPEGPictureHeap->getStrongCount() = %d, base = 0x%x", JPEGPictureHeap->getStrongCount(), ( unsigned int ) JPEGPictureHeap->getBase());
+                LOGD("JPEGPictureHeap->getStrongCount() = %d, base = 0x%x",
+                        JPEGPictureHeap->getStrongCount(), (unsigned int)JPEGPictureHeap->getBase());
                 jpegSize = mJPEGLength;
 
                 if(JPEGPictureHeap->getStrongCount() > 1 )
@@ -3010,9 +3010,9 @@ void CameraHal::procThread()
 
 #ifdef DEBUG_LOG
                 LOGD(" outbuffer = %p, jpegSize = %d, input_buffer = %p, input_length = %d, "
-                        "image_width = %d, image_height = %d, quality = %d, ippMode = %d",
+                        "image_width = %d, image_height = %d, quality = %d",
                         outBuffer , jpegSize, input_buffer, input_length,
-                        image_width, image_height, jpegQuality, ippMode);
+                        image_width, image_height, jpegQuality);
 #endif
                 //workaround for thumbnail size  - it should be smaller than captured image
                 if ((image_width<thumb_width) || (image_height<thumb_width) ||
@@ -3078,7 +3078,7 @@ void CameraHal::procThread()
                 // Release constraint to DSP OPP by setting lowest Hz
                 SetDSPHz(DSP3630_HZ_MIN);
 
-            } else if( procMessage[0] == PROC_THREAD_EXIT ) {
+            } else if(procMessage[PROC_MSG_IDX_ACTION] == PROC_THREAD_EXIT) {
                 LOGD("PROC_THREAD_EXIT_RECEIVED");
                 JPEGPictureHeap.clear();
                 break;
