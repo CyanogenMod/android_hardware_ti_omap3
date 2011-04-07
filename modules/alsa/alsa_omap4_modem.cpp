@@ -431,8 +431,8 @@ void AudioModemAlsa::voiceCallControlsThread(void)
         } else if ((mInfo->mode != AudioSystem::MODE_IN_CALL) &&
                 (mVoiceCallState == AUDIO_MODEM_VOICE_CALL_ON)) {
             // we just exit voice call mode
-            mPreviousAudioModemModes = mCurrentAudioModemModes;
-            mDevicePropPrevious = mDeviceProp;
+            mPreviousAudioModemModes = 0;
+            mCurrentAudioModemModes = 0;
             error = voiceCallModemReset();
             if (error < 0) goto exit;
             voiceCallControlsMutexLock();
@@ -456,15 +456,19 @@ status_t AudioModemAlsa::setCurrentAudioModemModes(uint32_t devices)
         mCurrentAudioModemModes = AudioModemInterface::AUDIO_MODEM_HANDFREE;
     } else if (devices & AudioModemInterface::AUDIO_MODEM_HEADSET) {
         mCurrentAudioModemModes = AudioModemInterface::AUDIO_MODEM_HEADSET;
-    } else if (devices & AudioModemInterface::AUDIO_MODEM_AUX) {
-        mCurrentAudioModemModes = AudioModemInterface::AUDIO_MODEM_AUX;
 #ifdef AUDIO_BLUETOOTH
     } else if (devices & AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
         mCurrentAudioModemModes = AudioModemInterface::AUDIO_MODEM_BLUETOOTH;
 #endif
     } else {
-        LOGE("Devices %04x not supported", devices);
-        return NO_INIT;
+        LOGE("Devices %04x not supported...", devices);
+        if (!mCurrentAudioModemModes) {
+            LOGE("No current devices switch to AUDIO_MODEM_HANDSET...");
+            mCurrentAudioModemModes = AudioModemInterface::AUDIO_MODEM_HANDSET;
+        } else {
+            LOGE("Stay on the current devices: %04x...", mCurrentAudioModemModes);
+        }
+        return NO_ERROR;
     }
     LOGV("New Audio Modem Modes: %04x", mCurrentAudioModemModes);
     return NO_ERROR;
