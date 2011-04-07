@@ -458,7 +458,7 @@ void AppCallbackNotifier::notifyFrame()
                              ( mCameraHal->msgTypeEnabled(CAMERA_MSG_VIDEO_FRAME)  ) )
                     {
 
-                    Mutex::Autolock lock(mRecordingLock);
+                    mRecordingLock.lock();
                     if(mRecording)
                         {
                         buffer = ( MemoryBase * ) mVideoBuffers.valueFor( ( unsigned int ) frame->mBuffer );
@@ -468,8 +468,12 @@ void AppCallbackNotifier::notifyFrame()
                             CAMHAL_LOGDA("Error! One of the video buffer is NULL");
                             break;
                             }
-                        //CAMHAL_LOGDB("+CB 0x%x buffer 0x%x", frame->mBuffer, buffer);
+                        }
+                    mRecordingLock.unlock();
 
+                    if(buffer)
+                        {
+                        //CAMHAL_LOGDB("+CB 0x%x buffer 0x%x", frame->mBuffer, buffer);
 #ifdef OMAP_ENHANCEMENT
                         mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, buffer, mCallbackCookie
                                                 , frame->mOffset, PAGE_SIZE);
