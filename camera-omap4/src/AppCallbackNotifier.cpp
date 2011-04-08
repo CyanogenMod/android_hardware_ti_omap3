@@ -1363,7 +1363,7 @@ status_t AppCallbackNotifier::start()
     LOG_FUNCTION_NAME
     if(mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED)
         {
-        CAMHAL_LOGEA("AppCallbackNotifier already running");
+        CAMHAL_LOGDA("AppCallbackNotifier already running");
         LOG_FUNCTION_NAME_EXIT
         return ALREADY_EXISTS;
         }

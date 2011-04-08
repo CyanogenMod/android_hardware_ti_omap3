@@ -5748,6 +5748,21 @@ status_t OMXCameraAdapter::stopImageCapture()
     bOMX.bEnabled = OMX_FALSE;
     imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
 
+    //Under some circumstances stopImageCapture()
+    //can be called from multiple threads concurrently.
+    //Image capture should not be disabled twice though.
+    {
+    Mutex::Autolock lock(mLock);
+    if ( mCapturing )
+        {
+        mCapturing = false;
+        }
+    else
+        {
+        return NO_ERROR;
+        }
+    }
+
     if ( NO_ERROR == ret )
     {
         //Disable the callback first
@@ -5807,11 +5822,6 @@ status_t OMXCameraAdapter::stopImageCapture()
     //Wait for the image port enable event
     camSem.Wait();
     CAMHAL_LOGDA("Port disabled");
-
-        {
-        Mutex::Autolock lock(mLock);
-        mCapturing = false;
-        }
 
     //Release image buffers
     if ( NULL != mReleaseImageBuffersCallback )
