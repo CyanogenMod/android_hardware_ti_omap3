@@ -208,14 +208,20 @@ TIHardwareRenderer::TIHardwareRenderer(
     mInitCheck = OK;
 }
 
-void TIHardwareRenderer::resizeRenderer(uint32_t width, uint32_t height, uint32_t buffercount) {
-
-    LOGD("resizeRenderer %dx%d buff(%d)",width, height, buffercount);
+void TIHardwareRenderer::resizeRenderer(void* resize_params) {
+    render_resize_params* resizeparams;
+    resizeparams = (render_resize_params*)(resize_params);
+    LOGD("resizeRenderer %dx%d buff(%d)",resizeparams->decoded_width, resizeparams->decoded_height, \
+                                         resizeparams->buffercount);
     //first check if the size is different or not
-    if ((mDecodedWidth != width) || (mDecodedHeight != height)) {
+    if ((mDecodedWidth != resizeparams->decoded_width) || (mDecodedHeight != resizeparams->decoded_height) || \
+         (mDisplayWidth != resizeparams->display_width) || (mDisplayHeight != resizeparams->display_height)) {
         //update the renderer's new width and height
-        mDecodedWidth = width;
-        mDecodedHeight = height;
+        mDecodedWidth = resizeparams->decoded_width;
+        mDecodedHeight = resizeparams->decoded_height;
+        mDisplayWidth = resizeparams->display_width;
+        mDisplayHeight = resizeparams->display_height;
+        mCropX = mCropY = -1;
 
         //unmap and delete the heap space for the old buffers
         sp<IMemory> mem;
@@ -232,12 +238,12 @@ void TIHardwareRenderer::resizeRenderer(uint32_t width, uint32_t height, uint32_
             mOverlayAddresses.clear();
         }
 
-        if(sz != buffercount){
-            mOverlay->setParameter(OVERLAY_NUM_BUFFERS, buffercount);
+        if(sz != resizeparams->buffercount){
+            mOverlay->setParameter(OVERLAY_NUM_BUFFERS, resizeparams->buffercount);
         }
 
         //resize the overlay for the new width and height
-        mOverlay->resizeInput(width, height);
+        mOverlay->resizeInput(mDecodedWidth, mDecodedHeight);
         //create imem for the new buffers
         for (size_t i = 0; i < (size_t)mOverlay->getBufferCount(); ++i) {
             data = (mapping_data_t *)mOverlay->getBufferAddress((void *)i);

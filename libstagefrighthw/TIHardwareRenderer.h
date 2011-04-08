@@ -52,7 +52,7 @@ public:
 
     Vector< sp<IMemory> > getBuffers() { return mOverlayAddresses; }
     bool setCallback(release_rendered_buffer_callback cb, void *c);
-    virtual void resizeRenderer(uint32_t width, uint32_t height, uint32_t buffercount);
+    virtual void resizeRenderer(void* resize_params);
     virtual void requestRendererClone(bool enable);
 
 private:
