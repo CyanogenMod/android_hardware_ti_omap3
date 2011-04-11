@@ -37,6 +37,7 @@ static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
 static status_t s_voicevolume(float);
 static status_t s_set(const String8&);
+static status_t s_resetDefaults(alsa_handle_t *handle);
 
 
 #ifdef AUDIO_MODEM_TI
@@ -82,6 +83,7 @@ static int s_device_open(const hw_module_t* module, const char* name,
     dev->route = s_route;
     dev->set = s_set;
     dev->voicevolume = s_voicevolume;
+    dev->resetDefaults = s_resetDefaults;
 
     *device = &dev->common;
 
@@ -1003,5 +1005,9 @@ void configEqualizer (uint32_t devices) {
         (devices & AudioSystem::DEVICE_IN_FM_ANALOG)) {
         control.set("AMIC Equalizer", "Flat response");
     }
+}
+static status_t s_resetDefaults(alsa_handle_t *handle)
+{
+    return setHardwareParams(handle);
 }
 }
