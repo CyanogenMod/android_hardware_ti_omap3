@@ -1904,6 +1904,11 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     ctx->omap_overlay->w = w;
     ctx->omap_overlay->h = h;
 
+    ctx->omap_overlay->mData.cropX = 0;
+    ctx->omap_overlay->mData.cropY = 0;
+    ctx->omap_overlay->mData.cropW = w;
+    ctx->omap_overlay->mData.cropH = h;
+
     if ((ret = v4l2_overlay_set_rotation(fd, degree, 0, mirror))) {
         LOGE("Failed rotation\n");
         goto end;
