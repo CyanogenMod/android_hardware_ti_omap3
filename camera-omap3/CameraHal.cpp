@@ -71,7 +71,7 @@ wp<CameraHardwareInterface> CameraHal::singleton[];
 const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240";
 const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
-const char CameraHal::supportedThumbnailSizes []= "512x384,320x240,80x60,0x0";
+const char CameraHal::supportedThumbnailSizes []= "320x240,80x60,0x0";
 const char CameraHal::supportedFpsRanges [] = "(8000,8000),(8000,10000),(10000,10000),(8000,15000),(15000,15000),(8000,20000),(20000,20000),(24000,24000),(25000,25000),(8000,30000),(30000,30000)";
 const char CameraHal::PARAMS_DELIMITER []= ",";
 
