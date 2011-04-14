@@ -38,7 +38,11 @@ static int mDebugFps = 0;
 #define Q16_OFFSET 16
 
 #define TOUCH_FOCUS_RANGE 0xFF
+
 #define AF_CALLBACK_TIMEOUT 10000000 //10 seconds timeout
+
+
+#define IMAGE_CAPTURE_TIMEOUT 3000000 //3 // 3 second timeout
 
 #define HERE(Msg) {CAMHAL_LOGEB("--===line %d, %s===--\n", __LINE__, Msg);}
 
@@ -121,6 +125,8 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     mLocalVersionParam.s.nStep =  0x0;
 
     mPending3Asettings = 0;//E3AsettingsAll;
+
+    mCaptureSem.Create(0);
 
     ///Event semaphore used for
     Semaphore eventSem;
@@ -258,6 +264,8 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     if ( mComponentState != OMX_StateExecuting ){
         mPreviewing = false;
         mCapturing = false;
+        mCaptureSignalled = false;
+        mCaptureConfigured = false;
         mRecording = false;
         mFlushBuffers = false;
         mWaitingForSnapshot = false;
@@ -1507,6 +1515,10 @@ status_t OMXCameraAdapter::setupEXIF()
                     if(temp != NULL)
                     {
                         den_len = strlen(temp);
+                        if(HUGE_VAL == den_len )
+                            {
+                            den_len = 0;
+                            }
                         denominator = static_cast<OMX_U32>(pow(10, den_len));
                         numerator = numerator*denominator + atoi(temp);
                     }else{
@@ -3065,6 +3077,7 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
         }
 
     mCapturedFrames = mBurstFrames;
+    mCaptureConfigured = true;
 
     EXIT:
 
@@ -3278,6 +3291,8 @@ status_t OMXCameraAdapter::stopPreview()
 
     OMXCameraPortParameters *mCaptureData , *mPreviewData, *measurementData;
     mCaptureData = mPreviewData = measurementData = NULL;
+
+    Mutex::Autolock lock(mLock);
 
     mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
     mCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
@@ -4966,12 +4981,14 @@ status_t OMXCameraAdapter::doAutoFocus()
 
     LOG_FUNCTION_NAME
 
-    Mutex::Autolock lock(mFocusLock);
+    mFocusLock.lock();
 
     if ( OMX_StateExecuting != mComponentState )
         {
         CAMHAL_LOGEA("OMX component not in executing state");
         mFocusStarted = false;
+        returnFocusStatus(false);
+        mFocusLock.unlock();
         ret = -1;
         }
 
@@ -4979,6 +4996,7 @@ status_t OMXCameraAdapter::doAutoFocus()
         {
         CAMHAL_LOGVA("Focus canceled before we could start");
         ret = NO_ERROR;
+        mFocusLock.unlock();
         return ret;
         }
 
@@ -5080,13 +5098,19 @@ status_t OMXCameraAdapter::doAutoFocus()
             ret |= setFocusCallback(false);
             //Signal a dummy AF event so that in case the callback from ducati does come then it doesnt crash after
             //exiting this function since eventSem will go out of scope.
-            ret |= SignalEvent(mCameraAdapterParameters.mHandleComp,
-                                        (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
-                                        OMX_ALL,
-                                        OMX_IndexConfigCommonFocusStatus,
-                                        NULL );
+            if(ret != NO_ERROR)
+                {
+                ret |= SignalEvent(mCameraAdapterParameters.mHandleComp,
+                                            (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
+                                            OMX_ALL,
+                                            OMX_IndexConfigCommonFocusStatus,
+                                            NULL );
+                }
             }
 
+        {
+        //Acquire the lock again here as we have relinquished it above before waiting
+        Mutex::Autolock lock(mFocusLock);
         if ( NO_ERROR == ret )
             {
             CAMHAL_LOGDA("Autofocus callback received");
@@ -5096,6 +5120,7 @@ status_t OMXCameraAdapter::doAutoFocus()
             {
             CAMHAL_LOGEA("Autofocus callback timeout expired");
             ret = returnFocusStatus(true);
+            }
             }
 
         }
@@ -5247,6 +5272,12 @@ status_t OMXCameraAdapter::returnFocusStatus(bool timeoutReached)
 
     OMX_INIT_STRUCT(eFocusStatus, OMX_PARAM_FOCUSSTATUSTYPE);
 
+    if(!mFocusStarted)
+       {
+        /// We don't send focus callback if focus was not started
+       return NO_ERROR;
+       }
+
     if ( NO_ERROR == ret )
         {
 
@@ -5260,7 +5291,6 @@ status_t OMXCameraAdapter::returnFocusStatus(bool timeoutReached)
                 CAMHAL_LOGEA("Focus status check failed!");
                 }
             }
-
         }
 
     if ( NO_ERROR == ret )
@@ -5375,11 +5405,13 @@ status_t OMXCameraAdapter::setShutterCallback(bool enabled)
             {
             shutterRequstCallback.bEnable = OMX_TRUE;
             shutterRequstCallback.nIndex = ( OMX_INDEXTYPE ) OMX_TI_IndexConfigShutterCallback;
+            CAMHAL_LOGDA("Enabling shutter callback");
             }
         else
             {
             shutterRequstCallback.bEnable = OMX_FALSE;
             shutterRequstCallback.nIndex = ( OMX_INDEXTYPE ) OMX_TI_IndexConfigShutterCallback;
+            CAMHAL_LOGDA("Disabling shutter callback");
             }
 
         eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp,  ( OMX_INDEXTYPE ) OMX_IndexConfigCallbackRequest, &shutterRequstCallback);
@@ -5621,18 +5653,26 @@ status_t OMXCameraAdapter::startImageCapture()
 
     LOG_FUNCTION_NAME
 
-        //During bracketing image capture is already active
+    Mutex::Autolock lock(mLock);
+
+    if(!mCaptureConfigured)
         {
-        Mutex::Autolock lock(mBracketingLock);
-        if ( mBracketingEnabled )
-            {
-            //Stop bracketing, activate normal burst for the remaining images
-            mBracketingEnabled = false;
-            mCapturedFrames = mBracketingRange;
-            ret = sendBracketFrames();
-            goto EXIT;
-            }
+        ///Image capture was cancelled before we could start
+        return NO_ERROR;
         }
+
+    //During bracketing image capture is already active
+    {
+    Mutex::Autolock lock(mBracketingLock);
+    if ( mBracketingEnabled )
+        {
+        //Stop bracketing, activate normal burst for the remaining images
+        mBracketingEnabled = false;
+        mCapturedFrames = mBracketingRange;
+        ret = sendBracketFrames();
+        goto EXIT;
+        }
+    }
 
     if ( NO_ERROR == ret )
         {
@@ -5682,6 +5722,10 @@ status_t OMXCameraAdapter::startImageCapture()
             GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
             }
 
+        mWaitingForSnapshot = true;
+        mCapturing = true;
+        mCaptureSignalled = false;
+
         OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
         bOMX.bEnabled = OMX_TRUE;
 
@@ -5692,11 +5736,6 @@ status_t OMXCameraAdapter::startImageCapture()
 
         GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
 
-            {
-            Mutex::Autolock lock(mLock);
-            mWaitingForSnapshot = true;
-            mCapturing = true;
-            }
         }
 
     //OMX shutter callback events are only available in hq mode
@@ -5726,6 +5765,9 @@ status_t OMXCameraAdapter::startImageCapture()
             }
 
         ret = -1;
+        mWaitingForSnapshot = false;
+        mCapturing = false;
+        mCaptureSignalled = false;
 
         }
     LOG_FUNCTION_NAME_EXIT
@@ -5741,52 +5783,46 @@ status_t OMXCameraAdapter::stopImageCapture()
 
     LOG_FUNCTION_NAME
 
-    mWaitingForSnapshot = false;
-    mSnapshotCount = 0;
-
-    OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
-    bOMX.bEnabled = OMX_FALSE;
-    imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
-
-    //Under some circumstances stopImageCapture()
-    //can be called from multiple threads concurrently.
-    //Image capture should not be disabled twice though.
     {
     Mutex::Autolock lock(mLock);
-    if ( mCapturing )
+
+    if(!mCaptureConfigured)
         {
-        mCapturing = false;
-        }
-    else
-        {
+        //Capture is not ongoing, return from here
         return NO_ERROR;
         }
-    }
 
-    if ( NO_ERROR == ret )
+    if ( mCapturing )
     {
+        //Disable the callback first
+        mWaitingForSnapshot = false;
+        mSnapshotCount = 0;
+        mCapturing = false;
+
         //Disable the callback first
         ret = setShutterCallback(false);
 
-        //Unblock startImageCapture incase it is waiting for a callback.
-        if ( HIGH_QUALITY == mCapMode )
-        {
-            ret |= SignalEvent(mCameraAdapterParameters.mHandleComp,
-                                            (OMX_EVENTTYPE) OMX_EventIndexSettingChanged,
-                                            OMX_ALL,
-                                            OMX_TI_IndexConfigShutterCallback,
-                                            NULL );
-        }
+        //Wait here for the capture to be done, in worst case timeout and proceed with cleanup
+        mCaptureSem.WaitTimeout(IMAGE_CAPTURE_TIMEOUT);
+
+        //Disable image capture
+        OMX_INIT_STRUCT_PTR (&bOMX, OMX_CONFIG_BOOLEANTYPE);
+        bOMX.bEnabled = OMX_FALSE;
+        imgCaptureData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mImagePortIndex];
+        eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCapturing, &bOMX);
+        if ( OMX_ErrorNone != eError )
+            {
+            CAMHAL_LOGDB("Error during SetConfig- 0x%x", eError);
+            ret = -1;
+            }
+     }
+
+        mCaptureSignalled = true; //set this to true if we exited because of timeout
     }
 
-    eError = OMX_SetConfig(mCameraAdapterParameters.mHandleComp, OMX_IndexConfigCapturing, &bOMX);
+    mCaptureConfigured = false;
 
-    if ( OMX_ErrorNone != eError )
-        {
-        CAMHAL_LOGDB("Error during SetConfig- 0x%x", eError);
-        ret = -1;
-        }
-
+    CAMHAL_LOGDB("Capture set - 0x%x", eError);
     CAMHAL_LOGDB("Capture set - 0x%x", eError);
     Semaphore camSem;
 
@@ -5799,13 +5835,11 @@ status_t OMXCameraAdapter::stopImageCapture()
                                 mCameraAdapterParameters.mImagePortIndex,
                                 camSem,
                                 -1);
-
     ///Disable Capture Port
     eError = OMX_SendCommand(mCameraAdapterParameters.mHandleComp,
                                 OMX_CommandPortDisable,
                                 mCameraAdapterParameters.mImagePortIndex,
                                 NULL);
-
     ///Free all the buffers on capture port
     CAMHAL_LOGDB("Freeing buffer on Capture port - %d", imgCaptureData->mNumBufs);
     for ( int index = 0 ; index < imgCaptureData->mNumBufs ; index++)
@@ -5817,7 +5851,6 @@ status_t OMXCameraAdapter::stopImageCapture()
 
         GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
         }
-
     CAMHAL_LOGDA("Waiting for port disable");
     //Wait for the image port enable event
     camSem.Wait();
@@ -5828,16 +5861,11 @@ status_t OMXCameraAdapter::stopImageCapture()
         {
         mReleaseImageBuffersCallback(mReleaseData);
         }
-
     //Signal end of image capture
     if ( NULL != mEndImageCaptureCallback)
         {
         mEndImageCaptureCallback(mEndCaptureData);
         }
-
-    LOG_FUNCTION_NAME_EXIT
-
-    return ret;
 
     EXIT:
 
@@ -5852,6 +5880,7 @@ status_t OMXCameraAdapter::stopImageCapture()
 
         }
 
+    LOG_FUNCTION_NAME_EXIT
     return ret;
 }
 
@@ -6473,6 +6502,20 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
 
             pPortParam->mImageType = typeOfFrame;
 
+            if((mCapturedFrames>0) && !mCaptureSignalled)
+                {
+                mCaptureSignalled = true;
+                mCaptureSem.Signal();
+                }
+
+            {
+             Mutex::Autolock lock(mLock);
+            if(!mCapturing)
+                {
+                goto EXIT;
+                }
+             }
+
             {
             Mutex::Autolock lock(mBracketingLock);
             if ( mBracketingEnabled )
@@ -6499,9 +6542,11 @@ OMX_ERRORTYPE OMXCameraAdapter::OMXCameraAdapterFillBufferDone(OMX_IN OMX_HANDLE
             sendEmptyRawFrame();
             }
 
+
         CameraFrame cameraFrame;
         stat |= prepareFrame(pBuffHeader, typeOfFrame, pPortParam, cameraFrame);
         stat |= sendFrame(cameraFrame);
+
         }
     else
         {

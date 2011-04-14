@@ -677,6 +677,7 @@ private:
     Mutex mFocusLock;
     bool mWaitingForSnapshot;
     int mSnapshotCount;
+    bool mCaptureConfigured;
 
     //Temporal bracketing management data
     mutable Mutex mBracketingLock;
@@ -717,6 +718,12 @@ private:
     // Time source delta of ducati & system time
     OMX_TICKS mTimeSourceDelta;
     bool onlyOnce;
+
+
+    Semaphore mCaptureSem;
+    bool mCaptureSignalled;
+
+
 };
 }; //// namespace
 #endif //OMX_CAMERA_ADAPTER_H

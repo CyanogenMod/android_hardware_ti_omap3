@@ -343,9 +343,6 @@ int OverlayDisplayAdapter::disableDisplay()
 
         }
 
-    ///Dequeue the remaining buffers
-    while(!handleFrameReturn());
-
     Mutex::Autolock lock(mLock);
         {
         ///Reset the display enabled flag
