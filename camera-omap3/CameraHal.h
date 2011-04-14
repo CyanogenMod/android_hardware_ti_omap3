@@ -481,6 +481,9 @@ public:
     void nextPreview();
     void queueToOverlay(int index);
     int dequeueFromOverlay();
+    bool __queueToCamera(int index, int line);
+#define queueToCamera(x) __queueToCamera(x, __LINE__)
+    int dequeueFromCamera(nsecs_t *timestamp);
     int ICapturePerform();
     int ICaptureCreate(void);
     int ICaptureDestroy(void);
@@ -561,14 +564,22 @@ public:
     sp<MemoryHeapBase> mVideoHeaps[VIDEO_FRAME_COUNT_MAX];
     sp<MemoryBase> mVideoBuffer[VIDEO_FRAME_COUNT_MAX];
 
+#define BUFF_IDLE       (0)
+#define BUFF_Q2DSS      (1)
+#define BUFF_Q2VE       (1<<1)
+    int                 mVideoBufferStatus[MAX_CAMERA_BUFFERS];
+#ifdef DEBUG_LOG
+    void debugShowBufferStatus();
+#else
+#define debugShowBufferStatus()
+#endif
+
     //Index of current camera adapter
     int mCameraIndex;
     // ...
     int nOverlayBuffersQueued;
     int nCameraBuffersQueued;
     struct v4l2_buffer v4l2_cam_buffer[MAX_CAMERA_BUFFERS];
-    int buffers_queued_to_dss[MAX_CAMERA_BUFFERS];
-    int buffers_queued_to_ve[MAX_CAMERA_BUFFERS];
     sp<MemoryHeapBase> mPreviewHeaps[MAX_CAMERA_BUFFERS];
     sp<MemoryBase> mPreviewBuffers[MAX_CAMERA_BUFFERS];
     int mfirstTime;
@@ -608,9 +619,6 @@ public:
 
     int32_t             mMsgEnabled;
     bool                mRecordEnabled;
-    nsecs_t             mCurrentTime[MAX_CAMERA_BUFFERS];
-       nsecs_t             mPrevTime;
-       nsecs_t             frameInterval;
     bool mFalsePreview;
 
 
