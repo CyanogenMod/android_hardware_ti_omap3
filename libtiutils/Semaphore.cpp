@@ -47,15 +47,38 @@ Semaphore::Semaphore()
  */
 Semaphore::~Semaphore()
 {
-    ///Destroy only if the sempahore has been created
-    if(mSemaphore)
-        {
-        sem_destroy(mSemaphore);
-        if(mSemaphore)
-        free(mSemaphore);
-        }
+    Release();
 }
 
+/**
+   @brief: Releases semaphore
+
+   @param count >=0
+   @return NO_ERROR On Success
+   @return One of the android error codes based on semaphore de-initialization
+ */
+
+status_t Semaphore::Release()
+{
+    int status = 0;
+
+    ///Destroy only if the semaphore has been created
+    if(mSemaphore)
+        {
+        status = sem_destroy(mSemaphore);
+
+        if(mSemaphore)
+            {
+            free(mSemaphore);
+            }
+
+        mSemaphore = NULL;
+        }
+
+    ///Initialize the semaphore and return the status
+    return ErrorUtils::posixToAndroidError(status);
+
+}
 
 /**
    @brief Create the semaphore with initial count value
@@ -69,10 +92,18 @@ Semaphore::~Semaphore()
 
 status_t Semaphore::Create(int count)
 {
+    status_t ret = NO_ERROR;
+
     ///count cannot be less than zero
     if(count<0)
         {
         return BAD_VALUE;
+        }
+
+    ret = Release();
+    if ( NO_ERROR != ret )
+        {
+        return ret;
         }
 
     ///allocate memory for the semaphore

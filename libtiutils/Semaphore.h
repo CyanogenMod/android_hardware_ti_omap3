@@ -36,6 +36,9 @@ public:
     Semaphore();
     ~Semaphore();
 
+    //Release semaphore
+    status_t Release();
+
     ///Create the semaphore with initial count value
     status_t Create(int count=0);
 
