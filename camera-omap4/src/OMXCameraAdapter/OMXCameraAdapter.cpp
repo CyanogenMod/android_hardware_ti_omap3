@@ -6573,6 +6573,7 @@ status_t OMXCameraAdapter::advanceZoom()
             if ( mCurrentZoomIdx == mTargetZoomIdx )
                 {
                 CAMHAL_LOGDB("[Goal Reached] Smooth Zoom notify currentIdx = %d, targetIdx = %d", mCurrentZoomIdx, mTargetZoomIdx);
+                mSmoothZoomEnabled = false;
                 notifyZoomSubscribers(mCurrentZoomIdx, true);
                 }
             else
