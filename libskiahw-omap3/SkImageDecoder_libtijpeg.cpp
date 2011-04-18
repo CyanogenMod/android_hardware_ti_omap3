@@ -273,6 +273,8 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (SkStream* stream, JPEG_HEADER_INF
     lSize = stream->getLength();
     stream->rewind();
     JpgHdrInfo->nProgressive = 0; /*Default value is non progressive*/
+    JpgHdrInfo->SOF0_Nf = 0;
+    JpgHdrInfo->SOS_Ns = 0;
 
     a = stream->readU8();
     if ( a != 0xff || stream->readU8() != M_SOI )  {
@@ -351,6 +353,8 @@ OMX_S32 SkTIJPEGImageDecoder::ParseJpegHeader (OMX_U8* JpgBuffer, OMX_S32 lSize,
     OMX_U8 a = 0;
     OMX_U32 pos = 0;
     JpgHdrInfo->nProgressive = 0; /*Default value is non progressive*/
+    JpgHdrInfo->SOF0_Nf = 0;
+    JpgHdrInfo->SOS_Ns = 0;
 
     a = JpgBuffer[pos++];
     if ( a != 0xff || JpgBuffer[pos++] != M_SOI )  {
@@ -404,6 +408,11 @@ OMX_U32 SkTIJPEGImageDecoder::JpegHeader_GetMarkerInfo (OMX_U32 Marker, OMX_U8* 
     switch ( Marker )
     {
         case M_SOS:
+            JpgHdrInfo->SOS_Ns = *(OMX_U8 *)(MarkerData+2);
+            if (( JpgHdrInfo->SOF0_Nf != 0 )
+                && ( JpgHdrInfo->SOS_Ns != JpgHdrInfo->SOF0_Nf )) {
+                JpgHdrInfo->nProgressive = 1;
+            }
             return M_SOS;
 
         case M_EOI:
@@ -419,6 +428,9 @@ OMX_U32 SkTIJPEGImageDecoder::JpegHeader_GetMarkerInfo (OMX_U32 Marker, OMX_U8* 
             PRINTF("nProgressive IMAGE!\n");
             JpgHdrInfo->nProgressive=1;
         case M_SOF0:
+            if ( Marker == M_SOF0 ) {
+                JpgHdrInfo->SOF0_Nf = *(OMX_U8 *)(MarkerData+7);
+            }
         case M_SOF1:
         case M_SOF3:
         case M_SOF5:

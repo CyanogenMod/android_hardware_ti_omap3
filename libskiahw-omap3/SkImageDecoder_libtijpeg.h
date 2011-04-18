@@ -140,6 +140,8 @@ private:
 		int nHeight ;
 		int nFormat;
 		int nProgressive;
+                OMX_U8 SOF0_Nf;
+                OMX_U8 SOS_Ns;
 	} JPEG_HEADER_INFO;
 
         OMX_HANDLETYPE pOMXHandle;
