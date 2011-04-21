@@ -578,6 +578,13 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t
                 LOGI("FM Disabled, DL2 Capture-Playback Vol OFF");
                 control.set("DL2 Capture Playback Volume", 0, -1);
             }
+            if (propMgr.setFromProperty((String8)Omap4ALSAManager::DL2_MONO_MIXER, (String8)"0") == NO_ERROR) {
+                String8 value;
+                if (propMgr.get((String8)Omap4ALSAManager::DL2_MONO_MIXER, value) == NO_ERROR) {
+                    LOGD("DL2 Mono Mixer value %s",value.string());
+                    control.set("DL2 Mono Mixer", atoi(value.string()));
+                }
+            }
         } else {
             /* OMAP4 ABE */
             control.set("DL2 Mixer Multimedia", 0, 0);
@@ -628,6 +635,13 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t
             else {
                 LOGI("FM Disabled, DL1 Capture-Playback Vol OFF");
                 control.set("DL1 Capture Playback Volume", 0, -1);
+            }
+            if (propMgr.setFromProperty((String8)Omap4ALSAManager::DL1_MONO_MIXER, (String8)"0") == NO_ERROR) {
+                String8 value;
+                if (propMgr.get((String8)Omap4ALSAManager::DL1_MONO_MIXER, value) == NO_ERROR) {
+                    LOGD("DL1 Mono Mixer value %s",value.string());
+                    control.set("DL1 Mono Mixer", atoi(value.string()));
+                }
             }
         } else {
             /* OMAP4 ABE */
@@ -785,6 +799,10 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
                          (String8)Omap4ALSAManager::EqualizerProfileList[1]);
     status = propMgr.set((String8)Omap4ALSAManager::DMIC_EQ_PROFILE,
                          (String8)Omap4ALSAManager::EqualizerProfileList[1]);
+    status = propMgr.set((String8)Omap4ALSAManager::DL1_MONO_MIXER,
+                         (String8)"0");
+    status = propMgr.set((String8)Omap4ALSAManager::DL2_MONO_MIXER,
+                         (String8)"0");
 
     // initialize voice memo gains: multimedia and tone are not recorded by default
     status = propMgr.set((String8)Omap4ALSAManager::VOICEMEMO_VUL_GAIN,
