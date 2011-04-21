@@ -2094,7 +2094,7 @@ int overlay_data_context_t::overlay_set_s3d_params(struct overlay_data_device_t 
         return -1;
     }
 
-    if ((OVERLAY_S3D_MODE_ANAGLYPH  < (int)s3d_fmt || ((int)s3d_fmt < OVERLAY_S3D_MODE_OFF)) ||
+    if ((OVERLAY_S3D_MODE_ANAGLYPH  < (int)s3d_mode || ((int)s3d_mode < OVERLAY_S3D_MODE_OFF)) ||
         (OVERLAY_S3D_FORMAT_FRM_SEQ < (int)s3d_fmt || ((int)s3d_fmt < OVERLAY_S3D_FORMAT_NONE)) ||
         (OVERLAY_S3D_ORDER_RF < (int)s3d_order || ((int)s3d_order < OVERLAY_S3D_ORDER_LF)) ||
         (OVERLAY_S3D_SS_VERT < (int)s3d_subsampling || ((int)s3d_subsampling < OVERLAY_S3D_SS_NONE))){
