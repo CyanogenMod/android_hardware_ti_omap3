@@ -40,6 +40,7 @@ const char PARAM_SEP[] = ",";
 const uint32_t VFR_OFFSET = 8;
 const char VFR_BACKET_START[] = "(";
 const char VFR_BRACKET_END[] = ")";
+static const char FRAMERATE_COUNT = 10;
 
 const CapResolution OMXCameraAdapter::mImageCapRes [] = {
     { 4032, 3024, "4032x3024" },
@@ -206,6 +207,9 @@ status_t OMXCameraAdapter::encodePixelformatCap(OMX_COLOR_FORMATTYPE format, con
 status_t OMXCameraAdapter::encodeFramerateCap(OMX_U32 framerateMax, OMX_U32 framerateMin, const CapFramerate *cap, size_t capCount, char * buffer, size_t bufferSize)
 {
     status_t ret = NO_ERROR;
+    bool minInserted = false;
+    bool maxInserted = false;
+    char tmpBuffer[FRAMERATE_COUNT];
 
     LOG_FUNCTION_NAME
 
@@ -225,8 +229,34 @@ status_t OMXCameraAdapter::encodeFramerateCap(OMX_U32 framerateMax, OMX_U32 fram
                 {
                 strncat(buffer, cap[i].param, bufferSize - 1);
                 strncat(buffer, PARAM_SEP, bufferSize - 1);
+
+                if ( cap[i].framerate ==  framerateMin )
+                    {
+                    minInserted = true;
+                    }
                 }
+                if ( cap[i].framerate ==  framerateMax )
+                    {
+                    maxInserted = true;
+                    }
+                }
+
+        if ( !maxInserted )
+            {
+            memset(tmpBuffer, 0, FRAMERATE_COUNT);
+            snprintf(tmpBuffer, FRAMERATE_COUNT - 1, "%u,", ( unsigned int ) framerateMax);
+            strncat(buffer, tmpBuffer, bufferSize - 1);
+            strncat(buffer, PARAM_SEP, bufferSize - 1);
             }
+
+        if ( !minInserted )
+            {
+            memset(tmpBuffer, 0, FRAMERATE_COUNT);
+            snprintf(tmpBuffer, FRAMERATE_COUNT - 1, "%u,", ( unsigned int ) framerateMin);
+            strncat(buffer, tmpBuffer, bufferSize - 1);
+            strncat(buffer, PARAM_SEP, bufferSize - 1);
+            }
+
         }
 
     LOG_FUNCTION_NAME_EXIT
@@ -597,9 +627,12 @@ status_t OMXCameraAdapter::insertFramerates(CameraParameters &params, OMX_TI_CAP
         {
         memset(supported, '\0', MAX_PROP_VALUE_LENGTH);
 
-        ret = encodeFramerateCap(caps.xFramerateMax, caps.xFramerateMin, mFramerates,
-                                        ( sizeof(mFramerates) /sizeof(mFramerates[0]) ), supported,
-                                        MAX_PROP_VALUE_LENGTH);
+        ret = encodeFramerateCap(caps.xFramerateMax >> VFR_OFFSET,
+                                 caps.xFramerateMin >> VFR_OFFSET,
+                                 mFramerates,
+                                 ( sizeof(mFramerates) /sizeof(mFramerates[0]) ),
+                                 supported,
+                                 MAX_PROP_VALUE_LENGTH);
 
         if ( NO_ERROR != ret )
             {
