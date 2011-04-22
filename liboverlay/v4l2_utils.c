@@ -88,6 +88,7 @@ int v4l2_overlay_open(int id)
     return open(v4l2_dev_name, O_RDWR);
 }
 
+#ifdef OVERLAY_DEBUG
 void dump_pixfmt(struct v4l2_pix_format *pix)
 {
     LOGI("w: %d\n", pix->width);
@@ -131,6 +132,7 @@ void dump_window(struct v4l2_window *win)
     LOGI("window w: %d ", win->w.width);
     LOGI("window h: %d\n", win->w.height);
 }
+
 void v4l2_overlay_dump_state(int fd)
 {
     struct v4l2_format format;
@@ -167,13 +169,14 @@ void v4l2_overlay_dump_state(int fd)
     dump_crop(&crop);
 */
 }
+#else
+#define v4l2_overlay_dump_state(x)
+#endif
 
 static void error(int fd, const char *msg)
 {
   LOGE("Error = %s from %s. errno = %d", strerror(errno), msg, errno);
-#ifdef OVERLAY_DEBUG
   v4l2_overlay_dump_state(fd);
-#endif
 }
 
 static int v4l2_overlay_ioctl(int fd, int req, void *arg, const char* msg)
