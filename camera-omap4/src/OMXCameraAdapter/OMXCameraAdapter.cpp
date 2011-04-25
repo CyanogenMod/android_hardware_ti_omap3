@@ -5085,14 +5085,15 @@ status_t OMXCameraAdapter::doAutoFocus()
             }
         }
 
+    // unlock before waiting...
+    mFocusLock.unlock();
+
     if ( ( mParameters3A.Focus != OMX_IMAGE_FocusControlAuto )  &&
          ( mParameters3A.Focus != OMX_IMAGE_FocusControlAutoInfinity ) )
         {
 
         if ( NO_ERROR == ret )
             {
-            // unlock before waiting...
-            mFocusLock.unlock();
             ret = eventSem.WaitTimeout(AF_CALLBACK_TIMEOUT);
             //Disable auto focus callback from Ducati
             ret |= setFocusCallback(false);
@@ -5126,6 +5127,7 @@ status_t OMXCameraAdapter::doAutoFocus()
         }
     else
         {
+        Mutex::Autolock lock(mFocusLock);
         if ( NO_ERROR == ret )
             {
             ret = returnFocusStatus(true);
