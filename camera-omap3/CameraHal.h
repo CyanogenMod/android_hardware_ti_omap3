@@ -542,6 +542,8 @@ public:
 
     bool mShutterEnable;
     bool mCAFafterPreview;
+    bool useMaxCrop;
+    float zoomAspRatio;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
     int mJPEGOffset, mJPEGLength;

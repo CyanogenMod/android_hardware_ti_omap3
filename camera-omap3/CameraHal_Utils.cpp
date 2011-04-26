@@ -1272,6 +1272,21 @@ int CameraHal::CorrectPreview()
     mInitialCrop.c.width = crop.c.width;
     mInitialCrop.c.height = crop.c.height;
 
+    // Workaround for incorrect cropping in preview for
+    // resolutions CIF and QVGA.
+    // The maximum upscale is 4x, and when zoom is e.g. 4x, there is
+    // a limitation of the crop.c.height - it should be at least 1/4
+    // of preview height. This is why if the dst_height > mInitialCrop.c.height
+    // we apply crop up to 1/4 of preview size, which in case of CIF is 72 pix.
+    // Other possible decision is to choose bigger sensor mode.
+    if (dst_height > mInitialCrop.c.height) {
+        useMaxCrop = true;
+        zoomAspRatio = (float)mInitialCrop.c.width/mInitialCrop.c.height;
+    }
+    else {
+        useMaxCrop = false;
+    }
+
 #ifdef DEBUG_LOG
 
     LOGE("VIDIOC_G_CROP: top = %d, left = %d, width = %d, height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
@@ -1288,13 +1303,30 @@ int CameraHal::ZoomPerform(float zoom)
     struct v4l2_crop crop;
     int delta_x, delta_y;
     int ret;
+    int dst_width, dst_height;
+    float normalizedZoom = 0.0;
 
     LOG_FUNCTION_NAME
 
+    mParameters.getPreviewSize(&dst_width, &dst_height);
+
     memcpy( &crop, &mInitialCrop, sizeof(struct v4l2_crop));
 
-    delta_x = crop.c.width - (crop.c.width /zoom);
-    delta_y = crop.c.height - (crop.c.height/zoom);
+    // Workaround for incorrect cropping in preview for
+    // resolutions CIF and QVGA.
+    if (useMaxCrop) {
+        // Use normalizedZoom which belongs to this interval [0;1]
+        normalizedZoom = (zoom-1)/(zoom_step[ZOOM_STAGES-1]-zoom_step[0]);
+        // delta_y should not be bigger than
+        // (mInitialCrop.c.height - dst_height/4 ) because
+        // crop.c.height shoud not be less than dst_height/4
+        delta_y = (crop.c.height-(dst_height/4))*normalizedZoom;
+        delta_x = (crop.c.width-(dst_height*zoomAspRatio/4))*normalizedZoom;
+    }
+    else {
+        delta_y = crop.c.height - (crop.c.height/zoom);
+        delta_x = crop.c.width - (crop.c.width /zoom);
+    }
 
     crop.c.width -= delta_x;
     crop.c.height -= delta_y;
