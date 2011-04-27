@@ -1005,6 +1005,8 @@ int openCamera() {
 
     camera->setListener(new CameraHandler());
 
+    hardwareActive = true;
+
     return 0;
 }
 
@@ -1017,6 +1019,8 @@ int closeCamera() {
 
     camera->disconnect();
     camera.clear();
+
+    hardwareActive = false;
 
     return 0;
 }
@@ -1066,7 +1070,7 @@ int startPreview() {
 
         previewRunning = true;
         reSizePreview = false;
-        hardwareActive = true;
+
     }
 
     return 0;
@@ -1081,7 +1085,6 @@ void stopPreview() {
 
         previewRunning  = false;
         reSizePreview = true;
-        hardwareActive = false;
     }
 }
 
@@ -1375,6 +1378,9 @@ int functional_menu() {
 
         if ( hardwareActive ) {
             stopPreview();
+            openCamera();
+            params = camera->getParameters();
+            camera->setParameters(params.flatten());
         }
 
         break;
@@ -1684,10 +1690,7 @@ int functional_menu() {
 
                 closeCamera();
 
-                hardwareActive = false;
-
                 if ( 0 >= openCamera() ) {
-                    hardwareActive = true;
                     printf( "Reconnected to CameraService \n");
                 }
             }
@@ -2257,8 +2260,6 @@ int execute_functional_script(char *script) {
                     //[
                     if (ind < cycleCounter - 1) {
                         if (hardwareActive == false) {
-                            hardwareActive = true;
-
                             if ( openCamera() < 0 ) {
                                 printf("Camera initialization failed\n");
 
@@ -2496,7 +2497,7 @@ int execute_functional_script(char *script) {
                 if ( hardwareActive ) {
                     stopPreview();
                     openCamera();
-                    hardwareActive = true;
+                    params = camera->getParameters();
                     camera->setParameters(params.flatten());
                 }
                 break;
@@ -2737,10 +2738,7 @@ int execute_functional_script(char *script) {
 
                     closeCamera();
 
-                    hardwareActive = false;
-
                     if ( 0 >= openCamera() ) {
-                        hardwareActive = true;
                         printf( "Reconnected to CameraService \n");
                     }
                 }
@@ -3462,8 +3460,6 @@ int restartCamera() {
     return -1;
   }
 
-  hardwareActive = true;
-
   params.unflatten(camera->getParameters());
   initDefaults();
 
@@ -3513,7 +3509,6 @@ int main(int argc, char *argv[]) {
                     return -1;
                 }
 
-                hardwareActive = true;
                 params.unflatten(camera->getParameters());
                 initDefaults();
                 print_menu = 1;
@@ -3541,7 +3536,6 @@ int main(int argc, char *argv[]) {
                     return -1;
                 }
 
-                hardwareActive = true;
                 params.unflatten(camera->getParameters());
                 initDefaults();
                 print_menu = 1;
@@ -3574,8 +3568,6 @@ int main(int argc, char *argv[]) {
             system("echo camerahal_test > /sys/power/wake_unlock");
             return -1;
         }
-
-        hardwareActive = true;
 
         params.unflatten(camera->getParameters());
         initDefaults();
@@ -3618,8 +3610,6 @@ int main(int argc, char *argv[]) {
             system("echo camerahal_test > /sys/power/wake_unlock");
             return -1;
         }
-
-        hardwareActive = true;
 
         params.unflatten(camera->getParameters());
         initDefaults();
