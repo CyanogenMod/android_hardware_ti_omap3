@@ -322,8 +322,8 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
     overlay_ctrl_t   *data   = overlayobj->data();
     int fd;
     uint32_t tempW, tempH;
-    char displayCode[16];
-    char displayMode[16];
+    char displayCode[20];
+    char displayMode[20];
     char displayCodepath[PATH_MAX];
     int interlaceMultiplier = 1;
     int index = 0;
@@ -366,6 +366,8 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                     }
                 }
                 sprintf(displayCodepath, "/sys/devices/platform/omapdss/display%d/code", index);
+                memset(displayMode,0,sizeof(displayMode));
+                memset(displayCode,0,sizeof(displayCode));
                 if (sysfile_read(displayCodepath, displayMode, PATH_MAX) < 0) {
                     LOGE("HDMI Code get failed");
                     return;
@@ -1542,7 +1544,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     if (!overlayobj->mData.s3d_active) {
         /*zOrder is assigned at the creation of overlay and removed at the destruction.
         *no need to assign again for LCD manager
-        * But for HDMI manager, inorder to support UI+Video together, the z-order values are fixed, 
+        * But for HDMI manager, inorder to support UI+Video together, the z-order values are fixed,
         * Hence configure zOrder again if the manager is TV
         */
         if (!strcmp(overlaymanagername, "tv")) {
