@@ -388,6 +388,8 @@ protected:
 
 private:
 
+    status_t switchToLoaded();
+
     OMXCameraPortParameters *getPortParams(CameraFrame::FrameType frameType);
 
     OMX_ERRORTYPE SignalEvent(OMX_IN OMX_HANDLETYPE hComponent,
@@ -696,7 +698,6 @@ private:
     Mutex mLock;
     bool mPreviewing;
     bool mCapturing;
-    bool mFlushBuffers;
 
     OMX_STATETYPE mComponentState;
 
@@ -704,7 +705,12 @@ private:
     bool mVstabEnabled;
 
     int mSensorOrientation;
+    bool mSensorOverclock;
 
+    //Indicates if we should leave
+    //OMX_Executing state during
+    //stop-/startPreview
+    bool mOMXStateSwitch;
 
     int mFrameCount;
     int mLastFrameCount;
@@ -722,7 +728,6 @@ private:
 
     Semaphore mCaptureSem;
     bool mCaptureSignalled;
-
 
 };
 }; //// namespace
