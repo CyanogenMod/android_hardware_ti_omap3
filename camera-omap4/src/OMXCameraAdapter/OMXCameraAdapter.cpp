@@ -236,7 +236,8 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
                 &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
 
             //Apply default configs before trying to swtich to a new sensor
-            if ( NO_ERROR != setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData) )
+            ret = setFormat(OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW, *mPreviewData);
+            if ( NO_ERROR != ret )
                 {
                 CAMHAL_LOGEB("Error 0x%x while applying defaults", ret);
                 goto EXIT;
@@ -252,7 +253,7 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
     if ( OMX_ErrorNone != eError )
         {
         CAMHAL_LOGEB("Error while selecting the sensor index as %d - 0x%x", sensor_index, eError);
-        ret = -1;
+        goto EXIT;
         }
     else
         {
@@ -318,8 +319,8 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         {
             if( ret == INVALID_OPERATION){
                 CAMHAL_LOGDA("command handler thread already runnning!!");
-            }else
-            {
+            }
+            else {
                 CAMHAL_LOGEA("Couldn't run command handlerthread");
                 return ret;
             }
@@ -362,7 +363,7 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
 
     EXIT:
 
-    CAMHAL_LOGEB("Exiting function %s because of ret %d eError=%x", __FUNCTION__, ret, eError);
+    CAMHAL_LOGEB("Exiting function %s because of ret %d eError = %x", __FUNCTION__, ret, eError);
 
     if ( eError != OMX_ErrorNone )
         {
@@ -2322,29 +2323,29 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
     if ( OMX_CAMERA_PORT_IMAGE_OUT_IMAGE == port )
         {
         LOGD("\n *** IMG Width = %ld", portCheck.format.image.nFrameWidth);
-        LOGD("\n ***IMG Height = %ld", portCheck.format.image.nFrameHeight);
+        LOGD("\n *** IMG Height = %ld", portCheck.format.image.nFrameHeight);
 
-        LOGD("\n ***IMG IMG FMT = %x", portCheck.format.image.eColorFormat);
-        LOGD("\n ***IMG portCheck.nBufferSize = %ld\n",portCheck.nBufferSize);
-        LOGD("\n ***IMG portCheck.nBufferCountMin = %ld\n",
+        LOGD("\n *** IMG IMG FMT = %x", portCheck.format.image.eColorFormat);
+        LOGD("\n *** IMG portCheck.nBufferSize = %ld\n",portCheck.nBufferSize);
+        LOGD("\n *** IMG portCheck.nBufferCountMin = %ld\n",
                                                 portCheck.nBufferCountMin);
-        LOGD("\n ***IMG portCheck.nBufferCountActual = %ld\n",
+        LOGD("\n *** IMG portCheck.nBufferCountActual = %ld\n",
                                                 portCheck.nBufferCountActual);
-        LOGD("\n ***IMG portCheck.format.image.nStride = %ld\n",
+        LOGD("\n *** IMG portCheck.format.image.nStride = %ld\n",
                                                 portCheck.format.image.nStride);
         }
     else
         {
         LOGD("\n *** PRV Width = %ld", portCheck.format.video.nFrameWidth);
-        LOGD("\n ***PRV Height = %ld", portCheck.format.video.nFrameHeight);
+        LOGD("\n *** PRV Height = %ld", portCheck.format.video.nFrameHeight);
 
-        LOGD("\n ***PRV IMG FMT = %x", portCheck.format.video.eColorFormat);
-        LOGD("\n ***PRV portCheck.nBufferSize = %ld\n",portCheck.nBufferSize);
-        LOGD("\n ***PRV portCheck.nBufferCountMin = %ld\n",
+        LOGD("\n *** PRV IMG FMT = %x", portCheck.format.video.eColorFormat);
+        LOGD("\n *** PRV portCheck.nBufferSize = %ld\n",portCheck.nBufferSize);
+        LOGD("\n *** PRV portCheck.nBufferCountMin = %ld\n",
                                                 portCheck.nBufferCountMin);
-        LOGD("\n ***PRV portCheck.nBufferCountActual = %ld\n",
+        LOGD("\n *** PRV portCheck.nBufferCountActual = %ld\n",
                                                 portCheck.nBufferCountActual);
-        LOGD("\n ***PRV portCheck.format.video.nStride = %ld\n",
+        LOGD("\n *** PRV portCheck.format.video.nStride = %ld\n",
                                                 portCheck.format.video.nStride);
         }
 
@@ -2354,7 +2355,7 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
 
     EXIT:
 
-    CAMHAL_LOGEB("Exiting function %s because of eError=%x", __FUNCTION__, eError);
+    CAMHAL_LOGEB("Exiting function %s because of eError = %x", __FUNCTION__, eError);
 
     if ( eError != OMX_ErrorNone )
         {
@@ -3114,7 +3115,7 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
     //TODO: Support more pixelformats
 
     LOGE("Params Width = %d", (int)imgCaptureData->mWidth);
-    LOGE("Params Height = %d", (int)imgCaptureData->mWidth);
+    LOGE("Params Height = %d", (int)imgCaptureData->mHeight);
 
     ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *imgCaptureData);
     if ( ret != NO_ERROR )
