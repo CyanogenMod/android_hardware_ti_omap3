@@ -407,7 +407,7 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
 {
     status_t ret = NO_ERROR;
     const xmlChar *name = NULL, *value = NULL;
-    char val[256];
+    char val[MAX_PROP_VALUE_LENGTH];
     const xmlChar *nextName = NULL;
     int curCameraIndex;
     int propertyIndex;
@@ -513,7 +513,7 @@ status_t CameraProperties::parseCameraElements(xmlTextReaderPtr &reader)
 
                 ///Get the next tag name
                 nextName = xmlTextReaderConstName(reader);
-                CAMHAL_LOGVB("Found next tag:%s", name);
+                CAMHAL_LOGVB("Found next tag:%s", nextName);
                 if ( nextName && strcmp((const char *) nextName, TEXT_XML_ELEMENT) == 0)
                     {
                     nextName = NULL;
