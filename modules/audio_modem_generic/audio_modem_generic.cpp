@@ -141,4 +141,10 @@ status_t AudioModemInterfaceGeneric::CloseModemAudioInputStream()
 
     return NO_ERROR;
 }
+
+uint32_t AudioModemInterfaceGeneric::GetVoiceCallSampleRate()
+{
+    LOGV("%s: Put by default 8KHz voice call", __FUNCTION__);
+    return PCM_8_KHZ;
+}
 } // namespace android

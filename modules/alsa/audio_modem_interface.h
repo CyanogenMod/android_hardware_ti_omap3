@@ -244,6 +244,15 @@ class AudioModemInterface
     * Return status based on values defined in include /utils/Errors.h
     */
     virtual status_t    CloseModemAudioInputStream() = 0;
+
+    /**
+    * Get the voice call sample rate used.
+    *
+    * Return the voice call sample rate used based on values defined in audio_modem_sample_rate.
+    *
+    * !!!! This method can block until the modem voice call sample rate is known
+    */
+    virtual uint32_t    GetVoiceCallSampleRate() = 0;
 };
 
 // ----------------------------------------------------------------------------
