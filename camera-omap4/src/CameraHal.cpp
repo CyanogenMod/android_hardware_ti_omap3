@@ -3451,8 +3451,7 @@ extern "C" int HAL_getNumberOfCameras()
 
     // Query the number of cameras supported, minimum we expect is one (at least FakeCameraAdapter)
     numCameras = gCameraProperties->camerasSupported();
-    //HACK -- temporarily just broadcast that we support 2 cameras (front and back)
-    numCameras = 2;
+
     if ( 0 == numCameras )
     {
         CAMHAL_LOGEA("No cameras supported in Camera HAL implementation");
