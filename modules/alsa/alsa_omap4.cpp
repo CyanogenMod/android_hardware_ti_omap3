@@ -560,9 +560,13 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             control.set("HF Right Playback", "HF DAC");		// HFDAC R -> HF Mux
             control.set("Handsfree Playback Volume", 23);
             if (fm_enable) {
-                LOGE("FM ABE speaker");
+                LOGE("FM Enabled, DL2 Capture-Playback Vol ON");
                 control.set("DL2 Capture Playback Volume", 115);
                 control.set("DL1 Capture Playback Volume", 0, -1);
+            }
+            else {
+                LOGI("FM Disabled, DL2 Capture-Playback Vol OFF");
+                control.set("DL2 Capture Playback Volume", 0, -1);
             }
         } else {
             /* OMAP4 ABE */
@@ -610,6 +614,10 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
                 LOGI("FM Enabled, DL1 Capture-Playback Vol ON");
                 control.set("DL1 Capture Playback Volume", 115);
                 control.set("DL2 Capture Playback Volume", 0, -1);
+            }
+            else {
+                LOGI("FM Disabled, DL1 Capture-Playback Vol OFF");
+                control.set("DL1 Capture Playback Volume", 0, -1);
             }
         } else {
             /* OMAP4 ABE */
