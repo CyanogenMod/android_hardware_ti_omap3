@@ -974,6 +974,44 @@ void CameraHal::previewThread()
             }
             break;
 
+            case PREVIEW_AF_STOP:
+            {
+                LOGD("Receive Command: PREVIEW_AF_STOP");
+                err = 0;
+
+                if( !mPreviewRunning ){
+                    LOGD("WARNING PREVIEW NOT RUNNING!");
+                    msg.command = PREVIEW_NACK;
+                } else {
+
+#ifdef FW3A
+
+                    if (isStart_FW3A&&(isStart_FW3A_AF != 0)){
+                        if( FW3A_Stop_AF() < 0){
+                            LOGE("ERROR FW3A_Stop_AF()");
+                            err = -1;
+                        }
+                        else
+                            isStart_FW3A_AF = 0;
+                    }
+                    else {
+                        err = -1;
+                    }
+
+                    msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
+
+#else
+
+                    msg.command = PREVIEW_ACK;
+
+#endif
+                }
+                LOGD("Receive Command: PREVIEW_AF_STOP %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK");
+                previewThreadAckQ.put(&msg);
+
+            }
+            break;
+
             case PREVIEW_CAF_START:
             {
                 LOGD("Receive Command: PREVIEW_CAF_START");
@@ -4039,11 +4077,18 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO) == 0) {
 
                 fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_CONTINUOUS;
-                //Disable touch focus if enabled
-                fobj->settings.general.face_tracking.enable = 0;
-                fobj->settings.general.face_tracking.count = 0;
-                fobj->settings.general.face_tracking.update = 0;
+
+            } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) FOCUS_MODE_MANUAL) == 0) {
+
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_MANUAL;
+                fobj->settings.af.focus_manual = MANUAL_FOCUS_DEFAULT_POSITION;
+
             }
+
+            //Disable touch focus if enabled
+            fobj->settings.general.face_tracking.enable = 0;
+            fobj->settings.general.face_tracking.count = 0;
+            fobj->settings.general.face_tracking.update = 1;
 
         }
 
@@ -4452,6 +4497,7 @@ CameraParameters CameraHal::getParameters() const
                 params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_MACRO);
                 break;
             case ICAM_FOCUS_MODE_AF_MANUAL:
+                params.set(CameraParameters::KEY_FOCUS_MODE, FOCUS_MODE_MANUAL);
                 break;
             //TODO: Extend support for those
             case ICAM_FOCUS_MODE_AF_CONTINUOUS:
@@ -4938,6 +4984,58 @@ bool CameraHal::msgTypeEnabled(int32_t msgType)
 
 status_t CameraHal::cancelAutoFocus()
 {
+    LOG_FUNCTION_NAME
+
+    CameraParameters p;
+    Message msg;
+    const char * mFocusMode;
+
+    // Disable focus messaging here. When application requests cancelAutoFocus(),
+    // it does not expect any AF callbacks. AF should be done in order to return the lens
+    // back to "default" position. In this case we set an average manual focus position.
+    // From the other side, in previewthread() state machine we always send callback to
+    // application when we focus, so disable focus messages.
+    disableMsgType(CAMERA_MSG_FOCUS);
+
+    msg.command = PREVIEW_AF_STOP;
+    previewThreadCommandQ.put(&msg);
+    previewThreadAckQ.get(&msg);
+
+    if ( msg.command != PREVIEW_ACK )
+        LOGE("AF Stop Failed or AF already stopped");
+    else
+        LOGD("AF Stopped");
+
+    p = getParameters();
+
+    // Get current focus mode
+    mFocusMode = p.get(CameraParameters::KEY_FOCUS_MODE);
+    p.set(CameraParameters::KEY_FOCUS_MODE, FOCUS_MODE_MANUAL);
+
+    if (setParameters(p) != NO_ERROR) {
+        LOGE("Failed to set parameters");
+    }
+
+    msg.command = PREVIEW_AF_START;
+    previewThreadCommandQ.put(&msg);
+    previewThreadAckQ.get(&msg);
+
+    if ( msg.command != PREVIEW_ACK )
+        LOGE("Lens didn't go to default position");
+    else
+        LOGD("Lens went to default position");
+
+    // Return back the focus mode which is set in CameraParamerers
+    p.set(CameraParameters::KEY_FOCUS_MODE, mFocusMode);
+
+    if (setParameters(p) != NO_ERROR) {
+        LOGE("Failed to set parameters");
+    }
+
+    enableMsgType(CAMERA_MSG_FOCUS);
+
+    LOG_FUNCTION_NAME_EXIT
+
     return NO_ERROR;
 }
 
