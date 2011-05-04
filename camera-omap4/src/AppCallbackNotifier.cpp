@@ -28,6 +28,7 @@
 
 namespace android {
 
+const int AppCallbackNotifier::MSG_TIMEOUT = 100000; // [us.]
 const int AppCallbackNotifier::NOTIFIER_TIMEOUT = -1;
 const size_t AppCallbackNotifier::EMPTY_RAW_SIZE = 1;
 
@@ -1455,6 +1456,8 @@ status_t AppCallbackNotifier::start()
 
 status_t AppCallbackNotifier::stop()
 {
+    status_t ret = NO_ERROR;
+
     LOG_FUNCTION_NAME
 
     if(mNotifierState!=AppCallbackNotifier::NOTIFIER_STARTED)
@@ -1479,9 +1482,11 @@ status_t AppCallbackNotifier::stop()
     mNotificationThread->msgQ().put(&msg);
 
     ///Wait for the ACK for display to be disabled
-    sem.Wait();
+    ret = sem.WaitTimeout(AppCallbackNotifier::MSG_TIMEOUT);
+
     LOG_FUNCTION_NAME_EXIT
-    return NO_ERROR;
+
+    return ret;
 }
 
 

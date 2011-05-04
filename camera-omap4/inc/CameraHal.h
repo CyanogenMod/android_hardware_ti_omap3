@@ -394,6 +394,7 @@ class   AppCallbackNotifier: public ErrorNotifier, public virtual RefBase
 public:
 
     ///Constants
+    static const int MSG_TIMEOUT;
     static const int NOTIFIER_TIMEOUT;
     static const size_t EMPTY_RAW_SIZE;
     static const int32_t MAX_BUFFERS = 8;
