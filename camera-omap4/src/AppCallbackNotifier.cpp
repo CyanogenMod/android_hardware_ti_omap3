@@ -280,7 +280,7 @@ void AppCallbackNotifier::notifyEvent()
 
 }
 
-static void copy2Dto1D(void *dst, void *src, int width, int height, size_t stride, unsigned int bytesPerPixel, size_t length,
+static void copy2Dto1D(void *dst, void *src, int width, int height, size_t stride, uint32_t offset, unsigned int bytesPerPixel, size_t length,
     const char *pixelFormat)
 {
     unsigned int alignedRow, row;
@@ -297,23 +297,25 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
             {
             //Convert here from NV12 to NV21 and return
             bytesPerPixel = 1;
+            uint32_t xOff = offset % PAGE_SIZE;
+            uint32_t yOff = offset / PAGE_SIZE;
             bufferDst = ( unsigned char * ) dst;
-            bufferSrc = ( unsigned char * ) src;
+            bufferSrc = ( unsigned char * ) (src + offset);
             row = width*bytesPerPixel;
             alignedRow = stride-width;
             int stride_bytes = stride / 8;
 
             //iterate through each row
-            for ( int i = 0 ; i < height ; i++,  bufferSrc += stride, bufferDst += row)
+            for ( int i = 0 ; i < height ; i++,  bufferSrc += (stride + xOff), bufferDst += row)
                 {
                 memcpy(bufferDst, bufferSrc, row);
                 }
 
             ///Convert NV21 to NV12 by swapping U & V
             bufferDst_UV = (uint16_t *) (((uint8_t*)dst)+row*height);
-            bufferSrc_UV = ( uint16_t * ) (((uint8_t*)src)+stride*height);
+            bufferSrc_UV = ( uint16_t * ) (((uint8_t*)src) + offset + stride*(height+yOff));
 
-            for(int i = 0 ; i < height/2 ; i++, bufferSrc_UV += alignedRow/2)
+            for(int i = 0 ; i < height/2 ; i++, bufferSrc_UV += (alignedRow/2 + xOff))
             {
                 int n = width;
                 asm volatile (
@@ -562,7 +564,7 @@ void AppCallbackNotifier::notifyFrame()
                                         frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength, mPreviewPixelFormat);
 
                               if (buf)
-                                copy2Dto1D(buf, frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                                copy2Dto1D(buf, frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, frame->mOffset, 2, frame->mLength,
                                            mPreviewPixelFormat);
 
                             mPreviewBufCount = (mPreviewBufCount+1) % AppCallbackNotifier::MAX_BUFFERS;
@@ -631,7 +633,7 @@ void AppCallbackNotifier::notifyFrame()
                                       frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength, mPreviewPixelFormat);
 
                             if (buf)
-                              copy2Dto1D(buf, frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, 2, frame->mLength,
+                              copy2Dto1D(buf, frame->mBuffer, frame->mWidth, frame->mHeight, frame->mAlignment, frame->mOffset, 2, frame->mLength,
                                          mPreviewPixelFormat);
                             ///CAMHAL_LOGDA("-Copy");
 
