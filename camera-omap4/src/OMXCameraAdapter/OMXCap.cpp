@@ -281,7 +281,12 @@ status_t OMXCameraAdapter::encodeVFramerateCap(OMX_TI_CAPTYPE &caps, char * buff
 
     if ( NO_ERROR == ret )
         {
-        for ( unsigned int i = 0 ; i < caps.ulPrvVarFPSModesCount ; i++ )
+        unsigned int count = caps.ulPrvVarFPSModesCount;
+        if ( count > 10 )
+        {
+            count = 10;
+        }
+        for ( unsigned int i = 0 ; i < count ; i++ )
             {
 
             if ( 0 < i )

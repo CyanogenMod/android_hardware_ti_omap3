@@ -506,6 +506,7 @@ void AppCallbackNotifier::notifyFrame()
                         if( (NULL == buffer) || ( NULL == frame->mBuffer) )
                             {
                             CAMHAL_LOGDA("Error! One of the video buffer is NULL");
+                            mRecordingLock.unlock();
                             break;
                             }
                         }

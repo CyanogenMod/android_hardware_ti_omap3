@@ -5929,16 +5929,19 @@ status_t OMXCameraAdapter::stopImageCapture()
                                 mCameraAdapterParameters.mImagePortIndex,
                                 NULL);
     ///Free all the buffers on capture port
-    CAMHAL_LOGDB("Freeing buffer on Capture port - %d", imgCaptureData->mNumBufs);
-    for ( int index = 0 ; index < imgCaptureData->mNumBufs ; index++)
-        {
-        CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", ( unsigned int ) imgCaptureData->mBufferHeader[index]->pBuffer);
-        eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
+    if (imgCaptureData)
+    {
+        CAMHAL_LOGDB("Freeing buffer on Capture port - %d", imgCaptureData->mNumBufs);
+        for ( int index = 0 ; index < imgCaptureData->mNumBufs ; index++)
+            {
+            CAMHAL_LOGDB("Freeing buffer on Capture port - 0x%x", ( unsigned int ) imgCaptureData->mBufferHeader[index]->pBuffer);
+            eError = OMX_FreeBuffer(mCameraAdapterParameters.mHandleComp,
                         mCameraAdapterParameters.mImagePortIndex,
                         (OMX_BUFFERHEADERTYPE*)imgCaptureData->mBufferHeader[index]);
 
-        GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
-        }
+            GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+            }
+    }
     CAMHAL_LOGDA("Waiting for port disable");
     //Wait for the image port enable event
     camSem.Wait();
