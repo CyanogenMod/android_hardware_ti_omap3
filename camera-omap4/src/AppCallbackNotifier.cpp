@@ -301,24 +301,62 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
             bufferSrc = ( unsigned char * ) src;
             row = width*bytesPerPixel;
             alignedRow = stride-width;
+            int stride_bytes = stride / 8;
 
             //iterate through each row
             for ( int i = 0 ; i < height ; i++,  bufferSrc += stride, bufferDst += row)
                 {
                 memcpy(bufferDst, bufferSrc, row);
                 }
+
             ///Convert NV21 to NV12 by swapping U & V
             bufferDst_UV = (uint16_t *) (((uint8_t*)dst)+row*height);
             bufferSrc_UV = ( uint16_t * ) (((uint8_t*)src)+stride*height);
-            for(int i = 0 ; i < height/2 ; i++)
-                {
-                for(int j=0;j<width/2;j++)
-                    {
-                    *bufferDst_UV++ = ((*bufferSrc_UV & 0xFF)<<8) | ((*bufferSrc_UV >> 8) & 0xFF) ;
-                    bufferSrc_UV++;
-                    }
-                bufferSrc_UV += alignedRow/2;
-                }
+
+            for(int i = 0 ; i < height/2 ; i++, bufferSrc_UV += alignedRow/2)
+            {
+                int n = width;
+                asm volatile (
+                "   pld [%[src], %[src_stride], lsl #2]                         \n\t"
+                "   cmp %[n], #32                                               \n\t"
+                "   blt 1f                                                      \n\t"
+                "0: @ 32 byte swap                                              \n\t"
+                "   sub %[n], %[n], #32                                         \n\t"
+                "   vld2.8  {q0, q1} , [%[src]]!                                \n\t"
+                "   vswp q0, q1                                                 \n\t"
+                "   cmp %[n], #32                                               \n\t"
+                "   vst2.8  {q0,q1},[%[dst]]!                                   \n\t"
+                "   bge 0b                                                      \n\t"
+                "1: @ Is there enough data?                                     \n\t"
+                "   cmp %[n], #16                                               \n\t"
+                "   blt 3f                                                      \n\t"
+                "2: @ 16 byte swap                                              \n\t"
+                "   sub %[n], %[n], #16                                         \n\t"
+                "   vld2.8  {d0, d1} , [%[src]]!                                \n\t"
+                "   vswp d0, d1                                                 \n\t"
+                "   cmp %[n], #16                                               \n\t"
+                "   vst2.8  {d0,d1},[%[dst]]!                                   \n\t"
+                "   bge 2b                                                      \n\t"
+                "3: @ Is there enough data?                                     \n\t"
+                "   cmp %[n], #8                                                \n\t"
+                "   blt 5f                                                      \n\t"
+                "4: @ 8 byte swap                                               \n\t"
+                "   sub %[n], %[n], #8                                          \n\t"
+                "   vld2.8  {d0, d1} , [%[src]]!                                \n\t"
+                "   vswp d0, d1                                                 \n\t"
+                "   cmp %[n], #8                                                \n\t"
+                "   vst2.8  {d0[0],d1[0]},[%[dst]]!                             \n\t"
+                "   bge 4b                                                      \n\t"
+                "5: @ end                                                       \n\t"
+#ifdef NEEDS_ARM_ERRATA_754319_754320
+                "   vmov s0,s0  @ add noop for errata item                      \n\t"
+#endif
+                : [dst] "+r" (bufferDst_UV), [src] "+r" (bufferSrc_UV), [n] "+r" (n)
+                : [src_stride] "r" (stride_bytes)
+                : "cc", "memory", "q0", "q1"
+                );
+            }
+
             return ;
 
             }
