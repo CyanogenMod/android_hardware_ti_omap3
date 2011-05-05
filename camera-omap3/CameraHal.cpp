@@ -145,7 +145,7 @@ CameraHal::CameraHal(int cameraId)
     mCallbackCookie = 0;
     mMsgEnabled = 0 ;
     mFalsePreview = false;  //Eclair HAL
-    mZoomSpeed = 1;
+    mZoomSpeed = 0;
     mZoomTargetIdx = 0;
     mZoomCurrentIdx = 0;
     mSmoothZoomStatus = SMOOTH_STOP;
@@ -1596,10 +1596,13 @@ void CameraHal::nextPreview()
 
         ZoomPerform(zoom_step[mZoomCurrentIdx]);
 
-        //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
-        {
-            Mutex::Autolock lock(mLock);
-            mParameters.set("zoom", mZoomCurrentIdx);
+        // Update mParameters with current zoom position only if smooth zoom is used
+        if ( mZoomSpeed > 0 ){
+            //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
+            {
+                Mutex::Autolock lock(mLock);
+                mParameters.set("zoom", mZoomCurrentIdx);
+            }
         }
 
         // Immediate zoom should not generate callbacks.
