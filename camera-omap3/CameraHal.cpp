@@ -149,6 +149,7 @@ CameraHal::CameraHal(int cameraId)
     mZoomTargetIdx = 0;
     mZoomCurrentIdx = 0;
     mSmoothZoomStatus = SMOOTH_STOP;
+    mSmoothZoomStopping = false;
     rotation = 0;
 
 #ifdef HARDWARE_OMX
@@ -1611,11 +1612,19 @@ void CameraHal::nextPreview()
             {
                 mZoomTargetIdx = mZoomCurrentIdx;
                 mSmoothZoomStatus = SMOOTH_STOP;
+                mSmoothZoomStopping = false;
             }
-            if( mZoomCurrentIdx == mZoomTargetIdx )
-                mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
-            else
-                mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
+            // Send callback to application only if zoom status is not changing.
+            // Sometimes, when application has requested stopSmoothZoom(), the message
+            // is received very late and callback is sent. ZoomChangeListener does not expect
+            // zoom callback after stopSmoothZoom() so we enter in deadlock in
+            // lockIfMessageWanted()
+            if (mSmoothZoomStopping == false) {
+                if( mZoomCurrentIdx == mZoomTargetIdx )
+                    mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
+                else
+                    mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
+            }
         }
     }
 
@@ -4950,6 +4959,7 @@ status_t CameraHal::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2)
 
             break;
         case CAMERA_CMD_STOP_SMOOTH_ZOOM:
+            mSmoothZoomStopping = true;
             msg.command = STOP_SMOOTH_ZOOM;
             previewThreadCommandQ.put(&msg);
             previewThreadAckQ.get(&msg);
