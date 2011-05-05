@@ -320,13 +320,18 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
     */
     uint32_t dummy, w2, h2;
     overlay_ctrl_t   *data   = overlayobj->data();
-    int fd;
+    int fd = -1;
+    int linkfd = -1;
     uint32_t tempW, tempH;
     char displayCode[20];
     char displayMode[20];
     char displayCodepath[PATH_MAX];
     int interlaceMultiplier = 1;
     int index = 0;
+    uint32_t finalCropW = overlayobj->mData.cropW;
+    uint32_t finalCropH = overlayobj->mData.cropH;
+    uint32_t finalCropX = overlayobj->mData.cropX;
+    uint32_t finalCropY = overlayobj->mData.cropY;
 
     if (sscanf(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displaytimings, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
         &dummy, &w2, &dummy, &dummy, &dummy, &h2, &dummy, &dummy, &dummy) != 9) {
@@ -354,7 +359,63 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                 finalWindow->posH = data->posH;
                 break;
             }
+            /**
+            * check the final window scaling factors against H/W caps
+            * and adjust
+            * (1) Crop window keeping the Aspect ratio same--> For downscaling limit
+            * (2) Final Output Window --> For Upsclaing limit
+            * Before start checks, roundup the Window width & height to even integer
+            */
+            finalWindow->posH = finalWindow->posH - (finalWindow->posH % 2);
+            finalWindow->posW = finalWindow->posW - (finalWindow->posW % 2);
+            /* Handling the Downscaling scenario for Height */
+            if (overlayobj->mData.cropH > (finalWindow->posH * MAX_DSS_DOWNSCALING_FACTOR)) {
+                tempH = MAX(overlayobj->mData.cropH, 1); //this is to avoid cropH being zero scenario
+                finalCropH = MAX_DSS_DOWNSCALING_FACTOR * finalWindow->posH;
+                //adjust the cropW for the new cropH, to maintain aspect ratio
+                finalCropW = (overlayobj->mData.cropW * finalCropH) / tempH;
+            } else if (finalWindow->posH > (overlayobj->mData.cropH * MAX_DSS_UPSCALING_FACTOR)) {
+                /* Handling the upscaling scenario for Height*/
+                tempH = MAX(finalWindow->posH, 1); //this is to avoid posH being zero scenario
+                finalWindow->posH = MAX_DSS_UPSCALING_FACTOR * overlayobj->mData.cropH;
+                //adjust the window width to maintain aspect ratio
+                finalWindow->posW = (finalWindow->posW * finalWindow->posH ) / tempH;
+            }
 
+            /* Handling the Downscaling scenario for Width*/
+            if (overlayobj->mData.cropW > (finalWindow->posW * MAX_DSS_DOWNSCALING_FACTOR)) {
+                tempW = MAX(overlayobj->mData.cropW, 1); //this is to avoid cropW being zero scenario
+                finalCropW = MAX_DSS_DOWNSCALING_FACTOR * finalWindow->posW;
+                //adjust the cropH for the new cropW, to maintain aspect ratio
+                finalCropH = (overlayobj->mData.cropH * finalCropW) / tempW;
+            } else if (finalWindow->posW > (overlayobj->mData.cropW * MAX_DSS_UPSCALING_FACTOR)) {
+                /* Handling the upscaling scenario for width */
+                tempW = MAX(finalWindow->posW, 1); //this is to avoid posW being zero scenario
+                finalWindow->posW = MAX_DSS_UPSCALING_FACTOR * overlayobj->mData.cropW;
+                //adjust the window height to maintain aspect ratio
+                finalWindow->posH = (finalWindow->posH * finalWindow->posW ) / tempW;
+            }
+
+            //now calculate cropX and cropY so that we crop from center
+            finalCropX = overlayobj->mData.cropX + ((overlayobj->mData.cropW - finalCropW) >> 1);
+            finalCropY = overlayobj->mData.cropY + ((overlayobj->mData.cropH - finalCropH) >> 1);
+
+            if (isCtrlpath) {
+                fd = overlayobj->getctrl_videofd();
+                linkfd = overlayobj->getctrl_linkvideofd();
+            } else {
+                fd = overlayobj->getdata_videofd();
+                linkfd = overlayobj->getdata_linkvideofd();
+            }
+
+            if (linkfd > 0)
+                fd = linkfd;
+
+            if (v4l2_overlay_set_crop(fd, finalCropX, finalCropY,\
+                                      finalCropW, finalCropH)) {
+                LOGE("Failed defaulting crop window\n");
+                return;
+            }
             break;
         case OVERLAY_ON_TV:
             {
@@ -385,12 +446,31 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                             break;
                     }
                 }
-               /**
+                /**
                 * For interlaced mode of the TV, modify the timings read, to convert them into
                 * progressive and finally update final window height for Interlaced mode
                 */
-                if ((overlayobj->mData.cropH > 720) || (overlayobj->mData.cropW > 1280) \
-                    || (overlayobj->data()->rotation % 180)) {
+                if ((overlayobj->mData.cropH > 1080) || (overlayobj->mData.cropW > 1920)) {
+                    //Here the input is beyond 1080p or it is a portrait 1080p clip.
+                    //Since downscaling is not supported at 1080p video timings, we have to crop input to meet requirements
+                    //make sure aspect ratio is maintained.
+                    w2 = w2;
+                    h2 = h2 * interlaceMultiplier;
+                    finalWindow->posX = 0;
+                    finalWindow->posY = 0;
+                    if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
+                        finalCropW= w2;
+                        finalCropH= (overlayobj->mData.cropH * finalCropW) / MAX(overlayobj->mData.cropW, 1);
+                    } else {
+                        finalCropH = h2;
+                        finalCropW = (overlayobj->mData.cropW * finalCropH) / MAX(overlayobj->mData.cropH, 1);
+                    }
+                    //now calculate cropX and cropY so that we crop from center
+                    finalCropX= overlayobj->mData.cropX + ((overlayobj->mData.cropW - finalCropW) >> 1);
+                    finalCropY = overlayobj->mData.cropY + ((overlayobj->mData.cropH - finalCropH) >> 1);
+                }
+                else if ((overlayobj->mData.cropH > 720) || (overlayobj->mData.cropW > 1280) \
+                           || (overlayobj->data()->rotation % 180)) {
                     //since no downscaling on TV, for 1080p resolution we go for full screen
                     finalWindow->posX = 0;
                     finalWindow->posY = 0;
@@ -404,14 +484,14 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                     h2 = ((h2 * interlaceMultiplier) * overlayobj->data()->posH) / LCD_HEIGHT;
                 }
 
-                if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
+                if (finalCropW * h2 > w2 * finalCropH) {
                     finalWindow->posW= w2;
-                    finalWindow->posH= overlayobj->mData.cropH * w2 / overlayobj->mData.cropW;
+                    finalWindow->posH= finalCropH * w2 / MAX(finalCropW, 1);
                     if (finalWindow->posY == 0)
                         finalWindow->posY = (h2 - finalWindow->posH) / 2;
                 } else {
                     finalWindow->posH = h2;
-                    finalWindow->posW = overlayobj->mData.cropW * h2 / overlayobj->mData.cropH;
+                    finalWindow->posW = finalCropW * h2 / MAX(finalCropH, 1);
                     if (finalWindow->posX == 0)
                         finalWindow->posX = (w2 - finalWindow->posW) / 2;
                 }
@@ -435,62 +515,28 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                 }
                 else LOGD("Window settings not changed bcos Rotation != 0. Wouldnt rotation be zero when watching on TV???");
 #endif
+                if (isCtrlpath) {
+                    fd = overlayobj->getctrl_videofd();
+                } else {
+                    fd = overlayobj->getdata_videofd();
+                 }
             }
             break;
         default:
             LOGE("Leave the default  values");
         };
 
-        LOGD("calculateWindow(): posW=%d, posH=%d, cropW=%d, cropH=%d",
-            finalWindow->posW, finalWindow->posH, overlayobj->mData.cropW, overlayobj->mData.cropH);
-    /**
-    * check the final window scaling factors against H/W caps
-    * and adjust
-    * (1) Crop window keeping the Aspect ratio same--> For downscaling limit
-    * (2) Final Output Window --> For Upsclaing limit
-    * Before start checks, roundup the Window width & height to even integer
-    */
-    finalWindow->posH = finalWindow->posH - (finalWindow->posH % 2);
-    finalWindow->posW = finalWindow->posW - (finalWindow->posW % 2);
-    /* Handling the Downscaling scenario for Height */
-    if (overlayobj->mData.cropH > (finalWindow->posH * MAX_DSS_DOWNSCALING_FACTOR)) {
-        tempH = MAX(overlayobj->mData.cropH, 1); //this is to avoid cropH being zero scenario
-        overlayobj->mData.cropH = MAX_DSS_DOWNSCALING_FACTOR * finalWindow->posH;
-        //adjust the cropW for the new cropH, to maintain aspect ratio
-        overlayobj->mData.cropW = (overlayobj->mData.cropW * overlayobj->mData.cropH) / tempH;
-    } else if (finalWindow->posH > (overlayobj->mData.cropH * MAX_DSS_UPSCALING_FACTOR)) {
-        /* Handling the upscaling scenario for Height*/
-        tempH = MAX(finalWindow->posH, 1); //this is to avoid posH being zero scenario
-        finalWindow->posH = MAX_DSS_UPSCALING_FACTOR * overlayobj->mData.cropH;
-        //adjust the window width to maintain aspect ratio
-        finalWindow->posW = (finalWindow->posW * finalWindow->posH ) / tempH;
-    }
+        LOGD("Adjusted CROP Settings: cropX(%d)/cropY(%d)/cropW(%d)/ cropH(%d)", finalCropX, \
+                                           finalCropY, finalCropW, finalCropH);
 
-    /* Handling the Downscaling scenario for Width*/
-    if (overlayobj->mData.cropW > (finalWindow->posW * MAX_DSS_DOWNSCALING_FACTOR)) {
-        tempW = MAX(overlayobj->mData.cropW, 1); //this is to avoid cropW being zero scenario
-        overlayobj->mData.cropW = MAX_DSS_DOWNSCALING_FACTOR * finalWindow->posW;
-        //adjust the cropH for the new cropW, to maintain aspect ratio
-        overlayobj->mData.cropH = (overlayobj->mData.cropH * overlayobj->mData.cropW) / tempW;
-    } else if (finalWindow->posW > (overlayobj->mData.cropW * MAX_DSS_UPSCALING_FACTOR)) {
-        /* Handling the upscaling scenario for width */
-        tempW = MAX(finalWindow->posW, 1); //this is to avoid posW being zero scenario
-        finalWindow->posW = MAX_DSS_UPSCALING_FACTOR * overlayobj->mData.cropW;
-        //adjust the window height to maintain aspect ratio
-        finalWindow->posH = (finalWindow->posH * finalWindow->posW ) / tempW;
-    }
+        LOGD("calculateWindow(): posX=%d, posY=%d, posW=%d, posH=%d",
+            finalWindow->posX, finalWindow->posY, finalWindow->posW, finalWindow->posH);
 
-    if (isCtrlpath) {
-        fd = overlayobj->getctrl_videofd();
-    } else {
-        fd = overlayobj->getdata_videofd();
-    }
-
-    if (v4l2_overlay_set_crop(fd, overlayobj->mData.cropX, overlayobj->mData.cropY,\
-                              overlayobj->mData.cropW, overlayobj->mData.cropH)) {
-        LOGE("Failed defaulting crop window\n");
-        return;
-    }
+        if (v4l2_overlay_set_crop(fd, finalCropX, finalCropY,\
+                              finalCropW, finalCropH)) {
+            LOGE("Failed defaulting crop window\n");
+            return;
+        }
     LOG_FUNCTION_NAME_EXIT
 
 }
@@ -1585,15 +1631,6 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
 
     calculateDisplayMetaData(overlayobj, KCloneDevice);
 
-    //Calculate window size. As of now this is applicable only for non-LCD panels
-    calculateWindow(overlayobj, &finalWindow, KCloneDevice);
-
-    LOGI("Link Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
-    LOGI("Link Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
-    LOGI("Rotation/%d\n", data->rotation );
-    LOGI("alpha/%d\n", data->alpha );
-    LOGI("zorder/%d\n", data->zorder );
-
     // Disable streaming to ensure that stream_on is called again which indirectly sets overlayenabled to 1
     if ((ret = overlay_data_context_t::disable_streaming_locked(overlayobj, false))) {
         LOGE("Stream Off Failed!/%d\n", ret);
@@ -1605,11 +1642,14 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
         goto end;
     }
 
-    if (v4l2_overlay_set_crop(linkfd, overlayobj->mData.cropX, overlayobj->mData.cropY,\
-                              overlayobj->mData.cropW, overlayobj->mData.cropH)) {
-        LOGE("Failed defaulting crop window\n");
-        goto end;
-    }
+    //Calculate window size. As of now this is applicable only for non-LCD panels
+    calculateWindow(overlayobj, &finalWindow, KCloneDevice);
+
+    LOGI("Link Position/X%d/Y%d/W%d/H%d\n", data->posX, data->posY, data->posW, data->posH );
+    LOGI("Link Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
+    LOGI("Rotation/%d\n", data->rotation );
+    LOGI("alpha/%d\n", data->alpha );
+    LOGI("zorder/%d\n", data->zorder );
 
     v4l2_overlay_getId(linkfd, &pipelineId);
 
