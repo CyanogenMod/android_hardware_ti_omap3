@@ -148,6 +148,7 @@ timeval autofocus_start, picture_start;
 char script_name[80];
 bool nullOverlay = false;
 int prevcnt = 0;
+int videoFd = -1;
 
 char dir_path[80] = SDCARD_PATH;
 
@@ -906,7 +907,7 @@ int closeRecorder() {
 int configureRecorder() {
 
     char videoFile[256],vbit_string[50];
-    int fd = -1;
+    videoFd = -1;
 
     if ( ( NULL == recorder.get() ) || ( NULL == camera.get() ) ) {
         printf("invalid recorder and/or camera references\n");
@@ -953,15 +954,15 @@ int configureRecorder() {
          printf("\n Directory --videos-- was not created \n");
     sprintf(videoFile, "/mnt/sdcard/videos/video%d.%s", recording_counter,outputFormat[outputFormatIDX].desc);
 
-    fd = open(videoFile, O_CREAT | O_RDWR);
+    videoFd = open(videoFile, O_CREAT | O_RDWR);
 
-    if(fd < 0){
+    if(videoFd < 0){
         printf("Error while creating video filename\n");
 
         return -1;
     }
 
-    if ( recorder->setOutputFile(fd, 0, 0) < 0 ) {
+    if ( recorder->setOutputFile(videoFd, 0, 0) < 0 ) {
         printf("error while configuring video filename\n");
 
         return -1;
@@ -1037,6 +1038,10 @@ int stopRecording() {
         printf("recorder failed to stop\n");
 
         return -1;
+    }
+
+    if ( 0 < videoFd ) {
+        close(videoFd);
     }
 
     return 0;
