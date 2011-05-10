@@ -1831,7 +1831,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
 
     int fd = ctx->omap_overlay->getdata_videofd();
     overlay_ctrl_t *stage = ctx->omap_overlay->staging();
-    int linkfd = ctx->omap_overlay->getdata_linkvideofd();
+    link_fd = ctx->omap_overlay->getdata_linkvideofd();
 
     if ((ctx->omap_overlay->w == (unsigned int)w) && (ctx->omap_overlay->h == (unsigned int)h) && (ctx->omap_overlay->attributes_changed == 0)){
         LOGE("Same as current width and height. Attributes did not change either. So do nothing.");
@@ -1898,7 +1898,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     }
 
     if (link_fd > 0) {
-        if ((ret = v4l2_overlay_req_buf(linkfd, (uint32_t *)(&ctx->omap_overlay->num_buffers),
+        if ((ret = v4l2_overlay_req_buf(link_fd, (uint32_t *)(&ctx->omap_overlay->num_buffers),
             ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency, EMEMORY_USRPTR))) {
             LOGE("Error creating linked buffers2");
             goto end;
