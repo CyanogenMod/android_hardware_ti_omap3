@@ -612,7 +612,7 @@ void printSupportedParams()
     printf("\n\r\tSupported Flash Modes: %s", params.get(CameraParameters::KEY_SUPPORTED_FLASH_MODES));
 
     if ( NULL != params.get(CameraParameters::KEY_FOCUS_DISTANCES) ) {
-        printf("\n\R\tFocus Distances: %s \n", params.get(CameraParameters::KEY_FOCUS_DISTANCES));
+        printf("\n\r\tFocus Distances: %s \n", params.get(CameraParameters::KEY_FOCUS_DISTANCES));
     }
 
     return;
@@ -1058,6 +1058,9 @@ int openCamera() {
         return -1;
     }
 
+    params = camera->getParameters();
+    camera->setParameters(params.flatten());
+
     camera->setListener(new CameraHandler());
 
     hardwareActive = true;
@@ -1442,8 +1445,8 @@ int functional_menu() {
         if ( hardwareActive ) {
             stopPreview();
             openCamera();
-            params = camera->getParameters();
-            camera->setParameters(params.flatten());
+        } else {
+            openCamera();
         }
 
         break;
@@ -2095,7 +2098,7 @@ char *load_script(char *config) {
     char *script;
     size_t nRead = 0;
     char dir_name[40];
-    int count;
+    size_t count;
     char rCount [5];
 
     count = 0;
@@ -2164,7 +2167,7 @@ char *load_script(char *config) {
 
 int start_logging(char *config, int &pid) {
     char dir_name[40];
-    int count = 0;
+    size_t count = 0;
     int status = 0;
 
     // remove just the '.txt' part of the config
@@ -2336,7 +2339,6 @@ int execute_functional_script(char *script) {
                                 return -1;
                             }
 
-                            params.unflatten(camera->getParameters());
                             initDefaults();
                         }
                     }
@@ -2444,8 +2446,10 @@ int execute_functional_script(char *script) {
                         break;
                 }
 
-                if (  i < ARRAY_SIZE(captureSize) )
+                if (  i < ARRAY_SIZE(captureSize) ) {
                     params.setPictureSize(captureSize[i].width, captureSize[i].height);
+                    captureSizeIDX = i;
+                }
 
                 if ( hardwareActive )
                     camera->setParameters(params.flatten());
@@ -2567,9 +2571,10 @@ int execute_functional_script(char *script) {
                 if ( hardwareActive ) {
                     stopPreview();
                     openCamera();
-                    params = camera->getParameters();
-                    camera->setParameters(params.flatten());
+                } else {
+                    openCamera();
                 }
+
                 break;
 
             case 'a':
@@ -3536,7 +3541,6 @@ int restartCamera() {
     return -1;
   }
 
-  params.unflatten(camera->getParameters());
   initDefaults();
 
   stopScript = false;
@@ -3585,7 +3589,6 @@ int main(int argc, char *argv[]) {
                     return -1;
                 }
 
-                params.unflatten(camera->getParameters());
                 initDefaults();
                 print_menu = 1;
 
@@ -3612,7 +3615,6 @@ int main(int argc, char *argv[]) {
                     return -1;
                 }
 
-                params.unflatten(camera->getParameters());
                 initDefaults();
                 print_menu = 1;
 
@@ -3645,7 +3647,6 @@ int main(int argc, char *argv[]) {
             return -1;
         }
 
-        params.unflatten(camera->getParameters());
         initDefaults();
 
         cmd = load_script(argv[2]);
@@ -3687,7 +3688,6 @@ int main(int argc, char *argv[]) {
             return -1;
         }
 
-        params.unflatten(camera->getParameters());
         initDefaults();
 
         cmd = load_script(argv[2]);
