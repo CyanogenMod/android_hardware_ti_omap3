@@ -18,29 +18,46 @@
 
 #include "AudioHardwareALSA.h"
 
-#define ADDR_MIN     0x1
-#define ADDR_MAX     0x49
-#define DATA_MIN    0x0
-#define DATA_MAX    0xff
 
 #define BUFFER_LENGTH    4096
 #define FRAME_COUNT 80
 
 #define LLONG_MAX    9223372036854775807LL
+
 #define ID_RIFF 0x46464952
 #define ID_WAVE 0x45564157
 #define ID_FMT  0x20746d66
 #define ID_DATA 0x61746164
 
 #define FORMAT_PCM AudioSystem::PCM_16_BIT
-//DEFAULTS
-#define DEFAULT_REC_FORMAT AudioSystem::PCM_16_BIT
-#define DEFAULT_REC_CHANNELS AudioSystem::CHANNEL_IN_LEFT
 
-#define DEFAULT_PLAY_RATE 48000
-#define DEFAULT_REC_RATE 8000
 
-// shamelessly copied from ALSAStreamOps.cpp
+using namespace android;
+
+typedef struct g_AudioHalStreamIn_t {
+    uint32_t device;
+    uint32_t channels;
+    uint32_t rate;
+    int format;
+    AudioStreamIn* streamIn;
+    }g_AudioHalStreamIn;
+
+typedef struct g_AudioHalStreamOut_t {
+    uint32_t device;
+    uint32_t channels;
+    uint32_t rate;
+    int format;
+    AudioStreamOut* streamOut;
+    }g_AudioHalStreamOut;
+
+struct g_AudioHalParams_t {
+      AudioHardwareALSA* hardware;
+      g_AudioHalStreamIn streamInParams;
+      g_AudioHalStreamOut streamOutParams;
+    };
+
+g_AudioHalParams_t g_AudioHalParams;
+
 // use emulated popcount optimization
 // http://www.df.lth.se/~john_e/gems/gem002d.html
 static inline uint32_t popCount(uint32_t u)
@@ -52,8 +69,6 @@ static inline uint32_t popCount(uint32_t u)
     u = ( u&0x0000ffff) + (u>>16);
     return u;
 }
-
-
 
 enum test_type_t {
     TEST_PLAY = 0,
@@ -80,105 +95,118 @@ struct wav_header {
     uint32_t data_sz;
 };
 
-using namespace android;
-
 char buffer[BUFFER_LENGTH];
 
 static char *next;
 static unsigned avail;
-static uint32_t m_channels = DEFAULT_REC_CHANNELS;
-static uint32_t m_rate = DEFAULT_REC_RATE;
 static float m_volume = 1; //default maximum
 unsigned int buffer_size = 0;
-unsigned int device = (AudioSystem::DEVICE_OUT_WIRED_HEADSET);
 
-AudioHardwareALSA * hardware = NULL;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 char playback_file[100] = {0};
 char rec_file[100] = {0};
 int timelimit = 0;
 
+void audioHal_Initialize()
+{
+    g_AudioHalParams.hardware = new AudioHardwareALSA();
+    if(g_AudioHalParams.hardware == NULL) {
+        printf("Failed to create Hardware \n");
+        exit(-1);
+    }
+    /*initializing in params */
+    g_AudioHalParams.streamInParams.device = AudioSystem::DEVICE_IN_BUILTIN_MIC;
+    g_AudioHalParams.streamInParams.channels = AudioSystem::CHANNEL_IN_LEFT;
+    g_AudioHalParams.streamInParams.format= AudioSystem::PCM_16_BIT;
+    g_AudioHalParams.streamInParams.rate = 8000;
+    g_AudioHalParams.streamInParams.streamIn = NULL;
+
+    /*initializing out params */
+    g_AudioHalParams.streamOutParams.device = AudioSystem::DEVICE_OUT_WIRED_HEADSET;
+    g_AudioHalParams.streamOutParams.channels = AudioSystem::CHANNEL_IN_LEFT | AudioSystem::CHANNEL_IN_RIGHT;
+    g_AudioHalParams.streamOutParams.format= AudioSystem::PCM_16_BIT;
+    g_AudioHalParams.streamOutParams.rate = 48000;
+    g_AudioHalParams.streamOutParams.streamOut = NULL;
+
+}
+
+int audioStreamInOpen()
+{
+
+    AudioStreamIn* in = NULL;
+    uint32_t mFlags = 0 ;
+    status_t status;
+    fprintf(stderr,"opening the input stream device 0x%x channels %d rate %d\n",
+                    g_AudioHalParams.streamInParams.device,
+                    g_AudioHalParams.streamInParams.channels,
+                    g_AudioHalParams.streamInParams.rate);
+
+    in = g_AudioHalParams.hardware->openInputStream(
+            g_AudioHalParams.streamInParams.device,
+            &g_AudioHalParams.streamInParams.format,
+            &g_AudioHalParams.streamInParams.channels,
+            &g_AudioHalParams.streamInParams.rate,
+            &status,
+            (AudioSystem::audio_in_acoustics) mFlags);
+    if (in == NULL) {
+        fprintf(stderr,"openInputStream failed for device 0x%x\n",g_AudioHalParams.streamInParams.device);
+        return -1;
+    } else if (status != NO_ERROR){
+        fprintf(stderr,"openInputStream return status %d\n",status);
+        g_AudioHalParams.hardware->closeInputStream(in);
+        return -1;
+    }
+    g_AudioHalParams.streamInParams.streamIn = in;
+
+    return 0;
+}
+
+
 int wav_rec()
 {
     struct wav_header hdr;
-    int fd, format = AudioSystem::PCM_16_BIT;
+    int fd;
     unsigned total = 0, size;
     unsigned char tmp;
-    uint32_t mFlags = 0 ;
     static off64_t count = 0;
-    int set = 0;
-    pthread_mutex_lock (&mutex);
-    if (hardware == NULL) {
-        set = 1;
-        hardware = new AudioHardwareALSA();
-    }
-    pthread_mutex_unlock (&mutex);
     ssize_t bytes_read;
-    status_t status;
-   //using default device for recording
-    unsigned int device = (AudioSystem::DEVICE_IN_BUILTIN_MIC);
 
+    pthread_mutex_lock (&mutex);
+    if (audioStreamInOpen() < 0 ) {
+        pthread_mutex_unlock (&mutex);
+        return -1;
+    }
+    g_AudioHalParams.hardware->setMasterVolume(m_volume);
+    pthread_mutex_unlock (&mutex);
+    size = (unsigned int)g_AudioHalParams.streamInParams.streamIn->bufferSize();
+    //adjusting buffer size to match audioHal
+    size = size/popCount(g_AudioHalParams.streamInParams.channels);
+    printf("Rec: set buffer size = %d\n", size);
+    printf("Rec: opening file to record %s\n", rec_file);
+
+    fd = open(rec_file, O_CREAT | O_RDWR, 777);
+    if (fd < 0) {
+        fprintf(stderr,"Rec: cannot open output file\n");
+        g_AudioHalParams.hardware->closeInputStream(g_AudioHalParams.streamInParams.streamIn);
+        return -1;
+    }
     hdr.riff_id = ID_RIFF;
     hdr.riff_sz = 0;
     hdr.riff_fmt = ID_WAVE;
     hdr.fmt_id = ID_FMT;
     hdr.fmt_sz = 16;
-    hdr.audio_format = DEFAULT_REC_FORMAT;
-    hdr.num_channels = popCount(m_channels);     //1;    //2;
-    hdr.sample_rate = m_rate;    //8000;    //44100;
+    hdr.audio_format = g_AudioHalParams.streamInParams.format;
+    hdr.num_channels = popCount(g_AudioHalParams.streamInParams.channels);
+    hdr.sample_rate = g_AudioHalParams.streamInParams.rate;
     hdr.byte_rate = hdr.sample_rate * hdr.num_channels * 2;
     hdr.block_align = hdr.num_channels * 2;
     hdr.bits_per_sample = 16;
     hdr.data_id = ID_DATA;
     hdr.data_sz = 0;
 
-    pthread_mutex_lock (&mutex);
-    fprintf(stderr,"opening the input stream device 0x%x channels %d rate %d\n",device, m_channels, m_rate);
-    AudioStreamIn *in = hardware->openInputStream(device,
-                                                  &format,
-                                                  &m_channels,
-                                                  &m_rate,
-                                                  &status,
-                                                  (AudioSystem::audio_in_acoustics) mFlags);
-    if (in == NULL) {
-        fprintf(stderr,"openInputStream failed for device 0x%x\n",device);
-        if(set) {
-             delete hardware;
-            hardware = NULL;
-        }
-        pthread_mutex_unlock (&mutex);
-        return -1;
-    } else if (status != NO_ERROR){
-        fprintf(stderr,"openInputStream return status %d\n",status);
-        hardware->closeInputStream(in);
-        if(set) {
-            delete hardware;
-            hardware = NULL;
-        }
-        pthread_mutex_unlock (&mutex);
-        return -1;
-    }
-    hardware->setMasterVolume(m_volume);
-    pthread_mutex_unlock (&mutex);
-    size = (unsigned int)in->bufferSize();
-    //adjusting buffer size to match audioHal
-    size = size/hdr.num_channels;
-    printf("Rec: set buffer size = %d\n", size);
-    printf("Rec: opening file to record %s\n", rec_file);
-
-    fd = open(rec_file, O_CREAT | O_RDWR, 777);
-    if (fd < 0) {
-     fprintf(stderr,"Rec: cannot open output file\n");
-        hardware->closeInputStream(in);
-        delete hardware;
-        hardware = NULL;
-        return -1;
-    }
-
     write(fd, &hdr, sizeof(hdr));
 
     fcntl(0, F_SETFL, O_NONBLOCK);
-    printf("\nRec: *** RECORDING * HIT ENTER TO STOP ***\n");
 
     if (timelimit == 0) {
         count = LLONG_MAX;
@@ -191,16 +219,20 @@ int wav_rec()
     }
     if (count > LLONG_MAX)
         count = LLONG_MAX;
+
+    printf("\nRec: *** RECORDING * HIT ENTER TO STOP ***\n");
     for (;;) {
 
         while (read(0, &tmp, 1) == 1) {
+            printf("read %c\n",tmp);
             if (tmp == 10)
             {
                 printf("Rec: Recording is over.\n");
-                break;
+                goto done;
             }
         }
-        bytes_read = in->read(buffer, size);
+        printf("reading .......\n");
+        bytes_read = g_AudioHalParams.streamInParams.streamIn->read(buffer, size);
         count = count - bytes_read;
         if (write(fd, buffer, bytes_read) != (signed) bytes_read) {
             fprintf(stderr,"Rec: cannot write buffer\n");
@@ -224,11 +256,7 @@ done:
     write(fd, &hdr, sizeof(hdr));
     close(fd);
     pthread_mutex_lock (&mutex);
-    hardware->closeInputStream(in);
-    if (set) {
-        delete hardware;
-        hardware = NULL;
-    }
+    g_AudioHalParams.hardware->closeInputStream(g_AudioHalParams.streamInParams.streamIn);
     pthread_mutex_unlock (&mutex);
     return 0;
 
@@ -237,64 +265,148 @@ fail:
     close(fd);
     unlink(rec_file);
     pthread_mutex_lock (&mutex);
-    hardware->closeInputStream(in);
-    if(set) {
-        delete hardware;
-        hardware = NULL;
-    }
+    g_AudioHalParams.hardware->closeInputStream(g_AudioHalParams.streamInParams.streamIn);
     pthread_mutex_unlock (&mutex);
     return -1;
 }
 
-int pcm_play(unsigned rate, unsigned channels,
-             int (*fill)(void *buf, unsigned size))
+int audioStreamOutOpen()
+{
+
+    AudioStreamOut* out = NULL;
+    uint32_t mFlags = 0 ;
+    status_t status;
+    fprintf(stderr,"opening the output stream device 0x%x channels %d rate %d\n",
+                    g_AudioHalParams.streamOutParams.device,
+                    g_AudioHalParams.streamOutParams.channels,
+                    g_AudioHalParams.streamOutParams.rate);
+
+    out = g_AudioHalParams.hardware->openOutputStream(
+            g_AudioHalParams.streamOutParams.device,
+            &g_AudioHalParams.streamOutParams.format,
+            &g_AudioHalParams.streamOutParams.channels,
+            &g_AudioHalParams.streamOutParams.rate,
+            &status);
+
+    if (out == NULL) {
+        fprintf(stderr,"openOutputStream failed for device 0x%x\n",g_AudioHalParams.streamOutParams.device);
+        return -1;
+    } else if (status != NO_ERROR){
+        fprintf(stderr,"openOutputStream return status %d\n",status);
+        g_AudioHalParams.hardware->closeOutputStream(out);
+        return -1;
+    }
+    g_AudioHalParams.streamOutParams.streamOut = out;
+
+    return 0;
+}
+
+void re_route(uint32_t device)
+{
+    pthread_mutex_lock (&mutex);
+    g_AudioHalParams.hardware->closeOutputStream(g_AudioHalParams.streamOutParams.streamOut);
+    g_AudioHalParams.streamOutParams.device = device;
+    printf("re-opening.....");
+    audioStreamOutOpen();
+    pthread_mutex_unlock (&mutex);
+}
+int read_input(char* string, uint32_t time)
+{
+    fd_set read_fds;
+    struct timeval timeout;
+    int rc;
+    /* Set time limit. */
+    timeout.tv_sec = (time_t)time;
+    timeout.tv_usec = 0;
+    /* Create a descriptor set containing our two sockets.  */
+    FD_ZERO(&read_fds);
+    FD_SET(0, &read_fds);
+    rc = select(1, &read_fds, NULL, NULL, &timeout);
+    if (rc <= 0) {
+        //perror("select failed");
+        return -1;
+    } else if (rc > 0) {
+        if (FD_ISSET(0, &read_fds)) {
+            while (read(0, string, sizeof(string)) > 0 && string[0] != 0x0) {
+                return strlen(string);
+            }
+        }
+    }
+    return -1;
+}
+
+void process_commands(char* cmd)
+{
+    char cmd_buf[1024];
+    int ch;
+    printf("Executing command %c \n", *cmd);
+    /* ignore non characters */
+    if (*cmd < '!' || *cmd > '~')
+        return;
+
+    switch(cmd[0]) {
+        /*device change */
+        case 'd' :
+            printf("Enter the device no to route - speakers/headset 0/1\n");
+            /*flushing prev data */
+            if(read_input(cmd_buf, 2) > 0) {
+                switch(cmd_buf[0]) {
+                    case '0':
+                        if(g_AudioHalParams.streamOutParams.device ==(AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
+                            printf("Routing playback to Speakers\n");
+                            re_route(AudioSystem::DEVICE_OUT_SPEAKER);
+                        }
+                        break;
+
+                    case '1':
+                        if(g_AudioHalParams.streamOutParams.device == (AudioSystem::DEVICE_OUT_SPEAKER)) {
+                            printf("Routing playback to Headset\n");
+                            re_route(AudioSystem::DEVICE_OUT_WIRED_HEADSET);
+                        }
+                        break;
+                    default:
+                        printf("UNKNOWN OPTION\n");
+                }
+            } else
+                printf("Re-enter the option\n");
+
+            memset(&cmd_buf,0,sizeof(cmd_buf));
+            break;
+        default:
+            printf("Not supported command %c\n",cmd[0]);
+            break;
+    }
+}
+int pcm_play(int (*fill)(void *buf, unsigned size))
 {
     FILE *infile;
     int set = 0;
-
-    pthread_mutex_lock (&mutex);
-    if (hardware == NULL){
-        hardware = new AudioHardwareALSA();
-        set = 1;
-    }
-    pthread_mutex_unlock (&mutex);
     ssize_t rFrames;
     status_t status = 0;
     int format = 0;
     char *play_buffer = NULL;
 
-    printf("Using device %d\n", device);
     pthread_mutex_lock (&mutex);
-    AudioStreamOut *out  = hardware->openOutputStream(device, &format, &channels, &rate, &status);
-    printf("Play: format %d m_channels %d m_rate %d status=%d\n", format, channels, rate, status);
-    if (out == NULL) {
-        fprintf(stderr,"openOutputStream failed for device 0x%x\n",device);
-        if(set) {
-             delete hardware;
-            hardware = NULL;
-        }
-        pthread_mutex_unlock (&mutex);
-        return -1;
-    } else if (status != NO_ERROR){
-        fprintf(stderr,"openOutputStream return status %d\n",status);
-        hardware->closeOutputStream(out);
-        if(set) {
-            delete hardware;
-            hardware = NULL;
-        }
+    if (audioStreamOutOpen() < 0 ) {
         pthread_mutex_unlock (&mutex);
         return -1;
     }
-    hardware->setMasterVolume(m_volume);
+
+    g_AudioHalParams.hardware->setMasterVolume(m_volume);
     pthread_mutex_unlock (&mutex);
-    buffer_size = (unsigned int)out->bufferSize();
+    buffer_size = (unsigned int)g_AudioHalParams.streamOutParams.streamOut->bufferSize();
     printf("Play: buffer size=%d\n", buffer_size);
-   // buffer_size = BUFFER_LENGTH;
-   for (;;) {
+    char cmd_buf[1024];
+    for (;;) {
+        if(read_input(cmd_buf, 0) > 0)
+        {
+            process_commands(cmd_buf);
+            memset(&cmd_buf,0,sizeof(cmd_buf));
+        }
         play_buffer = (char *) (malloc(buffer_size));
-    if (fill(play_buffer, buffer_size))
-        break;
-        rFrames = out->write(play_buffer , buffer_size);
+        if (fill(play_buffer, buffer_size))
+            break;
+        rFrames = g_AudioHalParams.streamOutParams.streamOut->write(play_buffer , buffer_size);
         free(play_buffer);
     }
 
@@ -302,41 +414,33 @@ int pcm_play(unsigned rate, unsigned channels,
     if(play_buffer)
      free(play_buffer);
     pthread_mutex_lock (&mutex);
-    hardware->closeOutputStream(out);
-    if (set) {
-        delete hardware;
-        hardware = NULL;
-    }
+    g_AudioHalParams.hardware->closeOutputStream(g_AudioHalParams.streamOutParams.streamOut);
     pthread_mutex_unlock (&mutex);
 
-//    free(next);
     return 0;
 }
 
 int fill_buffer(void *buf, unsigned size)
 {
-//  printf("fill_buffer: size=%d, avail=%d\n", size, avail);
     if (size > avail)
     {
-    fprintf(stderr,"Play: no more data\n");
+        fprintf(stderr,"Play: no more data\n");
         return -1;
     }
     memcpy(buf, next, size);
     next += size;
     avail -= size;
-//  printf("Play: avail=%d\n", avail);
     return 0;
 }
 
-void play_file(unsigned rate, unsigned channels,
-               int fd, unsigned count)
+void play_file(int fd, unsigned count)
 {
     unsigned num, total;
 
-    /*next is the pointer of file content buffer*/
     num = count/BUFFER_LENGTH;
     num++;
     total = num*BUFFER_LENGTH;
+    /*next is the pointer of file content buffer*/
     next = (char*) malloc(total);
     if (!next) {
         fprintf(stderr,"could not allocate %d bytes\n", total);
@@ -349,7 +453,7 @@ void play_file(unsigned rate, unsigned channels,
     }
     avail = total;
     printf("Play: file size=%d\n", avail);
-    pcm_play(rate, channels, fill_buffer);
+    pcm_play(fill_buffer);
 }
 
 // Basic Playback
@@ -409,9 +513,10 @@ int wav_play()
             channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
             break;
     }
+   g_AudioHalParams.streamOutParams.channels = channels;
+   g_AudioHalParams.streamOutParams.rate = hdr.sample_rate;
 
-    play_file(hdr.sample_rate, channels,
-              fd, hdr.data_sz);
+   play_file(fd, hdr.data_sz);
 
     close(fd);
     return 0;
@@ -419,7 +524,6 @@ int wav_play()
 
 void* playback_thread(void* arg)
 {
-   hardware = (AudioHardwareALSA *)arg;
    wav_play();
    pthread_exit(NULL);
    return NULL;
@@ -442,11 +546,9 @@ int duplex()
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
-    ret =  pthread_create(&thread_id, &attr, playback_thread, (void*)hardware);
+    ret =  pthread_create(&thread_id, &attr, playback_thread, NULL);
     if (ret){
         printf("ERROR: return code from pthread_create() is %d\n", ret);
-        delete hardware;
-        hardware = NULL;
         return 0;
     }
     sleep(1);
@@ -525,9 +627,13 @@ static void usage()
 
 int main(int argc, char *argv[    ])
 {
+
     char device_name[10];
     int play = 0, i;
     int tmp, test_type = TEST_UNDEFINED;
+    int m_device = 0;
+    int m_channels = 0;
+    int m_rate = 0;
     int ch;
     int found_test = 0;
     printf("\n\n**********************************************\n");
@@ -587,9 +693,9 @@ int main(int argc, char *argv[    ])
             case 'D':
         tmp = strtol(optarg, NULL, 0);
                 if(tmp == 0)
-                    device = (AudioSystem::DEVICE_OUT_SPEAKER);
+                    m_device = (AudioSystem::DEVICE_OUT_SPEAKER);
                 else if (tmp == 1)
-                    device = (AudioSystem::DEVICE_OUT_WIRED_HEADSET);
+                    m_device = (AudioSystem::DEVICE_OUT_WIRED_HEADSET);
                 break;
 
            case 'c':
@@ -636,31 +742,55 @@ int main(int argc, char *argv[    ])
         }
     }
 
-    if(test_type == TEST_DUPLEX) {
-        strcpy(playback_file, argv[argc -2]);
-        strcpy(rec_file, argv[argc-1]);
-    } else if(test_type == TEST_PLAY) {
-        strcpy(playback_file, argv[argc-1]);
-    } else if(test_type == TEST_REC) {
-        strcpy(rec_file, argv[argc-1]);
+
+    audioHal_Initialize();
+
+    switch(test_type) {
+        case TEST_PLAY:
+            strcpy(playback_file, argv[argc-1]);
+
+            if(m_device)
+                g_AudioHalParams.streamOutParams.device = m_device;
+
+            printf("Play: start playback\n");
+            wav_play();
+            break;
+
+        case TEST_REC:
+            strcpy(rec_file, argv[argc-1]);
+
+            if(m_device)
+                g_AudioHalParams.streamInParams.device = m_device;
+            if(m_channels)
+                g_AudioHalParams.streamInParams.channels = m_channels;
+            if(m_rate)
+                g_AudioHalParams.streamInParams.rate = m_rate;
+
+            printf("Rec: start recording to rec.wav\n");
+            wav_rec();
+            break;
+
+        case TEST_LOOPBACK:
+            loopback(timelimit);
+            break;
+
+        case TEST_DUPLEX:
+            strcpy(playback_file, argv[argc -2]);
+            strcpy(rec_file, argv[argc-1]);
+            printf("duplex started\n");
+            duplex();
+            break;
+        default:
+            printf("Play: start playback out.wav\n");
+            wav_play();
+            break;
     }
 
-    if(test_type == TEST_DUPLEX) {
-        printf("duplex started\n");
-        return duplex();
-    } else if(test_type == TEST_LOOPBACK) {
-        printf("loopback started\n");
-        return loopback(timelimit);
-    } else if(test_type == TEST_PLAY) {
-        printf("Play: start playback\n");
-        return wav_play();
-    } else if(test_type == TEST_REC) {
-        printf("Rec: start recording to rec.wav\n");
-        return wav_rec();
-    } else {
-        printf("Play: start playback out.wav\n");
-        return wav_play();
-    }
-    return 0;
+   /*deleting hardware */
+   delete g_AudioHalParams.hardware;
+   g_AudioHalParams.hardware = NULL;
+
+   return 0;
 }
+
 #endif
