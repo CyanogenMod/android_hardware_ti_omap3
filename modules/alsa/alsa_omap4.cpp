@@ -703,6 +703,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             control.set("MUX_UL01", "BT Left");
             control.set("MUX_UL10", "BT Right");
             control.set("MUX_UL11", "BT Left");
+            control.set("BT UL Volume", 120);
             control.set("Voice Capture Mixer Capture", 1);
         } else {
             /* TWL6040 */
@@ -710,6 +711,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
             control.set("Analog Right Capture Route", "Off");
             control.set("Capture Preamplifier Volume", 0, -1);
             control.set("Capture Volume", 0, -1);
+            control.set("BT UL VOlume", 0, -1);        // BT UL --> MUTE
             control.set("Voice Capture Mixer Capture", 0, 0);
             control.set("AMIC_UL PDM Switch", 0, 0);
             /* ABE */
@@ -980,13 +982,13 @@ void configMicChoices (uint32_t devices) {
     // if mic is digital, turn up the associated gain
     if(strncmp(main.string(), "DMic0", 5) == 0 ||
         strncmp(sub.string() , "DMic0", 5) == 0) {
-        control.set("DMIC1 UL Volume", 140);      // DMIC1: 1dB=Mute --> 149dB
+        control.set("DMIC1 UL Volume", 120);      // DMIC1: 1dB=Mute --> 149dB
     } else if(strncmp(main.string(), "DMic1", 5) == 0 ||
         strncmp(sub.string() , "DMic1", 5) == 0) {
-        control.set("DMIC2 UL Volume", 140);      // DMIC2: 1dB=Mute --> 149dB
+        control.set("DMIC2 UL Volume", 120);      // DMIC2: 1dB=Mute --> 149dB
     } else if(strncmp(main.string(), "DMic2", 5) == 0 ||
         strncmp(sub.string() , "DMic2", 5) == 0) {
-        control.set("DMIC3 UL Volume", 140);      // DMIC3: 1dB=Mute --> 149dB
+        control.set("DMIC3 UL Volume", 120);      // DMIC3: 1dB=Mute --> 149dB
     } else {
         control.set("DMIC1 UL Volume", 1);        // DMIC1 -> MUTE
         control.set("DMIC2 UL Volume", 1);        // DMIC1 -> MUTE
