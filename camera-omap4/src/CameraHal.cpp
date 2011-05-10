@@ -241,8 +241,9 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
    LOG_FUNCTION_NAME
 
+    bool isS3d = false;
+    int w_coef = 1, h_coef = 1;
     int w, h;
-    int w_orig, h_orig;
     int framerate,minframerate;
     bool framerateUpdated = true;
     int maxFPS, minFPS;
@@ -277,8 +278,23 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
         mReloadAdapter = false;
         }
+
+    if ((valstr = params.get(TICameraParameters::KEY_S3D_SUPPORTED)) != NULL)
+        {
+        isS3d = (!strcmp(valstr, "true"));
+        }
+
+    if (isS3d &&
+        (valstr = params.get(TICameraParameters::KEY_S3D_FRAME_LAYOUT)) != NULL)
+        {
+        if (!strcmp(valstr, TICameraParameters::S3D_TB_FULL))
+            h_coef = 2;
+        else if (!strcmp(valstr, TICameraParameters::S3D_SS_FULL))
+            w_coef = 2;
+        }
+
     ///Ensure that preview is not enabled when the below parameters are changed.
-    if(!previewEnabled())
+    if (!previewEnabled())
         {
 
         CAMHAL_LOGDB("PreviewFormat %s", params.getPreviewFormat());
@@ -289,14 +305,29 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             ret = -EINVAL;
             }
         else
-          {
+            {
             if ( (valstr = params.getPreviewFormat()) != NULL)
-              mParameters.setPreviewFormat(valstr);
-              // in gingerbread, preview format and video format are still the same
-              // so set video format accordingly here.
+                mParameters.setPreviewFormat(valstr);
+                // in gingerbread, preview format and video format are still the same
+                // so set video format accordingly here.
             if ( (valstr = params.getPreviewFormat()) != NULL)
-              mParameters.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, valstr);
-          }
+                mParameters.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, valstr);
+            }
+
+        if (isS3d)
+            {
+            if((valstr = params.get(TICameraParameters::KEY_S3D2D_PREVIEW)) != NULL)
+                {
+                CAMHAL_LOGDB("Stereo 3D->2D Preview mode is %s", valstr);
+                mParameters.set(TICameraParameters::KEY_S3D2D_PREVIEW, valstr);
+                }
+
+            if((valstr = params.get(TICameraParameters::KEY_S3D_FRAME_LAYOUT)) != NULL)
+                {
+                CAMHAL_LOGDB("Stereo 3D image layout is %s", valstr);
+                mParameters.set(TICameraParameters::KEY_S3D_FRAME_LAYOUT, valstr);
+                }
+            }
 
         params.getPreviewSize(&w, &h);
         int orientation =0;
@@ -307,32 +338,32 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             orientation = params.getInt(TICameraParameters::KEY_SENSOR_ORIENTATION);
             }
 
-        if(orientation ==90 || orientation ==270)
-       {
-          if ( !isResolutionValid(h,w, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
-           {
-            CAMHAL_LOGEB("Invalid preview resolution %d x %d", w, h);
-            ret = -EINVAL;
-           }
-          else
-          {
-            mParameters.setPreviewSize(w, h);
-           }
-       }
-       else
-       {
-        if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
+        if(orientation == 90 || orientation == 270)
             {
-            CAMHAL_LOGEB("Invalid preview resolution %d x %d", w, h);
-            ret = -EINVAL;
+            if ( !isResolutionValid(h / h_coef, w / w_coef, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
+                {
+                CAMHAL_LOGEB("Invalid preview resolution %d x %d", w, h);
+                ret = -EINVAL;
+                }
+            else
+                {
+                mParameters.setPreviewSize(w, h);
+                }
             }
         else
             {
-            mParameters.setPreviewSize(w, h);
+            if ( !isResolutionValid(w / w_coef, h / h_coef, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES]->mPropValue))
+                {
+                CAMHAL_LOGEB("Invalid preview resolution %d x %d", w, h);
+                ret = -EINVAL;
+                }
+            else
+                {
+                mParameters.setPreviewSize(w, h);
+                }
             }
-        }
 
-        CAMHAL_LOGDB("\n >>> Preview Size by App %d x %d\n\n", w, h);
+        CAMHAL_LOGDB("Preview Size by App %d x %d", w, h);
 
         if(( (valstr = params.get(TICameraParameters::KEY_VNF)) != NULL)
             && ((params.getInt(TICameraParameters::KEY_VNF)==0) || (params.getInt(TICameraParameters::KEY_VNF)==1)))
@@ -360,23 +391,11 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mParameters.set(TICameraParameters::KEY_IPP, valstr);
             }
 
-        if((valstr = params.get(TICameraParameters::KEY_S3D2D_PREVIEW)) != NULL)
-            {
-            CAMHAL_LOGDB("Stereo 3D->2D Preview mode is %s", valstr);
-            mParameters.set(TICameraParameters::KEY_S3D2D_PREVIEW, valstr);
-            }
-
         if((valstr = params.get(TICameraParameters::KEY_AUTOCONVERGENCE)) != NULL)
             {
             CAMHAL_LOGEB("AutoConvergence mode is %s", valstr);
             mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE, valstr);
             }
-        if((valstr = params.get(TICameraParameters::KEY_SENSOR_ORIENTATION)) != NULL)
-            {
-            CAMHAL_LOGDB("Sensor Orientation is set to %s", params.get(TICameraParameters::KEY_SENSOR_ORIENTATION));
-            mParameters.set(TICameraParameters::KEY_SENSOR_ORIENTATION, valstr);
-            }
-
         }
 
     ///Below parameters can be changed when the preview is running
@@ -395,7 +414,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     params.getPictureSize(&w, &h);
 
-    if ( !isResolutionValid(w, h, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue))
+    if ( !isResolutionValid(w / w_coef, h / h_coef, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue))
         {
         CAMHAL_LOGEB("Invalid picture resolution %d x %d", w, h);
         ret = -EINVAL;
@@ -405,7 +424,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.setPictureSize(w, h);
         }
 
-    CAMHAL_LOGDB("\n >>> Picture Size by App %d x %d\n\n", w, h);
+    CAMHAL_LOGDB("Picture Size by App %d x %d", w, h);
 
     if(( (valstr = params.get(TICameraParameters::KEY_BURST)) != NULL)
         && (params.getInt(TICameraParameters::KEY_BURST) >=0))
@@ -1187,7 +1206,7 @@ status_t CameraHal::signalEndImageCapture()
             {
             CAMHAL_LOGDA("Capture mode not set by app, setting picture res back to preview res");
             mParameters.getPreviewSize(&w, &h);
-            adapterParams.setPictureSize(w,h);
+            adapterParams.setPictureSize(w, h);
             ret = mCameraAdapter->setParameters(adapterParams);
             }
 
@@ -1363,32 +1382,67 @@ status_t CameraHal::startPreview()
         }
 
     ///Enable the display adapter if present, actual overlay enable happens when we post the buffer
-    if(mDisplayAdapter.get() != NULL)
+    if (mDisplayAdapter.get() != NULL)
         {
-        CAMHAL_LOGDA("Enabling display");
         bool isS3d = false;
-        if ( (valstr = mParameters.get(TICameraParameters::KEY_S3D_SUPPORTED)) != NULL) {
-            isS3d = (strcmp(valstr, "true") == 0);
-        }
         DisplayAdapter::S3DParameters s3dParams;
-        if ( (valstr = mParameters.get(TICameraParameters::KEY_S3D2D_PREVIEW)) != NULL) {
-            if (strcmp(valstr, "off") == 0)
+
+        s3dParams.mode = OVERLAY_S3D_MODE_OFF;
+        s3dParams.framePacking = OVERLAY_S3D_FORMAT_NONE;
+        s3dParams.order = OVERLAY_S3D_ORDER_LF;
+        s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+
+        CAMHAL_LOGDA("Enabling display");
+        if ((valstr = mParameters.get(TICameraParameters::KEY_S3D_SUPPORTED)) != NULL)
+            {
+            isS3d = (!strcmp(valstr, "true"));
+            }
+
+        if (isS3d)
+            {
+            if ((valstr = mParameters.get(TICameraParameters::KEY_S3D2D_PREVIEW)) != NULL)
                 {
-                CAMHAL_LOGEA("STEREO 3D->2D PREVIEW MODE IS OFF");
-                //TODO: obtain the frame packing configuration from camera or user settings
-                //once side by side configuration is supported
-                s3dParams.mode = OVERLAY_S3D_MODE_ON;
-                s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
-                s3dParams.order = OVERLAY_S3D_ORDER_LF;
-                s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
-                }
-            else
-                {
-                CAMHAL_LOGEA("STEREO 3D->2D PREVIEW MODE IS ON");
-                s3dParams.mode = OVERLAY_S3D_MODE_OFF;
-                s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
-                s3dParams.order = OVERLAY_S3D_ORDER_LF;
-                s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+                if (!strcmp(valstr, "on"))
+                    {
+                    CAMHAL_LOGEA("Stereo 3D: 2D Preview Mode is On");
+                    }
+                else
+                    {
+                    CAMHAL_LOGEA("Stereo 3D: 2D Preview Mode is Off");
+                    s3dParams.mode = OVERLAY_S3D_MODE_ON;
+
+                    if ((valstr = mParameters.get(TICameraParameters::KEY_S3D_FRAME_LAYOUT)) != NULL)
+                        {
+                        if (!strcmp(valstr, TICameraParameters::S3D_TB_FULL))
+                            {
+                            CAMHAL_LOGEA("Stereo 3D: Frame layout: Top-Bottom Full");
+                            s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
+                            s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+                            s3dParams.order = OVERLAY_S3D_ORDER_LF;
+                            }
+                        else if (!strcmp(valstr, TICameraParameters::S3D_SS_FULL))
+                            {
+                            CAMHAL_LOGEA("Stereo 3D: Frame layout: Side-by-Side Full");
+                            s3dParams.framePacking = OVERLAY_S3D_FORMAT_SIDEBYSIDE;
+                            s3dParams.subSampling = OVERLAY_S3D_SS_NONE;
+                            s3dParams.order = OVERLAY_S3D_ORDER_LF;
+                            }
+                        else if (!strcmp(valstr, TICameraParameters::S3D_TB_SUBSAMPLED))
+                            {
+                            CAMHAL_LOGEA("Stereo 3D: Frame layout: Top-Bottom SubSampled");
+                            s3dParams.framePacking = OVERLAY_S3D_FORMAT_OVERUNDER;
+                            s3dParams.subSampling = OVERLAY_S3D_SS_VERT;
+                            s3dParams.order = OVERLAY_S3D_ORDER_LF;
+                            }
+                        else if (!strcmp(valstr, TICameraParameters::S3D_SS_SUBSAMPLED))
+                            {
+                            CAMHAL_LOGEA("Stereo 3D: Frame layout: Side-by-Side SubSampled");
+                            s3dParams.framePacking = OVERLAY_S3D_FORMAT_SIDEBYSIDE;
+                            s3dParams.subSampling = OVERLAY_S3D_SS_HOR;
+                            s3dParams.order = OVERLAY_S3D_ORDER_LF;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -2942,6 +2996,7 @@ void CameraHal::insertSupportedParams()
     p.set(TICameraParameters::KEY_SUPPORTED_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_IPP_MODES]->mPropValue);
     p.set(TICameraParameters::KEY_S3D_SUPPORTED,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D_SUPPORTED]->mPropValue);
     p.set(TICameraParameters::KEY_S3D2D_PREVIEW_MODE,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D2D_PREVIEW_MODES]->mPropValue);
+    p.set(TICameraParameters::KEY_S3D_FRAME_LAYOUT_VALUES,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D_FRAME_LAYOUT_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_AUTOCONVERGENCE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_AUTOCONVERGENCE_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB]->mPropValue);
@@ -3202,6 +3257,8 @@ void CameraHal::initDefaultParameters()
     insertSupportedParams();
 
     //Insert default values
+    p.set(TICameraParameters::KEY_S3D2D_PREVIEW, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D2D_PREVIEW]->mPropValue);
+    p.set(TICameraParameters::KEY_S3D_FRAME_LAYOUT, (const char*)mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D_FRAME_LAYOUT]->mPropValue);
     p.setPreviewFrameRate(atoi((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PREVIEW_FRAME_RATE]->mPropValue));
     p.setPreviewFormat((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PREVIEW_FORMAT]->mPropValue);
     p.setPictureFormat((const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_PICTURE_FORMAT]->mPropValue);
@@ -3222,7 +3279,6 @@ void CameraHal::initDefaultParameters()
     p.set(TICameraParameters::KEY_EXPOSURE_MODE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_EXPOSURE_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_ISO, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_ISO_MODE]->mPropValue);
     p.set(TICameraParameters::KEY_IPP, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_IPP]->mPropValue);
-    p.set(TICameraParameters::KEY_S3D2D_PREVIEW, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_S3D2D_PREVIEW]->mPropValue);
     p.set(TICameraParameters::KEY_AUTOCONVERGENCE, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_AUTOCONVERGENCE]->mPropValue);
     p.set(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_MANUALCONVERGENCE_VALUES]->mPropValue);
     p.set(TICameraParameters::KEY_VSTAB,(const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_VSTAB]->mPropValue);

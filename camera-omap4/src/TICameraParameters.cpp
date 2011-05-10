@@ -97,6 +97,9 @@ const char TICameraParameters::ZOOM_UNSUPPORTED[] = "false";
 const char TICameraParameters::KEY_S3D2D_PREVIEW[] = "s3d2d-preview";
 const char TICameraParameters::KEY_S3D2D_PREVIEW_MODE[] = "s3d2d-preview-values";
 
+const char TICameraParameters::KEY_S3D_FRAME_LAYOUT[] = "s3d-frame-layout";
+const char TICameraParameters::KEY_S3D_FRAME_LAYOUT_VALUES[] = "s3d-frame-layout-values";
+
 //TI extensions for SAC/SMC
 const char TICameraParameters::KEY_AUTOCONVERGENCE[] = "auto-convergence";
 const char TICameraParameters::KEY_AUTOCONVERGENCE_MODE[] = "auto-convergence-mode";
@@ -191,6 +194,12 @@ const char TICameraParameters::ISO_MODE_800[] = "800";
 const char TICameraParameters::ISO_MODE_1000[] = "1000";
 const char TICameraParameters::ISO_MODE_1200[] = "1200";
 const char TICameraParameters::ISO_MODE_1600[] = "1600";
+
+//TI extensions for stereo frame layouts
+const char TICameraParameters::S3D_TB_FULL[] = "tb_full";
+const char TICameraParameters::S3D_SS_FULL[] = "ss_full";
+const char TICameraParameters::S3D_TB_SUBSAMPLED[] = "tb_subsampled";
+const char TICameraParameters::S3D_SS_SUBSAMPLED[] = "ss_subsampled";
 
 //  TI extensions to add auto convergence values
 const char TICameraParameters::AUTOCONVERGENCE_MODE_DISABLE[] = "mode-disable";

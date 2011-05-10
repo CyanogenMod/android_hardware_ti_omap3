@@ -219,6 +219,15 @@ public:
         IPP_LDCNSF,
         };
 
+    enum S3DFrameLayout
+        {
+        S3D_NONE = 0,
+        S3D_TB_FULL,
+        S3D_SS_FULL,
+        S3D_TB_SUBSAMPLED,
+        S3D_SS_SUBSAMPLED,
+        };
+
     enum CodingMode
         {
         CodingNone = 0,
@@ -465,6 +474,9 @@ private:
     //Noise filtering
     status_t setNSF(OMXCameraAdapter::IPPMode mode);
 
+    //Stereo 3D
+    status_t setS3DFrameLayout(OMX_U32 port);
+
     //LDC
     status_t setLDC(OMXCameraAdapter::IPPMode mode);
 
@@ -706,6 +718,8 @@ private:
     CameraParameters mParameters;
     OMXCameraAdapterComponentContext mCameraAdapterParameters;
     bool mFirstTimeInit;
+
+    S3DFrameLayout mS3DImageFormat;
 
     ///Semaphores used internally
     Vector<struct Message *> mEventSignalQ;

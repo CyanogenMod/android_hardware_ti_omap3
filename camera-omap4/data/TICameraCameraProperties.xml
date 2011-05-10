@@ -13,9 +13,12 @@
 <prop-orientation>0</prop-orientation>
 <prop-facing>back</prop-facing>
 <prop-s3d-supported>false</prop-s3d-supported>
+<prop-s3d-frame-layout>0</prop-s3d-frame-layout>
+<prop-s3d-frame-layout-values>0</prop-s3d-frame-layout-values>
+<prop-s3d2d-preview>0</prop-s3d2d-preview>
+<prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
 <prop-ev-compensation-step>0.1</prop-ev-compensation-step>
 <prop-flash-mode-values>off,on,auto,torch</prop-flash-mode-values>
-<prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
 <prop-auto-convergence-mode>0</prop-auto-convergence-mode>
 <prop-auto-convergence>0</prop-auto-convergence>
 <prop-manual-convergence-values>0</prop-manual-convergence-values>
@@ -49,7 +52,6 @@
 <prop-framerate-range-default>20000,30000</prop-framerate-range-default>
 <prop-framerate-range-values>(5000,15000),(10000,20000),(20000,30000)</prop-framerate-range-values>
 <prop-flash-mode-default>off</prop-flash-mode-default>
-<prop-s3d2d-preview>0</prop-s3d2d-preview>
 <prop-exif-make>default_make</prop-exif-make>
 <prop-exif-model>default_model</prop-exif-model>
 </CameraInstance>
@@ -66,11 +68,13 @@
 <prop-orientation>0</prop-orientation>
 <prop-facing>front</prop-facing>
 <prop-s3d-supported>false</prop-s3d-supported>
+<prop-s3d-frame-layout>0</prop-s3d-frame-layout>
+<prop-s3d-frame-layout-values>0</prop-s3d-frame-layout-values>
+<prop-s3d2d-preview>0</prop-s3d2d-preview>
+<prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
 <prop-ev-compensation-step>0.1</prop-ev-compensation-step>
 <prop-flash-mode-values>off</prop-flash-mode-values>
 <prop-flash-mode-default>off</prop-flash-mode-default>
-<prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
-<prop-s3d2d-preview>0</prop-s3d2d-preview>
 <prop-auto-convergence-mode>0</prop-auto-convergence-mode>
 <prop-auto-convergence>0</prop-auto-convergence>
 <prop-manual-convergence-values>0</prop-manual-convergence-values>
@@ -118,9 +122,12 @@
 <prop-orientation>0</prop-orientation>
 <prop-facing>front</prop-facing>
 <prop-s3d-supported>true</prop-s3d-supported>
+<prop-s3d-frame-layout>s3d-frame-layout</prop-s3d-frame-layout>
+<prop-s3d-frame-layout-values>tb_full,ss_full,tb_subsampled,ss_subsampled</prop-s3d-frame-layout-values>
+<prop-s3d2d-preview>s3d2d-preview</prop-s3d2d-preview>
+<prop-s3d2d-preview-values>on,off</prop-s3d2d-preview-values>
 <prop-ev-compensation-step>0.1</prop-ev-compensation-step>
 <prop-flash-mode-values>off</prop-flash-mode-values>
-<prop-s3d2d-preview-values>on,off</prop-s3d2d-preview-values>
 <prop-auto-convergence-mode>mode-disable,mode-frame,mode-center,mode-fft,mode-manual</prop-auto-convergence-mode>
 <prop-auto-convergence>auto-convergence</prop-auto-convergence>
 <prop-manual-convergence-values>-100,-50,-30,-25,0,25,50,100</prop-manual-convergence-values>
@@ -154,7 +161,6 @@
 <prop-framerate-range-default>20000,30000</prop-framerate-range-default>
 <prop-framerate-range-values>(5000,15000),(10000,20000),(20000,30000)</prop-framerate-range-values>
 <prop-flash-mode-default>off</prop-flash-mode-default>
-<prop-s3d2d-preview>3d2d-preview</prop-s3d2d-preview>
 <prop-exif-make>default_make</prop-exif-make>
 <prop-exif-model>default_model</prop-exif-model>
 </CameraInstance>
@@ -169,6 +175,10 @@
 <prop-horizontal-angle>62.1</prop-horizontal-angle>
 <prop-vertical-angle>48.2</prop-vertical-angle>
 <prop-s3d-supported>false</prop-s3d-supported>
+<prop-s3d-frame-layout>0</prop-s3d-frame-layout>
+<prop-s3d-frame-layout-values>0</prop-s3d-frame-layout-values>
+<prop-s3d2d-preview>0</prop-s3d2d-preview>
+<prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
 <prop-preview-size-values>640x480,320x240,352x288,176x144,128x96</prop-preview-size-values>
 <prop-preview-format-values>yuv422i-yuyv,yuv420sp,rgb565</prop-preview-format-values>
 <prop-preview-frame-rate-values>30</prop-preview-frame-rate-values>
@@ -192,7 +202,6 @@
 <prop-focus-mode-values>auto</prop-focus-mode-values>
 <prop-scene-mode-values>auto</prop-scene-mode-values>
 <prop-flash-mode-values>off</prop-flash-mode-values>
-<prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
 <prop-auto-convergence-mode>0</prop-auto-convergence-mode>
 <prop-auto-convergence>0</prop-auto-convergence>
 <prop-manual-convergence-values>0</prop-manual-convergence-values>
@@ -224,7 +233,6 @@
 <prop-vstab-default>0</prop-vstab-default>
 <prop-framerate-range-default>1000,30000</prop-framerate-range-default>
 <prop-flash-mode-default>off</prop-flash-mode-default>
-<prop-s3d2d-preview>off</prop-s3d2d-preview>
 <prop-exif-make>default_make</prop-exif-make>
 <prop-exif-model>default_model</prop-exif-model>
 </CameraInstance>
@@ -239,6 +247,10 @@
 <prop-horizontal-angle>62.1</prop-horizontal-angle>
 <prop-vertical-angle>48.2</prop-vertical-angle>
 <prop-s3d-supported>false</prop-s3d-supported>
+<prop-s3d-frame-layout>0</prop-s3d-frame-layout>
+<prop-s3d-frame-layout-values>0</prop-s3d-frame-layout-values>
+<prop-s3d2d-preview>0</prop-s3d2d-preview>
+<prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
 <prop-preview-size-values>1920x1080,1280x720,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96</prop-preview-size-values>
 <prop-preview-format-values>yuv422i-yuyv,yuv420sp,rgb565</prop-preview-format-values>
 <prop-preview-frame-rate-values>33,30,25,24,20,15,10</prop-preview-frame-rate-values>
@@ -261,7 +273,6 @@
 <prop-focus-mode-values>auto,infinity,macro,caf,extended,portrait,touch,face-priority</prop-focus-mode-values>
 <prop-scene-mode-values>auto,manual,sport,closeup,portrait,landscape,underwater,action,snow-beach,mood,night-portrait,night-indoor,fireworks,document,barcode,supernight,cine,oldfilm,beach,candlelight,night,party,snow,steadyphoto,sunset,theatre</prop-scene-mode-values>
 <prop-flash-mode-values>off,on,auto,torch</prop-flash-mode-values>
-<prop-s3d2d-preview-values>0</prop-s3d2d-preview-values>
 <prop-auto-convergence-mode>0</prop-auto-convergence-mode>
 <prop-auto-convergence>0</prop-auto-convergence>
 <prop-manual-convergence-values>0</prop-manual-convergence-values>
@@ -294,6 +305,5 @@
 <prop-sharpness-default>100</prop-sharpness-default>
 <prop-vstab-default>0</prop-vstab-default>
 <prop-flash-mode-default>off</prop-flash-mode-default>
-<prop-s3d2d-preview>0</prop-s3d2d-preview>
 </CameraInstance>
 </CameraRoot>

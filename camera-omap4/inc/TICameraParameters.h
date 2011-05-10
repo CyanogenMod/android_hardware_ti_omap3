@@ -80,6 +80,9 @@ static const char  KEY_CURRENT_ISO[];
 static const char KEY_SENSOR_ORIENTATION[];
 static const char KEY_SENSOR_ORIENTATION_VALUES[];
 
+static const char KEY_S3D_FRAME_LAYOUT[];
+static const char KEY_S3D_FRAME_LAYOUT_VALUES[];
+
 //TI extensions for zoom
 static const char ZOOM_SUPPORTED[];
 static const char ZOOM_UNSUPPORTED[];
@@ -222,6 +225,12 @@ static const char EFFECT_BLACKWHITE[];
 
 static const char KEY_S3D2D_PREVIEW[];
 static const char KEY_S3D2D_PREVIEW_MODE[];
+
+//TI extensions for stereo frame layouts
+static const char S3D_TB_FULL[];
+static const char S3D_SS_FULL[];
+static const char S3D_TB_SUBSAMPLED[];
+static const char S3D_SS_SUBSAMPLED[];
 
 //  TI extensions to add values for AutoConvergence settings.
 static const char AUTOCONVERGENCE_MODE_DISABLE[];

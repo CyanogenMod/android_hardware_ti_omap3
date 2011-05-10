@@ -273,6 +273,8 @@ int OverlayDisplayAdapter::enableDisplay(struct timeval *refTime, S3DParameters 
 
     CAMHAL_LOGDB("mFrameWidth = %d mFrameHeight = %d", mFrameWidth, mFrameHeight);
 
+    mOverlay->setCrop(0, 0, mFrameWidth, mFrameHeight);
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     if ( NULL != refTime )
@@ -353,7 +355,7 @@ int OverlayDisplayAdapter::disableDisplay()
         mYOff = 0;
 
         ///Reset the frame width and height values
-        mFrameWidth =0;
+        mFrameWidth  = 0;
         mFrameHeight = 0;
 
         ///Reset the buffer tracking variables

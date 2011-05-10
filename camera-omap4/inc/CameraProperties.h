@@ -120,6 +120,8 @@ public:
         PROP_INDEX_EXIF_MAKE,
         PROP_INDEX_EXIF_MODEL,
         PROP_INDEX_JPEG_THUMBNAIL_QUALITY,
+        PROP_INDEX_S3D_FRAME_LAYOUT,
+        PROP_INDEX_S3D_FRAME_LAYOUT_VALUES,
         PROP_INDEX_MAX
         };
 
@@ -199,6 +201,8 @@ public:
     static const char VSTAB_VALUES[];
     static const char FRAMERATE_RANGE[];
     static const char FRAMERATE_RANGE_SUPPORTED[];
+    static const char S3D_FRAME_LAYOUT[];
+    static const char S3D_FRAME_LAYOUT_VALUES[];
 
     class CameraProperty
         {

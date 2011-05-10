@@ -89,6 +89,8 @@ const char CameraProperties::SHARPNESS[] = "prop-sharpness-default";
 const char CameraProperties::IPP[] = "prop-ipp-default";
 const char CameraProperties::S3D2D_PREVIEW[] = "prop-s3d2d-preview";
 const char CameraProperties::S3D2D_PREVIEW_MODES[] = "prop-s3d2d-preview-values";
+const char CameraProperties::S3D_FRAME_LAYOUT[] = "prop-s3d-frame-layout";
+const char CameraProperties::S3D_FRAME_LAYOUT_VALUES[] = "prop-s3d-frame-layout-values";
 const char CameraProperties::AUTOCONVERGENCE[] = "prop-auto-convergence";
 const char CameraProperties::AUTOCONVERGENCE_MODE[] = "prop-auto-convergence-mode";
 const char CameraProperties::MANUALCONVERGENCE_VALUES[] = "prop-manual-convergence-values";
@@ -1024,6 +1026,18 @@ CameraProperties::CameraPropertyIndex CameraProperties::getCameraPropertyIndex(c
         LOG_FUNCTION_NAME_EXIT
         return CameraProperties::PROP_INDEX_S3D2D_PREVIEW_MODES;
         }
+    else if(!strcmp(propName,CameraProperties::S3D_FRAME_LAYOUT))
+        {
+        CAMHAL_LOGDA("Returning S3D_FRAME_LAYOUT");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_S3D_FRAME_LAYOUT;
+        }
+    else if(!strcmp(propName,CameraProperties::S3D_FRAME_LAYOUT_VALUES))
+        {
+        CAMHAL_LOGDA("Returning S3D_FRAME_LAYOUT_VALUES");
+        LOG_FUNCTION_NAME_EXIT
+        return CameraProperties::PROP_INDEX_S3D_FRAME_LAYOUT_VALUES;
+        }
     else if(!strcmp(propName,CameraProperties::AUTOCONVERGENCE))
         {
         CAMHAL_LOGDA("Returning AUTOCONVERGENCE");
@@ -1145,17 +1159,17 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             return CameraProperties::ADAPTER_DLL_NAME;
 
         case CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_SIZES:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::ADAPTER_DLL_NAME );
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SUPPORTED_PREVIEW_SIZES );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::SUPPORTED_PREVIEW_SIZES;
 
         case CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FORMATS:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SUPPORTED_PREVIEW_SIZES );
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SUPPORTED_PREVIEW_FORMATS );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::SUPPORTED_PREVIEW_FORMATS;
 
         case CameraProperties::PROP_INDEX_SUPPORTED_PREVIEW_FRAME_RATES:
-            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SUPPORTED_PREVIEW_FORMATS );
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::SUPPORTED_PREVIEW_FRAME_RATES );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::SUPPORTED_PREVIEW_FRAME_RATES;
 
@@ -1413,6 +1427,16 @@ const char* CameraProperties::getCameraPropertyKey(CameraProperties::CameraPrope
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::S3D2D_PREVIEW_MODES );
             LOG_FUNCTION_NAME_EXIT
             return CameraProperties::S3D2D_PREVIEW_MODES;
+
+        case CameraProperties::PROP_INDEX_S3D_FRAME_LAYOUT:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::S3D_FRAME_LAYOUT );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::S3D_FRAME_LAYOUT;
+
+        case CameraProperties::PROP_INDEX_S3D_FRAME_LAYOUT_VALUES:
+            CAMHAL_LOGVB("Returning key: %s ",CameraProperties::S3D_FRAME_LAYOUT_VALUES );
+            LOG_FUNCTION_NAME_EXIT
+            return CameraProperties::S3D_FRAME_LAYOUT_VALUES;
 
         case CameraProperties::PROP_INDEX_VSTAB:
             CAMHAL_LOGVB("Returning key: %s ",CameraProperties::VSTAB );

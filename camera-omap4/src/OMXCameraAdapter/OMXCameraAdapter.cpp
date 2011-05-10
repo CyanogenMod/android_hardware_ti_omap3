@@ -292,7 +292,7 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         mExposureBracketingValidEntries = 0;
         mFaceDetectionThreshold = FACE_THRESHOLD_DEFAULT;
         mSensorOverclock = false;
-
+        mS3DImageFormat = S3D_NONE;
         mEXIFData.mGPSData.mAltitudeValid = false;
         mEXIFData.mGPSData.mDatestampValid = false;
         mEXIFData.mGPSData.mLatValid = false;
@@ -513,6 +513,35 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         {
         CAMHAL_LOGEA("Preview format is NULL, defaulting to CbYCrY");
         pixFormat = OMX_COLOR_FormatCbYCrY;
+        }
+
+    str = params.get(TICameraParameters::KEY_S3D_FRAME_LAYOUT);
+    if (str != NULL)
+        {
+        if (strcmp(str, TICameraParameters::S3D_TB_FULL) == 0)
+            {
+            mS3DImageFormat = S3D_TB_FULL;
+            }
+        else if (strcmp(str, TICameraParameters::S3D_SS_FULL) == 0)
+            {
+            mS3DImageFormat = S3D_SS_FULL;
+            }
+        else if (strcmp(str, TICameraParameters::S3D_TB_SUBSAMPLED) == 0)
+            {
+            mS3DImageFormat = S3D_TB_SUBSAMPLED;
+            }
+        else if (strcmp(str, TICameraParameters::S3D_SS_SUBSAMPLED) == 0)
+            {
+            mS3DImageFormat = S3D_SS_SUBSAMPLED;
+            }
+        else
+            {
+            mS3DImageFormat = S3D_NONE;
+            }
+        }
+    else
+        {
+        mS3DImageFormat = S3D_NONE;
         }
 
     OMXCameraPortParameters *cap;
@@ -914,22 +943,22 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     // Read Sensor Orientation and set it based on perating mode
 
-     if (( params.getInt(TICameraParameters::KEY_SENSOR_ORIENTATION) != -1 ) && (mCapMode == OMXCameraAdapter::VIDEO_MODE))
+    if (( params.getInt(TICameraParameters::KEY_SENSOR_ORIENTATION) != -1 ) && (mCapMode == OMXCameraAdapter::VIDEO_MODE))
         {
-         mSensorOrientation = params.getInt(TICameraParameters::KEY_SENSOR_ORIENTATION);
-         if (mSensorOrientation == 270 ||mSensorOrientation==90)
-             {
-             CAMHAL_LOGEA(" Orientation is 270/90. So setting counter rotation  to Ducati");
-             mSensorOrientation +=180;
-             mSensorOrientation%=360;
-              }
-         }
-     else
+        mSensorOrientation = params.getInt(TICameraParameters::KEY_SENSOR_ORIENTATION);
+        if (mSensorOrientation == 270 ||mSensorOrientation==90)
+            {
+            CAMHAL_LOGEA(" Orientation is 270/90. So setting counter rotation  to Ducati");
+            mSensorOrientation +=180;
+            mSensorOrientation%=360;
+            }
+        }
+    else
         {
-         mSensorOrientation = 0;
+        mSensorOrientation = 0;
         }
 
-CAMHAL_LOGEB("Sensor Orientation  set : %d", mSensorOrientation);
+    CAMHAL_LOGEB("Sensor Orientation  set : %d", mSensorOrientation);
 
     /// Configure IPP, LDCNSF, GBCE and GLBCE only in HQ mode
     IPPMode ipp;
@@ -2212,6 +2241,7 @@ status_t OMXCameraAdapter::setVFramerate(OMX_U32 minFrameRate, OMX_U32 maxFrameR
 
 status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &portParams)
 {
+    status_t ret = NO_ERROR;
     size_t bufferCount;
 
     LOG_FUNCTION_NAME
@@ -2299,6 +2329,17 @@ status_t OMXCameraAdapter::setFormat(OMX_U32 port, OMXCameraPortParameters &port
     else
         {
         CAMHAL_LOGEB("Unsupported port index 0x%x", (unsigned int)port);
+        }
+
+    if ( mSensorIndex == OMX_TI_StereoSensor &&
+        (OMX_CAMERA_PORT_VIDEO_OUT_PREVIEW == port || OMX_CAMERA_PORT_IMAGE_OUT_IMAGE == port) )
+        {
+        ret = setS3DFrameLayout(port);
+        if ( NO_ERROR != ret )
+            {
+            CAMHAL_LOGEA("Error configuring stereo 3D frame layout");
+            return ret;
+            }
         }
 
     eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp,
@@ -3114,8 +3155,8 @@ status_t OMXCameraAdapter::UseBuffersCapture(void* bufArr, int num)
 
     //TODO: Support more pixelformats
 
-    LOGE("Params Width = %d", (int)imgCaptureData->mWidth);
-    LOGE("Params Height = %d", (int)imgCaptureData->mHeight);
+    LOGD("Params Width = %d", (int)imgCaptureData->mWidth);
+    LOGD("Params Height = %d", (int)imgCaptureData->mHeight);
 
     ret = setFormat(OMX_CAMERA_PORT_IMAGE_OUT_IMAGE, *imgCaptureData);
     if ( ret != NO_ERROR )
@@ -5021,6 +5062,78 @@ status_t OMXCameraAdapter::setGLBCE(OMXCameraAdapter::BrightnessMode mode)
     return ret;
 }
 
+status_t OMXCameraAdapter::setS3DFrameLayout(OMX_U32 port)
+{
+    status_t ret = NO_ERROR;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_TI_FRAMELAYOUTTYPE frameLayout;
+    OMX_TI_STEREOFRAMELAYOUTTYPE frameLayoutType;
+    OMX_U32 subsampleRatio;
+
+    LOG_FUNCTION_NAME
+
+    switch (mS3DImageFormat)
+        {
+        case S3D_TB_FULL: // Top bottom full
+            {
+            frameLayoutType = OMX_TI_StereoFrameLayoutTopBottom;
+            subsampleRatio = 1; // for full
+            break;
+            }
+        case S3D_SS_FULL: // Side by side full
+            {
+            frameLayoutType = OMX_TI_StereoFrameLayoutLeftRight;
+            subsampleRatio = 1; // for full
+            break;
+            }
+        case S3D_TB_SUBSAMPLED: // Top bottom subsampled
+            {
+            frameLayoutType = OMX_TI_StereoFrameLayoutTopBottom;
+            subsampleRatio = 2; // for subsample
+            break;
+            }
+        case S3D_SS_SUBSAMPLED: // Side by side subsampled
+            {
+            frameLayoutType = OMX_TI_StereoFrameLayoutLeftRight;
+            subsampleRatio = 2; // for subsample
+            break;
+            }
+        default:
+            {
+            frameLayoutType = OMX_TI_StereoFrameLayout2D;
+            subsampleRatio = 1; // for full
+            }
+        }
+    subsampleRatio = subsampleRatio << 7;
+
+    OMX_INIT_STRUCT_PTR (&frameLayout, OMX_TI_FRAMELAYOUTTYPE);
+    frameLayout.nPortIndex = port;
+    eError = OMX_GetParameter(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexParamStereoFrmLayout, &frameLayout);
+    if ( eError != OMX_ErrorNone ) {
+        CAMHAL_LOGEB("Error while getting S3D frame layout: 0x%x", eError);
+        }
+    else {
+        frameLayout.eFrameLayout = frameLayoutType;
+        frameLayout.nSubsampleRatio = subsampleRatio;
+        eError = OMX_SetParameter(mCameraAdapterParameters.mHandleComp,
+                (OMX_INDEXTYPE)OMX_TI_IndexParamStereoFrmLayout, &frameLayout);
+        if ( eError != OMX_ErrorNone )
+            {
+            CAMHAL_LOGEB("Error while setting S3D frame layout: 0x%x", eError);
+            ret = -EINVAL;
+            }
+        else
+            {
+            CAMHAL_LOGDA("S3D frame layout applied successfully");
+            }
+        }
+
+EXIT:
+
+    LOG_FUNCTION_NAME_EXIT
+    return ret;
+}
+
 status_t OMXCameraAdapter::setCaptureMode(OMXCameraAdapter::CaptureMode mode)
 {
     status_t ret = NO_ERROR;
@@ -5312,7 +5425,16 @@ status_t OMXCameraAdapter::doAutoFocus()
             //Set position
             OMXCameraPortParameters * mPreviewData = NULL;
             mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
-            setTouchFocus(mTouchFocusPosX, mTouchFocusPosY, mPreviewData->mWidth, mPreviewData->mHeight);
+            OMX_U32 w = mPreviewData->mWidth;
+            OMX_U32 h = mPreviewData->mHeight;
+
+            if (mS3DImageFormat == S3D_TB_FULL) {
+                h = h / 2;
+            } else if (mS3DImageFormat == S3D_SS_FULL) {
+                w = w / 2;
+            }
+
+            setTouchFocus(mTouchFocusPosX, mTouchFocusPosY, w, h);
 
             //Do normal focus afterwards
             focusControl.eFocusControl = ( OMX_IMAGE_FOCUSCONTROLTYPE ) OMX_IMAGE_FocusControlExtended;
