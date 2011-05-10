@@ -134,7 +134,7 @@ static settingNameperStream_t settingName[] = {
 static const int settingNameLen = (sizeof(settingName) / sizeof(settingNameperStream_t));
 
 //     multimic    : No, Yes
-//     sampleRate  : 8Khz, 16Khz
+//     sampleRate  : 8Khz, 16Khz, auto
 //     nearEndVol  : from 0.00 to 1.00 step 0.01
 //     farEndVol   : from 0.00 to 1.00 step 0.01
 //     channel     : I2S1, Voice, Voice_second, Voice_third
@@ -150,6 +150,7 @@ static const int multimicValueLen = (sizeof(multimicValue) / sizeof(char *));
 static const char *sampleRateValue[] = {
     "8Khz",
     "16Khz"
+    "auto"
 };
 static const int sampleRateValueLen = (sizeof(sampleRateValue) / sizeof(char *));
 
@@ -414,6 +415,9 @@ public:
 
     // Multimedia update
     status_t     multimediaCodecUpdate(void);
+
+    // Automatic sample rate
+    uint32_t mVoiceCallSampleRate;
 };
 };        // namespace android
 #endif    // ANDROID_ALSA_OMAP4_MODEM_H

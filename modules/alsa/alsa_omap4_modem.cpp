@@ -519,7 +519,16 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
         return INVALID_OPERATION;
     }
 
+
     if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_SAMPLERATE].name,
+                "auto")) {
+        if (mVoiceCallSampleRate == AudioModemInterface::PCM_16_KHZ) {
+            sampleRate = 16000;
+        } else {
+            sampleRate = 8000;
+        }
+    }
+    else if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_SAMPLERATE].name,
                 "16Khz")) {
         sampleRate = 16000;
     } else {
@@ -963,14 +972,26 @@ status_t AudioModemAlsa::voiceCallModemSet()
 
     LOGV("Start Audio Modem Voice call");
 
+
+    if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_SAMPLERATE].name,
+                "auto")) {
+        mVoiceCallSampleRate = mModem->GetVoiceCallSampleRate();
+        LOGV("Sample rate used for this voice call: %d", sampleRate);
+        if ((mVoiceCallSampleRate == AudioModemInterface::INVALID_SAMPLE_RATE) ||
+            (mVoiceCallSampleRate == AudioModemInterface::PCM_44_1_KHZ))  {
+            LOGE("Invalid Sample rate used for this voice call set to 8KHz");
+            mVoiceCallSampleRate = AudioModemInterface::PCM_8_KHZ;
+        }
+    }
+
     if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_SAMPLERATE].name,
                 "16Khz")) {
-        error = mModem->setModemRouting(mCurrentAudioModemModes,
-               AudioModemInterface::PCM_16_KHZ);
+        mVoiceCallSampleRate = AudioModemInterface::PCM_16_KHZ;
     } else {
-        error = mModem->setModemRouting(mCurrentAudioModemModes,
-               AudioModemInterface::PCM_8_KHZ);
+        mVoiceCallSampleRate = AudioModemInterface::PCM_8_KHZ;
     }
+    error = mModem->setModemRouting(mCurrentAudioModemModes,
+            mVoiceCallSampleRate);
     if (error < 0) {
         LOGE("Unable to set Modem Voice Call routing: %s", strerror(error));
         return error;
@@ -1007,12 +1028,12 @@ status_t AudioModemAlsa::voiceCallModemUpdate()
 
     if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_SAMPLERATE].name,
                 "16Khz")) {
-        error = mModem->setModemRouting(mCurrentAudioModemModes,
-               AudioModemInterface::PCM_16_KHZ);
+        mVoiceCallSampleRate = AudioModemInterface::PCM_16_KHZ;
     } else {
-        error = mModem->setModemRouting(mCurrentAudioModemModes,
-               AudioModemInterface::PCM_8_KHZ);
+        mVoiceCallSampleRate = AudioModemInterface::PCM_8_KHZ;
     }
+    error = mModem->setModemRouting(mCurrentAudioModemModes,
+            mVoiceCallSampleRate);
     if (error < 0) {
         LOGE("Unable to set Modem Voice Call routing: %s", strerror(error));
         return error;
