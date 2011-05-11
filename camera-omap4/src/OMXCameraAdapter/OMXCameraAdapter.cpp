@@ -1191,6 +1191,13 @@ CAMHAL_LOGEB("Sensor Orientation  set : %d", mSensorOrientation);
         mOMXStateSwitch = true;
         }
 
+    //A work-around for a failing call to OMX flush buffers
+    if ( ( capMode = OMXCameraAdapter::VIDEO_MODE ) &&
+         ( mVstabEnabled ) )
+        {
+        mOMXStateSwitch = true;
+        }
+
     //Set Auto Convergence Mode
     str = params.get((const char *) TICameraParameters::KEY_AUTOCONVERGENCE);
     if ( str != NULL )
@@ -2541,6 +2548,8 @@ status_t OMXCameraAdapter::flushBuffers()
         CAMHAL_LOGEB("OMX_SendCommand(OMX_CommandFlush)-0x%x", eError);
         }
     GOTO_EXIT_IF((eError!=OMX_ErrorNone), eError);
+
+    CAMHAL_LOGDA("Waiting for flush event");
 
     ///Wait for the FLUSH event to occur
     eventSem.Wait();
