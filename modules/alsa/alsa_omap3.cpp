@@ -41,7 +41,7 @@ namespace android
 static int s_device_open(const hw_module_t*, const char*, hw_device_t**);
 static int s_device_close(hw_device_t*);
 static status_t s_init(alsa_device_t *, ALSAHandleList &);
-static status_t s_open(alsa_handle_t *, uint32_t, int);
+static status_t s_open(alsa_handle_t *, uint32_t, int, uint32_t);
 static status_t s_close(alsa_handle_t *);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
@@ -144,6 +144,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP3_OUT_SCO,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
         channels    : 2,
@@ -158,6 +159,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP3_OUT_FM,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
         channels    : 2,
@@ -172,6 +174,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP3_OUT_DEFAULT,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
         channels    : 2,
@@ -186,6 +189,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP3_IN_SCO,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
         channels    : 1,
@@ -200,6 +204,7 @@ static alsa_handle_t _defaults[] = {
         devices     : OMAP3_IN_DEFAULT,
         curDev      : 0,
         curMode     : 0,
+        curChannels : 0,
         handle      : 0,
         format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
         channels    : 1,
@@ -532,12 +537,13 @@ LOGV("%s", __FUNCTION__);
     }
 }
 
-void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
+void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t channels)
 {
     AlsaControlSet set = (AlsaControlSet) handle->modPrivate;
     set(devices, mode);
     handle->curDev = devices;
     handle->curMode = mode;
+    handle->curChannels = channels;
 }
 
 // ----------------------------------------------------------------------------
@@ -569,7 +575,7 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
     return NO_ERROR;
 }
 
-static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
+static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t channels)
 {
     // Close off previously opened device.
     // It would be nice to determine if the underlying device actually
@@ -578,7 +584,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     //
     s_close(handle);
 
-    LOGD("open called for devices %08x in mode %d...", devices, mode);
+    LOGD("open called for devices %08x in mode %d channels %08x...", devices, mode, channels);
 
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
@@ -597,7 +603,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 
     if (err == NO_ERROR) err = setSoftwareParams(handle);
 
-    setAlsaControls(handle, devices, mode);
+    setAlsaControls(handle, devices, mode, channels);
 
     LOGI("Initialized ALSA %s device %s", stream, devName);
     return err;
@@ -610,6 +616,7 @@ static status_t s_close(alsa_handle_t *handle)
     handle->handle = 0;
     handle->curDev = 0;
     handle->curMode = 0;
+    handle->curChannels = 0;
     if (h) {
         snd_pcm_drain(h);
         err = snd_pcm_close(h);
@@ -652,10 +659,10 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
     if (handle->handle && handle->curDev == devices && handle->curMode == mode)
         ; // Nothing to do
     else if (handle->handle && (handle->devices & devices))
-        setAlsaControls(handle, devices, mode);
+        setAlsaControls(handle, devices, mode, handle->curChannels);
     else {
         LOGE("Why are we routing to a device that isn't supported by this object?!?!?!?!");
-        status = s_open(handle, devices, mode);
+        status = s_open(handle, devices, mode, handle->curChannels);
 #ifdef AUDIO_MODEM_TI
             ALSAControl control("hw:00");
             status = audioModem->voiceCallControls(devices, mode, &control);
