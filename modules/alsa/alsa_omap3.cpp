@@ -327,17 +327,6 @@ status_t setHardwareParams(alsa_handle_t *handle)
     else
         LOGV("Set %s sample rate to %u HZ", streamName(handle), requestedRate);
 
-    // Make sure we have at least the size we originally wanted
-
-    err = snd_pcm_hw_params_set_buffer_size_near(handle->handle, hardwareParams,
-            &bufferSize);
-
-    if (err < 0) {
-        LOGE("Unable to set buffer size to %d:  %s",
-                (int)bufferSize, snd_strerror(err));
-        goto done;
-    }
-
     // Setup buffers for latency
     err = snd_pcm_hw_params_set_buffer_time_near(handle->handle,
             hardwareParams, &latency, NULL);
