@@ -450,8 +450,9 @@ public:
 #endif
 
 #ifdef FW3A
-
+#ifdef IMAGE_PROCESSING_PIPELINE
     static void onIPP(void *priv, icap_ipp_parameters_t *ipp_params);
+#endif
     static void onMakernote(void *priv, void *mknote_ptr);
     static void onShutter(void *priv, icap_image_buffer_t *image_buf);
     static void onSaveH3A(void *priv, icap_image_buffer_t *buf);

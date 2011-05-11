@@ -1802,7 +1802,11 @@ int  CameraHal::ICapturePerform()
             iobj->cfg.zoom.horizontal = fixedZoom;
         }
         iobj->cfg.notify.cb_mknote = onMakernote;
-        iobj->cfg.notify.cb_ipp = onIPP;
+#ifdef IMAGE_PROCESSING_PIPELINE
+        iobj->cfg.notify.cb_ipp = (mippMode != IPP_Disabled_Mode) ? onIPP : NULL;
+#else
+        iobj->cfg.notify.cb_ipp = NULL;
+#endif
     } else {
         spec_res.capture_mode  = ICAP_CAPTURE_MODE_HP;
         iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
@@ -2007,29 +2011,30 @@ int  CameraHal::ICapturePerform()
     procMessage[PROC_MSG_IDX_PIX_FMT] = pixelFormat;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-    procMessage[PROC_MSG_IDX_IPP_EES]  = mIPPParams.EdgeEnhancementStrength;
-    procMessage[PROC_MSG_IDX_IPP_WET]  = mIPPParams.WeakEdgeThreshold;
-    procMessage[PROC_MSG_IDX_IPP_SET]  = mIPPParams.StrongEdgeThreshold;
-    procMessage[PROC_MSG_IDX_IPP_LFLNFS]  = mIPPParams.LowFreqLumaNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_MFLNFS] = mIPPParams.MidFreqLumaNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_HFLNFS] = mIPPParams.HighFreqLumaNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_LFCBNFS] = mIPPParams.LowFreqCbNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_MFCBNFS] = mIPPParams.MidFreqCbNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_HFCBNFS] = mIPPParams.HighFreqCbNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_LFCRNFS] = mIPPParams.LowFreqCrNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_MFCRNFS] = mIPPParams.MidFreqCrNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_HFCRNFS] = mIPPParams.HighFreqCrNoiseFilterStrength;
-    procMessage[PROC_MSG_IDX_IPP_SVP1] = mIPPParams.shadingVertParam1;
-    procMessage[PROC_MSG_IDX_IPP_SVP2] = mIPPParams.shadingVertParam2;
-    procMessage[PROC_MSG_IDX_IPP_SHP1] = mIPPParams.shadingHorzParam1;
-    procMessage[PROC_MSG_IDX_IPP_SHP2] = mIPPParams.shadingHorzParam2;
-    procMessage[PROC_MSG_IDX_IPP_SGS] = mIPPParams.shadingGainScale;
-    procMessage[PROC_MSG_IDX_IPP_SGO] = mIPPParams.shadingGainOffset;
-    procMessage[PROC_MSG_IDX_IPP_SGMV] = mIPPParams.shadingGainMaxValue;
-    procMessage[PROC_MSG_IDX_IPP_RDSCBCR] = mIPPParams.ratioDownsampleCbCr;
-
     procMessage[PROC_MSG_IDX_IPP_MODE] = mippMode;
-    procMessage[PROC_MSG_IDX_IPP_TO_ENABLE] = mIPPToEnable;
+    if (mippMode != IPP_Disabled_Mode) {
+        procMessage[PROC_MSG_IDX_IPP_TO_ENABLE] = mIPPToEnable;
+        procMessage[PROC_MSG_IDX_IPP_EES]  = mIPPParams.EdgeEnhancementStrength;
+        procMessage[PROC_MSG_IDX_IPP_WET]  = mIPPParams.WeakEdgeThreshold;
+        procMessage[PROC_MSG_IDX_IPP_SET]  = mIPPParams.StrongEdgeThreshold;
+        procMessage[PROC_MSG_IDX_IPP_LFLNFS]  = mIPPParams.LowFreqLumaNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_MFLNFS] = mIPPParams.MidFreqLumaNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_HFLNFS] = mIPPParams.HighFreqLumaNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_LFCBNFS] = mIPPParams.LowFreqCbNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_MFCBNFS] = mIPPParams.MidFreqCbNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_HFCBNFS] = mIPPParams.HighFreqCbNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_LFCRNFS] = mIPPParams.LowFreqCrNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_MFCRNFS] = mIPPParams.MidFreqCrNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_HFCRNFS] = mIPPParams.HighFreqCrNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_SVP1] = mIPPParams.shadingVertParam1;
+        procMessage[PROC_MSG_IDX_IPP_SVP2] = mIPPParams.shadingVertParam2;
+        procMessage[PROC_MSG_IDX_IPP_SHP1] = mIPPParams.shadingHorzParam1;
+        procMessage[PROC_MSG_IDX_IPP_SHP2] = mIPPParams.shadingHorzParam2;
+        procMessage[PROC_MSG_IDX_IPP_SGS] = mIPPParams.shadingGainScale;
+        procMessage[PROC_MSG_IDX_IPP_SGO] = mIPPParams.shadingGainOffset;
+        procMessage[PROC_MSG_IDX_IPP_SGMV] = mIPPParams.shadingGainMaxValue;
+        procMessage[PROC_MSG_IDX_IPP_RDSCBCR] = mIPPParams.ratioDownsampleCbCr;
+    }
 #endif
 
     procMessage[PROC_MSG_IDX_YUV_BUFF] = (unsigned int) mYuvBuffer[i];
@@ -2858,28 +2863,30 @@ void CameraHal::procThread()
                 image_height = procMessage[PROC_MSG_IDX_IMAGE_H];
                 pixelFormat = procMessage[PROC_MSG_IDX_PIX_FMT];
 #ifdef IMAGE_PROCESSING_PIPELINE
-                EdgeEnhancementStrength = procMessage[PROC_MSG_IDX_IPP_EES];
-                WeakEdgeThreshold = procMessage[PROC_MSG_IDX_IPP_WET];
-                StrongEdgeThreshold = procMessage[PROC_MSG_IDX_IPP_SET];
-                LowFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFLNFS];
-                MidFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFLNFS];
-                HighFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFLNFS];
-                LowFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFCBNFS];
-                MidFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFCBNFS];
-                HighFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFCBNFS];
-                LowFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFCRNFS];
-                MidFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFCRNFS];
-                HighFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFCRNFS];
-                shadingVertParam1 = procMessage[PROC_MSG_IDX_IPP_SVP1];
-                shadingVertParam2 = procMessage[PROC_MSG_IDX_IPP_SVP2];
-                shadingHorzParam1 = procMessage[PROC_MSG_IDX_IPP_SHP1];
-                shadingHorzParam2 = procMessage[PROC_MSG_IDX_IPP_SHP2];
-                shadingGainScale = procMessage[PROC_MSG_IDX_IPP_SGS];
-                shadingGainOffset = procMessage[PROC_MSG_IDX_IPP_SGO];
-                shadingGainMaxValue = procMessage[PROC_MSG_IDX_IPP_SGMV];
-                ratioDownsampleCbCr = procMessage[PROC_MSG_IDX_IPP_RDSCBCR];
                 ippMode = procMessage[PROC_MSG_IDX_IPP_MODE];
-                ipp_to_enable = procMessage[PROC_MSG_IDX_IPP_TO_ENABLE];
+                if (ippMode != IPP_Disabled_Mode) {
+                    ipp_to_enable = procMessage[PROC_MSG_IDX_IPP_TO_ENABLE];
+                    EdgeEnhancementStrength = procMessage[PROC_MSG_IDX_IPP_EES];
+                    WeakEdgeThreshold = procMessage[PROC_MSG_IDX_IPP_WET];
+                    StrongEdgeThreshold = procMessage[PROC_MSG_IDX_IPP_SET];
+                    LowFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFLNFS];
+                    MidFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFLNFS];
+                    HighFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFLNFS];
+                    LowFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFCBNFS];
+                    MidFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFCBNFS];
+                    HighFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFCBNFS];
+                    LowFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFCRNFS];
+                    MidFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFCRNFS];
+                    HighFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFCRNFS];
+                    shadingVertParam1 = procMessage[PROC_MSG_IDX_IPP_SVP1];
+                    shadingVertParam2 = procMessage[PROC_MSG_IDX_IPP_SVP2];
+                    shadingHorzParam1 = procMessage[PROC_MSG_IDX_IPP_SHP1];
+                    shadingHorzParam2 = procMessage[PROC_MSG_IDX_IPP_SHP2];
+                    shadingGainScale = procMessage[PROC_MSG_IDX_IPP_SGS];
+                    shadingGainOffset = procMessage[PROC_MSG_IDX_IPP_SGO];
+                    shadingGainMaxValue = procMessage[PROC_MSG_IDX_IPP_SGMV];
+                    ratioDownsampleCbCr = procMessage[PROC_MSG_IDX_IPP_RDSCBCR];
+                }
 #endif
                 yuv_buffer = (void *) procMessage[PROC_MSG_IDX_YUV_BUFF];
                 yuv_len = procMessage[PROC_MSG_IDX_YUV_BUFFLEN];
@@ -4626,14 +4633,12 @@ void CameraHal::release()
 }
 
 #ifdef FW3A
-
+#ifdef IMAGE_PROCESSING_PIPELINE
 void CameraHal::onIPP(void *priv, icap_ipp_parameters_t *ipp_params)
 {
     CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
 
     LOG_FUNCTION_NAME
-
-#ifdef IMAGE_PROCESSING_PIPELINE
 
     if ( ipp_params->type == ICAP_IPP_PARAMETERS_VER1_9 ) {
         camHal->mIPPParams.EdgeEnhancementStrength = ipp_params->ipp19.EdgeEnhancementStrength;
@@ -4700,10 +4705,9 @@ void CameraHal::onIPP(void *priv, icap_ipp_parameters_t *ipp_params)
         camHal->mIPPParams.ratioDownsampleCbCr = 1;
     }
 
-#endif
-
     LOG_FUNCTION_NAME_EXIT
 }
+#endif
 
 void CameraHal::onGeneratedSnapshot(void *priv, icap_image_buffer_t *buf)
 {
