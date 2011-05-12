@@ -1887,7 +1887,8 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         goto end;
     }
 
-     if ((ret = v4l2_overlay_set_crop(fd, eCropData.cropX, eCropData.cropY, eCropData.cropW, eCropData.cropH))) {
+    if ((ret = v4l2_overlay_set_crop(fd, ctx->omap_overlay->mData.cropX, ctx->omap_overlay->mData.cropY, \
+                                    ctx->omap_overlay->mData.cropW, ctx->omap_overlay->mData.cropH))) {
         LOGE("Failed crop window\n");
         goto end;
     }
@@ -1897,17 +1898,39 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         goto end;
     }
 
+    if ((ret = v4l2_overlay_req_buf(fd, (uint32_t *)(&ctx->omap_overlay->num_buffers),
+            ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency, EMEMORY_MMAP))) {
+        LOGE("Error creating buffers");
+        goto end;
+    }
+
     if (link_fd > 0) {
+        if ((ret = v4l2_overlay_init(link_fd, w, h, ctx->omap_overlay->format))) {
+            LOGE("Error resizing link overlay");
+            goto end;
+        }
+
+        if ((ret = v4l2_overlay_set_rotation(link_fd, degree, 0, mirror))) {
+            LOGE("Failed set rotation for link\n");
+            goto end;
+        }
+
+        if ((ret = v4l2_overlay_set_crop(link_fd, ctx->omap_overlay->mData.cropX, ctx->omap_overlay->mData.cropY, \
+                                 ctx->omap_overlay->mData.cropW, ctx->omap_overlay->mData.cropH))) {
+            LOGE("Failed set crop window for link\n");
+            goto end;
+        }
+
+        if ((ret = v4l2_overlay_set_position(link_fd, 0,  0, LCD_WIDTH, LCD_HEIGHT))) {
+            LOGE(" Could not set the position for link \n");
+            goto end;
+        }
+
         if ((ret = v4l2_overlay_req_buf(link_fd, (uint32_t *)(&ctx->omap_overlay->num_buffers),
             ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency, EMEMORY_USRPTR))) {
             LOGE("Error creating linked buffers2");
             goto end;
         }
-    }
-
-    if ((ret = v4l2_overlay_req_buf(fd, (uint32_t *)(&ctx->omap_overlay->num_buffers), ctx->omap_overlay->cacheable_buffers, ctx->omap_overlay->maintain_coherency, EMEMORY_MMAP))) {
-        LOGE("Error creating buffers");
-        goto end;
     }
 
     for (int i = 0; i < ctx->omap_overlay->num_buffers; i++) {
@@ -2253,7 +2276,7 @@ int overlay_data_context_t::overlay_dequeueBuffer(struct overlay_data_device_t *
         LOGV("qd_buf_count --");
     }
 
-    if (linkfd > 0) {
+    if ((linkfd > 0) && (rc == 0)) {
         if ( (rc1 = v4l2_overlay_dq_buf(linkfd, &ii, EMEMORY_USRPTR, ctx->omap_overlay->buffers[i],
             ctx->omap_overlay->mapping_data->length)) != 0 ) {
             LOGE("Failed to DQ link/%d\n", rc1);
