@@ -489,7 +489,7 @@ private:
     status_t printComponentVersion(OMX_HANDLETYPE handle);
 
     //Touch AF
-    status_t parseTouchFocusPosition(const char *pos, unsigned int &posX, unsigned int &posY);
+    status_t parseTouchPosition(const char *pos, unsigned int &posX, unsigned int &posY);
     status_t setTouchFocus(unsigned int posX, unsigned int posY, size_t width, size_t height);
 
     //Face detection
@@ -636,8 +636,8 @@ private:
     char mFocusDistBuffer[FOCUS_DIST_BUFFER_SIZE];
 
     char mTouchCoords[TOUCH_DATA_SIZE];
-    unsigned int mTouchFocusPosX;
-    unsigned int mTouchFocusPosY;
+    unsigned int mTouchPosX;
+    unsigned int mTouchPosY;
 
     CaptureMode mCapMode;
     size_t mBurstFrames;

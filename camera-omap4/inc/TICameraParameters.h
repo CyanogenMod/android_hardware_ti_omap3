@@ -67,7 +67,7 @@ static const char  KEY_TEMP_BRACKETING[];
 static const char  KEY_TEMP_BRACKETING_RANGE_POS[];
 static const char  KEY_TEMP_BRACKETING_RANGE_NEG[];
 static const char  KEY_SHUTTER_ENABLE[];
-static const char  KEY_TOUCH_FOCUS_POS[];
+static const char  KEY_TOUCH_POS[];
 static const char  KEY_MEASUREMENT_ENABLE[];
 static const char  KEY_INITIAL_VALUES[];
 static const char  KEY_GBCE[];

@@ -390,12 +390,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             CAMHAL_LOGDB("IPP mode set %s", valstr);
             mParameters.set(TICameraParameters::KEY_IPP, valstr);
             }
-
-        if((valstr = params.get(TICameraParameters::KEY_AUTOCONVERGENCE)) != NULL)
-            {
-            CAMHAL_LOGEB("AutoConvergence mode is %s", valstr);
-            mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE, valstr);
-            }
         }
 
     ///Below parameters can be changed when the preview is running
@@ -517,18 +511,11 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(TICameraParameters::KEY_GLBCE, valstr);
         }
 
-    ///Update the current parameter set
-    if( (valstr = params.get(TICameraParameters::KEY_AUTOCONVERGENCE)) != NULL)
+    if( (valstr = params.get(TICameraParameters::KEY_AUTOCONVERGENCE)) != NULL )
         {
         CAMHAL_LOGDB("AutoConvergence Mode is set = %s", valstr);
         mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE, valstr);
-       }
-
-//    if(params.get(TICameraParameters::KEY_AUTOCONVERGENCE_MODE)!=NULL)
-//        {
-//        CAMHAL_LOGDB("AutoConvergence Mode is set = %s", params.get(TICameraParameters::KEY_AUTOCONVERGENCE_MODE));
-//        mParameters.set(TICameraParameters::KEY_AUTOCONVERGENCE_MODE, params.get(TICameraParameters::KEY_AUTOCONVERGENCE_MODE));
-//        }
+        }
 
     if( (valstr = params.get(TICameraParameters::KEY_MANUALCONVERGENCE_VALUES)) !=NULL )
         {
@@ -605,10 +592,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(CameraParameters::KEY_FOCUS_MODE, valstr);
         }
 
-    if( (valstr = params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS)) != NULL )
+    if( (valstr = params.get(TICameraParameters::KEY_TOUCH_POS)) != NULL )
         {
         CAMHAL_LOGDB("Touch Focus position set %s", valstr);
-        mParameters.set(TICameraParameters::KEY_TOUCH_FOCUS_POS, valstr);
+        mParameters.set(TICameraParameters::KEY_TOUCH_POS, valstr);
         }
 
     if( (valstr = params.get(TICameraParameters::KEY_FACE_DETECTION_ENABLE)) != NULL )

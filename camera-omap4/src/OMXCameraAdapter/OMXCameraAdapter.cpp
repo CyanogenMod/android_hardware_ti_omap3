@@ -346,8 +346,9 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         mFirstTimeInit = true;
 
         memset(mExposureBracketingValues, 0, EXP_BRACKET_RANGE*sizeof(int));
-        mTouchFocusPosX = 0;
-        mTouchFocusPosY = 0;
+        mTouchPosX = 0;
+        mTouchPosY = 0;
+
         mMeasurementEnabled = false;
         mFaceDetectionRunning = false;
 
@@ -827,11 +828,11 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
         CAMHAL_LOGEB("Focus %x", mParameters3A.Focus);
         }
 
-    str = params.get(TICameraParameters::KEY_TOUCH_FOCUS_POS);
+    str = params.get(TICameraParameters::KEY_TOUCH_POS);
     if ( NULL != str ) {
         strncpy(mTouchCoords, str, TOUCH_DATA_SIZE-1);
-        parseTouchFocusPosition(mTouchCoords, mTouchFocusPosX, mTouchFocusPosY);
-        CAMHAL_LOGEB("Touch focus position %d,%d", mTouchFocusPosX, mTouchFocusPosY);
+        parseTouchPosition(mTouchCoords, mTouchPosX, mTouchPosY);
+        CAMHAL_LOGDB("Touch position %d,%d", mTouchPosX, mTouchPosY);
     }
 
     str = params.get(TICameraParameters::KEY_EXP_BRACKETING_RANGE);
@@ -5272,7 +5273,7 @@ status_t OMXCameraAdapter::doZoom(int index)
     return ret;
 }
 
-status_t OMXCameraAdapter::parseTouchFocusPosition(const char *pos, unsigned int &posX, unsigned int &posY)
+status_t OMXCameraAdapter::parseTouchPosition(const char *pos, unsigned int &posX, unsigned int &posY)
 {
 
     status_t ret = NO_ERROR;
@@ -5296,7 +5297,7 @@ status_t OMXCameraAdapter::parseTouchFocusPosition(const char *pos, unsigned int
             }
         else
             {
-            CAMHAL_LOGEB("Invalid touch focus position %s", pos);
+            CAMHAL_LOGEB("Invalid touch position %s", pos);
             ret = -EINVAL;
             }
         }
@@ -5311,7 +5312,7 @@ status_t OMXCameraAdapter::parseTouchFocusPosition(const char *pos, unsigned int
             }
         else
             {
-            CAMHAL_LOGEB("Invalid touch focus position %s", pos);
+            CAMHAL_LOGEB("Invalid touch position %s", pos);
             ret = -EINVAL;
             }
         }
@@ -5434,7 +5435,7 @@ status_t OMXCameraAdapter::doAutoFocus()
                 w = w / 2;
             }
 
-            setTouchFocus(mTouchFocusPosX, mTouchFocusPosY, w, h);
+            setTouchFocus(mTouchPosX, mTouchPosY, w, h);
 
             //Do normal focus afterwards
             focusControl.eFocusControl = ( OMX_IMAGE_FOCUSCONTROLTYPE ) OMX_IMAGE_FocusControlExtended;
@@ -7528,7 +7529,6 @@ const char* OMXCameraAdapter::getLUTvalue_OMXtoHAL(int OMXValue, LUTtype LUT)
     return NULL;
 }
 
-// Set AutoConvergence
 status_t OMXCameraAdapter::setAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE pACMode, OMX_S32 pManualConverence)
 {
     status_t ret = NO_ERROR;
@@ -7537,11 +7537,41 @@ status_t OMXCameraAdapter::setAutoConvergence(OMX_TI_AUTOCONVERGENCEMODETYPE pAC
 
     LOG_FUNCTION_NAME
 
-    ACParams.nSize = sizeof(OMX_TI_CONFIG_CONVERGENCETYPE);
+    ACParams.nSize = (OMX_U32)sizeof(OMX_TI_CONFIG_CONVERGENCETYPE);
     ACParams.nVersion = mLocalVersionParam;
     ACParams.nPortIndex = OMX_ALL;
+
+    OMX_GetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexConfigAutoConvergence, &ACParams);
+
+    OMXCameraPortParameters *mPreviewData;
+    mPreviewData = &mCameraAdapterParameters.mCameraPortParams[mCameraAdapterParameters.mPrevPortIndex];
+
+    OMX_U32 w = mPreviewData->mWidth;
+    OMX_U32 h = mPreviewData->mHeight;
+
+    if (mS3DImageFormat == S3D_TB_FULL) {
+        h = h / 2;
+    } else if (mS3DImageFormat == S3D_SS_FULL) {
+        w = w / 2;
+    }
+
     ACParams.nManualConverence = pManualConverence;
     ACParams.eACMode = pACMode;
+    ACParams.nACProcWinStartX = (OMX_U32) mTouchPosX;
+    ACParams.nACProcWinStartY = (OMX_U32) mTouchPosY;
+    ACParams.nACProcWinWidth = (OMX_U32) w;
+    ACParams.nACProcWinHeight = (OMX_U32) h;
+
+    CAMHAL_LOGDB("nSize %d", ACParams.nSize);
+    CAMHAL_LOGDB("nPortIndex %d", (int)ACParams.nPortIndex);
+    CAMHAL_LOGDB("nManualConverence %d", (int)ACParams.nManualConverence);
+    CAMHAL_LOGDB("eACMode %d", (int)ACParams.eACMode);
+    CAMHAL_LOGDB("nACProcWinStartX %d", (int)ACParams.nACProcWinStartX);
+    CAMHAL_LOGDB("nACProcWinStartY %d", (int)ACParams.nACProcWinStartY);
+    CAMHAL_LOGDB("nACProcWinWidth %d", (int)ACParams.nACProcWinWidth);
+    CAMHAL_LOGDB("nACProcWinHeight %d", (int)ACParams.nACProcWinHeight);
+    CAMHAL_LOGDB("bACStatus %d", (int)ACParams.bACStatus);
+
     eError =  OMX_SetConfig(mCameraAdapterParameters.mHandleComp, (OMX_INDEXTYPE)OMX_TI_IndexConfigAutoConvergence, &ACParams);
     if ( eError != OMX_ErrorNone )
         {
