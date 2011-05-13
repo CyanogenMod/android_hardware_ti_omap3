@@ -25,6 +25,7 @@
 #include <utils/Vector.h>
 
 #include <OMX_Component.h>
+#include <OMX_TI_IVCommon.h>
 #include "overlay_common.h"
 
 namespace android {
