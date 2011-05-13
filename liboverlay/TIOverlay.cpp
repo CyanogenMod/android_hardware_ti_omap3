@@ -93,6 +93,62 @@ struct overlay_module_t HAL_MODULE_INFO_SYM = {
     }
 };
 
+/*
+* Algorithm for calculating scaling factors while rendering HDMI.
+*
+*   Input
+*       hdmi_w: HDMI output width
+*       hdmi_h: HDMI output height
+*       video_w: Video width (after cropping)
+*       video_h: Video height (after cropping)
+*       par: Pixel aspect ratio
+*
+*       Note: hdmi_w, hdmi_h and par are determined according to HDMI video format (CEA/VESA format)
+*
+*   Output
+*       out_pos_x: Output window X position
+*       out_pos_y: Output window Y position
+*       out_w: Output width
+*       out_h: Output height
+*
+*   Algorithm
+*       h_div = hdmi_w / video_w
+*       v_div = hdmi_h / video_h
+*
+*       if (h_div > v_div)
+*           out_w = (hdmi_h / video_h) * video_w / par = v_div * video_w / par
+*           out_h = (hdmi_h / video_h) * video_h = hdmi_h
+*       else
+*           out_w = (hdmi_w / video_w) * video_w = hdmi_w
+*           out_h = (hdmi_w / video_w) * par * video_h = h_div * video_h / par
+*
+*       out_x_pos = (hdmi_w - out_w) / 2
+*       out_y_pos = (hdmi_h - out_h) / 2
+*/
+
+struct hdmi_data {
+    int cea_code;
+    int width;
+    int height;
+    int par_h;
+    int par_v;
+    int interlaced;
+};
+
+/* Note: for modes with pixel repetition, par_h should be multiplied by PR (Pixel Repetition) factor */
+struct hdmi_data hdmi[] = {
+    {1,     640,    480,    1,  1,  0}, /* 640x480p60 4:3 */
+    {19,    1280,   720,    1,  1,  0}, /* 1280x720p50 16:9 */
+    {4,     1280,   720,    1,  1,  0}, /* 1280x720p60 16:9 */
+    {2,     720,    480,    8,  9,  0}, /* 720x480p60 4:3 */
+    {5,     1920,   540,    1,  1,  1}, /* 1920x1080i60 16:9 */
+    {16,    1920,   1080,   1,  1,  0}, /* 1920x1080p60 16:9 */
+    {17,    720,    576,    16, 15, 0}, /* 720x576p50 4:3 */
+    {31,    1920,   1080,   1,  1,  0}, /* 1920x1080p50 16:9 */
+    {32,    1920,   1080,   1,  1,  0}, /* 1920x1080p24 16:9 */
+    {-1,    -1,     -1,     1,  1,  0} /*VESA or custome code, hence rely on kernel timings*/
+};
+
 int sysfile_write(const char* pathname, const void* buf, size_t size) {
     int fd = open(pathname, O_WRONLY);
     if (fd == -1) {
@@ -326,8 +382,11 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
     char displayCode[20];
     char displayMode[20];
     char displayCodepath[PATH_MAX];
-    int interlaceMultiplier = 1;
     int index = 0;
+    int interlace_factor = 1;
+    char found = 0;
+    float h_div, v_div;
+
     uint32_t finalCropW = overlayobj->mData.cropW;
     uint32_t finalCropH = overlayobj->mData.cropH;
     uint32_t finalCropX = overlayobj->mData.cropX;
@@ -435,17 +494,33 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                 }
                 if(!strncmp(displayMode, "CEA:", 4)) {
                     strcpy(displayCode, displayMode+4);
-                    switch (atoi(displayCode)) {
-                        case 20:
-                        case 5:
-                        case 6:
-                        case 21:
-                            interlaceMultiplier = 2;
-                            break;
-                        default:
-                            break;
+                }
+
+                /* Find index in HDMI data table */
+                for (index = 0; index < (sizeof(hdmi) / sizeof(struct hdmi_data)); index++) {
+                    if (hdmi[index].cea_code == atoi(displayCode)) {
+                        LOGV("Found CEA code %d: %dx%d%s %d:%d\n",
+                        atoi(displayCode),
+                        hdmi[index].width,
+                        hdmi[index].height,
+                        hdmi[index].interlaced ? "i" : "p",
+                        hdmi[index].par_h,
+                        hdmi[index].par_v);
+                        found = 1;
+                        break;
                     }
                 }
+
+                if (found == 0) {
+                    LOGE("Unknown CEA code: %d\n", atoi(displayCode));
+                    //May be VESA code or custom code, then rely on kernel timings
+                    index --;
+                    hdmi[index].width  = w2;
+                    hdmi[index].height = h2;
+                }
+
+                if (hdmi[index].interlaced)
+                    interlace_factor = 2;
                 /**
                 * For interlaced mode of the TV, modify the timings read, to convert them into
                 * progressive and finally update final window height for Interlaced mode
@@ -455,7 +530,7 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                     //Since downscaling is not supported at 1080p video timings, we have to crop input to meet requirements
                     //make sure aspect ratio is maintained.
                     w2 = w2;
-                    h2 = h2 * interlaceMultiplier;
+                    h2 = h2 * interlace_factor;
                     finalWindow->posX = 0;
                     finalWindow->posY = 0;
                     if (overlayobj->mData.cropW * h2 > w2 * overlayobj->mData.cropH) {
@@ -469,33 +544,25 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                     finalCropX= overlayobj->mData.cropX + ((overlayobj->mData.cropW - finalCropW) >> 1);
                     finalCropY = overlayobj->mData.cropY + ((overlayobj->mData.cropH - finalCropH) >> 1);
                 }
-                else if ((overlayobj->mData.cropH > 720) || (overlayobj->mData.cropW > 1280) \
-                           || (overlayobj->data()->rotation % 180)) {
-                    //since no downscaling on TV, for 1080p resolution we go for full screen
-                    finalWindow->posX = 0;
-                    finalWindow->posY = 0;
-                    w2 = w2;
-                    h2 = h2 * interlaceMultiplier;
-                } else {
-                    finalWindow->posX = (w2 * overlayobj->data()->posX)/LCD_WIDTH;
-                    finalWindow->posY=  ((h2 * interlaceMultiplier) * overlayobj->data()->posY)/LCD_HEIGHT;
 
-                    w2 = (w2 * overlayobj->data()->posW) / LCD_WIDTH;
-                    h2 = ((h2 * interlaceMultiplier) * overlayobj->data()->posH) / LCD_HEIGHT;
+                h_div = (hdmi[index].width) / MAX((float)finalCropW, 1.0000);
+                v_div = ((hdmi[index].height * interlace_factor)) / MAX((float)finalCropH, 1.0000);
+
+                LOGV("H div=%0.4f [%d]\n", h_div, h_div);
+                LOGV("V div=%0.4f [%d]\n", v_div, v_div);
+
+                if (h_div > v_div) {
+                    finalWindow->posW = ((v_div * hdmi[index].par_v * finalCropW) / MAX(hdmi[index].par_h, 1));
+                    finalWindow->posH = hdmi[index].height;
+                }
+                else {
+                    finalWindow->posW = hdmi[index].width;
+                    finalWindow->posH = ((h_div * hdmi[index].par_h * finalCropH) / MAX((hdmi[index].par_v * interlace_factor), 1));
                 }
 
-                if (finalCropW * h2 > w2 * finalCropH) {
-                    finalWindow->posW= w2;
-                    finalWindow->posH= finalCropH * w2 / MAX(finalCropW, 1);
-                    if (finalWindow->posY == 0)
-                        finalWindow->posY = (h2 - finalWindow->posH) / 2;
-                } else {
-                    finalWindow->posH = h2;
-                    finalWindow->posW = finalCropW * h2 / MAX(finalCropH, 1);
-                    if (finalWindow->posX == 0)
-                        finalWindow->posX = (w2 - finalWindow->posW) / 2;
-                }
-                finalWindow->posH = finalWindow->posH / interlaceMultiplier;
+                /* Position */
+                finalWindow->posX = (hdmi[index].width - finalWindow->posW) / 2;
+                finalWindow->posY = (hdmi[index].height - finalWindow->posH) / 2;
 #else
                 finalWindow->posX = 0;
                 finalWindow->posY = 0;
@@ -526,10 +593,10 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
             LOGE("Leave the default  values");
     };
 
-    LOGD("Adjusted CROP Settings: cropX(%d)/cropY(%d)/cropW(%d)/ cropH(%d)",
+    LOGV("Adjusted CROP Settings: cropX(%d)/cropY(%d)/cropW(%d)/ cropH(%d)",
             finalCropX, finalCropY, finalCropW, finalCropH);
 
-    LOGD("calculateWindow(): posX=%d, posY=%d, posW=%d, posH=%d",
+    LOGV("calculateWindow(): posX=%d, posY=%d, posW=%d, posH=%d",
             finalWindow->posX, finalWindow->posY, finalWindow->posW, finalWindow->posH);
 
     if (v4l2_overlay_set_crop(fd, finalCropX, finalCropY,\
