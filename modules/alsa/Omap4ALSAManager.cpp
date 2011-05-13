@@ -50,6 +50,8 @@ const char *Omap4ALSAManager::AMIC_EQ_PROFILE = "omap.audio.amic.eq";
 const char *Omap4ALSAManager::DMIC_EQ_PROFILE = "omap.audio.dmic.eq";
 const char *Omap4ALSAManager::SDT_EQ_PROFILE = "omap.audio.sdt.eq";
 
+const char *Omap4ALSAManager::DL1_MONO_MIXER = "omap.audio.DL1monomixer";
+const char *Omap4ALSAManager::DL2_MONO_MIXER = "omap.audio.DL2monomixer";
 
 const char  *Omap4ALSAManager::MicNameList[]= {
     "AMic0",  // for Analog Main mic
