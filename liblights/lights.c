@@ -125,14 +125,7 @@ static int
 set_light_keyboard(struct light_device_t* dev,
         struct light_state_t const* state)
 {
-    int err = 0;
-    int on = is_lit(state);
-
-    pthread_mutex_lock(&g_lock);
-    err = write_int(KEYBOARD_FILE, on ? 255:0);
-    pthread_mutex_unlock(&g_lock);
-
-    return err;
+    return 0;
 }
 
 static int
@@ -141,6 +134,10 @@ set_light_buttons(struct light_device_t* dev,
 {
     int err = 0;
     int on = is_lit(state);
+
+#if 0
+    LOGD("set_light_button on=%d\n", on ? 255 : 0);
+#endif
 
     pthread_mutex_lock(&g_lock);
     err = write_int(KEYBOARD_FILE, on ? 255:0);
