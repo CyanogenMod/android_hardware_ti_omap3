@@ -623,6 +623,7 @@ status_t AudioModemAlsa::voiceCallCodecSetHandset()
     // Enable Playback voice path
     CHECK_ERROR(mAlsaControl->set("Earphone Driver Switch", 1), error);
     CHECK_ERROR(mAlsaControl->set("Earphone Playback Volume", AUDIO_CODEC_EARPIECE_GAIN), error);
+    CHECK_ERROR(mAlsaControl->set("DL1 Mono Mixer", 1), error);
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Playback", 1), error);
     CHECK_ERROR(mAlsaControl->set("DL1 PDM Switch", 1), error);
@@ -673,6 +674,7 @@ status_t AudioModemAlsa::voiceCallCodecSetHandfree()
     CHECK_ERROR(mAlsaControl->set("HF Left Playback", "HF DAC"), error);
     CHECK_ERROR(mAlsaControl->set("HF Right Playback", "HF DAC"), error);
     CHECK_ERROR(mAlsaControl->set("Handsfree Playback Volume", AUDIO_CODEC_HANDFREE_GAIN), error);
+    CHECK_ERROR(mAlsaControl->set("DL2 Mono Mixer", 1), error);
     CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 1), error);
     CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
                                 AUDIO_ABE_SIDETONE_DL_VOL_HANDFREE, -1), error);
@@ -717,6 +719,7 @@ status_t AudioModemAlsa::voiceCallCodecSetHeadset()
     CHECK_ERROR(mAlsaControl->set("HS Left Playback", "HS DAC"), error);
     CHECK_ERROR(mAlsaControl->set("HS Right Playback", "HS DAC"), error);
     CHECK_ERROR(mAlsaControl->set("Headset Playback Volume", AUDIO_CODEC_HEADSET_GAIN), error);
+    CHECK_ERROR(mAlsaControl->set("DL1 Mono Mixer", 1), error);
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Playback", 1), error);
     CHECK_ERROR(mAlsaControl->set("DL1 PDM Switch", 1), error);
@@ -749,6 +752,7 @@ status_t AudioModemAlsa::voiceCallCodecSetBluetooth()
     status_t error = NO_ERROR;
 
     // Enable Playback voice path
+    CHECK_ERROR(mAlsaControl->set("DL1 Mono Mixer", 1), error);
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
     CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Playback", 1), error);
     CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
@@ -779,6 +783,7 @@ status_t AudioModemAlsa::voiceCallCodecUpdateHandset()
     case AudioModemInterface::AUDIO_MODEM_HANDFREE:
         // Disable the ABE DL2 mixer used for Voice
         CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
+        CHECK_ERROR(mAlsaControl->set("DL2 Mono Mixer", 0, 0), error);
         CHECK_ERROR(voiceCallCodecSetHandset(), error);
         break;
 
@@ -810,6 +815,7 @@ status_t AudioModemAlsa::voiceCallCodecUpdateHandfree()
     case AudioModemInterface::AUDIO_MODEM_BLUETOOTH:
         // Disable the ABE DL1 mixer used for Voice
         CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 0, 0), error);
+        CHECK_ERROR(mAlsaControl->set("DL1 Mono Mixer", 0, 0), error);
         CHECK_ERROR(voiceCallCodecSetHandfree(), error);
         break;
 
@@ -834,6 +840,7 @@ status_t AudioModemAlsa::voiceCallCodecUpdateHeadset()
     case AudioModemInterface::AUDIO_MODEM_HANDFREE:
         // Disable the ABE DL2 mixer used for Voice
         CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
+        CHECK_ERROR(mAlsaControl->set("DL2 Mono Mixer", 0, 0), error);
         CHECK_ERROR(voiceCallCodecSetHeadset(), error);
         break;
 
@@ -864,6 +871,7 @@ status_t AudioModemAlsa::voiceCallCodecUpdateBluetooth()
     case AudioModemInterface::AUDIO_MODEM_HANDFREE:
         // Disable the ABE DL2 mixer used for Voice
         CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
+        CHECK_ERROR(mAlsaControl->set("DL2 Mono Mixer", 0, 0), error);
         CHECK_ERROR(voiceCallCodecSetBluetooth(), error);
     case AudioModemInterface::AUDIO_MODEM_HANDSET:
     case AudioModemInterface::AUDIO_MODEM_HEADSET:
@@ -914,6 +922,8 @@ status_t AudioModemAlsa::multimediaCodecUpdate()
 {
     status_t error = NO_ERROR;
 
+    CHECK_ERROR(mAlsaControl->set("DL1 Mono Mixer", 1), error);
+    CHECK_ERROR(mAlsaControl->set("DL2 Mono Mixer", 1), error);
     configEqualizers();
 
     return error;
@@ -939,6 +949,8 @@ status_t AudioModemAlsa::voiceCallCodecStop()
     // Enable Playback voice path
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 0, 0), error);
     CHECK_ERROR(mAlsaControl->set("DL2 Mixer Voice", 0, 0), error);
+    CHECK_ERROR(mAlsaControl->set("DL1 Mono Mixer", 0, 0), error);
+    CHECK_ERROR(mAlsaControl->set("DL2 Mono Mixer", 0, 0), error);
 
     // Enable Capture voice path
     CHECK_ERROR(mAlsaControl->set("Analog Left Capture Route", "Off"), error);
