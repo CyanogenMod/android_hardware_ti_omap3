@@ -285,6 +285,7 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
 {
     unsigned int alignedRow, row;
     unsigned char *bufferDst, *bufferSrc;
+    unsigned char *bufferDstEnd, *bufferSrcEnd;
     uint16_t *bufferDst_UV, *bufferSrc_UV;
 
     if(pixelFormat!=NULL)
@@ -300,22 +301,32 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
             uint32_t xOff = offset % PAGE_SIZE;
             uint32_t yOff = offset / PAGE_SIZE;
             bufferDst = ( unsigned char * ) dst;
+            bufferDstEnd = ( unsigned char * ) dst + width*height*bytesPerPixel;
             bufferSrc = ( unsigned char * ) (src + offset);
+            bufferSrcEnd = ( unsigned char * ) ( ( size_t ) src + length );
             row = width*bytesPerPixel;
             alignedRow = stride-width;
             int stride_bytes = stride / 8;
 
             //iterate through each row
-            for ( int i = 0 ; i < height ; i++,  bufferSrc += (stride + xOff), bufferDst += row)
+            for ( int i = 0 ; i < height ; i++)
                 {
                 memcpy(bufferDst, bufferSrc, row);
+
+                bufferSrc += stride;
+                bufferDst += row;
+                if ( ( bufferSrc > bufferSrcEnd ) || ( bufferDst > bufferDstEnd ) )
+                    {
+                    break;
+                    }
+
                 }
 
             ///Convert NV21 to NV12 by swapping U & V
             bufferDst_UV = (uint16_t *) (((uint8_t*)dst)+row*height);
-            bufferSrc_UV = ( uint16_t * ) (((uint8_t*)src) + offset + stride*(height+yOff));
+            bufferSrc_UV = ( uint16_t * ) (((uint8_t*)src) + offset + stride*height + (stride/2)*yOff);
 
-            for(int i = 0 ; i < height/2 ; i++, bufferSrc_UV += (alignedRow/2 + xOff))
+            for(int i = 0 ; i < height/2 ; i++, bufferSrc_UV += alignedRow/2)
             {
                 int n = width;
                 asm volatile (
