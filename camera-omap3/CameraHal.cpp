@@ -24,6 +24,7 @@
 *
 */
 
+//#define LOG_NDEBUG 0
 #define LOG_TAG "CameraHal"
 
 #include "CameraHal.h"
@@ -1387,7 +1388,6 @@ int CameraHal::CameraStart()
 
         mPreviewHeaps[i] = new MemoryHeapBase(data->fd,mPreviewFrameSize, 0, data->offset);
         mPreviewBuffers[i] = new MemoryBase(mPreviewHeaps[i], 0, mPreviewFrameSize);
-
     }
 
     if( ioctl(camera_device, VIDIOC_G_CROP, &mInitialCrop) < 0 ){
@@ -1501,6 +1501,10 @@ void CameraHal::queueToOverlay(int index)
 int CameraHal::dequeueFromOverlay()
 {
     overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
+    if (nOverlayBuffersQueued < NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE) {
+        LOGV("skip dequeue. nOverlayBuffersQueued = %d", nOverlayBuffersQueued);
+        return -1;
+    }
 
     int dequeue_from_dss_failed = mOverlay->dequeueBuffer(&overlaybuffer);
     if(dequeue_from_dss_failed) {
@@ -1523,7 +1527,7 @@ bool CameraHal::__queueToCamera(int index, int line)
     }
 
     if (mVideoBufferStatus[index] != BUFF_IDLE) {
-        LOGV("queued non-idle buffer#%d(stat=%d) to camera. line=%d",
+        LOGW("ignore trying queue non-idle buffer#%d(stat=%d) to camera. line=%d",
                 index, mVideoBufferStatus[index], line);
         return false;
     }
@@ -1550,9 +1554,7 @@ int CameraHal::dequeueFromCamera(nsecs_t *timestamp)
 
     nCameraBuffersQueued--;
 
-
     int index = cfilledbuffer.index;
-    mVideoBufferStatus[index] &= ~BUFF_Q2DSS;
     if (NULL != timestamp) {
         *timestamp = s2ns(cfilledbuffer.timestamp.tv_sec) + us2ns(cfilledbuffer.timestamp.tv_usec);
     }
@@ -1653,28 +1655,32 @@ void CameraHal::nextPreview()
     }
 
     if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
-        mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewBuffers[index], mCallbackCookie);
+        mDataCb(CAMERA_MSG_PREVIEW_FRAME,
+                mPreviewBuffers[index], mCallbackCookie);
 
     mRecordingLock.lock();
+    if (nCameraBuffersQueued == 0) {
+        LOGV("Drop the frame. Camera is starving");
+        queueToCamera(index);
+        goto queue_and_exit;
+    }
+
     if(mRecordEnabled) {
-        if (nCameraBuffersQueued == 0) {
-            LOGD("Drop the frame. Camera is starving");
-
-            goto queue_and_exit;
-        }
-
         mVideoBufferStatus[index] |= BUFF_Q2VE;
-        mDataCbTimestamp(timestamp, CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[index], mCallbackCookie, 0, 0);
+        mDataCbTimestamp(timestamp, CAMERA_MSG_VIDEO_FRAME,
+                mVideoBuffer[index], mCallbackCookie, 0, 0);
     }
 
     queueToOverlay(index);
+
+queue_and_exit:
     index = dequeueFromOverlay();
     if(-1 == index) {
         goto exit;
     }
 
-queue_and_exit:
-    queueToCamera(index);
+    if (mVideoBufferStatus[index] == BUFF_IDLE)
+        queueToCamera(index);
 
 exit:
     mRecordingLock.unlock();
@@ -3349,22 +3355,19 @@ status_t CameraHal::startRecording( )
     int overlayfd = true_handle.ctl_fd;
     LOGD("#Overlay driver FD:%d ",overlayfd);
 
-    mVideoBufferCount =  mOverlay->getBufferCount();
+    mVideoBufferCount = mOverlay->getBufferCount();
 
-    if (mVideoBufferCount > VIDEO_FRAME_COUNT_MAX)
-    {
+    if (mVideoBufferCount > VIDEO_FRAME_COUNT_MAX) {
         LOGD("Error: mVideoBufferCount > VIDEO_FRAME_COUNT_MAX");
         return UNKNOWN_ERROR;
     }
 
     mRecordingLock.lock();
 
-    for(i = 0; i < mVideoBufferCount; i++)
-    {
+    for(i = 0; i < mVideoBufferCount; i++) {
         mVideoHeaps[i].clear();
         mVideoBuffer[i].clear();
-        if(mVideoBufferStatus[i] & BUFF_Q2VE)
-            mVideoBufferStatus[i] &= ~BUFF_Q2VE;
+        mVideoBufferStatus[i] &= ~BUFF_Q2VE;
     }
 
     debugShowBufferStatus();
@@ -3384,8 +3387,7 @@ status_t CameraHal::startRecording( )
             {
                 mVideoHeaps[j].clear();
                 mVideoBuffer[j].clear();
-                if(mVideoBufferStatus[i] & BUFF_Q2VE)
-                    mVideoBufferStatus[i] &= ~BUFF_Q2VE;
+                mVideoBufferStatus[i] &= ~BUFF_Q2VE;
             }
             LOGD("Error: data from overlay returned null");
             return UNKNOWN_ERROR;
@@ -3417,7 +3419,7 @@ void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 //LOG_FUNCTION_NAME
     int index;
 
-    for(index = 0; index <mVideoBufferCount; index ++){
+    for(index = 0; index < mVideoBufferCount; index++){
         if(mem->pointer() == mVideoBuffer[index]->pointer()) {
             break;
         }
