@@ -1833,7 +1833,7 @@ int  CameraHal::ICapturePerform()
             iobj->cfg.notify.cb_snapshot = onGeneratedSnapshot;
             iobj->cfg.snapshot_width = preview_width;
             iobj->cfg.snapshot_height = preview_height;
-            fixedZoom = (uint32_t) (zoom_step[mZoomTargetIdx]*ZOOM_SCALE);
+            fixedZoom = (uint32_t) (zoom_step[0]*ZOOM_SCALE);
 
             iobj->cfg.zoom.enable = ICAP_ENABLE;
             iobj->cfg.zoom.vertical = fixedZoom;
@@ -2079,7 +2079,7 @@ int  CameraHal::ICapturePerform()
     procMessage[PROC_MSG_IDX_YUV_BUFFLEN] = mYuvBufferLen[i];
     procMessage[PROC_MSG_IDX_ROTATION] = rotation;
 
-    procMessage[PROC_MSG_IDX_ZOOM] = (mcapture_mode == 1)?mZoomTargetIdx:0;
+    procMessage[PROC_MSG_IDX_ZOOM] = mZoomTargetIdx;
 
     procMessage[PROC_MSG_IDX_JPEG_QUALITY] = quality;
     procMessage[PROC_MSG_IDX_JPEG_CB] = (unsigned int) mDataCb;
