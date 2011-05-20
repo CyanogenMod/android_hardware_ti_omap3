@@ -108,7 +108,7 @@ void AppCallbackNotifier::errorNotify(int error)
 {
     LOG_FUNCTION_NAME
 
-    CAMHAL_LOGEB("AppCallbackNotifier received error %d", error);
+    CAMHAL_LOGEB("AppCallbackNotifier received error 0x%x", error);
 
     ///Notify errors to application in callback thread. Post error event to event queue
     Message msg;
@@ -301,9 +301,9 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
             uint32_t xOff = offset % PAGE_SIZE;
             uint32_t yOff = offset / PAGE_SIZE;
             bufferDst = ( unsigned char * ) dst;
-            bufferDstEnd = ( unsigned char * ) dst + width*height*bytesPerPixel;
-            bufferSrc = ( unsigned char * ) (src + offset);
-            bufferSrcEnd = ( unsigned char * ) ( ( size_t ) src + length + offset );
+            bufferDstEnd = ( unsigned char * ) ( (uint32_t) bufferDst + width*height*bytesPerPixel );
+            bufferSrc = ( unsigned char * ) ( (uint32_t) src + offset );
+            bufferSrcEnd = ( unsigned char * ) ( (uint32_t) bufferSrc + length );
             row = width*bytesPerPixel;
             alignedRow = stride-width;
             int stride_bytes = stride / 8;

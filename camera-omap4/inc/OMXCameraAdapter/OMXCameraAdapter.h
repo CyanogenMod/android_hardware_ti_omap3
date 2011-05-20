@@ -319,6 +319,17 @@ public:
             OMXCameraPortParameters     mCameraPortParams[MAX_NO_PORTS];
     };
 
+    // MEASUREMENT HEADER SMALC
+    struct OMXDebugDataHeader
+    {
+        OMX_U32 mRecordID;
+        OMX_U32 mSectionID;
+        OMX_U32 mTimeStamp;
+        OMX_U32 mRecordSize;
+        OMX_U32 mPayloadSize;
+        OMX_U32 mHeaderSize;
+    };
+
 public:
 
     OMXCameraAdapter();
@@ -388,6 +399,9 @@ protected:
 
 private:
 
+    FILE * parseDCCsubDir(DIR *pDir, char *path);
+    FILE * fopenCameraDCC(const char *dccFolderPath);
+    int fseekDCCuseCasePos(FILE *pFile);
     status_t switchToLoaded();
 
     OMXCameraPortParameters *getPortParams(CameraFrame::FrameType frameType);
@@ -729,6 +743,11 @@ private:
     Semaphore mCaptureSem;
     bool mCaptureSignalled;
 
+    void *mSMALCDataRecord;
+    unsigned int mSMALCDataSize;
+    void *mSMALC_DCCFileDesc;
+    unsigned int mSMALC_DCCDescSize;
+    mutable Mutex mSMALCLock;
 };
 }; //// namespace
 #endif //OMX_CAMERA_ADAPTER_H

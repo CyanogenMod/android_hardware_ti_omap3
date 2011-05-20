@@ -603,7 +603,13 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mParameters.set(TICameraParameters::KEY_FACE_DETECTION_THRESHOLD, valstr);
         }
 
-    if( (valstr = params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE)) != NULL )
+    if (isS3d)
+        {
+        // Hard-coded -> Measurement should always be enabled in S3D
+        mParameters.set(TICameraParameters::KEY_MEASUREMENT_ENABLE, TICameraParameters::MEASUREMENT_ENABLE);
+        mMeasurementEnabled = true;
+        }
+    else if( (valstr = params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE)) != NULL )
         {
         CAMHAL_LOGDB("Measurements set to %s", params.get(TICameraParameters::KEY_MEASUREMENT_ENABLE));
         mParameters.set(TICameraParameters::KEY_MEASUREMENT_ENABLE, valstr);
@@ -612,15 +618,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             {
             mMeasurementEnabled = true;
             }
-        else if (strcmp(valstr, (const char *) TICameraParameters::MEASUREMENT_DISABLE) == 0)
-            {
-            mMeasurementEnabled = false;
-            }
         else
             {
             mMeasurementEnabled = false;
             }
-
+        }
+    else
+        {
+        mMeasurementEnabled = false;
         }
 
     if( (valstr = params.get(CameraParameters::KEY_EXPOSURE_COMPENSATION)) != NULL)
@@ -1314,9 +1319,7 @@ status_t CameraHal::startPreview()
 
     if ( mMeasurementEnabled )
         {
-
         ret = mCameraAdapter->getFrameDataSize(frameDataSize, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
-
         if ( NO_ERROR == ret )
             {
             ///Allocate the preview data buffers
@@ -1326,13 +1329,11 @@ status_t CameraHal::startPreview()
                 CAMHAL_LOGEA("Couldn't allocate preview data buffers");
                 goto error;
                 }
+            else
+                {
+                mCameraAdapter->useBuffers(CameraAdapter::CAMERA_MEASUREMENT, mPreviewDataBufs, mPreviewDataOffsets, mPreviewDataFd, mPreviewDataLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
+                }
             }
-
-        if ( NO_ERROR == ret )
-            {
-            mCameraAdapter->useBuffers(CameraAdapter::CAMERA_MEASUREMENT, mPreviewDataBufs, mPreviewDataOffsets, mPreviewDataFd, mPreviewDataLength, atoi(mCameraPropertiesArr[CameraProperties::PROP_INDEX_REQUIRED_PREVIEW_BUFS]->mPropValue));
-            }
-
         }
 
     ///Pass the buffers to Camera Adapter
@@ -1352,14 +1353,11 @@ status_t CameraHal::startPreview()
     else if ( NO_ERROR == ret )
         {
         CAMHAL_LOGDA("Started AppCallbackNotifier..");
-        if ( NO_ERROR == ret )
-            {
-            mAppCallbackNotifier->setMeasurements(mMeasurementEnabled);
-            }
+        mAppCallbackNotifier->setMeasurements(mMeasurementEnabled);
         }
     else
         {
-        CAMHAL_LOGDA("Couldn't start AppCallbackNotifier");
+        CAMHAL_LOGEA("Couldn't start AppCallbackNotifier");
         goto error;
         }
 
