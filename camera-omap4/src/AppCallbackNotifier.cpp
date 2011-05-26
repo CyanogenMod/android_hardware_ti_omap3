@@ -303,10 +303,11 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
             bufferDst = ( unsigned char * ) dst;
             bufferDstEnd = ( unsigned char * ) dst + width*height*bytesPerPixel;
             bufferSrc = ( unsigned char * ) (src + offset);
-            bufferSrcEnd = ( unsigned char * ) ( ( size_t ) src + length );
+            bufferSrcEnd = ( unsigned char * ) ( ( size_t ) src + length + offset );
             row = width*bytesPerPixel;
             alignedRow = stride-width;
             int stride_bytes = stride / 8;
+            size_t bufferSize_Y = 0;
 
             //iterate through each row
             for ( int i = 0 ; i < height ; i++)
@@ -324,7 +325,8 @@ static void copy2Dto1D(void *dst, void *src, int width, int height, size_t strid
 
             ///Convert NV21 to NV12 by swapping U & V
             bufferDst_UV = (uint16_t *) (((uint8_t*)dst)+row*height);
-            bufferSrc_UV = ( uint16_t * ) (((uint8_t*)src) + offset + stride*height + (stride/2)*yOff);
+            bufferSize_Y = (( length + offset ) / 3) * 2;
+            bufferSrc_UV = ( uint16_t * ) (((uint8_t*)src) + bufferSize_Y + (stride/2)*yOff + xOff);
 
             for(int i = 0 ; i < height/2 ; i++, bufferSrc_UV += alignedRow/2)
             {

@@ -6866,7 +6866,7 @@ status_t OMXCameraAdapter::initCameraFrame( CameraFrame &frame,
         frame.mFrameType = typeOfFrame;
         frame.mBuffer = pBuffHeader->pBuffer;
         frame.mLength = pBuffHeader->nFilledLen;
-        frame.mAlignment =port->mStride;
+        frame.mAlignment = port->mStride;
         frame.mOffset = pBuffHeader->nOffset;
         frame.mWidth = port->mWidth;
         frame.mHeight = port->mHeight;
@@ -6884,7 +6884,6 @@ status_t OMXCameraAdapter::initCameraFrame( CameraFrame &frame,
 
         // Calculating the new video timestamp based on offset from ducati source.
         frame.mTimestamp = (pBuffHeader->nTimeStamp * 1000) - mTimeSourceDelta;
-        frame.mOffset = pBuffHeader->nOffset;
         }
 
     LOG_FUNCTION_NAME_EXIT
