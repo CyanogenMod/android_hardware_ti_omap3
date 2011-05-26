@@ -142,10 +142,16 @@ struct hdmi_data hdmi[] = {
     {4,     1280,   720,    1,  1,  0}, /* 1280x720p60 16:9 */
     {2,     720,    480,    8,  9,  0}, /* 720x480p60 4:3 */
     {5,     1920,   540,    1,  1,  1}, /* 1920x1080i60 16:9 */
+    {6,     1440,   240,    1,  1,  1}, /* 1440x240i, pixel aspect ratio is not considered*/
     {16,    1920,   1080,   1,  1,  0}, /* 1920x1080p60 16:9 */
     {17,    720,    576,    16, 15, 0}, /* 720x576p50 4:3 */
+    {20,    1920,   540,    1,  1,  1}, /*1920x1080i50  16:9 */
+    {21,    1440,   288,    1,  1,  1}, /* 1440x288i pixel aspect ratio not considered */
+    {29,    1440,   576,    1,  1,  0}, /*1440x576p, pixel aspect ratio not considered */
     {31,    1920,   1080,   1,  1,  0}, /* 1920x1080p50 16:9 */
     {32,    1920,   1080,   1,  1,  0}, /* 1920x1080p24 16:9 */
+    {35,    2880,   480,    1,  1,  0}, /*2880x480p, pixel aspect ratio not considered */
+    {37,    2880,   576,    1,  1,  0}, /*2880x576p, pixel aspect ratio not considered */
     {-1,    -1,     -1,     1,  1,  0} /*VESA or custome code, hence rely on kernel timings*/
 };
 
