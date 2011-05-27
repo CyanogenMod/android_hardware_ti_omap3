@@ -514,13 +514,15 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
         LOGE("Modem PCM capture open error: %d:%s", error, snd_strerror(error));
         return INVALID_OPERATION;
     }
+    LOGV("snd_pcm_open(%p, %s, SND_PCM_STREAM_CAPTURE, 0)", cHandle, AUDIO_MODEM_PCM_HANDLE_NAME);
+
     if ((error = snd_pcm_open(&pHandle,
                     AUDIO_MODEM_PCM_HANDLE_NAME,
                     SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
         LOGE("Modem PCM playback open error: %d:%s", error, snd_strerror(error));
         return INVALID_OPERATION;
     }
-
+    LOGV("snd_pcm_open(%p, %s, SND_PCM_STREAM_PLAYBACK, 0)", pHandle, AUDIO_MODEM_PCM_HANDLE_NAME);
 
     if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_SAMPLERATE].name,
                 "auto")) {
@@ -587,10 +589,13 @@ status_t AudioModemAlsa::voiceCallCodecPCMReset()
         LOGE("Modem PCM capture close error: %s", snd_strerror(error));
         return INVALID_OPERATION;
     }
+    LOGV("snd_pcm_close(%p)", cHandle);
+
     if ((error = snd_pcm_close(pHandle)) < 0) {
         LOGE("Modem PCM playback close error: %s", snd_strerror(error));
         return INVALID_OPERATION;
     }
+    LOGV("snd_pcm_close(%p)", pHandle);
 
     return NO_ERROR;
 }

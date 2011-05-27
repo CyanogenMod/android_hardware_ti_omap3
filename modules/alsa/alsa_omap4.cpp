@@ -864,6 +864,8 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode, uint32
         LOGE("Failed to initialize ALSA %s device '%s': %s", stream, devName, strerror(err));
         return NO_INIT;
     }
+    LOGV("snd_pcm_open(%p, %s, %s, 0)", handle->handle, devName,
+         (direction(handle) == SND_PCM_STREAM_PLAYBACK) ? "SND_PCM_STREAM_PLAYBACK" : "SND_PCM_STREAM_CAPTURE");
 
     mActive = true;
 
@@ -898,6 +900,9 @@ static status_t s_close(alsa_handle_t *handle)
     if (h) {
         snd_pcm_drain(h);
         err = snd_pcm_close(h);
+        LOGV("snd_pcm_close(%p): %s(%d) ", h,
+             err != 0 ? strerror(err) : "no error",
+             err != 0 ? err : 0);
         mActive = false;
     }
 
@@ -919,6 +924,9 @@ static status_t s_standby(alsa_handle_t *handle)
     if (h) {
         snd_pcm_drain(h);
         err = snd_pcm_close(h);
+        LOGV("snd_pcm_close(%p): %s(%d) ", h,
+             err != 0 ? strerror(err) : "no error",
+             err != 0 ? err : 0);
         mActive = false;
         LOGE("called drain&close\n");
     }
