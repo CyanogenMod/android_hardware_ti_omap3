@@ -46,6 +46,7 @@ static status_t s_close(alsa_handle_t *);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
 static status_t s_voicevolume(float);
+static status_t s_resetDefaults(alsa_handle_t *handle);
 
 #ifdef AUDIO_MODEM_TI
     AudioModemAlsa *audioModem;
@@ -87,6 +88,7 @@ static int s_device_open(const hw_module_t* module, const char* name,
     dev->standby = s_standby;
     dev->route = s_route;
     dev->voicevolume = s_voicevolume;
+    dev->resetDefaults = s_resetDefaults;
 
     *device = &dev->common;
 
@@ -688,4 +690,10 @@ static status_t s_voicevolume(float volume)
 
     return status;
 }
+
+static status_t s_resetDefaults(alsa_handle_t *handle)
+{
+    return setHardwareParams(handle);
+}
+
 }
