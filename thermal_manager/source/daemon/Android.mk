@@ -16,23 +16,23 @@
 #
 
 ifeq ($(TARGET_BOARD_PLATFORM),omap4)
-
-LOCAL_PATH:= $(call my-dir)
-
+LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
+LOCAL_ARM_MODE := arm
+LOCAL_SRC_FILES := \
+    ThermalDaemon.c
+LOCAL_C_INCLUDES += \
+    $(LOCAL_PATH)/../inc \
+    $(LOCAL_PATH)
+LOCAL_SHARED_LIBRARIES := \
+        libnotify \
+        libhardware_legacy \
+        libthermal_manager \
+        liblog
+
+LOCAL_LDLIBS := -llibthermal_manager
+LOCAL_MODULE := thermaldaemon
 LOCAL_MODULE_TAGS := optional
-LOCAL_MODULE := libthermal_manager
-LOCAL_PRELINK_MODULE := false
-LOCAL_SHARED_LIBRARIES := libconfig \
-              liblog
 
-LOCAL_SRC_FILES := thermal_manager.c \
-           sysfs.c \
-           read_config.c \
-           pcb_thermal_governor.c \
-           lpddr2_thermal_governor.c \
-           cpu_thermal_governor.c
-
-LOCAL_LDLIBS     := -llog -llibconfig
-include $(BUILD_SHARED_LIBRARY)
+include $(BUILD_EXECUTABLE)
 endif

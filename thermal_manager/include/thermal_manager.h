@@ -21,9 +21,8 @@
 extern "C" {
 #endif
 
-void thermal_manager_algo(const char *string);
-
-void thermal_manager_init(void);
+int thermal_manager_algo(const char *string);
+int thermal_manager_init(void);
 
 #if __cplusplus
 }  // extern "C"

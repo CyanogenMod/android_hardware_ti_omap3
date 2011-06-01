@@ -30,7 +30,7 @@
  * External functions
  *
  */
-void cpu_thermal_governor(u32 omap_temp);
+int cpu_thermal_governor(u32 omap_temp);
 void init_cpu_thermal_governor(u32 omap_temp);
 
 #endif

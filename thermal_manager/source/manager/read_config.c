@@ -12,6 +12,7 @@
  */
 
 #include "read_config.h"
+#include <utils/Log.h>
 
 const char *sensor_read_paths[MAX_SENSORS] = { "omap_cpu_temperature_file",
                         "emif1_temperature_file",
@@ -43,6 +44,7 @@ int read_config (void)
     const char *temp_read[MAX_SENSORS];
     const char *cpufreq_read[MAX_CPUFREQ_PATHS];
     const char *omaptemp_read[MAX_OMAPTEMP_PATHS];
+    const char *omap_cpu_id;
     long value;
 
     cf = &cfg;
@@ -56,17 +58,27 @@ int read_config (void)
     }
 
     for (index = 0; index < MAX_SENSORS; index++) {
-            if (config_lookup_string(cf, sensor_read_paths[index],
+        if (config_lookup_string(cf, sensor_read_paths[index],
             &temp_read[index])) {
                         if ((config_file.temperature_file_sensors[index] =
                 calloc(strlen(temp_read[index]),
                 sizeof(char))) == NULL) {
-                printf ("Error in allocating memory\n");
+                LOGD("Error in allocating memory\n");
                 fflush(stdout);
                 return -1;
             }
-        strcpy (config_file.temperature_file_sensors[index], temp_read[index]);
+            strcpy (config_file.temperature_file_sensors[index], temp_read[index]);
         }
+    }
+
+    if (config_lookup_string(cf, "omap_cpu_temp_sensor_id_file", &omap_cpu_id)) {
+        if ((config_file.omap_cpu_temp_sensor_id =
+            calloc(strlen(omap_cpu_id), sizeof(char))) == NULL) {
+                LOGD("Error in allocating memory\n");
+                fflush(stdout);
+                return -1;
+        }
+        strcpy (config_file.omap_cpu_temp_sensor_id, omap_cpu_id);
     }
 
     if (config_lookup_int(cf, "omap_cpu_threshold_monitoring", &value)) {
@@ -94,7 +106,7 @@ int read_config (void)
     }
 
     for (index = 0; index < MAX_CPUFREQ_PATHS; index++) {
-            if (config_lookup_string(cf, cpufreq_read_paths[index],
+        if (config_lookup_string(cf, cpufreq_read_paths[index],
             &cpufreq_read[index])) {
                         if ((config_file.cpufreq_file_paths[index] =
                 calloc(strlen(cpufreq_read[index]),

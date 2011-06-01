@@ -47,18 +47,19 @@
 #define OPPS_NUMBER 5 /* OPP50, OPP100, TURBO, NITRO, NITRO+SB */
 /* CPU Freq governors */
 #define GOVS_NUMBER 5
-#define DEBUG 1
+
 struct configinfo {
-		char *temperature_file_sensors[MAX_SENSORS];
-		u32 omap_cpu_threshold_monitoring;
-		u32 omap_cpu_threshold_alert;
-		u32 omap_cpu_threshold_panic;
-		u32 omap_cpu_temperature_slope;
-		u32 omap_cpu_temperature_offset;
-		u32 pcb_threshold;
-		char *cpufreq_file_paths[MAX_CPUFREQ_PATHS];
-		char *omaptemp_file_paths[MAX_OMAPTEMP_PATHS];
-	};
+        char *temperature_file_sensors[MAX_SENSORS];
+        char *omap_cpu_temp_sensor_id;
+        int omap_cpu_threshold_monitoring;
+        int omap_cpu_threshold_alert;
+        int omap_cpu_threshold_panic;
+        int omap_cpu_temperature_slope;
+        int omap_cpu_temperature_offset;
+        int pcb_threshold;
+        char *cpufreq_file_paths[MAX_CPUFREQ_PATHS];
+        char *omaptemp_file_paths[MAX_OMAPTEMP_PATHS];
+    };
 struct configinfo config_file;
 
 /* API definitions */

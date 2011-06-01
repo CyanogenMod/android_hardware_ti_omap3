@@ -13,6 +13,7 @@
 
 #include "cpu_thermal_governor.h"
 #include <sys/reboot.h>
+#include <utils/Log.h>
 
 /*
  *
@@ -30,6 +31,8 @@ u32 update_rate = 0;
 u32 current_t_high = 0; /* temperature threshold (high) at OMAP hot spot level */
 u32 current_t_low = 0;  /* temperature threshold (low) at OMAP hot spot level */
 u32 cpu_temp;
+
+#define DEBUG 1
 
 /*
  *
@@ -128,7 +131,7 @@ static void update_t_high(u32 t_high)
 {
     char buf[SIZE];
 #ifdef DEBUG
-    printf("update_t_high (%ld)\n", t_high);
+    LOGD("update_t_high (%ld)\n", t_high);
 #endif
     sprintf(buf, "%ld\n", convert_hotspot_temp_to_omap_sensor_temp(OMAP_CPU, t_high));
     write_to_file(
@@ -141,7 +144,7 @@ static void update_t_low(u32 t_low)
 {
     char buf[SIZE];
 #ifdef DEBUG
-    printf("update_t_low (%ld)\n", t_low);
+    LOGD("update_t_low (%ld)\n", t_low);
 #endif
     sprintf(buf, "%ld\n", convert_hotspot_temp_to_omap_sensor_temp(OMAP_CPU, t_low));
     write_to_file(
@@ -206,7 +209,7 @@ static void read_cpu_scaling_available_freq(void)
             max_cpu_freq = available_freq[i];
     }
 #ifdef DEBUG
-    printf("max_freq is %ld\n", max_cpu_freq); fflush(stdout);
+    LOGD("max_freq is %ld\n", max_cpu_freq); fflush(stdout);
 #endif
 }
 
@@ -256,7 +259,7 @@ static void read_cpu_scaling_governor(void)
         nominal_cpu_scaling_governor = "performance";
 
 #ifdef DEBUG
-    printf("nominal_cpu_scaling_governor is %s\n",
+    LOGD("nominal_cpu_scaling_governor is %s\n",
         nominal_cpu_scaling_governor);
     fflush(stdout);
 #endif
@@ -269,46 +272,46 @@ static void print_latest_settings(void)
 {
 #ifdef DEBUG
     /* Print the current scaling_max_freq and nominal value */
-    printf("scaling_max_freq = %d\n",
+    LOGD("scaling_max_freq = %d\n",
         atoi(read_from_file(
             config_file.cpufreq_file_paths[SCALING_MAX_FREQ_PATH])));
     fflush(stdout);
-    printf("nominal scaling_max_freq = %ld\n",
+    LOGD("nominal scaling_max_freq = %ld\n",
         nominal_cpu_scaling_max_freq);
     fflush(stdout);
 
     /* Print the current scaling_governor */
-    printf("scaling_governor = %s\n",
+    LOGD("scaling_governor = %s\n",
         read_from_file(
             config_file.cpufreq_file_paths[SCALING_GOVERNOR_PATH]));
     fflush(stdout);
 
     /* Print the current cpuinfo_cur_freq */
-    printf("cpuinfo_cur_freq = %d\n",
+    LOGD("cpuinfo_cur_freq = %d\n",
         atoi(read_from_file(
             config_file.cpufreq_file_paths[CPUINFO_CUR_FREQ_PATH])));
     fflush(stdout);
 
     /* Print the current omap_update_rate */
-    printf("omap_update_rate = %d\n",
+    LOGD("omap_update_rate = %d\n",
         atoi(read_from_file(
             config_file.omaptemp_file_paths[OMAP_CPU_UPDATE_RATE_PATH])));
     fflush(stdout);
 
     /* Print the current Threshold High */
-    printf("omap_threshold_high = %d\n",
+    LOGD("omap_threshold_high = %d\n",
         atoi(read_from_file(
             config_file.omaptemp_file_paths[OMAP_CPU_THRESHOLD_HIGH_PATH])));
     fflush(stdout);
 
     /* Print the current Threshold High */
-    printf("omap_threshold_low = %d\n",
+    LOGD("omap_threshold_low = %d\n",
         atoi(read_from_file(
             config_file.omaptemp_file_paths[OMAP_CPU_THRESHOLD_LOW_PATH])));
     fflush(stdout);
 
     /* Has the panic zone been reached? */
-    printf("is_panic_zone_reached = %d\n", is_panic_zone_reached);
+    LOGD("is_panic_zone_reached = %d\n", is_panic_zone_reached);
     fflush(stdout);
 #endif
 }
@@ -324,7 +327,7 @@ static void print_latest_settings(void)
  */
 static void safe_zone(void)
 {
-    printf("OMAP CPU THERMAL - Safe Zone (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - Safe Zone (hot spot temp: %ld)\n", cpu_temp);
     fflush(stdout);
 
     update_cpu_scaling_max_freq(nominal_cpu_scaling_max_freq);
@@ -354,7 +357,7 @@ static void safe_zone(void)
  */
 static void monitoring_zone(void)
 {
-    printf("OMAP CPU THERMAL - Monitoring Zone (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - Monitoring Zone (hot spot temp: %ld)\n", cpu_temp);
     fflush(stdout);
 
     if (is_panic_zone_reached == false) {
@@ -368,12 +371,12 @@ static void monitoring_zone(void)
     if (is_conservative_available == true) {
         update_cpu_scaling_governor("conservative");
 #ifdef DEBUG
-        printf("conservative governor is available\n");
+        LOGD("conservative governor is available\n");
         fflush(stdout);
 #endif
     } else {
 #ifdef DEBUG
-        printf("conservative governor is not available\n");
+        LOGD("conservative governor is not available\n");
         fflush(stdout);
 #endif
     }
@@ -402,7 +405,7 @@ static void alert_zone(void)
 {
     u32 current_freq;
 
-    printf("OMAP CPU THERMAL - Alert Zone (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - Alert Zone (hot spot temp: %ld)\n", cpu_temp);
     fflush(stdout);
 
     if (is_panic_zone_reached == false) {
@@ -418,12 +421,12 @@ static void alert_zone(void)
     if (is_conservative_available == true) {
         update_cpu_scaling_governor("conservative");
 #ifdef DEBUG
-        printf("conservative governor is available\n");
+        LOGD("conservative governor is available\n");
         fflush(stdout);
 #endif
     } else {
 #ifdef DEBUG
-        printf("conservative governor is not available\n");
+        LOGD("conservative governor is not available\n");
         fflush(stdout);
 #endif
     }
@@ -456,7 +459,7 @@ static void panic_zone(void)
     u32 current_freq;
     u32 threshold_fatal;
 
-    printf("OMAP CPU THERMAL - Panic Zone (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - Panic Zone (hot spot temp: %ld)\n", cpu_temp);
     fflush(stdout);
 
     /* Read current frequency */
@@ -475,7 +478,7 @@ static void panic_zone(void)
     if (is_conservative_available == true) {
         governor = "conservative";
 #ifdef DEBUG
-        printf("conservative governor is available\n");
+        LOGD("conservative governor is available\n");
         fflush(stdout);
 #endif
     } else {
@@ -496,7 +499,7 @@ static void panic_zone(void)
         else if (strcmp(governor, ("performance")) == 0)
             governor = "performance";
 #ifdef DEBUG
-        printf("initial governor is %s\n", governor);
+        LOGD("initial governor is %s\n", governor);
         fflush(stdout);
 #endif
     }
@@ -522,7 +525,7 @@ static void panic_zone(void)
     if (cpu_temp >= threshold_fatal) {
         threshold_fatal = OMAP_CPU_THRESHOLD_FATAL;
 #ifdef DEBUG
-        printf("entering into Pre-Fatal Zone\n");
+        LOGD("entering into Pre-Fatal Zone\n");
         fflush(stdout);
 #endif
     }
@@ -542,7 +545,7 @@ static void panic_zone(void)
  */
 static void fatal_zone(void)
 {
-    printf("OMAP CPU THERMAL - FATAL ZONE (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - FATAL ZONE (hot spot temp: %ld)\n", cpu_temp);
     fflush(stdout);
 
     is_panic_zone_reached = true;
@@ -562,54 +565,55 @@ static void fatal_zone(void)
  * It defines various thermal zones (safe, monitoring, alert, panic and fatal)
  * with associated thermal Thresholds including the hysteresis effect.
  */
-void cpu_thermal_governor(u32 omap_sensor_temp)
+int cpu_thermal_governor(u32 omap_sensor_temp)
 {
     cpu_temp = convert_omap_sensor_temp_to_hotspot_temp(OMAP_CPU, omap_sensor_temp);
 
     if (cpu_temp >= OMAP_CPU_THRESHOLD_FATAL) {
         fatal_zone();
+        return 5;
     } else if (cpu_temp >= config_file.omap_cpu_threshold_panic) {
         panic_zone();
-        return;
+        return 4;
     } else if (cpu_temp < (config_file.omap_cpu_threshold_panic - HYSTERESIS_VALUE)) {
         if (cpu_temp >= config_file.omap_cpu_threshold_alert) {
             alert_zone();
-            return;
+            return 3;
         } else if (cpu_temp < (config_file.omap_cpu_threshold_alert - HYSTERESIS_VALUE)) {
             if (cpu_temp >= config_file.omap_cpu_threshold_monitoring) {
                 monitoring_zone();
-                return;
+                return 2;
             } else if (cpu_temp <
                 (config_file.omap_cpu_threshold_monitoring - HYSTERESIS_VALUE)) {
                 safe_zone();
-                return;
+                return 1;
             } else {
 #ifdef DEBUG
-                printf("Temp between MonitorHigh and ");
-                printf("MonitorLow: do nothing (%ld)\n", cpu_temp);
+                LOGD("Temp between MonitorHigh and ");
+                LOGD("MonitorLow: do nothing (%ld)\n", cpu_temp);
                 fflush(stdout);
 #endif
                 update_thresholds(
                  config_file.omap_cpu_threshold_monitoring,
                  config_file.omap_cpu_threshold_monitoring - HYSTERESIS_VALUE);
                 print_latest_settings();
-                return;
+                return 0;
             }
         } else {
 #ifdef DEBUG
-            printf("Temp between AlertHigh and AlertLow: ");
-            printf("do nothing (%ld)\n", cpu_temp);
+            LOGD("Temp between AlertHigh and AlertLow: ");
+            LOGD("do nothing (%ld)\n", cpu_temp);
             fflush(stdout);
 #endif
             update_thresholds(
              config_file.omap_cpu_threshold_alert,
              config_file.omap_cpu_threshold_alert - HYSTERESIS_VALUE);
             print_latest_settings();
-            return;
+                        return 0;
         }
     } else {
 #ifdef DEBUG
-        printf("Temp between PanicHigh and PanicLow: do nothing (%ld)\n",
+        LOGD("Temp between PanicHigh and PanicLow: do nothing (%ld)\n",
             cpu_temp);
         fflush(stdout);
 #endif
@@ -617,7 +621,7 @@ void cpu_thermal_governor(u32 omap_sensor_temp)
          config_file.omap_cpu_threshold_panic,
          config_file.omap_cpu_threshold_panic - HYSTERESIS_VALUE);
         print_latest_settings();
-        return;
+        return 0;
     }
 }
 
@@ -649,10 +653,10 @@ void init_cpu_thermal_governor(u32 omap_temp)
     }
 #ifdef DEBUG
     if (is_conservative_available == true) {
-        printf("conservative governor is available\n");
+        LOGD("conservative governor is available\n");
         fflush(stdout);
     } else {
-        printf("conservative governor is not available\n");
+        LOGD("conservative governor is not available\n");
         fflush(stdout);
     }
 #endif
@@ -664,7 +668,7 @@ void init_cpu_thermal_governor(u32 omap_temp)
 
 #ifdef DEBUG
     for (i = 0; i < OPPS_NUMBER; i++) {
-        printf("available_freq[%d] = %ld\n",
+        LOGD("available_freq[%d] = %ld\n",
                 i,
                 available_freq[i]);
         fflush(stdout);
