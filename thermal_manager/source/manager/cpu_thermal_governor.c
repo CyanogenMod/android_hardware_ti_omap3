@@ -30,7 +30,7 @@ bool is_conservative_available = false;
 u32 update_rate = 0;
 u32 current_t_high = 0; /* temperature threshold (high) at OMAP hot spot level */
 u32 current_t_low = 0;  /* temperature threshold (low) at OMAP hot spot level */
-u32 cpu_temp;
+int cpu_temp;
 
 #define DEBUG 1
 
@@ -327,7 +327,7 @@ static void print_latest_settings(void)
  */
 static void safe_zone(void)
 {
-    LOGD("OMAP CPU THERMAL - Safe Zone (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - Safe Zone (hot spot temp: %i)\n", cpu_temp);
     fflush(stdout);
 
     update_cpu_scaling_max_freq(nominal_cpu_scaling_max_freq);
@@ -357,7 +357,7 @@ static void safe_zone(void)
  */
 static void monitoring_zone(void)
 {
-    LOGD("OMAP CPU THERMAL - Monitoring Zone (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - Monitoring Zone (hot spot temp: %i)\n", cpu_temp);
     fflush(stdout);
 
     if (is_panic_zone_reached == false) {
@@ -405,7 +405,7 @@ static void alert_zone(void)
 {
     u32 current_freq;
 
-    LOGD("OMAP CPU THERMAL - Alert Zone (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - Alert Zone (hot spot temp: %i)\n", cpu_temp);
     fflush(stdout);
 
     if (is_panic_zone_reached == false) {
@@ -457,9 +457,9 @@ static void panic_zone(void)
     int i;
     u32 panic_zone_cpu_freq;
     u32 current_freq;
-    u32 threshold_fatal;
+    int threshold_fatal;
 
-    LOGD("OMAP CPU THERMAL - Panic Zone (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - Panic Zone (hot spot temp: %i)\n", cpu_temp);
     fflush(stdout);
 
     /* Read current frequency */
@@ -545,7 +545,7 @@ static void panic_zone(void)
  */
 static void fatal_zone(void)
 {
-    LOGD("OMAP CPU THERMAL - FATAL ZONE (hot spot temp: %ld)\n", cpu_temp);
+    LOGD("OMAP CPU THERMAL - FATAL ZONE (hot spot temp: %i)\n", cpu_temp);
     fflush(stdout);
 
     is_panic_zone_reached = true;
@@ -590,7 +590,7 @@ int cpu_thermal_governor(u32 omap_sensor_temp)
             } else {
 #ifdef DEBUG
                 LOGD("Temp between MonitorHigh and ");
-                LOGD("MonitorLow: do nothing (%ld)\n", cpu_temp);
+                LOGD("MonitorLow: do nothing (%i)\n", cpu_temp);
                 fflush(stdout);
 #endif
                 update_thresholds(
@@ -602,7 +602,7 @@ int cpu_thermal_governor(u32 omap_sensor_temp)
         } else {
 #ifdef DEBUG
             LOGD("Temp between AlertHigh and AlertLow: ");
-            LOGD("do nothing (%ld)\n", cpu_temp);
+            LOGD("do nothing (%i)\n", cpu_temp);
             fflush(stdout);
 #endif
             update_thresholds(
@@ -613,7 +613,7 @@ int cpu_thermal_governor(u32 omap_sensor_temp)
         }
     } else {
 #ifdef DEBUG
-        LOGD("Temp between PanicHigh and PanicLow: do nothing (%ld)\n",
+        LOGD("Temp between PanicHigh and PanicLow: do nothing (%i)\n",
             cpu_temp);
         fflush(stdout);
 #endif
