@@ -708,8 +708,6 @@ long config_setting_get_int(const config_setting_t *setting)
     case CONFIG_TYPE_FLOAT:
       if((setting->config->flags & CONFIG_OPTION_AUTOCONVERT) != 0)
         return((long)(setting->value.fval));
-      else
-        /* fall through */;
 
     default:
       return(0);
@@ -731,8 +729,6 @@ long long config_setting_get_int64(const config_setting_t *setting)
     case CONFIG_TYPE_FLOAT:
       if((setting->config->flags & CONFIG_OPTION_AUTOCONVERT) != 0)
         return((long long)(setting->value.fval));
-      else
-        /* fall through */;
 
     default:
       return(0);
@@ -1471,7 +1467,7 @@ int config_setting_index(const config_setting_t *setting)
   config_list_t *list;
   int i;
 
-  if(! setting->parent)
+  if(!setting->parent)
     return(-1);
 
   list = setting->parent->value.list;
