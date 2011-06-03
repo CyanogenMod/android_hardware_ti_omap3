@@ -100,6 +100,8 @@ const char TICameraParameters::KEY_S3D2D_PREVIEW_MODE[] = "s3d2d-preview-values"
 const char TICameraParameters::KEY_S3D_FRAME_LAYOUT[] = "s3d-frame-layout";
 const char TICameraParameters::KEY_S3D_FRAME_LAYOUT_VALUES[] = "s3d-frame-layout-values";
 
+const char TICameraParameters::KEY_SEI_ENCODING_TYPE[] = "sei-encoding-type";
+
 //TI extensions for SAC/SMC
 const char TICameraParameters::KEY_AUTOCONVERGENCE[] = "auto-convergence";
 const char TICameraParameters::KEY_AUTOCONVERGENCE_MODE[] = "auto-convergence-mode";
@@ -200,6 +202,11 @@ const char TICameraParameters::S3D_TB_FULL[] = "tb_full";
 const char TICameraParameters::S3D_SS_FULL[] = "ss_full";
 const char TICameraParameters::S3D_TB_SUBSAMPLED[] = "tb_subsampled";
 const char TICameraParameters::S3D_SS_SUBSAMPLED[] = "ss_subsampled";
+
+//TI extensions for SEI encoding config
+const char TICameraParameters::SEI_ENCODING_NONE[] = "sei_enc_none";
+const char TICameraParameters::SEI_ENCODING_2004[] = "sei_enc_2004";
+const char TICameraParameters::SEI_ENCODING_2010[] = "sei_enc_2010";
 
 //  TI extensions to add auto convergence values
 const char TICameraParameters::AUTOCONVERGENCE_MODE_DISABLE[] = "mode-disable";

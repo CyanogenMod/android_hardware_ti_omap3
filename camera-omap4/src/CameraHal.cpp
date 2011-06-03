@@ -293,6 +293,18 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             w_coef = 2;
         }
 
+    if (isS3d &&
+        (valstr = params.get(TICameraParameters::KEY_SEI_ENCODING_TYPE)) != NULL)
+        {
+        CAMHAL_LOGDB("SEI encoding type: %s", valstr);
+        mParameters.set(TICameraParameters::KEY_SEI_ENCODING_TYPE, valstr);
+        }
+    else
+        {
+        CAMHAL_LOGDB("SEI encoding type: %s", TICameraParameters::SEI_ENCODING_NONE);
+        mParameters.set(TICameraParameters::KEY_SEI_ENCODING_TYPE, TICameraParameters::SEI_ENCODING_NONE);
+        }
+
     ///Ensure that preview is not enabled when the below parameters are changed.
     if (!previewEnabled())
         {

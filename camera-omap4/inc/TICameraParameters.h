@@ -83,6 +83,8 @@ static const char KEY_SENSOR_ORIENTATION_VALUES[];
 static const char KEY_S3D_FRAME_LAYOUT[];
 static const char KEY_S3D_FRAME_LAYOUT_VALUES[];
 
+static const char KEY_SEI_ENCODING_TYPE[];
+
 //TI extensions for zoom
 static const char ZOOM_SUPPORTED[];
 static const char ZOOM_UNSUPPORTED[];
@@ -231,6 +233,11 @@ static const char S3D_TB_FULL[];
 static const char S3D_SS_FULL[];
 static const char S3D_TB_SUBSAMPLED[];
 static const char S3D_SS_SUBSAMPLED[];
+
+//TI extensions for SEI encoding config
+static const char SEI_ENCODING_NONE[];
+static const char SEI_ENCODING_2004[];
+static const char SEI_ENCODING_2010[];
 
 //  TI extensions to add values for AutoConvergence settings.
 static const char AUTOCONVERGENCE_MODE_DISABLE[];
