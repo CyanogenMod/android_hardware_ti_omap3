@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="com.ti.therm_man"
+          android:versionName="Alpha"
+          android:versionCode="1">
+
+	<!-- Tell the system that we need to be able to inject key presses into the Kernel -->
+	<uses-permission android:name="android.permission.INJECT_EVENTS" />
+
+	<!-- Tell the system that we need to use and run wake locks -->
+	<uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+	<!-- Tell the system that we need to know when the boot up completes -->
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- This package contains an application...  The 'label' is the name
+         to display to the user for the overall application, and provides
+         a default label for all following components.  The syntax here is a
+         reference to one of our string resources.-->
+	<application android:icon="@drawable/ti_bug"
+	             android:label="@string/tm_srv"
+	             android:debuggable="true">
+
+		<service android:name="com.ti.therm_man.ThermalManagerService"
+                 android:process=":ThermalManagerService">
+            <intent-filter>
+                <!-- These are the interfaces supported by the service, which
+                     you can bind to. -->
+                <action android:name="com.ti.therm_man.ThermalManagerService" />
+                <action android:name="com.ti.therm_man.IThermalManagerService" />
+                <!-- This is an action code you can use to select the service
+                     without explicitly supplying the implementation class. -->
+                <action android:name="com.ti.therm_man.THERMAL_MANAGER_SERVICE" />
+            </intent-filter>
+        </service>
+		
+		<receiver android:name="com.ti.therm_man.ThermalManagerLauncher"
+        	      android:process=":ThermalManagerLauncher"
+        		  android:enabled="true"
+        		  android:icon="@drawable/ti_bug"
+        		  android:label="@string/tm_launcher">
+        	<intent-filter>
+        		<action android:name="android.intent.action.BOOT_COMPLETED" />
+        		<action android:name="android.intent.action.ACTION_SHUTDOWN" />
+        	</intent-filter>
+        </receiver>
+		
+	</application>
+	<uses-sdk android:minSdkVersion="8"></uses-sdk>
+</manifest>
