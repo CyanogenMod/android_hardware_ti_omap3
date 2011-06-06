@@ -21,8 +21,26 @@
 extern "C" {
 #endif
 
+#define OMAP_CPU (1 << 0)
+#define EMIF1      (1 << 1)
+#define EMIF2      (1 << 2)
+#define PCB      (1 << 3)
+
+#define OMAP_CPU_FILE 0
+#define EMIF1_FILE    1
+#define EMIF2_FILE    2
+#define PCB_FILE      3
+
+/* CPU Zone information */
+#define FATAL_ZONE    5
+#define PANIC_ZONE    4
+#define ALERT_ZONE    3
+#define MONITOR_ZONE  2
+#define SAFE_ZONE     1
+#define NO_ACTION     0
+
 int thermal_manager_algo(const char *string);
-int thermal_manager_init(void);
+int thermal_manager_init(int type);
 
 #if __cplusplus
 }  // extern "C"

@@ -78,6 +78,7 @@ struct event_logging_sysfs {
 static void ThermalDaemonEventLog(void)
 {
     char buffer[1024];
+    int bytes_read = 0;
     int sys_fd = -1;
     int i = 0;
     int sysfs_count = sizeof(event_sysfs) / sizeof(event_sysfs[0]);
@@ -86,7 +87,7 @@ static void ThermalDaemonEventLog(void)
     for (i = 0; i < sysfs_count; i++) {
         sys_fd = open(event_sysfs[i].name, O_RDWR);
         if (sys_fd >= 0) {
-            read(sys_fd, buffer, 1024);
+            bytes_read = read(sys_fd, buffer, 1024);
             LOGD("ThermalDaemon:sysfs %s = %s\n",
                 event_sysfs[i].name, buffer);
             close(sys_fd);
@@ -129,9 +130,8 @@ static void ThermalDaemonEventHandler(void)
         return;
     }
     /* Call into the thermal library */
-    manager_status = thermal_manager_init();
+    manager_status = thermal_manager_init((OMAP_CPU | PCB));
     ThermalDaemonEventLog();
-
     fd = s;
 
     while(1) {
@@ -146,50 +146,61 @@ static void ThermalDaemonEventHandler(void)
 #ifdef TD_DEBUG
             LOGD("ThermalDaemon:Uevent posted from %s\n", buffer);
 #endif
-            LOGD("ThermalDaemon:Calling the algo with %s\n",
-                     CPU_NAME);
-            if (manager_status == 0)
-                cpu_state = thermal_manager_algo(CPU_NAME);
+                if (manager_status & OMAP_CPU) {
+                    LOGD("ThermalDaemon:Calling the algo with %s\n",
+                         CPU_NAME);
 
-            switch (cpu_state) {
-            case 1:
-                LOGD("ThermalDaemon:CPU is in the safe zone\n");
-                ThermalDaemonEventLog();
-                break;
-            case 2:
-                LOGD("ThermalDaemon:CPU is in the monitoring zone\n");
-                ThermalDaemonEventLog();
-                break;
-            case 3:
-                LOGD("ThermalDaemon:CPU is in the alert zone\n");
-                ThermalDaemonEventLog();
-                break;
-            case 4:
-                LOGD("ThermalDaemon:CPU is in the panic zone\n");
-                ThermalDaemonEventLog();
-                break;
-            case 5:
-                LOGD("ThermalDaemon:CPU is in the fatal zone\n");
-                ThermalDaemonEventLog();
-                break;
-            default:
-                LOGD("ThermalDaemon:No action taken on cpu thermal event\n");
-                break;
-            };
-            } else if(strcmp(buffer, PCB_UEVENT) == 0) {
-#ifdef TD_DEBUG
-                LOGD("ThermalDaemon:Uevent posted from %s\n", buffer);
-#endif
-                LOGD("ThermalDaemon:Calling the algo with %s\n",
-                    PCB_NAME);
-                pcb_state = thermal_manager_algo(PCB_NAME);
-            } else if((strcmp(buffer, LPDDR1_UEVENT) == 0) ||
+                    cpu_state = thermal_manager_algo(CPU_NAME);
+                } else
+                    goto emif_check;
+
+                switch (cpu_state) {
+                case SAFE_ZONE:
+                    LOGD("ThermalDaemon:CPU is in the safe zone\n");
+                    ThermalDaemonEventLog();
+                    break;
+                case MONITOR_ZONE:
+                    LOGD("ThermalDaemon:CPU is in the monitoring zone\n");
+                    ThermalDaemonEventLog();
+                    break;
+                case ALERT_ZONE:
+                    LOGD("ThermalDaemon:CPU is in the alert zone\n");
+                    ThermalDaemonEventLog();
+                    break;
+                case PANIC_ZONE:
+                    LOGD("ThermalDaemon:CPU is in the panic zone\n");
+                    ThermalDaemonEventLog();
+                    break;
+                case FATAL_ZONE:
+                    LOGD("ThermalDaemon:CPU is in the fatal zone\n");
+                    ThermalDaemonEventLog();
+                    break;
+                case NO_ACTION:
+                default:
+                    LOGD("ThermalDaemon:No action taken on cpu thermal event\n");
+                    break;
+                };
+            }
+emif_check:
+            if((strcmp(buffer, LPDDR1_UEVENT) == 0) ||
                 (strcmp(buffer, LPDDR2_UEVENT) == 0)) {
 #ifdef TD_DEBUG
                 LOGD("ThermalDaemon:Uevent posted from %s\n", buffer);
 #endif
                 LOGD("ThermalDaemon:Calling the algo with %s\n", LPDDR_NAME);
                 lpddr_state = thermal_manager_algo(LPDDR_NAME);
+            }
+
+pcb_check:
+            if(strcmp(buffer, PCB_UEVENT) == 0) {
+#ifdef TD_DEBUG
+                LOGD("ThermalDaemon:Uevent posted from %s\n", buffer);
+#endif
+                if (manager_status & PCB) {
+                    LOGD("ThermalDaemon:Calling the algo with %s\n",
+                        PCB_NAME);
+                    pcb_state = thermal_manager_algo(PCB_NAME);
+                }
             }
         }
     } /* End of while */

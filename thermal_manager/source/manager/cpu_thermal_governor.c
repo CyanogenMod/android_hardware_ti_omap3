@@ -14,6 +14,8 @@
 #include "cpu_thermal_governor.h"
 #include <sys/reboot.h>
 #include <utils/Log.h>
+/* TODO: Need to make this better */
+#include "../../include/thermal_manager.h"
 
 /*
  *
@@ -571,22 +573,22 @@ int cpu_thermal_governor(u32 omap_sensor_temp)
 
     if (cpu_temp >= OMAP_CPU_THRESHOLD_FATAL) {
         fatal_zone();
-        return 5;
+        return FATAL_ZONE;
     } else if (cpu_temp >= config_file.omap_cpu_threshold_panic) {
         panic_zone();
-        return 4;
+        return PANIC_ZONE;
     } else if (cpu_temp < (config_file.omap_cpu_threshold_panic - HYSTERESIS_VALUE)) {
         if (cpu_temp >= config_file.omap_cpu_threshold_alert) {
             alert_zone();
-            return 3;
+            return ALERT_ZONE;
         } else if (cpu_temp < (config_file.omap_cpu_threshold_alert - HYSTERESIS_VALUE)) {
             if (cpu_temp >= config_file.omap_cpu_threshold_monitoring) {
                 monitoring_zone();
-                return 2;
+                return MONITOR_ZONE;
             } else if (cpu_temp <
                 (config_file.omap_cpu_threshold_monitoring - HYSTERESIS_VALUE)) {
                 safe_zone();
-                return 1;
+                return SAFE_ZONE;
             } else {
 #ifdef DEBUG
                 LOGD("Temp between MonitorHigh and ");
@@ -597,7 +599,7 @@ int cpu_thermal_governor(u32 omap_sensor_temp)
                  config_file.omap_cpu_threshold_monitoring,
                  config_file.omap_cpu_threshold_monitoring - HYSTERESIS_VALUE);
                 print_latest_settings();
-                return 0;
+                return NO_ACTION;
             }
         } else {
 #ifdef DEBUG
@@ -609,7 +611,7 @@ int cpu_thermal_governor(u32 omap_sensor_temp)
              config_file.omap_cpu_threshold_alert,
              config_file.omap_cpu_threshold_alert - HYSTERESIS_VALUE);
             print_latest_settings();
-                        return 0;
+                        return NO_ACTION;
         }
     } else {
 #ifdef DEBUG
@@ -621,7 +623,7 @@ int cpu_thermal_governor(u32 omap_sensor_temp)
          config_file.omap_cpu_threshold_panic,
          config_file.omap_cpu_threshold_panic - HYSTERESIS_VALUE);
         print_latest_settings();
-        return 0;
+        return NO_ACTION;
     }
 }
 

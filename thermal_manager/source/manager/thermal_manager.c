@@ -21,6 +21,9 @@
 
 #include <utils/Log.h>
 
+/* TODO: Need to make this better */
+#include "../../include/thermal_manager.h"
+
 #define TM_DEBUG 1
 
 int init_done = 0;
@@ -32,39 +35,73 @@ int init_done = 0;
  * Initialize all temperature thresholds according to the current temperature.
  *
  */
-int thermal_manager_init(void)
+int thermal_manager_init(int type)
 {
     u32 omap_cpu_sensor_temp;   /* temperature reported by the OMAP CPU on-die temp sensor */
     char buffer[1024];
     int cpu_fd_id = -1;
+    int pcb_fd_id = -1;
+    int init_status = 0;
 
     if (init_done == 0) {
         read_config();
+        init_done = 1;
+    }
+
+    if (type & OMAP_CPU) {
         if (config_file.omap_cpu_temp_sensor_id) {
-#ifdef TM_DEBUG
-            LOGD("CPU path is %s\n", config_file.omap_cpu_temp_sensor_id);
-#endif
             cpu_fd_id = open(config_file.omap_cpu_temp_sensor_id, O_RDONLY);
             if (cpu_fd_id < 0) {
                 LOGD("Thermal Manager:Cannot find OMAP CPU Temp\n");
-                return -1;
+                goto emif;
             }
             omap_cpu_sensor_temp =
-                atoi(read_from_file(config_file.temperature_file_sensors[OMAP_CPU]));
+                atoi(read_from_file(config_file.temperature_file_sensors[OMAP_CPU_FILE]));
         } else {
-            LOGD("Thermal Manager:CPU Temp ID not found\n");
-            return -1;
+            LOGD("Thermal Manager:CPU Temp ID not found in the config\n");
+            init_status &= ~OMAP_CPU;
+            goto emif;
         }
 
         read(cpu_fd_id, buffer, 1024);
-        if (cpu_fd_id > 0)
+        if (cpu_fd_id > 0) {
             init_cpu_thermal_governor(omap_cpu_sensor_temp);
+            init_status = OMAP_CPU;
+        }
 
         close(cpu_fd_id);
-        init_done = 1;
-        return 0;
     }
-    return 0;
+emif:
+    if ((type & EMIF1) || (type & EMIF2)) {
+        LOGD("Thermal Manager:EMIF Not implmented\n");
+        init_status &= (EMIF1 | EMIF2);
+        goto pcb;
+    }
+pcb:
+    if (type & PCB) {
+        if (config_file.omap_pcb_temp_sensor_id) {
+            pcb_fd_id = open(config_file.omap_pcb_temp_sensor_id, O_RDONLY);
+            if (pcb_fd_id < 0) {
+                LOGD("Thermal Manager:Cannot find PCB Temp\n");
+                init_status &= ~PCB;
+                goto out;
+            }
+        } else {
+            LOGD("Thermal Manager:PCB Temp ID not found in config\n");
+            init_status &= ~PCB;
+            goto out;
+        }
+
+        read(pcb_fd_id, buffer, 1024);
+        if (pcb_fd_id > 0) {
+            init_status |= PCB;
+        }
+
+        close(pcb_fd_id);
+    }
+
+out:
+    return init_status;
 }
 
 /*
@@ -91,7 +128,7 @@ int thermal_manager_algo(const char *string)
          * related to the CPU activity
          */
         omap_cpu_sensor_temp =
-            atoi(read_from_file(config_file.temperature_file_sensors[OMAP_CPU]));
+            atoi(read_from_file(config_file.temperature_file_sensors[OMAP_CPU_FILE]));
         LOGD("Thermal Manager:OMAP CPU sensor temperature %ld\n",
             omap_cpu_sensor_temp);
         fflush(stdout);
@@ -102,8 +139,10 @@ int thermal_manager_algo(const char *string)
         /*
          * Call dedicated governor to control LPDDR2 junction temperature
          */
-        emif1_temp_zone = atoi(read_from_file(config_file.temperature_file_sensors[EMIF1]));
-        emif2_temp_zone = atoi(read_from_file(config_file.temperature_file_sensors[EMIF2]));
+        emif1_temp_zone =
+            atoi(read_from_file(config_file.temperature_file_sensors[EMIF1_FILE]));
+        emif2_temp_zone =
+            atoi(read_from_file(config_file.temperature_file_sensors[EMIF2_FILE]));
         LOGD("Thermal Manager:emif temperature (1: %ld, 2: %ld)\n",
             emif1_temp_zone, emif2_temp_zone);
         fflush(stdout);
@@ -114,10 +153,10 @@ int thermal_manager_algo(const char *string)
         /*
          * Call dedicated governor to control PCB junction temperature
          */
-        pcb_temp = atoi(read_from_file(config_file.temperature_file_sensors[PCB]));
-        LOGD("Thermal Manager:pcb temperature %ld\n", pcb_temp); fflush(stdout);
+        pcb_temp = atoi(read_from_file(config_file.temperature_file_sensors[PCB_FILE]));
+        LOGD("Thermal Manager:pcb temperature %ld\n", pcb_temp);
+        fflush(stdout);
         pcb_thermal_governor(pcb_temp);
-
         return 3;
     }
 

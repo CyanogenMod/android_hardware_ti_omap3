@@ -24,12 +24,8 @@
 /* For configuration file */
 #include "libconfig.h"
 #define CONFIG_FILE "/system/bin/libthermal-manager.cfg"
-/* Multiple sensor reading definitions  */
+/* Multiple sensor reading definitions */
 #define MAX_SENSORS 4
-#define OMAP_CPU 0
-#define EMIF1 1
-#define EMIF2 2
-#define PCB 3
 /* Multiple CPU Freq files */
 #define MAX_CPUFREQ_PATHS 6
 #define AVAILABLE_FREQS_PATH 0
@@ -47,22 +43,23 @@
 #define OPPS_NUMBER 5 /* OPP50, OPP100, TURBO, NITRO, NITRO+SB */
 /* CPU Freq governors */
 #define GOVS_NUMBER 5
-
+#define DEBUG 1
 struct configinfo {
-        char *temperature_file_sensors[MAX_SENSORS];
-        char *omap_cpu_temp_sensor_id;
-        int omap_cpu_threshold_monitoring;
-        int omap_cpu_threshold_alert;
-        int omap_cpu_threshold_panic;
-        int omap_cpu_temperature_slope;
-        int omap_cpu_temperature_offset;
-        int pcb_threshold;
-        char *cpufreq_file_paths[MAX_CPUFREQ_PATHS];
-        char *omaptemp_file_paths[MAX_OMAPTEMP_PATHS];
-    };
+    char *temperature_file_sensors[MAX_SENSORS];
+    char *omap_cpu_temp_sensor_id;
+    char *omap_pcb_temp_sensor_id;
+    int omap_cpu_threshold_monitoring;
+    int omap_cpu_threshold_alert;
+    int omap_cpu_threshold_panic;
+    int omap_cpu_temperature_slope;
+    int omap_cpu_temperature_offset;
+    int pcb_threshold;
+    char *cpufreq_file_paths[MAX_CPUFREQ_PATHS];
+    char *omaptemp_file_paths[MAX_OMAPTEMP_PATHS];
+};
 struct configinfo config_file;
 
 /* API definitions */
-int read_config (void);
+int read_config(void);
 
 #endif
