@@ -22,6 +22,6 @@
  * External functions
  *
  */
-void pcb_thermal_governor(u32 pcb_temp);
+int pcb_thermal_governor(u32 pcb_temp);
 
 #endif

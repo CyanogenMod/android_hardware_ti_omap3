@@ -200,6 +200,13 @@ pcb_check:
                     LOGD("ThermalDaemon:Calling the algo with %s\n",
                         PCB_NAME);
                     pcb_state = thermal_manager_algo(PCB_NAME);
+                } else
+                    continue;
+
+                switch (pcb_state) {
+                default:
+                    LOGD("ThermalDaemon:No action taken on PCB thermal event\n");
+                    break;
                 }
             }
         }

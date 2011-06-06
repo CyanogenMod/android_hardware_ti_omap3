@@ -133,8 +133,6 @@ int thermal_manager_algo(const char *string)
             omap_cpu_sensor_temp);
         fflush(stdout);
         state = cpu_thermal_governor(omap_cpu_sensor_temp);
-        return state;
-
     } else if (strcmp(string, "lpddr2") == 0) {
         /*
          * Call dedicated governor to control LPDDR2 junction temperature
@@ -147,8 +145,6 @@ int thermal_manager_algo(const char *string)
             emif1_temp_zone, emif2_temp_zone);
         fflush(stdout);
         lpddr2_thermal_governor(emif1_temp_zone, emif2_temp_zone);
-
-        return 2;
     } else if (strcmp(string, "pcb") == 0) {
         /*
          * Call dedicated governor to control PCB junction temperature
@@ -156,9 +152,8 @@ int thermal_manager_algo(const char *string)
         pcb_temp = atoi(read_from_file(config_file.temperature_file_sensors[PCB_FILE]));
         LOGD("Thermal Manager:pcb temperature %ld\n", pcb_temp);
         fflush(stdout);
-        pcb_thermal_governor(pcb_temp);
-        return 3;
+        state = pcb_thermal_governor(pcb_temp);
     }
 
-    return 0;
+    return state;
 }
