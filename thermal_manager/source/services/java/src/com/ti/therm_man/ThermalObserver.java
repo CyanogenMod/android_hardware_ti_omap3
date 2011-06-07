@@ -41,7 +41,7 @@ public final class ThermalObserver extends UEventObserver {
 
     public ThermalObserver(Context context) {
 
-	ThemService = new ThermalManagerService();
+    ThemService = new ThermalManagerService();
 
         startObserving("DEVPATH=" + EMIF1_UEVENT_MATCH);
         startObserving("DEVPATH=" + EMIF2_UEVENT_MATCH);

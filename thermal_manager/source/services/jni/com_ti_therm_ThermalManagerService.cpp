@@ -29,35 +29,35 @@
 
 namespace android
 {
-	static void setThermalState(JNIEnv *env __attribute__ ((unused)),
+    static void setThermalState(JNIEnv *env __attribute__ ((unused)),
                               jobject clazz __attribute__ ((unused)),
                               jstring javaString)
-	{
+    {
             const char *nativeString = env->GetStringUTFChars(javaString, 0);
-	    LOGI("Setting the thermal state for %s\n", nativeString);
-	    /* Call C thermal manager */
-	    thermal_manager_algo(nativeString);
+        LOGI("Setting the thermal state for %s\n", nativeString);
+        /* Call C thermal manager */
+        thermal_manager_algo(nativeString);
             env->ReleaseStringUTFChars(javaString, nativeString);
-	}
+    }
 
-	static void initThermalState(JNIEnv *env __attribute__ ((unused)),
+    static void initThermalState(JNIEnv *env __attribute__ ((unused)),
                               jobject clazz __attribute__ ((unused)))
-	{
-	    LOGI("Init the thermal manager\n");
-	    /* Call C thermal manager */
-	    thermal_manager_init();
-	}
+    {
+        LOGI("Init the thermal manager\n");
+        /* Call C thermal manager */
+        thermal_manager_init();
+    }
 
-	static JNINativeMethod method_table[] = {
-	    { "setThermalManagerNative", "(Ljava/lang/String;)V", (void *)setThermalState },
-	    { "initThermalManagerNative", "()V", (void *)initThermalState },
-	};
+    static JNINativeMethod method_table[] = {
+        { "setThermalManagerNative", "(Ljava/lang/String;)V", (void *)setThermalState },
+        { "initThermalManagerNative", "()V", (void *)initThermalState },
+    };
 
-	int register_ThermalManagerService(JNIEnv *env)
-	{
-	    return jniRegisterNativeMethods(env, "com/ti/therm_man/ThermalManagerService",
-		    method_table, NELEM(method_table));
-	}
+    int register_ThermalManagerService(JNIEnv *env)
+    {
+        return jniRegisterNativeMethods(env, "com/ti/therm_man/ThermalManagerService",
+            method_table, NELEM(method_table));
+    }
 
 };
 

@@ -26,14 +26,14 @@
 
 void lpddr2_thermal_governor(u32 emif1_temp_zone, u32 emif2_temp_zone)
 {
-	if ((emif1_temp_zone == MAX_LPDDR2_TEMP_ZONE) ||
-	    (emif2_temp_zone == MAX_LPDDR2_TEMP_ZONE)) {
+    if ((emif1_temp_zone == MAX_LPDDR2_TEMP_ZONE) ||
+        (emif2_temp_zone == MAX_LPDDR2_TEMP_ZONE)) {
 #ifdef DEBUG
-		printf("!!! LPDDR2 FATAL ZONE (%ld, %ld) !!!\n",
-			emif1_temp_zone, emif2_temp_zone);
-		fflush(stdout);
+        printf("!!! LPDDR2 FATAL ZONE (%ld, %ld) !!!\n",
+            emif1_temp_zone, emif2_temp_zone);
+        fflush(stdout);
 #endif
-		sync();
-		reboot(RB_POWER_OFF);
-	}
+        sync();
+        reboot(RB_POWER_OFF);
+    }
 }

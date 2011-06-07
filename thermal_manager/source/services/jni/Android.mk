@@ -15,25 +15,25 @@
 # limitations under the License.
 #
 
-LOCAL_PATH:= $(call my-dir)
+LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES:= \
+LOCAL_SRC_FILES := \
     com_ti_therm_ThermalManagerService.cpp
 
 LOCAL_C_INCLUDES := $(TOP)/include
 LOCAL_C_INCLUDES += \
-	$(JNI_H_INCLUDE)
+    $(JNI_H_INCLUDE)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := \
-    libandroid_runtime \
-	libcutils \
-	libnativehelper \
+        libandroid_runtime \
+        libcutils \
+        libnativehelper \
         libsystem_server \
-	libutils \
-	libui \
-	libthermal_manager
+        libutils \
+        libui \
+        libthermal_manager
 
 ifeq ($(TARGET_SIMULATOR),true)
 ifeq ($(TARGET_OS),linux)
@@ -44,10 +44,10 @@ endif
 endif
 
 ifeq ($(WITH_MALLOC_LEAK_CHECK),true)
-	LOCAL_CFLAGS += -DMALLOC_LEAK_CHECK
+    LOCAL_CFLAGS += -DMALLOC_LEAK_CHECK
 endif
 
-LOCAL_MODULE:= libthermal_manJNI
+LOCAL_MODULE := libthermal_manJNI
 
 include $(BUILD_SHARED_LIBRARY)
 
