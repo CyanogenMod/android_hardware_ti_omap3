@@ -1149,7 +1149,12 @@ status_t AudioModemAlsa::configMicrophones(void)
         }
 
         CHECK_ERROR(control.set("MUX_VX0", dmicMainName), error);
-        CHECK_ERROR(control.set("MUX_VX1", dmicSubName), error);
+        if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
+                    "Yes")) {
+            CHECK_ERROR(control.set("MUX_VX1", dmicSubName), error);
+        } else {
+            CHECK_ERROR(control.set("MUX_VX1", dmicMainName), error);
+        }
         break;
 
     case AudioModemInterface::AUDIO_MODEM_HANDSET:
@@ -1174,20 +1179,26 @@ status_t AudioModemAlsa::configMicrophones(void)
         }
 
         CHECK_ERROR(control.set("MUX_VX0", dmicMainName), error);
-        CHECK_ERROR(control.set("MUX_VX1", dmicSubName), error);
+        if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_MULTIMIC].name,
+                    "Yes")) {
+            LOGV("dual mic. enabled");
+            CHECK_ERROR(control.set("MUX_VX1", dmicSubName), error);
+        } else {
+            CHECK_ERROR(control.set("MUX_VX1", dmicMainName), error);
+        }
         break;
 
     case AudioModemInterface::AUDIO_MODEM_HEADSET:
         // In headset the microphone allways comes from analog
         CHECK_ERROR(control.set("AMIC_UL PDM Switch", 1), error);
         CHECK_ERROR(mAlsaControl->set("MUX_VX0", "AMic0"), error);
-        CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic1"), error);
+        CHECK_ERROR(mAlsaControl->set("MUX_VX1", "AMic0"), error);
         break;
 
     case AudioModemInterface::AUDIO_MODEM_BLUETOOTH:
         CHECK_ERROR(control.set("AMIC_UL PDM Switch", 0, 0), error);
         CHECK_ERROR(mAlsaControl->set("MUX_VX0", "BT Left"), error);
-        CHECK_ERROR(mAlsaControl->set("MUX_VX1", "BT Right"), error);
+        CHECK_ERROR(mAlsaControl->set("MUX_VX1", "BT Left"), error);
         CHECK_ERROR(control.set("BT UL Volume",
                     AUDIO_ABE_BT_MIC_UL_VOL, -1), error);
         break;
