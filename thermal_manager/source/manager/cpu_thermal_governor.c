@@ -30,6 +30,7 @@ char *available_governors[GOVS_NUMBER];
 char *nominal_cpu_scaling_governor;
 bool is_conservative_available = false;
 u32 update_rate = 0;
+u32 current_scaling_max_freq = 0;
 u32 current_t_high = 0; /* temperature threshold (high) at OMAP hot spot level */
 u32 current_t_low = 0;  /* temperature threshold (low) at OMAP hot spot level */
 int cpu_temp;
@@ -104,8 +105,12 @@ static void update_cpu_scaling_set_speed(u32 value)
 static void update_cpu_scaling_max_freq(u32 value)
 {
     char buf[SIZE];
-    sprintf(buf, "%ld\n", value);
-    write_to_file(config_file.cpufreq_file_paths[SCALING_MAX_FREQ_PATH], buf);
+
+    if (current_scaling_max_freq != value) {
+        sprintf(buf, "%ld\n", value);
+        write_to_file(config_file.cpufreq_file_paths[SCALING_MAX_FREQ_PATH], buf);
+        current_scaling_max_freq = value;
+    }
 }
 
 /*
@@ -585,45 +590,29 @@ int cpu_thermal_governor(u32 omap_sensor_temp)
             if (cpu_temp >= config_file.omap_cpu_threshold_monitoring) {
                 monitoring_zone();
                 return MONITOR_ZONE;
-            } else if (cpu_temp <
-                (config_file.omap_cpu_threshold_monitoring - HYSTERESIS_VALUE)) {
+            } else {
+                /*
+                 * this includes the case where :
+                 * MONITORING_LOW <= T < MONITORING_HIGH
+                 */
                 safe_zone();
                 return SAFE_ZONE;
-            } else {
-#ifdef DEBUG
-                LOGD("Temp between MonitorHigh and ");
-                LOGD("MonitorLow: do nothing (%i)\n", cpu_temp);
-                fflush(stdout);
-#endif
-                update_thresholds(
-                 config_file.omap_cpu_threshold_monitoring,
-                 config_file.omap_cpu_threshold_monitoring - HYSTERESIS_VALUE);
-                print_latest_settings();
-                return NO_ACTION;
             }
         } else {
-#ifdef DEBUG
-            LOGD("Temp between AlertHigh and AlertLow: ");
-            LOGD("do nothing (%i)\n", cpu_temp);
-            fflush(stdout);
-#endif
-            update_thresholds(
-             config_file.omap_cpu_threshold_alert,
-             config_file.omap_cpu_threshold_alert - HYSTERESIS_VALUE);
-            print_latest_settings();
-                        return NO_ACTION;
+               /*
+                * this includes the case where :
+                * ALERT_LOW <= T < ALERT_HIGH
+                */
+               monitoring_zone();
+               return MONITOR_ZONE;
         }
     } else {
-#ifdef DEBUG
-        LOGD("Temp between PanicHigh and PanicLow: do nothing (%i)\n",
-            cpu_temp);
-        fflush(stdout);
-#endif
-        update_thresholds(
-         config_file.omap_cpu_threshold_panic,
-         config_file.omap_cpu_threshold_panic - HYSTERESIS_VALUE);
-        print_latest_settings();
-        return NO_ACTION;
+           /*
+            * this includes the case where :
+            * PANIC_LOW <= T < PANIC_HIGH
+            */
+           alert_zone();
+           return ALERT_ZONE;
     }
 }
 
