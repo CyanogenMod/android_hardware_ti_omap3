@@ -561,7 +561,7 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                         finalCropW = (overlayobj->mData.cropW * finalCropH) / MAX(overlayobj->mData.cropH, 1);
                     }
                     //now calculate cropX and cropY so that we crop from center
-                    finalCropX= overlayobj->mData.cropX + ((overlayobj->mData.cropW - finalCropW) >> 1);
+                    finalCropX = overlayobj->mData.cropX + ((overlayobj->mData.cropW - finalCropW) >> 1);
                     finalCropY = overlayobj->mData.cropY + ((overlayobj->mData.cropH - finalCropH) >> 1);
                 }
 
@@ -606,14 +606,14 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
                     fd = overlayobj->getctrl_videofd();
                 } else {
                     fd = overlayobj->getdata_videofd();
-                 }
+                }
             }
             break;
         default:
             LOGE("Leave the default  values");
     };
 
-    LOGV("Adjusted CROP Settings: cropX(%d)/cropY(%d)/cropW(%d)/ cropH(%d)",
+    LOGV("Adjusted CROP Settings: cropX(%d)/cropY(%d)/cropW(%d)/cropH(%d)",
             finalCropX, finalCropY, finalCropW, finalCropH);
 
     LOGV("calculateWindow(): posX=%d, posY=%d, posW=%d, posH=%d",
@@ -1432,6 +1432,14 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     }
     overlayobj->controlReady = 1;
 
+    if (overlayobj->mData.s3d_active) {
+        uint32_t current_panel;
+
+        if (!v4l2_overlay_get_display_id(fd, &current_panel)) {
+            data->panel = current_panel;
+        }
+    }
+
     if (data->posX == stage->posX && data->posY == stage->posY &&
         data->posW == stage->posW && data->posH == stage->posH &&
         data->rotation == stage->rotation &&
@@ -1574,13 +1582,22 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
                 }
             }
 #endif
-        }
 
-        // Enable the requested panel here
-        if (sysfile_write(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled, "1", sizeof("1")) < 0) {
-            LOGE("Panel enable failed");
-            ret = -1;
-            goto end;
+            // Enable the requested panel here
+            if (sysfile_write(screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displayenabled, "1", sizeof("1")) < 0) {
+                LOGE("Panel enable failed");
+                ret = -1;
+                goto end;
+            }
+        } else {
+            //Currently need to disable streaming to change display id
+            ret = v4l2_overlay_set_display_id(fd, data->panel);
+            if(ret)
+                LOGE("failed to set display ID\n");
+
+            ret = v4l2_overlay_set_s3d_mode(fd, overlayobj->mData.s3d_mode);
+            if(ret)
+                LOGE("failed to reset S3D mode\n");
         }
 
 #ifdef TARGET_OMAP4
@@ -1596,17 +1613,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         }
         LOGD("Display timings [%s]\n", screenMetaData[overlayobj->mDisplayMetaData.mPanelIndex].displaytimings);
 #endif
-
-        if (overlayobj->mData.s3d_active) {
-            //Currently need to disable streaming to change display id
-            ret = v4l2_overlay_set_display_id(fd,data->panel);
-            if(ret)
-                LOGE("failed to set display ID\n");
-
-            ret = v4l2_overlay_set_s3d_mode(fd,overlayobj->mData.s3d_mode);
-            if(ret)
-                LOGE("failed to reset S3D mode\n");
-        }
     }
     //Calculate window size. As of now this is applicable only for non-LCD panels
     calculateWindow(overlayobj, &finalWindow, stage->panel);
@@ -1614,20 +1620,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
     LOGI("Position/X%d/Y%d/W%d/H%d/R%d/A%d/Z%d\n", data->posX, data->posY, data->posW, data->posH,
             data->rotation, data->alpha, data->zorder);
     LOGI("Adjusted Position/X%d/Y%d/W%d/H%d\n", finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH);
-
-    if ((ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
-        LOGE("commit:Get crop value Failed!/%d\n", ret);
-        goto end;
-    }
-
-    if ((ret = v4l2_overlay_set_crop(fd,
-                    eCropData.cropX,
-                    eCropData.cropY,
-                    eCropData.cropW,
-                    eCropData.cropH))) {
-        LOGE("Set Cropping Failed!/%d\n",ret);
-        goto end;
-    }
 
     if ((ret = v4l2_overlay_set_position(fd, finalWindow.posX, finalWindow.posY, finalWindow.posW, finalWindow.posH))) {
         LOGE("Set Position Failed!/%d\n", ret);
@@ -1647,14 +1639,6 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
             goto end;
         }
     }
-#else
-    if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00, 0x00))) {
-        LOGE("Failed enabling color key\n");
-        goto end;
-    }
-#endif
-
-#ifdef TARGET_OMAP4
     //Currently not supported with V4L2_S3D driver
     if (!overlayobj->mData.s3d_active) {
         /*zOrder is assigned at the creation of overlay and removed at the destruction.
@@ -1668,6 +1652,11 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
                 goto end;
             }
         }
+    }
+#else
+    if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00, EVIDEO_SOURCE))) {
+        LOGE("Failed enabling color key\n");
+        goto end;
     }
 #endif
 
