@@ -1871,9 +1871,6 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     }
 
     int ret = 0;
-    int rc;
-    uint32_t numb = NUM_OVERLAY_BUFFERS_REQUESTED;
-    overlay_data_t eCropData;
     int degree = 0;
     int link_fd = -1;
     uint32_t mirror = 0;
@@ -1908,29 +1905,21 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     overlay_ctrl_t *stage = ctx->omap_overlay->staging();
     link_fd = ctx->omap_overlay->getdata_linkvideofd();
 
+    pthread_mutex_lock(&ctx->omap_overlay->lock);
+    ret = ctx->disable_streaming_locked(ctx->omap_overlay);
+
     if ((ctx->omap_overlay->w == (unsigned int)w) && (ctx->omap_overlay->h == (unsigned int)h) && (ctx->omap_overlay->attributes_changed == 0)){
         LOGE("Same as current width and height. Attributes did not change either. So do nothing.");
         //Lets reset the statemachine and disable the stream
         ctx->omap_overlay->dataReady = 0;
-        if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay))) {
-            return -1;
-        }
-        return 0;
-    }
-
-    pthread_mutex_lock(&ctx->omap_overlay->lock);
-
-    if ((rc = ctx->disable_streaming_locked(ctx->omap_overlay))) {
         goto end;
     }
 
-    if ((ret = v4l2_overlay_get_crop(fd, &eCropData.cropX, &eCropData.cropY, &eCropData.cropW, &eCropData.cropH))) {
-        LOGE("resizeip: Get crop value Failed!/%d\n", rc);
+    if (ret)
         goto end;
-    }
 
     if ((ret = v4l2_overlay_get_position(fd, &_x,  &_y, &_w, &_h))) {
-        LOGD(" Could not set the position when creating overlay \n");
+        LOGD(" Could not get the position when resizing overlay \n");
         goto end;
     }
 
@@ -1968,8 +1957,8 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
         goto end;
     }
 
-    if ((ret = v4l2_overlay_set_position(fd, _x,  _y, _w, _h))) {
-        LOGD(" Could not set the position when creating overlay \n");
+    if ((ret = v4l2_overlay_set_position(fd, _x, _y, _w, _h))) {
+        LOGD(" Could not set the position when resizing overlay \n");
         goto end;
     }
 
