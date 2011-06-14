@@ -366,7 +366,6 @@ public:
     status_t     voiceCallCodecUpdateHandfree(void);
     status_t     voiceCallCodecUpdateHeadset(void);
     status_t     voiceCallCodecPCMSet(void);
-    status_t     voiceCallCodecPCMUpdate(void);
     status_t     voiceCallCodecPCMReset(void);
     status_t     voiceCallCodecStop(void);
 

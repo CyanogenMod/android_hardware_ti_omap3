@@ -570,23 +570,6 @@ status_t AudioModemAlsa::voiceCallCodecPCMSet()
     return NO_ERROR;
 }
 
-status_t AudioModemAlsa::voiceCallCodecPCMUpdate()
-{
-    status_t error;
-
-    if ((error = voiceCallCodecPCMReset()) < 0) {
-        LOGE("Modem PCM Update reset error: %d:%s", error, snd_strerror(error));
-        return INVALID_OPERATION;
-    }
-    if ((error = voiceCallCodecPCMSet()) < 0) {
-        LOGE("Modem PCM Update set error: %d:%s", error, snd_strerror(error));
-        return INVALID_OPERATION;
-    }
-
-    return NO_ERROR;
-}
-
-
 status_t AudioModemAlsa::voiceCallCodecPCMReset()
 {
     int error;
@@ -899,13 +882,17 @@ status_t AudioModemAlsa::voiceCallCodecUpdate()
     LOGV("Update Audio Codec Voice call: %04x", mCurrentAudioModemModes);
 
     if (mCurrentAudioModemModes & AudioModemInterface::AUDIO_MODEM_HANDSET) {
+        error = voiceCallCodecPCMReset();
         error = voiceCallCodecUpdateHandset();
     } else if (mCurrentAudioModemModes & AudioModemInterface::AUDIO_MODEM_HANDFREE) {
+        error = voiceCallCodecPCMReset();
         error = voiceCallCodecUpdateHandfree();
     } else if (mCurrentAudioModemModes & AudioModemInterface::AUDIO_MODEM_HEADSET) {
+        error = voiceCallCodecPCMReset();
         error = voiceCallCodecUpdateHeadset();
 #ifdef AUDIO_BLUETOOTH
     } else if (mCurrentAudioModemModes & AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
+        error = voiceCallCodecPCMReset();
         error = voiceCallCodecUpdateBluetooth();
 #endif
     } else {
@@ -913,7 +900,7 @@ status_t AudioModemAlsa::voiceCallCodecUpdate()
         return INVALID_OPERATION;
     }
 
-    error = voiceCallCodecPCMUpdate();
+    error = voiceCallCodecPCMSet();
 
     return error;
 }
