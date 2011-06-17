@@ -417,6 +417,20 @@ void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, over
             case 270:
                 finalWindow->posW = data->posH;
                 finalWindow->posH = data->posW;
+                /*
+                * Some times during rotation usecases, it is observed that,
+                * Surface Flinger transformation is incorrectly sending
+                * position co-ordinates, and these are outside the bounds.
+                * This happens only during the transition, and finally Surface-flinger
+                * sends the correct co-ordinates
+                * The intermediate settings are ignored if they are out of bounds
+                */
+                if (finalWindow->posX > LCD_HEIGHT) {
+                    finalWindow->posX = 0;
+                }
+                if (finalWindow->posY > LCD_WIDTH) {
+                    finalWindow->posY = 0;
+                }
                 break;
             case 180:
             default: // 0
