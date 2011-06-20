@@ -873,6 +873,20 @@ int v4l2_overlay_set_display_id(int fd, uint32_t id)
     return ret;
 }
 
+int v4l2_overlay_get_display_id(int fd, uint32_t *id)
+{
+    LOG_FUNCTION_NAME
+    int ret;
+    struct v4l2_control ctrl;
+    memset(&ctrl, 0, sizeof(ctrl));
+    ctrl.value = -1;
+    ctrl.id = V4L2_CID_PRIVATE_DISPLAY_ID;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_CTRL, &ctrl, "get display ID");
+    *id = ctrl.value;
+
+    return ret;
+}
+
 int v4l2_overlay_set_anaglyph_type(int fd, uint32_t id)
 {
     LOG_FUNCTION_NAME

@@ -83,6 +83,7 @@ int v4l2_overlay_get_s3d_mode(int fd, uint32_t *mode);
 int v4l2_overlay_set_s3d_format(int fd, uint32_t fmt, uint32_t order, uint32_t subsampling);
 int v4l2_overlay_get_s3d_format(int fd, uint32_t *fmt, uint32_t *order, uint32_t *subsampling);
 int v4l2_overlay_set_display_id(int fd, uint32_t id);
+int v4l2_overlay_get_display_id(int fd, uint32_t *id);
 int v4l2_overlay_set_anaglyph_type(int fd, uint32_t type);
 
 enum {
