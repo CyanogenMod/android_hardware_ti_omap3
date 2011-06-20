@@ -981,7 +981,7 @@ status_t AudioModemAlsa::voiceCallModemSet()
     if (!strcmp(mDeviceProp->settingsList[AUDIO_MODEM_VOICE_CALL_SAMPLERATE].name,
                 "auto")) {
         mVoiceCallSampleRate = mModem->GetVoiceCallSampleRate();
-        LOGV("Sample rate used for this voice call: %d", sampleRate);
+        LOGV("Sample rate used for this voice call: %d", mVoiceCallSampleRate);
         if ((mVoiceCallSampleRate == AudioModemInterface::INVALID_SAMPLE_RATE) ||
             (mVoiceCallSampleRate == AudioModemInterface::PCM_44_1_KHZ))  {
             LOGE("Invalid Sample rate used for this voice call set to 8KHz");
