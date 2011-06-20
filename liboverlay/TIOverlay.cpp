@@ -369,11 +369,10 @@ overlay_object* overlay_control_context_t::open_shared_overlayobj(int ovlyfd, in
 * Precondition:
 * This function has to be called after setting the crop window parameters
 */
-void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow, \
+void overlay_control_context_t::calculateWindow(overlay_object *overlayobj, overlay_ctrl_t *finalWindow,
                                                 int panelId, bool isCtrlpath)
 {
     LOG_FUNCTION_NAME_ENTRY
-    overlay_ctrl_t   *stage  = overlayobj->staging();
     /*
     * If default UI is on TV, android UI will receive 1920x1080 for screen size, and w & h will be 1920x1080 by default.
     * It will remain 1920x1080 even if overlay is requested on LCD. A better choice would be to query the display size:
@@ -851,7 +850,7 @@ int overlay_control_context_t::overlay_get(struct overlay_control_device_t *dev,
 overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_control_device_t *dev,
                                         uint32_t w, uint32_t h, int32_t  format, int isS3D)
 {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
 
     overlay_object            *overlayobj;
     overlay_control_context_t *self = (overlay_control_context_t *)dev;
@@ -954,7 +953,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
-    if (v4l2_overlay_set_colorkey(fd, 1, 0, 0)){
+    if (v4l2_overlay_set_colorkey(fd, 1, 0x00, EVIDEO_SOURCE)){
         LOGE("Failed enabling color key\n");
         goto error1;
     }
@@ -1017,7 +1016,7 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
 
     self->mOmapOverlays[overlayid] = overlayobj;
 
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
 
     return overlayobj;
 error1:
@@ -1103,7 +1102,7 @@ error1:
 void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_device_t *dev,
                                    overlay_t* overlay)
 {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if ((dev == NULL) || (overlay == NULL)) {
         LOGE("Null Arguments / Overlay not initd");
         return;
@@ -1162,13 +1161,13 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
         }
     }
 
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
 }
 
 int overlay_control_context_t::overlay_setPosition(struct overlay_control_device_t *dev,
                                overlay_t* overlay, int x, int y, uint32_t w, uint32_t h)
 {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if ((dev == NULL) || (overlay == NULL)) {
         LOGE("Null Arguments / Overlay not initd");
         return -1;
@@ -1269,14 +1268,14 @@ int overlay_control_context_t::overlay_setPosition(struct overlay_control_device
     }
 
 END:
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
     return rc;
 }
 
 int overlay_control_context_t::overlay_getPosition(struct overlay_control_device_t *dev,
                                overlay_t* overlay, int* x, int* y, uint32_t* w, uint32_t* h)
 {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if ((dev == NULL) || (overlay == NULL)) {
         LOGE("Null Arguments / Overlay not initd");
         return -1;
@@ -1293,7 +1292,7 @@ int overlay_control_context_t::overlay_getPosition(struct overlay_control_device
 int overlay_control_context_t::overlay_setParameter(struct overlay_control_device_t *dev,
                                 overlay_t* overlay, int param, int value)
 {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
 
     if ((dev == NULL) || (overlay == NULL)) {
         LOGE("Null Arguments / Overlay not initd");
@@ -1377,7 +1376,7 @@ int overlay_control_context_t::overlay_setParameter(struct overlay_control_devic
 
     }
 
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
     return rc;
 }
 
@@ -1388,7 +1387,7 @@ int overlay_control_context_t::overlay_stage(struct overlay_control_device_t *de
 
 int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *dev,
                           overlay_t* overlay) {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if ((dev == NULL) || (overlay == NULL)) {
         LOGE("Null Arguments / Overlay not initd");
         return -1;
@@ -1628,7 +1627,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
 #ifdef TARGET_OMAP4
     if (transkey < 0) {
-        if ((ret = v4l2_overlay_set_colorkey(fd, 0, 0x00, 0x00))) {
+        if ((ret = v4l2_overlay_set_colorkey(fd, 0, 0x00, EVIDEO_SOURCE))) {
             LOGE("Failed enabling color key\n");
             goto end;
         }
@@ -1666,14 +1665,14 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
 
 end:
     pthread_mutex_unlock(&overlayobj->lock);
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
     return ret;
 
 }
 
 int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t *dev,
                           overlay_object* overlayobj) {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if ((dev == NULL) || (overlayobj == NULL)) {
         LOGE("Null Arguments / Overlay not initd");
         return -1;
@@ -1685,7 +1684,6 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
     int ret = 0;
     overlay_ctrl_t finalWindow;
     int linkfd = overlayobj->getctrl_linkvideofd();
-    overlay_data_t eCropData;
 
     calculateDisplayMetaData(overlayobj, KCloneDevice);
 
@@ -1724,7 +1722,7 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
     }
 
     if (data->colorkey < 0) {
-        if ((ret = v4l2_overlay_set_colorkey(linkfd, 0, 0x00, 0x00))) {
+        if ((ret = v4l2_overlay_set_colorkey(linkfd, 0, 0x00, EVIDEO_SOURCE))) {
             LOGE("Failed enabling color key\n");
             goto end;
         }
@@ -1740,13 +1738,13 @@ int overlay_control_context_t::CommitLinkDevice(struct overlay_control_device_t 
 //no need to assign again v4l2_overlay_set_zorder(linkfd, data->zorder)
 
 end:
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
     return ret;
 }
 
 int overlay_control_context_t::overlay_control_close(struct hw_device_t *dev)
 {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if (dev == NULL) {
         LOGE("Null Arguments");
         return -1;
@@ -1774,7 +1772,7 @@ int overlay_control_context_t::overlay_control_close(struct hw_device_t *dev)
 int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev,
                        overlay_handle_t handle)
 {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if (dev == NULL) {
         LOGE("Null Arguments ");
         return -1;
@@ -1844,7 +1842,7 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
         }
     }
     ctx->omap_overlay->mappedbufcount = ctx->omap_overlay->num_buffers;
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
     LOGV("Initialize ret = %d", rc);
     InitDisplayManagerMetaData();
     return ( rc );
@@ -1853,7 +1851,7 @@ int overlay_data_context_t::overlay_initialize(struct overlay_data_device_t *dev
 int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *dev, uint32_t w, uint32_t h)
 {
     LOGD("overlay_resizeInput %dx%d %d", (int)w, (int)h, (int) ((struct overlay_data_context_t*)dev)->omap_overlay->num_buffers);
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if (dev == NULL) {
         LOGE("Null Arguments ");
         return -1;
@@ -1997,7 +1995,7 @@ int overlay_data_context_t::overlay_resizeInput(struct overlay_data_device_t *de
     ctx->omap_overlay->controlReady = 1;
     ctx->omap_overlay->attributes_changed = 0; // Reset it
 
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
 end:
 
     pthread_mutex_unlock(&ctx->omap_overlay->lock);
@@ -2007,7 +2005,7 @@ end:
 int overlay_data_context_t::overlay_data_setParameter(struct overlay_data_device_t *dev,
                                      int param, int value)
 {
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if (dev == NULL) {
         LOGE("Null Arguments ");
         return -1;
@@ -2059,7 +2057,7 @@ int overlay_data_context_t::overlay_data_setParameter(struct overlay_data_device
         ctx->omap_overlay->setdata_linkvideofd(value);
     }
 
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
     return ( ret );
 }
 
@@ -2122,7 +2120,7 @@ int overlay_data_context_t::overlay_set_s3d_params(struct overlay_data_device_t 
         ctx->omap_overlay->mData.s3d_subsampling = s3d_subsampling;
     }
 
-    LOG_FUNCTION_NAME_EXIT;
+    LOG_FUNCTION_NAME_EXIT
 
     pthread_mutex_unlock(&ctx->omap_overlay->lock);
     return ret;
@@ -2130,7 +2128,7 @@ int overlay_data_context_t::overlay_set_s3d_params(struct overlay_data_device_t 
 
 int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, uint32_t x,
                            uint32_t y, uint32_t w, uint32_t h) {
-    //LOG_FUNCTION_NAME_ENTRY;
+    //LOG_FUNCTION_NAME_ENTRY
     //This print is commented as part of on-the-fly crop support
     if (dev == NULL) {
         LOGE("Null Arguments[%d]", __LINE__);
@@ -2151,8 +2149,8 @@ int overlay_data_context_t::overlay_setCrop(struct overlay_data_device_t *dev, u
         LOGI("Shared Data Not Init'd!\n");
         return -1;
     }
-    if (ctx->omap_overlay->mData.cropX == x && ctx->omap_overlay->mData.cropY == y && ctx->omap_overlay->mData.cropW == w
-        && ctx->omap_overlay->mData.cropH == h) {
+    if (ctx->omap_overlay->mData.cropX == x && ctx->omap_overlay->mData.cropY == y &&
+        ctx->omap_overlay->mData.cropW == w && ctx->omap_overlay->mData.cropH == h) {
         LOGV("Nothing to crop!\n");
         if (ctx->omap_overlay->getdata_linkvideofd() <= 0) {
             return 0;
@@ -2462,7 +2460,7 @@ int overlay_data_context_t::overlay_getBufferCount(struct overlay_data_device_t 
 
 int overlay_data_context_t::overlay_data_close(struct hw_device_t *dev) {
 
-    LOG_FUNCTION_NAME_ENTRY;
+    LOG_FUNCTION_NAME_ENTRY
     if (dev == NULL) {
         LOGE("Null Arguments ");
         return -1;
