@@ -55,8 +55,10 @@ class Omap4ALSAManager
         static const char* VOICEMEMO_VDL_GAIN;
         static const char* VOICEMEMO_MM_GAIN;
         static const char* VOICEMEMO_TONE_GAIN;
-        static const char* DL1_MONO_MIXER;
-        static const char* DL2_MONO_MIXER;
+        static const char *DL1_EAR_MONO_MIXER;
+        static const char *DL1_HEAD_MONO_MIXER;
+        static const char *DL2_SPEAK_MONO_MIXER;
+        static const char *DL2_AUX_MONO_MIXER;
 
         // list of properties per devices
         KeyedVector <String8, String8> mParams;
