@@ -133,8 +133,8 @@ extern "C" {
 #define ROTATION_PHYSICAL       0
 #define ROTATION_EXIF           1
 
-#define DSP3630_HZ_MIN 260000000
-#define DSP3630_HZ_MAX 800000000
+#define DSP3630_KHZ_MIN 260000
+#define DSP3630_KHZ_MAX 800000
 
 #define __ALIGN(x,a) ( (x) & (~((a) - 1)))
 #define NEXT_4K_ALIGN_ADDR(x) (((unsigned int) x + 0xfff) & 0xfffff000)
@@ -489,7 +489,7 @@ public:
     int ICapturePerform();
     int ICaptureCreate(void);
     int ICaptureDestroy(void);
-    void SetDSPHz(unsigned int Hz);
+    void SetDSPKHz(unsigned int KHz);
     void PPM(const char *);
     void PPM(const char *, struct timeval*, ...);
     status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
