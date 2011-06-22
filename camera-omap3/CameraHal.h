@@ -655,7 +655,6 @@ public:
     int mcaf;
     int j;
     bool useFramerateRange;
-    bool mSmoothZoomStopping;
 
     enum SmoothZoomStatus {
         SMOOTH_START = 0,
