@@ -23,7 +23,6 @@
  *
  */
 u32 available_freq[OPPS_NUMBER];
-u32 max_cpu_freq;
 bool is_panic_zone_reached = false;
 u32 nominal_cpu_scaling_max_freq;
 char *available_governors[GOVS_NUMBER];
@@ -210,13 +209,13 @@ static void read_cpu_scaling_available_freq(void)
     }
 
     /* Compute the maximum CPU frequency from the available_freq array */
-    max_cpu_freq = available_freq[0];
+    current_scaling_max_freq = available_freq[0];
     for (i = 1; i < OPPS_NUMBER; i++) {
-        if (available_freq[i] > max_cpu_freq)
-            max_cpu_freq = available_freq[i];
+        if (available_freq[i] > current_scaling_max_freq)
+            current_scaling_max_freq = available_freq[i];
     }
 #ifdef DEBUG
-    LOGD("max_freq is %ld\n", max_cpu_freq); fflush(stdout);
+    LOGD("max_freq is %ld\n", current_scaling_max_freq); fflush(stdout);
 #endif
 }
 
@@ -400,7 +399,7 @@ static void monitoring_zone(void)
  * THERMAL "Alert Zone" definition:
  *  - If the Panic Zone has never been reached, then
  *     - Define constraint about Max CPU frequency (See scaling_max_freq)
- *       if Current frequency < Max frequency, then Max frequency = Current frequency
+ *       if Current frequency < Max frequency, then select lower value for Max frequency
  *  - Else keep the constraints set previously until temperature falls to safe zone
  *  - Select "conservative" (if available) CPU freq governor to avoid selecting higher frequency first
  *  - Increase temperature monitoring rate (See update_rate)
@@ -411,6 +410,7 @@ static void monitoring_zone(void)
 static void alert_zone(void)
 {
     u32 current_freq;
+    int i;
 
     LOGD("OMAP CPU THERMAL - Alert Zone (hot spot temp: %i)\n", cpu_temp);
     fflush(stdout);
@@ -419,8 +419,17 @@ static void alert_zone(void)
         /* temperature rises and enters into ALERT zone */
         current_freq = atoi(read_from_file(
             config_file.cpufreq_file_paths[CPUINFO_CUR_FREQ_PATH]));
-        if (current_freq < max_cpu_freq)
-            update_cpu_scaling_max_freq(current_freq);
+        if (current_freq < current_scaling_max_freq) {
+#ifdef DEBUG
+            LOGD("ALERT Zone: current_freq < current_scaling_max_freq\n");
+#endif
+            /* Identify the index of current_scaling_max_freq in the available_freq table */
+            for (i = 0; i < OPPS_NUMBER; i++) {
+                if (current_scaling_max_freq == available_freq[i]) break;
+            }
+            /* Select the next lowest one from available_freq table */
+            update_cpu_scaling_max_freq(available_freq[i-1]);
+        }
     } else {
         /* temperature falls from PANIC zone and enters into ALERT zone */
         /* Do nothing here as we should wait until temperature falls again */
