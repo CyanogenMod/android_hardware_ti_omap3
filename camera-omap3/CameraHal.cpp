@@ -1062,6 +1062,14 @@ void CameraHal::previewThread()
 
            case PREVIEW_CAPTURE:
            {
+
+                if ( mCaptureRunning ) {
+                    LOGE("Capture is already running. Returning.");
+                    msg.command = PREVIEW_NACK;
+                    previewThreadAckQ.put(&msg);
+                    break;
+                }
+
                 err = 0;
 
 #ifdef DEBUG_LOG
