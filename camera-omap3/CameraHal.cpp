@@ -1077,7 +1077,7 @@ void CameraHal::previewThread()
 #endif
 
                 // Boost DSP OPP to highest level
-                SetDSPHz(DSP3630_HZ_MAX);
+                SetDSPKHz(DSP3630_KHZ_MAX);
 
                 if( mPreviewRunning ) {
                     if( CameraStop() < 0){
@@ -2508,7 +2508,7 @@ int CameraHal::ICapturePerform(){
     }
 
     // Release constraint to DSP OPP by setting lowest Hz
-    SetDSPHz(DSP3630_HZ_MIN);
+    SetDSPKHz(DSP3630_KHZ_MIN);
 
     mPictureBuffer.clear();
     mPictureHeap.clear();
@@ -3119,7 +3119,7 @@ void CameraHal::procThread()
                 JPEGPictureMemBase.clear();
 
                 // Release constraint to DSP OPP by setting lowest Hz
-                SetDSPHz(DSP3630_HZ_MIN);
+                SetDSPKHz(DSP3630_KHZ_MIN);
 
             } else if(procMessage[PROC_MSG_IDX_ACTION] == PROC_THREAD_EXIT) {
                 LOGD("PROC_THREAD_EXIT_RECEIVED");
