@@ -21,8 +21,8 @@
 #include "read_config.h"
 
 #define HYSTERESIS_VALUE 2000 /* in milli-celsius degrees to be compliant with HWMON APIs */
-#define NORMAL_TEMP_MONITORING_RATE 2000 /* 2 seconds */
-#define FAST_TEMP_MONITORING_RATE 500 /* 500 milli-seconds */
+#define NORMAL_TEMP_MONITORING_RATE 1000 /* 1 second */
+#define FAST_TEMP_MONITORING_RATE 250 /* 250 milli-seconds */
 #define OMAP_CPU_THRESHOLD_FATAL 123000
 
 /*
