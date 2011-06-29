@@ -471,6 +471,12 @@ private:
     //API to set FrameRate using VFR interface
     status_t setVFramerate(OMX_U32 minFrameRate,OMX_U32 maxFrameRate);
 
+    //Manual Exposure
+    status_t setManualExposure(Gen3A_settings& Gen3A);
+
+    //Manual Gain
+    status_t setManualGain(Gen3A_settings& Gen3A);
+
     //Noise filtering
     status_t setNSF(OMXCameraAdapter::IPPMode mode);
 

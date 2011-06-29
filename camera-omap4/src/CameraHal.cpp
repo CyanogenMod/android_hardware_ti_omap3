@@ -405,6 +405,37 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
     ///Below parameters can be changed when the preview is running
+
+    //Manual Exposure and Manual Gain
+
+    if( ( valstr = params.get(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT) ) != NULL
+        && (params.getInt(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT) <= MAX_MANUAL_EXPOSURE_MS))
+        {
+        CAMHAL_LOGEB("Manual Exposure Left set %s ms", valstr);
+        mParameters.set(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT, valstr);
+        }
+
+    if( ( valstr = params.get(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT) ) != NULL
+        && (params.getInt(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT) <= MAX_MANUAL_EXPOSURE_MS))
+        {
+        CAMHAL_LOGEB("Manual Exposure Right set %s ms", valstr);
+        mParameters.set(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT, valstr);
+        }
+
+    if( ( valstr = params.get(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT) ) != NULL
+        && (params.getInt(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT) <= MAX_MANUAL_GAIN_ISO))
+        {
+        CAMHAL_LOGEB("Manual Gain Left set %s ISO", valstr);
+        mParameters.set(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT, valstr);
+        }
+
+    if( ( valstr = params.get(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT) ) != NULL
+        && (params.getInt(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT) <= MAX_MANUAL_GAIN_ISO))
+        {
+        CAMHAL_LOGEB("Manual Gain Right set %s ISO", valstr);
+        mParameters.set(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT, valstr);
+        }
+
     if ( !isParameterValid(params.getPictureFormat(),
         (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue))
         {

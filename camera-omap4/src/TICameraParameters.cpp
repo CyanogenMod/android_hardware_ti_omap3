@@ -228,6 +228,11 @@ const char TICameraParameters::ORIENTATION_SENSOR_90[] = "90";
 const char TICameraParameters::ORIENTATION_SENSOR_180[] = "180";
 const char TICameraParameters::ORIENTATION_SENSOR_270[] = "270";
 
+//  TI extensions to add Manual Gain and Manual Exposure
+const char TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT[] = "manual-exposure-left";
+const char TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT[] = "manual-exposure-right";
+const char TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT[] = "manual-gain-iso-left";
+const char TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT[] = "manual-gain-iso-right";
 
 };
 

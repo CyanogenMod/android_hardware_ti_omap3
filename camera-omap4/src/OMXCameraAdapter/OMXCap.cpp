@@ -846,7 +846,6 @@ status_t OMXCameraAdapter::insertExpModes(CameraParameters &params, OMX_TI_CAPTY
 {
     status_t ret = NO_ERROR;
     char supported[MAX_PROP_VALUE_LENGTH];
-
     LOG_FUNCTION_NAME
 
     if ( NO_ERROR == ret )
@@ -865,7 +864,13 @@ status_t OMXCameraAdapter::insertExpModes(CameraParameters &params, OMX_TI_CAPTY
             }
 
         //These modes are not supported by the capability feature
+
+        // Added face_priority support
         strncat(supported, TICameraParameters::EXPOSURE_MODE_FACE, MAX_PROP_NAME_LENGTH);
+
+        // Added manual support
+        strncat(supported, PARAM_SEP, 1);
+        strncat(supported, "manual", MAX_PROP_NAME_LENGTH);
 
         params.set(TICameraParameters::KEY_SUPPORTED_EXPOSURE, supported);
         }

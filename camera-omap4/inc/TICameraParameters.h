@@ -123,12 +123,8 @@ static const char VIDEO_MINFRAMERATE_33[];
 //  TI extensions for Manual Gain and Manual Exposure
 static const char KEY_MANUAL_EXPOSURE_LEFT[];
 static const char KEY_MANUAL_EXPOSURE_RIGHT[];
-static const char KEY_MANUAL_EXPOSURE_MODES[];
-static const char KEY_MANUAL_GAIN_EV_RIGHT[];
-static const char KEY_MANUAL_GAIN_EV_LEFT[];
 static const char KEY_MANUAL_GAIN_ISO_RIGHT[];
 static const char KEY_MANUAL_GAIN_ISO_LEFT[];
-static const char KEY_MANUAL_GAIN_MODES[];
 
 //TI extensions for setting EXIF tags
 static const char KEY_EXIF_MODEL[];

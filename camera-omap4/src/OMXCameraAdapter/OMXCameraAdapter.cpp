@@ -478,6 +478,7 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
 
     const char * str = NULL;
     int mode = 0;
+    int expVal, gainVal;
     status_t ret = NO_ERROR;
     bool updateImagePortParams = false;
     int minFramerate, maxFramerate, frameRate;
@@ -727,6 +728,38 @@ status_t OMXCameraAdapter::setParameters(const CameraParameters &params)
             {
             mPending3Asettings |= SetExpMode;
             }
+        }
+
+    expVal = params.getInt(TICameraParameters::KEY_MANUAL_EXPOSURE_LEFT);
+    if (expVal >= 0 && expVal < MAX_MANUAL_EXPOSURE_MS)
+        {
+        mParameters3A.ExposureValueLeft = expVal;
+        mPending3Asettings |= SetManualExposure;
+        CAMHAL_LOGEB("Manual Exposure Left value %d ms", (int) expVal);
+        }
+
+    expVal = params.getInt(TICameraParameters::KEY_MANUAL_EXPOSURE_RIGHT);
+    if (expVal >= 0 && expVal < MAX_MANUAL_EXPOSURE_MS)
+        {
+        mParameters3A.ExposureValueRight = expVal;
+        mPending3Asettings |= SetManualExposure;
+        CAMHAL_LOGEB("Manual Exposure Right value %d ms", (int) expVal);
+        }
+
+    gainVal = params.getInt(TICameraParameters::KEY_MANUAL_GAIN_ISO_LEFT);
+    if (gainVal >= 0 && gainVal <= MAX_MANUAL_GAIN_ISO)
+        {
+        mParameters3A.ManualGainISOLeft = gainVal;
+        mPending3Asettings |= SetManualGain;
+        CAMHAL_LOGEB("Manual Gain Left ISO %d ", (int) gainVal);
+        }
+
+    gainVal = params.getInt(TICameraParameters::KEY_MANUAL_GAIN_ISO_RIGHT);
+    if (gainVal >= 0 && gainVal <= MAX_MANUAL_GAIN_ISO)
+        {
+        mParameters3A.ManualGainISORight = gainVal;
+        mPending3Asettings |= SetManualGain;
+        CAMHAL_LOGEB("Manual Gain Right ISO %d ", (int) gainVal);
         }
 
     str = params.get(CameraParameters::KEY_WHITE_BALANCE);
@@ -2123,7 +2156,7 @@ void OMXCameraAdapter::getParameters(CameraParameters& params)
     int comp = ((expValues.xEVCompensation * 10) >> Q16_OFFSET);
 
     params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, comp );
-    params.set( TICameraParameters::KEY_MAN_EXPOSURE, expValues.nShutterSpeedMsec);
+    params.set( TICameraParameters::KEY_MANUAL_EXPOSURE, expValues.nShutterSpeedMsec);
     params.set( TICameraParameters::KEY_BRIGHTNESS, brightness.nBrightness);
     params.set( TICameraParameters::KEY_CONTRAST, contrast.nContrast );
     params.set( TICameraParameters::KEY_SHARPNESS, procSharpness.nLevel);
@@ -4236,6 +4269,144 @@ status_t OMXCameraAdapter::setExposureBracketing(int *evValues, size_t evCount, 
     LOG_FUNCTION_NAME_EXIT
 
     return ret;
+}
+
+status_t OMXCameraAdapter::setManualExposure(Gen3A_settings& Gen3A)
+{
+    LOG_FUNCTION_NAME
+
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    OMX_CONFIG_EXPOSUREVALUETYPE expValuesLeft;
+    expValuesLeft.nSize = sizeof(OMX_CONFIG_EXPOSUREVALUETYPE);
+    expValuesLeft.nVersion = mLocalVersionParam;
+    expValuesLeft.nPortIndex = OMX_ALL;
+
+    OMX_TI_CONFIG_EXPOSUREVALUERIGHTTYPE expValuesRight;
+    expValuesRight.nSize = sizeof(OMX_TI_CONFIG_EXPOSUREVALUERIGHTTYPE);
+    expValuesRight.nVersion = mLocalVersionParam;
+    expValuesRight.nPortIndex = OMX_ALL;
+
+    OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValuesLeft);
+    if( 0 >= Gen3A.ExposureValueLeft )
+        {
+        expValuesLeft.bAutoShutterSpeed = OMX_TRUE;
+        }
+    else
+        {
+        expValuesLeft.bAutoShutterSpeed = OMX_FALSE;
+        expValuesLeft.nShutterSpeedMsec = Gen3A.ExposureValueLeft;
+        }
+
+    eError = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValuesLeft);
+
+    if ( eError != OMX_ErrorNone )
+        {
+        CAMHAL_LOGEB("Error while configuring manual exposure left 0x%x", eError);
+        }
+    else
+        {
+        CAMHAL_LOGDB("Manual Exposure Left for Hal and OMX = %d ms", (int) Gen3A.ExposureValueLeft);
+        CAMHAL_LOGDA("Manual exposure left configured successfully");
+        }
+
+    OMX_GetConfig( mCameraAdapterParameters.mHandleComp,
+        (OMX_INDEXTYPE) OMX_TI_IndexConfigRightExposureValue, &expValuesRight);
+    if( 0 >= Gen3A.ExposureValueRight )
+        {
+        expValuesLeft.bAutoShutterSpeed = OMX_TRUE;
+        }
+    else
+        {
+        expValuesLeft.bAutoShutterSpeed = OMX_FALSE;
+        expValuesRight.nShutterSpeedMsec = Gen3A.ExposureValueRight;
+        }
+
+    eError = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,
+        (OMX_INDEXTYPE) OMX_TI_IndexConfigRightExposureValue, &expValuesRight);
+
+    if ( eError != OMX_ErrorNone )
+        {
+        CAMHAL_LOGEB("Error while configuring manual exposure right 0x%x", eError);
+        }
+    else
+        {
+        CAMHAL_LOGDB("Manual Exposure Right for Hal and OMX = %d ms", (int) Gen3A.ExposureValueRight);
+        CAMHAL_LOGDA("Manual exposure right configured successfully");
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return (ErrorUtils::omxToAndroidError (eError));
+}
+
+status_t OMXCameraAdapter::setManualGain(Gen3A_settings& Gen3A)
+{
+    LOG_FUNCTION_NAME
+
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+
+    OMX_CONFIG_EXPOSUREVALUETYPE expValuesLeft;
+    expValuesLeft.nSize = sizeof(OMX_CONFIG_EXPOSUREVALUETYPE);
+    expValuesLeft.nVersion = mLocalVersionParam;
+    expValuesLeft.nPortIndex = OMX_ALL;
+
+    OMX_TI_CONFIG_EXPOSUREVALUERIGHTTYPE expValuesRight;
+    expValuesRight.nSize = sizeof(OMX_TI_CONFIG_EXPOSUREVALUERIGHTTYPE);
+    expValuesRight.nVersion = mLocalVersionParam;
+    expValuesRight.nPortIndex = OMX_ALL;
+
+    OMX_GetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValuesLeft);
+    if( 0 == Gen3A.ManualGainISOLeft )
+        {
+        expValuesLeft.bAutoSensitivity = OMX_TRUE;
+        }
+    else
+        {
+        expValuesLeft.bAutoSensitivity = OMX_FALSE;
+        expValuesLeft.nSensitivity = Gen3A.ManualGainISOLeft;
+        }
+
+    eError = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,OMX_IndexConfigCommonExposureValue, &expValuesLeft);
+
+    if ( eError != OMX_ErrorNone )
+        {
+        CAMHAL_LOGEB("Error while configuring manual gain left 0x%x", eError);
+        }
+    else
+        {
+        CAMHAL_LOGDB("Manual Gain Left for Hal and OMX= %d", (int)Gen3A.ManualGainISOLeft);
+        CAMHAL_LOGDA("Manual gain left configured successfully");
+        }
+
+    OMX_GetConfig( mCameraAdapterParameters.mHandleComp,
+        (OMX_INDEXTYPE) OMX_TI_IndexConfigRightExposureValue, &expValuesRight);
+    if( 0 == Gen3A.ManualGainISORight )
+        {
+        expValuesLeft.bAutoSensitivity = OMX_TRUE;
+        }
+    else
+        {
+        expValuesLeft.bAutoSensitivity = OMX_FALSE;
+        expValuesRight.nSensitivity = Gen3A.ManualGainISORight;
+        }
+
+    eError = OMX_SetConfig( mCameraAdapterParameters.mHandleComp,
+        (OMX_INDEXTYPE) OMX_TI_IndexConfigRightExposureValue, &expValuesRight);
+
+    if ( eError != OMX_ErrorNone )
+        {
+        CAMHAL_LOGEB("Error while configuring manual gain right 0x%x", eError);
+        }
+    else
+        {
+        CAMHAL_LOGDB("Manual Gain Right for Hal and OMX= %d", (int)Gen3A.ManualGainISORight);
+        CAMHAL_LOGDA("Manual gain right configured successfully");
+        }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return (ErrorUtils::omxToAndroidError (eError));
 }
 
 status_t OMXCameraAdapter::setFaceDetection(bool enable)
@@ -7487,10 +7658,18 @@ OMX_ERRORTYPE OMXCameraAdapter::apply3Asettings( Gen3A_settings& Gen3A )
                 case SetExpMode:
                     {
                     ret = setExposureMode(Gen3A);
-
                     break;
                     }
-
+                case SetManualExposure:
+                    {
+                    setManualExposure (Gen3A);
+                    break;
+                    }
+                case SetManualGain:
+                    {
+                    setManualGain (Gen3A);
+                    break;
+                    }
                 case SetFlash:
                     {
                     ret = setFlashMode(mParameters3A);

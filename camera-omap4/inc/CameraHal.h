@@ -66,6 +66,9 @@
 #define SHARPNESS_OFFSET 100
 #define CONTRAST_OFFSET 100
 
+#define MAX_MANUAL_EXPOSURE_MS 66 //[ms.]
+#define MAX_MANUAL_GAIN_ISO 3200
+
 //Enables Absolute PPM measurements in logcat
 #define PPM_INSTRUMENTATION_ABS 1
 

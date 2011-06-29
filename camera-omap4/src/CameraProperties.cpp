@@ -110,7 +110,6 @@ const char CameraProperties::JPEG_THUMBNAIL_QUALITY[] = "prop-jpeg-thumbnail-qua
 
 const char CameraProperties::PARAMS_DELIMITER []= ",";
 
-
 const char CameraProperties::TICAMERA_FILE_PREFIX[] = "TICamera";
 const char CameraProperties::TICAMERA_FILE_EXTN[] = ".xml";
 
