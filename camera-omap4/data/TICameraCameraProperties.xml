@@ -138,7 +138,7 @@
 <prop-preview-size-default>640x480</prop-preview-size-default>
 <prop-preview-format-default>yuv420sp</prop-preview-format-default>
 <prop-zoom-default>0</prop-zoom-default>
-<prop-picture-size-default>2592x1944</prop-picture-size-default>
+<prop-picture-size-default>2048x1536</prop-picture-size-default>
 <prop-picture-format-default>jpeg</prop-picture-format-default>
 <prop-jpeg-thumbnail-size-default>160x120</prop-jpeg-thumbnail-size-default>
 <prop-jpeg-thumbnail-quality-default>60</prop-jpeg-thumbnail-quality-default>
