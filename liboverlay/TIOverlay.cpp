@@ -953,10 +953,13 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         goto error1;
     }
 
+#ifdef TARGET_OMAP4
     if (v4l2_overlay_set_colorkey(fd, 1, 0x00, EVIDEO_SOURCE)){
         LOGE("Failed enabling color key\n");
         goto error1;
     }
+#endif
+
     /* Enable the video zorder and video transparency
     * for the controls to be visible on top of video, give the graphics highest zOrder
     **/
@@ -1111,14 +1114,42 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
     overlay_control_context_t *self = (overlay_control_context_t *)dev;
     overlay_object *overlayobj = static_cast<overlay_object *>(overlay);
 
-    int rc;
+    int rc, ret;
     int fd = overlayobj->getctrl_videofd();
     int linkfd = overlayobj->getctrl_linkvideofd();
     int index = overlayobj->getIndex();
+    int num_ovls_with_alpha = 0;
+    overlay_ctrl_t   *data = overlayobj->data();
+
 
     overlay_data_context_t::disable_streaming(overlayobj, false);
 
     LOGI("Destroying overlay/fd=%d/obj=%08lx", fd, (unsigned long)overlay);
+
+#ifdef TARGET_OMAP3
+    if (data->colorkey < 0) {
+        /*  Lets Iterate among all created overlays to identify how many of them
+            have local alpha blending enabled.
+            IF we have any overlays using/requiring local alpha, apart from the
+            current to-be destroyed overlay, DO NOT switch it off.
+        */
+        for (int i=0; i < MAX_NUM_OVERLAYS; i++) {
+            if (self->mOmapOverlays[i] != NULL) {
+                overlay_object *ovlobj = static_cast<overlay_object *>(self->mOmapOverlays[i]);
+                overlay_ctrl_t *ovldata = ovlobj->data();
+
+                if(ovldata->colorkey < 0)
+                    num_ovls_with_alpha++;
+            }
+        }
+
+        if (num_ovls_with_alpha == 1) {
+            LOGE("%s : Lets Switch off Alpha Blending.\n", __func__ );
+            if ((ret = v4l2_overlay_set_local_alpha(fd,0)))
+                LOGE("Failed disabling local alpha \n");
+        }
+    }
+#endif
 
     if (close(fd)) {
         LOGI( "Error closing overly fd/%d\n", errno);
@@ -1446,6 +1477,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         data->alpha == stage->alpha &&
         data->mirror == stage->mirror &&
 #endif
+        data->colorkey == stage->colorkey &&
         data->panel == stage->panel) {
         LOGV("Nothing to commit!\n");
         goto end;
@@ -1625,7 +1657,7 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
         goto end;
     }
 
-#ifdef TARGET_OMAP4
+#if defined (TARGET_OMAP4)
     if (transkey < 0) {
         if ((ret = v4l2_overlay_set_colorkey(fd, 0, 0x00, EVIDEO_SOURCE))) {
             LOGE("Failed enabling color key\n");
@@ -1652,10 +1684,29 @@ int overlay_control_context_t::overlay_commit(struct overlay_control_device_t *d
             }
         }
     }
-#else
-    if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00, EVIDEO_SOURCE))) {
-        LOGE("Failed enabling color key\n");
-        goto end;
+#elif defined (TARGET_OMAP3)
+    if(data->colorkey < 0) {
+        // Request to Enable Local Alpha Blending
+        if ((ret = v4l2_overlay_set_colorkey(fd, 0, 0x00, EVIDEO_SOURCE))) {
+            LOGE("Failed enabling color key\n");
+            goto end;
+        }
+
+        if ((ret = v4l2_overlay_set_local_alpha(fd,1))) {
+            LOGE("Failed enabling local alpha \n");
+            goto end;
+        }
+    } else {
+        //  Request to Enable Color Key
+        if ((ret = v4l2_overlay_set_local_alpha(fd,0))) {
+            LOGE("Failed disabling local alpha \n");
+            goto end;
+        }
+
+        if ((ret = v4l2_overlay_set_colorkey(fd, 1, 0x00, EVIDEO_SOURCE))) {
+            LOGE("Failed enabling color key\n");
+            goto end;
+        }
     }
 #endif
 
