@@ -1643,25 +1643,25 @@ void CameraHal::nextPreview()
         ZoomPerform(zoom_step[mZoomCurrentIdx]);
 
         // Update mParameters with current zoom position only if smooth zoom is used
+        // Immediate zoom should not generate callbacks.
         if ( mZoomSpeed > 0 ){
             //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
             {
                 Mutex::Autolock lock(mLock);
                 mParameters.set("zoom", mZoomCurrentIdx);
             }
-        }
 
-        // Immediate zoom should not generate callbacks.
-        if ( mSmoothZoomStatus == SMOOTH_START ||  mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)  {
-            if(mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)
-            {
-                mZoomTargetIdx = mZoomCurrentIdx;
-                mSmoothZoomStatus = SMOOTH_STOP;
+            if ( mSmoothZoomStatus == SMOOTH_START ||  mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)  {
+                if(mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP) {
+                    mZoomTargetIdx = mZoomCurrentIdx;
+                    mSmoothZoomStatus = SMOOTH_STOP;
+                }
+                if( mZoomCurrentIdx == mZoomTargetIdx ){
+                    mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
+                } else {
+                    mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
+                }
             }
-            if( mZoomCurrentIdx == mZoomTargetIdx )
-                mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
-            else
-                mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
         }
     }
 
