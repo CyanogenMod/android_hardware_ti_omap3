@@ -116,7 +116,9 @@ LCML_DSP_INTERFACE* GetLCMLHandle()
     char *error = NULL;
     OMX_ERRORTYPE eError;
 
-#if 1 
+#if 1
+    // Clear previous dynamic linking errors with dlerror();
+    dlerror();
     pDllHandle = dlopen("libLCML.so", RTLD_LAZY);
     if (!pDllHandle) {
         fprintf(stderr,"dlopen: %s",dlerror());
