@@ -352,9 +352,7 @@ static void safe_zone(void)
 
 /*
  * THERMAL "Monitoring Zone" definition:
- *  - If the Panic Zone has never been reached, then
- *     - No constraint about Max CPU frequency (See scaling_max_freq)
- *  - Else keep the constraints set previously until temperature falls to safe zone
+ *  - No constraint about Max CPU frequency (See scaling_max_freq)
  *  - Select "conservative" (if available) CPU freq governor to avoid selecting higher frequency first
  *  - Increase temperature monitoring rate (See update_rate)
  *  - Thresholds configuration:
@@ -366,13 +364,7 @@ static void monitoring_zone(void)
     LOGD("OMAP CPU THERMAL - Monitoring Zone (hot spot temp: %i)\n", cpu_temp);
     fflush(stdout);
 
-    if (is_panic_zone_reached == false) {
-        /* temperature rises and enters into MONITORING zone */
-        update_cpu_scaling_max_freq(nominal_cpu_scaling_max_freq);
-    } else {
-        /* temperature falls from PANIC zone and enters into MONITORING zone */
-        /* Do nothing here as we should wait until temperature falls again */
-    }
+    update_cpu_scaling_max_freq(nominal_cpu_scaling_max_freq);
 
     if (is_conservative_available == true) {
         update_cpu_scaling_governor("conservative");
@@ -400,7 +392,7 @@ static void monitoring_zone(void)
  *  - If the Panic Zone has never been reached, then
  *     - Define constraint about Max CPU frequency (See scaling_max_freq)
  *       if Current frequency < Max frequency, then select lower value for Max frequency
- *  - Else keep the constraints set previously until temperature falls to safe zone
+ *  - Else keep the constraints set previously until temperature falls to Monitoring zone
  *  - Select "conservative" (if available) CPU freq governor to avoid selecting higher frequency first
  *  - Increase temperature monitoring rate (See update_rate)
  *  - Thresholds configuration:
