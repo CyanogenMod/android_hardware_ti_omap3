@@ -526,14 +526,19 @@ static void panic_zone(void)
      * Safety mechanism in panic zone to avoid reaching fatal zone:
      * Define a threshold between TPanic and TFatal to detect if the
      * temperature still rises after forcing lower frequency
+     * Select lowest OPP when entering into Pre-Fatal Zone
      */
     threshold_fatal = ((config_file.omap_cpu_threshold_panic +
             OMAP_CPU_THRESHOLD_FATAL) / 2);
 
     if (cpu_temp >= threshold_fatal) {
         threshold_fatal = OMAP_CPU_THRESHOLD_FATAL;
+        update_cpu_scaling_governor("userspace");
+        update_cpu_scaling_set_speed(available_freq[0]);
+        update_cpu_scaling_max_freq(available_freq[0]);
+        update_cpu_scaling_governor(governor);
 #ifdef DEBUG
-        LOGD("entering into Pre-Fatal Zone\n");
+        LOGD("OMAP CPU THERMAL - Pre-Fatal Zone (hot spot temp: %i)\n", cpu_temp);
         fflush(stdout);
 #endif
     }
