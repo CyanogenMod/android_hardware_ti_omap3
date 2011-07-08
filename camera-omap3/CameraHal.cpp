@@ -3470,6 +3470,16 @@ void CameraHal::stopRecording()
     debugShowBufferStatus();
     mRecordEnabled = false;
 
+    // Return all buffers queued to VE back to camera. Otherwise, after few
+    // recordings, camera is left without buffers.
+    for (int i = 0; i < mVideoBufferCount; i++) {
+        if ((mVideoBufferStatus[i]&BUFF_Q2VE) == BUFF_Q2VE) {
+            LOGD("Recovering Buffer[%d] status[%d] \n",i,mVideoBufferStatus[i]);
+            mVideoBufferStatus[i] &= ~BUFF_Q2VE;
+            queueToCamera(i);
+        }
+    }
+
     mRecordingLock.unlock();
 }
 
