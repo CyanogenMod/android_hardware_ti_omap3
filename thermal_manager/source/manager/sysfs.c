@@ -26,13 +26,13 @@ char *read_from_file(const char *path)
     fp = fopen(path, "r");
     if (fp == NULL) {
 #ifdef DEBUG
-        printf("!!! Could not open (read mode)'%s' !!!\n", path);
+        LOGD("!!! Could not open (read mode)'%s' !!!\n", path);
         fflush(stdout);
 #endif
         exit(FILE_OPEN_ERROR);
     } else {
 #ifdef DEBUG
-        printf("Opened in read mode %s\n", path);
+        LOGD("Opened in read mode %s\n", path);
         fflush(stdout);
 #endif
     }
@@ -65,13 +65,13 @@ int write_to_file(const char *path, const char *buf)
     fp = fopen(path, "w");
     if (fp == NULL) {
 #ifdef DEBUG
-        printf("!!! Could not open (write mode)'%s' !!!\n", path);
+        LOGD("!!! Could not open (write mode)'%s' !!!\n", path);
         fflush(stdout);
 #endif
         return -1;
     } else {
 #ifdef DEBUG
-        printf("Opened in write mode %s to write %s\n", path, buf);
+        LOGD("Opened in write mode %s to write %s\n", path, buf);
         fflush(stdout);
 #endif
     }

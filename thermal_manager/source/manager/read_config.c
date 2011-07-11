@@ -54,7 +54,7 @@ int read_config(void)
     config_init(cf);
 
     if (!config_read_file (cf, CONFIG_FILE)) {
-            fprintf (stderr, "%s:%d = %s\n", CONFIG_FILE,
+            LOGD (stderr, "%s:%d = %s\n", CONFIG_FILE,
                 config_error_line(cf), config_error_text(cf));
         config_destroy (cf);
         return -1;
@@ -124,7 +124,7 @@ int read_config(void)
                         if ((config_file.cpufreq_file_paths[index] =
                 calloc(strlen(cpufreq_read[index]),
                 sizeof(char))) == NULL) {
-                printf ("Error in allocating memory\n");
+                LOGD ("Error in allocating memory\n");
                 fflush(stdout);
                 return -1;
             }
@@ -138,7 +138,7 @@ int read_config(void)
                         if ((config_file.omaptemp_file_paths[index] =
                 calloc(strlen(omaptemp_read[index]),
                 sizeof(char))) == NULL) {
-                printf ("Error in allocating memory\n");
+                LOGD ("Error in allocating memory\n");
                 fflush(stdout);
                 return -1;
             }
@@ -150,35 +150,35 @@ int read_config(void)
 
 #ifdef DEBUG
     for (index = 0; index < MAX_SENSORS; index++) {
-        printf("config_file.temperature_file_sensors[%d] %s\n",
+        LOGD("config_file.temperature_file_sensors[%d] %s\n",
             index, config_file.temperature_file_sensors[index]);
         fflush(stdout);
     }
-    printf("config_file.omap_cpu_threshold_monitoring %ld\n",
+    LOGD("config_file.omap_cpu_threshold_monitoring %ld\n",
         config_file.omap_cpu_threshold_monitoring);
     fflush(stdout);
-    printf("config_file.omap_cpu_threshold_alert %ld\n",
+    LOGD("config_file.omap_cpu_threshold_alert %ld\n",
         config_file.omap_cpu_threshold_alert);
     fflush(stdout);
-    printf("config_file.omap_cpu_threshold_panic %ld\n",
+    LOGD("config_file.omap_cpu_threshold_panic %ld\n",
         config_file.omap_cpu_threshold_panic);
     fflush(stdout);
-    printf("config_file.omap_cpu_temperature_slope %ld\n",
+    LOGD("config_file.omap_cpu_temperature_slope %ld\n",
         config_file.omap_cpu_temperature_slope);
     fflush(stdout);
-    printf("config_file.omap_cpu_temperature_offset %ld\n",
+    LOGD("config_file.omap_cpu_temperature_offset %ld\n",
         config_file.omap_cpu_temperature_offset);
     fflush(stdout);
-    printf("config_file.pcb_threshold %ld\n",
+    LOGD("config_file.pcb_threshold %ld\n",
         config_file.pcb_threshold);
     fflush(stdout);
     for (index = 0; index < MAX_CPUFREQ_PATHS; index++) {
-        printf("config_file.cpufreq_file_paths[%d] %s\n",
+        LOGD("config_file.cpufreq_file_paths[%d] %s\n",
             index, (char *)config_file.cpufreq_file_paths[index]);
         fflush(stdout);
     }
     for (index = 0; index < MAX_OMAPTEMP_PATHS; index++) {
-        printf("config_file.omaptemp_file_paths[%d] %s\n",
+        LOGD("config_file.omaptemp_file_paths[%d] %s\n",
             index, (char *)config_file.omaptemp_file_paths[index]);
         fflush(stdout);
     }

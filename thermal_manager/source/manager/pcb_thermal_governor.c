@@ -27,8 +27,7 @@
 int pcb_thermal_governor(u32 pcb_temp)
 {
 #ifdef DEBUG
-    printf("PCB Thermal Governor (%ld)\n", pcb_temp);
-    fflush(stdout);
+	LOGD("PCB Thermal Governor (%ld)\n", pcb_temp);
 #endif
     return 0;
 }
