@@ -23,7 +23,7 @@
 #define HYSTERESIS_VALUE 2000 /* in milli-celsius degrees to be compliant with HWMON APIs */
 #define NORMAL_TEMP_MONITORING_RATE 1000 /* 1 second */
 #define FAST_TEMP_MONITORING_RATE 250 /* 250 milli-seconds */
-#define OMAP_CPU_THRESHOLD_FATAL 123000
+#define OMAP_CPU_THRESHOLD_FATAL 125000
 
 /*
  *
