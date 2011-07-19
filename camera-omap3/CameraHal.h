@@ -56,7 +56,6 @@
 #define VPP 1
 
 #define PPM_INSTRUMENTATION 1
-#define ICAP_EXPERIMENTAL 1
 
 #define DEBUG_LOG 1
 
@@ -119,6 +118,12 @@ extern "C" {
 #define IMX046_FOCALLENGTH 4.68
 #define IMX046_HORZANGLE 62.9
 #define IMX046_VERTANGLE 24.8
+#define MIN_FPS 8
+#define MAX_FPS 30
+#define FOCUS_DISTANCE_NEAR 0.500000
+#define FOCUS_DISTANCE_OPTIMAL 1.500000
+#define FOCUS_DISTANCE_BUFFER_SIZE  30
+#define MANUAL_FOCUS_DEFAULT_POSITION 50
 
 #define ZOOM_SCALE (1<<16)
 
@@ -128,10 +133,11 @@ extern "C" {
 #define ROTATION_PHYSICAL       0
 #define ROTATION_EXIF           1
 
-#define DSP3630_HZ_MIN 260000000
-#define DSP3630_HZ_MAX 800000000
+#define DSP3630_KHZ_MIN 260000
+#define DSP3630_KHZ_MAX 800000
 
 #define __ALIGN(x,a) ( (x) & (~((a) - 1)))
+#define NEXT_4K_ALIGN_ADDR(x) (((unsigned int) x + 0xfff) & 0xfffff000)
 
 #define NONNEG_ASSIGN(x,y) \
     if(x > -1) \
@@ -140,11 +146,11 @@ extern "C" {
 namespace android {
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-	#define INPLACE_ON	1
-	#define INPLACE_OFF	0
-	#define IPP_Disabled_Mode 0
-	#define IPP_CromaSupression_Mode 1
-	#define IPP_EdgeEnhancement_Mode 2
+    #define INPLACE_ON    1
+    #define INPLACE_OFF    0
+    #define IPP_Disabled_Mode 0
+    #define IPP_CromaSupression_Mode 1
+    #define IPP_EdgeEnhancement_Mode 2
 typedef struct OMX_IPP
 {
     IPP_Handle hIPP;
@@ -173,8 +179,8 @@ typedef struct OMX_IPP
     IPP_ImageBufferDesc iOutputBufferDesc;
     IPP_ProcessArgs iInputArgs;
     IPP_ProcessArgs iOutputArgs;
-	int outputBufferSize;
-	unsigned char* pIppOutputBuffer;
+    int outputBufferSize;
+    unsigned char* pIppOutputBuffer;
 } OMX_IPP;
 
 typedef struct {
@@ -213,7 +219,7 @@ typedef struct {
 #endif
 
 //icapture
-#define DTP_FILE_NAME 	    "/data/dyntunn.enc"
+#define DTP_FILE_NAME         "/data/dyntunn.enc"
 #define EEPROM_FILE_NAME    "/data/eeprom.hex"
 #define LIBICAPTURE_NAME    "libicapture.so"
 
@@ -222,9 +228,59 @@ typedef struct {
 
 #define PHOTO_PATH          "/tmp/photo_%02d.%s"
 
+enum {
+    PROC_MSG_IDX_ACTION = 0,
+    PROC_MSG_IDX_CAPTURE_W,
+    PROC_MSG_IDX_CAPTURE_H,
+    PROC_MSG_IDX_IMAGE_W,
+    PROC_MSG_IDX_IMAGE_H,
+    PROC_MSG_IDX_PIX_FMT,
+#ifdef IMAGE_PROCESSING_PIPELINE
+    PROC_MSG_IDX_IPP_EES,
+    PROC_MSG_IDX_IPP_WET,
+    PROC_MSG_IDX_IPP_SET,
+    PROC_MSG_IDX_IPP_LFLNFS,
+    PROC_MSG_IDX_IPP_MFLNFS,
+    PROC_MSG_IDX_IPP_HFLNFS,
+    PROC_MSG_IDX_IPP_LFCBNFS,
+    PROC_MSG_IDX_IPP_MFCBNFS,
+    PROC_MSG_IDX_IPP_HFCBNFS,
+    PROC_MSG_IDX_IPP_LFCRNFS,
+    PROC_MSG_IDX_IPP_MFCRNFS,
+    PROC_MSG_IDX_IPP_HFCRNFS,
+    PROC_MSG_IDX_IPP_SVP1,
+    PROC_MSG_IDX_IPP_SVP2,
+    PROC_MSG_IDX_IPP_SHP1,
+    PROC_MSG_IDX_IPP_SHP2,
+    PROC_MSG_IDX_IPP_SGS,
+    PROC_MSG_IDX_IPP_SGO,
+    PROC_MSG_IDX_IPP_SGMV,
+    PROC_MSG_IDX_IPP_RDSCBCR,
+    PROC_MSG_IDX_IPP_MODE,
+    PROC_MSG_IDX_IPP_TO_ENABLE,
+#endif
+    PROC_MSG_IDX_YUV_BUFF,
+    PROC_MSG_IDX_YUV_BUFFLEN,
+    PROC_MSG_IDX_ROTATION,
+    PROC_MSG_IDX_ZOOM,
+    PROC_MSG_IDX_JPEG_QUALITY,
+    PROC_MSG_IDX_JPEG_CB,
+    PROC_MSG_IDX_RAW_CB,
+    PROC_MSG_IDX_CB_COOKIE,
+    PROC_MSG_IDX_CROP_L,
+    PROC_MSG_IDX_CROP_T,
+    PROC_MSG_IDX_CROP_W,
+    PROC_MSG_IDX_CROP_H,
+    PROC_MSG_IDX_THUMB_W,
+    PROC_MSG_IDX_THUMB_H,
+#ifdef HARDWARE_OMX
+    PROC_MSG_IDX_EXIF_BUFF,
+#endif
+    PROC_MSG_IDX_MAX
+};
 #define PROC_THREAD_PROCESS         0x5
 #define PROC_THREAD_EXIT            0x6
-#define PROC_THREAD_NUM_ARGS        45
+
 #define SHUTTER_THREAD_CALL         0x1
 #define SHUTTER_THREAD_EXIT         0x2
 #define SHUTTER_THREAD_NUM_ARGS     3
@@ -275,24 +331,24 @@ public:
     virtual sp<IMemoryHeap> getRawHeap() const;
     virtual void stopRecording();
 
-	virtual status_t startRecording();  // Eclair HAL
+    virtual status_t startRecording();  // Eclair HAL
     virtual bool recordingEnabled();
     virtual void releaseRecordingFrame(const sp<IMemory>& mem);
     virtual sp<IMemoryHeap> getPreviewHeap() const ;
 
-	virtual status_t startPreview();   //  Eclair HAL
+    virtual status_t startPreview();   //  Eclair HAL
     virtual bool useOverlay() { return true; }
     virtual status_t setOverlay(const sp<Overlay> &overlay);
     virtual void stopPreview();
     virtual bool previewEnabled();
 
-	virtual status_t autoFocus();  // Eclair HAL
+    virtual status_t autoFocus();  // Eclair HAL
 
 
-	virtual status_t takePicture();		// Eclair HAL
+    virtual status_t takePicture();        // Eclair HAL
 
-	virtual status_t cancelPicture();	// Eclair HAL
-	virtual status_t cancelAutoFocus();
+    virtual status_t cancelPicture();    // Eclair HAL
+    virtual status_t cancelAutoFocus();
 
     virtual status_t dump(int fd, const Vector<String16>& args) const;
     void dumpFrame(void *buffer, int size, char *path);
@@ -311,7 +367,7 @@ public:
     virtual void        disableMsgType(int32_t msgType);
     virtual bool        msgTypeEnabled(int32_t msgType);
 /*--------------------Eclair HAL---------------------------------------*/
-    static sp<CameraHardwareInterface> createInstance();
+    static sp<CameraHardwareInterface> createInstance(int cameraId);
 
     virtual status_t sendCommand(int32_t cmd, int32_t arg1, int32_t arg2);
 
@@ -376,16 +432,17 @@ public:
         }
     };
 
-   CameraHal();
+   CameraHal(int cameraId);
     virtual ~CameraHal();
     void previewThread();
     bool validateSize(size_t width, size_t height, const supported_resolution *supRes, size_t count);
+    bool validateRange(int min, int max, const char *supRang);
     void procThread();
     void shutterThread();
     void rawThread();
     void snapshotThread();
     void *getLastOverlayAddress();
-	size_t getLastOverlayLength();
+    size_t getLastOverlayLength();
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -394,8 +451,9 @@ public:
 #endif
 
 #ifdef FW3A
-
+#ifdef IMAGE_PROCESSING_PIPELINE
     static void onIPP(void *priv, icap_ipp_parameters_t *ipp_params);
+#endif
     static void onMakernote(void *priv, void *mknote_ptr);
     static void onShutter(void *priv, icap_image_buffer_t *image_buf);
     static void onSaveH3A(void *priv, icap_image_buffer_t *buf);
@@ -425,12 +483,15 @@ public:
     void nextPreview();
     void queueToOverlay(int index);
     int dequeueFromOverlay();
+    bool __queueToCamera(int index, int line);
+#define queueToCamera(x) __queueToCamera(x, __LINE__)
+    int dequeueFromCamera(nsecs_t *timestamp);
     int ICapturePerform();
     int ICaptureCreate(void);
     int ICaptureDestroy(void);
-    void SetDSPHz(unsigned int Hz);
-	void PPM(const char *);
-	void PPM(const char *, struct timeval*, ...);
+    void SetDSPKHz(unsigned int KHz);
+    void PPM(const char *);
+    void PPM(const char *, struct timeval*, ...);
     status_t convertGPSCoord(double coord, int *deg, int *min, int *sec);
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -453,19 +514,12 @@ public:
     int CameraCreate();
     int CameraDestroy(bool destroyOverlay);
     int CameraConfigure();
-	int CameraSetFrameRate();
+    int CameraSetFrameRate();
     int CameraStart();
     int CameraStop();
 
-#ifdef ICAP_EXPERIMENTAL
-
-    int allocatePictureBuffer(size_t length, int burstCount);
-
-#else
-
-    int allocatePictureBuffer(int width, int height, int burstCount, int len);
-
-#endif
+    int allocatePictureBuffers(size_t length, int burstCount);
+    int freePictureBuffers(void);
 
     int SaveFile(char *filename, char *ext, void *buffer, int jpeg_size);
     
@@ -490,20 +544,20 @@ public:
 
     bool mShutterEnable;
     bool mCAFafterPreview;
+    bool useMaxCrop;
+    float zoomAspRatio;
     CameraParameters mParameters;
     sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
-    int mPictureOffset[MAX_BURST];
     int mJPEGOffset, mJPEGLength;
-    int mPictureLength[MAX_BURST];
+    unsigned int mYuvBufferLen[MAX_BURST];
     void *mYuvBuffer[MAX_BURST];
-    void *mJPEGBuffer;
     int  mPreviewFrameSize;
     sp<Overlay>  mOverlay;
     sp<PreviewThread>  mPreviewThread;
-	sp<PROCThread>  mPROCThread;
-	sp<ShutterThread> mShutterThread;
-	sp<RawThread> mRawThread;
-	sp<SnapshotThread> mSnapshotThread;
+    sp<PROCThread>  mPROCThread;
+    sp<ShutterThread> mShutterThread;
+    sp<RawThread> mRawThread;
+    sp<SnapshotThread> mSnapshotThread;
     bool mPreviewRunning;
     bool mIPPInitAlgoState;
     bool mIPPToEnable;
@@ -514,52 +568,62 @@ public:
     sp<MemoryHeapBase> mVideoHeaps[VIDEO_FRAME_COUNT_MAX];
     sp<MemoryBase> mVideoBuffer[VIDEO_FRAME_COUNT_MAX];
 
+#define BUFF_IDLE       (0)
+#define BUFF_Q2DSS      (1)
+#define BUFF_Q2VE       (1<<1)
+    int                 mVideoBufferStatus[MAX_CAMERA_BUFFERS];
+#ifdef DEBUG_LOG
+    void debugShowBufferStatus();
+#else
+#define debugShowBufferStatus()
+#endif
+
+    //Index of current camera adapter
+    int mCameraIndex;
     // ...
     int nOverlayBuffersQueued;
     int nCameraBuffersQueued;
     struct v4l2_buffer v4l2_cam_buffer[MAX_CAMERA_BUFFERS];
-    int buffers_queued_to_dss[MAX_CAMERA_BUFFERS];
-    int buffers_queued_to_ve[MAX_CAMERA_BUFFERS];
     sp<MemoryHeapBase> mPreviewHeaps[MAX_CAMERA_BUFFERS];
     sp<MemoryBase> mPreviewBuffers[MAX_CAMERA_BUFFERS];
-	int mfirstTime;
-    static wp<CameraHardwareInterface> singleton;
+    int mfirstTime;
+    static wp<CameraHardwareInterface> singleton[MAX_CAMERAS_SUPPORTED];
     static int camera_device;
     static const supported_resolution supportedPreviewRes[];
     static const supported_resolution supportedPictureRes[];
     static const char supportedPictureSizes[];
     static const char supportedPreviewSizes[];
     static const char supportedFPS[];
+    static const char supportedFpsRanges[];
     static const char supportedThumbnailSizes[];
+    char focusDistances[FOCUS_DISTANCE_BUFFER_SIZE];
     static const char PARAMS_DELIMITER[];
-	int procPipe[2], shutterPipe[2], rawPipe[2], snapshotPipe[2], snapshotReadyPipe[2];
-	int mippMode;
-	int pictureNumber;
-	int rotation;
+    int procPipe[2], shutterPipe[2], rawPipe[2], snapshotPipe[2], snapshotReadyPipe[2];
+    int mippMode;
+    int pictureNumber;
+    bool mCaptureRunning;
+    int rotation;
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     struct timeval ppm;
-	struct timeval ppm_start;
-	struct timeval ppm_receiveCmdToTakePicture;
-	struct timeval ppm_restartPreview;
+    struct timeval ppm_start;
+    struct timeval ppm_receiveCmdToTakePicture;
+    struct timeval ppm_restartPreview;
     struct timeval focus_before, focus_after;
     struct timeval ppm_before, ppm_after;
     struct timeval ipp_before, ipp_after;
 #endif
-	int lastOverlayBufferDQ;
+    int lastOverlayBufferDQ;
 
 /*--------------Eclair Camera HAL---------------------*/
 
-	notify_callback mNotifyCb;
-	data_callback   mDataCb;
-	data_callback_timestamp mDataCbTimestamp;
-	void                 *mCallbackCookie;
+    notify_callback mNotifyCb;
+    data_callback   mDataCb;
+    data_callback_timestamp mDataCbTimestamp;
+    void                 *mCallbackCookie;
 
-	int32_t             mMsgEnabled;
-	bool                mRecordEnabled;
-	nsecs_t             mCurrentTime[MAX_CAMERA_BUFFERS];
-       nsecs_t             mPrevTime;
-       nsecs_t             frameInterval;
-	bool mFalsePreview;
+    int32_t             mMsgEnabled;
+    bool                mRecordEnabled;
+    bool mFalsePreview;
 
 
 /*--------------Eclair Camera HAL---------------------*/
@@ -569,7 +633,7 @@ public:
 #endif    
     
 #ifdef FW3A
-  	lib3atest_obj *fobj;
+      lib3atest_obj *fobj;
 #endif
 
 #ifdef ICAP
@@ -590,6 +654,7 @@ public:
     int mZoomCurrentIdx, mZoomTargetIdx, mZoomSpeed;
     int mcaf;
     int j;
+    bool useFramerateRange;
 
     enum SmoothZoomStatus {
         SMOOTH_START = 0,
@@ -609,7 +674,7 @@ public:
         PREVIEW_KILL,
         PREVIEW_CAF_START,
         PREVIEW_CAF_STOP,
-		PREVIEW_FPS,
+        PREVIEW_FPS,
         START_SMOOTH_ZOOM,
         STOP_SMOOTH_ZOOM,
         // ACKs        

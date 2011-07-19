@@ -60,6 +60,7 @@
 #define CACHEABLE_BUFFERS 0x1
 #define MAINTAIN_COHERENCY 0x2
 #define OPTIMAL_QBUF_CNT    0x4
+#define SET_CLONE_FD 0x8
 
 #ifdef TARGET_OMAP4
 /* The following defines are used to set the maximum values supported
@@ -69,6 +70,10 @@
 #define MAX_OVERLAY_WIDTH_VAL (2400)
 #define MAX_OVERLAY_HEIGHT_VAL (2048)
 #define MAX_OVERLAY_RESOLUTION ((2048) * (2048))
+
+#define MAX_DSS_UPSCALING_FACTOR 8
+#define MAX_DSS_DOWNSCALING_FACTOR 4
+
 #else
 /* The following defines are used to set the maximum values supported
  * by the overlay.
@@ -78,7 +83,19 @@
 #define MAX_OVERLAY_WIDTH_VAL (1280)
 #define MAX_OVERLAY_HEIGHT_VAL (1280)
 #define MAX_OVERLAY_RESOLUTION (1280 * 720)
+
+#define MAX_DSS_UPSCALING_FACTOR 8
+#define MAX_DSS_DOWNSCALING_FACTOR 4
+
 #endif
+
+/**
+* QQVGA resolution is used as the default overlay window
+* This is required to support panels with various display timings
+*/
+#define QQVGA_WIDTH  160
+#define QQVGA_HEIGHT 120
+
 
 #endif  // OVERLAY_COMMON_H_
 

@@ -120,12 +120,10 @@ OMX_ERRORTYPE TIOMXPlugin::getRolesOfComponent(
             array[i] = new OMX_U8[OMX_MAX_STRINGNAME_SIZE];
         }
 
-        OMX_U32 numRoles2;
         err = (*mGetRolesOfComponentHandle)(
-                const_cast<OMX_STRING>(name), &numRoles2, array);
+                const_cast<OMX_STRING>(name), &numRoles, array);
 
         CHECK_EQ(err, OMX_ErrorNone);
-        CHECK_EQ(numRoles, numRoles2);
 
         for (OMX_U32 i = 0; i < numRoles; ++i) {
             String8 s((const char *)array[i]);

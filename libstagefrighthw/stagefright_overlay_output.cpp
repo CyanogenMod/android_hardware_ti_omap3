@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2011 Texas Instruments
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 #include "TIHardwareRenderer.h"
 
 #include <media/stagefright/HardwareAPI.h>
@@ -6,19 +23,21 @@ using android::sp;
 using android::ISurface;
 using android::VideoRenderer;
 
-VideoRenderer *createRenderer(
+VideoRenderer *createRendererWithRotation(
         const sp<ISurface> &surface,
         const char *componentName,
         OMX_COLOR_FORMATTYPE colorFormat,
         size_t displayWidth, size_t displayHeight,
-        size_t decodedWidth, size_t decodedHeight) {
+        size_t decodedWidth, size_t decodedHeight,
+        int32_t rotationDegrees) {
     using android::TIHardwareRenderer;
 
     TIHardwareRenderer *renderer =
         new TIHardwareRenderer(
                 surface, displayWidth, displayHeight,
                 decodedWidth, decodedHeight,
-                colorFormat);
+                colorFormat,
+                rotationDegrees);
 
     if (renderer->initCheck() != android::OK) {
         delete renderer;
@@ -28,3 +47,57 @@ VideoRenderer *createRenderer(
     return renderer;
 }
 
+//remains for backward compatibility
+VideoRenderer *createRenderer(
+        const sp<ISurface> &surface,
+        const char *componentName,
+        OMX_COLOR_FORMATTYPE colorFormat,
+        size_t displayWidth, size_t displayHeight,
+        size_t decodedWidth, size_t decodedHeight) {
+    return createRendererWithRotation(
+            surface, componentName, colorFormat,
+            displayWidth, displayHeight,
+            decodedWidth, decodedHeight,
+            0);
+}
+
+//S3D
+VideoRenderer *createRendererWithRotation(
+        const sp<ISurface> &surface,
+        const char *componentName,
+        OMX_COLOR_FORMATTYPE colorFormat,
+        size_t displayWidth, size_t displayHeight,
+        size_t decodedWidth, size_t decodedHeight,
+        int32_t rotationDegrees,
+        int isS3D, int numOfOpBuffers) {
+    using android::TIHardwareRenderer;
+
+    TIHardwareRenderer *renderer =
+        new TIHardwareRenderer(
+                surface, displayWidth, displayHeight,
+                decodedWidth, decodedHeight,
+                colorFormat,
+                rotationDegrees,
+                isS3D, numOfOpBuffers);
+    if (renderer->initCheck() != android::OK) {
+        delete renderer;
+        renderer = NULL;
+    }
+
+    return renderer;
+}
+
+//remains for backward compatibility
+VideoRenderer *createRenderer(
+        const sp<ISurface> &surface,
+        const char *componentName,
+        OMX_COLOR_FORMATTYPE colorFormat,
+        size_t displayWidth, size_t displayHeight,
+        size_t decodedWidth, size_t decodedHeight,
+        int isS3D, int numOfOpBuffers) {
+    return createRendererWithRotation(
+            surface, componentName, colorFormat,
+            displayWidth, displayHeight,
+            decodedWidth, decodedHeight,
+            0, isS3D, numOfOpBuffers);
+}

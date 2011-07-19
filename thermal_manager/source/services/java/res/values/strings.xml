@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tm_srv">Thermal Manager Service</string>
+    <string name="tm_state_on">Thermal Manager Activated</string>
+    <string name="tm_state_off">Thermal Manager Stopped</string>
+    <string name="tm_service_label">Thermal Manager Service</string>
+    <string name="tm_service_started">Thermal Manager Service has started</string>
+    <string name="tm_launcher">Thermal Manager Launcher</string>
+</resources>
+

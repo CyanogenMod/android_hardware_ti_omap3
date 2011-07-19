@@ -24,6 +24,7 @@
 *
 */
 
+//#define LOG_NDEBUG 0
 #define LOG_TAG "CameraHal"
 
 #include "CameraHal.h"
@@ -67,11 +68,12 @@ typedef struct {
 } mapping_data_t;
 
 int CameraHal::camera_device = 0;
-wp<CameraHardwareInterface> CameraHal::singleton;
+wp<CameraHardwareInterface> CameraHal::singleton[];
 const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240";
 const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
-const char CameraHal::supportedThumbnailSizes []= "512x384,320x240,80x60,0x0";
+const char CameraHal::supportedThumbnailSizes []= "320x240,80x60,0x0";
+const char CameraHal::supportedFpsRanges [] = "(8000,8000),(8000,10000),(10000,10000),(8000,15000),(15000,15000),(8000,20000),(20000,20000),(24000,24000),(25000,25000),(8000,30000),(30000,30000)";
 const char CameraHal::PARAMS_DELIMITER []= ",";
 
 const supported_resolution CameraHal::supportedPictureRes[] = { {3264, 2448} , {2560, 2048} ,
@@ -101,29 +103,32 @@ int camerahal_strcat(char *dst, const char *src, size_t size)
     return 0;
 }
 
-CameraHal::CameraHal()
-			:mParameters(),
-			mOverlay(NULL),
-			mPreviewRunning(0),
-			mRecordingFrameSize(0),
-			mVideoBufferCount(0),
-			nOverlayBuffersQueued(0),
-			nCameraBuffersQueued(0),
-			mfirstTime(0),
-			pictureNumber(0),
+CameraHal::CameraHal(int cameraId)
+                     :mParameters(),
+                     mOverlay(NULL),
+                     mPreviewRunning(0),
+                     mRecordingFrameSize(0),
+                     mVideoBufferCount(0),
+                     nOverlayBuffersQueued(0),
+                     nCameraBuffersQueued(0),
+                     mfirstTime(0),
+                     pictureNumber(0),
+                     mCaptureRunning(0),
 #ifdef FW3A
-			fobj(NULL),
+                     fobj(NULL),
 #endif
-			file_index(0),
-			mflash(2),
-			mcapture_mode(1),
-			mcaf(0),
-			j(0)
+                     file_index(0),
+                     mflash(2),
+                     mcapture_mode(1),
+                     mcaf(0),
+                     j(0),
+                     useFramerateRange(0)
 {
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
     gettimeofday(&ppm_start, NULL);
 #endif
 
+    mCameraIndex = cameraId;
     isStart_FW3A = false;
     isStart_FW3A_AF = false;
     isStart_FW3A_CAF = false;
@@ -140,7 +145,7 @@ CameraHal::CameraHal()
     mCallbackCookie = 0;
     mMsgEnabled = 0 ;
     mFalsePreview = false;  //Eclair HAL
-    mZoomSpeed = 1;
+    mZoomSpeed = 0;
     mZoomTargetIdx = 0;
     mZoomCurrentIdx = 0;
     mSmoothZoomStatus = SMOOTH_STOP;
@@ -151,6 +156,10 @@ CameraHal::CameraHal()
     gpsLocation = NULL;
 
 #endif
+
+    // Disable ISP resizer on overlay (use DSS resizer)
+    system("echo manual > "
+            "/sys/devices/platform/omap_vout/video4linux/video1/isprsz_mode");
 
     mShutterEnable = true;
     sStart_FW3A_CAF:mCAFafterPreview = false;
@@ -163,10 +172,14 @@ CameraHal::CameraHal()
 #endif
 
     int i = 0;
-    for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++)
-    {
+    for(i = 0; i < VIDEO_FRAME_COUNT_MAX; i++) {
         mVideoBuffer[i] = 0;
-        buffers_queued_to_dss[i] = 0;
+        mVideoBufferStatus[i] = BUFF_IDLE;
+    }
+
+    for (i = 0; i < MAX_BURST; i++) {
+        mYuvBuffer[i] = 0;
+        mYuvBufferLen[i] = 0;
     }
 
     CameraCreate();
@@ -258,6 +271,69 @@ bool CameraHal::validateSize(size_t width, size_t height, const supported_resolu
     return ret;
 }
 
+bool CameraHal::validateRange(int min, int max, const char *supRang)
+{
+    bool ret = false;
+    char * myRange = NULL;
+    char supRang_copy[strlen(supRang)];
+    int myMin = 0;
+    int myMax = 0;
+
+    LOG_FUNCTION_NAME
+
+    if ( NULL == supRang ) {
+        LOGE("Invalid range array passed");
+        return ret;
+    }
+
+    //make a copy of supRang
+    strcpy(supRang_copy, supRang);
+    LOGE("Range: %s", supRang_copy);
+
+    myRange = strtok((char *) supRang_copy, ",");
+    if (NULL != myRange) {
+        myMin = atoi(myRange + 1);
+    }
+
+    myRange = strtok(NULL, ",");
+    if (NULL != myRange) {
+        myRange[strlen(myRange)]='\0';
+        myMax = atoi(myRange);
+    }
+
+    LOGE("Validating range: %d,%d with %d,%d", myMin, myMax, min, max);
+
+    if ( ( myMin == min )&&( myMax == max ) ) {
+        LOGE("Range supported!");
+        return true;
+    }
+
+    for (;;) {
+        myRange = strtok(NULL, ",");
+        if (NULL != myRange) {
+            myMin = atoi(myRange + 1);
+        }
+        else break;
+
+        myRange = strtok(NULL, ",");
+        if (NULL != myRange) {
+            myRange[strlen(myRange)]='\0';
+            myMax = atoi(myRange);
+        }
+        else break;
+        LOGE("Validating range: %d,%d with %d,%d", myMin, myMax, min, max);
+        if ( ( myMin == min )&&( myMax == max ) ) {
+            LOGE("Range found");
+            ret = true;
+            break;
+        }
+    }
+
+    LOG_FUNCTION_NAME_EXIT
+
+    return ret;
+}
+
 void CameraHal::initDefaultParameters()
 {
     CameraParameters p;
@@ -267,7 +343,15 @@ void CameraHal::initDefaultParameters()
     LOG_FUNCTION_NAME
 
     p.setPreviewSize(MIN_WIDTH, MIN_HEIGHT);
+
+    //We must initialize both framerate and fps range.
+    //Application will decide which to use.
+    //If application does not decide, framerate will be used in CameraHAL
+    char fpsRange[32];
+    sprintf(fpsRange, "%d,%d", 30000, 30000);
+    p.set(KEY_PREVIEW_FPS_RANGE, fpsRange);
     p.setPreviewFrameRate(30);
+
     p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV422I);
 
     p.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
@@ -297,6 +381,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, 0);
 
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, CameraHal::supportedPictureSizes);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, CameraHal::supportedFpsRanges);
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
@@ -376,6 +461,8 @@ void CameraHal::initDefaultParameters()
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_MACRO, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
     if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_FIXED, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER)) return;
+    if(camerahal_strcat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO, PARAM_BUFFER)) return;
     p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_AUTO);
 
@@ -390,6 +477,14 @@ void CameraHal::initDefaultParameters()
 
     p.set(CameraParameters::KEY_ROTATION, 0);
     p.set(KEY_ROTATION_TYPE, ROTATION_PHYSICAL);
+    //set the video frame format needed by video capture framework
+    p.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, CameraParameters::PIXEL_FORMAT_YUV422I);
+
+    //Set focus distances near=0.5, optimal=1.5, far="Infinity"
+    //Once when fw3A supports focus distances, update them in CameraHal::GetParameters()
+    sprintf(CameraHal::focusDistances, "%f,%f,%s", FOCUS_DISTANCE_NEAR, FOCUS_DISTANCE_OPTIMAL, CameraParameters::FOCUS_DISTANCE_INFINITY);
+    p.set(CameraParameters::KEY_FOCUS_DISTANCES, CameraHal::focusDistances);
+    p.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, 100);
 
     if (setParameters(p) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
@@ -403,11 +498,11 @@ void CameraHal::initDefaultParameters()
 CameraHal::~CameraHal()
 {
     int err = 0;
-	int procMessage [1];
-	sp<PROCThread> procThread;
-	sp<RawThread> rawThread;
-	sp<ShutterThread> shutterThread;
-	sp<SnapshotThread> snapshotThread;
+    int procMessage [1];
+    sp<PROCThread> procThread;
+    sp<RawThread> rawThread;
+    sp<ShutterThread> shutterThread;
+    sp<SnapshotThread> snapshotThread;
 
     LOG_FUNCTION_NAME
 
@@ -479,7 +574,7 @@ CameraHal::~CameraHal()
     procMessage[0] = RAW_THREAD_EXIT;
     write(rawPipe[1], procMessage, sizeof(unsigned int));
 
-	{ // scope for the lock
+    { // scope for the lock
         Mutex::Autolock lock(mLock);
         rawThread = mRawThread;
     }
@@ -519,6 +614,8 @@ CameraHal::~CameraHal()
 
     ICaptureDestroy();
 
+    freePictureBuffers();
+
 #ifdef FW3A
     FW3A_Release();
     FW3A_Destroy();
@@ -545,7 +642,11 @@ CameraHal::~CameraHal()
         mOverlay->destroy();
     }
 
-    singleton.clear();
+    singleton[mCameraIndex].clear();
+
+    // Re-enable ISP resizer on overlay for 720P playback
+    system("echo auto > "
+            "/sys/devices/platform/omap_vout/video4linux/video1/isprsz_mode");
 
     LOGD("<<< Release");
 }
@@ -557,6 +658,8 @@ void CameraHal::previewThread()
     bool  shouldLive = true;
     bool has_message;
     int err;
+    int flg_AF = 0;
+    int flg_CAF = 0;
     struct pollfd pfd[2];
 
     LOG_FUNCTION_NAME
@@ -590,7 +693,11 @@ void CameraHal::previewThread()
 
             if ( isStart_FW3A_AF ) {
                 err = ICam_ReadStatus(fobj->hnd, &fobj->status);
-                if ( (err == 0) && ( ICAM_AF_STATUS_RUNNING != fobj->status.af.status ) ) {
+                //ICAM_AF_STATUS_IDLE is the state when AF algorithm is not working,
+                //but waiting for the lens to go to start position.
+                //In this case, AF is running, so we are waiting for AF to finish like
+                //in ICAM_AF_STATUS_RUNNING state.
+                if ( (err == 0) && ( ICAM_AF_STATUS_RUNNING != fobj->status.af.status ) && ( ICAM_AF_STATUS_IDLE != fobj->status.af.status ) ) {
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
@@ -637,7 +744,21 @@ void CameraHal::previewThread()
                 LOGD("Receive Command: PREVIEW_START");
                 err = 0;
 
-                if( ! mPreviewRunning ) {
+                if ( mCaptureRunning ) {
+
+#ifdef FW3A
+
+                    if ( flg_CAF ) {
+                        if( FW3A_Start_CAF() < 0 ) {
+                            LOGE("Error while starting CAF");
+                            err = -1;
+                        }
+                    }
+
+#endif
+                }
+
+                else if( ! mPreviewRunning ) {
 
                     if( CameraCreate() < 0){
                         LOGE("ERROR CameraCreate()");
@@ -701,6 +822,8 @@ void CameraHal::previewThread()
                 if ( !err ) {
                     LOGD("Preview Started!");
                     mPreviewRunning = true;
+                    mCaptureRunning = false;
+                    debugShowBufferStatus();
                 }
 
                 previewThreadAckQ.put(&msg);
@@ -799,7 +922,7 @@ void CameraHal::previewThread()
             case PREVIEW_AF_START:
             {
                 LOGD("Receive Command: PREVIEW_AF_START");
-				err = 0;
+                err = 0;
 
                 if( !mPreviewRunning ){
                     LOGD("WARNING PREVIEW NOT RUNNING!");
@@ -847,6 +970,44 @@ void CameraHal::previewThread()
                 }
                 LOGD("Receive Command: PREVIEW_AF_START %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK");
                 previewThreadAckQ.put(&msg);
+            }
+            break;
+
+            case PREVIEW_AF_STOP:
+            {
+                LOGD("Receive Command: PREVIEW_AF_STOP");
+                err = 0;
+
+                if( !mPreviewRunning ){
+                    LOGD("WARNING PREVIEW NOT RUNNING!");
+                    msg.command = PREVIEW_NACK;
+                } else {
+
+#ifdef FW3A
+
+                    if (isStart_FW3A&&(isStart_FW3A_AF != 0)){
+                        if( FW3A_Stop_AF() < 0){
+                            LOGE("ERROR FW3A_Stop_AF()");
+                            err = -1;
+                        }
+                        else
+                            isStart_FW3A_AF = 0;
+                    }
+                    else {
+                        err = -1;
+                    }
+
+                    msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
+
+#else
+
+                    msg.command = PREVIEW_ACK;
+
+#endif
+                }
+                LOGD("Receive Command: PREVIEW_AF_STOP %s", msg.command == PREVIEW_NACK ? "NACK" : "ACK");
+                previewThreadAckQ.put(&msg);
+
             }
             break;
 
@@ -900,8 +1061,14 @@ void CameraHal::previewThread()
 
            case PREVIEW_CAPTURE:
            {
-                int flg_AF = 0;
-                int flg_CAF = 0;
+
+                if ( mCaptureRunning ) {
+                    LOGE("Capture is already running. Returning.");
+                    msg.command = PREVIEW_NACK;
+                    previewThreadAckQ.put(&msg);
+                    break;
+                }
+
                 err = 0;
 
 #ifdef DEBUG_LOG
@@ -917,7 +1084,7 @@ void CameraHal::previewThread()
 #endif
 
                 // Boost DSP OPP to highest level
-                SetDSPHz(DSP3630_HZ_MAX);
+                SetDSPKHz(DSP3630_KHZ_MAX);
 
                 if( mPreviewRunning ) {
                     if( CameraStop() < 0){
@@ -1011,16 +1178,7 @@ void CameraHal::previewThread()
 
 #endif
 
-#ifdef FW3A
-
-                    if ( flg_CAF ) {
-                        if( FW3A_Start_CAF() < 0 )
-                            LOGE("Error while starting CAF");
-                    }
-
-#endif
-
-               mPreviewRunning = true;
+               mCaptureRunning = true;
 
                msg.command = PREVIEW_ACK;
                previewThreadAckQ.put(&msg);
@@ -1117,7 +1275,7 @@ int CameraHal::CameraDestroy(bool destroyOverlay)
             mPreviewHeaps[i].clear();
             mVideoBuffer[i].clear();
             mVideoHeaps[i].clear();
-            buffers_queued_to_dss[i] = 0;
+            mVideoBufferStatus[i] = BUFF_IDLE;
         }
         mOverlay->destroy();
         mOverlay = NULL;
@@ -1134,6 +1292,7 @@ int CameraHal::CameraConfigure()
     int w, h, framerate;
     int image_width, image_height;
     int err;
+    int framerate_min = 0, framerate_max = 0;
     struct v4l2_format format;
     enum v4l2_buf_type type;
     struct v4l2_control vc;
@@ -1157,9 +1316,14 @@ int CameraHal::CameraConfigure()
 
     LOGI("CameraConfigure PreviewFormat: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);
 
-    framerate = mParameters.getPreviewFrameRate();
-
-    LOGD("CameraConfigure: framerate to set = %d",framerate);
+    if (useFramerateRange) {
+        mParameters.getPreviewFpsRange(&framerate_min, &framerate_max);
+        LOGD("CameraConfigure: framerate to set: min = %d, max = %d",framerate_min, framerate_max);
+    }
+    else {
+        framerate_max = mParameters.getPreviewFrameRate();
+        LOGD("CameraConfigure: framerate to set = %d", framerate_max);
+    }
 
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     err = ioctl(camera_device, VIDIOC_G_PARM, &parm);
@@ -1173,9 +1337,19 @@ int CameraHal::CameraConfigure()
     parm.parm.capture.timeperframe.numerator);
 
     parm.parm.capture.timeperframe.numerator = 1;
-    //Framerate 0 does not make sense in kernel context
-    if ( framerate!=0 ) parm.parm.capture.timeperframe.denominator = framerate;
-    else ( parm.parm.capture.timeperframe.denominator ) = 30;
+
+    if (useFramerateRange) {
+        //Gingerbread changes for FPS - set range of min and max fps
+        if ( (MIN_FPS*1000 <= framerate_min)&&(framerate_min <= framerate_max)&&(framerate_max<=MAX_FPS*1000) ) {
+            parm.parm.capture.timeperframe.denominator = framerate_max/1000;
+        }
+        else parm.parm.capture.timeperframe.denominator = 30;
+    }
+    else {
+        if ( framerate_max != 0 ) parm.parm.capture.timeperframe.denominator = framerate_max;
+        else  parm.parm.capture.timeperframe.denominator  = 30;
+    }
+
     err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
     if(err != 0) {
         LOGE("VIDIOC_S_PARM ");
@@ -1255,16 +1429,12 @@ int CameraHal::CameraStart()
         LOGD("User Buffer [%d].start = %p  length = %d\n", i,
              (void*)v4l2_cam_buffer[i].m.userptr, v4l2_cam_buffer[i].length);
 
-        if (buffers_queued_to_dss[i] == 0)
-        {
-            if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[i]) < 0) {
-                LOGE("CameraStart VIDIOC_QBUF Failed: %s", strerror(errno) );
+        if (mVideoBufferStatus[i] == BUFF_IDLE) {
+            if (false == queueToCamera(i))
                 goto fail_loop;
-            }else{
-                nCameraBuffersQueued++;
-            }
-         }
-         else LOGI("CameraStart::Could not queue buffer %d to Camera because it is being held by Overlay", i);
+        } else {
+            LOGI("CameraStart::Could not queue buffer %d to Camera because it is being held by Overlay", i);
+        }
 
         // ensure we release any stale ref's to sp
         mPreviewBuffers[i].clear();
@@ -1272,14 +1442,6 @@ int CameraHal::CameraStart()
 
         mPreviewHeaps[i] = new MemoryHeapBase(data->fd,mPreviewFrameSize, 0, data->offset);
         mPreviewBuffers[i] = new MemoryBase(mPreviewHeaps[i], 0, mPreviewFrameSize);
-
-    }
-
-    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    err = ioctl(camera_device, VIDIOC_STREAMON, &type);
-    if ( err < 0) {
-        LOGE("VIDIOC_STREAMON Failed");
-        goto fail_loop;
     }
 
     if( ioctl(camera_device, VIDIOC_G_CROP, &mInitialCrop) < 0 ){
@@ -1296,7 +1458,13 @@ int CameraHal::CameraStart()
 
         mZoomCurrentIdx = mZoomTargetIdx;
         mParameters.set("zoom", (int) mZoomCurrentIdx);
-        mNotifyCb(CAMERA_MSG_ZOOM, (int) mZoomCurrentIdx, 1, mCallbackCookie);
+    }
+
+    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    err = ioctl(camera_device, VIDIOC_STREAMON, &type);
+    if ( err < 0) {
+        LOGE("VIDIOC_STREAMON Failed");
+        goto fail_loop;
     }
 
     LOG_FUNCTION_NAME_EXIT
@@ -1312,49 +1480,23 @@ fail_reqbufs:
 
 int CameraHal::CameraStop()
 {
-
-#ifdef DEBUG_LOG
-
     LOG_FUNCTION_NAME
 
-#endif
+    nCameraBuffersQueued = 0;
 
-    int ret;
     struct v4l2_requestbuffers creqbuf;
-    struct v4l2_buffer cfilledbuffer;
-    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-
-    while(nCameraBuffersQueued){
-        nCameraBuffersQueued--;
-    }
-
-#ifdef DEBUG_LOG
-
-	LOGD("Done dequeuing from Camera!");
-
-#endif
-
     creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
         LOGE("VIDIOC_STREAMOFF Failed");
-        goto fail_streamoff;
+        return -1;
     }
 
-	//Force the zoom to be updated next time preview is started.
-	mZoomCurrentIdx = 0;
-
-#ifdef DEBUG_LOG
+    //Force the zoom to be updated next time preview is started.
+    mZoomCurrentIdx = 0;
 
     LOG_FUNCTION_NAME_EXIT
 
-#endif
-
     return 0;
-
-fail_streamoff:
-
-    return -1;
 }
 
 static void debugShowFPS()
@@ -1377,37 +1519,35 @@ static void debugShowFPS()
 void CameraHal::queueToOverlay(int index)
 {
     int nBuffers_queued_to_dss = mOverlay->queueBuffer((void*)index);
-    if (nBuffers_queued_to_dss < 0)
-    {
-        if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[index]) < 0) {
-            LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
-        }
-        else nCameraBuffersQueued++;
+    if (nBuffers_queued_to_dss < 0) {
+        LOGE("Failed queue buffer#%d to overlay! Queue it back to camera.", index);
+        debugShowBufferStatus();
+        queueToCamera(index);
+        return;
     }
-    else
-    {
-        nOverlayBuffersQueued++;
-        buffers_queued_to_dss[index] = 1; //queued
-        if (nBuffers_queued_to_dss != nOverlayBuffersQueued)
-        {
-            LOGD("nBuffers_queued_to_dss = %d, nOverlayBuffersQueued = %d", nBuffers_queued_to_dss, nOverlayBuffersQueued);
-            LOGD("buffers in DSS \n %d %d %d  %d %d %d", buffers_queued_to_dss[0], buffers_queued_to_dss[1],
-            buffers_queued_to_dss[2], buffers_queued_to_dss[3], buffers_queued_to_dss[4], buffers_queued_to_dss[5]);
-            //Queue all the buffers that were discarded by DSS upon STREAM OFF, back to camera.
-            for(int k = 0; k < MAX_CAMERA_BUFFERS; k++)
-            {
-                if ((buffers_queued_to_dss[k] == 1) && (k != index))
-                {
-                    buffers_queued_to_dss[k] = 0;
-                    nOverlayBuffersQueued--;
-                    if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[k]) < 0) {
-                        LOGE("VIDIOC_QBUF Failed, line=%d. Buffer lost forever.",__LINE__);
-                    }else{
-                        nCameraBuffersQueued++;
-                        LOGD("Reclaiming buffer [%d] from Overlay", k);
-                    }
-                }
-            }
+
+    nOverlayBuffersQueued++;
+    mVideoBufferStatus[index] |= BUFF_Q2DSS;
+
+    if (nBuffers_queued_to_dss == nOverlayBuffersQueued) {
+        // No error.
+        return;
+    }
+
+    LOGW("Found some buffers discarded by DSS upon STREAM OFF!");
+    LOGD("nOverlayBuffersQueued=%d, nBuffers_queued_to_dss=%d",
+            nOverlayBuffersQueued, nBuffers_queued_to_dss);
+    debugShowBufferStatus();
+    //Queue all the buffers that were discarded by DSS upon STREAM OFF, back to camera.
+    for(int k = 0; k < MAX_CAMERA_BUFFERS; k++) {
+        if (k == index)
+            continue;
+
+        if (mVideoBufferStatus[k] & BUFF_Q2DSS) {
+            mVideoBufferStatus[k] &= ~BUFF_Q2DSS;
+            nOverlayBuffersQueued--;
+
+            queueToCamera(k);
         }
     }
 }
@@ -1415,29 +1555,73 @@ void CameraHal::queueToOverlay(int index)
 int CameraHal::dequeueFromOverlay()
 {
     overlay_buffer_t overlaybuffer;// contains the index of the buffer dque
+    if (nOverlayBuffersQueued < NUM_BUFFERS_TO_BE_QUEUED_FOR_OPTIMAL_PERFORMANCE) {
+        LOGV("skip dequeue. nOverlayBuffersQueued = %d", nOverlayBuffersQueued);
+        return -1;
+    }
 
     int dequeue_from_dss_failed = mOverlay->dequeueBuffer(&overlaybuffer);
-    if(!dequeue_from_dss_failed){
-        nOverlayBuffersQueued--;
-        buffers_queued_to_dss[(int)overlaybuffer] = 0;
-        lastOverlayBufferDQ = (int)overlaybuffer;
-        return (int)overlaybuffer;
+    if(dequeue_from_dss_failed) {
+        LOGD("no buffer to dequeue in overlay");
+        return -1;
     }
-    return -1;
+
+    nOverlayBuffersQueued--;
+    mVideoBufferStatus[(int)overlaybuffer] &= ~BUFF_Q2DSS;
+    lastOverlayBufferDQ = (int)overlaybuffer;
+
+    return (int)overlaybuffer;
 }
 
-void CameraHal::nextPreview()
+bool CameraHal::__queueToCamera(int index, int line)
+{
+    if (0 > index || MAX_CAMERA_BUFFERS < index) {
+        LOGE("wrong index %d, line=%d", index, line);
+        return false;
+    }
+
+    if (mVideoBufferStatus[index] != BUFF_IDLE) {
+        LOGW("ignore trying queue non-idle buffer#%d(stat=%d) to camera. line=%d",
+                index, mVideoBufferStatus[index], line);
+        return false;
+    }
+
+    if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[index]) < 0) {
+        LOGE("VIDIOC_QBUF Failed. buffer#%d(stat=%d), line=%d", index, mVideoBufferStatus[index],line);
+        return false;
+    }
+
+    nCameraBuffersQueued++;
+    return true;
+}
+
+int CameraHal::dequeueFromCamera(nsecs_t *timestamp)
 {
     struct v4l2_buffer cfilledbuffer;
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-    int w, h, ret;
+
+    if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
+        LOGE("VIDIOC_DQBUF Failed!!!");
+        return -1;
+    }
+
+    nCameraBuffersQueued--;
+
+    int index = cfilledbuffer.index;
+    if (NULL != timestamp) {
+        *timestamp = s2ns(cfilledbuffer.timestamp.tv_sec) + us2ns(cfilledbuffer.timestamp.tv_usec);
+    }
+    //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, mPreviewFrameSize);
+
+    return index;
+}
+
+void CameraHal::nextPreview()
+{
     static int frame_count = 0;
     int zoom_inc, err;
     struct timeval lowLightTime;
-    int overlaybufferindex = -1; //contains the last buffer dque or -1 if dque failed
-
-    mParameters.getPreviewSize(&w, &h);
 
     //Zoom
     frame_count++;
@@ -1457,19 +1641,27 @@ void CameraHal::nextPreview()
         }
 
         ZoomPerform(zoom_step[mZoomCurrentIdx]);
-        mParameters.set("zoom", mZoomCurrentIdx);
 
+        // Update mParameters with current zoom position only if smooth zoom is used
         // Immediate zoom should not generate callbacks.
-        if ( mSmoothZoomStatus == SMOOTH_START ||  mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)  {
-            if(mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)
+        if ( mZoomSpeed > 0 ){
+            //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
             {
-                mZoomTargetIdx = mZoomCurrentIdx;
-                mSmoothZoomStatus = SMOOTH_STOP;
+                Mutex::Autolock lock(mLock);
+                mParameters.set("zoom", mZoomCurrentIdx);
             }
-            if( mZoomCurrentIdx == mZoomTargetIdx )
-                mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
-            else
-                mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
+
+            if ( mSmoothZoomStatus == SMOOTH_START ||  mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP)  {
+                if(mSmoothZoomStatus == SMOOTH_NOTIFY_AND_STOP) {
+                    mZoomTargetIdx = mZoomCurrentIdx;
+                    mSmoothZoomStatus = SMOOTH_STOP;
+                }
+                if( mZoomCurrentIdx == mZoomTargetIdx ){
+                    mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 1, mCallbackCookie);
+                } else {
+                    mNotifyCb(CAMERA_MSG_ZOOM, mZoomCurrentIdx, 0, mCallbackCookie);
+                }
+            }
         }
     }
 
@@ -1485,9 +1677,21 @@ void CameraHal::nextPreview()
         err = ICam_ReadStatus(fobj->hnd, &fobj->status);
         if (err == 0) {
             if (fobj->status.ae.camera_shake == ICAM_SHAKE_HIGH_RISK2) {
-                mParameters.set("low-light", "1");
+
+                //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
+                {
+                    Mutex::Autolock lock(mLock);
+                    mParameters.set("low-light", "1");
+                }
+
             } else {
-                mParameters.set("low-light", "0");
+
+                //Avoid segfault. mParameters may be used somewhere else, e.g. in SetParameters()
+                {
+                    Mutex::Autolock lock(mLock);
+                    mParameters.set("low-light", "0");
+                }
+
             }
          }
 
@@ -1501,79 +1705,48 @@ void CameraHal::nextPreview()
     }
 #endif
 
-    if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
-        LOGE("VIDIOC_DQBUF Failed!!!");
-        goto EXIT;
-    }else{
-        nCameraBuffersQueued--;
+    nsecs_t timestamp;
+    int index = dequeueFromCamera(&timestamp);
+    if (-1 == index) {
+        return;
     }
-    mCurrentTime[cfilledbuffer.index] = s2ns(cfilledbuffer.timestamp.tv_sec) + us2ns(cfilledbuffer.timestamp.tv_usec);
 
-    //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, mPreviewFrameSize);
-
-    if( msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME) )
-        mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewBuffers[cfilledbuffer.index], mCallbackCookie);
-
-    queueToOverlay(cfilledbuffer.index);
-    overlaybufferindex = dequeueFromOverlay();
+    if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
+        mDataCb(CAMERA_MSG_PREVIEW_FRAME,
+                mPreviewBuffers[index], mCallbackCookie);
 
     mRecordingLock.lock();
-
-    if(mRecordEnabled)
-    {
-        if(overlaybufferindex != -1) // dequeued a valid buffer from overlay
-        {
-            if (nCameraBuffersQueued == 0)
-            {
-                /* Drop the frame. Camera is starving. */
-                if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[overlaybufferindex]) < 0) {
-                    LOGE("VIDIOC_QBUF Failed, line=%d",__LINE__);
-                }
-                else nCameraBuffersQueued++;
-                LOGD("Didnt queue this buffer to VE.");
-                if (mPrevTime < mCurrentTime[overlaybufferindex])
-                    mPrevTime = mCurrentTime[overlaybufferindex];
-                else
-                    mPrevTime += frameInterval;
-            }
-            else
-            {
-                buffers_queued_to_ve[overlaybufferindex] = 1;
-                if (mPrevTime > mCurrentTime[overlaybufferindex])
-                {
-                    //LOGW("Had to adjust the timestamp. Clock went back in time. mCurrentTime = %lld, mPrevTime = %llu", mCurrentTime[overlaybufferindex], mPrevTime);
-                    mCurrentTime[overlaybufferindex] = mPrevTime + frameInterval;
-                }
-#ifdef OMAP_ENHANCEMENT
-                mDataCbTimestamp(mCurrentTime[overlaybufferindex], CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[overlaybufferindex], mCallbackCookie, 0, 0);
-#else
-                mDataCbTimestamp(mCurrentTime[overlaybufferindex], CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[overlaybufferindex], mCallbackCookie);
-#endif
-                mPrevTime = mCurrentTime[overlaybufferindex];
-            }
-        }
-    }
-    else
-    {
-        if (overlaybufferindex != -1) {	// dequeued a valid buffer from overlay
-            if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[overlaybufferindex]) < 0) {
-                LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
-            }else{
-                nCameraBuffersQueued++;
-            }
-        }
+    if (nCameraBuffersQueued == 0) {
+        LOGV("Drop the frame. Camera is starving");
+        queueToCamera(index);
+        goto queue_and_exit;
     }
 
+    if(mRecordEnabled) {
+        mVideoBufferStatus[index] |= BUFF_Q2VE;
+        mDataCbTimestamp(timestamp, CAMERA_MSG_VIDEO_FRAME,
+                mVideoBuffer[index], mCallbackCookie, 0, 0);
+    }
+
+    queueToOverlay(index);
+
+queue_and_exit:
+    index = dequeueFromOverlay();
+    if(-1 == index) {
+        goto exit;
+    }
+
+    if (mVideoBufferStatus[index] == BUFF_IDLE)
+        queueToCamera(index);
+
+exit:
     mRecordingLock.unlock();
-
 
     if (UNLIKELY(mDebugFps)) {
         debugShowFPS();
     }
 
-EXIT:
-
-    return ;
+    return;
 }
 
 #ifdef ICAP
@@ -1596,10 +1769,10 @@ int  CameraHal::ICapturePerform()
     icap_resolution_cap_t spec_res;
     icap_buffer_t capture_buffer;
     icap_process_mode_e mode;
-    unsigned int procMessage[PROC_THREAD_NUM_ARGS],
+    unsigned int procMessage[PROC_MSG_IDX_MAX],
             shutterMessage[SHUTTER_THREAD_NUM_ARGS],
             rawMessage[RAW_THREAD_NUM_ARGS];
-	int pixelFormat;
+    int pixelFormat;
     exif_buffer *exif_buf;
     mode = ICAP_PROCESS_MODE_CONTINUOUS;
 
@@ -1627,7 +1800,7 @@ int  CameraHal::ICapturePerform()
 
 #ifdef DEBUG_LOG
 
-	LOGD("MakerNote 0x%x, size %d", ( unsigned int ) fobj->mnote.buffer,fobj->mnote.filled_size);
+    LOGD("MakerNote 0x%x, size %d", ( unsigned int ) fobj->mnote.buffer,fobj->mnote.filled_size);
 
     LOGD("shutter_cap = %d ; again_cap = %d ; awb_index = %d; %d %d %d %d\n",
         (int)fobj->status.ae.shutter_cap, (int)fobj->status.ae.again_cap,
@@ -1659,14 +1832,18 @@ int  CameraHal::ICapturePerform()
             iobj->cfg.notify.cb_snapshot = onGeneratedSnapshot;
             iobj->cfg.snapshot_width = preview_width;
             iobj->cfg.snapshot_height = preview_height;
-            fixedZoom = (uint32_t) (zoom_step[mZoomTargetIdx]*ZOOM_SCALE);
+            fixedZoom = (uint32_t) (zoom_step[0]*ZOOM_SCALE);
 
             iobj->cfg.zoom.enable = ICAP_ENABLE;
             iobj->cfg.zoom.vertical = fixedZoom;
             iobj->cfg.zoom.horizontal = fixedZoom;
         }
         iobj->cfg.notify.cb_mknote = onMakernote;
-        iobj->cfg.notify.cb_ipp = onIPP;
+#ifdef IMAGE_PROCESSING_PIPELINE
+        iobj->cfg.notify.cb_ipp = (mippMode != IPP_Disabled_Mode) ? onIPP : NULL;
+#else
+        iobj->cfg.notify.cb_ipp = NULL;
+#endif
     } else {
         spec_res.capture_mode  = ICAP_CAPTURE_MODE_HP;
         iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
@@ -1740,7 +1917,7 @@ int  CameraHal::ICapturePerform()
 
 #if DEBUG_LOG
 
-	PPM("Before ICapture Config");
+    PPM("Before ICapture Config");
 
 #endif
 
@@ -1757,7 +1934,7 @@ int  CameraHal::ICapturePerform()
 
     PPM("ICapture config OK");
 
-	LOGD("iobj->cfg.image_width = %d = 0x%x iobj->cfg.image_height=%d = 0x%x , iobj->cfg.sizeof_img_buf = %d", (int)iobj->cfg.width, (int)iobj->cfg.width, (int)iobj->cfg.height, (int)iobj->cfg.height, (int) spec_res.buffer_size);
+    LOGD("iobj->cfg.image_width = %d = 0x%x iobj->cfg.image_height=%d = 0x%x , iobj->cfg.sizeof_img_buf = %d", (int)iobj->cfg.width, (int)iobj->cfg.width, (int)iobj->cfg.height, (int)iobj->cfg.height, (int) spec_res.buffer_size);
 
 #endif
 
@@ -1777,13 +1954,14 @@ int  CameraHal::ICapturePerform()
         goto fail_config;
     }
 
-    allocatePictureBuffer(spec_res.buffer_size, mBurstShots);
+    allocatePictureBuffers(spec_res.buffer_size, mBurstShots);
 
     for ( int i = 0; i < mBurstShots; i++ ) {
-        capture_buffer.buffer = mYuvBuffer[i];
+        capture_buffer.buffer = (void *) NEXT_4K_ALIGN_ADDR((unsigned int) mYuvBuffer[i]);
         capture_buffer.alloc_size = spec_res.buffer_size;
 
-        LOGE ("ICapture push buffer 0x%x, len %d", ( unsigned int ) mYuvBuffer[i], spec_res.buffer_size);
+        LOGE ("ICapture push buffer 0x%x, len %d",
+                ( unsigned int ) capture_buffer.buffer, capture_buffer.alloc_size);
         status = icap_push_buffer(iobj->lib_private, &capture_buffer, &snapshotBuffer);
         if( ICAP_STATUS_FAIL == status){
             LOGE ("ICapture push buffer function failed");
@@ -1796,7 +1974,7 @@ int  CameraHal::ICapturePerform()
 
 #if DEBUG_LOG
 
-	PPM("BEFORE ICapture Process");
+    PPM("BEFORE ICapture Process");
 
 #endif
 
@@ -1862,63 +2040,59 @@ int  CameraHal::ICapturePerform()
         gpsLocation = NULL;
     }
 
-    procMessage[0] = PROC_THREAD_PROCESS;
-    procMessage[1] = iobj->cfg.width;
-    procMessage[2] = iobj->cfg.height;
-    procMessage[3] = image_width;
-    procMessage[4] = image_height;
-    procMessage[5] = pixelFormat;
+    procMessage[PROC_MSG_IDX_ACTION] = PROC_THREAD_PROCESS;
+    procMessage[PROC_MSG_IDX_CAPTURE_W] = iobj->cfg.width;
+    procMessage[PROC_MSG_IDX_CAPTURE_H] = iobj->cfg.height;
+    procMessage[PROC_MSG_IDX_IMAGE_W] = image_width;
+    procMessage[PROC_MSG_IDX_IMAGE_H] = image_height;
+    procMessage[PROC_MSG_IDX_PIX_FMT] = pixelFormat;
 
 #ifdef IMAGE_PROCESSING_PIPELINE
-
-    procMessage[6]  = mIPPParams.EdgeEnhancementStrength;
-    procMessage[7]  = mIPPParams.WeakEdgeThreshold;
-    procMessage[8]  = mIPPParams.StrongEdgeThreshold;
-    procMessage[9]  = mIPPParams.LowFreqLumaNoiseFilterStrength;
-    procMessage[10] = mIPPParams.MidFreqLumaNoiseFilterStrength;
-    procMessage[11] = mIPPParams.HighFreqLumaNoiseFilterStrength;
-    procMessage[12] = mIPPParams.LowFreqCbNoiseFilterStrength;
-    procMessage[13] = mIPPParams.MidFreqCbNoiseFilterStrength;
-    procMessage[14] = mIPPParams.HighFreqCbNoiseFilterStrength;
-    procMessage[15] = mIPPParams.LowFreqCrNoiseFilterStrength;
-    procMessage[16] = mIPPParams.MidFreqCrNoiseFilterStrength;
-    procMessage[17] = mIPPParams.HighFreqCrNoiseFilterStrength;
-    procMessage[18] = mIPPParams.shadingVertParam1;
-    procMessage[19] = mIPPParams.shadingVertParam2;
-    procMessage[20] = mIPPParams.shadingHorzParam1;
-    procMessage[21] = mIPPParams.shadingHorzParam2;
-    procMessage[22] = mIPPParams.shadingGainScale;
-    procMessage[23] = mIPPParams.shadingGainOffset;
-    procMessage[24] = mIPPParams.shadingGainMaxValue;
-    procMessage[25] = mIPPParams.ratioDownsampleCbCr;
-
+    procMessage[PROC_MSG_IDX_IPP_MODE] = mippMode;
+    if (mippMode != IPP_Disabled_Mode) {
+        procMessage[PROC_MSG_IDX_IPP_TO_ENABLE] = mIPPToEnable;
+        procMessage[PROC_MSG_IDX_IPP_EES]  = mIPPParams.EdgeEnhancementStrength;
+        procMessage[PROC_MSG_IDX_IPP_WET]  = mIPPParams.WeakEdgeThreshold;
+        procMessage[PROC_MSG_IDX_IPP_SET]  = mIPPParams.StrongEdgeThreshold;
+        procMessage[PROC_MSG_IDX_IPP_LFLNFS]  = mIPPParams.LowFreqLumaNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_MFLNFS] = mIPPParams.MidFreqLumaNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_HFLNFS] = mIPPParams.HighFreqLumaNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_LFCBNFS] = mIPPParams.LowFreqCbNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_MFCBNFS] = mIPPParams.MidFreqCbNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_HFCBNFS] = mIPPParams.HighFreqCbNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_LFCRNFS] = mIPPParams.LowFreqCrNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_MFCRNFS] = mIPPParams.MidFreqCrNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_HFCRNFS] = mIPPParams.HighFreqCrNoiseFilterStrength;
+        procMessage[PROC_MSG_IDX_IPP_SVP1] = mIPPParams.shadingVertParam1;
+        procMessage[PROC_MSG_IDX_IPP_SVP2] = mIPPParams.shadingVertParam2;
+        procMessage[PROC_MSG_IDX_IPP_SHP1] = mIPPParams.shadingHorzParam1;
+        procMessage[PROC_MSG_IDX_IPP_SHP2] = mIPPParams.shadingHorzParam2;
+        procMessage[PROC_MSG_IDX_IPP_SGS] = mIPPParams.shadingGainScale;
+        procMessage[PROC_MSG_IDX_IPP_SGO] = mIPPParams.shadingGainOffset;
+        procMessage[PROC_MSG_IDX_IPP_SGMV] = mIPPParams.shadingGainMaxValue;
+        procMessage[PROC_MSG_IDX_IPP_RDSCBCR] = mIPPParams.ratioDownsampleCbCr;
+    }
 #endif
 
-    procMessage[26] = (unsigned int) mYuvBuffer[i];
-    procMessage[27] = mPictureOffset[i];
-    procMessage[28] = mPictureLength[i];
-    procMessage[29] = rotation;
+    procMessage[PROC_MSG_IDX_YUV_BUFF] = (unsigned int) mYuvBuffer[i];
+    procMessage[PROC_MSG_IDX_YUV_BUFFLEN] = mYuvBufferLen[i];
+    procMessage[PROC_MSG_IDX_ROTATION] = rotation;
 
-    if ( mcapture_mode == 1 ) {
-        procMessage[30] = mZoomTargetIdx;
-    } else {
-        procMessage[30] = 0;
-    }
+    procMessage[PROC_MSG_IDX_ZOOM] = mZoomTargetIdx;
 
-    procMessage[31] = mippMode;
-    procMessage[32] = mIPPToEnable;
-    procMessage[33] = quality;
-    procMessage[34] = (unsigned int) mDataCb;
-    procMessage[35] = 0;
-    procMessage[36] = (unsigned int) mCallbackCookie;
-    procMessage[37] = 0;
-    procMessage[38] = 0;
-    procMessage[39] = iobj->cfg.width;
-    procMessage[40] = iobj->cfg.height;
-    procMessage[41] = thumb_width;
-    procMessage[42] = thumb_height;
-
-    procMessage[43] = (unsigned int) exif_buf;
+    procMessage[PROC_MSG_IDX_JPEG_QUALITY] = quality;
+    procMessage[PROC_MSG_IDX_JPEG_CB] = (unsigned int) mDataCb;
+    procMessage[PROC_MSG_IDX_RAW_CB] = 0;
+    procMessage[PROC_MSG_IDX_CB_COOKIE] = (unsigned int) mCallbackCookie;
+    procMessage[PROC_MSG_IDX_CROP_L] = 0;
+    procMessage[PROC_MSG_IDX_CROP_T] = 0;
+    procMessage[PROC_MSG_IDX_CROP_W] = iobj->cfg.width;
+    procMessage[PROC_MSG_IDX_CROP_H] = iobj->cfg.height;
+    procMessage[PROC_MSG_IDX_THUMB_W] = thumb_width;
+    procMessage[PROC_MSG_IDX_THUMB_H] = thumb_height;
+#ifdef HARDWARE_OMX
+    procMessage[PROC_MSG_IDX_EXIF_BUFF] = (unsigned int) exif_buf;
+#endif
 
     write(procPipe[1], &procMessage, sizeof(procMessage));
 
@@ -1969,7 +2143,7 @@ int CameraHal::ICapturePerform(){
     int image_width, image_height;
     int image_rotation;
     double image_zoom;
-	int preview_width, preview_height;
+    int preview_width, preview_height;
     unsigned long base, offset;
     struct v4l2_buffer buffer;
     struct v4l2_format format;
@@ -1981,7 +2155,7 @@ int CameraHal::ICapturePerform(){
     void * outBuffer;
     sp<MemoryHeapBase>  mJPEGPictureHeap;
     sp<MemoryBase>          mJPEGPictureMemBase;
-	unsigned int vppMessage[3];
+    unsigned int vppMessage[3];
     int err, i;
     int snapshot_buffer_index;
     void* snapshot_buffer;
@@ -1994,8 +2168,8 @@ int CameraHal::ICapturePerform(){
 
     LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
 
-	if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && mShutterEnable)
-		mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
+    if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && mShutterEnable)
+        mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
 
     mParameters.getPictureSize(&image_width, &image_height);
     mParameters.getPreviewSize(&preview_width, &preview_height);
@@ -2061,7 +2235,7 @@ int CameraHal::ICapturePerform(){
     base = (unsigned long)mPictureHeap->getBase();
 
 #if ALIGMENT
-	base = (base + 0xfff) & 0xfffff000;
+    base = NEXT_4K_ALIGN_ADDR(base);
 #else
     /*Align buffer to 32 byte boundary */
     while ((base & 0x1f) != 0)
@@ -2124,9 +2298,9 @@ int CameraHal::ICapturePerform(){
         return -1;
     }
 
-	if( msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ){
-		mDataCb(CAMERA_MSG_RAW_IMAGE, mPictureBuffer,mCallbackCookie);
-	}
+    if( msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ){
+        mDataCb(CAMERA_MSG_RAW_IMAGE, mPictureBuffer,mCallbackCookie);
+    }
 
     yuv_buffer = (uint8_t*)buffer.m.userptr;
     LOGD("PictureThread: generated a picture, yuv_buffer=%p yuv_len=%d",yuv_buffer,yuv_len);
@@ -2179,42 +2353,42 @@ int CameraHal::ICapturePerform(){
 #ifdef IMAGE_PROCESSING_PIPELINE
 #if 1
 
-	if(mippMode ==-1 ){
-		mippMode=IPP_EdgeEnhancement_Mode;
-	}
+    if(mippMode ==-1 ){
+        mippMode=IPP_EdgeEnhancement_Mode;
+    }
 
 #else
 
-	if(mippMode ==-1){
-		mippMode=IPP_CromaSupression_Mode;
-	}
-	if(mippMode == IPP_CromaSupression_Mode){
-		mippMode=IPP_EdgeEnhancement_Mode;
-	}
-	else if(mippMode == IPP_EdgeEnhancement_Mode){
-		mippMode=IPP_CromaSupression_Mode;
-	}
+    if(mippMode ==-1){
+        mippMode=IPP_CromaSupression_Mode;
+    }
+    if(mippMode == IPP_CromaSupression_Mode){
+        mippMode=IPP_EdgeEnhancement_Mode;
+    }
+    else if(mippMode == IPP_EdgeEnhancement_Mode){
+        mippMode=IPP_CromaSupression_Mode;
+    }
 
 #endif
 
-	LOGD("IPPmode=%d",mippMode);
-	if(mippMode == IPP_CromaSupression_Mode){
-		LOGD("IPP_CromaSupression_Mode");
-	}
-	else if(mippMode == IPP_EdgeEnhancement_Mode){
-		LOGD("IPP_EdgeEnhancement_Mode");
-	}
-	else if(mippMode == IPP_Disabled_Mode){
-		LOGD("IPP_Disabled_Mode");
-	}
+    LOGD("IPPmode=%d",mippMode);
+    if(mippMode == IPP_CromaSupression_Mode){
+        LOGD("IPP_CromaSupression_Mode");
+    }
+    else if(mippMode == IPP_EdgeEnhancement_Mode){
+        LOGD("IPP_EdgeEnhancement_Mode");
+    }
+    else if(mippMode == IPP_Disabled_Mode){
+        LOGD("IPP_Disabled_Mode");
+    }
 
-	if(mippMode){
+    if(mippMode){
 
-		if(mippMode != IPP_CromaSupression_Mode && mippMode != IPP_EdgeEnhancement_Mode){
-			LOGE("ERROR ippMode unsupported");
-			return -1;
-		}
-		PPM("Before init IPP");
+        if(mippMode != IPP_CromaSupression_Mode && mippMode != IPP_EdgeEnhancement_Mode){
+            LOGE("ERROR ippMode unsupported");
+            return -1;
+        }
+        PPM("Before init IPP");
 
         if(mIPPToEnable)
         {
@@ -2227,15 +2401,15 @@ int CameraHal::ICapturePerform(){
             mIPPToEnable = false;
         }
 
-		err = PopulateArgsIPP(image_width,image_height, jpegFormat, mippMode);
-		if( err ) {
-			LOGE("ERROR PopulateArgsIPP() failed");
-			return -1;
-		}
-		PPM("BEFORE IPP Process Buffer");
+        err = PopulateArgsIPP(image_width,image_height, jpegFormat, mippMode);
+        if( err ) {
+            LOGE("ERROR PopulateArgsIPP() failed");
+            return -1;
+        }
+        PPM("BEFORE IPP Process Buffer");
 
-		LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
-	err = ProcessBufferIPP(yuv_buffer, yuv_len,
+        LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
+    err = ProcessBufferIPP(yuv_buffer, yuv_len,
                     jpegFormat,
                     mippMode,
                     -1, // EdgeEnhancementStrength
@@ -2258,32 +2432,32 @@ int CameraHal::ICapturePerform(){
                     -1, // shadingGainOffset
                     -1, // shadingGainMaxValue
                     -1); // ratioDownsampleCbCr
-		if( err ) {
-			LOGE("ERROR ProcessBufferIPP() failed");
-			return -1;
-		}
-		PPM("AFTER IPP Process Buffer");
+        if( err ) {
+            LOGE("ERROR ProcessBufferIPP() failed");
+            return -1;
+        }
+        PPM("AFTER IPP Process Buffer");
 
-  	if(!(pIPP.ippconfig.isINPLACE)){
-		yuv_buffer = pIPP.pIppOutputBuffer;
-	}
+      if(!(pIPP.ippconfig.isINPLACE)){
+        yuv_buffer = pIPP.pIppOutputBuffer;
+    }
 
-	#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
-		jpegFormat = PIX_YUV422I;
-		LOGD("YUV422 !!!!");
-	#else
-		yuv_len=  ((image_width * image_height *3)/2);
+    #if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
+        jpegFormat = PIX_YUV422I;
+        LOGD("YUV422 !!!!");
+    #else
+        yuv_len=  ((image_width * image_height *3)/2);
         jpegFormat = PIX_YUV420P;
-		LOGD("YUV420 !!!!");
+        LOGD("YUV420 !!!!");
     #endif
 
-	}
-	//SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len);
+    }
+    //SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len);
 
 #endif
 
-	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
-	{
+    if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
+    {
 
 #ifdef HARDWARE_OMX
 #if JPEG
@@ -2293,21 +2467,24 @@ int CameraHal::ICapturePerform(){
 
         exif_buffer *exif_buf = get_exif_buffer(&mExifParams, gpsLocation);
 
-		PPM("BEFORE JPEG Encode Image");
-		LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, mippMode =%d", outBuffer , jpegSize, yuv_buffer, yuv_len, image_width, image_height, quality,mippMode);
-		jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
-				image_width, image_height, quality, exif_buf, jpegFormat, DEFAULT_THUMB_WIDTH, DEFAULT_THUMB_HEIGHT, image_width, image_height,
-				image_rotation, image_zoom, 0, 0, image_width, image_height);
-		PPM("AFTER JPEG Encode Image");
+        PPM("BEFORE JPEG Encode Image");
+        LOGE(" outbuffer = 0x%x, jpegSize = %d, yuv_buffer = 0x%x, yuv_len = %d, "
+                "image_width = %d, image_height = %d,  quality = %d, mippMode = %d",
+                (unsigned int)outBuffer , jpegSize, (unsigned int)yuv_buffer, yuv_len,
+                image_width, image_height, quality, mippMode);
+        jpegEncoder->encodeImage((uint8_t *)outBuffer , jpegSize, yuv_buffer, yuv_len,
+                image_width, image_height, quality, exif_buf, jpegFormat, DEFAULT_THUMB_WIDTH, DEFAULT_THUMB_HEIGHT, image_width, image_height,
+                image_rotation, image_zoom, 0, 0, image_width, image_height);
+        PPM("AFTER JPEG Encode Image");
 
-		mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
+        mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
-	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) ){
-		mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,mJPEGPictureMemBase,mCallbackCookie);
+    if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) ){
+        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,mJPEGPictureMemBase,mCallbackCookie);
     }
 
 
-		PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
+        PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
         if((exif_buf != NULL) && (exif_buf->data != NULL))
             exif_buf_free (exif_buf);
 
@@ -2320,8 +2497,8 @@ int CameraHal::ICapturePerform(){
 
 #else
 
-	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
-		mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,NULL,mCallbackCookie);
+    if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
+        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,NULL,mCallbackCookie);
 
 #endif
 
@@ -2330,16 +2507,16 @@ int CameraHal::ICapturePerform(){
     }
 
     // Release constraint to DSP OPP by setting lowest Hz
-    SetDSPHz(DSP3630_HZ_MIN);
+    SetDSPKHz(DSP3630_KHZ_MIN);
 
     mPictureBuffer.clear();
     mPictureHeap.clear();
 
 #ifdef HARDWARE_OMX
 #if VPP_THREAD
-	LOGD("CameraHal thread before waiting increment in semaphore\n");
-	sem_wait(&mIppVppSem);
-	LOGD("CameraHal thread after waiting increment in semaphore\n");
+    LOGD("CameraHal thread before waiting increment in semaphore\n");
+    sem_wait(&mIppVppSem);
+    LOGD("CameraHal thread after waiting increment in semaphore\n");
 #endif
 #endif
 
@@ -2447,7 +2624,7 @@ void CameraHal::snapshotThread()
 
                 snapshot_buffer = getLastOverlayAddress();
                 if ( NULL == snapshot_buffer )
-                    continue;
+                    goto EXIT;
 
                 LOGE("Snapshot buffer 0x%x, yuv_buffer = 0x%x, zoomTarget = %5.2f", ( unsigned int ) snapshot_buffer, ( unsigned int ) yuv_buffer, ZoomTarget);
 
@@ -2652,11 +2829,10 @@ void CameraHal::procThread()
     int max_fd;
     int err;
     int pixelFormat;
-    unsigned int procMessage [PROC_THREAD_NUM_ARGS];
-    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_offset, yuv_len, image_rotation, ippMode;
+    unsigned int procMessage[PROC_MSG_IDX_MAX];
+    unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_len, image_rotation;
     unsigned int crop_top, crop_left, crop_width, crop_height;
     double image_zoom;
-    bool ipp_to_enable;
     sp<MemoryHeapBase> JPEGPictureHeap;
     sp<MemoryBase> JPEGPictureMemBase;
     data_callback RawPictureCallback;
@@ -2665,17 +2841,19 @@ void CameraHal::procThread()
     int thumb_width, thumb_height;
 
 #ifdef HARDWARE_OMX
-
     exif_buffer *exif_buf;
-
 #endif
 
+#ifdef IMAGE_PROCESSING_PIPELINE
+    unsigned int ippMode = IPP_Disabled_Mode;
+    bool ipp_to_enable;
     unsigned short EdgeEnhancementStrength, WeakEdgeThreshold, StrongEdgeThreshold,
                    LowFreqLumaNoiseFilterStrength, MidFreqLumaNoiseFilterStrength, HighFreqLumaNoiseFilterStrength,
                    LowFreqCbNoiseFilterStrength, MidFreqCbNoiseFilterStrength, HighFreqCbNoiseFilterStrength,
                    LowFreqCrNoiseFilterStrength, MidFreqCrNoiseFilterStrength, HighFreqCrNoiseFilterStrength,
                    shadingVertParam1, shadingVertParam2, shadingHorzParam1, shadingHorzParam2, shadingGainScale,
                    shadingGainOffset, shadingGainMaxValue, ratioDownsampleCbCr;
+#endif
 
     void* input_buffer;
     unsigned int input_length;
@@ -2708,7 +2886,7 @@ void CameraHal::procThread()
 
             read(procPipe[0], &procMessage, sizeof(procMessage));
 
-            if(procMessage[0] == PROC_THREAD_PROCESS){
+            if(procMessage[PROC_MSG_IDX_ACTION] == PROC_THREAD_PROCESS) {
 
 #ifdef DEBUG_LOG
 
@@ -2716,56 +2894,58 @@ void CameraHal::procThread()
 
 #endif
 
-                capture_width = procMessage[1];
-                capture_height = procMessage[2];
-                image_width = procMessage[3];
-                image_height = procMessage[4];
-                pixelFormat = procMessage[5];
-                EdgeEnhancementStrength = procMessage[6];
-                WeakEdgeThreshold = procMessage[7];
-                StrongEdgeThreshold = procMessage[8];
-                LowFreqLumaNoiseFilterStrength = procMessage[9];
-                MidFreqLumaNoiseFilterStrength = procMessage[10];
-                HighFreqLumaNoiseFilterStrength = procMessage[11];
-                LowFreqCbNoiseFilterStrength = procMessage[12];
-                MidFreqCbNoiseFilterStrength = procMessage[13];
-                HighFreqCbNoiseFilterStrength = procMessage[14];
-                LowFreqCrNoiseFilterStrength = procMessage[15];
-                MidFreqCrNoiseFilterStrength = procMessage[16];
-                HighFreqCrNoiseFilterStrength = procMessage[17];
-                shadingVertParam1 = procMessage[18];
-                shadingVertParam2 = procMessage[19];
-                shadingHorzParam1 = procMessage[20];
-                shadingHorzParam2 = procMessage[21];
-                shadingGainScale = procMessage[22];
-                shadingGainOffset = procMessage[23];
-                shadingGainMaxValue = procMessage[24];
-                ratioDownsampleCbCr = procMessage[25];
-                yuv_buffer = (void *) procMessage[26];
-                yuv_offset =  procMessage[27];
-                yuv_len = procMessage[28];
-                image_rotation = procMessage[29];
-                image_zoom = zoom_step[procMessage[30]];
-                ippMode = procMessage[31];
-                ipp_to_enable = procMessage[32];
-                jpegQuality = procMessage[33];
-                JpegPictureCallback = (data_callback) procMessage[34];
-                RawPictureCallback = (data_callback) procMessage[35];
-                PictureCallbackCookie = (void *) procMessage[36];
-                crop_left = procMessage[37];
-                crop_top = procMessage[38];
-                crop_width = procMessage[39];
-                crop_height = procMessage[40];
-                thumb_width = procMessage[41];
-                thumb_height = procMessage[42];
+                capture_width = procMessage[PROC_MSG_IDX_CAPTURE_W];
+                capture_height = procMessage[PROC_MSG_IDX_CAPTURE_H];
+                image_width = procMessage[PROC_MSG_IDX_IMAGE_W];
+                image_height = procMessage[PROC_MSG_IDX_IMAGE_H];
+                pixelFormat = procMessage[PROC_MSG_IDX_PIX_FMT];
+#ifdef IMAGE_PROCESSING_PIPELINE
+                ippMode = procMessage[PROC_MSG_IDX_IPP_MODE];
+                if (ippMode != IPP_Disabled_Mode) {
+                    ipp_to_enable = procMessage[PROC_MSG_IDX_IPP_TO_ENABLE];
+                    EdgeEnhancementStrength = procMessage[PROC_MSG_IDX_IPP_EES];
+                    WeakEdgeThreshold = procMessage[PROC_MSG_IDX_IPP_WET];
+                    StrongEdgeThreshold = procMessage[PROC_MSG_IDX_IPP_SET];
+                    LowFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFLNFS];
+                    MidFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFLNFS];
+                    HighFreqLumaNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFLNFS];
+                    LowFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFCBNFS];
+                    MidFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFCBNFS];
+                    HighFreqCbNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFCBNFS];
+                    LowFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_LFCRNFS];
+                    MidFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_MFCRNFS];
+                    HighFreqCrNoiseFilterStrength = procMessage[PROC_MSG_IDX_IPP_HFCRNFS];
+                    shadingVertParam1 = procMessage[PROC_MSG_IDX_IPP_SVP1];
+                    shadingVertParam2 = procMessage[PROC_MSG_IDX_IPP_SVP2];
+                    shadingHorzParam1 = procMessage[PROC_MSG_IDX_IPP_SHP1];
+                    shadingHorzParam2 = procMessage[PROC_MSG_IDX_IPP_SHP2];
+                    shadingGainScale = procMessage[PROC_MSG_IDX_IPP_SGS];
+                    shadingGainOffset = procMessage[PROC_MSG_IDX_IPP_SGO];
+                    shadingGainMaxValue = procMessage[PROC_MSG_IDX_IPP_SGMV];
+                    ratioDownsampleCbCr = procMessage[PROC_MSG_IDX_IPP_RDSCBCR];
+                }
+#endif
+                yuv_buffer = (void *) procMessage[PROC_MSG_IDX_YUV_BUFF];
+                yuv_len = procMessage[PROC_MSG_IDX_YUV_BUFFLEN];
+                image_rotation = procMessage[PROC_MSG_IDX_ROTATION];
+                image_zoom = zoom_step[procMessage[PROC_MSG_IDX_ZOOM]];
+                jpegQuality = procMessage[PROC_MSG_IDX_JPEG_QUALITY];
+                JpegPictureCallback = (data_callback) procMessage[PROC_MSG_IDX_JPEG_CB];
+                RawPictureCallback = (data_callback) procMessage[PROC_MSG_IDX_RAW_CB];
+                PictureCallbackCookie = (void *) procMessage[PROC_MSG_IDX_CB_COOKIE];
+                crop_left = procMessage[PROC_MSG_IDX_CROP_L];
+                crop_top = procMessage[PROC_MSG_IDX_CROP_T];
+                crop_width = procMessage[PROC_MSG_IDX_CROP_W];
+                crop_height = procMessage[PROC_MSG_IDX_CROP_H];
+                thumb_width = procMessage[PROC_MSG_IDX_THUMB_W];
+                thumb_height = procMessage[PROC_MSG_IDX_THUMB_H];
 
 #ifdef HARDWARE_OMX
-
-                exif_buf = (exif_buffer *) procMessage[43];
-
+                exif_buf = (exif_buffer *)procMessage[PROC_MSG_IDX_EXIF_BUFF];
 #endif
 
-                LOGD("JPEGPictureHeap->getStrongCount() = %d, base = 0x%x", JPEGPictureHeap->getStrongCount(), ( unsigned int ) JPEGPictureHeap->getBase());
+                LOGD("JPEGPictureHeap->getStrongCount() = %d, base = 0x%x",
+                        JPEGPictureHeap->getStrongCount(), (unsigned int)JPEGPictureHeap->getBase());
                 jpegSize = mJPEGLength;
 
                 if(JPEGPictureHeap->getStrongCount() > 1 )
@@ -2775,14 +2955,14 @@ void CameraHal::procThread()
                 }
 
                 base = (unsigned long) JPEGPictureHeap->getBase();
-                base = (base + 0xfff) & 0xfffff000;
+                base = (unsigned long) NEXT_4K_ALIGN_ADDR(base);
                 offset = base - (unsigned long) JPEGPictureHeap->getBase();
                 outBuffer = (void *) base;
 
                 pixelFormat = PIX_YUV422I;
 
-                input_buffer = yuv_buffer;
-                input_length = yuv_len;
+                input_buffer = (void *) NEXT_4K_ALIGN_ADDR(yuv_buffer);
+                input_length = yuv_len - ((unsigned int) input_buffer - (unsigned int) yuv_buffer);
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -2827,7 +3007,7 @@ void CameraHal::procThread()
 
 #ifdef DEBUG_LOG
                      PPM("BEFORE IPP Process Buffer");
-                     LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
+                     LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", input_buffer, input_length);
 #endif
                     // TODO: Need to add support for new EENF 1.9 parameters from proc messages
                      err = ProcessBufferIPP(input_buffer, input_length,
@@ -2871,7 +3051,10 @@ void CameraHal::procThread()
                 err = 0;
 
 #ifdef DEBUG_LOG
-                LOGD(" outbuffer = %p, jpegSize = %d, input_buffer = %p, yuv_len = %d, image_width = %d, image_height = %d, quality = %d, ippMode =%d", outBuffer , jpegSize, input_buffer/*yuv_buffer*/, input_length/*yuv_len*/, image_width, image_height, jpegQuality, ippMode);
+                LOGD(" outbuffer = %p, jpegSize = %d, input_buffer = %p, input_length = %d, "
+                        "image_width = %d, image_height = %d, quality = %d",
+                        outBuffer , jpegSize, input_buffer, input_length,
+                        image_width, image_height, jpegQuality);
 #endif
                 //workaround for thumbnail size  - it should be smaller than captured image
                 if ((image_width<thumb_width) || (image_height<thumb_width) ||
@@ -2905,8 +3088,12 @@ void CameraHal::procThread()
 
 #if JPEG
 
-                    JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
-
+                    if ( mBurstShots > 1 ){
+                        JpegPictureCallback(CAMERA_MSG_BURST_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
+                    }
+                    else {
+                        JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
+                    }
 #else
 
                     JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, PictureCallbackCookie);
@@ -2929,12 +3116,11 @@ void CameraHal::procThread()
 #endif
 
                 JPEGPictureMemBase.clear();
-                free((void *) ( ((unsigned int) yuv_buffer) - yuv_offset) );
 
                 // Release constraint to DSP OPP by setting lowest Hz
-                SetDSPHz(DSP3630_HZ_MIN);
+                SetDSPKHz(DSP3630_KHZ_MIN);
 
-            } else if( procMessage[0] == PROC_THREAD_EXIT ) {
+            } else if(procMessage[PROC_MSG_IDX_ACTION] == PROC_THREAD_EXIT) {
                 LOGD("PROC_THREAD_EXIT_RECEIVED");
                 JPEGPictureHeap.clear();
                 break;
@@ -2947,59 +3133,51 @@ void CameraHal::procThread()
     LOG_FUNCTION_NAME_EXIT
 }
 
-#ifdef ICAP_EXPERIMENTAL
-
-int CameraHal::allocatePictureBuffer(size_t length, int burstCount)
+int CameraHal::allocatePictureBuffers(size_t length, int burstCount)
 {
-    unsigned int base, tmpBase;
+    if (burstCount > MAX_BURST) {
+        LOGE("Can't handle burstCount(%d) larger then MAX_BURST(%d)",
+                burstCount, MAX_BURST);
+        return -1;
+    }
 
-    length  += ((2*PAGE) - 1) + 10*PAGE;
+    length += ((2*PAGE) - 1) + 10*PAGE;
     length &= ~((2*PAGE) - 1);
-    length  += 2*PAGE;
+    length += 2*PAGE;
 
-    //allocate new buffers
-    for ( int i = 0; i < burstCount; i++) {
-        base = (unsigned int) malloc(length);
-        if ( ((void *) base ) == NULL )
+    for (int i = 0; i < burstCount; i++) {
+        if (mYuvBuffer[i] != NULL && mYuvBufferLen[i] == length) {
+            // proper buffer already allocated. skip alloc.
+            continue;
+        }
+
+        if (mYuvBuffer[i])
+            free(mYuvBuffer[i]);
+
+        mYuvBuffer[i] = (uint8_t *) malloc(length);
+        mYuvBufferLen[i] = length;
+
+        if (mYuvBuffer[i] == NULL) {
+            LOGE("mYuvBuffer[%d] malloc failed", i);
             return -1;
-
-        tmpBase = base;
-        base = (base + 0xfff) & 0xfffff000;
-        mPictureOffset[i] = base - tmpBase;
-        mYuvBuffer[i] = (uint8_t *) base;
-        mPictureLength[i] = length - mPictureOffset[i];
+        }
     }
 
     return NO_ERROR;
 }
 
-#else
-
-int CameraHal::allocatePictureBuffer(int width, int height, int burstCount)
+int CameraHal::freePictureBuffers(void)
 {
-    unsigned int base, tmpBase, length;
-
-    length  = width*height*2 + ((2*PAGE) - 1) + 10*PAGE;
-    length &= ~((2*PAGE) - 1);
-    length  += 2*PAGE;
-
-    //allocate new buffers
-    for ( int i = 0; i < burstCount; i++) {
-        base = (unsigned int) malloc(length);
-        if ( ((void *) base ) == NULL )
-            return -1;
-
-    tmpBase = base;
-    base = (base + 0xfff) & 0xfffff000;
-        mPictureOffset[i] = base - tmpBase;
-        mYuvBuffer[i] = (uint8_t *) base;
-        mPictureLength[i] = length - mPictureOffset[i];
+    for (int i = 0; i < MAX_BURST; i++) {
+        if (mYuvBuffer[i]) {
+            free(mYuvBuffer[i]);
+            mYuvBuffer[i] = NULL;
+            mYuvBufferLen[i] = 0;
+        }
     }
 
     return NO_ERROR;
 }
-
-#endif
 
 int CameraHal::ICaptureCreate(void)
 {
@@ -3036,7 +3214,7 @@ int CameraHal::ICaptureCreate(void)
 #ifdef HARDWARE_OMX
 #ifdef IMAGE_PROCESSING_PIPELINE
 
-	mippMode = IPP_Disabled_Mode;
+    mippMode = IPP_Disabled_Mode;
 
 #endif
 
@@ -3130,7 +3308,7 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
             mPreviewHeaps[i].clear();
             mVideoBuffer[i].clear();
             mVideoHeaps[i].clear();
-            buffers_queued_to_dss[i] = 0;
+            mVideoBufferStatus[i] = BUFF_IDLE;
         }
 
         mOverlay->destroy();
@@ -3155,13 +3333,13 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     if (mFalsePreview)   // Eclair HAL
     {
      // Restart the preview (Only for Overlay Case)
-	//LOGD("In else overlay");
+    //LOGD("In else overlay");
         mPreviewRunning = false;
         Message msg;
         msg.command = PREVIEW_START;
         previewThreadCommandQ.put(&msg);
         previewThreadAckQ.get(&msg);
-    }	// Eclair HAL
+    }    // Eclair HAL
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -3172,12 +3350,12 @@ status_t CameraHal::startPreview()
 {
     LOG_FUNCTION_NAME
 
-    if(mOverlay == NULL)	//Eclair HAL
+    if(mOverlay == NULL)    //Eclair HAL
     {
-	    LOGD("Return from camera Start Preview");
-	    mPreviewRunning = true;
-	    mFalsePreview = true;
-	    return NO_ERROR;
+        LOGD("Return from camera Start Preview");
+        mPreviewRunning = true;
+        mFalsePreview = true;
+        return NO_ERROR;
     }      //Eclair HAL
 
     mFalsePreview = false;   //Eclair HAL
@@ -3228,9 +3406,6 @@ status_t CameraHal::startRecording( )
     int w,h;
     int i = 0;
 
-    mPrevTime = systemTime(SYSTEM_TIME_MONOTONIC);
-    int framerate = mParameters.getPreviewFrameRate();
-    frameInterval = 1000000000LL / framerate ;
     mParameters.getPreviewSize(&w, &h);
     mRecordingFrameSize = w * h * 2;
     overlay_handle_t overlayhandle = mOverlay->getHandleRef();
@@ -3244,22 +3419,22 @@ status_t CameraHal::startRecording( )
     int overlayfd = true_handle.ctl_fd;
     LOGD("#Overlay driver FD:%d ",overlayfd);
 
-    mVideoBufferCount =  mOverlay->getBufferCount();
+    mVideoBufferCount = mOverlay->getBufferCount();
 
-    if (mVideoBufferCount > VIDEO_FRAME_COUNT_MAX)
-    {
+    if (mVideoBufferCount > VIDEO_FRAME_COUNT_MAX) {
         LOGD("Error: mVideoBufferCount > VIDEO_FRAME_COUNT_MAX");
         return UNKNOWN_ERROR;
     }
 
     mRecordingLock.lock();
 
-    for(i = 0; i < mVideoBufferCount; i++)
-    {
+    for(i = 0; i < mVideoBufferCount; i++) {
         mVideoHeaps[i].clear();
         mVideoBuffer[i].clear();
-        buffers_queued_to_ve[i] = 0;
+        mVideoBufferStatus[i] &= ~BUFF_Q2VE;
     }
+
+    debugShowBufferStatus();
 
     for(i = 0; i < mVideoBufferCount; i++)
     {
@@ -3276,7 +3451,7 @@ status_t CameraHal::startRecording( )
             {
                 mVideoHeaps[j].clear();
                 mVideoBuffer[j].clear();
-                buffers_queued_to_ve[j] = 0;
+                mVideoBufferStatus[i] &= ~BUFF_Q2VE;
             }
             LOGD("Error: data from overlay returned null");
             return UNKNOWN_ERROR;
@@ -3292,18 +3467,16 @@ void CameraHal::stopRecording()
 {
     LOG_FUNCTION_NAME
     mRecordingLock.lock();
+    debugShowBufferStatus();
     mRecordEnabled = false;
 
-    for(int i = 0; i < MAX_CAMERA_BUFFERS; i ++)
-    {
-        if (buffers_queued_to_ve[i] == 1)
-        {
-            if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[i]) < 0) {
-                LOGE("VIDIOC_QBUF Failed. line=%d",__LINE__);
-            }
-            else nCameraBuffersQueued++;
-            buffers_queued_to_ve[i] = 0;
-            LOGD("Buffer #%d was not returned by VE. Reclaiming it !!!!!!!!!!!!!!!!!!!!!!!!", i);
+    // Return all buffers queued to VE back to camera. Otherwise, after few
+    // recordings, camera is left without buffers.
+    for (int i = 0; i < mVideoBufferCount; i++) {
+        if ((mVideoBufferStatus[i]&BUFF_Q2VE) == BUFF_Q2VE) {
+            LOGD("Recovering Buffer[%d] status[%d] \n",i,mVideoBufferStatus[i]);
+            mVideoBufferStatus[i] &= ~BUFF_Q2VE;
+            queueToCamera(i);
         }
     }
 
@@ -3320,7 +3493,7 @@ void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
 //LOG_FUNCTION_NAME
     int index;
 
-    for(index = 0; index <mVideoBufferCount; index ++){
+    for(index = 0; index < mVideoBufferCount; index++){
         if(mem->pointer() == mVideoBuffer[index]->pointer()) {
             break;
         }
@@ -3332,16 +3505,21 @@ void CameraHal::releaseRecordingFrame(const sp<IMemory>& mem)
         return;
     }
 
+    if (0 == (mVideoBufferStatus[index] & BUFF_Q2VE)) {
+        LOGW("Buffer#%d(stat=%d) not queued to VE.", index, mVideoBufferStatus[index]);
+        return;
+    }
+
     debugShowFPS();
 
-    if (ioctl(camera_device, VIDIOC_QBUF, &v4l2_cam_buffer[index]) < 0)
-    {
-        LOGE("VIDIOC_QBUF Failed, index [%d] line=%d",index,__LINE__);
-    }
-    else
-    {
-        nCameraBuffersQueued++;
-    }
+    mRecordingLock.lock();
+
+    mVideoBufferStatus[index] &= ~BUFF_Q2VE;
+    queueToCamera(index);
+
+    mRecordingLock.unlock();
+
+
 
     return;
 }
@@ -3373,9 +3551,9 @@ status_t CameraHal::takePicture( )
 status_t CameraHal::cancelPicture( )
 {
     LOG_FUNCTION_NAME
-	disableMsgType(CAMERA_MSG_RAW_IMAGE);
-	disableMsgType(CAMERA_MSG_COMPRESSED_IMAGE);
-//	mCallbackCookie = NULL;   // done in destructor
+    disableMsgType(CAMERA_MSG_RAW_IMAGE);
+    disableMsgType(CAMERA_MSG_COMPRESSED_IMAGE);
+//    mCallbackCookie = NULL;   // done in destructor
 
     LOGE("Callbacks set to null");
     return -1;
@@ -3421,12 +3599,15 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     int w, h;
     int w_orig, h_orig, rot_orig;
-    int framerate;
+    int framerate_min, framerate_max;
     int zoom, compensation, saturation, sharpness;
     int zoom_save;
-    int contrast, brightness, caf;
-	int error;
-	int base;
+    int contrast, brightness;
+    int error;
+    int base;
+#ifdef FW3A
+    static int mLastFocusMode = ICAM_FOCUS_MODE_AF_AUTO;
+#endif
     const char *valstr;
     char *af_coord;
     Message msg;
@@ -3471,11 +3652,47 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-    framerate = params.getPreviewFrameRate();
-    LOGD("FRAMERATE %d", framerate);
+    //Try to get preview framerate.
+    //If we do not get framerate, try with fps range.
+    //This way we can support both fps or fps range in CameraHAL.
+    //Old applications set fps only and this is used as default in CameraHAL.
+    //New applications can use fps range, but should remove fps with
+    //cameraParameters.remove(KEY_FRAME_RATE) in order to use it.
+    //If both are not present in cameraParameters structure,
+    //or fps range is not supported then exit.
+    framerate_max = params.getPreviewFrameRate();
+    if ( framerate_max == -1 ) useFramerateRange = true;
+    else useFramerateRange = false;
+
+    //Camera documentation says that fps range given in cameraParameters must be present
+    //and must be in supported range. So no matter if we use fps or fps range, we check
+    //for correct parameters.
+    params.getPreviewFpsRange(&framerate_min, &framerate_max);
+
+    if ( validateRange(framerate_min, framerate_max, supportedFpsRanges) == false ) {
+        LOGE("Range Not Supported");
+        return -EINVAL;
+    }
+
+    if (useFramerateRange){
+        LOGD("Setparameters(): Framerate range: MIN %d, MAX %d", framerate_min, framerate_max);
+    }
+    else
+    {
+        //Get the framerate again:
+        framerate_max = params.getPreviewFrameRate();
+        LOGD("Setparameters(): Framerate: %d", framerate_max);
+    }
 
     rot_orig = rotation;
-    rotation = params.getInt(CameraParameters::KEY_ROTATION);
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.video.force_rotation", value, "-1");
+    rotation = atoi(value);
+    if (0 > rotation) {
+        rotation = params.getInt(CameraParameters::KEY_ROTATION);
+    } else {
+        LOGI("Rotation force changed to %d", rotation);
+    }
 
     mParameters.getPictureSize(&w_orig, &h_orig);
     zoom_save = mParameters.getInt(CameraParameters::KEY_ZOOM);
@@ -3502,16 +3719,19 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-	mParameters.getPictureSize(&w, &h);
-	LOGD("Picture Size by CamHal %d x %d", w, h);
+    mParameters.getPictureSize(&w, &h);
+    LOGD("Picture Size by CamHal %d x %d", w, h);
 
-	mParameters.getPreviewSize(&w, &h);
-	LOGD("Preview Resolution by CamHal %d x %d", w, h);
+    mParameters.getPreviewSize(&w, &h);
+    LOGD("Preview Resolution by CamHal %d x %d", w, h);
 
     quality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
     if ( ( quality < 0 ) || (quality > 100) ){
         quality = 100;
     }
+    //Keep the JPEG thumbnail quality same as JPEG quality.
+    //JPEG encoder uses the same quality for thumbnail as for the main image.
+    mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, quality);
 
     zoom = mParameters.getInt(CameraParameters::KEY_ZOOM);
     if( (zoom >= 0) && ( zoom < ZOOM_STAGES) ){
@@ -3638,16 +3858,35 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             }
         }
 
-        //Set 3A config to disable variable fps
-        fobj->settings.ae.framerate = framerate;
-        fobj->settings.general.view_finder_mode = ICAM_VFMODE_VIDEO_RECORD;
-
         if ( params.get(KEY_CAPTURE) != NULL ) {
             if (strcmp(params.get(KEY_CAPTURE), (const char *) CAPTURE_STILL) == 0) {
                 //Set 3A config to enable variable fps
-                fobj->settings.ae.framerate = 0;
                 fobj->settings.general.view_finder_mode = ICAM_VFMODE_STILL_CAPTURE;
             }
+           else {
+               fobj->settings.general.view_finder_mode = ICAM_VFMODE_VIDEO_RECORD;
+           }
+        }
+        else {
+            fobj->settings.general.view_finder_mode = ICAM_VFMODE_STILL_CAPTURE;
+        }
+
+        if (useFramerateRange) {
+            //Gingerbread changes for FPS - set range of min and max fps. Minimum is 7.8 fps, maximum is 30 fps.
+            if ( (MIN_FPS*1000 <= framerate_min)&&(framerate_min < framerate_max)&&(framerate_max<=MAX_FPS*1000) ) {
+                fobj->settings.ae.framerate = 0;
+            }
+            else if ( (MIN_FPS*1000 <= framerate_min)&&(framerate_min == framerate_max)&&(framerate_max <= MAX_FPS*1000) )
+            {
+                fobj->settings.ae.framerate = framerate_max/1000;
+            }
+            else {
+                fobj->settings.ae.framerate = 0;
+            }
+        }
+        //using deprecated previewFrameRate
+        else {
+            fobj->settings.ae.framerate = framerate_max;
         }
 
         if ( params.get(CameraParameters::KEY_SCENE_MODE) != NULL ) {
@@ -3840,9 +4079,26 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
             } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_FIXED) == 0) {
 
+                //FOCUS_MODE_FIXED in CameraParameters is actually HYPERFOCAL
+                //according to api
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_HYPERFOCAL;
+
+            } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO) == 0) {
+
+                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_CONTINUOUS;
+
+            } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) FOCUS_MODE_MANUAL) == 0) {
+
                 fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_MANUAL;
+                fobj->settings.af.focus_manual = MANUAL_FOCUS_DEFAULT_POSITION;
 
             }
+
+            //Disable touch focus if enabled
+            fobj->settings.general.face_tracking.enable = 0;
+            fobj->settings.general.face_tracking.count = 0;
+            fobj->settings.general.face_tracking.update = 1;
+
         }
 
         valstr = mParameters.get(KEY_TOUCH_FOCUS);
@@ -3880,6 +4136,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
                 free(valstr_copy);
                 valstr_copy = NULL;
             }
+            //Disable touch focus if enabled.
+            mParameters.set(KEY_TOUCH_FOCUS, TOUCH_FOCUS_DISABLED);
         }
 
         if ( params.get(KEY_ISO) != NULL ) {
@@ -4043,7 +4301,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         sharpness = mParameters.getInt(KEY_SHARPNESS);
         contrast = mParameters.getInt(KEY_CONTRAST);
         brightness = mParameters.getInt(KEY_BRIGHTNESS);
-        caf = mParameters.getInt(KEY_CAF);
 
         if(contrast != -1) {
             contrast -= CONTRAST_OFFSET;
@@ -4075,16 +4332,40 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mExifParams.rotation = -1;
         }
 
-        if ((caf != -1) && (mcaf != caf)){
-            mcaf = caf;
+        if ( mLastFocusMode != fobj->settings.af.focus_mode ) {
             Message msg;
-            msg.command = mcaf ? PREVIEW_CAF_START : PREVIEW_CAF_STOP;
-            previewThreadCommandQ.put(&msg);
-            //unlock in order to read the message correctly
-            mLock.unlock();
-            previewThreadAckQ.get(&msg);
-            return msg.command == PREVIEW_ACK ? NO_ERROR : INVALID_OPERATION;
+            if ( mLastFocusMode == ICAM_FOCUS_MODE_AF_CONTINUOUS ) {
+                mcaf = false;
+                    msg.command = PREVIEW_CAF_STOP;
+                    previewThreadCommandQ.put(&msg);
+                    mLock.unlock();
+                    previewThreadAckQ.get(&msg);
+                    if ( msg.command != PREVIEW_ACK ) return INVALID_OPERATION;
+            }
+
+            if ( fobj->settings.af.focus_mode == ICAM_FOCUS_MODE_AF_CONTINUOUS ) {
+                mcaf = true;
+                    msg.command = PREVIEW_CAF_START;
+                    previewThreadCommandQ.put(&msg);
+                    mLock.unlock();
+                    previewThreadAckQ.get(&msg);
+                    if ( msg.command != PREVIEW_ACK ) return INVALID_OPERATION;
+            }
+
+            if (( fobj->settings.af.focus_mode == ICAM_FOCUS_MODE_AF_HYPERFOCAL )||
+                ( fobj->settings.af.focus_mode == ICAM_FOCUS_MODE_AF_INFINY )) {
+                if (mPreviewRunning) {
+                    msg.command = PREVIEW_AF_START;
+                    previewThreadCommandQ.put(&msg);
+                    mLock.unlock();
+                    previewThreadAckQ.get(&msg);
+                    if ( msg.command != PREVIEW_ACK ) return INVALID_OPERATION;
+                }
+            }
+
+            mLastFocusMode = fobj->settings.af.focus_mode;
         }
+
     }
 
 #endif
@@ -4225,20 +4506,25 @@ CameraParameters CameraHal::getParameters() const
                 params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_MACRO);
                 break;
             case ICAM_FOCUS_MODE_AF_MANUAL:
-                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_FIXED);
+                params.set(CameraParameters::KEY_FOCUS_MODE, FOCUS_MODE_MANUAL);
                 break;
             //TODO: Extend support for those
             case ICAM_FOCUS_MODE_AF_CONTINUOUS:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO);
                 break;
             case ICAM_FOCUS_MODE_AF_CONTINUOUS_NORMAL:
                 break;
             case ICAM_FOCUS_MODE_AF_PORTRAIT:
                 break;
             case ICAM_FOCUS_MODE_AF_HYPERFOCAL:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_FIXED);
                 break;
             case ICAM_FOCUS_MODE_AF_EXTENDED:
                 break;
             case ICAM_FOCUS_MODE_AF_CONTINUOUS_EXTENDED:
+                break;
+            default:
+                params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_AUTO);
                 break;
         };
 
@@ -4346,7 +4632,27 @@ CameraParameters CameraHal::getParameters() const
         params.set(KEY_SHARPNESS, fobj->settings.general.sharpness);
         params.set(KEY_CONTRAST, ( fobj->settings.general.contrast + CONTRAST_OFFSET ));
         params.set(KEY_BRIGHTNESS, ( fobj->settings.general.brightness + BRIGHTNESS_OFFSET ));
-        params.setPreviewFrameRate(fobj->settings.ae.framerate);
+
+        if (useFramerateRange) {
+            //Gingerbread
+            int framerate_min, framerate_max;
+            params.getPreviewFpsRange(&framerate_min, &framerate_max);
+            char fpsrang[32];
+            //Scene may change the fps, so return fps range to upper layers. If VBR is set:
+            if ( 0 == fobj->settings.ae.framerate) {
+                sprintf(fpsrang, "%d000,%d", ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate), framerate_max);
+                params.set(KEY_PREVIEW_FPS_RANGE, fpsrang);
+            }
+            //If CBR is set, fps range is e.g. (30,30):
+            else {
+                sprintf(fpsrang, "%d000,%d000", ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate), ((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate));
+                params.set(KEY_PREVIEW_FPS_RANGE, fpsrang);
+            }
+        }
+        else {
+            if ( 0 != fobj->settings.ae.framerate )
+            params.setPreviewFrameRate((fobj->settings.ae.framerate<MIN_FPS)?MIN_FPS:fobj->settings.ae.framerate);
+        }
     }
 #endif
 
@@ -4382,14 +4688,12 @@ void CameraHal::release()
 }
 
 #ifdef FW3A
-
+#ifdef IMAGE_PROCESSING_PIPELINE
 void CameraHal::onIPP(void *priv, icap_ipp_parameters_t *ipp_params)
 {
     CameraHal* camHal = reinterpret_cast<CameraHal*>(priv);
 
     LOG_FUNCTION_NAME
-
-#ifdef IMAGE_PROCESSING_PIPELINE
 
     if ( ipp_params->type == ICAP_IPP_PARAMETERS_VER1_9 ) {
         camHal->mIPPParams.EdgeEnhancementStrength = ipp_params->ipp19.EdgeEnhancementStrength;
@@ -4456,10 +4760,9 @@ void CameraHal::onIPP(void *priv, icap_ipp_parameters_t *ipp_params)
         camHal->mIPPParams.ratioDownsampleCbCr = 1;
     }
 
-#endif
-
     LOG_FUNCTION_NAME_EXIT
 }
+#endif
 
 void CameraHal::onGeneratedSnapshot(void *priv, icap_image_buffer_t *buf)
 {
@@ -4640,20 +4943,20 @@ sp<IMemoryHeap> CameraHal::getPreviewHeap() const
     return 0;
 }
 
-sp<CameraHardwareInterface> CameraHal::createInstance()
+sp<CameraHardwareInterface> CameraHal::createInstance(int cameraId)
 {
     LOG_FUNCTION_NAME
 
-    if (singleton != 0) {
-        sp<CameraHardwareInterface> hardware = singleton.promote();
+    if (singleton[cameraId] != 0) {
+        sp<CameraHardwareInterface> hardware = singleton[cameraId].promote();
         if (hardware != 0) {
             return hardware;
         }
     }
 
-    sp<CameraHardwareInterface> hardware(new CameraHal());
+    sp<CameraHardwareInterface> hardware(new CameraHal(cameraId));
 
-    singleton = hardware;
+    singleton[cameraId] = hardware;
     return hardware;
 }
 
@@ -4690,6 +4993,58 @@ bool CameraHal::msgTypeEnabled(int32_t msgType)
 
 status_t CameraHal::cancelAutoFocus()
 {
+    LOG_FUNCTION_NAME
+
+    CameraParameters p;
+    Message msg;
+    const char * mFocusMode;
+
+    // Disable focus messaging here. When application requests cancelAutoFocus(),
+    // it does not expect any AF callbacks. AF should be done in order to return the lens
+    // back to "default" position. In this case we set an average manual focus position.
+    // From the other side, in previewthread() state machine we always send callback to
+    // application when we focus, so disable focus messages.
+    disableMsgType(CAMERA_MSG_FOCUS);
+
+    msg.command = PREVIEW_AF_STOP;
+    previewThreadCommandQ.put(&msg);
+    previewThreadAckQ.get(&msg);
+
+    if ( msg.command != PREVIEW_ACK )
+        LOGE("AF Stop Failed or AF already stopped");
+    else
+        LOGD("AF Stopped");
+
+    p = getParameters();
+
+    // Get current focus mode
+    mFocusMode = p.get(CameraParameters::KEY_FOCUS_MODE);
+    p.set(CameraParameters::KEY_FOCUS_MODE, FOCUS_MODE_MANUAL);
+
+    if (setParameters(p) != NO_ERROR) {
+        LOGE("Failed to set parameters");
+    }
+
+    msg.command = PREVIEW_AF_START;
+    previewThreadCommandQ.put(&msg);
+    previewThreadAckQ.get(&msg);
+
+    if ( msg.command != PREVIEW_ACK )
+        LOGE("Lens didn't go to default position");
+    else
+        LOGD("Lens went to default position");
+
+    // Return back the focus mode which is set in CameraParamerers
+    p.set(CameraParameters::KEY_FOCUS_MODE, mFocusMode);
+
+    if (setParameters(p) != NO_ERROR) {
+        LOGE("Failed to set parameters");
+    }
+
+    enableMsgType(CAMERA_MSG_FOCUS);
+
+    LOG_FUNCTION_NAME_EXIT
+
     return NO_ERROR;
 }
 
@@ -4733,11 +5088,52 @@ status_t CameraHal::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2)
     return ret;
 }
 
-
-extern "C" sp<CameraHardwareInterface> openCameraHardware()
+#ifdef DEBUG_LOG
+void CameraHal::debugShowBufferStatus()
 {
-    LOGD("opening ti camera hal\n");
-    return CameraHal::createInstance();
+    LOGE("nOverlayBuffersQueued=%d", nOverlayBuffersQueued);
+    LOGE("nCameraBuffersQueued=%d", nCameraBuffersQueued);
+    LOGE("mVideoBufferCount=%d", mVideoBufferCount);
+    for (int i=0; i< VIDEO_FRAME_COUNT_MAX; i++) {
+        LOGE("mVideoBufferStatus[%d]=%d", i, mVideoBufferStatus[i]);
+    }
+}
+#endif
+
+extern "C" int HAL_getNumberOfCameras()
+{
+    int numCameras = 0;
+
+    // FIXME: Zoom3 has only one camera device.
+    numCameras = 1;
+    if ( 0 == numCameras )
+    {
+        LOGE("No cameras supported in Camera HAL implementation");
+        return 0;
+    }
+    else
+    {
+        LOGD("Cameras found %d", numCameras);
+    }
+
+    return numCameras;
+}
+
+extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
+{
+    int face_value = CAMERA_FACING_BACK;
+    int orientation = 0;
+    char *valstr = NULL;
+
+    // FIXME: Zoom3 has only one camera facing back.
+    cameraInfo->facing = face_value;
+    cameraInfo->orientation = orientation;
+}
+
+extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId)
+{
+    LOGD("opening ti camera hal (cameraId:%d)\n", cameraId);
+    return CameraHal::createInstance(cameraId);
 }
 
 

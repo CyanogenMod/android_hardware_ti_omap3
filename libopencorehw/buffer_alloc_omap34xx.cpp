@@ -1,38 +1,26 @@
 /*
- * OMAP3430 support
+ * Copyright (C) Texas Instruments - http://www.ti.com/
  *
- * Author: Michael Barabanov <michael.barabanov@windriver.com>
- * Author: Srini Gosangi <srini.gosangi@windriver.com>
-
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied.
- * See the License for the specific language governing permissions
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-/* ------------------------------------------------------------------
- * Copyright (C) 2008 PacketVideo
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- * -------------------------------------------------------------------
+/*
+ * Author: Srini Gosangi <srini.gosangi@windriver.com>
+ * Author: Michael Barabanov <michael.barabanov@windriver.com>
  */
 
 #define LOG_NDEBUG 0
@@ -44,7 +32,7 @@
 
 /* based on test code in pvmi/media_io/pvmiofileoutput/src/pvmi_media_io_fileoutput.cpp */
 
-BufferAllocOmap34xx::BufferAllocOmap34xx(): refCount(0), bufferSize(0), maxBuffers(4), numAllocated(0)
+BufferAllocOmap34xx::BufferAllocOmap34xx(): refCount(0), bufferSize(0), maxBuffers(NUM_OVERLAY_BUFFERS_REQUESTED), numAllocated(0)
 {
 }
 
@@ -63,8 +51,11 @@ OSCL_EXPORT_REF void BufferAllocOmap34xx::removeRef()
     --refCount;
     if (refCount <= 0)
     {
-    	LOGV("BufferAllocOmap34xx::removeRef()");
+       LOGD("BufferAllocOmap34xx::removeRef()");
        // this->~BufferAllocOmap34xx();
+#if 0
+        OSCL_DELETE(this);
+#endif
     }
 }
 
@@ -113,3 +104,4 @@ OSCL_EXPORT_REF bool BufferAllocOmap34xx::queryInterface(const PVUuid& uuid, PVI
     }
     return false;
 }
+
