@@ -52,7 +52,7 @@ extern "C" {
 #define PANEL_NAME_FOR_TV "hdmi"
 
 #else
-#define MAX_DISPLAY_CNT 2
+#define MAX_DISPLAY_CNT 3
 #define MAX_MANAGER_CNT 2
 #define PANEL_NAME_FOR_TV "tv"
 #endif
@@ -928,12 +928,14 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
         sprintf(overlayobj->overlaymanagerpath, "/sys/devices/platform/omapdss/overlay%d/manager", pipelineId);
         sprintf(overlayobj->overlayenabled, "/sys/devices/platform/omapdss/overlay%d/enabled", pipelineId);
     }
+#ifdef TARGET_OMAP4
     //lets reset the manager to the lcd to start with
     if (!isS3D) {
       if (sysfile_write(overlayobj->overlaymanagerpath, "lcd", sizeof("lcd")) < 0) {
             LOGE("Overlay Manager set failed, but proceed anyway");
         }
     }
+#endif
 
     LOGD("Creating overlay%s from W%d/H%d/FMT%d ...",
             isS3D ? " with S3D enable" : "", w, h, format);
