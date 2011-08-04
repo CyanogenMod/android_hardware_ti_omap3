@@ -18,6 +18,7 @@
 #include "TIHardwareRenderer.h"
 
 #include <media/stagefright/HardwareAPI.h>
+#include <dlfcn.h>
 
 using android::sp;
 using android::ISurface;
@@ -31,6 +32,29 @@ VideoRenderer *createRendererWithRotation(
         size_t decodedWidth, size_t decodedHeight,
         int32_t rotationDegrees) {
     using android::TIHardwareRenderer;
+
+    if (!strncmp(componentName, "drm.play.", 9)) {
+        void * mLibDrmRenderHandle;
+        bool (*mDrmPlaySetVideoRenderer) (android::TIHardwareRenderer *);
+        mLibDrmRenderHandle = dlopen("libdrmplay.so", RTLD_NOW);
+        if  (mLibDrmRenderHandle != NULL) {
+            TIHardwareRenderer *renderer =
+                new TIHardwareRenderer(
+                    surface, displayWidth, displayHeight,
+                    decodedWidth, decodedHeight,
+                    (OMX_COLOR_FORMATTYPE)OMX_COLOR_FormatYUV420PackedSemiPlanar, //colorFormat is not provided by client
+                    rotationDegrees);
+
+            mDrmPlaySetVideoRenderer = (bool (*)(android::TIHardwareRenderer *))dlsym(mLibDrmRenderHandle, "_Z23DrmPlaySetVideoRendererPN7android18TIHardwareRendererE");
+
+            (*mDrmPlaySetVideoRenderer)(renderer);
+
+            dlclose(mLibDrmRenderHandle);
+            mLibDrmRenderHandle = NULL;
+            mDrmPlaySetVideoRenderer = NULL;
+            return renderer;
+        }
+    }
 
     TIHardwareRenderer *renderer =
         new TIHardwareRenderer(
