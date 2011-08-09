@@ -11,8 +11,6 @@ LOCAL_SRC_FILES := \
     TIOMXPlugin.cpp \
     TIOMXCodec.cpp
 
-LOCAL_CFLAGS +:= $(PV_CFLAGS_MINUS_VISIBILITY)
-
 LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/base/include/media/stagefright/openmax \
         $(TOP)/hardware/ti/omap3/liboverlay \
