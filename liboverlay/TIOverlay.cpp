@@ -45,16 +45,40 @@ extern "C" {
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 
+int sysfile_write(const char* pathname, const void* buf, size_t size);
+int sysfile_read(const char* pathname, const void* buf, size_t size);
+
 #ifdef TARGET_OMAP4
 //currently picoDLP is excluded, till it is thoroughly validated with .35 kernel
 #define MAX_DISPLAY_CNT 3
 #define MAX_MANAGER_CNT 3
 #define PANEL_NAME_FOR_TV "hdmi"
 
+/* These definitions must match those in plat/display.h */
+#define OMAP_DSS_COLOR_RGB24U (1 << 7)  /* RGB24, 32-bit container */
+#define OMAP_DSS_COLOR_ARGB32 (1 << 11) /* ARGB32 */
+
+static void
+changeFramebufferColorMode(int color_mode) {
+        int ret;
+        char color_mode_string[32];
+        sprintf(color_mode_string, "%d", color_mode);
+        if (sysfile_write("/sys/devices/platform/omapdss/overlay0/color_mode",
+                          color_mode_string, strlen(color_mode_string)) < 0)
+                LOGE("Unable to change color mode of overlay0 to %d",
+                     color_mode);
+}
+
+#define CHANGE_FRAMEBUFFER_COLOR_MODE(color_mode) \
+        changeFramebufferColorMode(color_mode)
+
 #else
 #define MAX_DISPLAY_CNT 3
 #define MAX_MANAGER_CNT 2
 #define PANEL_NAME_FOR_TV "tv"
+
+#define CHANGE_FRAMEBUFFER_COLOR_MODE(color_mode)
+
 #endif
 
 const int KCloneDevice = OVERLAY_ON_PRIMARY;
@@ -1021,6 +1045,13 @@ overlay_t* overlay_control_context_t::overlay_createOverlay(struct overlay_contr
 
     self->mOmapOverlays[overlayid] = overlayobj;
 
+    /* Configure Default GFX Overlay to be RGB8888 to Properly Handle
+       Alpha Transparency if this is the 1st Overlay Created */
+    if (self->mNumOverlays == 0) {
+            CHANGE_FRAMEBUFFER_COLOR_MODE(OMAP_DSS_COLOR_ARGB32);
+    }
+    self->mNumOverlays++;
+
     LOG_FUNCTION_NAME_EXIT
 
     return overlayobj;
@@ -1192,6 +1223,13 @@ void overlay_control_context_t::overlay_destroyOverlay(struct overlay_control_de
                 }
             }
         }
+    }
+
+    self->mNumOverlays--;
+    /* Restore GFX Overlay to Default Color Mode of RGB24U When There
+       Are No More Overlays */
+    if (self->mNumOverlays == 0) {
+            CHANGE_FRAMEBUFFER_COLOR_MODE(OMAP_DSS_COLOR_RGB24U);
     }
 
     LOG_FUNCTION_NAME_EXIT
@@ -2606,6 +2644,8 @@ static int overlay_device_open(const struct hw_module_t* module,
         {
             dev->mOmapOverlays[i] = NULL;
         }
+        dev->mNumOverlays = 0;
+
         TheOverlayControlDevice = dev;
 
         status =  InitDisplayManagerMetaData();
