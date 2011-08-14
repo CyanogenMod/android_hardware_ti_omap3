@@ -91,12 +91,14 @@ const CapPixelformat OMXCameraAdapter::mPixelformats [] = {
 };
 
 const CapFramerate OMXCameraAdapter::mFramerates [] = {
+    { 60, "60" },
     { 30, "30" },
     { 25, "25" },
     { 24, "24" },
     { 20, "20" },
     { 15, "15" },
     { 10, "10" },
+    { 1, "1" },
 };
 
 const CapZoom OMXCameraAdapter::mZoomStages [] = {
@@ -632,8 +634,8 @@ status_t OMXCameraAdapter::insertFramerates(CameraParameters &params, OMX_TI_CAP
         {
         memset(supported, '\0', MAX_PROP_VALUE_LENGTH);
 
-        ret = encodeFramerateCap(caps.xFramerateMax >> VFR_OFFSET,
-                                 caps.xFramerateMin >> VFR_OFFSET,
+        ret = encodeFramerateCap(caps.xFramerateMax,// >> VFR_OFFSET,
+                                 caps.xFramerateMin,// >> VFR_OFFSET,
                                  mFramerates,
                                  ( sizeof(mFramerates) /sizeof(mFramerates[0]) ),
                                  supported,
