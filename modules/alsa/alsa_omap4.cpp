@@ -618,7 +618,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t
 
         if (devices & AudioSystem::DEVICE_OUT_EARPIECE) {
             /* TWL6040 */
-            control.set("Earphone Driver Switch", 1);		// HSDACL -> Earpiece
+            control.set("EP Playback", "On");		// HSDACL -> Earpiece
             control.set("Earphone Playback Volume", 15);
             if (propMgr.setFromProperty((String8)Omap4ALSAManager::DL1_EAR_MONO_MIXER, (String8)"1") == NO_ERROR) {
                 String8 value;
@@ -629,8 +629,8 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode, uint32_t
             }
         } else {
             /* TWL6040 */
-            control.set("Earphone Driver Switch", 0, 0);
             control.set("Earphone Playback Volume", 0, -1);
+            control.set("EP Playback", "Off");
         }
         if ((devices & AudioSystem::DEVICE_OUT_EARPIECE) ||
             (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
