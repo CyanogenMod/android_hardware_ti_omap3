@@ -280,6 +280,7 @@ status_t OMXCameraAdapter::initialize(int sensor_index)
         mComponentState = OMX_StateLoaded;
 
         mCapMode = HIGH_QUALITY;
+        mIPP = IPP_NULL;
         mBurstFrames = 1;
         mCapturedFrames = 0;
         mPictureQuality = 100;

@@ -213,6 +213,7 @@ public:
 
     enum IPPMode
         {
+        IPP_NULL = -1,
         IPP_NONE = 0,
         IPP_NSF,
         IPP_LDC,
