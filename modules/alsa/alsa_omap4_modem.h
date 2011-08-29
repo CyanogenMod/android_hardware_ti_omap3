@@ -249,10 +249,10 @@ static const int recordTypeValueLen = (sizeof(recordTypeValue) / sizeof(char *))
 // Sidetone Downlink Volume
 // Range values: min=0,max=149,step=1
 // dBscale-min=-120.00dB,step=1.00dB,mute=0
-#define AUDIO_ABE_SIDETONE_DL_VOL_HANDSET       120
+#define AUDIO_ABE_SIDETONE_DL_VOL_HANDSET       118
 #define AUDIO_ABE_SIDETONE_DL_VOL_HANDFREE     0
-#define AUDIO_ABE_SIDETONE_DL_VOL_HEADSET       120
-#define AUDIO_ABE_SIDETONE_DL_VOL_BLUETOOTH     120
+#define AUDIO_ABE_SIDETONE_DL_VOL_HEADSET       118
+#define AUDIO_ABE_SIDETONE_DL_VOL_BLUETOOTH     118
 
 // Sidetone Uplink Volume
 // Range values: min=0,max=149,step=1
