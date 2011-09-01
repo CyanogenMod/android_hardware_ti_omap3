@@ -207,16 +207,6 @@ static void read_cpu_scaling_available_freq(void)
             pch = strtok (NULL, " ");
         }
     }
-
-    /* Compute the maximum CPU frequency from the available_freq array */
-    current_scaling_max_freq = available_freq[0];
-    for (i = 1; i < OPPS_NUMBER; i++) {
-        if (available_freq[i] > current_scaling_max_freq)
-            current_scaling_max_freq = available_freq[i];
-    }
-#ifdef DEBUG
-    LOGD("max_freq is %ld\n", current_scaling_max_freq); fflush(stdout);
-#endif
 }
 
 static void read_cpu_scaling_available_governors(void)
@@ -630,7 +620,7 @@ void init_cpu_thermal_governor(u32 omap_temp)
     int i;
 
     /* Initialize the nominal_cpu_scaling_max_freq variable */
-    nominal_cpu_scaling_max_freq = atoi(read_from_file(
+    current_scaling_max_freq = atoi(read_from_file(
         config_file.cpufreq_file_paths[SCALING_MAX_FREQ_PATH]));
 
     /* Initialize the nominal_cpu_scaling_governor variable */
@@ -638,6 +628,17 @@ void init_cpu_thermal_governor(u32 omap_temp)
 
     /* Initialize the available_freq[] int array */
     read_cpu_scaling_available_freq();
+
+    /* Initialize the nominal maximum CPU frequency from the available_freq array */
+    nominal_cpu_scaling_max_freq = available_freq[0];
+    for (i = 1; i < OPPS_NUMBER; i++) {
+        if (available_freq[i] > nominal_cpu_scaling_max_freq)
+            nominal_cpu_scaling_max_freq = available_freq[i];
+    }
+#ifdef DEBUG
+    LOGD("nominal/current_scaling_max_freq is %ld / %ld\n",
+          nominal_cpu_scaling_max_freq, current_scaling_max_freq);
+#endif
 
     /* Initialize the available_governors[] string array */
     read_cpu_scaling_available_governors();
