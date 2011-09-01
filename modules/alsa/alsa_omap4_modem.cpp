@@ -609,7 +609,7 @@ status_t AudioModemAlsa::voiceCallCodecSetHandset()
     String8 sub;
 
     // Enable Playback voice path
-    CHECK_ERROR(mAlsaControl->set("Earphone Driver Switch", 1), error);
+    CHECK_ERROR(mAlsaControl->set("EP Playback", "On"), error);
     CHECK_ERROR(mAlsaControl->set("Earphone Playback Volume", AUDIO_CODEC_EARPIECE_GAIN), error);
     CHECK_ERROR(mAlsaControl->set("DL1 Mono Mixer", 1), error);
     CHECK_ERROR(mAlsaControl->set("DL1 Mixer Voice", 1), error);
