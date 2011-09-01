@@ -375,6 +375,10 @@ public:
 
     status_t     voiceCallBTDeviceEnable(void);
     status_t     voiceCallBTDeviceDisable(void);
+
+    status_t     voiceCallSidetoneSet(int mode);
+    status_t     voiceCallSidetoneReset();
+
     #ifdef AUDIO_BLUETOOTH
         status_t     voiceCallCodecSetBluetooth(void);
         status_t     voiceCallCodecUpdateBluetooth(void);

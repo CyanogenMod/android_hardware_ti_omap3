@@ -499,6 +499,7 @@ status_t AudioModemAlsa::voiceCallCodecSet()
     }
 
     error = voiceCallCodecPCMSet();
+    error = voiceCallSidetoneSet(mCurrentAudioModemModes);
 
     return error;
 }
@@ -617,7 +618,6 @@ status_t AudioModemAlsa::voiceCallCodecSetHandset()
     CHECK_ERROR(mAlsaControl->set("DL1 PDM Switch", 1), error);
     CHECK_ERROR(mAlsaControl->set("SDT DL Volume",
                                 AUDIO_ABE_SIDETONE_DL_VOL_HANDSET, -1), error);
-
     // Enable Capture voice path
     CHECK_ERROR(propModemMgr.get(keyMain, main), error);
     CHECK_ERROR(propModemMgr.get(keySub, sub), error);
@@ -641,11 +641,6 @@ status_t AudioModemAlsa::voiceCallCodecSetHandset()
                                 AUDIO_ABE_AUDUL_VOICE_VOL_HANDSET, -1), error);
     CHECK_ERROR(configMicrophones(), error);
     CHECK_ERROR(configEqualizers(), error);
-
-    // Enable Sidetone
-    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
-    CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
-                                AUDIO_ABE_SIDETONE_UL_VOL_HANDSET, -1), error);
 
     return error;
 }
@@ -691,11 +686,6 @@ status_t AudioModemAlsa::voiceCallCodecSetHandfree()
     CHECK_ERROR(configMicrophones(), error);
     CHECK_ERROR(configEqualizers(), error);
 
-    // Enable Sidetone
-    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
-    CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
-                                AUDIO_ABE_SIDETONE_UL_VOL_HANDFREE, -1), error);
-
     return error;
 }
 
@@ -726,11 +716,6 @@ status_t AudioModemAlsa::voiceCallCodecSetHeadset()
     CHECK_ERROR(configMicrophones(), error);
     CHECK_ERROR(configEqualizers(), error);
 
-    // Enable Sidetone
-    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
-    CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
-                                AUDIO_ABE_SIDETONE_UL_VOL_HEADSET, -1), error);
-
     return error;
 }
 
@@ -753,11 +738,6 @@ status_t AudioModemAlsa::voiceCallCodecSetBluetooth()
     CHECK_ERROR(mAlsaControl->set("DL1 BT_VX Switch", 1), error);
     CHECK_ERROR(configMicrophones(), error);
     CHECK_ERROR(configEqualizers(), error);
-
-    // Enable Sidetone
-    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
-    CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
-                                AUDIO_ABE_SIDETONE_UL_VOL_BLUETOOTH, -1), error);
 
     return error;
 }
@@ -906,6 +886,7 @@ status_t AudioModemAlsa::voiceCallCodecUpdate()
     }
 
     error = voiceCallCodecPCMSet();
+    error = voiceCallSidetoneSet(mCurrentAudioModemModes);
 
     return error;
 }
@@ -921,11 +902,54 @@ status_t AudioModemAlsa::multimediaCodecUpdate()
     return error;
 }
 
+status_t AudioModemAlsa::voiceCallSidetoneSet(int mCurrentAudioModemModes)
+{
+    status_t error = NO_ERROR;
+
+    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 1), error);
+
+    if (mCurrentAudioModemModes & AudioModemInterface::AUDIO_MODEM_HANDSET) {
+        CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_HANDSET, -1), error);
+    } else if (mCurrentAudioModemModes &
+                                AudioModemInterface::AUDIO_MODEM_HANDFREE) {
+        CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_HANDFREE, -1), error);
+    } else if (mCurrentAudioModemModes &
+                                AudioModemInterface::AUDIO_MODEM_HEADSET) {
+        CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_HEADSET, -1), error);
+#ifdef AUDIO_BLUETOOTH
+    } else if (mCurrentAudioModemModes &
+                                AudioModemInterface::AUDIO_MODEM_BLUETOOTH) {
+        CHECK_ERROR(mAlsaControl->set("SDT UL Volume",
+                                AUDIO_ABE_SIDETONE_UL_VOL_BLUETOOTH, -1),
+                                error);
+#endif
+    } else {
+        LOGE("Audio Modem mode not supported: %04x", mCurrentAudioModemModes);
+        CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 0, 0), error);
+        return INVALID_OPERATION;
+    }
+    return error;
+}
+
+status_t AudioModemAlsa::voiceCallSidetoneReset()
+{
+    status_t error = NO_ERROR;
+    // Disable Sidetone
+    CHECK_ERROR(mAlsaControl->set("SDT UL Volume", 0, -1), error);
+    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 0, 0), error);
+
+    return error;
+}
+
 status_t AudioModemAlsa::voiceCallCodecReset()
 {
     status_t error = NO_ERROR;
 
     LOGV("Stop Audio Codec Voice call");
+    error = voiceCallSidetoneReset();
 
     error = voiceCallCodecPCMReset();
 
@@ -955,10 +979,6 @@ status_t AudioModemAlsa::voiceCallCodecStop()
     CHECK_ERROR(mAlsaControl->set("MUX_VX1", "None"), error);
     CHECK_ERROR(mAlsaControl->set("AUDUL Voice UL Volume", 0, -1), error);
     CHECK_ERROR(mAlsaControl->set("Voice Capture Mixer Capture", 0, 0), error);
-
-    // Enable Sidetone
-    CHECK_ERROR(mAlsaControl->set("Sidetone Mixer Capture", 0, 0), error);
-    CHECK_ERROR(mAlsaControl->set("SDT UL Volume", 0, -1), error);
 
     return error;
 }
