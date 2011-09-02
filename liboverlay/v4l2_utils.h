@@ -159,4 +159,6 @@ struct v4l2_s3d_offsets {
     unsigned int h;
 };
 
+#define V4L2_CID_ROTATE         0x00980900 + 34  //(V4L2_CID_BASE+34)
+
 #endif  // ANDROID_ZOOM_REPO_HARDWARE_TI_OMAP3_LIBOVERLAY_V4L2_UTILS_H_
