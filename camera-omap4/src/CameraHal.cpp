@@ -299,6 +299,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         CAMHAL_LOGDB("SEI encoding type: %s", valstr);
         mParameters.set(TICameraParameters::KEY_SEI_ENCODING_TYPE, valstr);
         }
+    else if (isS3d) 
+	{
+        mParameters.set(TICameraParameters::KEY_SEI_ENCODING_TYPE, TICameraParameters::SEI_ENCODING_2010);
+	}
     else
         {
         CAMHAL_LOGDB("SEI encoding type: %s", TICameraParameters::SEI_ENCODING_NONE);
@@ -453,8 +457,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     if ( !isResolutionValid(w / w_coef, h / h_coef, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue))
         {
-        CAMHAL_LOGEB("Invalid picture resolution %d x %d", w, h);
-        ret = -EINVAL;
+        CAMHAL_LOGEB("Invalid picture resolution %d(%d) x %d(%d) (from %s)", w, w_coef, h,h_coef, (const char*) mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue);
+        //ret = -EINVAL;
         }
     else
         {
