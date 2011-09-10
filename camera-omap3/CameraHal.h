@@ -592,7 +592,9 @@ public:
     static const supported_resolution supportedPreviewRes[];
     static const supported_resolution supportedPictureRes[];
     static const char supportedPictureSizes[];
+    static const char supportedPictureSizesSecondary[];
     static const char supportedPreviewSizes[];
+    static const char supportedPreviewSizesSecondary[];
     static const char supportedFPS[];
     static const char supportedFpsRanges[];
     static const char supportedThumbnailSizes[];

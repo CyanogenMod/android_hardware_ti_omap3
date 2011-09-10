@@ -70,7 +70,9 @@ typedef struct {
 int CameraHal::camera_device = 0;
 wp<CameraHardwareInterface> CameraHal::singleton[];
 const char CameraHal::supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240";
+const char CameraHal::supportedPictureSizesSecondary [] = "640x480";
 const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
+const char CameraHal::supportedPreviewSizesSecondary [] = "800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
 const char CameraHal::supportedThumbnailSizes []= "320x240,80x60,0x0";
 const char CameraHal::supportedFpsRanges [] = "(8000,8000),(8000,10000),(10000,10000),(8000,15000),(15000,15000),(8000,20000),(20000,20000),(24000,24000),(25000,25000),(8000,30000),(30000,30000)";
@@ -380,10 +382,10 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, COMPENSATION_STEP);
     p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, 0);
 
-    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, CameraHal::supportedPictureSizes);
+    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, mCameraIndex ? CameraHal::supportedPictureSizesSecondary : CameraHal::supportedPictureSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, CameraHal::supportedFpsRanges);
     p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
-    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, CameraHal::supportedPreviewSizes);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, mCameraIndex ? CameraHal::supportedPreviewSizesSecondary : CameraHal::supportedPreviewSizes);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
     p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, CameraHal::supportedFPS);
     p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, CameraHal::supportedThumbnailSizes);
@@ -785,7 +787,7 @@ void CameraHal::previewThread()
 
 #endif
 
-                    if ( CorrectPreview() < 0 )
+                    if ( !mCameraIndex && CorrectPreview() < 0 )
                         LOGE("Error during CorrectPreview()");
 
                     if ( CameraStart() < 0 ) {
@@ -1165,7 +1167,7 @@ void CameraHal::previewThread()
 
 #endif
 
-               if ( CorrectPreview() < 0 )
+               if ( !mCameraIndex && CorrectPreview() < 0 )
                    LOGE("Error during CorrectPreview()");
 
                if (CameraStart() < 0)
@@ -1240,7 +1242,7 @@ int CameraHal::CameraCreate()
 
     LOG_FUNCTION_NAME
 
-    camera_device = open(VIDEO_DEVICE, O_RDWR);
+    camera_device = open(mCameraIndex ? "/dev/video0" : VIDEO_DEVICE, O_RDWR);
     if (camera_device < 0) {
         LOGE ("Could not open the camera device: %s",  strerror(errno) );
         goto exit;
@@ -1444,7 +1446,7 @@ int CameraHal::CameraStart()
         mPreviewBuffers[i] = new MemoryBase(mPreviewHeaps[i], 0, mPreviewFrameSize);
     }
 
-    if( ioctl(camera_device, VIDIOC_G_CROP, &mInitialCrop) < 0 ){
+    if( !mCameraIndex && ioctl(camera_device, VIDIOC_G_CROP, &mInitialCrop) < 0 ){
         LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
         return -1;
     }
@@ -3619,7 +3621,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     if ( params.getPreviewFormat() != NULL ) {
         if (strcmp(params.getPreviewFormat(), (const char *) CameraParameters::PIXEL_FORMAT_YUV422I) != 0) {
             LOGE("Only yuv422i preview is supported");
-            return -EINVAL;
+            //return -EINVAL;
         }
     }
 
@@ -5100,12 +5102,26 @@ void CameraHal::debugShowBufferStatus()
 }
 #endif
 
+static const CameraInfo sCameraInfo[] = {
+    {
+        CAMERA_FACING_BACK,
+        90,  /* orientation */
+    },
+#ifdef SECONDARY_CAMERA
+    {
+        CAMERA_FACING_FRONT,
+        270, /* orientation */
+    }
+#endif
+};
+
+
 extern "C" int HAL_getNumberOfCameras()
 {
     int numCameras = 0;
 
     // FIXME: Zoom3 has only one camera device.
-    numCameras = 1;
+    numCameras = sizeof(sCameraInfo) / sizeof(sCameraInfo[0]);
     if ( 0 == numCameras )
     {
         LOGE("No cameras supported in Camera HAL implementation");
@@ -5125,9 +5141,7 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
     int orientation = 0;
     char *valstr = NULL;
 
-    // FIXME: Zoom3 has only one camera facing back.
-    cameraInfo->facing = face_value;
-    cameraInfo->orientation = orientation;
+    memcpy(cameraInfo, &sCameraInfo[cameraId], sizeof(CameraInfo));
 }
 
 extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId)
