@@ -205,6 +205,9 @@ extern "C" {
  *  Details:
  */
 	extern DBAPI DSPManager_GetProcResourceInfo(UINT *pBuf, UINT *pSize);
+
+	extern DBAPI DSPManager_Force_Recovery() ;
+
 #endif
 
 
