@@ -242,6 +242,7 @@ public:
     /* record zorder of each overlay */
     int mZorderUsage[MAX_NUM_OVERLAYS];
 
+    int mNumOverlays;
 };
 
 // A separate instance is created per overlay data side user

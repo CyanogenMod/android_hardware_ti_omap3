@@ -94,6 +94,7 @@ pcb:
 
         read(pcb_fd_id, buffer, 1024);
         if (pcb_fd_id > 0) {
+            init_pcb_thermal_governor();
             init_status |= PCB;
         }
 

@@ -1726,8 +1726,13 @@ void CameraHal::nextPreview()
 
     if(mRecordEnabled) {
         mVideoBufferStatus[index] |= BUFF_Q2VE;
+
+        // unlock mRecordingLock before sending frame to CameraService to avoid
+        // deadlock when in the same time releaseRecordingFrame is invoked.
+        mRecordingLock.unlock();
         mDataCbTimestamp(timestamp, CAMERA_MSG_VIDEO_FRAME,
                 mVideoBuffer[index], mCallbackCookie, 0, 0);
+        mRecordingLock.lock();
     }
 
     queueToOverlay(index);

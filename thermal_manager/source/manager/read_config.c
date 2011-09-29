@@ -15,6 +15,7 @@
 #include <utils/Log.h>
 /* TODO: Need to make this better */
 #include "../../include/thermal_manager.h"
+#include "pcb_thermal_governor.h"
 
 const char *sensor_read_paths[MAX_SENSORS] = { "omap_cpu_temperature_file",
                         "emif1_temperature_file",
@@ -35,6 +36,18 @@ const char *omaptemp_read_paths[MAX_OMAPTEMP_PATHS] = {"omap_cpu_update_rate",
                         "omap_cpu_temp1_max_hyst"
                         };
 
+const char *pcbtemp_read_paths[MAX_PCBTEMP_PATHS] = {"pcb_update_rate",
+                        "pcb_temp1_max",
+                        "pcb_temp1_max_hyst"
+                        };
+
+const char *duty_cycle_read_paths[MAX_DUTY_CYCLE_PATHS] = {"duty_cycle_nitro_rate",
+                        "duty_cycle_cooling_rate",
+                        "duty_cycle_nitro_interval",
+                        "duty_cycle_nitro_percentage",
+                        "duty_cycle_enabled",
+                        };
+
 /* Read in the configuration file and place results in a global
  * structure. Need to read in locally and then copy over as
  * config_destroy will destroy global pointers if read directly
@@ -46,15 +59,19 @@ int read_config(void)
     const char *temp_read[MAX_SENSORS];
     const char *cpufreq_read[MAX_CPUFREQ_PATHS];
     const char *omaptemp_read[MAX_OMAPTEMP_PATHS];
+    const char *pcbtemp_read[MAX_PCBTEMP_PATHS];
+    const char *duty_cycle_read[MAX_DUTY_CYCLE_PATHS];
     const char *omap_cpu_id;
     const char *omap_pcb_id;
     long value;
+    int val_bool;
+    const config_setting_t *list;
 
     cf = &cfg;
     config_init(cf);
 
     if (!config_read_file (cf, CONFIG_FILE)) {
-            fprintf (stderr, "%s:%d = %s\n", CONFIG_FILE,
+            LOGD (stderr, "%s:%d = %s\n", CONFIG_FILE,
                 config_error_line(cf), config_error_text(cf));
         config_destroy (cf);
         return -1;
@@ -118,13 +135,25 @@ int read_config(void)
         config_file.pcb_threshold = value;
     }
 
+    if (config_lookup_bool(cf, "pcb_do_polling", &val_bool)) {
+        config_file.pcb_do_polling = val_bool;
+    } else {
+        config_file.pcb_do_polling = true;
+    }
+
+    if (config_lookup_int(cf, "pcb_polling_interval", &value)) {
+        config_file.pcb_polling_interval = value;
+    } else {
+        config_file.pcb_polling_interval = 300000;
+    }
+
     for (index = 0; index < MAX_CPUFREQ_PATHS; index++) {
             if (config_lookup_string(cf, cpufreq_read_paths[index],
             &cpufreq_read[index])) {
                         if ((config_file.cpufreq_file_paths[index] =
                 calloc(strlen(cpufreq_read[index]),
                 sizeof(char))) == NULL) {
-                printf ("Error in allocating memory\n");
+                LOGD ("Error in allocating memory\n");
                 fflush(stdout);
                 return -1;
             }
@@ -138,7 +167,7 @@ int read_config(void)
                         if ((config_file.omaptemp_file_paths[index] =
                 calloc(strlen(omaptemp_read[index]),
                 sizeof(char))) == NULL) {
-                printf ("Error in allocating memory\n");
+                LOGD ("Error in allocating memory\n");
                 fflush(stdout);
                 return -1;
             }
@@ -146,41 +175,123 @@ int read_config(void)
         }
     }
 
+    for (index = 0; index < MAX_PCBTEMP_PATHS; index++) {
+            if (config_lookup_string(cf, pcbtemp_read_paths[index],
+            &pcbtemp_read[index])) {
+                        if ((config_file.pcbtemp_file_paths[index] =
+                calloc(strlen(pcbtemp_read[index]),
+                sizeof(char))) == NULL) {
+                LOGD ("Error in allocating memory\n");
+                return -1;
+            }
+        strcpy (config_file.pcbtemp_file_paths[index], pcbtemp_read[index]);
+        }
+    }
+
+    for (index = 0; index < MAX_DUTY_CYCLE_PATHS; index++) {
+            if (config_lookup_string(cf, duty_cycle_read_paths[index],
+            &duty_cycle_read[index])) {
+                        if ((config_file.duty_cycle_file_paths[index] =
+                calloc(strlen(duty_cycle_read[index]),
+                sizeof(char))) == NULL) {
+                LOGD("Error in allocating memory\n");
+                return -1;
+            }
+        strcpy (config_file.duty_cycle_file_paths[index], duty_cycle_read[index]);
+        }
+    }
+
+    list = config_lookup(&cfg, "pcb_sections");
+    if(list) {
+        config_file.n_pcb_sections = config_setting_length(list);
+
+        if (config_file.n_pcb_sections > MAX_PCB_SECTIONS)
+            config_file.n_pcb_sections = MAX_PCB_SECTIONS;
+
+        for (index = 0; index < config_file.n_pcb_sections; index++) {
+            struct config_setting_t *elem = config_setting_get_elem(list, index);
+            if (elem) {
+                config_setting_lookup_int(elem, "pcb_temp_level",
+                 &config_file.pcb_sections[index].pcb_temp_level);
+                config_setting_lookup_int(elem, "max_opp",
+                 &config_file.pcb_sections[index].max_opp);
+                config_setting_lookup_bool(elem, "duty_cycle_enabled",
+                 (int *)&config_file.pcb_sections[index].duty_cycle_enabled);
+                config_setting_lookup_int(elem, "nitro_rate",
+                 &config_file.pcb_sections[index].duty_cycle_params.nitro_rate);
+                config_setting_lookup_int(elem, "cooling_rate",
+                 &config_file.pcb_sections[index].duty_cycle_params.cooling_rate);
+                config_setting_lookup_int(elem, "nitro_interval",
+                 &config_file.pcb_sections[index].duty_cycle_params.nitro_interval);
+                config_setting_lookup_int(elem, "nitro_percentage",
+                 &config_file.pcb_sections[index].duty_cycle_params.nitro_percentage);
+            }
+        }
+    }
+
     config_destroy(cf);
 
 #ifdef DEBUG
     for (index = 0; index < MAX_SENSORS; index++) {
-        printf("config_file.temperature_file_sensors[%d] %s\n",
+        LOGD("config_file.temperature_file_sensors[%d] %s\n",
             index, config_file.temperature_file_sensors[index]);
         fflush(stdout);
     }
-    printf("config_file.omap_cpu_threshold_monitoring %ld\n",
+    LOGD("config_file.omap_cpu_threshold_monitoring %ld\n",
         config_file.omap_cpu_threshold_monitoring);
     fflush(stdout);
-    printf("config_file.omap_cpu_threshold_alert %ld\n",
+    LOGD("config_file.omap_cpu_threshold_alert %ld\n",
         config_file.omap_cpu_threshold_alert);
     fflush(stdout);
-    printf("config_file.omap_cpu_threshold_panic %ld\n",
+    LOGD("config_file.omap_cpu_threshold_panic %ld\n",
         config_file.omap_cpu_threshold_panic);
     fflush(stdout);
-    printf("config_file.omap_cpu_temperature_slope %ld\n",
+    LOGD("config_file.omap_cpu_temperature_slope %ld\n",
         config_file.omap_cpu_temperature_slope);
     fflush(stdout);
-    printf("config_file.omap_cpu_temperature_offset %ld\n",
+    LOGD("config_file.omap_cpu_temperature_offset %ld\n",
         config_file.omap_cpu_temperature_offset);
     fflush(stdout);
-    printf("config_file.pcb_threshold %ld\n",
+    LOGD("config_file.pcb_threshold %ld\n",
         config_file.pcb_threshold);
     fflush(stdout);
+    LOGD("config_file.pcb_do_polling %s\n",
+        config_file.pcb_do_polling? "yes": "no");
+    LOGD("config_file.pcb_polling_interval %d\n",
+        config_file.pcb_polling_interval);
     for (index = 0; index < MAX_CPUFREQ_PATHS; index++) {
-        printf("config_file.cpufreq_file_paths[%d] %s\n",
+        LOGD("config_file.cpufreq_file_paths[%d] %s\n",
             index, (char *)config_file.cpufreq_file_paths[index]);
         fflush(stdout);
     }
     for (index = 0; index < MAX_OMAPTEMP_PATHS; index++) {
-        printf("config_file.omaptemp_file_paths[%d] %s\n",
+        LOGD("config_file.omaptemp_file_paths[%d] %s\n",
             index, (char *)config_file.omaptemp_file_paths[index]);
         fflush(stdout);
+    }
+    for (index = 0; index < MAX_PCBTEMP_PATHS; index++) {
+        LOGD("config_file.pcbtemp_file_paths[%d] %s\n",
+            index, (char *)config_file.pcbtemp_file_paths[index]);
+    }
+    for (index = 0; index < MAX_DUTY_CYCLE_PATHS; index++) {
+        LOGD("config_file.duty_cycle_file_paths[%d] %s\n",
+            index, (char *)config_file.duty_cycle_file_paths[index]);
+    }
+    for (index = 0; index < config_file.n_pcb_sections; index++) {
+        LOGD("config_file.pcb_sections[%d].pcb_temp_level %u\n",
+         index, config_file.pcb_sections[index].pcb_temp_level);
+        LOGD("config_file.pcb_sections[%d].max_opp %u\n",
+         index, config_file.pcb_sections[index].max_opp);
+        LOGD("config_file.pcb_sections[%d].duty_cycle_enabled %s\n",
+         index, config_file.pcb_sections[index].duty_cycle_enabled ? "yes" : "no");
+        LOGD("config_file.pcb_sections[%d].duty_cycle_params.nitro_rate %u\n",
+         index, config_file.pcb_sections[index].duty_cycle_params.nitro_rate);
+        LOGD("config_file.pcb_sections[%d].duty_cycle_params.cooling_rate %u\n",
+         index, config_file.pcb_sections[index].duty_cycle_params.cooling_rate);
+        LOGD("config_file.pcb_sections[%d].duty_cycle_params.nitro_interval %u\n",
+         index, config_file.pcb_sections[index].duty_cycle_params.nitro_interval);
+        LOGD("config_file.pcb_sections[%d].duty_cycle_params.nitro_percentage %u\n",
+         index, config_file.pcb_sections[index].duty_cycle_params.nitro_percentage);
     }
 #endif
     return 0;
