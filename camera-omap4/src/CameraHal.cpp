@@ -3049,7 +3049,7 @@ void CameraHal::extractSupportedParams()
 
     LOG_FUNCTION_NAME
 
-    pStr = p.get(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES);
+    /*pStr = p.get(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES);
     if ( NULL != pStr )
         {
         strncpy(mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_SIZES]->mPropValue,
@@ -3061,7 +3061,7 @@ void CameraHal::extractSupportedParams()
         {
         strncpy(mCameraPropertiesArr[CameraProperties::PROP_INDEX_SUPPORTED_PICTURE_FORMATS]->mPropValue,
                       pStr, MAX_PROP_VALUE_LENGTH - 1);
-        }
+        }*/
 
     pStr = p.get(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES);
     if ( NULL != pStr )
