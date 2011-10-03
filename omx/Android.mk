@@ -59,6 +59,11 @@ ifeq ($(DVFS_ENABLED),1)
 TI_OMX_CFLAGS += -DDVFS_ENABLED
 endif
 
+# Required for Motorola Defy Codecs
+ifeq ($(TARGET_BOOTLOADER_BOARD_NAME),jordan)
+TI_OMX_CFLAGS += -DMOTO_FORCE_RECOVERY
+endif
+
 
 TI_OMX_COMP_C_INCLUDES := \
 	$(TI_OMX_INCLUDES) \

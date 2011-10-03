@@ -22,5 +22,10 @@ LOCAL_CFLAGS += -pipe -fomit-frame-pointer -Wall  -Wno-trigraphs -Werror-implici
 LOCAL_MODULE:= libbridge
 LOCAL_MODULE_TAGS := optional
 
+# Required for Motorola Defy
+ifeq ($(TARGET_BOOTLOADER_BOARD_NAME),jordan)
+LOCAL_CFLAGS += -DMOTO_FORCE_RECOVERY
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 

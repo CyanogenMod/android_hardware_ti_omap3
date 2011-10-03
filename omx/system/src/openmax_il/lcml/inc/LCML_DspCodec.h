@@ -84,6 +84,21 @@
         goto label;                               \
     }                                              /**/
 
+/*Used by some closed source codecs to recover hardware errors*/
+#ifdef MOTO_FORCE_RECOVERY
+#include <DSPManager.h>
+#undef DSP_ERROR_EXIT
+#define DSP_ERROR_EXIT(err, msg, label) \
+    if (DSP_FAILED (err)) {                                                   \
+        LOGE("\n****************LCML ERROR : DSPr ***********************\n");\
+        eError = OMX_ErrorHardware;                                           \
+        DSP_STATUS eStatus = DSPManager_Force_Recovery();                     \
+        LOGE("Error: %s : Err Num %lx status:%lx", msg, err, eStatus);        \
+        LOGE("\n****************LCML ERROR : DSP ************************\n");\
+        goto label;                                                           \
+    }
+#endif
+
 /* ======================================================================= */
 /**
  * This enum is mean to abtract the enumerations of messages that are

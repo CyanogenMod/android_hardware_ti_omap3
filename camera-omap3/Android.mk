@@ -45,6 +45,11 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_CFLAGS += -O0 -g3 -fpic -fstrict-aliasing -DIPP_LINUX -D___ANDROID___ -DHARDWARE_OMX
 
+# Required for Motorola Defy libbridge
+ifeq ($(TARGET_BOOTLOADER_BOARD_NAME),jordan)
+LOCAL_CFLAGS += -DMOTO_FORCE_RECOVERY
+endif
+
 LOCAL_SHARED_LIBRARIES += \
     libbridge \
     libLCML \

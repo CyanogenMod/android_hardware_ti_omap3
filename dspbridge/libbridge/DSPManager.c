@@ -393,7 +393,9 @@ DBAPI DSPManager_GetProcResourceInfo(UINT *pBuf, UINT *pSize)
 
     return status;
 }
+#endif
 
+#ifdef MOTO_FORCE_RECOVERY
 DBAPI DSPManager_Force_Recovery()
 {
 	DSP_STATUS status = DSP_SOK;
