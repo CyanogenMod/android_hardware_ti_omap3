@@ -16,6 +16,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_CFLAGS += -Wall -g -O2 -finline-functions -DOMAP_3430
 
 LOCAL_MODULE:= dspexec
+LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_EXECUTABLE)
 
