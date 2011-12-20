@@ -635,7 +635,7 @@ static OMX_ERRORTYPE VIDDEC_SendCommand (OMX_HANDLETYPE hComponent,
 
     switch (Cmd) {
         case OMX_CommandStateSet:
-            LOGD("VIDDEC_SendCommand: Received request from omx client to change state to %d", nParam1);
+            ALOGD("VIDDEC_SendCommand: Received request from omx client to change state to %d", nParam1);
             /* Add a pending transition */
             if(AddStateTransition(pComponentPrivate) != OMX_ErrorNone) {
                 return OMX_ErrorUndefined;
@@ -909,7 +909,7 @@ static OMX_ERRORTYPE VIDDEC_GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
            pParamProfileLevel->eLevel = pComponentPrivate->pMpeg2->eLevel;
         }
         else {
-           LOGD("Error in Getparameter OMX_IndexParamVideoProfileLevelCurrent");
+           ALOGD("Error in Getparameter OMX_IndexParamVideoProfileLevelCurrent");
            eError = OMX_ErrorBadParameter;
          }
       }
@@ -1537,7 +1537,7 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
             char value[PROPERTY_VALUE_MAX];
             property_get("debug.video.showfps", value, "0");
             mDebugFps = atoi(value);
-            LOGD_IF(mDebugFps, "Not setting deblocking to measure fps");
+            ALOGD_IF(mDebugFps, "Not setting deblocking to measure fps");
             if (mDebugFps == OMX_FALSE) {
                 if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4 ||
                         pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263){

@@ -126,7 +126,7 @@ OMX_ERRORTYPE TIOMX_Init()
     }
 
     count++;
-    LOGD("init count = %d\n", count);
+    ALOGD("init count = %d\n", count);
 
     if (count == 1)
     {
@@ -208,7 +208,7 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
     for (refIndex=0; refIndex < MAX_TABLE_SIZE; refIndex++) {
         //get the index for the component in the table
         if (strcmp(componentTable[refIndex].name, cComponentName) == 0) {
-            LOGD("Found component %s with refCount %d\n",
+            ALOGD("Found component %s with refCount %d\n",
                   cComponentName, componentTable[refIndex].refCount);
 
             /* check if the component is already loaded */
@@ -364,7 +364,7 @@ OMX_ERRORTYPE TIOMX_FreeHandle (OMX_HANDLETYPE hComponent)
         for (handleIndex=0; handleIndex < componentTable[refIndex].refCount; handleIndex++){
             /* get the position for the component in the table */
             if (componentTable[refIndex].pHandle[handleIndex] == hComponent){
-                LOGD("Found matching pHandle(%p) at index %d with refCount %d",
+                ALOGD("Found matching pHandle(%p) at index %d with refCount %d",
                       hComponent, refIndex, componentTable[refIndex].refCount);
                 if (componentTable[refIndex].refCount) {
                     componentTable[refIndex].refCount -= 1;
@@ -417,7 +417,7 @@ OMX_ERRORTYPE TIOMX_Deinit()
         count--;
     }
 
-    LOGD("deinit count = %d\n", count);
+    ALOGD("deinit count = %d\n", count);
 
     if(pthread_mutex_unlock(&mutex) != 0) {
         LOGE("%d :: Core: Error in Mutex unlock\n",__LINE__);

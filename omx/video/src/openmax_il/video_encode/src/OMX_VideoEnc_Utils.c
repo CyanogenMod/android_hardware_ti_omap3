@@ -3956,7 +3956,7 @@ OMX_ERRORTYPE OMX_VIDENC_LCML_Callback(TUsnCodecEvent event,void* argsCb [10])
 #endif
             OMX_PRDSP1(pComponentPrivate->dbg, " [OUT] -> %p\n", pBufHead);
             if(pBufHead->nFilledLen > pBufHead->nAllocLen) {
-                LOGD("VE Warning!!! Output buffer overflow.");
+                ALOGD("VE Warning!!! Output buffer overflow.");
             }
             pBufferPrivate->eBufferOwner = VIDENC_BUFFER_WITH_COMPONENT;
             if (pComponentPrivate->bCodecStarted == OMX_TRUE)

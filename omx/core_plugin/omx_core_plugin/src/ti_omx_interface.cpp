@@ -40,7 +40,7 @@ class TIOMXInterface : public OMXInterface
             // call failed.
             if (ipHandle && aInterfaceId == OMX_INTERFACE_ID)
             {
-                LOGD("TIOMXInterface: library lookup success\n");
+                ALOGD("TIOMXInterface: library lookup success\n");
                 // the library lookup was successful
                 return this;
             }
@@ -51,7 +51,7 @@ class TIOMXInterface : public OMXInterface
 
         static TIOMXInterface* Instance()
         {
-            LOGD("TIOMXInterface: creating interface\n");
+            ALOGD("TIOMXInterface: creating interface\n");
             return OSCL_NEW(TIOMXInterface, ());
         };
 
@@ -67,7 +67,7 @@ class TIOMXInterface : public OMXInterface
 
         TIOMXInterface()
         {
-            LOGD("Calling DLOPEN on OMX_CORE_LIBRARY (%s)\n", OMX_CORE_LIBRARY);
+            ALOGD("Calling DLOPEN on OMX_CORE_LIBRARY (%s)\n", OMX_CORE_LIBRARY);
             ipHandle = dlopen(OMX_CORE_LIBRARY, RTLD_NOW);
 
             if (NULL == ipHandle)
@@ -101,7 +101,7 @@ class TIOMXInterface : public OMXInterface
             }
             else
             {
-                LOGD("DLOPEN SUCCEEDED (%s)\n", OMX_CORE_LIBRARY);
+                ALOGD("DLOPEN SUCCEEDED (%s)\n", OMX_CORE_LIBRARY);
                 // Lookup all the symbols in the OMX core
                 pOMX_Init = (tpOMX_Init)dlsym(ipHandle, "TIOMX_Init");
                 pOMX_Deinit = (tpOMX_Deinit)dlsym(ipHandle, "TIOMX_Deinit");
