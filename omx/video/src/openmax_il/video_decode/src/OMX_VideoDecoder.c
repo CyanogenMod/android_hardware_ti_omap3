@@ -282,7 +282,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
 #endif
 #ifdef ANDROID
     /* print to logcat to verify that we are running a TI OMX codec*/
-    LOGI("TI Video Decoder \n");
+    ALOGI("TI Video Decoder \n");
 #endif
 
     OMX_CONF_CHECK_CMD(hComponent, OMX_TRUE, OMX_TRUE);

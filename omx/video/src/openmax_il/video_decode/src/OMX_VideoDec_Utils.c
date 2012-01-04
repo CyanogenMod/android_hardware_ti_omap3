@@ -1865,7 +1865,7 @@ EXIT:
 
 OMX_ERRORTYPE VIDDEC_EmptyBufferDone(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BUFFERHEADERTYPE* pBufferHeader)
 {
-    //LOGI("VIDDEC_EmptyBufferDone: header %p buffer %p", pBufferHeader, pBufferHeader->pBuffer);
+    //ALOGI("VIDDEC_EmptyBufferDone: header %p buffer %p", pBufferHeader, pBufferHeader->pBuffer);
     ((VIDDEC_BUFFER_PRIVATE* )pBufferHeader->pInputPortPrivate)->eBufferOwner = VIDDEC_BUFFER_WITH_CLIENT;
 
     // No buffer flag EOS event needs to be sent for INPUT port
@@ -1889,7 +1889,7 @@ OMX_ERRORTYPE VIDDEC_EmptyBufferDone(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate
 
 OMX_ERRORTYPE VIDDEC_FillBufferDone(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BUFFERHEADERTYPE* pBufferHeader)
 {
-    //LOGI("VIDDEC_FillBufferDone: header %p buffer %p", pBufferHeader, pBufferHeader->pBuffer);
+    //ALOGI("VIDDEC_FillBufferDone: header %p buffer %p", pBufferHeader, pBufferHeader->pBuffer);
     ((VIDDEC_BUFFER_PRIVATE* )pBufferHeader->pOutputPortPrivate)->eBufferOwner = VIDDEC_BUFFER_WITH_CLIENT;
 
     // OpenMAX-IL standard specifies that a component generates the OMX_EventBufferFlag event when an OUTPUT port
