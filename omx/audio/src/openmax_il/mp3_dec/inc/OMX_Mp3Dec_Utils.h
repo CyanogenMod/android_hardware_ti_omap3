@@ -191,10 +191,10 @@
 #ifdef  MP3DEC_DEBUG
 
   #ifdef ANDROID
-    #define MP3DEC_DPRINT  LOGW
-    #define MP3DEC_BUFPRINT LOGW
-    #define MP3DEC_MEMPRINT LOGW
-    #define MP3DEC_STATEPRINT LOGW
+    #define MP3DEC_DPRINT  ALOGW
+    #define MP3DEC_BUFPRINT ALOGW
+    #define MP3DEC_MEMPRINT ALOGW
+    #define MP3DEC_STATEPRINT ALOGW
   #else
     #define MP3DEC_DPRINT  printf
     #define MP3DEC_BUFPRINT printf

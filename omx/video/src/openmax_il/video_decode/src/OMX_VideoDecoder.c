@@ -890,17 +890,17 @@ static OMX_ERRORTYPE VIDDEC_GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
         {
            OMX_VIDEO_PARAM_PROFILELEVELTYPE *pParamProfileLevel = (OMX_VIDEO_PARAM_PROFILELEVELTYPE *)ComponentParameterStructure;
            if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
-           LOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent AVC");
+           ALOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent AVC");
            pParamProfileLevel->eProfile = pComponentPrivate->pH264->eProfile;
            pParamProfileLevel->eLevel = pComponentPrivate->pH264->eLevel;
         }
         else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4) {
-           LOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent MPEG4");
+           ALOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent MPEG4");
            pParamProfileLevel->eProfile = pComponentPrivate->pMpeg4->eProfile;
            pParamProfileLevel->eLevel = pComponentPrivate->pMpeg4->eLevel;
         }
         else if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
-           LOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent H.263");
+           ALOGW("Getparameter OMX_IndexParamVideoProfileLevelCurrent H.263");
            pParamProfileLevel->eProfile = pComponentPrivate->pH263->eProfile;
            pParamProfileLevel->eLevel = pComponentPrivate->pH263->eLevel;
         }
