@@ -23,11 +23,11 @@ class TIOMXInterface : public OMXInterface
                 const char* pErr = dlerror();
                 if (NULL != pErr)
                 {
-                    LOGE("TIOMXInterface: Error closing library: %s\n", pErr);
+                    ALOGE("TIOMXInterface: Error closing library: %s\n", pErr);
                 }
                 else
                 {
-                    LOGE("OsclSharedLibrary::Close: Error closing library, no error reported");
+                    ALOGE("OsclSharedLibrary::Close: Error closing library, no error reported");
                 }
             }
 
@@ -45,7 +45,7 @@ class TIOMXInterface : public OMXInterface
                 return this;
             }
             // the ID doesn't match
-            LOGE("TIOMXInterface: library lookup failed\n");
+            ALOGE("TIOMXInterface: library lookup failed\n");
             return NULL;
         };
 
@@ -89,13 +89,13 @@ class TIOMXInterface : public OMXInterface
                 if (NULL == pErr)
                 {
                     // No error reported, but no handle to the library
-                    LOGE("OsclLib::LoadLibrary: Error opening "
+                    ALOGE("OsclLib::LoadLibrary: Error opening "
                          "library (%s) but no error reported\n", OMX_CORE_LIBRARY);
                 }
                 else
                 {
                     // Error reported
-                    LOGE("OsclLib::LoadLibrary: Error opening "
+                    ALOGE("OsclLib::LoadLibrary: Error opening "
                          "library (%s): %s\n", OMX_CORE_LIBRARY, pErr);
                 }
             }

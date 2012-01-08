@@ -8447,7 +8447,7 @@ OMX_ERRORTYPE VIDDEC_CopyBuffer(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate,
             free(pComponentPrivate->eFirstBuffer.pFirstBufferSaved);
             pComponentPrivate->eFirstBuffer.pFirstBufferSaved = NULL;
         } else {
-            LOGE("Not enough memory in the buffer to concatenate the 2 frames, loosing first frame\n");
+            ALOGE("Not enough memory in the buffer to concatenate the 2 frames, loosing first frame\n");
         }
 EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "OUT\n");

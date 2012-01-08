@@ -375,7 +375,7 @@ typedef struct OMXBufferStatus /*BUFFERSTATUS*/
  */
 /* ======================================================================= */
 #ifndef UNDER_CE
-#define WMADEC_EPRINT LOGE
+#define WMADEC_EPRINT ALOGE
 #else
 #define WMADEC_EPRINT		  printf
 #endif

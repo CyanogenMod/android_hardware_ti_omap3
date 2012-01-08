@@ -2384,7 +2384,7 @@ static OMX_ERRORTYPE VIDDEC_EmptyThisBuffer (OMX_HANDLETYPE pComponent,
     bIsInputFlushPending = pComponentPrivate->bIsInputFlushPending;
     VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->inputFlushCompletionMutex);
     if (bIsInputFlushPending) {
-        LOGE("Unable to process any OMX_EmptyThisBuffer requsts with input flush pending");
+        ALOGE("Unable to process any OMX_EmptyThisBuffer requsts with input flush pending");
         return OMX_ErrorIncorrectStateOperation;
     }
 #ifdef __PERF_INSTRUMENTATION__
@@ -2478,7 +2478,7 @@ static OMX_ERRORTYPE VIDDEC_FillThisBuffer (OMX_HANDLETYPE pComponent,
     bIsOutputFlushPending = pComponentPrivate->bIsOutputFlushPending;
     VIDDEC_PTHREAD_MUTEX_UNLOCK(pComponentPrivate->outputFlushCompletionMutex);
     if (bIsOutputFlushPending) {
-        LOGE("Unable to process any OMX_FillThisBuffer requsts with flush pending");
+        ALOGE("Unable to process any OMX_FillThisBuffer requsts with flush pending");
         return OMX_ErrorIncorrectStateOperation;
     }
 
