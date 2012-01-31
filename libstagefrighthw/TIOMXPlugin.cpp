@@ -37,7 +37,7 @@ TIOMXPlugin::TIOMXPlugin()
       mGetRolesOfComponentHandle(NULL) {
     if (mLibHandle != NULL) {
         mInit = (InitFunc)dlsym(mLibHandle, "TIOMX_Init");
-        mDeinit = (DeinitFunc)dlsym(mLibHandle, "TIOMX_DeInit");
+        mDeinit = (DeinitFunc)dlsym(mLibHandle, "TIOMX_Deinit");
 
         mComponentNameEnum =
             (ComponentNameEnumFunc)dlsym(mLibHandle, "TIOMX_ComponentNameEnum");
