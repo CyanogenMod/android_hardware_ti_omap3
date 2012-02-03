@@ -5,6 +5,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := src/ti_omx_interface.cpp
 
 LOCAL_MODULE := libVendor_ti_omx
+LOCAL_MODULE_TAGS := optional
 
 PV_TOP := external/opencore
 
@@ -35,6 +36,7 @@ LOCAL_C_INCLUDES := \
     $(PV_INCLUDES)
 
 LOCAL_SHARED_LIBRARIES := libOMX_Core liblog
+LOCAL_MODULE_TAGS:= optional
 
 -include $(PV_TOP)/Android_platform_extras.mk
 

@@ -9,6 +9,7 @@ LOCAL_SRC_FILES := \
 	src/ti_omx_config_parser.cpp
 
 LOCAL_MODULE := libVendor_ti_omx_config_parser
+LOCAL_MODULE_TAGS := optional
 
 PV_TOP := external/opencore
 
