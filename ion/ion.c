@@ -41,7 +41,7 @@ int ion_open()
 
 int ion_close(int fd)
 {
-        return close(fd);
+    return close(fd);
 }
 
 static int ion_ioctl(int fd, int req, void *arg)
@@ -58,12 +58,12 @@ static int ion_ioctl(int fd, int req, void *arg)
 int ion_alloc(int fd, size_t len, size_t align, unsigned int flags,
               struct ion_handle **handle)
 {
-        int ret;
-        struct ion_allocation_data data = {
-                .len = len,
-                .align = align,
-                .flags = flags,
-        };
+    int ret;
+    struct ion_allocation_data data = {
+        .len = len,
+        .align = align,
+        .flags = flags,
+    };
 
         ret = ion_ioctl(fd, ION_IOC_ALLOC, &data);
         if (ret < 0)
@@ -75,33 +75,34 @@ int ion_alloc(int fd, size_t len, size_t align, unsigned int flags,
 int ion_alloc_tiler(int fd, size_t w, size_t h, int fmt, unsigned int flags,
             struct ion_handle **handle, size_t *stride)
 {
-        int ret;
-        struct omap_ion_tiler_alloc_data alloc_data = {
-                .w = w,
-                .h = h,
-                .fmt = fmt,
-                .flags = flags,
-        };
+    int ret;
+    struct omap_ion_tiler_alloc_data alloc_data = {
+        .w = w,
+        .h = h,
+        .fmt = fmt,
+        .flags = flags,
+    };
 
-        struct ion_custom_data custom_data = {
-                .cmd = OMAP_ION_TILER_ALLOC,
-                .arg = (unsigned long)(&alloc_data),
-        };
+    struct ion_custom_data custom_data = {
+        .cmd = OMAP_ION_TILER_ALLOC,
+        .arg = (unsigned long)(&alloc_data),
+    };
 
-        ret = ion_ioctl(fd, ION_IOC_CUSTOM, &custom_data);
-        if (ret < 0)
-                return ret;
-        *stride = alloc_data.stride;
-        *handle = alloc_data.handle;
-        return ret;
+    ret = ion_ioctl(fd, ION_IOC_CUSTOM, &custom_data);
+    if (ret < 0)
+            return ret;
+    
+    *stride = alloc_data.stride;
+    *handle = alloc_data.handle;
+    return ret;
 }
 
 int ion_free(int fd, struct ion_handle *handle)
 {
-        struct ion_handle_data data = {
-                .handle = handle,
-        };
-        return ion_ioctl(fd, ION_IOC_FREE, &data);
+    struct ion_handle_data data = {
+        .handle = handle,
+    };
+    return ion_ioctl(fd, ION_IOC_FREE, &data);
 }
 
 int ion_map(int fd, struct ion_handle *handle, size_t length, int prot,
