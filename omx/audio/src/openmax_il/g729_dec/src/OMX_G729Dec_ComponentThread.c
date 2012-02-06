@@ -51,9 +51,6 @@
  *  INCLUDE FILES
  ****************************************************************/
 /* ----- system and platform files ----------------------------*/
-#ifdef UNDER_CE
-#include <windows.h>
-#else
 #include <unistd.h>
 #include <dbapi.h>
 #include <string.h>
@@ -64,7 +61,6 @@
 #include <sys/select.h>
 #include <sys/time.h> 
 #include <signal.h> 
-#endif
 
 /*-------program files ----------------------------------------*/
 #include "OMX_G729Dec_Utils.h"
@@ -170,7 +166,7 @@ void* G729DEC_ComponentThread (void* pThreadData)
                 G729DEC_DPRINT("%d:G729ComponentThread \n",__LINE__);
                 if (pComponentPrivate->curState != OMX_StateIdle) {
                     G729DEC_DPRINT("%d:G729AComponentThread \n",__LINE__);
-                    goto EXIT;
+                    return (void*)eError;
                 }
             }
             G729DEC_DPRINT ("%d :: Component Time Out !!!!!!!!!!!! \n",__LINE__);
@@ -209,7 +205,7 @@ void* G729DEC_ComponentThread (void* pThreadData)
                 if(eError != OMX_ErrorNone) {
                     G729DEC_DPRINT("%d :: Function G729Dec_FreeCompResources returned\
                                                                 error\n",__LINE__);
-                    goto EXIT;
+                    return (void*)eError;
                 }
                 G729DEC_DPRINT("%d :: ARM Side Resources Have Been Freed\n",__LINE__);
                 pComponentPrivate->curState = OMX_StateLoaded;
@@ -231,7 +227,7 @@ void* G729DEC_ComponentThread (void* pThreadData)
         }
  
     }
- EXIT:
+
     G729DEC_DPRINT("%d::Exiting ComponentThread\n",__LINE__);
     return (void*)eError;
 }

@@ -41,7 +41,7 @@
 
 #ifndef OMX_VIDDEC_DSP__H
 #define OMX_VIDDEC_DSP__H
-
+#include "usn.h"
 #define OMX_H264DEC_NUM_DLLS 5
 #define OMX_MP4DEC_NUM_DLLS  5
 #define OMX_MP2DEC_NUM_DLLS  4 
@@ -54,7 +54,6 @@
     #define VIDDEC_SN_R8_14
 #endif
 
-#ifndef UNDER_CE
     #define H264_DEC_NODE_DLL  "h264vdec_sn.dll64P"
     #define MP4_DEC_NODE_DLL   "mp4vdec_sn.dll64P"
     #define MP4720P_DEC_NODE_DLL   "mpeg4aridec_sn.dll64P"
@@ -66,18 +65,6 @@
  #ifdef VIDDEC_SPARK_CODE
     #define SPARK_DEC_NODE_DLL  "sparkdec_sn.dll64P"
  #endif
-#else
-    #define H264_DEC_NODE_DLL "\\windows\\h264vdec_sn.dll64P"
-    #define MP4_DEC_NODE_DLL  "\\windows\\mp4vdec_sn.dll64P"
-    #define MP2_DEC_NODE_DLL  "\\windows\\mp2vdec_sn.dll64P"
-    #define WMV_DEC_NODE_DLL  "\\windows\\wmv9dec_sn.dll64P"
-    #define RINGIO_NODE_DLL   "\\windows\\ringio.dll64P"
-    #define USN_DLL           "\\windows\\usn.dll64P"
-    #define CONVERSIONS_DLL   "\\windows\\conversions.dll64P"
- #ifdef VIDDEC_SPARK_CODE
-    #define SPARK_DEC_NODE_DLL "\\windows\\sparkdec_sn.dll64P" 
- #endif
-#endif
 
 #define CEILING_1000X(x) ((OMX_U32)(x) + (1000-(OMX_U32)(x)%1000))
 
@@ -173,10 +160,11 @@ typedef struct WMV9DEC_SNCreatePhArg {
 
 typedef struct {
     OMX_S32 lBuffCount;
+    OMX_U32 ulFrameIndex;
 } WMV9DEC_UALGInputParam;
 
 typedef struct {
-    OMX_U32 ulDisplayID;
+    OMX_U32 ulFrameIndex;
     OMX_U32 ulBytesConsumed;
     OMX_S32 iErrorCode;
     OMX_U32 ulDecodedFrameType;
@@ -292,6 +280,7 @@ typedef struct MP4VD_GPP_SN_Obj_CreatePhase {
 
 typedef struct
 {
+    OMX_U32 ulFrameIndex;
     OMX_S32 nBuffCount;
     OMX_U32 uRingIOBlocksize;
     OMX_S32 nPerformMode;
@@ -299,7 +288,7 @@ typedef struct
 
 typedef struct
 {
-    OMX_U32 ulDisplayID;
+    OMX_U32 ulFrameIndex;
     OMX_U32 uBytesConsumed;
     OMX_S32 iErrorCode;
     OMX_U32 ulDecodedFrameType;
@@ -337,25 +326,21 @@ typedef struct H264VDEC_SNCreatePhArg {
 
 typedef struct {
     OMX_S32 lBuffCount;
-#if 1
     OMX_U32 ulNumOfNALU;
     OMX_U32 pNALUSizeArray[H264VDEC_SN_MAX_NALUNITS];
-/*     OMX_U32 *pNALUSizeArray;*/
-#endif
+    OMX_U32 ulFrameIndex;
 } H264VDEC_UALGInputParam;
 
 #define H264VDEC_SN_MAX_MB_NUMBER 1620
 
 typedef struct {
-    OMX_U32 ulDisplayID;
+    OMX_U32 ulFrameIndex;
     OMX_U32 ulBytesConsumed;
     OMX_S32 iErrorCode;
     OMX_U32 ulDecodedFrameType;
-#if 1
     OMX_U32 ulNumOfNALUDecoded;
     OMX_S32 lMBErrStatFlag;
     OMX_U8  pMBErrStatOutBuf[H264VDEC_SN_MAX_MB_NUMBER];
-#endif
 } H264VDEC_UALGOutputParam;
 #ifdef VIDDEC_SPARK_CODE 
 typedef struct SPARKVD_GPP_SN_Obj_CreatePhase {
@@ -396,52 +381,6 @@ typedef struct SPARKVD_GPP_SN_UALGOutputParams
     OMX_U32 ulQP[(720 * 576) / 256];
 } SPARKVD_GPP_SN_UALGOutputParams;
 #endif
-
-typedef enum {
-    USN_DSPACK_STOP          = 0x0200,
-    USN_DSPACK_PAUSE         = 0x0300,
-    USN_DSPACK_ALGCTRL       = 0x0400,
-    USN_DSPACK_STRMCTRL      = 0x0500,
-    USN_DSPMSG_BUFF_FREE     = 0x0600,
-    USN_DSPACK_SET_STRM_NODE = 0x0700,
-    USN_DSPACK_GET_NODE_PTR  = 0x0800,
-    USN_DSPMSG_EVENT         = 0x0E00
-}USN_NodeToHostCmd;
-
-typedef enum {
-    USN_ERR_NONE,
-    USN_ERR_WARNING,
-    USN_ERR_PROCESS,
-    USN_ERR_PAUSE,
-    USN_ERR_STOP,
-    USN_ERR_ALGCTRL,
-    USN_ERR_STRMCTRL,
-    USN_ERR_UNKNOWN_MSG
-} USN_ErrTypes;
-
-typedef enum {
-    IUALG_OK                  = 0x0000,
-    IUALG_WARN_CONCEALED      = 0x0100,
-    IUALG_WARN_UNDERFLOW      = 0x0200,
-    IUALG_WARN_OVERFLOW       = 0x0300,
-    IUALG_WARN_ENDOFDATA      = 0x0400,
-    IUALG_WARN_PLAYCOMPLETED  = 0x0500,
-    IUALG_ERR_BAD_HANDLE      = 0x0F00,
-    IUALG_ERR_DATA_CORRUPT    = 0x0F01,
-    IUALG_ERR_NOT_SUPPORTED   = 0x0F02,
-    IUALG_ERR_ARGUMENT        = 0x0F03,
-    IUALG_ERR_NOT_READY       = 0x0F04,
-    IUALG_ERR_GENERAL         = 0x0FFF
-}IUALG_Event;
-
-typedef enum {
-    USN_STRMCMD_PLAY,
-    USN_STRMCMD_PAUSE,
-    USN_STRMCMD_STOP,
-    USN_STRMCMD_SETCODECPARAMS,
-    USN_STRMCMD_IDLE,
-    USN_STRMCMD_FLUSH
-}USN_StrmCmd;
 
 /* 
  *  ======== VIDDEC_FrameType ========
@@ -507,7 +446,6 @@ typedef enum {
 } VIDDEC_XDM_ErrorBit;
 
 #define VIDDEC_ISFLAGSET(x,y)         (((x)>>(y)) & 0x1) 
-/*#define VIDDEC_ISFLAGSET(x,y)         ((((OMX_S32*)(x))>>((OMX_S32*)(y))) & 0x1) */
 
 /** @enum M4H3DEC_TI_ERROR */
 typedef enum {
@@ -582,7 +520,7 @@ typedef struct WMV9DEC_UALGDynamicParams
     
 }WMV9DEC_UALGDynamicParams;
 
-typedef struct H264_Iualg_Cmd_SetStatus
+typedef struct H264VDEC_UALGDynamicParams
 {
 #ifdef VIDDEC_SN_R8_14
     OMX_S32 size;
@@ -590,12 +528,9 @@ typedef struct H264_Iualg_Cmd_SetStatus
     OMX_U32 ulDecodeHeader; 
     OMX_U32 ulDisplayWidth;  
     OMX_U32 ulFrameSkipMode; 
-    OMX_U32 ulPPType;        
-    
-/*#if defined(WMV9PGIN)    */
- /*   OMX_U16 usIsElementaryStream; */
-/*#endif */   
-} H264_Iualg_Cmd_SetStatus;
+    OMX_U32 ulPPType;
+    OMX_U32 ulInputBitStreamFormat;
+} H264VDEC_UALGDynamicParams;
 
 typedef struct MP4VDEC_UALGDynamicParams
 {
@@ -637,4 +572,3 @@ typedef struct MP2VDEC_UALGDynamicParams
 } MP2VDEC_UALGDynamicParams;
 
 #endif
-

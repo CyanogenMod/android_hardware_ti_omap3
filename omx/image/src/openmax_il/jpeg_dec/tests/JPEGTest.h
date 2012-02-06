@@ -88,31 +88,5 @@ typedef struct JPEGD_EVENTPRIVATE {
 	OMX_U32 nData2;
 }JPEGD_EVENTPRIVATE;
 
-typedef struct OMX_CUSTOM_IMAGE_DECODE_SECTION
-{
-    OMX_U32 nSize;
-    OMX_VERSIONTYPE nVersion;
-    OMX_U32 nMCURow;
-    OMX_U32 nAU;
-    OMX_BOOL bSectionsInput;
-    OMX_BOOL bSectionsOutput;
-}OMX_CUSTOM_IMAGE_DECODE_SECTION;
-
-
-typedef struct OMX_CUSTOM_IMAGE_DECODE_SUBREGION
-{
-    OMX_U32 nSize;
-    OMX_VERSIONTYPE nVersion;
-    OMX_U32 nXOrg;         /*Sectional decoding: X origin*/
-    OMX_U32 nYOrg;         /*Sectional decoding: Y origin*/
-    OMX_U32 nXLength;      /*Sectional decoding: X lenght*/
-    OMX_U32 nYLength;      /*Sectional decoding: Y lenght*/
-}OMX_CUSTOM_IMAGE_DECODE_SUBREGION;
-
-typedef struct OMX_CUSTOM_RESOLUTION 
-{
-	OMX_U32 nWidth;
-	OMX_U32 nHeight;
-} OMX_CUSTOM_RESOLUTION;
 
 #endif /*OMX_TESTDEC_H*/

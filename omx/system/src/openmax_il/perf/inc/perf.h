@@ -218,14 +218,14 @@ char const *PERF_SyncOpTypes[] = {
 -----------------------------------------------------------------------------*/
 typedef enum PERF_COMMANDTYPE
 {
+    PERF_CommandStatus,
     PERF_CommandMax,
-    PERF_CommandStatus = 0x10000000,
 } PERF_COMMANDTYPE;
 
 #ifdef __PERF_PRINT_C__
 
-char const *PERF_CommandTypes[] = {
-    "none"
+char const *PERF_CommandTypes[PERF_CommandMax] = {
+    "Status"
 };
 
 #endif

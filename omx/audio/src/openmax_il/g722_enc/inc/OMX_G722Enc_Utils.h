@@ -45,15 +45,18 @@
  *!
  * ================================================================================= */
 
-
-#include <OMX_Component.h>
 #include "LCML_DspCodec.h"
+#include <OMX_TI_Common.h>
 #include "OMX_G722Encoder.h"
-
+#include "usn.h"
 #define NEWSENDCOMMAND_MEMORY 123
 /*#endif*/
 
 #include <TIDspOmx.h>
+
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
+#endif
 
 /* ComponentThread constant */
 #define EXIT_COMPONENT_THRD  10
@@ -103,26 +106,18 @@
 
 /* ======================================================================= */
 /**
+ * @def    G722ENC_CPU   TBD, 50MHz for the moment
+ */
+/* ======================================================================= */
+#define G722ENC_CPU (50)
+
+
+/* ======================================================================= */
+/**
  * @def    G722ENC_TIMEOUT_MILLISECONDS   Timeout value for the component thread
  */
 /* ======================================================================= */
 #define G722ENC_TIMEOUT_MILLISECONDS (1000)
-
-/* ======================================================================= */
-/**
- * @def    G722ENC_CACHE_ALIGN_MALLOC   Value to add to the size needed to 
- *                                     malloc to ensure cache alignment
- */
-/* ======================================================================= */
-#define G722ENC_CACHE_ALIGN_MALLOC 256
-
-/* ======================================================================= */
-/**
- * @def    G722ENC_CACHE_ALIGN_OFFSET   Value to add to the pointer returned 
- *                                     by malloc to ensure cache alignment
- */
-/* ======================================================================= */
-#define G722ENC_CACHE_ALIGN_OFFSET 128
 
 /* ======================================================================= */
 /**
@@ -137,21 +132,15 @@
  * @def    USN_DLL_NAME   Path to the USN
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define USN_DLL_NAME "usn.dll64P"
-#endif
+
 /* ======================================================================= */
 /**
  * @def    G722ENC_DLL_NAME   Path to the G722ENC SN
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G722ENC_DLL_NAME "\\windows\\g722enc_sn.dll64P"
-#else
 #define G722ENC_DLL_NAME "g722enc_sn.dll64P"
-#endif
+
 /* ======================================================================= */
 /**
  * @def    DONT_CARE   Don't care value for the LCML initialization params
@@ -182,7 +171,6 @@
  */
 /* ======================================================================= */
 
-#ifndef UNDER_CE /* Linux definitions */
 #ifdef  G722ENC_DEBUG
 #define G722ENC_DPRINT(...)    fprintf(stdout,__VA_ARGS__)
 #else
@@ -194,40 +182,6 @@
 #else
 #define G722ENC_MEMPRINT(...)
 #endif
-
-#else 
-#ifdef  G722ENC_DEBUG
-#define G722ENC_DPRINT(STR, ARG...) printf()
-#else
-#endif
-
-/* ======================================================================= */
-/**
- * @def    G722ENC_MEMCHECK   Memory print macro
- */
-/* ======================================================================= */
-#ifdef G722ENC_MEMCHECK
-#define G722ENC_MEMPRINT(STR, ARG...) printf()
-#else
-#endif
-#define G722ENC_DPRINT   printf
-#define G722ENC_MEMPRINT   printf
-
-#endif
-
-#ifdef UNDER_CE
-
-#ifdef DEBUG
-#define G722ENC_DPRINT   printf
-#define G722ENC_MEMPRINT   printf
-
-#else
-#define G722ENC_DPRINT
-#define G722ENC_MEMPRINT
-#endif
-
-#endif  
-
 
 /* ======================================================================= */
 /**
@@ -279,14 +233,6 @@
     (_s_)->nVersion.s.nRevision = 0x0;          \
     (_s_)->nVersion.s.nStep = 0x0
 
-#define OMX_G722MEMFREE_STRUCT(_pStruct_)                           \
-    if(_pStruct_ != NULL)                                           \
-    {                                                               \
-        G722ENC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
-        free(_pStruct_);                                            \
-        _pStruct_ = NULL;                                           \
-    }
-
 #define OMX_G722CLOSE_PIPE(_pStruct_,err)                       \
     G722ENC_DPRINT("%d :: CLOSING PIPE \n", __LINE__);          \
     err = close (_pStruct_);                                    \
@@ -297,18 +243,6 @@
         goto EXIT;                                              \
     }
 
-#define OMX_G722MALLOC_STRUCT(_pStruct_, _sName_)                   \
-    _pStruct_ = (_sName_*)malloc(sizeof(_sName_));                  \
-    if(_pStruct_ == NULL)                                           \
-    {                                                               \
-        printf("***********************************\n");            \
-        printf("%d :: Malloc Failed\n", __LINE__);                  \
-        printf("***********************************\n");            \
-        eError = OMX_ErrorInsufficientResources;                    \
-        goto EXIT;                                                  \
-    }                                                               \
-    memset(_pStruct_,0,sizeof(_sName_));                            \
-    G722ENC_MEMPRINT("%d :: [ALLOC] %p\n", __LINE__, _pStruct_);
 /* ======================================================================= */
 /** G722ENC_STREAM_TYPE  Values for create phase params
  *
@@ -326,28 +260,7 @@ typedef enum {
     G722ENCSTREAMOUTPUT
 } G722ENC_STREAM_TYPE;
 
-/* ======================================================================= */
-/** IUALG_Cmd  Values for create phase params
- *
- *  @param  IULAG_CMD_STOP               Socket node stop command
- *
- *  @param  IULAG_CMD_PAUSE              Socket node pause command
- *
- *  @param  IULAG_CMD_GETSTATUS          Socket node get status command.
- *
- *  @param  IULAG_CMD_SETSTATUS          Socket node set status command.
- *
- *  @param  IUALG_CMD_USERCMDSTART       Socket node start command.
- *
- */
-/*  ==================================================================== */
-typedef enum {
-    IULAG_CMD_STOP          = 0,
-    IULAG_CMD_PAUSE         = 1,
-    IULAG_CMD_GETSTATUS     = 2,
-    IULAG_CMD_SETSTATUS     = 3,
-    IUALG_CMD_USERCMDSTART  = 100
-}IUALG_Cmd;
+
 
 
 /* ======================================================================= */
@@ -606,17 +519,21 @@ typedef struct G722ENC_COMPONENT_PRIVATE
     OMX_PARAM_COMPONENTROLETYPE componentRole;
     OMX_STRING* sDeviceString;
     OMX_BOOL bLoadedCommandPending;
+    OMX_BOOL DSPMMUFault;
 
     /** Holds the value of RT Mixer mode  */ 
     OMX_U32 rtmx; 
     TI_OMX_DSP_DEFINITION tiOmxDspDefinition;
 
     /* Removing sleep() calls. Definition. */
-#ifndef UNDER_CE    
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
     
+    pthread_mutex_t codecStop_mutex;
+    pthread_cond_t codecStop_threshold;
+    OMX_U8 codecStop_waitingsignal;
+
     pthread_mutex_t InLoaded_mutex;
     pthread_cond_t InLoaded_threshold;
     OMX_U8 InLoaded_readytoidle;
@@ -624,16 +541,6 @@ typedef struct G722ENC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded;    
-#endif  
 
 #ifdef __PERF_INSTRUMENTATION__
     PERF_OBJHANDLE pPERF, pPERFcomp;
@@ -652,6 +559,12 @@ typedef struct G722ENC_COMPONENT_PRIVATE
     
 
     OMX_BOOL bPreempted;
+    OMX_BOOL bMutexInitDone;
+
+    /** Pointer to RM callback **/
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
 
 } G722ENC_COMPONENT_PRIVATE;
 
@@ -667,13 +580,7 @@ typedef struct G722ENC_COMPONENT_PRIVATE
  *
  */
 /*================================================================== */
-#ifndef UNDER_CE
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
 
 /* ===========================================================  */
 /**
@@ -1026,5 +933,22 @@ OMX_U32 G722ENC_IsValid(G722ENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pB
 /*================================================================== */
 OMX_ERRORTYPE G722ENC_TransitionToIdle(G722ENC_COMPONENT_PRIVATE *pComponentPrivate);
 
+#ifdef RESOURCE_MANAGER_ENABLED
+/***********************************
+ *  Callback to the RM                                       *
+ ***********************************/
+void G722ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
+
+/*  =========================================================================*/
+/*  func    G722ENC_FatalErrorRecover
+*
+*   desc    handles the clean up and sets OMX_StateInvalid
+*           in reaction to fatal errors
+*
+*@return n/a
+*
+*  =========================================================================*/
+void G722ENC_FatalErrorRecover(G722ENC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /*void printEmmEvent (TUsnCodecEvent event);*/

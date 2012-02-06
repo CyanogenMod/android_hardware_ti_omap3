@@ -1,11 +1,10 @@
-ifneq ($(BUILD_WITHOUT_PV),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
-
+LOCAL_PRELINK_MODULE := false
 LOCAL_SRC_FILES := src/ti_omx_interface.cpp
 
 LOCAL_MODULE := libVendor_ti_omx
-LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_TAGS:= optional
 
 PV_TOP := external/opencore
 
@@ -29,18 +28,19 @@ PV_INCLUDES := \
 	$(TARGET_OUT_HEADERS)/$(PV_COPY_HEADERS_TO)
 
 LOCAL_CFLAGS :=   $(PV_CFLAGS)
-
+ifeq ($(TARGET_BOARD_PLATFORM),omap4)
+LOCAL_CFLAGS += -DTARGET_OMAP4
+endif
 LOCAL_ARM_MODE := arm
 
 LOCAL_C_INCLUDES := \
     $(PV_INCLUDES)
 
-LOCAL_SHARED_LIBRARIES := libOMX_Core liblog
-LOCAL_MODULE_TAGS:= optional
+LOCAL_SHARED_LIBRARIES := libOMX_Core
 
 -include $(PV_TOP)/Android_platform_extras.mk
 
 -include $(PV_TOP)/Android_system_extras.mk
 
 include $(BUILD_SHARED_LIBRARY)
-endif
+

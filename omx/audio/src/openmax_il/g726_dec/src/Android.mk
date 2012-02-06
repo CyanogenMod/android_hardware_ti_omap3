@@ -1,9 +1,8 @@
-ifeq ($(BUILD_G726_DECODER),1)
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
-
+LOCAL_PRELINK_MODULE := false
 
 LOCAL_SRC_FILES:= \
     OMX_G726Dec_CompThread.c \
@@ -29,4 +28,3 @@ LOCAL_MODULE:= libOMX.TI.G726.decode
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)
-endif

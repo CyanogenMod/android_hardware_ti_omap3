@@ -122,22 +122,14 @@ enum WBAMRDEC_MimeMode {
  * @def    WBAMR_DEC_USN_DLL_NAME   USN DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define WBAMR_DEC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define WBAMR_DEC_USN_DLL_NAME "usn.dll64P"
-#endif
 
 /* ======================================================================= */
 /**
  * @def    WBAMR_DEC_DLL_NAME   WB AMR Decoder socket node dll name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define WBAMR_DEC_DLL_NAME "\\windows\\wbamrdec_sn.dll64P"
-#else
 #define WBAMR_DEC_DLL_NAME "wbamrdec_sn.dll64P"
-#endif
 
 /* ===========================================================  */
 /**
@@ -366,6 +358,15 @@ OMX_ERRORTYPE WBAMR_DEC_Fill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent);
 */
 /*================================================================== */
 OMX_U32 WBAMR_DEC_IsValid(WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
+/**
+* @WBAMRDEC_waitForAllBuffersToReturn This function waits for all buffers to return
+*
+* @param WBAMRDEC_COMPONENT_PRIVATE *pComponentPrivate
+*
+* @return None
+*/
+void WBAMRDEC_waitForAllBuffersToReturn(
+                                        WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 #ifdef RESOURCE_MANAGER_ENABLED
 void WBAMRDEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
@@ -377,17 +378,6 @@ OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResP
 
 void WBAMRDEC_HandleUSNError (WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
-#ifdef UNDER_CE
-	#ifndef _OMX_EVENT_
-		#define _OMX_EVENT_
-		typedef struct OMX_Event {
-			HANDLE event;
-		} OMX_Event;
-	#endif
-	int OMX_CreateEvent(OMX_Event *event);
-	int OMX_SignalEvent(OMX_Event *event);
-	int OMX_WaitForEvent(OMX_Event *event);
-	int OMX_DestroyEvent(OMX_Event *event);
-#endif
+void WBAMRDEC_FatalErrorRecover(WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 #endif

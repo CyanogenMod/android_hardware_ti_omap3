@@ -173,6 +173,7 @@ PERF_RT_create(PERF_Private *perf, PERF_Config *config,
         }
 
         /* set up fRt file pointers */
+        me->fRt = NULL;
         if (config->rt_file && succeed)
         {
             /* open log file unless STDOUT or STDERR is specified */

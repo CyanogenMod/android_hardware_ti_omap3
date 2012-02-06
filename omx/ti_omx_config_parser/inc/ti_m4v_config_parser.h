@@ -29,9 +29,6 @@
 #define MP4_INVALID_VOL_PARAM -1
 #define SHORT_HEADER_MODE -4
 
-#define WVGA_MAX_WIDTH 900
-#define WVGA_MAX_HEIGHT WVGA_MAX_WIDTH
-
 #define VISUAL_OBJECT_SEQUENCE_START_CODE 	0x01B0
 #define VISUAL_OBJECT_SEQUENCE_END_CODE 	0x01B1
 #define VISUAL_OBJECT_START_CODE   0x01B5
@@ -96,7 +93,8 @@ int16 ByteAlign(
 		int32 *height, 
 		int32 *, 
 		int32 *, 
-		int32 *profilelevel);
+                int32 *profilelevel,
+                uint32 *interlaced);
 	OSCL_IMPORT_REF int16 iGetM4VConfigInfo(
 		uint8 *buffer, 
 		int32 length, 
@@ -122,10 +120,11 @@ int16 DecodeUserData(mp4StreamType *pStream);
 		int32 *, 
 		int32 *profile, 
 		int32 *level,
-		uint32 *entropy_coding_mode_flag);
+		uint32 *entropy_coding_mode_flag,
+               uint32 *frame_mb_only_flag);
 
 int32 FindNAL(uint8** nal_pnt, uint8* buffer, int32 length);
-int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc);
+int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc, uint32 *frame_mb_only_flag);
 #if USE_LATER
 int32 DecodeHRD(mp4StreamType *psBits);
 int32 DecodeVUI(mp4StreamType *psBits);

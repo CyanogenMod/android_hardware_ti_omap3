@@ -48,6 +48,7 @@
 #define VIDDEC_CUSTOMPARAM_PARSERENABLED "OMX.TI.VideoDecode.Param.ParserEnabled"
 #define VIDDEC_CUSTOMPARAM_ISNALBIGENDIAN "OMX.TI.VideoDecode.Param.IsNALBigEndian"
 #define VIDDEC_CUSTOMCONFIG_DEBUG "OMX.TI.VideoDecode.Debug"
+#define VIDDEC_CUSTOMCONFIG_CACHEABLEBUFFERS "OMX.TI.VideoDecode.CacheableBuffers"
 #ifdef VIDDEC_SPARK_CODE 
  #define VIDDEC_CUSTOMPARAM_ISSPARKINPUT "OMX.TI.VideoDecode.Param.IsSparkInput"
 #endif

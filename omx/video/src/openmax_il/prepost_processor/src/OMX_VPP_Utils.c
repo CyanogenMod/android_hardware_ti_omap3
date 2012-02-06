@@ -1057,17 +1057,11 @@ OMX_ERRORTYPE VPP_StateToIdle(VPP_COMPONENT_PRIVATE *pComponentPrivate)
                     OMX_U8 *nbuffer = NULL; 
 
                     nsize = pPortDef->format.video.nFrameWidth * pPortDef->format.video.nFrameHeight * 2;
-                    OMX_MALLOC(pBufferStart, nsize + 32 + 256);
+                    OMX_MALLOC_SIZE_DSPALIGN(pBufferStart, nsize, OMX_U8);
                     VPP_DPRINT("allocated pBufferStart with address %p\n", nbuffer);
 
-                    pBufferAligned = pBufferStart;
-                    while ((((int)pBufferAligned) & 0x1f) != 0)
-                    {
-                        pBufferAligned++;
-                    }
-                    pBufferAligned            = ((OMX_U8*)pBufferAligned)+128;
                     pComponentPrivate->sCompPorts[nPortIndex].pVPPBufHeader[nBuf].pBufferStart = pBufferStart;
-                    nbuffer            = pBufferAligned;
+                    nbuffer            = pBufferStart;
 
 #ifdef __PERF_INSTRUMENTATION__
                     PERF_XferingFrame(pComponentPrivate->pPERFcomp,

@@ -47,20 +47,12 @@
  ****************************************************************/
 /* ----- system and platform files ----------------------------*/
 
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-
-#else
-
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <errno.h>
-#endif
 
 #include <pthread.h>
 #include <string.h>
@@ -203,8 +195,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     OMX_AUDIO_PARAM_PORTFORMATTYPE *pPortFormat = NULL;
     OMX_AUDIO_PARAM_PCMMODETYPE   *G722_ip = NULL, *G722_op = NULL;
     G722DEC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
-    G722D_AUDIODEC_PORT_TYPE *pCompPort = NULL;
-    G722D_BUFFERLIST *pTemp = NULL;
     int i=0;
 
     G722DEC_DPRINT ("Entering OMX_ComponentInit\n");
@@ -229,21 +219,15 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pHandle->GetExtensionIndex = GetExtensionIndex;
     pHandle->ComponentRoleEnum = ComponentRoleEnum;
 
-    G722D_OMX_MALLOC(pHandle->pComponentPrivate,G722DEC_COMPONENT_PRIVATE);
+    OMX_MALLOC_GENERIC(pHandle->pComponentPrivate,G722DEC_COMPONENT_PRIVATE);
 
     pComponentPrivate = pHandle->pComponentPrivate;
     pComponentPrivate->pHandle = pHandle;
 
-    G722D_OMX_MALLOC(pCompPort, G722D_AUDIODEC_PORT_TYPE);
-    pComponentPrivate->pCompPort[G722D_INPUT_PORT] =  pCompPort;
-
-    G722D_OMX_MALLOC(pCompPort, G722D_AUDIODEC_PORT_TYPE);
-    pComponentPrivate->pCompPort[G722D_OUTPUT_PORT] = pCompPort;
-    G722D_OMX_MALLOC(pTemp, G722D_BUFFERLIST);
-    pComponentPrivate->pInputBufferList = pTemp;
-
-    G722D_OMX_MALLOC(pTemp, G722D_BUFFERLIST);
-    pComponentPrivate->pOutputBufferList = pTemp;
+    OMX_MALLOC_GENERIC(pComponentPrivate->pCompPort[G722D_INPUT_PORT], G722D_AUDIODEC_PORT_TYPE);
+    OMX_MALLOC_GENERIC(pComponentPrivate->pCompPort[G722D_OUTPUT_PORT], G722D_AUDIODEC_PORT_TYPE);
+    OMX_MALLOC_GENERIC(pComponentPrivate->pInputBufferList, G722D_BUFFERLIST);
+    OMX_MALLOC_GENERIC(pComponentPrivate->pOutputBufferList, G722D_BUFFERLIST);
 
     pComponentPrivate->pInputBufferList->numBuffers = 0;
     pComponentPrivate->pOutputBufferList->numBuffers = 0;
@@ -259,17 +243,17 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
 
     pComponentPrivate->bufAlloced = 0;
 
-    G722D_OMX_MALLOC(pComponentPrivate->sPortParam, OMX_PORT_PARAM_TYPE);
+    OMX_MALLOC_GENERIC(pComponentPrivate->sPortParam, OMX_PORT_PARAM_TYPE);
     OMX_CONF_INIT_STRUCT(pComponentPrivate->sPortParam, OMX_PORT_PARAM_TYPE);
-    G722D_OMX_MALLOC(pComponentPrivate->pPriorityMgmt, OMX_PRIORITYMGMTTYPE);
+    OMX_MALLOC_GENERIC(pComponentPrivate->pPriorityMgmt, OMX_PRIORITYMGMTTYPE);
     OMX_CONF_INIT_STRUCT(pComponentPrivate->pPriorityMgmt, OMX_PRIORITYMGMTTYPE);
     pComponentPrivate->sPortParam->nPorts = 0x2;
     pComponentPrivate->sPortParam->nStartPortNumber = 0x0;
     pComponentPrivate->G722Params[G722D_INPUT_PORT] = NULL;
     pComponentPrivate->G722Params[G722D_OUTPUT_PORT] = NULL;
 
-    G722D_OMX_MALLOC(G722_ip, OMX_AUDIO_PARAM_PCMMODETYPE);
-    G722D_OMX_MALLOC(G722_op, OMX_AUDIO_PARAM_PCMMODETYPE);
+    OMX_MALLOC_GENERIC(G722_ip, OMX_AUDIO_PARAM_PCMMODETYPE);
+    OMX_MALLOC_GENERIC(G722_op, OMX_AUDIO_PARAM_PCMMODETYPE);
 
     pComponentPrivate->G722Params[G722D_INPUT_PORT] = G722_ip;
     pComponentPrivate->G722Params[G722D_OUTPUT_PORT] = G722_op;
@@ -289,15 +273,17 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->bDisableCommandParam = 0;
 
     /* Initialize device string to the default value */
-    G722D_OMX_MALLOC_SIZE(pComponentPrivate->sDeviceString,(100*sizeof(OMX_STRING)),OMX_STRING);
+    OMX_MALLOC_SIZE(pComponentPrivate->sDeviceString,(100*sizeof(OMX_STRING)),OMX_STRING);
     strcpy((char*)pComponentPrivate->sDeviceString,"/eteedn:i0:o0/codec\0");
     
+    /* Initialize LMCL back up pointer*/
+    pComponentPrivate->ptrLibLCML = NULL;
+
     /* initialize role name */
-    G722D_OMX_MALLOC(pComponentPrivate->componentRole,OMX_PARAM_COMPONENTROLETYPE);
+    OMX_MALLOC_GENERIC(pComponentPrivate->componentRole,OMX_PARAM_COMPONENTROLETYPE);
     strcpy((char*)pComponentPrivate->componentRole->cRole, G722_DEC_ROLE);
 
 
-#ifndef UNDER_CE
     pthread_mutex_init(&pComponentPrivate->AlloBuf_mutex, NULL);
     pthread_cond_init (&pComponentPrivate->AlloBuf_threshold, NULL);
     pComponentPrivate->AlloBuf_waitingsignal = 0;
@@ -309,16 +295,6 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pthread_mutex_init(&pComponentPrivate->InIdle_mutex, NULL);
     pthread_cond_init (&pComponentPrivate->InIdle_threshold, NULL);
     pComponentPrivate->InIdle_goingtoloaded = 0;
-#else
-    OMX_CreateEvent(&(pComponentPrivate->AlloBuf_event));
-    pComponentPrivate->AlloBuf_waitingsignal = 0;
-    
-    OMX_CreateEvent(&(pComponentPrivate->InLoaded_event));
-    pComponentPrivate->InLoaded_readytoidle = 0;
-    
-    OMX_CreateEvent(&(pComponentPrivate->InIdle_event));
-    pComponentPrivate->InIdle_goingtoloaded = 0;
-#endif
 
     for (i=0; i < MAX_NUM_OF_BUFS; i++) {
         pComponentPrivate->pInputBufHdrPending[i] = NULL;
@@ -340,8 +316,11 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->bDspStoppedWhileExecuting = OMX_FALSE;
     pComponentPrivate->bIdleCommandPending = OMX_FALSE;
     pComponentPrivate->nOutStandingFillDones = 0;
-    G722D_OMX_MALLOC(pPortDef_ip, OMX_PARAM_PORTDEFINITIONTYPE);
-    G722D_OMX_MALLOC(pPortDef_op, OMX_PARAM_PORTDEFINITIONTYPE);
+    pComponentPrivate->bPreempted = OMX_FALSE;
+    pComponentPrivate->DSPMMUFault = OMX_FALSE;
+
+    OMX_MALLOC_GENERIC(pPortDef_ip, OMX_PARAM_PORTDEFINITIONTYPE);
+    OMX_MALLOC_GENERIC(pPortDef_op, OMX_PARAM_PORTDEFINITIONTYPE);
 
     pComponentPrivate->pPortDef[G722D_INPUT_PORT] = pPortDef_ip;
     pComponentPrivate->pPortDef[G722D_OUTPUT_PORT] = pPortDef_op;
@@ -376,9 +355,9 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pPortDef_op->format.audio.pNativeRender         = NULL;
     pPortDef_op->format.audio.bFlagErrorConcealment = OMX_FALSE;
 
-    G722D_OMX_MALLOC(pComponentPrivate->pCompPort[G722D_INPUT_PORT]->pPortFormat, 
+    OMX_MALLOC_GENERIC(pComponentPrivate->pCompPort[G722D_INPUT_PORT]->pPortFormat,
                      OMX_AUDIO_PARAM_PORTFORMATTYPE);
-    G722D_OMX_MALLOC(pComponentPrivate->pCompPort[G722D_OUTPUT_PORT]->pPortFormat, 
+    OMX_MALLOC_GENERIC(pComponentPrivate->pCompPort[G722D_OUTPUT_PORT]->pPortFormat,
                      OMX_AUDIO_PARAM_PORTFORMATTYPE);
     OMX_CONF_INIT_STRUCT(pComponentPrivate->pCompPort[G722D_INPUT_PORT]->pPortFormat, 
                          OMX_AUDIO_PARAM_PORTFORMATTYPE);
@@ -431,6 +410,19 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
     pComponentPrivate->bBufferIsAllocated = 1;
     pComponentPrivate->bPortDefsAllocated = 1;
 
+#ifdef RESOURCE_MANAGER_ENABLED
+    eError = RMProxy_NewInitalize();
+    G722DEC_DPRINT("%d :: [G722 Component] - OMX_ComponentInit\n", __LINE__);
+    if (eError != OMX_ErrorNone) {
+        G722DEC_DPRINT("%d :: [G722 Component] - Error returned from loading ResourceManagerProxy thread\n", __LINE__);
+        // Free Component resources
+        G722DEC_FreeCompResources(pHandle);
+        // Free pComponentPrivate
+        OMX_MEMFREE_STRUCT(pComponentPrivate);
+        return eError;
+    }
+#endif
+
 #ifdef DSP_RENDERING_ON
     if((G722d_fdwrite=open(FIFO1,O_WRONLY))<0) {
         G722DEC_DPRINT("[G722 Component] - failure to open WRITE pipe\n");
@@ -451,11 +443,12 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp)
  EXIT:
     if(OMX_ErrorNone != eError) {
         G722DEC_DPRINT(":: ************* ERROR: Freeing Other Malloced Resources\n");
-        G722D_OMX_FREE(pPortDef_ip);
-        G722D_OMX_FREE(pPortDef_op);
-        G722D_OMX_FREE(G722_ip);
-        G722D_OMX_FREE(G722_op);
-        G722D_OMX_FREE(pTemp);
+        if (NULL != pComponentPrivate) {
+            // Free Component resources
+            G722DEC_FreeCompResources(pHandle);
+            // Free pComponentPrivate
+            OMX_MEMFREE_STRUCT(pComponentPrivate);
+        }
     }
     G722DEC_DPRINT ("Exiting OMX_ComponentInit\n");
     return eError;
@@ -535,7 +528,7 @@ static OMX_ERRORTYPE SendCommand (OMX_HANDLETYPE phandle,
         break;
     case OMX_CommandFlush:
         G722DEC_DPRINT("G722DEC: Entered switch - Command Flush\n");
-        if(nParam > 1 && nParam != -1) {
+        if(nParam > 1 && (OMX_S32)nParam != -1) {
             G722D_OMX_ERROR_EXIT(eError,OMX_ErrorBadPortIndex,"OMX_ErrorBadPortIndex");
         }
         break;
@@ -1124,8 +1117,10 @@ static OMX_ERRORTYPE SetConfig (OMX_HANDLETYPE hComp,
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     G722DEC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
+#ifdef DSP_RENDERING_ON
     OMX_AUDIO_CONFIG_MUTETYPE *pMuteStructure = NULL;
     OMX_AUDIO_CONFIG_VOLUMETYPE *pVolumeStructure = NULL;
+#endif
     TI_OMX_DSP_DEFINITION* pDspDefinition = NULL;
     OMX_S16* deviceString = NULL;
     TI_OMX_DATAPATH dataPath;
@@ -1515,6 +1510,17 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
     close(G722d_fdread);
 #endif
 
+#ifdef RESOURCE_MANAGER_ENABLED
+    eError = RMProxy_NewSendCommand(pHandle, RMProxy_FreeResource, OMX_G722_Decoder_COMPONENT, 0, 3456, NULL);
+    if (eError != OMX_ErrorNone) {
+        G722DEC_DPRINT("%d :: Error returned from destroy ResourceManagerProxy thread\n",__LINE__);
+    }
+    eError = RMProxy_Deinitalize();
+    if (eError != OMX_ErrorNone) {
+        G722DEC_DPRINT("%d :: Error from RMProxy_Deinitalize\n", __LINE__);
+    }
+#endif
+
     pComponentPrivate->bExitCompThrd = 1;
     
     pthreadError = pthread_join(pComponentPrivate->ComponentThread, (void*)&threadError);
@@ -1538,12 +1544,8 @@ static OMX_ERRORTYPE ComponentDeInit(OMX_HANDLETYPE pHandle)
         }
     }
 
-    if (pComponentPrivate->sDeviceString != NULL) {
-        G722D_OMX_FREE(pComponentPrivate->sDeviceString);
-    }
-
     G722DEC_MEMPRINT(":: Freeing: pComponentPrivate = %p\n", pComponentPrivate);
-    G722D_OMX_FREE(pComponentPrivate);
+    OMX_MEMFREE_STRUCT(pComponentPrivate);
     G722DEC_DPRINT("::*********** ComponentDeinit is Done************** \n");
 
  EXIT:
@@ -1639,29 +1641,16 @@ static OMX_ERRORTYPE AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
 
         if (!pPortDef->bEnabled) {
             pComponentPrivate->AlloBuf_waitingsignal = 1;  
-#ifndef UNDER_CE
             pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex); 
             pthread_cond_wait(&pComponentPrivate->AlloBuf_threshold, 
                               &pComponentPrivate->AlloBuf_mutex);
             pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);
-#else
-            OMX_WaitForEvent(&(pComponentPrivate->AlloBuf_event));
-#endif
         }
 
-    G722D_OMX_MALLOC(pBufferHeader, OMX_BUFFERHEADERTYPE);
+    OMX_MALLOC_GENERIC(pBufferHeader, OMX_BUFFERHEADERTYPE);
 
     /* Needed for cache synchronization between ARM and DSP */
-    G722D_OMX_MALLOC_SIZE(pBufferHeader->pBuffer,(nSizeBytes + 256),OMX_U8);
-    pBufferHeader->pBuffer += 128;
-    /*pBufferHeader->pBuffer = (OMX_U8 *)malloc(nSizeBytes + 256);
-      if(NULL == pBufferHeader->pBuffer) {
-      G722DEC_DPRINT(":: Malloc Failed\n");
-      eError = OMX_ErrorInsufficientResources;
-      goto EXIT;
-      }
-      memset((pBufferHeader), 0x0, sizeof(OMX_BUFFERHEADERTYPE));
-      G722DEC_MEMPRINT(":: Malloced = %p\n",pBufferHeader->pBuffer);*/
+    OMX_MALLOC_SIZE_DSPALIGN(pBufferHeader->pBuffer,nSizeBytes,OMX_U8);
     pBufferHeader->nVersion.nVersion = G722DEC_BUFHEADER_VERSION;
 
 
@@ -1725,14 +1714,10 @@ static OMX_ERRORTYPE AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
         pComponentPrivate->pPortDef[G722D_INPUT_PORT]->bEnabled) &&
        (pComponentPrivate->InLoaded_readytoidle)) {
         pComponentPrivate->InLoaded_readytoidle = 0;                  
-#ifndef UNDER_CE
 
         pthread_mutex_lock(&pComponentPrivate->InLoaded_mutex);
         pthread_cond_signal(&pComponentPrivate->InLoaded_threshold);
         pthread_mutex_unlock(&pComponentPrivate->InLoaded_mutex);
-#else
-        OMX_SignalEvent(&(pComponentPrivate->InLoaded_event));
-#endif    
     }
 
     pBufferHeader->pAppPrivate = pAppPrivate;
@@ -1752,8 +1737,8 @@ static OMX_ERRORTYPE AllocateBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     if(OMX_ErrorNone != eError) {
         G722DEC_DPRINT("%d :: ************* ERROR: Freeing Other Malloced Resources\n",__LINE__);
 	 if (NULL != pBufferHeader) {
-	     G722D_OMX_FREE(pBufferHeader->pBuffer);
-	     G722D_OMX_FREE(pBufferHeader);
+	     OMX_MEMFREE_STRUCT(pBufferHeader->pBuffer);
+	     OMX_MEMFREE_STRUCT(pBufferHeader);
 	 }
     }
 
@@ -1823,18 +1808,14 @@ static OMX_ERRORTYPE FreeBuffer(
 
     if (inputIndex != -1) {
         if (pComponentPrivate->pInputBufferList->bufferOwner[inputIndex] == 1) {
-            buff = pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pBuffer;
-            if(buff != 0){
-                buff -= 128;
-            }
-            G722DEC_MEMPRINT("\n: Freeing:  %p IP Buffer\n",buff);
-            G722D_OMX_FREE(buff);
+            G722DEC_MEMPRINT("\n: Freeing:  %p IP Buffer\n",pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pBuffer);
+            OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]->pBuffer, OMX_U8);
         }
 
         G722DEC_MEMPRINT("Freeing: %p IP Buf Header\n\n",
                          pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]);
 
-        G722D_OMX_FREE(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]);
+        OMX_MEMFREE_STRUCT(pComponentPrivate->pInputBufferList->pBufHdr[inputIndex]);
         pComponentPrivate->pInputBufferList->numBuffers--;
 
         if (pComponentPrivate->pInputBufferList->numBuffers <
@@ -1856,18 +1837,14 @@ static OMX_ERRORTYPE FreeBuffer(
             pComponentPrivate->numPendingBuffers++;
         }
         if (pComponentPrivate->pOutputBufferList->bufferOwner[outputIndex] == 1) {
-            buff = pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pBuffer;
-            if(buff != 0){
-                buff -= 128;
-            }
-            G722DEC_MEMPRINT("Freeing: %p OP Buffer\n",buff);
-            G722D_OMX_FREE(buff);
+            G722DEC_MEMPRINT("Freeing: %p OP Buffer\n",pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pBuffer);
+            OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]->pBuffer, OMX_U8);
         }
 
         G722DEC_MEMPRINT("Freeing: %p OP Buf Header\n\n",
                          pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]);
 
-        G722D_OMX_FREE(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]);
+        OMX_MEMFREE_STRUCT(pComponentPrivate->pOutputBufferList->pBufHdr[outputIndex]);
         pComponentPrivate->pOutputBufferList->numBuffers--;
 
         G722DEC_DPRINT("pComponentPrivate->pOutputBufferList->numBuffers = %ld\n",
@@ -1898,13 +1875,9 @@ static OMX_ERRORTYPE FreeBuffer(
          !pComponentPrivate->pOutputBufferList->numBuffers) &&
         pComponentPrivate->InIdle_goingtoloaded){
         pComponentPrivate->InIdle_goingtoloaded = 0;                  
-#ifndef UNDER_CE
         pthread_mutex_lock(&pComponentPrivate->InIdle_mutex);
         pthread_cond_signal(&pComponentPrivate->InIdle_threshold);
         pthread_mutex_unlock(&pComponentPrivate->InIdle_mutex);
-#else
-        OMX_SignalEvent(&(pComponentPrivate->InIdle_event));
-#endif
     }
 
     pComponentPrivate->bufAlloced = 0;
@@ -1980,7 +1953,7 @@ static OMX_ERRORTYPE UseBuffer (
     }
 #endif
 
-    G722D_OMX_MALLOC(pBufferHeader, OMX_BUFFERHEADERTYPE);
+    OMX_MALLOC_GENERIC(pBufferHeader, OMX_BUFFERHEADERTYPE);
 
     if (nPortIndex == G722D_OUTPUT_PORT) {
         pBufferHeader->nInputPortIndex = -1;
@@ -2011,14 +1984,10 @@ static OMX_ERRORTYPE UseBuffer (
         pComponentPrivate->pPortDef[G722D_INPUT_PORT]->bEnabled) &&
        (pComponentPrivate->InLoaded_readytoidle)) {
         pComponentPrivate->InLoaded_readytoidle = 0;                  
-#ifndef UNDER_CE
 
         pthread_mutex_lock(&pComponentPrivate->InLoaded_mutex);
         pthread_cond_signal(&pComponentPrivate->InLoaded_threshold);
         pthread_mutex_unlock(&pComponentPrivate->InLoaded_mutex);
-#else
-        OMX_SignalEvent(&(pComponentPrivate->InLoaded_event));
-#endif    
     }
 
     pBufferHeader->pAppPrivate = pAppPrivate;
@@ -2094,62 +2063,3 @@ static OMX_ERRORTYPE ComponentRoleEnum(
 
     return eError;
 }
-#ifdef UNDER_CE
-/* ================================================================================= */
-/**
- * @fns Sleep replace for WIN CE
- */
-/* ================================================================================ */
-int OMX_CreateEvent(OMX_Event *event){
-    int ret = OMX_ErrorNone;   
-    HANDLE createdEvent = NULL;
-    if(event == NULL){
-        ret = OMX_ErrorBadParameter;
-        MP3DEC_EPRINT("OMX_CreateEvent: OMX_ErrorBadParameter\n");
-        goto EXIT;
-    }
-    event->event  = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if(event->event == NULL)
-        ret = (int)GetLastError();
- EXIT:
-    return ret;
-}
-
-int OMX_SignalEvent(OMX_Event *event){
-    int ret = OMX_ErrorNone;     
-    if(event == NULL){
-        ret = OMX_ErrorBadParameter;
-        MP3DEC_EPRINT("OMX_CreateEvent: OMX_ErrorBadParameter\n");
-        goto EXIT;
-    }     
-    SetEvent(event->event);
-    ret = (int)GetLastError();
- EXIT:
-    return ret;
-}
-
-int OMX_WaitForEvent(OMX_Event *event) {
-    int ret = OMX_ErrorNone;         
-    if(event == NULL){
-        ret = OMX_ErrorBadParameter;
-        MP3DEC_EPRINT("OMX_CreateEvent: OMX_ErrorBadParameter\n");
-        goto EXIT;
-    }     
-    WaitForSingleObject(event->event, INFINITE);    
-    ret = (int)GetLastError();
- EXIT:
-    return ret;
-}
-
-int OMX_DestroyEvent(OMX_Event *event) {
-    int ret = OMX_ErrorNone;
-    if(event == NULL){
-        ret = OMX_ErrorBadParameter;
-        MP3DEC_EPRINT("OMX_CreateEvent: OMX_ErrorBadParameter\n");
-        goto EXIT;
-    }  
-    CloseHandle(event->event);
- EXIT:    
-    return ret;
-}
-#endif

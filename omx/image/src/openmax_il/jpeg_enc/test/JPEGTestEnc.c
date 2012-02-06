@@ -81,7 +81,7 @@
 #ifdef UNDER_CE
 OMX_STRING StrJpegEncoder= "OMX.TI.IMAGE.JPEG.ENC"; 
 #else
- OMX_STRING StrJpegEncoder= "OMX.TI.JPEG.Encoder";
+ OMX_STRING StrJpegEncoder= "OMX.TI.JPEG.encoder";
 #endif
 
 OMX_U8 APPLICATION1_NOTHUMB[]={
@@ -655,10 +655,6 @@ OMX_BOOL bError = OMX_FALSE;
 inline int maxint(int a, int b);
 OMX_ERRORTYPE SetMarkers(OMX_HANDLETYPE pHandle, IMAGE_INFO *imageinfo, OMX_CONFIG_RECTTYPE sCrop, int nWidth, int nHeight);
 
-#ifdef DSP_MMU_FAULT_HANDLING
-int LoadBaseImage();
-#endif
-
 /*Routine to get the maximum of 2 integers */
 inline int maxint(int a, int b)
 {
@@ -680,7 +676,6 @@ static OMX_ERRORTYPE WaitForState(OMX_HANDLETYPE* pHandle,
 	OMX_COMPONENTTYPE *pComponent = (OMX_COMPONENTTYPE *)pHandle;
 
 	PRINT("Inside Test Application WaitForState function\n");
-	eError = pComponent->GetState(pHandle, &CurState);
 	while ( (eError == OMX_ErrorNone) &&
 	        (CurState != DesiredState)) {
 		sched_yield();
@@ -852,6 +847,17 @@ OMX_ERRORTYPE SetMarkers(OMX_HANDLETYPE pHandle, IMAGE_INFO *imageinfo, OMX_CONF
 		sAPP0.nThumbnailWidth = imageinfo->nThumbnailWidth_app0;
 		sAPP0.nThumbnailHeight = imageinfo->nThumbnailHeight_app0;
 		
+                if (sAPP0.nThumbnailWidth > nWidth) {
+                    printf("%s-%s()::%d::!!APP_Error!! Invalid JFIF thumbnail Width  \n", __FILE__,__FUNCTION__,__LINE__);
+                    eError = OMX_ErrorUndefined;
+                    goto EXIT;
+                }
+                if (sAPP0.nThumbnailHeight > nHeight) {
+                    printf("%s-%s()::%d::!!APP_Error!! Invalid JFIF thumbnail Height  \n", __FILE__,__FUNCTION__,__LINE__);
+                    eError = OMX_ErrorUndefined;
+                    goto EXIT;
+                }
+
 		eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.encoder.Config.APP0", (OMX_INDEXTYPE*)&nCustomIndex);
 		if ( eError != OMX_ErrorNone ) {
 			printf("%d::APP_Error at function call: %x\n", __LINE__, eError);
@@ -877,6 +883,17 @@ OMX_ERRORTYPE SetMarkers(OMX_HANDLETYPE pHandle, IMAGE_INFO *imageinfo, OMX_CONF
 		/* set JFIF marker buffer */
 		sAPP1.nThumbnailWidth = imageinfo->nThumbnailWidth_app1;
 		sAPP1.nThumbnailHeight = imageinfo->nThumbnailHeight_app1;
+
+                if (sAPP1.nThumbnailWidth > nWidth) {
+                    printf("%s-%s()::%d::!!APP_Error!! Invalid EXIF thumbnail Width  \n", __FILE__,__FUNCTION__,__LINE__);
+                    eError = OMX_ErrorUndefined;
+                    goto EXIT;
+                }
+                if (sAPP1.nThumbnailHeight > nHeight) {
+                    printf("%s-%s()::%d::!!APP_Error!! Invalid EXIF thumbnail Height  \n", __FILE__,__FUNCTION__,__LINE__);
+                    eError = OMX_ErrorUndefined;
+                    goto EXIT;
+                }
 
 		/* if thumbnail is set, use APPLICATION structure with thumbnail */
 		if(sAPP1.nThumbnailWidth > 0 && sAPP1.nThumbnailHeight > 0) {
@@ -938,6 +955,17 @@ OMX_ERRORTYPE SetMarkers(OMX_HANDLETYPE pHandle, IMAGE_INFO *imageinfo, OMX_CONF
 		sAPP5.nThumbnailWidth = imageinfo->nThumbnailWidth_app5;
 		sAPP5.nThumbnailHeight = imageinfo->nThumbnailHeight_app5;
 		
+                if (sAPP5.nThumbnailWidth > nWidth) {
+                    printf("%s-%s()::%d::!!APP_Error!! Invalid APP5 thumbnail Width  \n", __FILE__,__FUNCTION__,__LINE__);
+                    eError = OMX_ErrorUndefined;
+                    goto EXIT;
+                }
+                if (sAPP5.nThumbnailHeight > nHeight) {
+                    printf("%s-%s()::%d::!!APP_Error!! Invalid APP5 thumbnail Height  \n", __FILE__,__FUNCTION__,__LINE__);
+                    eError = OMX_ErrorUndefined;
+                    goto EXIT;
+                }
+
 		eError = OMX_GetExtensionIndex(pHandle, "OMX.TI.JPEG.encoder.Config.APP5", (OMX_INDEXTYPE*)&nCustomIndex);
 		if ( eError != OMX_ErrorNone ) {
 			printf("%d::APP_Error at function call: %x\n", __LINE__, eError);
@@ -1084,6 +1112,7 @@ int main(int argc, char** argv)
     OMX_CONFIG_RECTTYPE sCrop;
 
     OMX_BOOL bConvertion_420pTo422i = OMX_FALSE;
+    JPE_CONVERSION_FLAG_TYPE nConversionFlag = JPE_CONV_NONE;
 
 #ifdef UNDER_CE
     TCHAR* szInFile = NULL;
@@ -1118,6 +1147,7 @@ int main(int argc, char** argv)
     int nHeightNew, nWidthNew;
     OMX_INDEXTYPE nCustomIndex = OMX_IndexMax;
     OMX_ERRORTYPE error = OMX_ErrorNone;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
 
 #ifdef STRESS
     int multiload = 0;
@@ -1163,6 +1193,13 @@ int main(int argc, char** argv)
     MALLOC(pOutPortDef, OMX_PARAM_PORTDEFINITIONTYPE);
     MALLOC(imageinfo, IMAGE_INFO);
     
+    OMX_CONF_INIT_STRUCT(pPortParamType, OMX_PORT_PARAM_TYPE);
+    OMX_CONF_INIT_STRUCT(pQfactorType, OMX_IMAGE_PARAM_QFACTORTYPE);
+    OMX_CONF_INIT_STRUCT(pQuantizationTable,OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE);
+    OMX_CONF_INIT_STRUCT(pHuffmanTable, JPEGENC_CUSTOM_HUFFMANTTABLETYPE);
+    OMX_CONF_INIT_STRUCT(pInPortDef, OMX_PARAM_PORTDEFINITIONTYPE);
+    OMX_CONF_INIT_STRUCT(pOutPortDef, OMX_PARAM_PORTDEFINITIONTYPE);
+
     /* Setting up default parameters */
     szOutFile="output.jpg";
     nWidth=176;
@@ -1230,6 +1267,7 @@ do
     
         case 'z':
         bConvertion_420pTo422i = OMX_TRUE;
+        nConversionFlag = JPE_CONV_YUV420P_YUV422ILE;
         PRINT("\n ********* bConvertion_420pTo422i is set to TRUE \n");
         break;
 
@@ -1324,12 +1362,6 @@ do
 	    printf("Stress Test: Iteration %d\n", multiload + 1);
 #endif
 
-
-#ifdef DSP_MMU_FAULT_HANDLING
-/* LOAD BASE IMAGE FIRST TIME */
-        LoadBaseImage();
-#endif
-
 	error = TIOMX_Init();
 	if ( error != OMX_ErrorNone ) {
 	    PRINT("Error returned by OMX_Init()\n");
@@ -1393,7 +1425,6 @@ do
 	}
 	PRINT(" File %s opened \n" , szInFile);    
 #endif  
-
 
 	error = OMX_GetParameter(pHandle, OMX_IndexParamImageInit, pPortParamType);
 	if ( error != OMX_ErrorNone ) {
@@ -1572,7 +1603,7 @@ do
 	   goto EXIT;
 	}
     
-	error = OMX_SetConfig(pHandle, OMX_IndexCustomColorFormatConvertion_420pTo422i, &bConvertion_420pTo422i);
+	error = OMX_SetConfig(pHandle, OMX_IndexCustomConversionFlag, &nConversionFlag);
 	if ( error != OMX_ErrorNone ) {
 	    printf("%d::APP_Error at function call: %x\n", __LINE__, error);
 	   error = OMX_ErrorBadParameter;
@@ -1666,21 +1697,19 @@ do
 	if (buffertype == 1) {
 	    
 	    for (nCounter = 0; nCounter < NUM_OF_BUFFERSJPEG; nCounter++) {
-	        pTemp=(OMX_U8*)malloc(pInPortDef->nBufferSize+256);
+                OMX_MALLOC_SIZE_DSPALIGN ( pTemp, pInPortDef->nBufferSize,OMX_U8 );
 	        if(pTemp == NULL){
 	            error = OMX_ErrorInsufficientResources;
 	            goto EXIT;
 	        }
-	        pTemp+= 128;
 	        pInBuffer[nCounter] = pTemp;
 	        pTemp = NULL;
 
-	        pTemp= (OMX_U8*)malloc(pOutPortDef->nBufferSize+256);
+                OMX_MALLOC_SIZE_DSPALIGN ( pTemp, pOutPortDef->nBufferSize, OMX_U8 );
 	        if(pTemp == NULL){
 	            error = OMX_ErrorInsufficientResources;
 	            goto EXIT;
 	        }
-	        pTemp+= 128;
 	        pOutBuffer[nCounter] = pTemp;
 	    }
 
@@ -2012,8 +2041,6 @@ EXIT:
 	if( error != OMX_ErrorNone){
 		if (buffertype == 1) {
 			for (nCounter = 0; nCounter < NUM_OF_BUFFERSJPEG; nCounter++) {
-				pOutBuffer[nCounter]-=128;
-				pInBuffer[nCounter]-=128;
 				FREE(pOutBuffer[nCounter]);
 				FREE(pInBuffer[nCounter]);
 			}
@@ -2035,14 +2062,6 @@ EXIT:
 	    printf ("Error in Free Handle function\n");
 	}
 
-#ifdef DSP_MMU_FAULT_HANDLING
-
-        if(bError) {
-            LoadBaseImage();
-        }
-
-#endif
-    
 	error = TIOMX_Deinit();
 	if ( error != OMX_ErrorNone ) {
 	    printf("Error returned by OMX_DeInit()\n");
@@ -2060,59 +2079,3 @@ EXIT:
     PRINT ("Free Handle returned Successfully = %x\n",error);
     return error;
 }
-
-#ifdef DSP_MMU_FAULT_HANDLING
-
-int LoadBaseImage() {
-    unsigned int uProcId = 0;	/* default proc ID is 0. */
-    unsigned int index = 0;
-    
-    struct DSP_PROCESSORINFO dspInfo;
-    DSP_HPROCESSOR hProc;
-    DSP_STATUS status = DSP_SOK;
-    unsigned int numProcs;
-    char* argv[2];
-   
-    argv[0] = "/lib/dsp/baseimage.dof";
-    
-    status = (DBAPI)DspManager_Open(0, NULL);
-    if (DSP_FAILED(status)) {
-        printf("DSPManager_Open failed \n");
-        return -1;
-    } 
-    while (DSP_SUCCEEDED(DSPManager_EnumProcessorInfo(index,&dspInfo,
-        (unsigned int)sizeof(struct DSP_PROCESSORINFO),&numProcs))) {
-        if ((dspInfo.uProcessorType == DSPTYPE_55) || 
-            (dspInfo.uProcessorType == DSPTYPE_64)) {
-            uProcId = index;
-            status = DSP_SOK;
-            break;
-        }
-        index++;
-    }
-    status = DSPProcessor_Attach(uProcId, NULL, &hProc);
-    if (DSP_SUCCEEDED(status)) {
-        status = DSPProcessor_Stop(hProc);
-        if (DSP_SUCCEEDED(status)) {
-            status = DSPProcessor_Load(hProc,1,(const char **)argv,NULL);
-            if (DSP_SUCCEEDED(status)) {
-                status = DSPProcessor_Start(hProc);
-                if (DSP_SUCCEEDED(status)) {
-                } 
-                else {
-                }
-            } 
-			else {
-            }
-            DSPProcessor_Detach(hProc);
-        }
-        else {
-        }
-    }
-    else {
-    }
-    fprintf(stderr,"Baseimage Loaded\n");
-
-    return 0;		
-}
-#endif

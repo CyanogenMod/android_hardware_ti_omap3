@@ -43,7 +43,7 @@
 #define OMX_G711DEC_UTILS__H
 
 #include "LCML_DspCodec.h"
-#include <OMX_Component.h>
+#include "OMX_TI_Common.h"
 #include <pthread.h>
 
 #ifdef RESOURCE_MANAGER_ENABLED
@@ -113,11 +113,7 @@
  *                                           at initialization
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G711DEC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define G711DEC_USN_DLL_NAME "usn.dll64P"
-#endif
 
 /* ======================================================================= */
 /**
@@ -125,20 +121,7 @@
  *                                           at initialization
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G711DEC_DLL_NAME "\\windows\\g711dec_sn.dll64P"
-#else
 #define G711DEC_DLL_NAME "g711dec_sn.dll64P"
-#endif
-
-
-
-/* ======================================================================= */
-/**
- * @def    EXTRA_BUFFBYTES                Num of Extra Bytes to be allocated
- */
-/* ======================================================================= */
-#define EXTRA_BUFFBYTES (256)
 
 /* ======================================================================= */
 /**
@@ -229,7 +212,6 @@
 #define EXIT_COMPONENT_THRD  10
 void* ComponentThread (void* pThreadData);
 /*======================================================================*/
-#ifndef UNDER_CE
 #ifdef  G711DEC_DEBUG
 #define G711DEC_DPRINT(...)    fprintf(stderr,__VA_ARGS__)
 #else
@@ -249,49 +231,12 @@ void* ComponentThread (void* pThreadData);
 #define G711DEC_MCP_DPRINT(...)
 #endif
 
-#else /*UNDER_CE*/
-#ifdef  G711DEC_DEBUG
-#define G711DEC_DPRINT(STR, ARG...) printf()
-#else
-#endif
-
-#ifdef G711DEC_MEMCHECK
-#define G711DEC_MEMPRINT(STR, ARG...) printf()
-#else
-#endif
-#ifdef UNDER_CE
-
-#ifdef DEBUG
-#define G711DEC_DPRINT   printf
-#define G711DEC_MEMPRINT   printf
-#else
-#define G711DEC_DPRINT
-#define G711DEC_MEMPRINT
-#endif
-
-#endif  /*UNDER_CE*/
-
-#endif
 /**************************************************************/
 #ifdef  G711DEC_PRINT
 #define G711DEC_PRINT(...)    printf(stderr,__VA_ARGS__)
 #else
 #define G711DEC_PRINT(...)
 #endif
-
-/* ======================================================================= */
-/**
- * @def    WMADEC_MEMDEBUG   Enable memory leaks debuf info
- */
-/* ======================================================================= */
-#undef G711DEC_MEMDEBUG 
-
-/* ======================================================================= */
-/**
- * @def  CACHE_ALIGNMENT                           Buffer Cache Alignment
- */
-/* ======================================================================= */
-#define CACHE_ALIGNMENT 128
 
 /* ======================================================================= */
 /**
@@ -303,7 +248,7 @@ void* ComponentThread (void* pThreadData);
 
 /* ======================================================================= */
 /**
- *  M A C R O S FOR MALLOC and MEMORY FREE and CLOSING PIPES
+ *  M A C R O S FOR MEMORY and CLOSING PIPES
  */
 /* ======================================================================= */
 
@@ -314,37 +259,6 @@ void* ComponentThread (void* pThreadData);
     (_s_)->nVersion.s.nVersionMinor = 0x0;      \
     (_s_)->nVersion.s.nRevision = 0x0;          \
     (_s_)->nVersion.s.nStep = 0x0
-
-#define G711D_OMX_MALLOC(_pStruct_, _sName_)                        \
-    _pStruct_ = (_sName_*)newmalloc(sizeof(_sName_));               \
-    if(_pStruct_ == NULL){                                          \
-        printf("***********************************\n");            \
-        printf("%d :: Malloc Failed\n",__LINE__);                   \
-        printf("***********************************\n");            \
-        eError = OMX_ErrorInsufficientResources;                    \
-        goto EXIT;                                                  \
-    }                                                               \
-    memset(_pStruct_,0,sizeof(_sName_));                            \
-    G711DEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_pStruct_);
-    
-#define G711D_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)             \
-    _ptr_ = (_name_ *)newmalloc(_size_);                        \
-    if(_ptr_ == NULL){                                          \
-        printf("***********************************\n");        \
-        printf("%d :: Malloc Failed\n",__LINE__);               \
-        printf("***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_ptr_,0,_size_);                                     \
-    G711DEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_ptr_);
-
-#define OMX_G711DECMEMFREE_STRUCT(_pStruct_)                    \
-    if(_pStruct_ != NULL){                                      \
-    G711DEC_MEMPRINT("%d :: [FREE] %p\n",__LINE__,_pStruct_);   \
-        newfree(_pStruct_);                                     \
-        _pStruct_ = NULL;                                       \
-    }
 
 #define OMX_NBCLOSE_PIPE(_pStruct_,err)                         \
     G711DEC_DPRINT("%d :: CLOSING PIPE \n",__LINE__);           \
@@ -465,21 +379,12 @@ typedef struct LCML_G711DEC_BUFHEADERTYPE {
     DMM_BUFFER_OBJ* pDmmBuf;
 }LCML_G711DEC_BUFHEADERTYPE;
 
-#ifndef UNDER_CE
-
-OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-
-#else
 /* =================================================================================== */
 /**
- *   OMX_EXPORT                                           WinCE Implicit Export Syntax 
+ * OMX_ComponentInit
  */
 /* ================================================================================== */
-#define OMX_EXPORT __declspec(dllexport)
-
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-
-#endif
+OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 
 OMX_ERRORTYPE G711DEC_StartComponentThread(OMX_HANDLETYPE pHandle);
 OMX_ERRORTYPE G711DEC_StopComponentThread(OMX_HANDLETYPE pHandle);
@@ -523,10 +428,6 @@ OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr,
 /* ================================================================================== */
 typedef struct G711DEC_COMPONENT_PRIVATE
 {
-#ifdef UNDER_CE
-    OMX_BUFFERHEADERTYPE* pBufHeader[NUM_OF_PORTS]; 
-#endif
-
     /** Structure of callback pointers */
     OMX_CALLBACKTYPE cbInfo;
 
@@ -749,8 +650,11 @@ typedef struct G711DEC_COMPONENT_PRIVATE
 
     /* Device string */
     OMX_STRING* sDeviceString;
+
+    /* backup pointer for LCML */
+    void* ptrLibLCML;
+
     /* Removing sleep() calls. Definition. */
-#ifndef UNDER_CE
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -762,16 +666,6 @@ typedef struct G711DEC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif    
     /**************************/
     OMX_U8 nUnhandledFillThisBuffers;
 
@@ -838,7 +732,7 @@ OMX_ERRORTYPE G711DECHandleDataBuf_FromLCML(G711DEC_COMPONENT_PRIVATE* pComponen
 void  AddHeader(BYTE **pFileBuf);
 void  ResetPtr(BYTE **pFileBuf);
 
-OMX_HANDLETYPE G711DECGetLCMLHandle();
+OMX_HANDLETYPE G711DECGetLCMLHandle(G711DEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE G711DECFreeLCMLHandle();
 OMX_ERRORTYPE G711DEC_CleanupInitParams(OMX_HANDLETYPE pComponent);
 
@@ -849,5 +743,17 @@ OMX_U32 G711DEC_IsPending(G711DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFF
 OMX_ERRORTYPE G711DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent);
 OMX_U32 G711DEC_IsValid(G711DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
 OMX_ERRORTYPE G711DEC_TransitionToIdle(G711DEC_COMPONENT_PRIVATE *pComponentPrivate);
+
+/*  =========================================================================*/
+/*  func    G711DEC_FatalErrorRecover
+*
+*   desc    handles the clean up and sets OMX_StateInvalid
+*           in reaction to fatal errors
+*
+*@return n/a
+*
+*  =========================================================================*/
+void G711DEC_FatalErrorRecover(G711DEC_COMPONENT_PRIVATE *pComponentPrivate);
+void G711DEC_HandleUSNError (G711DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
 #endif /* OMX_G711DECODER_H*/

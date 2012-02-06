@@ -53,34 +53,24 @@
 
 
 
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#include <stdlib.h>
-#else
 #include <wchar.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/prctl.h>
 #include <dlfcn.h>
 #include <sys/select.h>
 #include <memory.h>
 #include <fcntl.h>
 #include <signal.h>
-#endif
 
 #include <dbapi.h>
 #include <string.h>
 #include <stdio.h>
-
 #ifdef ANDROID
 #include <utils/threads.h>
-#include <linux/prctl.h>
 #endif
-
 #include "OMX_AacDec_Utils.h"
 
 /* ================================================================================= * */
@@ -109,11 +99,10 @@ void* AACDEC_ComponentThread (void* pThreadData)
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     AACDEC_COMPONENT_PRIVATE* pComponentPrivate = (AACDEC_COMPONENT_PRIVATE*)pThreadData;
     OMX_COMPONENTTYPE *pHandle = pComponentPrivate->pHandle;
-
 #ifdef ANDROID
     setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_AUDIO);
-    prctl(PR_SET_NAME, (unsigned long)"AACComponent", 0, 0, 0);
 #endif
+    prctl(PR_SET_NAME, (unsigned long) "OMX-AACDEC", 0, 0, 0);
 
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: Entering ComponentThread \n",__LINE__);
 #ifdef __PERF_INSTRUMENTATION__
@@ -136,15 +125,10 @@ void* AACDEC_ComponentThread (void* pThreadData)
         tv.tv_sec = 1;
         tv.tv_nsec = 0;
 
-#ifndef UNDER_CE
         sigset_t set;
         sigemptyset (&set);
         sigaddset (&set, SIGALRM);
         status = pselect (fdmax+1, &rfds, NULL, NULL, &tv, &set);
-#else
-        status = select (fdmax+1, &rfds, NULL, NULL, &tv);
-#endif
-
 
         if (pComponentPrivate->bExitCompThrd == 1) {
             OMX_ERROR4(pComponentPrivate->dbg, "%d :: Comp Thrd Exiting here...\n",__LINE__);

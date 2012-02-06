@@ -33,6 +33,19 @@
 * ================================================================================
 */
 
+#include <features.h>
+#define __USE_POSIX
+#define _XOPEN_SOURCE 600
+#ifndef OMX_DEBUG
+    #define __USE_POSIX199309
+#else
+    #if OMX_DEBUG==0
+        #define __USE_POSIX199309
+    #endif
+#endif
+#define USE_STRSEP
+#include <sys/select.h>
+
 #ifndef OMX_JPEGDEC_UTILS__H
 #define OMX_JPEGDEC_UTILS__H
 
@@ -54,7 +67,13 @@
 #include <utils/Log.h>
 #define LOG_TAG "OMX_JPGDEC"
 
+/* disable resource manager */
 #ifdef RESOURCE_MANAGER_ENABLED
+#define USE_BOOST_API
+#undef RESOURCE_MANAGER_ENABLED
+#endif
+
+#if defined(RESOURCE_MANAGER_ENABLED) || defined(USE_BOOST_API)
 #include <ResourceManagerProxyAPI.h>
 #endif
 
@@ -160,11 +179,14 @@ do {					       \
     struct timespec  ts;                                                    \
     struct timeval sTime;                                                   \
     struct timezone sTimeZone;                                              \
+   OMX_U32 ts_us;							 \
                                                                             \
     pthread_mutex_lock(&((_pComponentPrivate_)->mJpegDecMutex));     \
-    gettimeofday(&sTime, &sTimeZone);                                       \
+    gettimeofday(&sTime, NULL);                                       \
+   ts_us = sTime.tv_usec;							\
     ts.tv_sec = sTime.tv_sec;                                               \
     ts.tv_sec += JPEGDEC_TIMEOUT;                                      \
+   ts.tv_nsec = ts_us * 1000;				\
                                                                    \
     nRet = pthread_cond_timedwait(&((_pComponentPrivate_)->sPortPopulated_cond),\
                                   &((_pComponentPrivate_)->mJpegDecMutex), \
@@ -187,11 +209,14 @@ do {					       \
     struct timespec  ts;                                                    \
     struct timeval sTime;                                                   \
     struct timezone sTimeZone;                                              \
+  OMX_U32 ts_us;		\
                                                                             \
     pthread_mutex_lock(&((_pComponentPrivate_)->mJpegDecMutex));     \
-    gettimeofday(&sTime, &sTimeZone);                                       \
+    gettimeofday(&sTime, NULL);                                       \
+    ts_us = sTime.tv_usec;							\
     ts.tv_sec = sTime.tv_sec;                                               \
     ts.tv_sec += JPEGDEC_TIMEOUT;                                      \
+    ts.tv_nsec = ts_us * 1000;				\
                                                                    \
     nRet = pthread_cond_timedwait(&((_pComponentPrivate_)->sPortPopulated_cond),\
                                   &((_pComponentPrivate_)->mJpegDecMutex), \
@@ -214,11 +239,14 @@ do {					       \
     struct timespec  ts;                                                    \
     struct timeval sTime;                                                   \
     struct timezone sTimeZone;                                              \
-                                                                            \
+     OMX_U32 ts_us;                                                                        \
+                                                                        \
     pthread_mutex_lock(&((_pComponentPrivate_)->mJpegDecFlushMutex));     \
-    gettimeofday(&sTime, &sTimeZone);                                       \
+    gettimeofday(&sTime, NULL);                                       \
+    ts_us = sTime.tv_usec;							\
     ts.tv_sec = sTime.tv_sec;                                               \
     ts.tv_sec += JPEGDEC_TIMEOUT;                                      \
+    ts.tv_nsec = ts_us * 1000;				\
                                                                    \
     nRet = pthread_cond_timedwait(&((_pComponentPrivate_)->sFlush_cond),\
                                   &((_pComponentPrivate_)->mJpegDecFlushMutex), \
@@ -267,27 +295,33 @@ do {					       \
 
 #define NUM_OF_BUFFERS 4
 #define NUM_OF_PORTS 2
+#define NUM_OF_INIT_RETRIES 1
+#define TIME_BETWEEN_INIT_MS 800
 
-
-#define OMX_JPEGDEC_NUM_DLLS (3)
+#define OMX_JPEGDEC_NUM_DLLS (5)
 #ifdef UNDER_CE
     #define JPEG_DEC_NODE_DLL "/windows/jpegdec_sn.dll64P"
     #define JPEG_COMMON_DLL "/windows/usn.dll64P"
     #define USN_DLL "/windows/usn.dll64P"
+    #define RINGIO_DLL "/windows/ringio.dll64P"
+    #define CONVERSIONS_DLL "/windows/conversions.dll64P"
 #else
 #define JPEG_DEC_NODE_DLL "jpegdec_sn.dll64P"
 #define JPEG_COMMON_DLL "usn.dll64P"
 #define USN_DLL "usn.dll64P"
+#define RINGIO_DLL "ringio.dll64P"
+#define CONVERSIONS_DLL "conversions.dll64P"
 #endif
 
 #define JPGDEC_SNTEST_STRMCNT       2
 #define JPGDEC_SNTEST_INSTRMID      0
 #define JPGDEC_SNTEST_OUTSTRMID     1
-#define JPGDEC_SNTEST_MAX_HEIGHT    3000
+#define JPGDEC_SNTEST_MAX_HEIGHT    3008
 #define JPGDEC_SNTEST_MAX_WIDTH     4000
 #define JPGDEC_SNTEST_PROG_FLAG     1
 #define JPGDEC_SNTEST_INBUFCNT      4
 #define JPGDEC_SNTEST_OUTBUFCNT     4
+#define JPGDEC_MAX_RESOLUTION       (JPGDEC_SNTEST_MAX_HEIGHT * JPGDEC_SNTEST_MAX_WIDTH)
 
 #define OMX_NOPORT 0xFFFFFFFE
 
@@ -298,6 +332,33 @@ do {					       \
 #define DSP_MMU_FAULT_HANDLING
 
 #define OMX_CustomCommandStopThread (OMX_CommandMax - 1)
+
+#define OMX_PARAM_SIZE_CHECK(_p_, _s_)\
+{\
+    if(((_p_)->nSize != _s_)){\
+        eError = OMX_ErrorUnsupportedSetting;\
+        goto EXIT;\
+    }\
+}
+
+#define OMX_PARAM_PORTDEFINITIONTYPE_CHECK(_p_) \
+{\
+    if(((_p_)->eDir == OMX_DirMax) ||\
+    ((_p_)->nBufferCountMin == 0) ||\
+    ((_p_)->nBufferCountActual < (_p_)->nBufferCountMin) ||\
+    ((_p_)->eDomain != OMX_PortDomainImage)){ \
+        eError = OMX_ErrorUnsupportedSetting;\
+        goto EXIT;\
+    }\
+}
+
+#define OMX_IMAGE_CUSTOM_INT_CHECK(_p_) \
+{\
+    if(((_p_) < 0)){\
+        eError = OMX_ErrorUnsupportedSetting;\
+        goto EXIT;\
+    }\
+}
 
 typedef OMX_ERRORTYPE (*jpegdec_fpo)(OMX_HANDLETYPE);
 
@@ -312,6 +373,19 @@ static const struct DSP_UUID USN_UUID = {
         0xCF, 0x80, 0x57, 0x73, 0x05, 0x41
     }
 };
+
+static const struct DSP_UUID RINGIO_UUID = {
+        0x47698bfb, 0xa7ee, 0x417e, 0xa6, 0x7a, {
+        0x41, 0xc0, 0x27, 0x9e, 0xb8, 0x05
+    }
+};
+
+static const struct DSP_UUID CONVERSIONS_UUID = {
+        0x722dd0da, 0xf532, 0x4238, 0xb8, 0x46, {
+        0xab, 0xff, 0x5d, 0xa4, 0xba, 0x02
+    }
+};
+
 
 typedef enum JPEGDEC_COMP_PORT_TYPE
 {
@@ -371,6 +445,7 @@ typedef struct OMX_CUSTOM_IMAGE_DECODE_SECTION
     OMX_U32 nAU;
     OMX_BOOL bSectionsInput;
     OMX_BOOL bSectionsOutput;
+    OMX_U32 ImageSize;
 }OMX_CUSTOM_IMAGE_DECODE_SECTION;
 
 typedef struct OMX_CUSTOM_IMAGE_DECODE_SUBREGION
@@ -472,6 +547,7 @@ typedef struct JPEGDEC_COMPONENT_PRIVATE
     OMX_CUSTOM_IMAGE_DECODE_SECTION* pSectionDecode;
     OMX_CUSTOM_IMAGE_DECODE_SUBREGION* pSubRegionDecode;
     OMX_CUSTOM_RESOLUTION sMaxResolution;
+    OMX_CUSTOM_RESOLUTION sOutputResolution;
     struct OMX_TI_Debug dbg;
 } JPEGDEC_COMPONENT_PRIVATE;
 
@@ -505,6 +581,7 @@ typedef struct
     OMX_U32 ulXLength;      /*Sectional decoding: X lenght*/
     OMX_U32 ulYLength;      /*Sectional decoding: Y lenght*/
     OMX_U32 ulAlphaRGB;   /* Alpha RGB value, it only takes values from 0 to 255 */
+    OMX_U32 ulTotalsize;	/*Total size of the image when input slice mode is activated */
 }JPEGDEC_UAlgInBufParamStruct;
 
 typedef struct
@@ -523,12 +600,13 @@ typedef struct
     OMX_U32 ulOutReserved2;
     OMX_U32 lastMCU;            /* 1-Decoded all MCU�s0 - Decoding not completed*/
     OMX_U32 stride[3];          /*Stride values for Y, U, and V components*/
-    OMX_U32 ulOutputHeight;     /* Output Height */
     OMX_U32 ulOutputWidth;      /* Output Width*/
+    OMX_U32 ulOutputHeight;     /* Output Height */
     OMX_U32 ultotalAU;          /* Total number of Access unit(MCU)*/
     OMX_U32 ulbytesConsumed;    /* Total number of bytes consumed*/
     OMX_U32 ulcurrentAU;        /* current access unit number */
     OMX_U32 ulcurrentScan;      /*current scan number*/
+    long int lErrorCode; 	/* Error propagation from DSP  */
 }JPEGDEC_UAlgOutBufParamStruct;
 
 typedef enum OMX_INDEXIMAGETYPE
@@ -539,6 +617,7 @@ typedef enum OMX_INDEXIMAGETYPE
     OMX_IndexCustomSectionDecode,
     OMX_IndexCustomSubRegionDecode,
     OMX_IndexCustomSetMaxResolution,
+    OMX_IndexCustomOutputResolution,
     OMX_IndexCustomDebug
 }OMX_INDEXIMAGETYPE;
 
@@ -567,6 +646,7 @@ OMX_ERRORTYPE GetLCMLHandleJpegDec(OMX_HANDLETYPE pComponent);
 OMX_ERRORTYPE HandleInternalFlush(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 nParam1);
 OMX_BOOL IsTIOMXComponent(OMX_HANDLETYPE hComp);
 void* OMX_JpegDec_Thread (void* pThreadData);
+void JpegDec_FatalErrorRecover(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate, const char* error_msg);
 
 #ifdef RESOURCE_MANAGER_ENABLED
 void ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);

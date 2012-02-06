@@ -220,6 +220,7 @@ int tcID = 0;
 OMX_BOOL bExitOnError = OMX_TRUE;
 int ebd = 0;
 int fbd = 0;
+static OMX_BOOL bInvalidState = OMX_FALSE;
 
 
 void writeITUFormat(OMX_U8* buffer, OMX_U32 length, FILE* fOut) ;
@@ -261,6 +262,14 @@ static OMX_ERRORTYPE WaitForState(OMX_HANDLETYPE* pHandle,
         goto EXIT;
     }
     while( (eError == OMX_ErrorNone) && (CurState != DesiredState) ) {
+
+        if (bInvalidState == OMX_TRUE)
+        {
+            APP_DPRINT("%d [TEST APP] WaitForState invalid state detected\n",__LINE__);
+            eError = OMX_StateInvalid;
+            goto EXIT;
+        }
+
         sleep(2);
         if(nCnt++ == 10) {
             APP_DPRINT("%d :: Still Waiting, press CTL-C to continue\n",__LINE__);
@@ -308,6 +317,10 @@ OMX_ERRORTYPE EventHandler(
         }
         break;
     case OMX_EventError:
+        if (nData1 == (OMX_U32)OMX_ErrorInvalidState && bInvalidState == OMX_FALSE) {
+            printf( "%d :: App: Fault detected!\n", __LINE__);
+            bInvalidState = OMX_TRUE;
+        }
         break;
     case OMX_EventMax:
         APP_DPRINT( "%d :: App: Component OMX_EventMax = %d\n", __LINE__,eEvent);
@@ -975,7 +988,8 @@ int main(int argc, char* argv[])
                 goto EXIT;
             }
 
-            while((eError == OMX_ErrorNone) && (state != OMX_StateIdle)) {
+            while((eError == OMX_ErrorNone) && (state != OMX_StateIdle) &&
+                  (state != OMX_StateInvalid)) {
                 FD_ZERO(&rfds);
                 FD_SET(IpBuf_Pipe[0], &rfds);
                 FD_SET(OpBuf_Pipe[0], &rfds);
@@ -1340,13 +1354,11 @@ int main(int argc, char* argv[])
                         }
                     }
                 }
-                if(done == 1) {
-                    eError = OMX_GetState(pHandle, &state);
-                    if(eError != OMX_ErrorNone) {
-                        APP_DPRINT("%d :: pComponent->GetState has returned status %X\n",__LINE__, eError);
-                        bExitOnError = OMX_TRUE;
-                        goto EXIT;
-                    }
+                eError = OMX_GetState(pHandle, &state);
+                if(eError != OMX_ErrorNone) {
+                    APP_DPRINT("%d :: pComponent->GetState has returned status %X\n",__LINE__, eError);
+                    bExitOnError = OMX_TRUE;
+                    goto EXIT;
                 }
             } /* While Loop Ending Here */
             printf("%d :: App: The current state of the component = %d \n",__LINE__,state);

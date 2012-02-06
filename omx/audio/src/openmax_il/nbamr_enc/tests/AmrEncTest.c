@@ -77,6 +77,7 @@
 #include <OMX_Core.h>
 #include <OMX_Audio.h>
 #include <TIDspOmx.h>
+#include <OMX_TI_Common.h>
 /* #include <AudioManagerAPI.h> */
 #include <time.h>
 
@@ -369,16 +370,13 @@ static OMX_ERRORTYPE WaitForState(OMX_HANDLETYPE* pHandle,
      /* OMX_S16 nCnt = 0; */
      OMX_COMPONENTTYPE *pComponent = (OMX_COMPONENTTYPE *)pHandle;
 
-     eError = pComponent->GetState(pHandle, &CurState);
-     if (CurState == OMX_StateInvalid && bInvalidState == OMX_TRUE)
-	 {
-		 	eError = OMX_ErrorInvalidState;
-	 }
+     if (bInvalidState == OMX_TRUE)
+     {
+            eError = OMX_ErrorInvalidState;
+            return eError;
+     }
 
-eError = OMX_GetState(pHandle, &CurState);
-    if (CurState == OMX_StateInvalid) {
-        eError = OMX_ErrorInvalidState; 
-    }
+    eError = OMX_GetState(pHandle, &CurState);
     if(CurState != DesiredState){
         WaitForState_flag = 1;
         TargetedState = DesiredState;
@@ -432,11 +430,17 @@ OMX_ERRORTYPE EventHandler(
         }
            break;
        case OMX_EventError:
-		   if (nData1 == OMX_ErrorInvalidState) {
-		   		bInvalidState =OMX_TRUE;
-		   		APP_IPRINT("EventHandler: Invalid State!!!!\n");
-		   }
-		   else if(nData1 == OMX_ErrorResourcesPreempted) {
+           if (nData1 == OMX_ErrorInvalidState) {
+                bInvalidState =OMX_TRUE;
+                APP_IPRINT("EventHandler: Invalid State!!!!\n");
+                if (WaitForState_flag) {
+                    WaitForState_flag = 0;
+                    pthread_mutex_lock(&WaitForState_mutex);
+                    pthread_cond_signal(&WaitForState_threshold);/*Sending Waking Up Signal*/
+                    pthread_mutex_unlock(&WaitForState_mutex);
+                }
+           }
+           else if(nData1 == OMX_ErrorResourcesPreempted) {
             preempted=1;
             writeValue = 0;  
             write(Event_Pipe[1], &writeValue, sizeof(OMX_U8));
@@ -1045,18 +1049,10 @@ int nbamrencfdread;
 	}
 #else
 	for(i = 0; i < numInputBuffers; i++) {
-		pInputBuffer[i] = (OMX_U8*)newmalloc(NBAPP_INPUT_BUFFER_SIZE*3 + 256);
-		APP_MEMPRINT("%d :: [TESTAPP ALLOC] pInputBuffer[%d] = %p\n",__LINE__,i,pInputBuffer[i]);
-		if(NULL == pInputBuffer[i]) {
-			APP_DPRINT("%d :: Malloc Failed\n",__LINE__);
-			eError = OMX_ErrorInsufficientResources;
-			goto EXIT;
-		}
-		pInputBuffer[i] = pInputBuffer[i] + 128;
-		
+        OMX_MALLOC_SIZE_DSPALIGN(pInputBuffer[i], NBAPP_INPUT_BUFFER_SIZE*3, OMX_U8);
 		/*	allocate input buffer */
 		APP_DPRINT("%d :: About to call OMX_UseBuffer\n",__LINE__);
-		eError = OMX_UseBuffer(pHandle, &pInputBufferHeader[i], 0, NULL, NBAPP_INPUT_BUFFER_SIZE*13, pInputBuffer[i]);
+		eError = OMX_UseBuffer(pHandle, &pInputBufferHeader[i], 0, NULL, NBAPP_INPUT_BUFFER_SIZE*3, pInputBuffer[i]);
 		if(eError != OMX_ErrorNone) {
 			APP_DPRINT("%d :: Error returned by OMX_UseBuffer()\n",__LINE__);
 			goto EXIT;
@@ -1064,18 +1060,10 @@ int nbamrencfdread;
 	}
 
 	for(i = 0; i < numOutputBuffers; i++) {
-		pOutputBuffer[i] = newmalloc (NBAPP_OUTPUT_BUFFER_SIZE*3 + 256);
-		APP_MEMPRINT("%d :: [TESTAPP ALLOC] pOutputBuffer[%d] = %p\n",__LINE__,i,pOutputBuffer[i]);
-		if(NULL == pOutputBuffer[i]) {
-			APP_DPRINT("%d :: Malloc Failed\n",__LINE__);
-			eError = OMX_ErrorInsufficientResources;
-			goto EXIT;
-		}
-		pOutputBuffer[i] = pOutputBuffer[i] + 128;
-
+        OMX_MALLOC_SIZE_DSPALIGN(pOutputBuffer[i], NBAPP_OUTPUT_BUFFER_SIZE*3, OMX_U8);
 		/* allocate output buffer */
 		APP_DPRINT("%d :: About to call OMX_UseBuffer\n",__LINE__);
-		eError = OMX_UseBuffer(pHandle, &pOutputBufferHeader[i], 1, NULL, NBAPP_OUTPUT_BUFFER_SIZE*13, pOutputBuffer[i]);
+		eError = OMX_UseBuffer(pHandle, &pOutputBufferHeader[i], 1, NULL, NBAPP_OUTPUT_BUFFER_SIZE*3, pOutputBuffer[i]);
 		if(eError != OMX_ErrorNone) {
 			APP_DPRINT("%d :: Error returned by OMX_UseBuffer()\n",__LINE__);
 			goto EXIT;
@@ -1456,12 +1444,7 @@ if( FD_ISSET(Event_Pipe[0], &rfds) ) {
 #ifdef USE_BUFFER
 
 		for(i=0; i < numInputBuffers; i++) {
-			if(pInputBuffer[i] != NULL){
-	       		APP_MEMPRINT("%d :: App: [TESTAPPFREE] pInputBuffer[%d] = %p\n",__LINE__,i,pInputBuffer[i]);
-	            pInputBuffer[i] = pInputBuffer[i] - 128;       		
-				newfree(pInputBuffer[i]);
-				pInputBuffer[i] = NULL;
-			}
+            OMX_MEMFREE_STRUCT_DSPALIGN(pInputBuffer[i], OMX_U8);
 		}
 #endif                        
 
@@ -1594,21 +1577,11 @@ if( FD_ISSET(Event_Pipe[0], &rfds) ) {
 	APP_IPRINT("%d :: App: Freeing the App Allocated Buffers in TestApp\n",__LINE__);
 
 	for(i=0; i < numInputBuffers; i++) {		
-		if(pInputBuffer[i] != NULL){
-	        APP_MEMPRINT("%d :: App: [TESTAPPFREE] pInputBuffer[%d] = %p\n",__LINE__,i,pInputBuffer[i]);
-	        pInputBuffer[i] = pInputBuffer[i] - 128;
-			newfree(pInputBuffer[i]);
-			pInputBuffer[i] = NULL;
-		}
+          OMX_MEMFREE_STRUCT_DSPALIGN(pInputBuffer[i], OMX_U8);
 	}
 
 	for(i=0; i < numOutputBuffers; i++) {
-		if(pOutputBuffer[i] != NULL){
-    		APP_MEMPRINT("%d :: App: [TESTAPPFREE] pOutputBuffer[%d] = %p\n",__LINE__,i, pOutputBuffer[i]);
-	    	pOutputBuffer[i] = pOutputBuffer[i] - 128;
-			newfree(pOutputBuffer[i]);
-			pOutputBuffer[i] = NULL;
-		}
+          OMX_MEMFREE_STRUCT_DSPALIGN(pOutputBuffer[i], OMX_U8);
 	}
 #endif
 
@@ -1982,21 +1955,11 @@ int FreeAllResources(OMX_HANDLETYPE *pHandle,
 		APP_IPRINT("%d::Freeing all resources by state invalid \n",__LINE__);
     	/* newfree the UseBuffers */
 	    for(i=0; i < NIB; i++) {
-		   UseInpBuf[i] = UseInpBuf[i] - 128;
-		   APP_IPRINT("%d :: [TESTAPPFREE] pInputBuffer[%d] = %p\n",__LINE__,i,(UseInpBuf[i]));
-		   if(UseInpBuf[i] != NULL){
-			  newfree(UseInpBuf[i]);
-			  UseInpBuf[i] = NULL;
-		   }
+           OMX_MEMFREE_STRUCT_DSPALIGN(UseInpBuf[i], OMX_U8);
 		}
 
 	    for(i=0; i < NOB; i++) {
-		   UseOutBuf[i] = UseOutBuf[i] - 128;
-		   APP_IPRINT("%d :: [TESTAPPFREE] pOutputBuffer[%d] = %p\n",__LINE__,i, UseOutBuf[i]);
-		   if(UseOutBuf[i] != NULL){
-			  newfree(UseOutBuf[i]);
-			  UseOutBuf[i] = NULL;
-		   }
+           OMX_MEMFREE_STRUCT_DSPALIGN(UseOutBuf[i], OMX_U8);
 		}
 
 	/*i value is fixed by the number calls to newmalloc in the App */
@@ -2006,7 +1969,7 @@ int FreeAllResources(OMX_HANDLETYPE *pHandle,
 				newfree(ArrayOfPointers[i]);
 		}
 	
-		OMX_FreeHandle(pHandle);
+		TIOMX_FreeHandle(pHandle);
 	
 		return eError;
 }

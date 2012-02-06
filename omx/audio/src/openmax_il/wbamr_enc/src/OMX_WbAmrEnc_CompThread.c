@@ -51,11 +51,6 @@
 ****************************************************************/
 /* ----- system and platform files ----------------------------*/
 
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#else
 #include <wchar.h>
 #include <dbapi.h>
 #include <unistd.h>
@@ -63,6 +58,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
+#include <sys/prctl.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -72,7 +68,6 @@
 
 #include <dlfcn.h>
 
-#endif
 /*-------program files ----------------------------------------*/
 #include "OMX_WbAmrEncoder.h"
 #include "OMX_WbAmrEnc_Utils.h"
@@ -101,6 +96,7 @@ void* WBAMRENC_CompThread(void* pThreadData) {
     OMX_U32 commandData;
     OMX_COMMANDTYPE command;
 
+    prctl(PR_SET_NAME, (unsigned long) "OMX-WBAMRENC", 0, 0, 0);
     OMX_PRINT1(pComponentPrivate->dbg, "Entering\n");
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -123,14 +119,10 @@ void* WBAMRENC_CompThread(void* pThreadData) {
         tv.tv_sec = 1;
         tv.tv_nsec = 0;
 
-#ifndef UNDER_CE
         sigset_t set;
         sigemptyset (&set);
         sigaddset (&set, SIGALRM);
         status = pselect (fdmax + 1, &rfds, NULL, NULL, &tv, &set);
-#else
-        status = select (fdmax + 1, &rfds, NULL, NULL, &tv);
-#endif
 
         if (pComponentPrivate->bIsThreadstop == 1) {
             OMX_ERROR4(pComponentPrivate->dbg, "Comp Thrd Exiting!\n");
@@ -204,14 +196,10 @@ void* WBAMRENC_CompThread(void* pThreadData) {
 #endif
 
                 if (pComponentPrivate->bPreempted == 0) {
-                   if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
-                       return OMX_ErrorUndefined;
-                   }
-
                     pComponentPrivate->cbInfo.EventHandler( pHandle,
                                                             pHandle->pApplicationPrivate,
                                                             OMX_EventCmdComplete,
-                                                            OMX_CommandStateSet,
+                                                            OMX_ErrorNone,
                                                             pComponentPrivate->curState,
                                                             NULL);
                 } else {

@@ -45,17 +45,8 @@
 #include "OMX_TI_Common.h"
 #include <OMX_TI_Debug.h>
 #include "LCML_DspCodec.h"
-
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#include <stdlib.h>
-#else
+#include "usn.h"
 #include <pthread.h>
-#endif
-
-#ifndef UNDER_CE
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
@@ -79,8 +70,6 @@
     
     /* PV opencore capability custom parameter index */ 
     #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
-#endif
-
 #endif
 
 #define MP3DEC_MAJOR_VER 0x1/* Major number of the component */
@@ -108,7 +97,7 @@
 #define MP3D_NUM_OUTPUT_BUFFERS 4 /* Default number of output buffers */
 
 #define MP3D_INPUT_BUFFER_SIZE  2000*4 /* Default size of input buffer */
-#define MP3D_OUTPUT_BUFFER_SIZE 8192 /* Default size of output buffer */
+#define MP3D_OUTPUT_BUFFER_SIZE 8192*10 /* Default size of output buffer */
 #define MP3D_DEFAULT_FREQUENCY 44100 /* Default sample frequency*/
 
 #define OUTPUT_PORT_MP3DEC 1
@@ -122,72 +111,14 @@
 
 #define NUM_OF_PORTS 0x2 /* Number of ports of component */
 
-#ifdef UNDER_CE
-#define MP3DEC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define MP3DEC_USN_DLL_NAME "usn.dll64P"
-#endif
 
-#ifdef UNDER_CE
-#define MP3DEC_DLL_NAME "\\windows\\mp3dec_sn.dll64P"
-#else
 #define MP3DEC_DLL_NAME "mp3dec_sn.dll64P"
-#endif
 
 #define DONT_CARE 0
 
 #define EXIT_COMPONENT_THRD  10
 
-#ifdef UNDER_CE /* For Windows */
-
-#ifdef  MP3DEC_DEBUG
- #define MP3DEC_DPRINT(STR, ARG...) printf()
-#else
-#endif
-
-#ifdef  MP3DEC_DEBUG
- #define MP3DEC_EPRINT(STR, ARG...) printf()
-#else
-#endif
-
-
-#ifdef MP3DEC_MEMCHECK
-        #define MP3DEC_MEMPRINT(STR, ARG...) printf()
-#else
-#endif
-
-#ifdef MP3DEC_STATEDETAILS
-        #define MP3DEC_STATEPRINT(STR, ARG...) printf()
-#else
-#endif
-
-
-#ifdef MP3DEC_BUFDETAILS
-        #define MP3DEC_BUFPRINT(STR, ARG...) printf()
-#else
-#endif
-
-#ifdef MP3DEC_MEMDETAILS
-        #define MP3DEC_MEMPRINT(STR, ARG...) printf()
-#else
-#endif
-
-
-#ifdef DEBUG
-        #define MP3DEC_DPRINT   printf
-        #define MP3DEC_EPRINT   printf
-        #define MP3DEC_MEMPRINT   printf
-        #define MP3DEC_STATEPRINT   printf
-        #define MP3DEC_BUFPRINT   printf
-#else
-        #define MP3DEC_DPRINT
-        #define MP3DEC_EPRINT printf
-        #define MP3DEC_MEMPRINT
-        #define MP3DEC_STATEPRINT
-        #define MP3DEC_BUFPRINT
-#endif
-
-#else /* for Linux */
 #ifdef  MP3DEC_DEBUG
 
   #ifdef ANDROID
@@ -229,8 +160,6 @@
   #define MP3DEC_EPRINT LOGE
 #else
   #define MP3DEC_EPRINT printf
-#endif
-
 #endif
 
 #define MP3D_OMX_ERROR_EXIT(_e_, _c_, _s_)\
@@ -287,14 +216,6 @@ typedef enum MP3D_COMP_PORT_TYPE {
 }MP3D_COMP_PORT_TYPE;
 
 /* ======================================================================= */
-/**
- * pthread variable to indicate OMX returned all buffers to app 
- */
-/* ======================================================================= */
-    pthread_mutex_t bufferReturned_mutex; 
-    pthread_cond_t bufferReturned_condition; 
-
-/* ======================================================================= */
 /** OMX_INDEXAUDIOTYPE: This enum is used by the TI OMX Component.
 * 
 * @param : 
@@ -319,7 +240,7 @@ typedef enum OMX_INDEXAUDIOTYPE {
 */
 /* ==================================================================== */
 typedef struct MP3DEC_BUFDATA {
-   OMX_U8 nFrames;     
+   OMX_U8 nFrames;
 }MP3DEC_BUFDATA;
 
 /* ======================================================================= */
@@ -350,58 +271,6 @@ typedef struct {
   unsigned long    lStereoToMonoCopy;
 } MP3DEC_UALGParams;
 
-
-/* ======================================================================= */
-/** MP3D_IUALG_Cmd: This enum type describes the standard set of commands that 
-* will be passed to iualg control API at DSP. This enum is taken as it is from
-* DSP side USN source code.
-* 
-* @param IUALG_CMD_STOP: This command indicates that higher layer framework
-* has received a stop command and no more process API will be called for the
-* current data stream. The iualg layer is expected to ensure that all processed
-* output as is put in the output IUALG_Buf buffers and the state of all buffers
-* changed as to free or DISPATCH after this function call. 
-*
-* @param IUALG_CMD_PAUSE: This command indicates that higher layer framework
-* has received a PAUSE command on the current data stream. The iualg layer 
-* can change the state of some of its output IUALG_Bufs to DISPATCH to enable
-* high level framework to use the processed data until the command was received.
-*
-* @param IUALG_CMD_GETSTATUS: This command indicates that some algo specific 
-* status needs to be returned to the framework. The pointer to the status
-* structure will be in IALG_status * variable passed to the control API. 
-* The interpretation of the content of this pointer is left to IUALG layer.
-*
-* @param IUALG_CMD_SETSTATUS: This command indicates that some algo specific 
-* status needs to be set. The pointer to the status structure will be in 
-* IALG_status * variable passed to the control API. The interpretation of the
-* content of this pointer is left to IUALG layer.
-*
-* @param IUALG_CMD_USERCMDSTART: The algorithm specific control commands can
-* have the enum type set from this number.
-*/
-/* ==================================================================== */
-typedef enum {
-    IUALG_CMD_STOP          = 0,
-    IUALG_CMD_PAUSE         = 1,
-    IUALG_CMD_GETSTATUS     = 2,
-    IUALG_CMD_SETSTATUS     = 3,
-    IUALG_CMD_USERCMDSTART  = 100
-}IUALG_Cmd;
-
-#ifdef UNDER_CE
-    #ifndef _OMX_EVENT_
-        #define _OMX_EVENT_
-        typedef struct OMX_Event {
-            HANDLE event;
-        } OMX_Event;
-    #endif
-    int OMX_CreateEvent(OMX_Event *event);
-    int OMX_SignalEvent(OMX_Event *event);
-    int OMX_WaitForEvent(OMX_Event *event);
-    int OMX_DestroyEvent(OMX_Event *event);
-#endif
-
 /* ======================================================================= */
 /** IUALG_MP3DCmd: This enum specifies the command to DSP.
 * 
@@ -409,7 +278,7 @@ typedef enum {
 */
 /* ==================================================================== */
 typedef enum {
-    IULAG_CMD_SETSTREAMTYPE = IUALG_CMD_USERCMDSTART
+    IULAG_CMD_SETSTREAMTYPE = IUALG_CMD_USERSETCMDSTART
 }IUALG_MP3DCmd;
 
 /* ======================================================================= */
@@ -420,6 +289,7 @@ typedef enum {
 typedef struct {
     /* Set to 1 if buffer is last buffer */
     unsigned long bLastBuffer;
+    unsigned long ulFrameIndex;
 }MP3DEC_UAlgInBufParamStruct;
 
 /* ======================================================================= */
@@ -443,6 +313,7 @@ typedef struct USN_AudioCodecParams{
 /* ==================================================================== */
 typedef struct {
     /* Number of frames in a buffer */
+    unsigned long ulFrameIndex;
     unsigned long ulFrameCount;
     unsigned long ulIsLastBuffer;
 }MP3DEC_UAlgOutBufParamStruct;
@@ -707,14 +578,13 @@ typedef struct MP3DEC_COMPONENT_PRIVATE
     OMX_U32 bDspStoppedWhileExecuting;
     OMX_BOOL bLoadedCommandPending;
 
-    /** Counts number of buffers received from client */
+    /** Number of FillBufferDones acomplished, used to transition to idle */
+    OMX_S32 nOutStandingFillDones;
     OMX_U32 nHandledFillThisBuffers;
-    /** Count number of buffers recieved from client */
     OMX_U32 nHandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
 
-#ifndef UNDER_CE        
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -730,29 +600,22 @@ typedef struct MP3DEC_COMPONENT_PRIVATE
     pthread_mutex_t InLoaded_mutex;
     pthread_cond_t InLoaded_threshold;
     OMX_U8 InLoaded_readytoidle;
-    
+
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-	
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif    
+
+    /* pthread variable to indicate OMX returned all buffers to app */
+    pthread_mutex_t bufferReturned_mutex;
+    pthread_cond_t bufferReturned_condition;
 
     OMX_PARAM_COMPONENTROLETYPE componentRole;
     
     /** Keep buffer timestamps **/
     OMX_S64 arrBufIndex[MP3D_MAX_NUM_OF_BUFS];
-	/**Keep buffer tickcounts*/
+    /**Keep buffer tickcounts*/
     OMX_U32 arrBufIndexTick[MP3D_MAX_NUM_OF_BUFS];
-	
+
     /** Index to arrBufIndex[] and arrBufIndexTick[], used for input buffer timestamps */
     OMX_U8 IpBufindex;
     /** Index to arrBufIndex[] and arrBufIndexTick[], used for output buffer timestamps */
@@ -774,6 +637,7 @@ typedef struct MP3DEC_COMPONENT_PRIVATE
     OMX_BOOL reconfigInputPort;
     OMX_BOOL reconfigOutputPort;
     OMX_BOOL bConfigData;
+    OMX_BOOL DSPMMUFault;
 
     StreamData pStreamData;
 
@@ -800,14 +664,7 @@ typedef struct MP3DEC_COMPONENT_PRIVATE
 *  @see          Mp3Dec_StartCompThread()
 */
 /* ================================================================================ * */
-#ifndef UNDER_CE
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
-
 
 /* ================================================================================= * */
 /**
@@ -1044,14 +901,14 @@ void MP3DEC_CleanupInitParams(OMX_HANDLETYPE pComponent);
 *  @see         None
 */
 /* ================================================================================ * */
-void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
+void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_S32 indexport);
 
 #ifdef RESOURCE_MANAGER_ENABLED
 /* =================================================================================== */
 /**
 *  MP3_ResourceManagerCallback() Callback from Resource Manager
 *
-*  @param cbData	RM Proxy command data
+*  @param cbData    RM Proxy command data
 *
 *  @return None
 */
@@ -1059,7 +916,7 @@ void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
 void MP3_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 #endif
 
-OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport);
+OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent,OMX_S32 indexport);
 void MP3DEC_SetPending(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir, OMX_U32 lineNumber);
 void MP3DEC_ClearPending(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir, OMX_U32 lineNumber) ;
 OMX_U32 MP3DEC_IsPending(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFFERHEADERTYPE *pBufHdr, OMX_DIRTYPE eDir);
@@ -1085,16 +942,38 @@ OMX_U32 MP3DEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BO
 
  */
 /*=======================================================================*/
-void SignalIfAllBuffersAreReturned(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate);
+void MP3DEC_SignalIfAllBuffersAreReturned(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate,
+                                          OMX_U8 counterport);
 
 /*  =========================================================================*/
 /*  func    MP3DEC_HandleUSNError
-/*
-/*  desc    Handles error messages returned by the dsp
-/*
-/*@return n/a
-/*
-/*  =========================================================================*/
+*
+*  desc    Handles error messages returned by the dsp
+*
+*@return n/a
+*
+*  =========================================================================*/
 void MP3DEC_HandleUSNError (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
+
+/**
+* @MP3DEC_waitForAllBuffersToReturn This function waits for all buffers to return
+*
+* @param MP3DEC_COMPONENT_PRIVATE *pComponentPrivate
+*
+* @return None
+*/
+void MP3DEC_waitForAllBuffersToReturn(
+        MP3DEC_COMPONENT_PRIVATE *pComponentPrivate);
+
+/*  =========================================================================*/
+/*  func    MP3DEC_FatalErrorRecover
+*
+*   desc    handles the clean up and sets OMX_StateInvalid
+*           in reaction to fatal errors
+*
+*@return n/a
+*
+*  =========================================================================*/
+void MP3DEC_FatalErrorRecover(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 #endif

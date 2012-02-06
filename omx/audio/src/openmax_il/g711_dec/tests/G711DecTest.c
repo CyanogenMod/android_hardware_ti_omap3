@@ -204,6 +204,20 @@ OMX_S16 GetInfoFromBufferHeader(OMX_U8 **pBufPtr, OMX_S16 *pCurBitRate,OMX_S16 *
 void ResetBufferPointers(OMX_U8 **pBuffer);
 OMX_S16 maxint(OMX_S16 a, OMX_S16 b);
 OMX_S16 fill_data (OMX_BUFFERHEADERTYPE *pBuf, FILE *fIn);
+#ifndef USE_BUFFER
+int FreeAllResources( OMX_HANDLETYPE pHandle,
+                      OMX_BUFFERHEADERTYPE* pBufferIn,
+                      OMX_BUFFERHEADERTYPE* pBufferOut,
+                      int NIB, int NOB,
+                      FILE* fIn, FILE* fOut);
+#else
+int  FreeAllResources(OMX_HANDLETYPE pHandle,
+                         OMX_U8* UseInpBuf[],
+                         OMX_U8* UseOutBuf[],
+                         int NIB, int NOB,
+                         FILE* fIn, FILE* fOut);
+
+#endif
 OMX_ERRORTYPE send_input_buffer (OMX_HANDLETYPE pHandle, OMX_BUFFERHEADERTYPE* pBuffer, FILE *fIn);
 void ConfigureAudio();
 
@@ -212,7 +226,6 @@ void ConfigureAudio();
  *  GLOBAL variables
  */
 /* ======================================================================= */
-FILE *inputToSN = NULL;
 OMX_S16 inputPortDisabled = 0;
 OMX_S16 outputPortDisabled = 0;
 OMX_S16 alternate = 0;
@@ -231,6 +244,7 @@ int OpBuf_Pipe[2] = {0};
 int Event_Pipe[2] = {0};
 fd_set rfds;
 static OMX_BOOL bInvalidState;
+void* ArrayOfPointers[5] = {NULL};
 OMX_S16 done = 0;
 OMX_S16 dasfmode = 0;
 OMX_S16 fsizemode = 0;
@@ -273,6 +287,10 @@ static OMX_ERRORTYPE WaitForState(OMX_HANDLETYPE* pHandle, OMX_STATETYPE Desired
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_S16 nCnt = 0;
     OMX_COMPONENTTYPE *pComponent = (OMX_COMPONENTTYPE *)pHandle;
+    if (bInvalidState == OMX_TRUE){
+        eError = OMX_ErrorInvalidState;
+        return eError;
+    }
     eError = pComponent->GetState(pHandle, &CurState);
 
     while( (eError == OMX_ErrorNone) && (CurState != DesiredState) && (eError == OMX_ErrorNone) ) {
@@ -354,6 +372,12 @@ OMX_ERRORTYPE EventHandler(OMX_HANDLETYPE hComponent,OMX_PTR pAppData,OMX_EVENTT
     case OMX_EventError:
         if (nData1 == OMX_ErrorInvalidState) {
             bInvalidState = OMX_TRUE;
+            if (WaitForState_flag){
+                WaitForState_flag = 0;
+                pthread_mutex_lock(&WaitForState_mutex);
+                pthread_cond_signal(&WaitForState_threshold);/*Sending Waking Up Signal*/
+                pthread_mutex_unlock(&WaitForState_mutex);
+            }
         }
         else if(nData1 == OMX_ErrorResourcesPreempted) {
             writeValue = 0;  
@@ -432,7 +456,7 @@ typedef struct G711DEC_FTYPES{
     unsigned short FrameSizeType;
     unsigned short NmuNLvl;
     unsigned short NoiseLp;
-    unsigned long  dBmNoise;
+    unsigned short  dBmNoise;
     unsigned short plc;
 }G711DEC_FTYPES;
 /* ----------------------------------------------------------------------------
@@ -459,7 +483,9 @@ int main(int argc, char* argv[])
     OMX_ERRORTYPE error = OMX_ErrorNone;
     OMX_U32 AppData = G711_APP_ID;
     TI_OMX_DSP_DEFINITION* audioinfo = malloc(sizeof(TI_OMX_DSP_DEFINITION));
+    ArrayOfPointers[4] = (TI_OMX_DSP_DEFINITION*)audioinfo;
     G711DEC_FTYPES* frameinfo = malloc(sizeof(G711DEC_FTYPES));
+    ArrayOfPointers[3] = (G711DEC_FTYPES*)frameinfo;
     TI_OMX_DATAPATH dataPath;       
     struct timeval tv   ;
     OMX_S16 retval = 0, i = 0, j = 0,k = 0;
@@ -708,11 +734,7 @@ int main(int argc, char* argv[])
                 goto EXIT;
             }
             error = TIOMX_Init();
-            inputToSN = fopen("outputSecondTime.log","w");
 
-        }
-        else {
-            inputToSN = fopen("outputFirstTime.log","w");
         }
 #ifdef DSP_RENDERING_ON  
         if((g711decfdwrite=open(FIFO1,O_WRONLY))<0)
@@ -756,6 +778,7 @@ int main(int argc, char* argv[])
             error = -1;
             goto EXIT;
         }
+        ArrayOfPointers[0] = (OMX_PARAM_PORTDEFINITIONTYPE*)pCompPrivateStruct;
 
         if (dasfmode) 
         {
@@ -788,6 +811,7 @@ int main(int argc, char* argv[])
         /* Send input port config */
         pCompPrivateStruct->nPortIndex = OMX_DirInput; 
         pCompPrivateStruct->format.audio.cMIMEType = malloc(20);
+        ArrayOfPointers[1] = pCompPrivateStruct->format.audio.cMIMEType;
         strcpy(pCompPrivateStruct->format.audio.cMIMEType,"NONMIME");
         pCompPrivateStruct->eDir = OMX_DirInput; 
         pCompPrivateStruct->nPortIndex = OMX_DirInput; 
@@ -918,7 +942,7 @@ int main(int argc, char* argv[])
             printf("%d :: App: Malloc Failed\n",__LINE__); 
             goto EXIT; 
         } 
-        
+        ArrayOfPointers[2] = (OMX_AUDIO_PARAM_PCMMODETYPE*)pG711Param;
         pG711Param->nPortIndex = OMX_DirInput;
         OMX_GetParameter(pHandle, OMX_IndexParamAudioPcm, pG711Param);
         pG711Param->nSize = sizeof (OMX_AUDIO_PARAM_PCMMODETYPE);
@@ -1523,7 +1547,6 @@ int main(int argc, char* argv[])
             APP_DPRINT ("%d:: Error in Free Handle function\n",__LINE__);
             goto EXIT;
         }
-
         close(IpBuf_Pipe[0]);
         close(IpBuf_Pipe[1]);
         close(OpBuf_Pipe[0]);
@@ -1533,13 +1556,40 @@ int main(int argc, char* argv[])
         close(Event_Pipe[1]);
         APP_DPRINT ("%d Free Handle returned Successfully\n",__LINE__);
 
-        fclose(inputToSN);
         APP_DPRINT ("%d:: Free Handle returned Successfully \n\n\n\n",__LINE__);
 
     } /* For loop on testcnt1 ends here */
+    if(frameinfo != NULL){
+        APP_MEMPRINT("%d:::[TESTAPPFREE] %p\n",__LINE__,frameinfo);
+        free(frameinfo);
+        frameinfo = NULL;
+    }
+
+    if(audioinfo != NULL){
+        APP_MEMPRINT("%d:::[TESTAPPFREE] %p\n",__LINE__,audioinfo);
+        free(audioinfo);
+        audioinfo = NULL;
+    }
 
  EXIT:
          
+if (bInvalidState == OMX_TRUE) {
+#ifndef USE_BUFFER
+    error = FreeAllResources(pHandle,
+                             pInputBufferHeader[0],
+                             pOutputBufferHeader[0],
+                             numInputBuffers,
+                             numOutputBuffers,
+                             fIn, fOut);
+#else
+    error = FreeAllResources(pHandle,
+                                pInputBuffer,
+                                pOutputBuffer,
+                                numInputBuffers,
+                                numOutputBuffers,
+                                fIn, fOut);
+#endif
+}
 #ifdef OMX_GETTIME
     GT_END("G711_DEC test <End>");
     OMX_ListDestroy(pListHead);   
@@ -1588,9 +1638,6 @@ OMX_ERRORTYPE send_input_buffer(OMX_HANDLETYPE pHandle, OMX_BUFFERHEADERTYPE* pB
 
     else {
         pBuffer->nFilledLen = nRead;
-        for (i=0; i < nRead; i++) {
-            fprintf(inputToSN,"pBuffer->pBuffer[%d] = %x\n",i,pBuffer->pBuffer[i]);
-        }
         pBuffer->nTimeStamp = rand()%100;
         pBuffer->nTickCount = rand() % 70;
         TIME_PRINT("TimeStamp Input: %lld\n",pBuffer->nTimeStamp);
@@ -1721,4 +1768,108 @@ int myfree(void *dp, int line, char *s)
 
     return 0;
 }
+#endif
+/*=================================================================
+    Freeing All allocated resources
+==================================================================*/
+#ifndef USE_BUFFER
+int FreeAllResources( OMX_HANDLETYPE pHandle,
+                      OMX_BUFFERHEADERTYPE* pBufferIn,
+                      OMX_BUFFERHEADERTYPE* pBufferOut,
+                      int NIB, int NOB,
+FILE* fIn, FILE* fOut) {
+    printf("%d::Freeing all resources by state invalid \n", __LINE__);
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_U16 i = 0;
+
+    for (i = 0; i < NIB; i++) {
+        printf("%d :: APP: About to free pInputBufferHeader[%d]\n", __LINE__, i);
+        eError = OMX_FreeBuffer(pHandle, OMX_DirInput, pBufferIn + i);
+    }
+
+    for (i = 0; i < NOB; i++) {
+        printf("%d :: APP: About to free pOutputBufferHeader[%d]\n", __LINE__, i);
+        eError = OMX_FreeBuffer(pHandle, OMX_DirOutput, pBufferOut + i);
+    }
+
+    /*i value is fixed by the number calls to malloc in the App */
+    for (i = 0; i < 6;i++) {
+        if (ArrayOfPointers[i] != NULL)
+            free(ArrayOfPointers[i]);
+    }
+
+    eError = close (IpBuf_Pipe[0]);
+
+    eError = close (IpBuf_Pipe[1]);
+    eError = close (OpBuf_Pipe[0]);
+    eError = close (OpBuf_Pipe[1]);
+    eError = close (Event_Pipe[0]);
+    eError = close (Event_Pipe[1]);
+
+    if (fOut != NULL) {
+        fclose(fOut);
+        fOut = NULL;
+    }
+
+    if (fIn != NULL) {
+        fclose(fIn);
+        fIn = NULL;
+    }
+
+    TIOMX_FreeHandle(pHandle);
+
+    return eError;
+}
+
+/*=================================================================
+    Freeing the resources with USE_BUFFER define
+==================================================================*/
+#else
+int FreeAllResources(OMX_HANDLETYPE pHandle,
+                        OMX_U8* UseInpBuf[],
+                        OMX_U8* UseOutBuf[],
+                        int NIB, int NOB,
+FILE* fIn, FILE* fOut) {
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_U16 i;
+    printf("%d::Freeing all resources by state invalid \n", __LINE__);
+    /* free the UseBuffers */
+
+    for (i = 0; i < NIB; i++) {
+        free(UseInpBuf[i]);
+    }
+
+    for (i = 0; i < NOB; i++) {
+        free(UseOutBuf[i]);
+    }
+
+    /*i value is fixed by the number calls to malloc in the App */
+    for (i = 0; i < 6;i++) {
+        if (ArrayOfPointers[i] != NULL)
+            free(ArrayOfPointers[i]);
+    }
+
+    eError = close (IpBuf_Pipe[0]);
+
+    eError = close (IpBuf_Pipe[1]);
+    eError = close (OpBuf_Pipe[0]);
+    eError = close (OpBuf_Pipe[1]);
+    eError = close (Event_Pipe[0]);
+    eError = close (Event_Pipe[1]);
+
+    if (fOut != NULL) {
+        fclose(fOut);
+        fOut = NULL;
+    }
+
+    if (fIn != NULL) {
+        fclose(fIn);
+        fIn = NULL;
+    }
+
+    TIOMX_FreeHandle(pHandle);
+
+    return eError;
+}
+
 #endif

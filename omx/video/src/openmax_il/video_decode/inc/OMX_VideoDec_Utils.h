@@ -21,22 +21,14 @@
 #ifndef OMX_VIDDEC_UTILS__H
 #define OMX_VIDDEC_UTILS__H
 
-#define newmalloc(x) malloc(x)
-#define newfree(z) free(z)
 #ifdef ANDROID
 /* Log for Android system*/
 #include <utils/Log.h>
+#undef LOG_TAG
 #define LOG_TAG "TI_Video_Decoder"
 #endif
 #include <cutils/properties.h>
 
-#ifdef UNDER_CE
-    #include <windows.h>
-    #include <oaf_osal.h>
-    #include <omx_core.h>
-    #include <pthread.h>
-    #include <stdlib.h>
-#else
     #define _XOPEN_SOURCE 600
     #include <sys/select.h>
     #include <signal.h>
@@ -60,7 +52,6 @@
     #include <sys/time.h>
     #include <stdlib.h>
     #include <semaphore.h>
-#endif
 
 #ifndef KHRONOS_1_1
 #define KHRONOS_1_1
@@ -77,10 +68,8 @@
 
 #define VIDDEC_WAIT_CODE() sched_yield()
 
-#ifndef UNDER_CE
 #ifndef __ENV_CHANGE__
 #define __ENV_CHANGE__
-#endif
 #endif
 
 #ifndef VIDDEC_ACTIVATEPARSER
@@ -96,6 +85,7 @@
 #include "OMX_VideoDecoder.h"
 #include "OMX_VidDec_CustomCmd.h"
 #include "OMX_TI_Common.h"
+#include "overlay_common.h"
 
 
 #ifdef KHRONOS_1_1
@@ -151,6 +141,10 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #endif
 #endif
 
+#define VIDDEC_MULT16MASK 0xFFFFFFF0
+#define VIDDEC_MULT16 15
+#define VIDDEC_MULTIPLE16(x) ((x + VIDDEC_MULT16) & VIDDEC_MULT16MASK)
+
 #define VIDDEC_COMPONENTROLES_H263           "video_decoder.h263"
 #define VIDDEC_COMPONENTROLES_H264           "video_decoder.avc"
 #define VIDDEC_COMPONENTROLES_MPEG2          "video_decoder.mpeg2"
@@ -162,21 +156,20 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 
 #define __STD_COMPONENT__
 
-/*
- * MAX_PRIVATE_IN_BUFFERS and MAX_PRIVATE_OUT_BUFFERS must NOT be
- * greater than MAX_PRIVATE_BUFFERS. MAX_PRIVATE_BUFFERS is set
- * to 6 because 6 overlay buffers are currently being used for
- * playback
- */
-#define MAX_PRIVATE_IN_BUFFERS              6
-#define MAX_PRIVATE_OUT_BUFFERS             6
-#define MAX_PRIVATE_BUFFERS                 6
+#ifdef ANDROID
+#define MAX_PRIVATE_IN_BUFFERS              NUM_OVERLAY_BUFFERS_REQUESTED
+#define MAX_PRIVATE_OUT_BUFFERS             NUM_OVERLAY_BUFFERS_REQUESTED
+#define MAX_PRIVATE_BUFFERS                 NUM_OVERLAY_BUFFERS_REQUESTED
+#else
+#define MAX_PRIVATE_IN_BUFFERS              4
+#define MAX_PRIVATE_OUT_BUFFERS             4
+#define MAX_PRIVATE_BUFFERS                 4
+#endif
 #define NUM_OF_PORTS                        2
 #define VIDDEC_MAX_NAMESIZE                 128
 #define VIDDEC_NOPORT                       0xfffffffe
 #define VIDDEC_MPU                          50
 
-#define IUALG_CMD_SETSTATUS                 3
 
 #define VERSION_MAJOR                       1
 #ifdef KHRONOS_1_1
@@ -317,37 +310,51 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #define VIDDEC_ALIGNMENT                              4
 
 #define VIDDEC_CLEARFLAGS                             0
-#define H264VDEC_SN_MAX_NALUNITS                      1200
+#define H264VDEC_SN_MAX_NALUNITS                      1620
 
-#define VIDDEC_RM_FREC_MPEG4_QCIF                     30
-#define VIDDEC_RM_FREC_MPEG4_CIF                      80
-#define VIDDEC_RM_FREC_MPEG4_VGA                      165
-#define VIDDEC_RM_FREC_MPEG4_720P                     401
+#define VIDDEC_RM_FREQ_MPEG4_QCIF                     30
+#define VIDDEC_RM_FREQ_MPEG4_CIF                      80
+#define VIDDEC_RM_FREQ_MPEG4_VGA                      165
 
-#define VIDDEC_RM_FREC_MPEG2_QCIF                     30
-#define VIDDEC_RM_FREC_MPEG2_CIF                      80
-#define VIDDEC_RM_FREC_MPEG2_VGA                      165
+/* Removing 720P since it will be in different piece of code
+   Calculating the value for WVGA from Codec Data Sheet
+   The worse case requirement is 186 Mhz, with 10% margin it will be 210Mhz */
 
-#define VIDDEC_RM_FREC_H263_QCIF                      25
-#define VIDDEC_RM_FREC_H263_CIF                       60
-#define VIDDEC_RM_FREC_H263_VGA                       165
+#define VIDDEC_RM_FREQ_MPEG4_WVGA                     210
 
-#define VIDDEC_RM_FREC_H264_QCIF                      85
-#define VIDDEC_RM_FREC_H264_CIF                       160
-#define VIDDEC_RM_FREC_H264_VGA                       260
+#define VIDDEC_RM_FREQ_MPEG2_QCIF                     30
+#define VIDDEC_RM_FREQ_MPEG2_CIF                      80
+#define VIDDEC_RM_FREQ_MPEG2_VGA                      165
 
-#define VIDDEC_RM_FREC_WMV_QCIF                       55
-#define VIDDEC_RM_FREC_WMV_CIF                        100
-#define VIDDEC_RM_FREC_WMV_VGA                        300
+#define VIDDEC_RM_FREQ_H263_QCIF                      25
+#define VIDDEC_RM_FREQ_H263_CIF                       60
+#define VIDDEC_RM_FREQ_H263_VGA                       165
+
+#define VIDDEC_RM_FREQ_H264_QCIF                      85
+#define VIDDEC_RM_FREQ_H264_CIF                       160
+#define VIDDEC_RM_FREQ_H264_VGA                       260
+
+#define VIDDEC_RM_FREQ_WMV_QCIF                       55
+#define VIDDEC_RM_FREQ_WMV_CIF                        100
+#define VIDDEC_RM_FREQ_WMV_VGA                        300
 
 #ifdef VIDDEC_SPARK_CODE
- #define VIDDEC_RM_FREC_SPARK_QCIF                    55
- #define VIDDEC_RM_FREC_SPARK_CIF                     100
- #define VIDDEC_RM_FREC_SPARK_VGA                     300
+ #define VIDDEC_RM_FREQ_SPARK_QCIF                    55
+ #define VIDDEC_RM_FREQ_SPARK_CIF                     100
+ #define VIDDEC_RM_FREQ_SPARK_VGA                     300
 #endif
 
-#define VIDDEC_MIN_WIDTH                              176
-#define VIDDEC_MIN_HEIGHT                             144
+#define VIDDEC_MIN_H264_WIDTH                         32
+#define VIDDEC_MIN_H264_HEIGHT                        32
+#define VIDDEC_MIN_WMV_WIDTH                          32
+#define VIDDEC_MIN_WMV_HEIGHT                         32
+#define VIDDEC_MIN_MPEG4_WIDTH                        16
+#define VIDDEC_MIN_MPEG4_HEIGHT                       16
+#define VIDDEC_MIN_SPARK_WIDTH                        16
+#define VIDDEC_MIN_SPARK_HEIGHT                       16
+
+#define VIDDEC_SQCIF_WIDTH                            128
+#define VIDDEC_SQCIF_HEIGHT                           96
 
 #define VIDDEC_QCIF_WIDTH                             176
 #define VIDDEC_QCIF_HEIGHT                            144
@@ -361,13 +368,18 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #define VIDDEC_VGA_WIDTH                              640
 #define VIDDEC_VGA_HEIGHT                             480
 
-#define VIDDEC_D1MAX_WIDTH                            864
-#define VIDDEC_D1MAX_HEIGHT                           VIDDEC_D1MAX_WIDTH
+#define VIDDEC_D1MAX_WIDTH                            720
+#define VIDDEC_D1MAX_HEIGHT                           576
+
+#define VIDDEC_WVGA_WIDTH                             864
+#define VIDDEC_WVGA_HEIGHT                            480
+
+#define VIDDEC_MAX_RESOLUTION_SIZE                    (VIDDEC_WVGA_WIDTH*VIDDEC_WVGA_HEIGHT) /* 864x480(WVGA) - 720x576(D1-PAL) */
 
 /* In the current release the suport for : VIDDEC_MAX_FRAMERATE  & VIDDEC_MAX_BITRATE
  * is not provided by the algorithm. But is require to set this field to a non-zero value */
 #define VIDDEC_MAX_FRAMERATE                        30000  /* Max frame rate to be suported * 1000 */
-#define VIDDEC_MAX_BITRATE                        8000000  /* Max bit rate (in bits per second) to be suported */
+#define VIDDEC_MAX_BITRATE                        4000000  /* Max bit rate (in bits per second) to be suported */
 
 #define VIDDEC_WMV_PROFILE_ID0                          0
 #define VIDDEC_WMV_PROFILE_ID1                          1
@@ -379,7 +391,7 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #define VIDDEC_WMV_PROFILE_ID7                          7
 #define VIDDEC_WMV_PROFILE_ID8                          8
 
-#define VIDDEC_MAX_QUEUE_SIZE                           256
+#define VIDDEC_MAX_QUEUE_SIZE                           MAX_PRIVATE_BUFFERS * 4
 #define VIDDEC_WMV_BUFFER_OFFSET                        (255 - 4)
 #define VIDDEC_WMV_ELEMSTREAM                           0
 #define VIDDEC_WMV_RCVSTREAM                            1
@@ -414,7 +426,8 @@ typedef enum VIDDEC_CUSTOM_PARAM_INDEX
 #ifdef VIDDEC_SPARK_CODE
     VideoDecodeCustomParamIsSparkInput,
 #endif
-    VideoDecodeCustomConfigDebug
+    VideoDecodeCustomConfigDebug,
+    VideoDecodeCustomConfigCacheableBuffers
 
 #ifdef ANDROID /*To be use by opencore multimedia framework*/
     ,
@@ -564,40 +577,7 @@ typedef struct VIDDEC_BUFFER_PRIVATE
 
 /*structures and defines for Circular Buffer*/
 #define VIDDEC_CBUFFER_LOCK
-#define MAX_MULTIPLY                        4
-#define CBUFFER_SIZE                        MAX_PRIVATE_BUFFERS * MAX_MULTIPLY
-
-typedef enum VIDDEC_QUEUE_TYPES {
-    VIDDEC_QUEUE_OMX_U32,
-    VIDDEC_QUEUE_OMX_MARKTYPE
-} VIDDEC_QUEUE_TYPES;
-
-typedef struct VIDDEC_QUEUE_TYPE {
-    OMX_PTR Elements;
-    OMX_U32 CounterElements[VIDDEC_MAX_QUEUE_SIZE];
-    OMX_U32 nHead;
-    OMX_S32 nTail;
-    OMX_U32 nElements;
-    OMX_U32 nErrorCount;
-    pthread_mutex_t mMutex;
-}VIDDEC_QUEUE_TYPE;
-
-typedef enum VIDDEC_CBUFFER_TYPE {
-    VIDDEC_CBUFFER_MARKDATA,
-    VIDDEC_CBUFFER_TIMESTAMP,
-    VIDDEC_CBUFFER_CMDMARKDATA
-} VIDDEC_CBUFFER_TYPE;
-
-typedef struct VIDDEC_CIRCULAR_BUFFER {
-    OMX_PTR pElement[CBUFFER_SIZE];
-    VIDDEC_CBUFFER_TYPE nType;
-#ifdef VIDDEC_CBUFFER_LOCK
-    pthread_mutex_t* m_lock;
-#endif
-    OMX_U8 nTail;
-    OMX_U8 nHead;
-    OMX_U8 nCount;
-} VIDDEC_CIRCULAR_BUFFER;
+#define CBUFFER_ARRAYSIZE                   1000
 
 typedef struct VIDDEC_CBUFFER_BUFFERFLAGS{
     OMX_TICKS       nTimeStamp;
@@ -605,7 +585,18 @@ typedef struct VIDDEC_CBUFFER_BUFFERFLAGS{
     OMX_U32         nTickCount;
     OMX_PTR         pMarkData;
     OMX_HANDLETYPE  hMarkTargetComponent;
+    OMX_S32         nBytesConsumed;
 } VIDDEC_CBUFFER_BUFFERFLAGS;
+
+typedef struct VIDDEC_CIRCULAR_BUFFER {
+    VIDDEC_CBUFFER_BUFFERFLAGS pElements[CBUFFER_ARRAYSIZE];
+#ifdef VIDDEC_CBUFFER_LOCK
+    pthread_mutex_t* m_lock;
+#endif
+    OMX_U32 nTail;
+    OMX_U32 nHead;
+    OMX_U32 nCount;
+} VIDDEC_CIRCULAR_BUFFER;
 
 typedef struct VIDDEC_PORT_TYPE
 {
@@ -614,7 +605,6 @@ typedef struct VIDDEC_PORT_TYPE
     OMX_BUFFERSUPPLIERTYPE eSupplierSetting;
     VIDDEC_BUFFER_PRIVATE* pBufferPrivate[MAX_PRIVATE_BUFFERS];
     OMX_U8 nBufferCnt;
-    VIDDEC_CIRCULAR_BUFFER eTimeStamp;
 } VIDDEC_PORT_TYPE;
 
 typedef struct VIDDEC_MUTEX{
@@ -808,14 +798,13 @@ typedef struct VIDDEC_WMV_RCV_struct {
 } VIDDEC_WMV_RCV_struct;
 
 typedef union VIDDEC_WMV_RCV_header {
-    VIDDEC_WMV_RCV_struct sStructRCV;
-    OMX_U8 pBuffer[sizeof(VIDDEC_WMV_RCV_struct)];
+    VIDDEC_WMV_RCV_struct *sStructRCV;
+    OMX_U8 *pBuffer;
 } VIDDEC_WMV_RCV_header;
 
 typedef struct VIDDEC_SAVE_BUFFER{
     OMX_BOOL    bSaveFirstBuffer;
-    OMX_PTR     pFirstBufferSaved;
-    OMX_S32     nFilledLen;
+    OMX_BUFFERHEADERTYPE*    pBufferHdr;
 }VIDDEC_SAVE_BUFFER;
 
 #ifdef ANDROID 
@@ -865,6 +854,7 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_VIDEO_PARAM_MPEG2TYPE* pMpeg2; /* OMX_IndexParamVideoMpeg2 */
     OMX_PORT_PARAM_TYPE* pPortParamType;
     OMX_PARAM_DEBLOCKINGTYPE* pDeblockingParamType;
+    OMX_CONFIG_IMAGEFILTERTYPE* pDeringingParamType;
 #ifdef __STD_COMPONENT__
     OMX_PORT_PARAM_TYPE* pPortParamTypeAudio;
     OMX_PORT_PARAM_TYPE* pPortParamTypeImage;
@@ -915,24 +905,11 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_U8 cMBErrorIndexIn;
     OMX_U8 cMBErrorIndexOut;
 #endif
-    OMX_U8 nInMarkBufIndex;                          /* for OMX_MARKTYPE */
-    OMX_U8 nOutMarkBufIndex;                         /* for OMX_MARKTYPE */
-    OMX_MARKTYPE arrMarkBufIndex[VIDDEC_MAX_QUEUE_SIZE]; /* for OMX_MARKTYPE */
-
     OMX_U8 nInCmdMarkBufIndex;                          /* for OMX_MARKTYPE */
     OMX_U8 nOutCmdMarkBufIndex;                         /* for OMX_MARKTYPE */
     OMX_MARKTYPE arrCmdMarkBufIndex[VIDDEC_MAX_QUEUE_SIZE]; /* for OMX_MARKTYPE */
-    OMX_U8 nInBufIndex;                          /* for time stamps */
-    OMX_U8 nOutBufIndex;                         /* for time stamps */
-    OMX_U64 arrBufIndex[VIDDEC_MAX_QUEUE_SIZE]; /* for time stamps */
-    OMX_MARKTYPE           MTbuffMark;
-    VIDDEC_QUEUE_TYPE      qBuffMark;
-    VIDDEC_QUEUE_TYPE      qCmdMarkData;
-    VIDDEC_QUEUE_TYPE      qBytesSent;
-    OMX_U32                nBytesConsumed;
-    OMX_BOOL               bBuffMarkTaked;
-    OMX_BOOL               bBuffalreadyMarked;
 
+    VIDDEC_CIRCULAR_BUFFER eStoreTimestamps;
     OMX_STATETYPE eIdleToLoad;
     OMX_STATETYPE eExecuteToIdle;
     OMX_BOOL iEndofInputSent;
@@ -951,17 +928,14 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     VIDDEC_SAVE_BUFFER eFirstBuffer;
 
 
-#ifndef UNDER_CE
     OMX_BOOL bLCMLOut;
-#endif
     VIDDEC_RMPROXY_STATES eRMProxyState;
 
-    OMX_U8 nCountInputBFromDsp;
-    OMX_U8 nCountOutputBFromDsp;
-    OMX_U8 nCountInputBFromApp;
-    OMX_U8 nCountOutputBFromApp;
+    OMX_U32 nCountInputBFromDsp;
+    OMX_U32 nCountOutputBFromDsp;
+    OMX_U32 nCountInputBFromApp;
+    OMX_U32 nCountOutputBFromApp;
 
-    VIDDEC_CBUFFER_BUFFERFLAGS aBufferFlags[CBUFFER_SIZE];
     VIDDEC_LCML_STATES eLCMLState;
     OMX_U32 nWMVFileType;
     OMX_BOOL bIsNALBigEndian;
@@ -973,11 +947,6 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     pthread_mutex_t mutexOutputBFromApp;
     pthread_mutex_t mutexInputBFromDSP;
     pthread_mutex_t mutexOutputBFromDSP;
-    VIDDEC_MUTEX inputFlushCompletionMutex;
-    VIDDEC_MUTEX outputFlushCompletionMutex;
-    OMX_BOOL bIsInputFlushPending;
-    OMX_BOOL bIsOutputFlushPending;
-    VIDDEC_MUTEX sDynConfigMutex;
     VIDDEC_SEMAPHORE sInSemaphore;
     VIDDEC_SEMAPHORE sOutSemaphore;
     /* used by RM callback */
@@ -1019,10 +988,11 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_U32 nPendingStateChangeRequests;
     pthread_mutex_t mutexStateChangeRequest;
     pthread_cond_t StateChangeCondition;
-
-    // Signal first buffer after config data should have EOS flag
-    OMX_BOOL firstBufferEos;
-
+    OMX_BOOL bFlushing;
+    /*to store last error severity*/
+    OMX_S32 nLastErrorSeverity;
+   /*to remember if OMX client uses cacheable buffers for output*/
+   OMX_BOOL bCacheableOutputBuffers;
 } VIDDEC_COMPONENT_PRIVATE;
 
 /*****************macro definitions*********************/
@@ -1048,7 +1018,6 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
             eError = OMX_ErrorInsufficientResources;                \
                 goto EXIT;                                          \
     }                                                               \
-    /*(_memusage_) += sizeof(_sName_);                               */ \
     memset((_pStruct_), 0x0, sizeof(_sName_));
 
 
@@ -1058,16 +1027,8 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
             eError = OMX_ErrorInsufficientResources;                        \
                 goto EXIT;                                                  \
     }                                                                       \
-    /*(_memusage_) += _nSize_;                                               */ \
     memset((_pStruct_), 0x0, _nSize_);
-
-#define VIDDEC_MEMUSAGE 0 /*\
-    pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel0] + \
-    pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel1] + \
-    pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel2] + \
-    pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel3] + \
-    pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel4]*/
-
+#define VIDDEC_MEMUSAGE 0
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -1082,17 +1043,12 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 /*----------------------------------------------------------------------------*/
 
 #define OMX_ALIGN_BUFFER(_pBuffer_, _nBytes_)                  \
-    while((OMX_U8)_pBuffer_ & (_nBytes_-1)){                   \
-       _pBuffer_++;                                            \
+    while((OMX_U8)_pBuffer_ & (OMX_U8)(_nBytes_-1)){                   \
+       (OMX_U8*)_pBuffer_++;                                    \
     }
 
 
 
-#define OMX_MALLOC_BUFFER_VIDDEC(_pBuffer_, _nSize_, _pOriginalBuffer_)	    \
-    _pBuffer_ =  OMX_MALLOC_STRUCT_SIZED(_pBuffer_, OMX_U8, _nSize_ + VIDDEC_PADDING_FULL + VIDDEC_WMV_BUFFER_OFFSET + VIDDEC_ALIGNMENT, pComponentPrivate->nMemUsage[VIDDDEC_Enum_MemLevel1]);			\
-    _pOriginalBuffer_ = _pBuffer_;					    \
-    _pBuffer_ += VIDDEC_PADDING_HALF;					    \
-    OMX_ALIGN_BUFFER(_pBuffer_, VIDDEC_ALIGNMENT);
 
 
 /*----------------------------------------------------------------------------*/
@@ -1106,50 +1062,15 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
   **/
 /*----------------------------------------------------------------------------*/
 
-#define OMX_FREE_VIDDEC(_pBuffer_)					    \
+#define OMX_FREE(_pBuffer_)                                                 \
     if(_pBuffer_ != NULL){                                                  \
-	free(_pBuffer_);                                                    \
-	_pBuffer_ = NULL;                                                   \
+        free(_pBuffer_);                                                    \
+        _pBuffer_ = NULL;                                                   \
     }
 
 
 
-/*----------------------------------------------------------------------------*/
-/**
-  * OMX_FREE_BUFFER_VIDDEC() Free video decoder buffer
-  *
-  * This method will free video decoder buffer
-  *
-  * @param _pBuffHead_	    Buffer header pointer
-  * @param _pCompPort_	    Component port will give us the reference to the
-  *			    desire buffer to free
-  *
-  **/
-/*----------------------------------------------------------------------------*/
 
-#define OMX_FREE_BUFFER_VIDDEC(_pBuffHead_, _pCompPort_)					    \
-    {												    \
-	int _nBufferCount_ = 0;									    \
-	OMX_U8* _pTemp_ = NULL;									    \
-												    \
-	for(_nBufferCount_ = 0; _nBufferCount_ < MAX_PRIVATE_BUFFERS; _nBufferCount_++){	    \
-            if(_pCompPort_->pBufferPrivate[_nBufferCount_]->pBufferHdr != NULL){		    \
-                _pTemp_ = (OMX_U8*)_pCompPort_->pBufferPrivate[_nBufferCount_]->pBufferHdr->pBuffer;	\
-                if(_pBuffHead_->pBuffer == _pTemp_){						    \
-                    break;									    \
-                }										    \
-	    }											    \
-        }											    \
-												    \
-        if(_nBufferCount_ == MAX_PRIVATE_BUFFERS){						    \
-            OMX_ERROR4(pComponentPrivate->dbg, "Error: Buffer NOT found to free: %p \n", _pBuffHead_->pBuffer);	    \
-            goto EXIT;										    \
-        }											    \
-												    \
-        _pBuffHead_->pBuffer = _pCompPort_->pBufferPrivate[_nBufferCount_]->pOriginalBuffer;		    \
-        OMX_PRBUFFER1(pComponentPrivate->dbg, "Free original allocated buffer: %p\n", _pBuffHead_->pBuffer);	\
-        OMX_FREE_VIDDEC(_pBuffHead_->pBuffer);							    \
-    }
 /*----------------------------------------------------------------------------*/
 /**
   * OMX_WMV_INSERT_CODEC_DATA()
@@ -1183,7 +1104,7 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
         /* Insert again the frame buffer */  \
         memcpy (_pBuffHead_->pBuffer, _pTempBuffer_, _pBuffHead_->nFilledLen); \
         /* pTempBuffer no longer need*/                                        \
-	OMX_FREE_VIDDEC(_pTempBuffer_);							\
+        OMX_FREE(_pTempBuffer_);                                               \
                              \
         _pBuffHead_->pBuffer -= (pComponentPrivate->nCodecDataSize + 4);       \
         _pBuffHead_->nFilledLen += pComponentPrivate->nCodecDataSize + 4;      \
@@ -1221,20 +1142,7 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
         goto EXIT;                              \
     }                                           \
 }
-
-#define OMX_CONF_SET_ERROR_BAIL(_eError, _eCode)\
-{                                               \
-    _eError = _eCode;                           \
-    goto EXIT;                                  \
-}
-
-
-#define OMX_PARSER_CHECKLIMIT(_total, _actual, _step) /*  \
-    if(((_actual + _step) >> 3) >= _total){                \
-    printf("_total %d _actual %d\n",_total,((_actual + _step)>>3)); \
-        eError = OMX_ErrorStreamCorrupt;                \
-        goto EXIT;                                      \
-    }*/
+#define OMX_PARSER_CHECKLIMIT(_total, _actual, _step)
 
 /*sMutex*/
 #define VIDDEC_PTHREAD_MUTEX_INIT(_mutex_)    \
@@ -1272,21 +1180,16 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 
 #define VIDDEC_PTHREAD_MUTEX_SIGNAL(_mutex_)  \
     VIDDEC_PTHREAD_MUTEX_INIT ((_mutex_));      \
-    /*if( (_mutex_).bEnabled) {  */              \
     (_mutex_).nErrorExist = 0; \
-    (_mutex_).nErrorExist = pthread_cond_signal (&(_mutex_).condition); \
-        /*(__mutex.bSignaled = OMX_TRUE;*/  \
-    /*}*/
+    (_mutex_).nErrorExist = pthread_cond_signal (&(_mutex_).condition);
 
 #define VIDDEC_PTHREAD_MUTEX_WAIT(_mutex_)    \
     VIDDEC_PTHREAD_MUTEX_INIT ((_mutex_));      \
     (_mutex_).bEnabled = OMX_TRUE;           \
-    /*if (!(__mutex.bSignaled){               */\
     (_mutex_).nErrorExist = 0; \
     (_mutex_).nErrorExist = pthread_cond_wait (&(_mutex_).condition, &(_mutex_).mutex);  \
         (_mutex_).bSignaled = OMX_FALSE;     \
-        (_mutex_).bEnabled = OMX_FALSE;      \
-    /*}*/
+        (_mutex_).bEnabled = OMX_FALSE;
 
 #define VIDDEC_PTHREAD_SEMAPHORE_INIT(_semaphore_)    \
     if(!((_semaphore_).bInitialized)) {            \
@@ -1303,15 +1206,6 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
         (_semaphore_).bSignaled = OMX_FALSE;     \
         (_semaphore_).bEnabled = OMX_FALSE;      \
     }
-    /*
-    printf("post signal %d Enable %d\n",(_semaphore_).bSignaled,(_semaphore_).bEnabled); \
-    \
-    printf("post out signal %d Enable %d\n",(_semaphore_).bSignaled,(_semaphore_).bEnabled); \
-    \
-    printf("wait out signal %d Enable %d\n",(_semaphore_).bSignaled,(_semaphore_).bEnabled); \
-    printf("wait signal %d Enable %d\n",(_semaphore_).bSignaled,(_semaphore_).bEnabled); \
-
-    */
 #define VIDDEC_PTHREAD_SEMAPHORE_POST(_semaphore_)    \
     VIDDEC_PTHREAD_SEMAPHORE_INIT ((_semaphore_));     \
     if((_semaphore_).bEnabled) {     \
@@ -1373,7 +1267,14 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
  #define FOURCC_WMV1     VIDDEC_FOURCC('W','M','V','1')
  #define FOURCC_WVC1     VIDDEC_FOURCC('W','V','C','1')
  
- 
+ /*macro to indicate when to enable deringing*/
+#define DERINGINGMAXWIDTH 352
+#define DERINGINGMAXHEIGHT 288
+#define IS_DERINGING_SUPPORTED  \
+    ((pComponentPrivate->pInPortDef->format.video.nFrameWidth * \
+    pComponentPrivate->pInPortDef->format.video.nFrameHeight) <= \
+    (DERINGINGMAXWIDTH * DERINGINGMAXWIDTH))
+
 /*-------function prototypes -------------------------------------------------*/
 typedef OMX_ERRORTYPE (*VIDDEC_fpo)(OMX_HANDLETYPE);
 
@@ -1399,24 +1300,14 @@ OMX_ERRORTYPE VIDDEC_ReturnBuffers (VIDDEC_COMPONENT_PRIVATE* pComponentPrivate,
 OMX_ERRORTYPE VIDDEC_HandleCommandMarkBuffer(VIDDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 nParam1, OMX_PTR pCmdData);
 OMX_ERRORTYPE VIDDEC_HandleCommandFlush(VIDDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 nParam1, OMX_BOOL bPass);
 OMX_ERRORTYPE VIDDEC_Load_Defaults (VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_S32 nPassing);
-OMX_U32 VIDDEC_GetRMFrecuency(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
+OMX_U32 VIDDEC_GetRMFrequency(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE VIDDEC_Handle_InvalidState (VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
-
-OMX_ERRORTYPE VIDDEC_CircBuf_Init(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, VIDDEC_CBUFFER_TYPE nTypeIndex, VIDDEC_PORT_INDEX nPortIndex);
-OMX_ERRORTYPE VIDDEC_CircBuf_Flush(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, VIDDEC_CBUFFER_TYPE nTypeIndex, VIDDEC_PORT_INDEX nPortIndex);
-OMX_ERRORTYPE VIDDEC_CircBuf_DeInit(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, VIDDEC_CBUFFER_TYPE nTypeIndex, VIDDEC_PORT_INDEX nPortIndex);
-OMX_ERRORTYPE VIDDEC_CircBuf_Add(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, VIDDEC_CBUFFER_TYPE nTypeIndex, VIDDEC_PORT_INDEX nPortIndex, OMX_PTR pElement);
-OMX_ERRORTYPE VIDDEC_CircBuf_Remove(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, VIDDEC_CBUFFER_TYPE nTypeIndex, VIDDEC_PORT_INDEX nPortIndex, OMX_PTR* pElement);
-OMX_ERRORTYPE VIDDEC_CircBuf_Count(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, VIDDEC_CBUFFER_TYPE nTypeIndex, VIDDEC_PORT_INDEX nPortIndex, OMX_U8* pCount);
-OMX_U8 VIDDEC_CircBuf_GetHead(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, VIDDEC_CBUFFER_TYPE nTypeIndex, VIDDEC_PORT_INDEX nPortIndex);
-OMX_ERRORTYPE VIDDEC_Propagate_Mark(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BUFFERHEADERTYPE *pBuffHead);
-OMX_ERRORTYPE VIDDEC_Queue_Init(VIDDEC_QUEUE_TYPE *queue, VIDDEC_QUEUE_TYPES type);
-OMX_ERRORTYPE VIDDEC_Queue_Flush(VIDDEC_QUEUE_TYPE *queue);
-OMX_ERRORTYPE VIDDEC_Queue_Add(VIDDEC_QUEUE_TYPE *queue, OMX_PTR pElement, VIDDEC_QUEUE_TYPES type);
-OMX_ERRORTYPE VIDDEC_Queue_Remove(VIDDEC_QUEUE_TYPE *queue, OMX_PTR pElement, VIDDEC_QUEUE_TYPES type);
-OMX_ERRORTYPE VIDDEC_Queue_Replace_Tail(VIDDEC_QUEUE_TYPE *queue, OMX_PTR pElement, VIDDEC_QUEUE_TYPES type);
-OMX_ERRORTYPE VIDDEC_Queue_Get_Tail(VIDDEC_QUEUE_TYPE *queue, OMX_PTR pElement,VIDDEC_QUEUE_TYPES type);
-OMX_ERRORTYPE VIDDEC_Queue_Free(VIDDEC_QUEUE_TYPE *queue);
+OMX_ERRORTYPE VIDDEC_CircBuf_Init(VIDDEC_CIRCULAR_BUFFER* pCBuffer);
+OMX_ERRORTYPE VIDDEC_CircBuf_Flush(VIDDEC_CIRCULAR_BUFFER* pCBuffer);
+OMX_ERRORTYPE VIDDEC_CircBuf_DeInit(VIDDEC_CIRCULAR_BUFFER* pCBuffer);
+OMX_ERRORTYPE VIDDEC_CircBuf_Add( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFERHEADERTYPE* pBufferHeader, OMX_MARKTYPE* pMark);
+OMX_ERRORTYPE VIDDEC_CircBuf_Remove( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFERHEADERTYPE* pBufferHeader, OMX_U32 nBytesconsumed, OMX_U32 ProcessMode);
+OMX_U32 VIDDEC_GetBytesConsumed(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BUFFERHEADERTYPE* pBufferHeader);
 #ifdef RESOURCE_MANAGER_ENABLED
 void VIDDEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 #endif
@@ -1428,22 +1319,24 @@ OMX_ERRORTYPE VIDDEC_UnloadCodec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE VIDDEC_LoadCodec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE VIDDEC_Set_SN_StreamType(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE VIDDEC_SetMpeg4_Parameters(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
+OMX_ERRORTYPE VIDDEC_FatalErrorRecover(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
+OMX_ERRORTYPE IsResolutionSupported(OMX_U32 nWidth, OMX_U32 nHeight, VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 
 #ifdef VIDDEC_ACTIVATEPARSER
-OMX_ERRORTYPE VIDDEC_ParseVideo_WMV9_VC1( OMX_S32* nWidth, OMX_S32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
-OMX_ERRORTYPE VIDDEC_ParseVideo_WMV9_RCV( OMX_S32* nWidth, OMX_S32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
+OMX_ERRORTYPE VIDDEC_ParseVideo_WMV9_VC1( OMX_U32* nWidth, OMX_U32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
+OMX_ERRORTYPE VIDDEC_ParseVideo_WMV9_RCV( OMX_U32* nWidth, OMX_U32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
 OMX_ERRORTYPE VIDDEC_ParseHeader(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BUFFERHEADERTYPE *pBuffHead);
-OMX_ERRORTYPE VIDDEC_ParseVideo_MPEG4( OMX_S32* nWidth, OMX_S32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
+OMX_ERRORTYPE VIDDEC_ParseVideo_MPEG4( OMX_U32* nWidth, OMX_U32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
 OMX_ERRORTYPE VIDDEC_ParseVideo_H264(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate,
-                                     OMX_BUFFERHEADERTYPE* pBuffHead,OMX_S32* nWidth,
-                                     OMX_S32* nHeight, OMX_S32* nCropWidth, OMX_S32* nCropHeight, OMX_U32 nType);
-OMX_ERRORTYPE VIDDEC_ParseVideo_MPEG2( OMX_S32* nWidth, OMX_S32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
+                                     OMX_BUFFERHEADERTYPE* pBuffHead,OMX_U32* nWidth,
+                                     OMX_U32* nHeight, OMX_U32* nCropWidth, OMX_U32* nCropHeight, OMX_U32 nType);
+OMX_ERRORTYPE VIDDEC_ParseVideo_MPEG2( OMX_U32* nWidth, OMX_U32* nHeight, OMX_BUFFERHEADERTYPE *pBuffHead);
 OMX_U32 VIDDEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BOOL bIcreasePosition);
 OMX_S32 VIDDEC_UVLC_dec(OMX_U32 *nPosition, OMX_U8* pBuffer);
 OMX_ERRORTYPE AddStateTransition(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate);
 OMX_ERRORTYPE RemoveStateTransition(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
-OMX_ERRORTYPE IncrementCount (OMX_U8 * pCounter, pthread_mutex_t *pMutex);
-OMX_ERRORTYPE DecrementCount (OMX_U8 * pCounter, pthread_mutex_t *pMutex);
+OMX_ERRORTYPE IncrementCount (OMX_U32 * pCounter, pthread_mutex_t *pMutex);
+OMX_ERRORTYPE DecrementCount (OMX_U32 * pCounter, pthread_mutex_t *pMutex);
 
 #endif
 #endif

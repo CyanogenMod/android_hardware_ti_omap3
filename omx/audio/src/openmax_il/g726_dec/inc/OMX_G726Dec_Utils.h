@@ -44,18 +44,12 @@
 #define OMX_G726DEC_UTILS__H
 
 #include <OMX_Component.h>
+#include "OMX_TI_Common.h"
 #include "LCML_DspCodec.h"
 
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#include <stdlib.h>
-#else
 #include <pthread.h>
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
-#endif
 #endif
 
 
@@ -95,36 +89,15 @@
 #define SID_FRAME_TYPE 2    /* SID frame flag */
 #define NODATA_FRAME 3    /* Erasure frame flag */
 
-#ifdef UNDER_CE
-#define USN_DLL_NAME "\\windows\\usn.dll64P" /* Path of USN DLL */
-#define G726DEC_DLL_NAME "\\windows\\g726dec_sn.dll64P" /* Path of G726 SN DLL */
-#else
 #define USN_DLL_NAME "usn.dll64P" /* Path of USN DLL */
 #define G726DEC_DLL_NAME "g726dec_sn.dll64P" /* Path of G726 SN DLL */
-#endif
 
 #define DONT_CARE 0 /* Value unused or ignored */
 #define G726DEC_BUFDETAILS
 /** Default timeout used to come out of blocking calls*/
 #define G726D_TIMEOUT 1 /* seconds */
 
-#ifdef UNDER_CE
-
-#ifdef DEBUG
-#define G726DEC_DPRINT   printf
-#define G726DEC_EPRINT   printf
-#define G726DEC_MEMPRINT   printf
-#define G726DEC_STATEPRINT   printf
-#define G726DEC_BUFPRINT   printf
-#else
-#define G726DEC_DPRINT
-#define G726DEC_EPRINT
-#define G726DEC_MEMPRINT
-#define G726DEC_STATEPRINT
-#define G726DEC_BUFPRINT
-#endif
-
-#else /* for Linux */
+ /* for Linux */
 
 #ifdef  G726DEC_DEBUG
 
@@ -165,33 +138,6 @@
     fprintf(stdout, __VA_ARGS__);                                       \
     fprintf(stdout, "\n");
 
-#endif /*for UNDER_CE*/
-
-#define G726D_OMX_MALLOC(_pStruct_, _sName_)                        \
-    _pStruct_ = (_sName_*)malloc(sizeof(_sName_));                  \
-    if(_pStruct_ == NULL){                                          \
-        printf("***********************************\n");            \
-        printf("%d :: Malloc Failed\n",__LINE__);                   \
-        printf("***********************************\n");            \
-        eError = OMX_ErrorInsufficientResources;                    \
-        goto EXIT;                                                  \
-    }                                                               \
-    memset(_pStruct_,0,sizeof(_sName_));                            \
-    G726DEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_pStruct_);
-
-
-
-#define G726D_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)             \
-    _ptr_ = (_name_ *)malloc(_size_);                           \
-    if(_ptr_ == NULL){                                          \
-        printf("***********************************\n");        \
-        printf("%d :: Malloc Failed\n",__LINE__);               \
-        printf("***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_ptr_,0,_size_);                                     \
-    G726DEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_ptr_);
 
 #define G726D_OMX_ERROR_EXIT(_e_, _c_, _s_)                             \
     _e_ = _c_;                                                          \
@@ -207,13 +153,6 @@
             eError = OMX_ErrorBadParameter;             \
             goto EXIT;                                  \
         }                                               \
-    }
-
-#define G726D_OMX_FREE(ptr)                                             \
-    if(NULL != ptr) {                                                   \
-        G726DEC_MEMPRINT("%d :: Freeing Address = %p\n",__LINE__,ptr);  \
-        free(ptr);                                                      \
-        ptr = NULL;                                                     \
     }
 
 #define OMX_CONF_INIT_STRUCT(_s_, _name_)       \
@@ -357,18 +296,6 @@ struct _G726D_BUFFERLIST{
 
 typedef struct _G726D_BUFFERLIST G726D_BUFFERLIST;
 
-#ifdef UNDER_CE
-#ifndef _OMX_EVENT_
-#define _OMX_EVENT_
-typedef struct OMX_Event {
-    HANDLE event;
-} OMX_Event;
-#endif
-int OMX_CreateEvent(OMX_Event *event);
-int OMX_SignalEvent(OMX_Event *event);
-int OMX_WaitForEvent(OMX_Event *event);
-int OMX_DestroyEvent(OMX_Event *event);
-#endif
 
 /* ======================================================================= */
 /** G726DEC_COMPONENT_PRIVATE: This is the major and main structure of the
@@ -493,6 +420,9 @@ typedef struct G726DEC_COMPONENT_PRIVATE
 
     /** This is LCML handle  */
     OMX_HANDLETYPE pLcmlHandle;
+
+    /* backup pointer for LCML */
+    void* ptrLibLCML;
 
     /** Contains pointers to LCML Buffer Headers */
     G726D_LCML_BUFHEADERTYPE *pLcmlBufHeader[2];
@@ -623,11 +553,17 @@ typedef struct G726DEC_COMPONENT_PRIVATE
     /* number of FillThisBuffer calls pending */
     OMX_U32 nOutStandingFillDones;
 
-    /* coutns the number of unhandled FillThisBuffer() calls */
+    /* counts the number of unhandled FillThisBuffer() calls */
     OMX_U8 nUnhandledFillThisBuffers;
 
-    /* coutns the number of unhandled EmptyThisBuffer() calls */
+    /* counts the number of handled FillThisBuffer() calls */
+    OMX_U8 nHandledFillThisBuffers;
+
+    /* counts the number of unhandled EmptyThisBuffer() calls */
     OMX_U8 nUnhandledEmptyThisBuffers;
+
+    /* counts the number of handled EmptyThisBuffer() calls */
+    OMX_U8 nHandledEmptyThisBuffers;
 
     /* flag if the flush command is pending in Output Port */
     OMX_BOOL bFlushOutputPortCommandPending;
@@ -635,7 +571,8 @@ typedef struct G726DEC_COMPONENT_PRIVATE
     /* flag if the flush command is pending in Output Port */
     OMX_BOOL bFlushInputPortCommandPending;
     
-#ifndef UNDER_CE
+    /** Tells whether mutex have been initialized or not */
+    OMX_U32 bMutexInit;
     /* mutex for allocating buffers */
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
@@ -650,19 +587,11 @@ typedef struct G726DEC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif    
 
     /* flag if transition to loaded is pending */
     OMX_BOOL bLoadedCommandPending;
+
+    OMX_BOOL DSPMMUFault;
 
     /* contains the OMX defined role of the component */
     /* not used in non-standard components */
@@ -717,13 +646,7 @@ typedef struct G726DEC_COMPONENT_PRIVATE
  *  @see          G726Dec_StartCompThread()
  */
 /* ================================================================================ * */
-#ifndef UNDER_CE
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
 
 /* ================================================================================= * */
 /**
@@ -976,14 +899,24 @@ OMX_U32 G726DEC_IsPending(G726DEC_COMPONENT_PRIVATE *pComponentPrivate,
 OMX_U32 G726DEC_IsValid(G726DEC_COMPONENT_PRIVATE *pComponentPrivate, 
                         OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
 
-OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf);
-OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr);
-
 #ifdef RESOURCE_MANAGER_ENABLED
 /***********************************
  *  Callback to the RM                                       *
  ***********************************/
 void G726DEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 #endif
+
+/*  ==============================================================*/
+/* G726DEC_FatalErrorRecover
+*
+* @desc    handles the clean up and sets OMX_StateInvalid in reaction to fatal errors
+*
+* @param pComponentPrivate    Component private data
+*
+* @return n/a
+*/
+/* ===============================================================*/
+
+void G726DEC_FatalErrorRecover(G726DEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 #endif

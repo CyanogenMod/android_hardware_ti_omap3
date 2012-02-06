@@ -42,9 +42,6 @@
  *  INCLUDE FILES
  ****************************************************************/
 /* ----- system and platform files ----------------------------*/
-#ifdef UNDER_CE
-#include <windows.h>
-#else
 #include <unistd.h>
 #include <dbapi.h>
 #include <string.h>
@@ -54,7 +51,6 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <signal.h>
-#endif
 #include "OMX_G711Dec_Utils.h"
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
@@ -89,14 +85,10 @@ void* ComponentThread (void* pThreadData)
         tv.tv_nsec = 0;
 
 
-#ifndef UNDER_CE
         sigset_t set;
         sigemptyset (&set);
         sigaddset (&set, SIGALRM);
         status = pselect (fdmax+1, &rfds, NULL, NULL, &tv, &set);
-#else
-        status = select (fdmax+1, &rfds, NULL, NULL, &tv);
-#endif
 
         if (0 == status) {
             if (pComponentPrivate->bIsStopping == 1)  {

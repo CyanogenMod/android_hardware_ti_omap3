@@ -1,9 +1,9 @@
-ifeq ($(BUILD_G729_ENCODER),1)
+
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
-
+LOCAL_PRELINK_MODULE := false
 
 LOCAL_SRC_FILES:= \
     OMX_G729Enc_Utils.c \
@@ -29,4 +29,3 @@ LOCAL_MODULE:= libOMX.TI.G729.encode
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)
-endif

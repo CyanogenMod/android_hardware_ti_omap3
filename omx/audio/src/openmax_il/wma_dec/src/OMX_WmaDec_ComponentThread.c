@@ -50,22 +50,19 @@
 *  INCLUDE FILES
 ****************************************************************/
 /* ----- system and platform files ----------------------------*/
-#ifdef UNDER_CE
-#include <windows.h>
-#else
 #include <dbapi.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
+#include <sys/prctl.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
-#endif
 #include "OMX_WmaDec_Utils.h" 
 /* ================================================================================= */
 /**
@@ -90,6 +87,8 @@ void* WMADEC_ComponentThread (void* pThreadData)
     WMADEC_COMPONENT_PRIVATE* pComponentPrivate = (WMADEC_COMPONENT_PRIVATE*)pThreadData;
     OMX_COMPONENTTYPE *pHandle = pComponentPrivate->pHandle;
 
+    prctl(PR_SET_NAME, (unsigned long) "OMX-WMADEC", 0, 0, 0);
+
     OMX_PRINT1(pComponentPrivate->dbg, "OMX_WmaDec_ComponentThread:%d\n",__LINE__);
 #ifdef __PERF_INSTRUMENTATION__
 OMX_PRDSP2(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__LINE__);
@@ -111,18 +110,18 @@ OMX_PRDSP2(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__
         tv.tv_sec = 1;
         tv.tv_nsec = 0;/*WMAD_TIMEOUT * 1000;*/
 
-#ifndef UNDER_CE
 		sigset_t set;
 		sigemptyset (&set);
 		sigaddset (&set, SIGALRM);
 		status = pselect (fdmax+1, &rfds, NULL, NULL, &tv, &set);
-#else
-        status = select (fdmax+1, &rfds, NULL, NULL, &tv);
-#endif
 
         if (pComponentPrivate->bIsStopping == 1) {
             OMX_ERROR4(pComponentPrivate->dbg, ":: Comp Thrd Exiting here...\n");
-            goto EXIT;
+#ifdef __PERF_INSTRUMENTATION__
+            OMX_PRINT1(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__LINE__);
+            PERF_Done(pComponentPrivate->pPERFcomp);
+#endif
+            return (void*)eError;
         }
 
         if (0 == status) {
@@ -135,13 +134,21 @@ OMX_PRDSP2(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__
                 pComponentPrivate->app_nBuf = 0;
                 pComponentPrivate->num_Reclaimed_Op_Buff = 0;
                 if (pComponentPrivate->curState != OMX_StateIdle) {
-                    goto EXIT;
+#ifdef __PERF_INSTRUMENTATION__
+                    OMX_PRINT1(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__LINE__);
+                    PERF_Done(pComponentPrivate->pPERFcomp);
+#endif
+                    return (void*)eError;
                 }
                 pComponentPrivate->bIsEOFSent = 0;
 
                 if (pComponentPrivate->curState != OMX_StateIdle) {
-                   OMX_ERROR4(pComponentPrivate->dbg, "%d:WmaComponentThread \n",__LINE__);
-                    goto EXIT;
+                    OMX_ERROR4(pComponentPrivate->dbg, "%d:WmaComponentThread \n",__LINE__);
+#ifdef __PERF_INSTRUMENTATION__
+                    OMX_PRINT1(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__LINE__);
+                    PERF_Done(pComponentPrivate->pPERFcomp);
+#endif
+                    return (void*)eError;
                 }
             }
             OMX_PRDSP2(pComponentPrivate->dbg, "%d :: Component Time Out !!!!!!!!!!!! \n",__LINE__);
@@ -180,7 +187,11 @@ OMX_PRDSP2(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__
                 if(eError != OMX_ErrorNone) {
                     OMX_ERROR4(pComponentPrivate->dbg, "%d :: Function Mp3Dec_FreeCompResources returned\
                                                                 error\n",__LINE__);
-                    goto EXIT;
+#ifdef __PERF_INSTRUMENTATION__
+                    OMX_PRINT1(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__LINE__);
+                    PERF_Done(pComponentPrivate->pPERFcomp);
+#endif
+                    return (void*)eError;
                 }
                 OMX_PRDSP2(pComponentPrivate->dbg, "%d :: ARM Side Resources Have Been Freed\n",__LINE__);
                 pComponentPrivate->curState = OMX_StateLoaded;
@@ -218,7 +229,6 @@ OMX_PRDSP2(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__
 
         }
     }
-EXIT:
 #ifdef __PERF_INSTRUMENTATION__
     OMX_PRINT1(pComponentPrivate->dbg, "PERF%d :: OMX_WmaDec_ComponentThread.c\n",__LINE__);
     PERF_Done(pComponentPrivate->pPERFcomp);

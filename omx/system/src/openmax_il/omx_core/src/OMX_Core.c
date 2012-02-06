@@ -1,10 +1,42 @@
-/* ====================================================================
-*             Texas Instruments OMAP(TM) Platform Software
-* (c) Copyright Texas Instruments, Incorporated. All Rights Reserved.
-*
-* Use of this software is controlled by the terms and conditions found
-* in the license agreement under which this software has been supplied.
-* ==================================================================== */
+/*
+ * OMX Core
+ *
+ * This is the Texas Instruments implementation of the OpenMAX IL core.
+ * It is used for loading and unloading OpenMAX components.  Once loaded,
+ * the OpenMAX IL client communicates directly with OpenMAX components
+ *
+ * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *  o Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *  o Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the
+ *    distribution.
+ *
+ *  o Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+*/
 
 #include <dlfcn.h>   /* For dynamic loading */
 #include <stdio.h>
@@ -20,7 +52,7 @@
 #include "OMX_Core.h"
 #include "OMX_ComponentRegistry.h"
 
-#ifndef NO_OPENCORE
+#ifdef _FROYO
 /** determine capabilities of a component before acually using it */
 #include "ti_omx_config_parser.h"
 #endif
@@ -50,46 +82,56 @@ ComponentTable componentTable[MAX_TABLE_SIZE];
 char * sRoleArray[60][20];
 char compName[60][200];
 
-char *tComponentName[MAXCOMP][2] = {
+char *tComponentName[MAXCOMP][3] = {
     /*video and image components */
-    //{"OMX.TI.JPEG.decoder", "image_decoder.jpeg" },
-    {"OMX.TI.JPEG.Encoder", "image_encoder.jpeg"},
-    //{"OMX.TI.Video.Decoder", "video_decoder.h263"},
-    {"OMX.TI.Video.Decoder", "video_decoder.avc"},
-    //{"OMX.TI.Video.Decoder", "video_decoder.mpeg2"},
-    {"OMX.TI.Video.Decoder", "video_decoder.mpeg4"},
-    {"OMX.TI.Video.Decoder", "video_decoder.wmv"},
-    {"OMX.TI.Video.encoder", "video_encoder.mpeg4"},
-    {"OMX.TI.Video.encoder", "video_encoder.h263"},
-    {"OMX.TI.Video.encoder", "video_encoder.avc"},
-    //{"OMX.TI.VPP", "iv_renderer.yuv.overlay"},
-    //{"OMX.TI.Camera", "camera.yuv"},
-
+    {"OMX.TI.JPEG.decoder", "image_decoder.jpeg", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.JPEG.encoder", "image_encoder.jpeg", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.Video.Decoder", "video_decoder.h263", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.Video.Decoder", "video_decoder.avc", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.Video.Decoder", "video_decoder.mpeg2", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.Video.Decoder", "video_decoder.mpeg4", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.720P.Decoder", "video_decoder.mpeg4", MAX_720P_CONCURRENT_INSTANCES},
+    {"OMX.TI.720P.Decoder", "video_decoder.avc", MAX_720P_CONCURRENT_INSTANCES},
+    {"OMX.TI.Video.Decoder", "video_decoder.wmv", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.Video.encoder", "video_encoder.mpeg4", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.720P.Encoder", "video_encoder.mpeg4", MAX_720P_CONCURRENT_INSTANCES},
+    {"OMX.TI.Video.encoder", "video_encoder.h263", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.Video.encoder", "video_encoder.avc", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.720P.Encoder", "video_encoder.avc", MAX_720P_CONCURRENT_INSTANCES},
+    {"OMX.TI.VPP", "iv_renderer.yuv.overlay", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.Camera", "camera.yuv", MAX_CONCURRENT_INSTANCES},
+    
     /* Speech components */
-/*  {"OMX.TI.G729.encode", NULL},
-    {"OMX.TI.G729.decode", NULL},	
-    {"OMX.TI.G722.encode", NULL},
-    {"OMX.TI.G722.decode", NULL},
-    {"OMX.TI.G711.encode", NULL},
-    {"OMX.TI.G711.decode", NULL},
-    {"OMX.TI.G723.encode", NULL},
+    {"OMX.TI.G729.encode", NULL, MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.G729.decode", NULL, MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.G722.encode", NULL, MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.G722.decode", NULL, MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.G711.encode", NULL, MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.G711.decode", NULL, MAX_CONCURRENT_INSTANCES},
+/*  {"OMX.TI.G723.encode", NULL},
     {"OMX.TI.G723.decode", NULL},
-    {"OMX.TI.G726.encode", NULL},
-    {"OMX.TI.G726.decode", NULL},
-    {"OMX.TI.GSMFR.encode", NULL},
+*/
+    {"OMX.TI.G726.encode", NULL, MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.G726.decode", NULL, MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.ILBC.decode", NULL, MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.ILBC.encode", NULL, MAX_CONCURRENT_INSTANCES},
+/*  {"OMX.TI.GSMFR.encode", NULL},
     {"OMX.TI.GSMFR.decode", NULL},
 */
+    {"OMX.TI.AMR.encode", "audio_encoder.amrnb", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.AMR.decode", "audio_decoder.amrnb", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.WBAMR.encode", "audio_encoder.amrwb", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.WBAMR.decode", "audio_decoder.amrwb", MAX_CONCURRENT_INSTANCES},
 
     /* Audio components */
-#ifdef BUILD_WITH_TI_AUDIO
-    {"OMX.TI.MP3.decode", "audio_decoder.mp3"},
-    {"OMX.TI.AAC.encode", "audio_encoder.aac"},
-    {"OMX.TI.AAC.decode", "audio_decoder.aac"},
-    {"OMX.TI.WMA.decode", "audio_decoder.wma"},
-    {"OMX.TI.WBAMR.decode", "audio_decoder.amrwb"},
-    {"OMX.TI.AMR.decode", "audio_decoder.amrnb"},
-    {"OMX.TI.AMR.encode", "audio_encoder.amrnb"},
-    {"OMX.TI.WBAMR.encode", "audio_encoder.amrwb"},
+    {"OMX.TI.MP3.decode", "audio_decoder.mp3", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.AAC.encode", "audio_encoder.aac", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.AAC.decode", "audio_decoder.aac", MAX_CONCURRENT_INSTANCES},
+    {"OMX.ITTIAM.AAC.decode", "audio_decoder.aac", MAX_CONCURRENT_INSTANCES},
+    {"OMX.ITTIAM.AAC.encode", "audio_encoder.aac", MAX_CONCURRENT_INSTANCES},
+    {"OMX.TI.WMA.decode", "audio_decoder.wma", MAX_CONCURRENT_INSTANCES},
+#if ! defined (TARGET_OMAP4)
+    {"OMX.ITTIAM.WMA.decode", "audio_decoder.wma", MAX_CONCURRENT_INSTANCES},
 #endif
 /*  {"OMX.TI.PCM.encode", NULL},
     {"OMX.TI.PCM.decode", NULL},     
@@ -99,7 +141,7 @@ char *tComponentName[MAXCOMP][2] = {
 */
 
     /* terminate the table */
-    {NULL, NULL},
+    {NULL, NULL, NULL},
 };
 
 
@@ -208,11 +250,9 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
     for (refIndex=0; refIndex < MAX_TABLE_SIZE; refIndex++) {
         //get the index for the component in the table
         if (strcmp(componentTable[refIndex].name, cComponentName) == 0) {
-            LOGD("Found component %s with refCount %d\n",
-                  cComponentName, componentTable[refIndex].refCount);
 
             /* check if the component is already loaded */
-            if (componentTable[refIndex].refCount >= MAX_CONCURRENT_INSTANCES) {
+            if (componentTable[refIndex].refCount >= componentTable[refIndex].maxinstances) {
                 err = OMX_ErrorInsufficientResources;
                 LOGE("Max instances of component %s already created.\n", cComponentName);
                 goto UNLOCK_MUTEX;
@@ -264,6 +304,8 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
                     LOGE("%d:: malloc of pHandle* failed\n", __LINE__);
                     goto CLEAN_UP;
                 }
+                LOGD("Found component %s with refCount %d  pHandle (%p)\n",
+                        cComponentName, componentTable[refIndex].refCount, *pHandle);
 
                 pComponents[i] = *pHandle;
                 componentType = (OMX_COMPONENTTYPE*) *pHandle;
@@ -283,7 +325,7 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
                     goto UNLOCK_MUTEX;  // Component is found, and thus we are done
                 }
                 else if (err == OMX_ErrorInsufficientResources) {
-                        LOGE("%d :: Core: Insufficient Resources for Component %d\n",__LINE__, err);
+                        LOGE("%d :: Core: Insufficient Resources for Component %x pHandle (%p)\n",__LINE__, err, *pHandle);
                         goto CLEAN_UP;
                 }
             }
@@ -292,7 +334,7 @@ OMX_ERRORTYPE TIOMX_GetHandle( OMX_HANDLETYPE* pHandle, OMX_STRING cComponentNam
 
     // If we are here, we have not found the component
     err = OMX_ErrorComponentNotFound;
-    goto UNLOCK_MUTEX;
+
 CLEAN_UP:
     if(*pHandle != NULL)
     /* cover the case where we error out before malloc'd */
@@ -359,17 +401,41 @@ OMX_ERRORTYPE TIOMX_FreeHandle (OMX_HANDLETYPE hComponent)
         goto EXIT;
     }
 
-    int refIndex = 0, handleIndex = 0;
+    int refIndex = 0, handleIndex = 0, shiftIndex=0;
     for (refIndex=0; refIndex < MAX_TABLE_SIZE; refIndex++) {
         for (handleIndex=0; handleIndex < componentTable[refIndex].refCount; handleIndex++){
             /* get the position for the component in the table */
             if (componentTable[refIndex].pHandle[handleIndex] == hComponent){
                 LOGD("Found matching pHandle(%p) at index %d with refCount %d",
                       hComponent, refIndex, componentTable[refIndex].refCount);
-                if (componentTable[refIndex].refCount) {
+                if (componentTable[refIndex].refCount > 1) {
+                    /*There is more than one instance of the same component. The
+                     * instance to free can be ahead of the last one created, so the rest of the
+                     * instances will be shifted in the array*/
+                    if (handleIndex < componentTable[refIndex].refCount-1)
+                    {
+                        /*This instance is not the last one created */
+                        for (shiftIndex=handleIndex; shiftIndex < componentTable[refIndex].refCount;shiftIndex++)
+                        {
+                            if (componentTable[refIndex].pHandle[shiftIndex])
+                            {
+                                componentTable[refIndex].pHandle[shiftIndex]= componentTable[refIndex].pHandle[shiftIndex+1];
+                                componentTable[refIndex].pHandle[shiftIndex+1] = NULL;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        /*This instance is the last one created */
+                        componentTable[refIndex].pHandle[handleIndex] = NULL;
+                    }
                     componentTable[refIndex].refCount -= 1;
                 }
-                componentTable[refIndex].pHandle[handleIndex] = NULL;
+                else
+                {
+                    componentTable[refIndex].refCount -= 1;
+                    componentTable[refIndex].pHandle[handleIndex] = NULL;
+                }
                 dlclose(pModules[i]);
                 pModules[i] = NULL;
                 free(pComponents[i]);
@@ -525,10 +591,10 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY TIOMX_ComponentNameEnum(
 *Parameters:
 * @param[in] cComponentName     The name of the component to query
 * @param[in] pNumRoles     The number of roles supported by the component
-* @param[in] roles		The roles of the component
+* @param[in] roles                The roles of the component
 *
 * Returns:    OMX_NOERROR          Successful
-*                 OMX_ErrorBadParameter		Faliure due to a bad input parameter
+*                 OMX_ErrorBadParameter                Faliure due to a bad input parameter
 *
 * Note
 *
@@ -546,14 +612,6 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
 
     if (cComponentName == NULL || pNumRoles == NULL)
     {
-        if (cComponentName == NULL)
-        {
-            LOGE("cComponentName is NULL\n");
-        }
-        if (pNumRoles == NULL)
-        {
-            LOGE("pNumRoles is NULL\n");
-        }
         eError = OMX_ErrorBadParameter;
         goto EXIT;       
     }
@@ -569,7 +627,7 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
     if (!bFound)
     {
         eError = OMX_ErrorComponentNotFound;
-        LOGE("component %s not found\n", cComponentName);
+        LOGE("component not found\n");
         goto EXIT;
     } 
     if (roles == NULL)
@@ -593,8 +651,8 @@ OMX_API OMX_ERRORTYPE TIOMX_GetRolesOfComponent (
         else
         {
             eError = OMX_ErrorBadParameter;
-            LOGE("pNumRoles (%d) is less than actual number (%d) of roles \
-                   for this component %s\n", *pNumRoles, componentTable[i].nRoles, cComponentName);
+            LOGE("pNumRoles is less than actual number of roles \
+                   for this component\n");
         }
     }
     EXIT:
@@ -629,15 +687,8 @@ OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
 
     if (role == NULL || pNumComps == NULL)
     {
-       if (role == NULL)
-       {
-           LOGE("role is NULL");
-       }
-       if (pNumComps == NULL)
-       {
-           LOGE("pNumComps is NULL\n");
-       }
        eError = OMX_ErrorBadParameter;
+       LOGE("BadParameter: role=NULL\n");
        goto EXIT;
     }
 
@@ -645,7 +696,7 @@ OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
     if (!tableCount)
     {
         eError = OMX_ErrorUndefined;
-        LOGE("Component table is empty. Please reload OMX Core\n");
+        LOGE("table is empty, reload OMX Core\n");
         goto EXIT;
     }
 
@@ -667,7 +718,7 @@ OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
     if (compOfRoleCount == 0)
     {
         eError = OMX_ErrorComponentNotFound;
-        LOGE("Component supporting role %s was not found\n", role);
+        LOGE("Component supporting %s was not found\n", role);
     }
     if (compNames == NULL)
     {
@@ -684,8 +735,7 @@ OMX_API OMX_ERRORTYPE TIOMX_GetComponentsOfRole (
                the array is not large enough
             */
             eError = OMX_ErrorBadParameter;
-            LOGE("pNumComps (%d) is less than the actual number (%d) of components \
-                  supporting role %s\n", *pNumComps, compOfRoleCount, role);
+            LOGE("Bad Parameter, pNumComps is not enough\n");
         }
         else
         {
@@ -731,7 +781,7 @@ OMX_ERRORTYPE TIOMX_BuildComponentTable()
         if (tComponentName[i][0] == NULL) {
             break;
         }
-        if (numFiles <= MAX_TABLE_SIZE){
+        if (numFiles < MAX_TABLE_SIZE){
             for (j = 0; j < numFiles; j ++) {
                 if (!strcmp(componentTable[j].name, tComponentName[i][0])) {
                     /* insert the role */
@@ -752,26 +802,29 @@ OMX_ERRORTYPE TIOMX_BuildComponentTable()
                 strcpy(compName[numFiles], tComponentName[i][0]);
                 componentTable[numFiles].name = compName[numFiles];
                 componentTable[numFiles].refCount = 0; //initialize reference counter.
+                componentTable[numFiles].maxinstances= tComponentName[i][2];
                 numFiles ++;
             }
         }
     }
     tableCount = numFiles;
     if (eError != OMX_ErrorNone){
-        LOGE("Could not build Component Table\n");
+        printf("Error:  Could not build Component Table\n");
     }
 
     return eError;
 }
 
+#ifdef _FROYO
 OMX_BOOL TIOMXConfigParserRedirect(
     OMX_PTR aInputParameters,
     OMX_PTR aOutputParameters)
 
 {
     OMX_BOOL Status = OMX_FALSE;
-#ifndef NO_OPENCORE
+        
     Status = TIOMXConfigParser(aInputParameters, aOutputParameters);
-#endif
+    
     return Status;
 }
+#endif
