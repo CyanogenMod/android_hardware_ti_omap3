@@ -135,18 +135,18 @@ extern "C" {
  *                      will be passed to NLDR_Load/NLDR_Unload.
  *      pfPhaseSplit:   pointer to boolean variable referenced in node.c
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EMEMORY:    Insufficient memory on GPP.
+ *      0:              Success.
+ *      -ENOMEM:        Insufficient memory on GPP.
  *  Requires:
  *      NLDR_Init() called.
  *      Valid hNldr.
  *      pNodeProps != NULL.
  *      phNldrNode != NULL.
  *  Ensures:
- *      DSP_SOK:        IsValidNode(*phNldrNode).
+ *      0:              IsValidNode(*phNldrNode).
  *      error:          *phNldrNode == NULL.
  */
-	typedef DSP_STATUS(*NLDR_ALLOCATEFXN) (struct NLDR_OBJECT* hNldr,
+	typedef int(*NLDR_ALLOCATEFXN) (struct NLDR_OBJECT* hNldr,
 					       PVOID pPrivRef,
 					       IN CONST struct DCD_NODEPROPS *pNodeProps,
 					       OUT struct NLDR_NODEOBJECT* * phNldrNode,
@@ -162,18 +162,18 @@ extern "C" {
  *      hDevObject:     Device for this processor.
  *      pAttrs:         Loader attributes.
  *  Returns:
- *      DSP_SOK:        Success;
- *      DSP_EMEMORY:    Insufficient memory for requested resources.
+ *      0:              Success;
+ *      -ENOMEM:        Insufficient memory for requested resources.
  *  Requires:
  *      NLDR_Init() called.
  *      phNldr != NULL.
  *      hDevObject != NULL.
  *	pAttrs != NULL.
  *  Ensures:
- *      DSP_SOK:        Valid *phNldr.
+ *      0:              Valid *phNldr.
  *      error:          *phNldr == NULL.
  */
-	typedef DSP_STATUS(*NLDR_CREATEFXN) (OUT struct NLDR_OBJECT* * phNldr,
+	typedef int(*NLDR_CREATEFXN) (OUT struct NLDR_OBJECT* * phNldr,
 					     struct DEV_OBJECT* hDevObject,
 					     IN CONST struct NLDR_ATTRS * pAttrs);
 
@@ -230,8 +230,8 @@ extern "C" {
  *      pstrFxn:        Name of function.
  *      pulAddr:        Location to store function address.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_ESYMBOL:    Address of function not found.
+ *      0:              Success.
+ *      -ESPIPE:        Address of function not found.
  *  Requires:
  *      NLDR_Init() called.
  *      Valid hNldrNode.
@@ -239,7 +239,7 @@ extern "C" {
  *      pstrFxn != NULL;
  *  Ensures:
  */
-	typedef DSP_STATUS(*NLDR_GETFXNADDRFXN) (struct NLDR_NODEOBJECT* hNldrNode,
+	typedef int(*NLDR_GETFXNADDRFXN) (struct NLDR_NODEOBJECT* hNldrNode,
 						 PSTR pstrFxn, ULONG * pulAddr);
 
 /*
@@ -261,18 +261,18 @@ extern "C" {
  *      hNldrNode:      Handle returned from NLDR_Allocate().
  *      phase:          Type of function to load (create, delete, or execute).
  *  Returns:
- *      DSP_SOK:                Success.
- *      DSP_EMEMORY:            Insufficient memory on GPP.
- *      DSP_EOVERLAYMEMORY:     Can't overlay phase because overlay memory
- *                              is already in use.
- *      DSP_EDYNLOAD:           Failure in dynamic loader library.
- *      DSP_EFWRITE:            Failed to write phase's code or date to target.
+ *      0:              Success.
+ *      -ENOMEM:        Insufficient memory on GPP.
+ *      -ENXIO:         Can't overlay phase because overlay memory
+ *                      is already in use.
+ *      -EILSEQ:        Failure in dynamic loader library.
+ *      DSP_EFWRITE:    Failed to write phase's code or date to target.
  *  Requires:
  *      NLDR_Init() called.
  *      Valid hNldrNode.
  *  Ensures:
  */
-	typedef DSP_STATUS(*NLDR_LOADFXN) (struct NLDR_NODEOBJECT* hNldrNode,
+	typedef int(*NLDR_LOADFXN) (struct NLDR_NODEOBJECT* hNldrNode,
 					   NLDR_PHASE phase);
 
 /*
@@ -283,14 +283,14 @@ extern "C" {
  *      hNldrNode:      Handle returned from NLDR_Allocate().
  *      phase:          Node function to unload (create, delete, or execute).
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EMEMORY:    Insufficient memory on GPP.
+ *      0:              Success.
+ *      -ENOMEM:        Insufficient memory on GPP.
  *  Requires:
  *      NLDR_Init() called.
  *      Valid hNldrNode.
  *  Ensures:
  */
-	typedef DSP_STATUS(*NLDR_UNLOADFXN) (struct NLDR_NODEOBJECT* hNldrNode,
+	typedef int(*NLDR_UNLOADFXN) (struct NLDR_NODEOBJECT* hNldrNode,
 					     NLDR_PHASE phase);
 
 /*

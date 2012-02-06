@@ -1,23 +1,23 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * dspbridge/mpu_api/inc/dbg.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 
 /*
  *  ======== dbg.h ========
- *  DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *  Purpose:
  *      Provide debugging services for 'Bridge Mini Drivers.
  *
@@ -106,13 +106,13 @@ extern "C" {
  *      pstrFormat: sprintf-style format string.
  *      ...:        Arguments for format string.
  *  Returns:
- *      DSP_SOK:    Success, or trace level masked.
- *      DSP_EFAIL:  On Error.
+ *      0:          Success, or trace level masked.
+ *      -EPERM:     On Error.
  *  Requires:
  *      DBG initialized.
  *  Ensures:
  */
-	extern DSP_STATUS DBG_Printf(IN PSTR pstrFormat, ...);
+	extern int DBG_Printf(IN PSTR pstrFormat, ...);
 #endif				// LINUX
 
 /*
@@ -125,15 +125,15 @@ extern "C" {
  *      pstrFormat:     sprintf-style format string.
  *      ...:            Arguments for format string.
  *  Returns:
- *      DSP_SOK:        Success, or trace level masked.
- *      DSP_EFAIL:      On Error.
+ *      0:              Success, or trace level masked.
+ *      -EPERM:         On Error.
  *  Requires:
  *      DBG initialized.
  *  Ensures:
  *      Debug message is printed to debugger output window, if trace level
  *      is unmasked.
  */
-	extern DSP_STATUS DBG_Trace(IN BYTE bLevel, IN PSTR pstrFormat, ...);
+	extern int DBG_Trace(IN BYTE bLevel, IN PSTR pstrFormat, ...);
 #else
 
 #define DBG_Exit()

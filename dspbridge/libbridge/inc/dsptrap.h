@@ -44,6 +44,6 @@
 #endif
 
 /* Function Prototypes */
-extern DWORD DSPTRAP_Trap(Trapped_Args * args, int cmd);
+extern int DSPTRAP_Trap(Trapped_Args * args, int cmd);
 
 #endif				/* DSPTRAP_ */

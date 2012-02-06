@@ -1,22 +1,22 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * dspbridge/mpu_api/inc/dbdcddef.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
  
 /*
  *  ======== dbdcddef.h ========
- *  DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *  Description:
  *      DCD (DSP/BIOS Bridge Configuration Database) constants and types.
  *
@@ -90,11 +90,11 @@ extern "C" {
 	} ;
 
 /* DCD Internal Callback Type */
-	typedef DSP_STATUS(CDECL * DCD_REGISTERFXN) (IN struct DSP_UUID * pUuid,
+	typedef int(CDECL * DCD_REGISTERFXN) (IN struct DSP_UUID * pUuid,
 						     IN DSP_DCDOBJTYPE objType,
 						     IN PVOID handle);
 
-	typedef DSP_STATUS(CDECL * DCD_UNREGISTERFXN) (IN struct DSP_UUID * pUuid,
+	typedef int(CDECL * DCD_UNREGISTERFXN) (IN struct DSP_UUID * pUuid,
 						       IN DSP_DCDOBJTYPE
 						       objType);
 

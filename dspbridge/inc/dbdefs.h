@@ -1,24 +1,24 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * dspbridge/mpu_api/inc/dbdefs.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 
 
 /*
  *  ======== dbdefs.h ========
- *  DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *  Description:
  *      Global definitions and constants for DSP/BIOS Bridge.
  *
@@ -85,7 +85,7 @@ extern "C" {
 #define PG_ALIGN_HIGH(addr, pg_size) (((addr)+(pg_size)-1) & PG_MASK(pg_size))
 
 /* API return value and calling convention */
-#define DBAPI                       DSP_STATUS CDECL
+#define DBAPI                       int CDECL
 
 /* Infinite time value for the uTimeout parameter to DSPStream_Select() */
 #define DSP_FOREVER                 (-1)
@@ -105,6 +105,8 @@ extern "C" {
 /* DSP exception events (DSP/BIOS and DSP MMU fault) */
 #define DSP_MMUFAULT                0x00000010
 #define DSP_SYSERROR                0x00000020
+#define DSP_WDTOVERFLOW             0x00000040
+#define DSP_PWRERROR                0x00000080
 
 /* IVA exception events (IVA MMU fault) */
 #define IVA_MMUFAULT                0x00000040
@@ -139,11 +141,7 @@ extern "C" {
 #define DSP_UNIT    0
 #define IVA_UNIT    1
 
-#if ! defined (OMAP_2430) && ! defined (OMAP_3430)
-#define DSPWORD       SHORT
-#else
 #define DSPWORD       BYTE
-#endif
 #define DSPWORDSIZE     sizeof(DSPWORD)
 
 /* Success & Failure macros  */
@@ -159,13 +157,10 @@ extern "C" {
 /* Bridge Code Version */
 #define BRIDGE_VERSION_CODE         333
 
-#if defined (OMAP_2430) || defined (OMAP_3430)
 #define    MAX_PROFILES     16
-#endif
 
 /* Types defined for 'Bridge API */
-	typedef DWORD DSP_STATUS;	/* API return code type         */
-
+        typedef int DSP_STATUS ;
 	typedef HANDLE DSP_HNODE;	/* Handle to a DSP Node object  */
 	typedef HANDLE DSP_HPROCESSOR;	/* Handle to a Processor object */
 	typedef HANDLE DSP_HSTREAM;	/* Handle to a Stream object    */
@@ -186,7 +181,9 @@ extern "C" {
                                     DSP_STREAMDONE | \
                                     DSP_STREAMIOCOMPLETION | \
                                     DSP_MMUFAULT | \
-                                    DSP_SYSERROR)) && \
+                                    DSP_SYSERROR | \
+				    DSP_PWRERROR | \
+				    DSP_WDTOVERFLOW)) && \
                                 !((x) & ~(DSP_PROCESSORSTATECHANGE | \
                                     DSP_PROCESSORATTACH | \
                                     DSP_PROCESSORDETACH | \
@@ -195,7 +192,9 @@ extern "C" {
                                     DSP_STREAMDONE | \
                                     DSP_STREAMIOCOMPLETION | \
                                     DSP_MMUFAULT | \
-                                    DSP_SYSERROR))))
+                                    DSP_SYSERROR | \
+				    DSP_PWRERROR | \
+				    DSP_WDTOVERFLOW))))
 
 #define IsValidNodeEvent(x)    (((x) == 0) || (((x) & (DSP_NODESTATECHANGE | \
                                 DSP_NODEMESSAGEREADY)) && \
@@ -307,6 +306,7 @@ extern "C" {
 		PROC_INVALIDATE_MEM = 0,
 		PROC_WRITEBACK_MEM,
 		PROC_WRITEBACK_INVALIDATE_MEM,
+		PROC_WRBK_INV_ALL,
 	} DSP_FLUSHTYPE;
 
 /* Memory Segment Status Values */
@@ -381,12 +381,10 @@ extern "C" {
 	} ;
 	/*DSP_STREAMCONNECT, *DSP_HSTREAMCONNECT;*/
 
-#if defined (OMAP_2430) || defined (OMAP_3430)
 	struct DSP_NODEPROFS {
 		UINT ulHeapSize;
 	} ;
 	/*DSP_NODEPROFS, *DSP_HNODEPROFS;*/
-#endif
 
 /* The DSP_NDBPROPS structure reports the attributes of a node */
 	struct DSP_NDBPROPS {
@@ -404,10 +402,9 @@ extern "C" {
 		UINT uNumInputStreams;
 		UINT uNumOutputStreams;
 		UINT uTimeout;
-#if defined (OMAP_2430) || defined (OMAP_3430)
 		UINT uCountProfiles;	/* Number of supported profiles */
-		struct DSP_NODEPROFS aProfiles[MAX_PROFILES];	/* Array of profiles */
-#endif
+		/* Array of profiles */
+		struct DSP_NODEPROFS aProfiles[MAX_PROFILES];
 		UINT uStackSegName; /* Stack Segment Name */
 	} ;
 	/*DSP_NDBPROPS, *DSP_HNDBPROPS;*/
@@ -417,12 +414,10 @@ extern "C" {
             DWORD cbStruct;
             INT iPriority;
             UINT uTimeout;
-#if defined (OMAP_2430) || defined (OMAP_3430)
             UINT    uProfileID;
 			/* Reserved, for Bridge Internal use only */
             UINT    uHeapSize;   
             PVOID   pGPPVirtAddr; /* Reserved, for Bridge Internal use only */
-#endif
         } ;
 	/*DSP_NODEATTRIN, *DSP_HNODEATTRIN;*/
 
@@ -596,10 +591,8 @@ bit 6 - MMU element size = 64bit (valid only for non mixed page entries)
 
 #define DSP_MAPVMALLOCADDR         0x00000080
 
-#if defined (OMAP_2430) || defined (OMAP_3430)
 #define GEM_CACHE_LINE_SIZE     128
 #define GEM_L1P_PREFETCH_SIZE   128
-#endif
 
 #ifdef __cplusplus
 }

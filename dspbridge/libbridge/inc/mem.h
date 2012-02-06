@@ -374,7 +374,7 @@ extern "C" {
  *      pBuffer:    Pointer to locked memory (as returned by MEM_PageLock()).
  *      cSize:      Size in bytes of the buffer.
  *  Returns:
- *      Returns DSP_SOK if unlock successful; else, returns DSP_EFAIL;
+ *      Returns 0 if unlock successful; else, returns -EPERM;
  *  Requires:
  *      - MEM initialized.
  *      - Valid pBuffer.
@@ -383,7 +383,7 @@ extern "C" {
  *      (MEM_PageLock() increments the lock count, and MEM_PageUnlock
  *      decrements the count).
  */
-	extern DSP_STATUS MEM_PageUnlock(IN PVOID pBuffer, IN ULONG cSize);
+	extern int MEM_PageUnlock(IN PVOID pBuffer, IN ULONG cSize);
 #endif
 
 /*

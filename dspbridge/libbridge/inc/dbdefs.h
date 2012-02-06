@@ -85,7 +85,7 @@ extern "C" {
 #define PG_ALIGN_HIGH(addr, pg_size) (((addr)+(pg_size)-1) & PG_MASK(pg_size))
 
 /* API return value and calling convention */
-#define DBAPI                       DSP_STATUS CDECL
+#define DBAPI                       int CDECL
 
 /* Infinite time value for the uTimeout parameter to DSPStream_Select() */
 #define DSP_FOREVER                 (-1)
@@ -105,6 +105,8 @@ extern "C" {
 /* DSP exception events (DSP/BIOS and DSP MMU fault) */
 #define DSP_MMUFAULT                0x00000010
 #define DSP_SYSERROR                0x00000020
+#define DSP_WDTOVERFLOW             0x00000040
+#define DSP_PWRERROR                0x00000080
 
 /* IVA exception events (IVA MMU fault) */
 #define IVA_MMUFAULT                0x00000040
@@ -158,8 +160,7 @@ extern "C" {
 #define    MAX_PROFILES     16
 
 /* Types defined for 'Bridge API */
-	typedef DWORD DSP_STATUS;	/* API return code type         */
-
+        typedef int DSP_STATUS;
 	typedef HANDLE DSP_HNODE;	/* Handle to a DSP Node object  */
 	typedef HANDLE DSP_HPROCESSOR;	/* Handle to a Processor object */
 	typedef HANDLE DSP_HSTREAM;	/* Handle to a Stream object    */
@@ -180,7 +181,9 @@ extern "C" {
                                     DSP_STREAMDONE | \
                                     DSP_STREAMIOCOMPLETION | \
                                     DSP_MMUFAULT | \
-                                    DSP_SYSERROR)) && \
+                                    DSP_SYSERROR | \
+				    DSP_PWRERROR | \
+				    DSP_WDTOVERFLOW)) && \
                                 !((x) & ~(DSP_PROCESSORSTATECHANGE | \
                                     DSP_PROCESSORATTACH | \
                                     DSP_PROCESSORDETACH | \
@@ -189,7 +192,9 @@ extern "C" {
                                     DSP_STREAMDONE | \
                                     DSP_STREAMIOCOMPLETION | \
                                     DSP_MMUFAULT | \
-                                    DSP_SYSERROR))))
+                                    DSP_SYSERROR | \
+				    DSP_PWRERROR | \
+				    DSP_WDTOVERFLOW))))
 
 #define IsValidNodeEvent(x)    (((x) == 0) || (((x) & (DSP_NODESTATECHANGE | \
                                 DSP_NODEMESSAGEREADY)) && \
@@ -301,6 +306,7 @@ extern "C" {
 		PROC_INVALIDATE_MEM = 0,
 		PROC_WRITEBACK_MEM,
 		PROC_WRITEBACK_INVALIDATE_MEM,
+		PROC_WRBK_INV_ALL,
 	} DSP_FLUSHTYPE;
 
 /* Memory Segment Status Values */

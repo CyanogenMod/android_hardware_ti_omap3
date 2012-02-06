@@ -1,5 +1,5 @@
 /*
- * dspbridge/mpu_api/inc/devdefs.h
+ * dspbridge/mpu_api/inc/qos_ti_uuid.h
  *
  * DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *
@@ -15,31 +15,22 @@
  * Lesser General Public License for more details.
  */
 
- 
+
 /*
- *  ======== devdefs.h ========
- *  Purpose:
- *      Definition of common include typedef between wmd.h and dev.h. Required
- *      to break circular dependency between WMD and DEV include files.
- * 
- *! Revision History:
- *! ================
- *! 12-Nov-1996 gp: Renamed from dev1.h.
- *! 30-May-1996 gp: Broke out from dev.h
+
+ * Auto-generated UUID structures for DSP/BIOS Bridge nodes.
+
+ * Do not modify.
+
  */
 
-#ifndef DEVDEFS_
-#define DEVDEFS_
+/* QOS_TI_UUID = D91A01BD_D215_11D4_8626_00105A98CA0F */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+static struct DSP_UUID QOS_TI_UUID = {
 
-/* WCD Device Object */
-	struct DEV_OBJECT;
-	/*typedef struct DEV_OBJECT *DEV_HOBJECT;*/
+	0xd91a01bd, 0xd215, 0x11d4, 0x86, 0x26, {
 
-#ifdef __cplusplus
-}
-#endif
-#endif				/* DEVDEFS_ */
+						 0x00, 0x10, 0x5a, 0x98, 0xca,
+						 0x0f}
+
+};

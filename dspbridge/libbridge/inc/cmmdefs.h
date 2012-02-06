@@ -113,6 +113,12 @@ extern "C" {
 		struct CMM_SEGINFO segInfo[CMM_MAXGPPSEGS];	
 	} ;
 
+struct mmap_element {
+		PVOID virt_base;
+		ULONG seg_size;
+		struct mmap_element *next;
+	};
+
 /* XlatorCreate attributes */
 	struct CMM_XLATORATTRS {
 		ULONG ulSegId;	/* segment Id used for SM allocations */

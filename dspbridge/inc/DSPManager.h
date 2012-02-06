@@ -1,23 +1,23 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * dspbridge/mpu_api/inc/DSPManager.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 
 /*
  *  ======== DSPManager.h ========
- *  DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *  Description:
  *      This is the header for the DSP/BIOS Bridge manager module.
  *
@@ -60,12 +60,12 @@ extern "C" {
  *  Purpose:
  *      Open handle to the DSP/BIOS Bridge driver
  *  Parameters:
- *      argc:               Reserved, set to zero
- *      argp:               Reserved, set to NULL
- *                          in the database will be returned.
+ *      argc:            Reserved, set to zero
+ *      argp:            Reserved, set to NULL
+ *                       in the database will be returned.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EFAIL:          Failed to open handle to the DSP/BIOS Bridge driver
+ *      0:               Success.
+ *      -EPERM:          Failed to open handle to the DSP/BIOS Bridge driver
  *  Details:
  */
 	extern DBAPI DspManager_Open(UINT argc, PVOID argp);
@@ -75,12 +75,12 @@ extern "C" {
  *  Purpose:
  *      Close handle to the DSP/BIOS Bridge driver
  *  Parameters:
- *      argc:               Reserved, set to zero
- *      argp:               Reserved, set to NULL
- *                          in the database will be returned.
+ *      argc:            Reserved, set to zero
+ *      argp:            Reserved, set to NULL
+ *                       in the database will be returned.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EFAIL:          Failed to close handle to the DSP/BIOS Bridge driver
+ *      0:               Success.
+ *      -EPERM:          Failed to close handle to the DSP/BIOS Bridge driver
  *  Details:
  */
 	extern DBAPI DspManager_Close(UINT argc, PVOID argp);
@@ -97,14 +97,14 @@ extern "C" {
  *      puNumNodes:         Location where the number of nodes configured
  *                          in the database will be returned.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EINVALIDARG:    Parameter uNode is out of range
- *      DSP_EPOINTER:       Parameter pNDBProps or puNumNodes is not valid
- *      DSP_EFAIL:          Unable to get the node information.
- *      DSP_ESIZE:          The size of the specified DSP_NDBPROPS structure
+ *      0:                  Success.
+ *      -EINVAL:            Parameter uNode is out of range
+ *      -EFAULT:            Parameter pNDBProps or puNumNodes is not valid
+ *      -EPERM:             Unable to get the node information.
+ *      -EINVAL:            The size of the specified DSP_NDBPROPS structure
  *                          is too small to hold all node information,
  *                          (i.e., uNDBPropsSize is too small).
- *      DSP_ECHANGEDURINGENUM:  During Enumeration there has been a change in
+ *      -EIDRM:             During Enumeration there has been a change in
  *                          the number of nodes configured or in the
  *                          the properties of the enumerated nodes.
  *  Details:
@@ -126,11 +126,11 @@ extern "C" {
  *      puNumProcs:         Location where the number of DSPs configured
  *                          in the database will be returned
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EINVALIDARG:    Parameter uProcessor is out of range
- *      DSP_EPOINTER:       Parameter pProcessorInfo or puNumProcs is not valid.
- *      DSP_EFAIL:          Unable to get the processor information.
- *      DSP_ESIZE:          The size of the specified DSP_PROCESSORINFO struct
+ *      0:                  Success.
+ *      -EINVAL:            Parameter uProcessor is out of range
+ *      -EFAULT:            Parameter pProcessorInfo or puNumProcs is not valid.
+ *      -EPERM:             Unable to get the processor information.
+ *      -EINVAL:            The size of the specified DSP_PROCESSORINFO struct
  *                          is too small to hold all the processor information,
  *                          (i.e., uProcessorInfoSize is too small).
  *  Details:
@@ -151,8 +151,8 @@ extern "C" {
  *      puIndex         : index of signaled event object
  *      uTimeout        : timeout interval in milliseocnds
  *  Returns:
- *      DSP_SOK         : Success.
- *      DSP_ETIMEOUT    : Wait timed out. *puIndex is undetermined.
+ *      0               : Success.
+ *      -ETIME          : Wait timed out. *puIndex is undetermined.
  *  Details:
  */
 	extern DBAPI DSPManager_WaitForEvents(struct DSP_NOTIFICATION**
@@ -169,8 +169,8 @@ extern "C" {
  *     objType:        Library Type
  *     pszPathName:    Path to library
  *  Returns:
- *     DSP_SOK:        Success.
- *     DSP_EFAIL:      Unable to register object with the DCD.
+ *     0:              Success.
+ *     -EPERM:         Unable to register object with the DCD.
  *  Details:
  */
 	extern DBAPI DSPManager_RegisterObject(struct DSP_UUID * pUuid,
@@ -185,8 +185,8 @@ extern "C" {
  *     pUuid:          Pointer to UUID structure.
  *     objType:        Library Type
  *  Returns:
- *     DSP_SOK:        Success.
- *     DSP_EFAIL:      Unable to unregister object from the DCD.
+ *     0:              Success.
+ *     -EPERM:         Unable to unregister object from the DCD.
  *  Details:
  */
 	extern DBAPI DSPManager_UnregisterObject(struct DSP_UUID * pUuid,
@@ -200,8 +200,8 @@ extern "C" {
  *  Parameters:
  *     pBuf:           Pointer to information buffer.
  *  Returns:
- *     DSP_SOK:        Success.
- *     DSP_EFAIL:      Unable to unregister object from the DCD.
+ *     0:              Success.
+ *     -EPERM:         Unable to unregister object from the DCD.
  *  Details:
  */
 	extern DBAPI DSPManager_GetProcResourceInfo(UINT *pBuf, UINT *pSize);

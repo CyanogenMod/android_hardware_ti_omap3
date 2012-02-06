@@ -196,7 +196,7 @@ extern "C" {
  *      pBuffer:    Pointer to locked memory (as returned by MEMRY_PageLock()).
  *      cSize:      Size in bytes of the buffer.
  *  Returns:
- *      Returns DSP_SOK if unlock successful; else, returns DSP_EFAIL;
+ *      Returns 0 if unlock successful; else, returns -EPERM;
  *  Requires:
  *      pBuffer must be a pointer to a locked, shared data buffer previously
  *      locked with MEMRY_PageLock().

@@ -55,19 +55,19 @@ void DbgMsg(DWORD dwZone, char *szFormat, ...);
 /*  ============================================================================
   func   MsgToDsp
   desc   Send Message to DSP
-  ret    DSP_SOK if Message was transferred to DSP successfully.
+  ret    0 if Message was transferred to DSP successfully.
  ============================================================================*/
 
-DSP_STATUS QosTI_DspMsg(DWORD dwCmd, DWORD dwArg1, DWORD dwArg2, DWORD *dwOut1,
+int QosTI_DspMsg(DWORD dwCmd, DWORD dwArg1, DWORD dwArg2, DWORD *dwOut1,
 																DWORD *dwOut2);
 
 /*  ========================================================================
   func   Create
   desc   Create the Qos service.
-  ret    DSP_SOK if successfully created.
+  ret    0 if successfully created.
   ========================================================================*/
 
-DSP_STATUS QosTI_Create();
+int QosTI_Create();
 
 /* ========================================================================
   func   Delete
@@ -90,10 +90,10 @@ void QosTI_Delete();
   arg   OUT memLargestFreeBlockSize: size of largest contiguous free memory
   arg   OUT memFreeBlocks:           number of free blocks in heap
   arg   OUT memAllocBlocks:          number of allocated blocks in heap
-  ret   DSP_SOK if successful.
+  ret   0 if successful.
   ========================================================================*/
 
-DSP_STATUS QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize, 
+int QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize,
 								UINT *memUsed, UINT *memLargestFreeBlockSize,
 								UINT *memFreeBlocks, UINT *memAllocBlocks);
 
@@ -105,9 +105,9 @@ DSP_STATUS QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize,
     arg   OUT predLoad:               
     arg   OUT currDspFreq: 
     arg   OUT predictedFreq:  
-    ret   DSP_SOK if successful.
+    ret   0 if successful.
     ======================================================================== */
-DSP_STATUS QosTI_GetProcLoadStat(UINT *currentLoad, UINT *predLoad, 
+int QosTI_GetProcLoadStat(UINT *currentLoad, UINT *predLoad,
 									    UINT *currDspFreq, UINT *predictedFreq);
 
 #endif				/* _RQOSTI_H*/

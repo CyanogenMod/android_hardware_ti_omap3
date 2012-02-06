@@ -38,7 +38,7 @@
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dbdefs.h>
-#include <errbase.h>
+#include <errno.h>
 
 /*  ----------------------------------- This */
 #include <dsptrap.h>
@@ -50,14 +50,16 @@ extern int hMediaFile;		/* class driver handle */
 /*
  * ======== DSPTRAP_Trap ========
  */
-DWORD DSPTRAP_Trap(Trapped_Args *args, int cmd)
+int DSPTRAP_Trap(Trapped_Args *args, int cmd)
 {
-	DWORD dwResult = DSP_EHANDLE;/* returned from call into class driver */
+	int dwResult = -EFAULT;/* returned from call into class driver */
 
 	if (hMediaFile >= 0)
 		dwResult = ioctl(hMediaFile, cmd, args);
 	else
 		DEBUGMSG(DSPAPI_ZONE_FUNCTION, "Invalid handle to driver\n");
 
+	if (dwResult < 0)
+		dwResult = -errno;
 	return dwResult;
 }

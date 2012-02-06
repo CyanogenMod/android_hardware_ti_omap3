@@ -1,23 +1,23 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * dspbridge/mpu_api/inc/DSPProcessor.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 
 /*
  *  ======== DSPProcessor.h ========
- *  DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *  Description:
  *      This is the header for the DSP/BIOS Bridge processor module.
  *
@@ -73,13 +73,13 @@ extern "C" {
  *                              A NULL value means use default values.
  *      phProcessor:            Ptr to location to store processor handle.
  *  Returns:
- *      DSP_SOK:                Success.
- *      DSP_EPOINTER:           Parameter phProcessor is not valid.
- *      DSP_EINVALIDARG:        Parameter uProcessor is invalid
- *      DSP_EFAIL:              Unable to attach the processor
- *      DSP_SALREADYATTACHED:   Success; Processor already attached.
+ *      0:                  Success.
+ *      -EFAULT:            Parameter phProcessor is not valid.
+ *      -EINVAL:            Parameter uProcessor is invalid
+ *      -EPERM:             Unable to attach the processor
+ *      0:                  Success; Processor already attached.
  *  Details:
- *      Returns DSP_EINVALIDARG if uProcessor index >= number of processors.
+ *      Returns -EINVAL if uProcessor index >= number of processors.
  *      When pAttrIn is NULL, the default timeout value is 10 seconds.
  *      This call does not affect the actual execution state of the DSP.
  */
@@ -96,9 +96,9 @@ extern "C" {
  *  Parameters:
  *      hProcessor:     The processor handle.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EHANDLE:    Invalid processor handle.
- *      DSP_EFAIL:      Unable to detach from the processor.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid processor handle.
+ *      -EPERM:             Unable to detach from the processor.
  *  Details:
  *      This call does not affect the actual execution state of the DSP.
  */
@@ -118,14 +118,14 @@ extern "C" {
  *      puAllocated:    Location where DSPProcessor_EnumNodes will return
  *                      the number of nodes that are allocated on the DSP.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EHANDLE:    Invalid processor handle.
- *      DSP_EPOINTER:   Parameters puNumNodes or puAllocated is not valid
- *      DSP_ESIZE:      The amount of memory allocated for aNodeTab is
+ *       0:        	 Success.
+ *      -EFAULT:        Invalid processor handle.
+ *      -EFAULT:        Parameters puNumNodes or puAllocated is not valid
+ *      -EINVAL:        The amount of memory allocated for aNodeTab is
  *                      insufficent.   The number of nodes actually
  *                      allocated on the DSP is greater than the value
  *                      specified for uNodeTabSize.
- *      DSP_EFAIL:      A failure occurred during enumeration.
+ *      -EPERM:         A failure occurred during enumeration.
  *  Details:
  */
 	extern DBAPI DSPProcessor_EnumNodes(DSP_HPROCESSOR hProcessor,
@@ -144,9 +144,9 @@ extern "C" {
  *      ulSize          :   Buffer size
  *      ulFlags         :   Reserved.
  *  Returns:
- *      DSP_SOK         :   Success.
- *      DSP_EHANDLE     :   Invalid processor handle.
- *      DSP_EFAIL       :   General failure.
+ *      0               :   Success.
+ *      -EFAULT         :   Invalid processor handle.
+ *      -EPERM          :   General failure.
  *  Requires:
  *      PROC Initialized.
  *  Ensures:
@@ -166,9 +166,9 @@ extern "C" {
  *      pMpuAddr        :   Buffer start address
  *      ulSize          :   Buffer size
  *  Returns:
- *      DSP_SOK         :   Success.
- *      DSP_EHANDLE     :   Invalid processor handle.
- *      DSP_EFAIL       :   General failure.
+ *      0               :   Success.
+ *      -EFAULT         :   Invalid processor handle.
+ *      -EPERM          :   General failure.
  *  Requires:
  *      PROC Initialized.
  *  Ensures:
@@ -189,18 +189,18 @@ extern "C" {
  *                          the processor resource information will be returned.
  *      uResourceInfoSize:  Size of the DSP_RESOURCEINFO structure.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid processor handle.
- *      DSP_EPOINTER:       Parameter pResourceInfo is not valid
- *      DSP_EVALUE:         Parameter uResourceType is invalid.
- *      DSP_EWRONGSTATE:    The processor is not in the PROC_RUNNING state.
- *      DSP_ETIMEOUT:       A timeout occured before the DSP responded to the
+ *      0:                  Success.
+ *      -EFAULT:            Invalid processor handle.
+ *      -EFAULT:            Parameter pResourceInfo is not valid
+ *      -EINVAL:            Parameter uResourceType is invalid.
+ *      -EBADR:             The processor is not in the PROC_RUNNING state.
+ *      -ETIME:             A timeout occured before the DSP responded to the
  *                          querry.
  *      DSP_ERESTART:       A Critical error has occured and the DSP is being
  *                          restarted.
- *      DSP_ESIZE:          The size of the specified DSP_RESOURCEINFO struct
+ *      -EINVAL:            The size of the specified DSP_RESOURCEINFO struct
  *                          is too small to hold all the information.
- *      DSP_EFAIL:          Unable to get Resource Information
+ *      -EPERM:             Unable to get Resource Information
  *  Details:
  */
 	extern DBAPI DSPProcessor_GetResourceInfo(DSP_HPROCESSOR hProcessor,
@@ -219,11 +219,11 @@ extern "C" {
  *                          structure.
  *      uStateInfoSize:     Size of DSP_PROCESSORSTATE.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid processor handle.
- *      DSP_EPOINTER:       Parameter pProcStatus is not valid.
- *      DSP_EFAIL:          General failure while querying processor state.
- *      DSP_ESIZE:          uStateInfoSize is smaller than sizeof
+ *      0:                  Success.
+ *      -EFAULT:            Invalid processor handle.
+ *      -EFAULT:            Parameter pProcStatus is not valid.
+ *      -EPERM:             General failure while querying processor state.
+ *      -EINVAL:            uStateInfoSize is smaller than sizeof
  *                          DSP_PROCESSORSTATE.
  *  Details:
  */
@@ -244,11 +244,11 @@ extern "C" {
  *      ppMapAddr       :   Ptr to DSP side mapped BYTE address.
  *      ulMapAttr       :   Optional endianness attributes, virt to phys flag.
  *  Returns:
- *      DSP_SOK         :   Success.
- *      DSP_EHANDLE     :   Invalid processor handle.
- *      DSP_EFAIL       :   General failure.
- *      DSP_EMEMORY     :   MPU side memory allocation error.
- *      DSP_ENOTFOUND   :   Cannot find a reserved region starting with this
+ *      0               :   Success.
+ *      -EFAULT         :   Invalid processor handle.
+ *      -EPERM          :   General failure.
+ *      -ENOMEM         :   MPU side memory allocation error.
+ *      -ENOENT         :   Cannot find a reserved region starting with this
  *                      :   address.
  *  Requires:
  *      pMpuAddr is not NULL
@@ -275,12 +275,12 @@ extern "C" {
  *      hNotification:      Handle or event name to be used for notification.
  *                          about, or to de-register this notification.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid processor handle or hNotification.
- *      DSP_EVALUE:         Parameter uEventMask is Invalid
+ *      0:                  Success.
+ *      -EFAULT:            Invalid processor handle or hNotification.
+ *      -EINVAL:            Parameter uEventMask is Invalid
  *      DSP_ENOTIMP:        The notification type specified in uNotifyType
  *                          is not supported.
- *      DSP_EFAIL:          Unable to register for notification.
+ *      -EPERM:             Unable to register for notification.
  *  Details:
  */
 	extern DBAPI DSPProcessor_RegisterNotify(DSP_HPROCESSOR hProcessor,
@@ -298,10 +298,10 @@ extern "C" {
  *      ulSize          :   Size of the address space to reserve.
  *      ppRsvAddr       :   Ptr to DSP side reserved BYTE address.
  *  Returns:
- *      DSP_SOK         :   Success.
- *      DSP_EHANDLE     :   Invalid processor handle.
- *      DSP_EFAIL       :   General failure.
- *      DSP_EMEMORY     :   Cannot reserve chunk of this size.
+ *      0               :   Success.
+ *      -EFAULT         :   Invalid processor handle.
+ *      -EPERM          :   General failure.
+ *      -ENOMEM         :   Cannot reserve chunk of this size.
  *  Requires:
  *      ppRsvAddr is not NULL
  *      PROC Initialized.
@@ -320,10 +320,10 @@ extern "C" {
  *      hProcessor      :   The processor handle.
  *      pMapAddr        :   Starting address of the mapped memory region.
  *  Returns:
- *      DSP_SOK         :   Success.
- *      DSP_EHANDLE     :   Invalid processor handle.
- *      DSP_EFAIL       :   General failure.
- *      DSP_ENOTFOUND   :   Cannot find a mapped region starting with this
+ *      0               :   Success.
+ *      -EFAULT         :   Invalid processor handle.
+ *      -EPERM          :   General failure.
+ *      -ENOENT         :   Cannot find a mapped region starting with this
  *                      :   address.
  *  Requires:
  *      pMapAddr is not NULL
@@ -342,10 +342,10 @@ extern "C" {
  *      hProcessor      :   The processor handle.
  *      pRsvAddr        :   Ptr to DSP side reservedBYTE address.
  *  Returns:
- *      DSP_SOK         :   Success.
- *      DSP_EHANDLE     :   Invalid processor handle.
- *      DSP_EFAIL       :   General failure.
- *      DSP_ENOTFOUND   :   Cannot find a reserved region starting with this
+ *      0               :   Success.
+ *      -EFAULT         :   Invalid processor handle.
+ *      -EPERM          :   General failure.
+ *      -ENOENT         :   Cannot find a reserved region starting with this
  *                      :   address.
  *  Requires:
  *      pRsvAddr is not NULL
