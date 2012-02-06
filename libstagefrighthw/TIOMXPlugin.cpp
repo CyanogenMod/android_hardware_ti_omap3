@@ -72,9 +72,9 @@ OMX_ERRORTYPE TIOMXPlugin::makeComponentInstance(
     }
 
     return (*mGetHandle)(
-            reinterpret_cast<OMX_HANDLETYPE *>(component),
-            const_cast<char *>(name),
-            appData, const_cast<OMX_CALLBACKTYPE *>(callbacks));
+        reinterpret_cast<OMX_HANDLETYPE *>(component),
+        const_cast<char *>(name),
+        appData, const_cast<OMX_CALLBACKTYPE *>(callbacks));
 }
 
 OMX_ERRORTYPE TIOMXPlugin::destroyComponentInstance(
