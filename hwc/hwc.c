@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 #include <errno.h>
 #include <malloc.h>
 #include <stdlib.h>
@@ -56,6 +55,11 @@
 #define HAL_PIXEL_FORMAT_TI_NV12 0x100
 #define HAL_PIXEL_FORMAT_TI_NV12_PADDED 0x101
 #define MAX_TILER_SLOT (16 << 20)
+
+#define HAL_PIXEL_FORMAT_YUV_422                    27
+#define HAL_PIXEL_FORMAT_YUV_420                    19
+
+
 
 #define MIN(a,b)		  ((a)<(b)?(a):(b))
 #define MAX(a,b)		  ((a)>(b)?(a):(b))
@@ -142,17 +146,57 @@ struct omap3_hwc_device {
 };
 typedef struct omap3_hwc_device omap3_hwc_device_t;
 
+static int debug = 0;
+
+static void dump_layer(hwc_layer_t const* l)
+{
+    LOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
+            l->compositionType, l->flags, l->handle, l->transform, l->blending,
+            l->sourceCrop.left,
+            l->sourceCrop.top,
+            l->sourceCrop.right,
+            l->sourceCrop.bottom,
+            l->displayFrame.left,
+            l->displayFrame.top,
+            l->displayFrame.right,
+            l->displayFrame.bottom);
+}
+
 static void dump_dsscomp(struct dsscomp_setup_dispc_data *d)
 {
     unsigned i;
 
+    LOGD("[%08x] set: %c%c%c %d ovls\n",
+         d->sync_id,
+         (d->mode & DSSCOMP_SETUP_MODE_APPLY) ? 'A' : '-',
+         (d->mode & DSSCOMP_SETUP_MODE_DISPLAY) ? 'D' : '-',
+         (d->mode & DSSCOMP_SETUP_MODE_CAPTURE) ? 'C' : '-',
+         d->num_ovls);
+
     for (i = 0; i < d->num_mgrs; i++) {
         struct dss2_mgr_info *mi = d->mgrs + i;
+        LOGD(" (dis%d alpha=%d col=%08x ilace=%d)\n",
+            mi->ix,
+            mi->alpha_blending, mi->default_color,
+            mi->interlaced);
     }
 
     for (i = 0; i < d->num_ovls; i++) {
             struct dss2_ovl_info *oi = d->ovls + i;
             struct dss2_ovl_cfg *c = &oi->cfg;
+            if (c->zonly)
+                    LOGE("ovl%d(%s z%d)\n",
+                         c->ix, c->enabled ? "ON" : "off", c->zorder);
+            else
+                    LOGE("ovl%d(%s z%d %x%s *%d%% %d*%d:%d,%d+%d,%d rot%d%s => %d,%d+%d,%d %p/%p|%d)\n",
+                         c->ix, c->enabled ? "ON" : "off", c->zorder, c->color_mode,
+                         c->pre_mult_alpha ? " premult" : "",
+                         (c->global_alpha * 100 + 128) / 255,
+                         c->width, c->height, c->crop.x, c->crop.y,
+                         c->crop.w, c->crop.h,
+                         c->rotation, c->mirror ? "+mir" : "",
+                         c->win.x, c->win.y, c->win.w, c->win.h,
+                         (void *) oi->ba, (void *) oi->uv, c->stride);
     }
 }
 
@@ -166,6 +210,8 @@ static int omap3_hwc_is_valid_format(int format)
     case HAL_PIXEL_FORMAT_BGRX_8888:
     case HAL_PIXEL_FORMAT_TI_NV12:
     case HAL_PIXEL_FORMAT_TI_NV12_PADDED:
+    case HAL_PIXEL_FORMAT_YUV_422:
+    case HAL_PIXEL_FORMAT_YUV_420:
         return 1;
 
     default:
@@ -197,7 +243,7 @@ static int sync_id = 0;
 
 #define is_RGB(format) ((format) == HAL_PIXEL_FORMAT_BGRA_8888 || (format) == HAL_PIXEL_FORMAT_RGB_565 || (format) == HAL_PIXEL_FORMAT_BGRX_8888)
 #define is_BGR(format) ((format) == HAL_PIXEL_FORMAT_RGBX_8888 || (format) == HAL_PIXEL_FORMAT_RGBA_8888)
-#define is_NV12(format) ((format) == HAL_PIXEL_FORMAT_TI_NV12 || (format) == HAL_PIXEL_FORMAT_TI_NV12_PADDED)
+#define is_NV12(format) ((format) == HAL_PIXEL_FORMAT_TI_NV12 || (format) == HAL_PIXEL_FORMAT_TI_NV12_PADDED || (format) == HAL_PIXEL_FORMAT_YUV_422 || (format) == HAL_PIXEL_FORMAT_YUV_420)
 
 static int dockable(hwc_layer_t *layer)
 {
@@ -254,8 +300,16 @@ omap3_hwc_setup_layer_base(struct dss2_ovl_cfg *oc, int index, int format, int b
         oc->cconv = ctbl_bt601_5;
         break;
 
+     case HAL_PIXEL_FORMAT_YUV_422:
+     case HAL_PIXEL_FORMAT_YUV_420:
+        oc->color_mode = OMAP_DSS_COLOR_UYVY;
+        bits_per_pixel = 16;
+	    oc->cconv = ctbl_bt601_5;
+	break;
+
     default:
         /* Should have been filtered out */
+        LOGV("Unsupported pixel format");
         return;
     }
 
@@ -283,7 +337,9 @@ omap3_hwc_setup_layer(omap3_hwc_device_t *hwc_dev, struct dss2_ovl_info *ovl,
                       int format, int width, int height)
 {
     struct dss2_ovl_cfg *oc = &ovl->cfg;
- 
+
+
+//    dump_layer(layer);
     omap3_hwc_setup_layer_base(oc, index, format, is_BLENDED(layer->blending), width, height);
 
      /* convert transformation - assuming 0-set config */
@@ -707,6 +763,9 @@ static int omap3_hwc_set_best_hdmi_mode(omap3_hwc_device_t *hwc_dev, __u32 xres,
         /* pick highest frame rate */
         score = (score << 8) | d.modedb[i].refresh;
 
+        LOGD("#%d: %dx%d %dHz", i, d.modedb[i].xres, d.modedb[i].yres, d.modedb[i].refresh);
+        if (debug)
+            LOGD("  score=%u adj.res=%dx%d", score, ext_fb_xres, ext_fb_yres);
         if (best_score < score) {
             ext->width = ext_width;
             ext->height = ext_height;
@@ -719,6 +778,7 @@ static int omap3_hwc_set_best_hdmi_mode(omap3_hwc_device_t *hwc_dev, __u32 xres,
     if (~best) {
         struct dsscomp_setup_display_data sdis = { .ix = 1, };
         sdis.mode = d.dis.modedb[best];
+        LOGD("picking #%d", best);
         /* only reconfigure on change */
         if (ext->last_mode != ~best)
             ioctl(hwc_dev->dsscomp_fd, DSSCIOC_SETUP_DISPLAY, &sdis);
@@ -735,6 +795,7 @@ static int omap3_hwc_set_best_hdmi_mode(omap3_hwc_device_t *hwc_dev, __u32 xres,
             !omap3_hwc_can_scale(xres, yres, ext_fb_xres, ext_fb_yres,
                                  1, &d.dis, &limits,
                                  d.dis.timings.pixel_clock)) {
+            LOGE("DSS scaler cannot support HDMI cloning");
             return -1;
         }
     }
@@ -820,10 +881,10 @@ static inline int can_dss_render_all(omap3_hwc_device_t *hwc_dev, struct counts 
 
 
     return  !hwc_dev->force_sgx &&
+		!num->BGR && !num->RGB &&
             /* must have at least one layer if using composition bypass to get sync object */
             num->possible_overlay_layers &&
             num->possible_overlay_layers <= num->max_hw_overlays &&
-            num->possible_overlay_layers == num->composited_layers &&
             num->scaled_layers <= num->max_scaling_overlays &&
             num->NV12 <= num->max_scaling_overlays &&
             /* fits into TILER slot */
@@ -843,6 +904,8 @@ static inline int can_dss_render_layer(omap3_hwc_device_t *hwc_dev,
     int tform = hwc_dev->ext.current.enabled && (hwc_dev->ext.current.rotation || hwc_dev->ext.current.hflip);
 
     return omap3_hwc_is_valid_layer(hwc_dev, layer, handle) &&
+		!(is_RGB(handle->iFormat)) &&
+		!(is_BGR(handle->iFormat)) &&
            /* cannot rotate non-NV12 layers on external display */
            (!tform || is_NV12(handle->iFormat)) &&
            /* skip non-NV12 layers if also using SGX (if nv12_only flag is set) */
@@ -869,6 +932,7 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
     pthread_mutex_lock(&hwc_dev->lock);
     memset(dsscomp, 0x0, sizeof(*dsscomp));
     dsscomp->sync_id = sync_id++;
+	hwc_dev->force_sgx = 1; //Always all UI layers have to go to SGX for composition in OMAP3.
 
     /* Figure out how many layers we can support via DSS */
     for (i = 0; list && i < list->numHwLayers; i++) {
@@ -906,9 +970,10 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
 
     /* hack for omap3, overlay can be active only for YUV format */
     /* For other formats everything has to go through frame buffer */ 
-    if (!num.NV12)
+
+    if (num.NV12)
     {
-          hwc_dev->force_sgx = 1;
+          hwc_dev->force_sgx = 0;
     }
 
     /* phase 3 logic */
@@ -920,6 +985,20 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
         /* Use SGX for composition plus first 3 layers that are DSS renderable */
         hwc_dev->use_sgx = 1;
         hwc_dev->swap_rb = is_BGR(hwc_dev->fb_dev->base.format);
+    }
+  
+    if (debug) {
+        LOGD("prepare (%d) - %s (comp=%d, poss=%d/%d scaled, RGB=%d,BGR=%d,NV12=%d) (ext=%s%s%ddeg%s %dex/%dmx (last %dex,%din)\n",
+             dsscomp->sync_id,
+             hwc_dev->use_sgx ? "SGX+OVL" : "all-OVL",
+             num.composited_layers,
+             num.possible_overlay_layers, num.scaled_layers,
+             num.RGB, num.BGR, num.NV12,
+             hwc_dev->ext.on_tv ? "tv+" : "",
+             hwc_dev->ext.current.enabled ? hwc_dev->ext.current.docking ? "dock+" : "mirror+" : "OFF+",
+             hwc_dev->ext.current.rotation * 90,
+             hwc_dev->ext.current.hflip ? "+hflip" : "",
+             hwc_dev->ext_ovls, num.max_hw_overlays, hwc_dev->last_ext_ovls, hwc_dev->last_int_ovls);
     }
 
     /* setup pipes */
@@ -956,6 +1035,7 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
             else if (is_BLENDED(layer) && i > 0)
                 hwc_dev->ovls_blending = 1;
 
+            LOGD("In fordsscomp->num_ovls = %d handle = %x *handle = %x\n", dsscomp->num_ovls, handle, *handle);
             hwc_dev->buffers[dsscomp->num_ovls] = handle;
 
             omap3_hwc_setup_layer(hwc_dev,
@@ -1001,6 +1081,7 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
         }
     }
 
+   LOGD("DSSCOMP->num_ovls = %d\n", dsscomp->num_ovls);
     /* if scaling GFX (e.g. only 1 scaled surface) use a VID pipe */
     if (scaled_gfx)
         dsscomp->ovls[0].cfg.ix = dsscomp->num_ovls;
@@ -1008,6 +1089,8 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
     if (hwc_dev->use_sgx) {
         /* assign a z-layer for fb */
         if (fb_z < 0) {
+            if (num.composited_layers)
+                LOGE("**** should have assigned z-layer for fb");
             fb_z = z++;
         }
 
@@ -1076,6 +1159,7 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
                     yres != hwc_dev->ext.last_yres_used ||
                     xpy < hwc_dev->ext.last_xpy * (1.f - ASPECT_RATIO_TOLERANCE) ||
                     xpy * (1.f - ASPECT_RATIO_TOLERANCE) > hwc_dev->ext.last_xpy) {
+                    LOGD("set up HDMI for %d*%d\n", xres, yres);
                     if (omap3_hwc_set_best_hdmi_mode(hwc_dev, xres, yres, xpy)) {
                         o->cfg.enabled = 0;
                         hwc_dev->ext.current.enabled = 0;
@@ -1096,6 +1180,21 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
         }
     }
     hwc_dev->ext.last = hwc_dev->ext.current;
+
+    if (z != dsscomp->num_ovls || dsscomp->num_ovls > MAX_HW_OVERLAYS)
+        LOGE("**** used %d z-layers for %d overlays\n", z, dsscomp->num_ovls);
+
+    /* verify all z-orders and overlay indices are distinct */
+    for (i = z = ix = 0; i < dsscomp->num_ovls; i++) {
+        struct dss2_ovl_cfg *c = &dsscomp->ovls[i].cfg;
+
+        if (z & (1 << c->zorder))
+            LOGE("**** used z-order #%d multiple times", c->zorder);
+        if (ix & (1 << c->ix))
+            LOGE("**** used ovl index #%d multiple times", c->ix);
+        z |= 1 << c->zorder;
+        ix |= 1 << c->ix;
+    }
 
     dsscomp->mode = DSSCOMP_SETUP_DISPLAY;
     dsscomp->mgrs[0].ix = 0;
@@ -1125,13 +1224,19 @@ static void omap3_hwc_reset_screen(omap3_hwc_device_t *hwc_dev)
         };
         /* remove bootloader image from the screen as blank/unblank does not change the composition */
         ret = ioctl(hwc_dev->dsscomp_fd, DSSCIOC_SETUP_DISPC, &d);
+        if (ret)
+            LOGW("failed to remove bootloader image");
 
         /* blank and unblank fd to make sure display is properly programmed on boot.
          * This is needed because the bootloader can not be trusted.
          */
         ret = ioctl(hwc_dev->fb_fd, FBIOBLANK, FB_BLANK_POWERDOWN);
+        if (ret)
+            LOGW("failed to blank display");
 
         ret = ioctl(hwc_dev->fb_fd, FBIOBLANK, FB_BLANK_UNBLANK);
+        if (ret)
+            LOGW("failed to blank display");
     }
 }
 
@@ -1203,6 +1308,11 @@ static int omap3_hwc_set(struct hwc_composer_device *dev, hwc_display_t dpy,
         e -= snprintf(end - e, e, "%p", hwc_dev->buffers[i]);
     }
     e -= snprintf(end - e, e, "}%s\n", hwc_dev->use_sgx ? " swap" : "");
+    if (debug) {
+        LOGD("%s", big_log);
+    }
+
+    // LOGD("set %d layers (sgx=%d)\n", dsscomp->num_ovls, hwc_dev->use_sgx);
 
     if (dpy && sur) {
         // list can be NULL which means hwc is temporarily disabled.
@@ -1211,12 +1321,13 @@ static int omap3_hwc_set(struct hwc_composer_device *dev, hwc_display_t dpy,
 
         if (hwc_dev->use_sgx) {
             if (!eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur)) {
+                LOGE("eglSwapBuffers error");
                 err = HWC_EGL_ERROR;
                 goto err_out;
             }
         }
 
-        //dump_dsscomp(dsscomp);
+        dump_dsscomp(dsscomp);
 
         // signal the event thread that a post has happened
         write(hwc_dev->pipe_fds[1], "s", 1);
@@ -1232,12 +1343,15 @@ static int omap3_hwc_set(struct hwc_composer_device *dev, hwc_display_t dpy,
             __u32 crt = 0;
             int err2 = ioctl(hwc_dev->fb_fd, FBIO_WAITFORVSYNC, &crt);
             if (err2) {
+                LOGE("failed to wait for vsync (%d)", errno);
                 err = err ? : -errno;
             }
         }
     }
     hwc_dev->last_ext_ovls = hwc_dev->ext_ovls;
     hwc_dev->last_int_ovls = hwc_dev->post2_layers;
+    if (err)
+        LOGE("Post2 error");
 
 err_out:
     pthread_mutex_unlock(&hwc_dev->lock);
@@ -1334,6 +1448,7 @@ static int omap3_hwc_open_fb_hal(IMG_framebuffer_device_public_t **fb_dev)
     return 0;
 
 err_out:
+    LOGE("Composer HAL failed to load compatible Graphics HAL");
     return err;
 }
 
@@ -1381,6 +1496,14 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
         ext->last_mode = 0;
     }
     omap3_hwc_create_ext_matrix(ext);
+    LOGI("external display changed (state=%d, mirror={%s tform=%ddeg%s}, dock={%s tform=%ddeg%s}, tv=%d", state,
+         ext->mirror.enabled ? "enabled" : "disabled",
+         ext->mirror.rotation * 90,
+         ext->mirror.hflip ? "+hflip" : "",
+         ext->dock.enabled ? "enabled" : "disabled",
+         ext->dock.rotation * 90,
+         ext->dock.hflip ? "+hflip" : "",
+         ext->on_tv);
 
     pthread_mutex_unlock(&hwc_dev->lock);
 
@@ -1446,7 +1569,8 @@ static void *omap3_hwc_hdmi_thread(void *data)
 
         if (err == -1) {
             if (errno != EINTR)
-                continue;
+                LOGE("event error: %m");
+            continue;
         }
 
         if (hwc_dev->idle && fds[1].revents & POLLIN) {
@@ -1491,6 +1615,7 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
             return err;
 
         if (!hwc_mod->fb_dev) {
+            LOGE("Framebuffer HAL not opened before HWC");
             return -EFAULT;
         }
         hwc_mod->fb_dev->bBypassPost = 1;
@@ -1515,12 +1640,14 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
 
     hwc_dev->dsscomp_fd = open("/dev/dsscomp", O_RDWR);
     if (hwc_dev->dsscomp_fd < 0) {
+        LOGE("failed to open dsscomp (%d)", errno);
         err = -errno;
         goto done;
     }
 #if 0 /*Currently commented hdmi fb fd*/
     hwc_dev->hdmi_fb_fd = open("/dev/graphics/fb1", O_RDWR);
     if (hwc_dev->hdmi_fb_fd < 0) {
+        LOGE("failed to open hdmi fb (%d)", errno);
         err = -errno;
         goto done;
     }
@@ -1528,6 +1655,7 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
 
     hwc_dev->fb_fd = open("/dev/graphics/fb0", O_RDWR);
     if (hwc_dev->fb_fd < 0) {
+        LOGE("failed to open fb (%d)", errno);
         err = -errno;
         goto done;
     }
@@ -1540,22 +1668,26 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
 
     int ret = ioctl(hwc_dev->dsscomp_fd, DSSCIOC_QUERY_DISPLAY, &hwc_dev->fb_dis);
     if (ret) {
+        LOGE("failed to get display info (%d): %m", errno);
         err = -errno;
         goto done;
     }
 
     if (pipe(hwc_dev->pipe_fds) == -1) {
+            LOGE("failed to event pipe (%d): %m", errno);
             err = -errno;
             goto done;
     }
 
     if (pthread_mutex_init(&hwc_dev->lock, NULL)) {
+            LOGE("failed to create mutex (%d): %m", errno);
             err = -errno;
             goto done;
     }
 
     if (pthread_create(&hwc_dev->hdmi_thread, NULL, omap3_hwc_hdmi_thread, hwc_dev))
     {
+            LOGE("failed to create HDMI listening thread (%d): %m", errno);
             err = -errno;
             goto done;
     }
@@ -1582,6 +1714,9 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
         struct hwc_rect fb_region = { .right = hwc_dev->fb_dev->base.width, .bottom = hwc_dev->fb_dev->base.height };
         hwc_dev->ext.mirror_region = fb_region;
     }
+    LOGI("clone region is set to (%d,%d) to (%d,%d)",
+         hwc_dev->ext.mirror_region.left, hwc_dev->ext.mirror_region.top,
+         hwc_dev->ext.mirror_region.right, hwc_dev->ext.mirror_region.bottom);
 
     /* read switch state */
     int sw_fd = open("/sys/class/switch/hdmi/state", O_RDONLY);
@@ -1593,6 +1728,9 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
         close(sw_fd);
     }
     handle_hotplug(hwc_dev, hpd);
+
+    LOGE("omap3_hwc_device_open(rgb_order=%d nv12_only=%d)",
+        hwc_dev->flags_rgb_order, hwc_dev->flags_nv12_only);
 
 done:
     if (err && hwc_dev) {
