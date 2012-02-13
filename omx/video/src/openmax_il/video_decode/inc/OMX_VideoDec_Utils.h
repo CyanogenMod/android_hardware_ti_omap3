@@ -27,7 +27,10 @@
 #undef LOG_TAG
 #define LOG_TAG "TI_Video_Decoder"
 #endif
-#include <cutils/properties.h>
+#include "properties.h"
+#include "native_handle.h"
+#include "hardware/gralloc.h"
+#include "window.h"
 
     #define _XOPEN_SOURCE 600
     #include <sys/select.h>
@@ -79,13 +82,21 @@
 #define VIDDEC_WMVPOINTERFIXED
 #define VIDDEC_HANDLE_FULL_STRM_PROP_OBJ
 
+
+//Define port indices in video decoder proxy
+#define OMX_VIDEODECODER_INPUT_PORT 0
+#define OMX_VIDEODECODER_OUTPUT_PORT 1
+#define OMX_VER_MAJOR 0x1
+#define OMX_VER_MINOR 0x1
+#define MAX_SUB_ALLOCS 3
+
 #include <sched.h>
 #include <OMX_Core.h>
 #include <OMX_TI_Debug.h>
 #include "OMX_VideoDecoder.h"
 #include "OMX_VidDec_CustomCmd.h"
 #include "OMX_TI_Common.h"
-#include "overlay_common.h"
+
 
 
 #ifdef KHRONOS_1_1
@@ -157,9 +168,9 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #define __STD_COMPONENT__
 
 #ifdef ANDROID
-#define MAX_PRIVATE_IN_BUFFERS              NUM_OVERLAY_BUFFERS_REQUESTED
-#define MAX_PRIVATE_OUT_BUFFERS             NUM_OVERLAY_BUFFERS_REQUESTED
-#define MAX_PRIVATE_BUFFERS                 NUM_OVERLAY_BUFFERS_REQUESTED
+#define MAX_PRIVATE_IN_BUFFERS              6
+#define MAX_PRIVATE_OUT_BUFFERS             6
+#define MAX_PRIVATE_BUFFERS                 6
 #else
 #define MAX_PRIVATE_IN_BUFFERS              4
 #define MAX_PRIVATE_OUT_BUFFERS             4
@@ -423,6 +434,9 @@ typedef enum VIDDEC_CUSTOM_PARAM_INDEX
     VideoDecodeCustomParamWMVFileType,
     VideoDecodeCustomParamParserEnabled,
     VideoDecodeCustomParamIsNALBigEndian,
+    VideoDecodeEnableAndroidNativeBuffers,            
+    VideoDecodeGetAndroidNativeBufferUsage,
+    VideoDecodeGetAndroiduseAndroidNativeBuffer2,
 #ifdef VIDDEC_SPARK_CODE
     VideoDecodeCustomParamIsSparkInput,
 #endif
@@ -598,6 +612,14 @@ typedef struct VIDDEC_CIRCULAR_BUFFER {
     OMX_U32 nCount;
 } VIDDEC_CIRCULAR_BUFFER;
 
+typedef enum VIDDEC_BUFFER_TYPE
+	{
+		VirtualPointers,   /*Used when buffer pointers come from the normal A9 virtual space */
+		GrallocPointers,   /*Used when buffer pointers come from Gralloc allocations */
+		IONPointers,       /*Used when buffer pointers come from ION allocations */
+		EncoderMetadataPointers		/*Used when buffer pointers come from Stagefright in camcorder usecase */
+	} VIDDEC_BUFFER_TYPE;
+
 typedef struct VIDDEC_PORT_TYPE
 {
     OMX_HANDLETYPE hTunnelComponent;
@@ -605,6 +627,8 @@ typedef struct VIDDEC_PORT_TYPE
     OMX_BUFFERSUPPLIERTYPE eSupplierSetting;
     VIDDEC_BUFFER_PRIVATE* pBufferPrivate[MAX_PRIVATE_BUFFERS];
     OMX_U8 nBufferCnt;
+    VIDDEC_BUFFER_TYPE VIDDECBufferType;   /*Used when buffer pointers come from the normal A9 virtual space */
+    OMX_U32 IsBuffer2D;   /*Used when buffer pointers come from Gralloc allocations */
 } VIDDEC_PORT_TYPE;
 
 typedef struct VIDDEC_MUTEX{
@@ -823,6 +847,36 @@ typedef struct PV_OMXComponentCapabilityFlagsType
 } PV_OMXComponentCapabilityFlagsType;
 #endif
 
+/**
+* A pointer to this struct is passed to the OMX_SetParameter when the extension
+* index for the 'OMX.google.android.index.enableAndroidNativeBuffers' extension
+* is given.
+* The corresponding extension Index is OMX_TI_IndexUseNativeBuffers.
+* This will be used to inform OMX about the presence of gralloc pointers instead
+* of virtual pointers
+*/
+typedef struct OMX_TI_PARAMUSENATIVEBUFFER {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_BOOL bEnable;
+} OMX_TI_PARAMUSENATIVEBUFFER;
+
+/**
+* A pointer to this struct is passed to OMX_GetParameter when the extension
+* index for the 'OMX.google.android.index.getAndroidNativeBufferUsage'
+* extension is given.
+* The corresponding extension Index is OMX_TI_IndexAndroidNativeBufferUsage.
+* The usage bits returned from this query will be used to allocate the Gralloc
+* buffers that get passed to the useAndroidNativeBuffer command.
+*/
+typedef struct OMX_TI_PARAMNATIVEBUFFERUSAGE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_U32 nUsage;
+} OMX_TI_PARAMNATIVEBUFFERUSAGE;
+
 typedef struct VIDEO_PROFILE_LEVEL
 {
     OMX_S32  nProfile;
@@ -993,6 +1047,20 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_S32 nLastErrorSeverity;
    /*to remember if OMX client uses cacheable buffers for output*/
    OMX_BOOL bCacheableOutputBuffers;
+
+    OMX_U32 nTotalBuffers;
+    gralloc_module_t const *grallocModule;
+    OMX_U32 count_ion_buff;
+    OMX_U8 *ion_handle[6];
+    OMX_U8 *out_buff[6];
+
+//#ifdef USE_ION
+	int ion_fd;
+	OMX_BOOL bUseIon;
+	OMX_BOOL bMapIonBuffers;
+//#endif
+
+
 } VIDDEC_COMPONENT_PRIVATE;
 
 /*****************macro definitions*********************/

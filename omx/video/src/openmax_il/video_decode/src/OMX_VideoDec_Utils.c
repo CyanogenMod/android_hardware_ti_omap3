@@ -55,6 +55,21 @@
 #include "OMX_VideoDec_DSP.h"
 #include "OMX_VideoDec_Thread.h"
 #include "usn.h"
+
+#define ENABLE_GRALLOC_BUFFERS
+#define USE_ION
+#ifdef USE_ION
+#include <sys/mman.h>
+#include <sys/eventfd.h>
+#include <ion.h>
+#endif
+
+#define LOG_NDEBUG 0
+#define LOG_TAG "OMX_VideoDec_Utils"
+#include <utils/Log.h>
+#include <stdlib.h>
+#include "../../../../../../omap3/hwc/hal_public.h" 
+
 /* Make private Convert1ByteTo1BitMBErrorArray
  * */
 static OMX_S32 Convert1ByteTo1BitMBErrorArray (OMX_U8* ErrMapFrom,
@@ -1452,8 +1467,18 @@ OMX_ERRORTYPE VIDDEC_EmptyBufferDone(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate
 
 OMX_ERRORTYPE VIDDEC_FillBufferDone(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BUFFERHEADERTYPE* pBufferHeader)
 {
+  	IMG_native_handle_t*  grallocHandle;
+
     OMX_PRBUFFER1(pComponentPrivate->dbg, " pBufferHeader: %p pBuffer: %p \n", pBufferHeader, pBufferHeader->pBuffer);
     ((VIDDEC_BUFFER_PRIVATE* )pBufferHeader->pOutputPortPrivate)->eBufferOwner = VIDDEC_BUFFER_WITH_CLIENT;
+
+	if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->VIDDECBufferType == GrallocPointers) {
+    	grallocHandle = (IMG_native_handle_t*)pBufferHeader->pBuffer;
+
+		pComponentPrivate->grallocModule->unlock((gralloc_module_t const *) pComponentPrivate->grallocModule,
+				                                 (buffer_handle_t)grallocHandle);
+	}
+    
 
     /* OpenMAX-IL standard specifies that a component generates the OMX_EventBufferFlag event when an OUTPUT port
      * emits a buffer with the OMX_BUFFERFLAG_EOS flag set in the nFlags field. In Tunneled mode
@@ -3257,14 +3282,28 @@ OMX_ERRORTYPE VIDDEC_HandleFreeOutputBufferFromApp(VIDDEC_COMPONENT_PRIVATE *pCo
 #endif
 
             OMX_PRDSP1(pComponentPrivate->dbg, "LCML_QueueBuffer(OUTPUT)\n");
-            eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                      EMMCodecOutputBufferMapReuse,
-                                      pBuffHead->pBuffer,
-                                      pBuffHead->nAllocLen,
-                                      pBuffHead->nFilledLen,
-                                      (OMX_U8*)(pBufferPrivate->pUalgParam),
-                                      (OMX_S32)pBufferPrivate->nUalgParamSize,
-                                      (OMX_U8*)pBuffHead);
+
+            if(pComponentPrivate->pCompPort[1]->VIDDECBufferType == GrallocPointers) {
+            	eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
+										  EMMCodecOutputBufferMapReuse,
+										  pBuffHead->pPlatformPrivate,
+										  pBuffHead->nAllocLen,
+										  pBuffHead->nFilledLen,
+										  (OMX_U8*)(pBufferPrivate->pUalgParam),
+										  (OMX_S32)pBufferPrivate->nUalgParamSize,
+										  (OMX_U8*)pBuffHead);
+            } else {            	
+				eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
+										  EMMCodecOutputBufferMapReuse,
+										  pBuffHead->pBuffer,
+										  pBuffHead->nAllocLen,
+										  pBuffHead->nFilledLen,
+										  (OMX_U8*)(pBufferPrivate->pUalgParam),
+										  (OMX_S32)pBufferPrivate->nUalgParamSize,
+										  (OMX_U8*)pBuffHead);
+
+            }
+
             if (eError != OMX_ErrorNone){
                 OMX_PRDSP4(pComponentPrivate->dbg, "LCML_QueueBuffer 0x%x\n", eError);
                 eError = OMX_ErrorHardware;
@@ -5820,6 +5859,7 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromDsp(VIDDEC_COMPONENT_PRIVATE *pComponentP
     OMX_PRBUFFER1(pComponentPrivate->dbg, "+++ENTERING\n");
     OMX_PRBUFFER1(pComponentPrivate->dbg, "pComponentPrivate 0x%p\n", (int*)pComponentPrivate);
     ret = read(pComponentPrivate->filled_outBuf_Q[0], &pBuffHead, sizeof(pBuffHead));
+
     if (ret == -1) {
         OMX_PRDSP4(pComponentPrivate->dbg, "Error while reading from dsp out pipe\n");
         eError = OMX_ErrorHardware;
@@ -5991,7 +6031,7 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromDsp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                 OMX_PRDSP4(pComponentPrivate->dbg, "Applied Concealment in buffer %p %lu(int# %lx/%lu)\n",
                         pBuffHead, ulFrameIndex, nInternalErrorCode, pBuffHead->nFilledLen);
             }
-            if(VIDDEC_ISFLAGSET(nErrorCode,VIDDEC_XDM_INSUFFICIENTDATA)){
+            /*if(VIDDEC_ISFLAGSET(nErrorCode,VIDDEC_XDM_INSUFFICIENTDATA)){
                 pBuffHead->nFlags |= OMX_BUFFERFLAG_DATACORRUPT;
                 pBuffHead->nFilledLen = 0;
                 OMX_PRDSP4(pComponentPrivate->dbg, "Insufficient Data in buffer %p %lu(int# %lx/%lu)\n",
@@ -6008,7 +6048,7 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromDsp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                 pBuffHead->nFilledLen = 0;
                 OMX_PRDSP4(pComponentPrivate->dbg, "Corrupted Header in buffer %p %lu(int# %lx/%lu)\n",
                         pBuffHead, ulFrameIndex, nInternalErrorCode, pBuffHead->nFilledLen);
-            }
+            }*/
             if(VIDDEC_ISFLAGSET(nErrorCode,VIDDEC_XDM_UNSUPPORTEDINPUT)){
                 pBuffHead->nFlags |= OMX_BUFFERFLAG_DATACORRUPT;
                 pBuffHead->nFilledLen = 0;

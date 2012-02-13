@@ -322,13 +322,15 @@ static OMX_ERRORTYPE InitMMCodecEx(OMX_HANDLETYPE hInt,
               sense to detect the mem configuration at kernel level automatically.
             */
             if((0 == strcmp("720p_h264vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)) ||
-               (0 == strcmp("720p_mp4vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)))
+               (0 == strcmp("720p_mp4vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName))||
+               (0 == strcmp("h264vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName))||
+               (0 == strcmp("mp4vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)))
             {
                 phandle->buf_invalidate_flag = OMX_FALSE;
             }
 
             if((0 == strcmp("m4venc_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)) ||
-               (0 == strcmp("h264venc_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)))
+              (0 == strcmp("h264venc_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)))
             {
                 phandle->buf_flush_flag = OMX_FALSE;
             }
@@ -662,13 +664,16 @@ static OMX_ERRORTYPE InitMMCodec(OMX_HANDLETYPE hInt,
         OMX_PRINT1 (((LCML_CODEC_INTERFACE *)hInt)->dbg, "%d :: Register Component Node\n",phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].eDllType);
 
         if((0 == strcmp("720p_h264vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)) ||
-           (0 == strcmp("720p_mp4vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)))
+          (0 == strcmp("720p_mp4vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName))||
+          (0 == strcmp("h264vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName))||
+          (0 == strcmp("mp4vdec_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)))
         {
             phandle->buf_invalidate_flag = OMX_FALSE;
         }
 
         if((0 == strcmp("m4venc_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)) ||
            (0 == strcmp("h264venc_sn.dll64P", (char*)phandle->dspCodec->NodeInfo.AllUUIDs[dllinfo].DllName)))
+
         {
             phandle->buf_flush_flag = OMX_FALSE;
         }
@@ -1114,6 +1119,7 @@ static OMX_ERRORTYPE QueueBuffer (OMX_HANDLETYPE hComponent,
                         /* Issue an memory invalidate for output buffer */
                         if (bufferLen > INVALIDATE_TRESHOLD)
                         {
+
                             status = DSPProcessor_FlushMemory(phandle->dspCodec->hProc, pDmmBuf->pAllocated, bufferLen, DSPMSG_WRBK_INV_ALL);
                             if(DSP_FAILED(status))
                             {
@@ -1127,6 +1133,7 @@ static OMX_ERRORTYPE QueueBuffer (OMX_HANDLETYPE hComponent,
                              * with the last parameter set to DSPMSG_IVALIDATE_MEM.  In this case the write
                              * back is not necessary as dsp will write out this buffer without using
                              * pre-existing information */
+
                             status = DSPProcessor_InvalidateMemory(phandle->dspCodec->hProc, pDmmBuf->pAllocated, bufferLen);
                             if(DSP_FAILED(status))
                             {

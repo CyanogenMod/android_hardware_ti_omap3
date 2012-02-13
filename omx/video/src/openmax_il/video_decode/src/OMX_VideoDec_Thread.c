@@ -71,6 +71,11 @@
 #include "OMX_VideoDec_Utils.h"
 #include "OMX_VideoDec_Thread.h"
 #include "OMX_VideoDec_DSP.h"
+#define LOG_NDEBUG 0
+#define LOG_TAG "OMX_VidDec_Thread"
+#include <utils/Log.h>
+
+
 /* Include functions useful for thread naming
  * */
 #include <sys/prctl.h>

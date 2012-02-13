@@ -71,8 +71,28 @@
 #include "OMX_VideoDec_Thread.h"
 #include "OMX_VidDec_CustomCmd.h"
 
+
+#define ENABLE_GRALLOC_BUFFERS
+#define USE_ION
+#ifdef USE_ION
+#include <sys/mman.h>
+#include <sys/eventfd.h>
+#include <ion.h>
+#endif
+
+#include "hal_public.h"
+#include "OMX_IVCommon.h"
+
+
+#define LOG_NDEBUG 0
+#define LOG_TAG "OMX_VideoDecoder"
+#include <utils/Log.h>
+
+#define HAL_NV12_PADDED_PIXEL_FORMAT (OMX_TI_COLOR_FormatYUV420PackedSemiPlanar - OMX_COLOR_FormatVendorStartUnused)
+
 /* For PPM fps measurements */
 static int mDebugFps = 0;
+int map_fd;
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
@@ -109,7 +129,10 @@ VIDDEC_CUSTOM_PARAM sVideoDecCustomParams[] = {{VIDDEC_CUSTOMPARAM_PROCESSMODE, 
                                                {VIDDEC_CUSTOMPARAM_ISSPARKINPUT, VideoDecodeCustomParamIsSparkInput},
 #endif
                                                {VIDDEC_CUSTOMCONFIG_DEBUG, VideoDecodeCustomConfigDebug},
-                                               {VIDDEC_CUSTOMCONFIG_CACHEABLEBUFFERS, VideoDecodeCustomConfigCacheableBuffers}};
+                                               {VIDDEC_CUSTOMCONFIG_CACHEABLEBUFFERS, VideoDecodeCustomConfigCacheableBuffers},
+                                               {VIDDEC_ENABLE_ANDROID_NATIVE_BUFFERS, VideoDecodeEnableAndroidNativeBuffers},
+                                               {VIDDEC_GET_ANDROID_NATIVE_BUFFER_USAGE, VideoDecodeGetAndroidNativeBufferUsage},
+                                               {VIDDEC_ANDROID_USE_ANDROID_NATIVE_BUFFER2, VideoDecodeGetAndroiduseAndroidNativeBuffer2}};
 
 /* H.263 Supported Levels & profiles */
 VIDEO_PROFILE_LEVEL_TYPE SupportedH263ProfileLevels[] = {
@@ -274,6 +297,11 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
     char EnvChangeValue[VIDDEC_MAX_NAMESIZE];
     char* EnvChangeValueu = NULL;
 #endif
+
+    //#ifdef ANDROID_QUIRK_LOCK_BUFFER
+    OMX_U32 err;
+    hw_module_t const* module;
+    //#endif
 
     OMX_CONF_CHECK_CMD(hComponent, OMX_TRUE, OMX_TRUE);
     pHandle = (OMX_COMPONENTTYPE *)hComponent;
@@ -478,6 +506,36 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
         pComponentPrivate->eRMProxyState = VidDec_RMPROXY_State_Load;
     }
 #endif
+
+#ifdef USE_ION
+    pComponentPrivate->bUseIon = OMX_TRUE;
+    pComponentPrivate->bMapIonBuffers = OMX_TRUE;
+
+    pComponentPrivate->ion_fd = ion_open();
+	if(pComponentPrivate->ion_fd == 0)
+	{
+		OMX_ERROR4(pComponentPrivate->dbg, "ion_open failed!!!");
+		return OMX_ErrorInsufficientResources;
+	}
+
+	pComponentPrivate->count_ion_buff = 0;
+
+#endif
+
+//#ifdef ANDROID_QUIRK_LOCK_BUFFER
+	err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
+    if (err == 0)
+	{
+    	pComponentPrivate->grallocModule = (gralloc_module_t const *)module;
+    }
+	else
+	{
+         //DOMX_ERROR("FATAL: gralloc api hw_get_module() returned error: Can't find \
+		 %s module err = %x", GRALLOC_HARDWARE_MODULE_ID, err);
+		eError = OMX_ErrorInsufficientResources;
+		return eError;
+	}
+//#endif
 
     /* Start the component thread */
     eError = VIDDEC_Start_ComponentThread(pHandle);
@@ -825,6 +883,7 @@ static OMX_ERRORTYPE VIDDEC_GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
 {
     OMX_COMPONENTTYPE* pComp = NULL;
     VIDDEC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
+    OMX_TI_PARAMNATIVEBUFFERUSAGE *pUsage = NULL;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 #ifdef KHRONOS_1_1
     OMX_PARAM_COMPONENTROLETYPE *pRole = NULL;
@@ -841,6 +900,21 @@ static OMX_ERRORTYPE VIDDEC_GetParameter (OMX_IN OMX_HANDLETYPE hComponent,
     }
 
     switch (nParamIndex) {
+
+        case VideoDecodeGetAndroidNativeBufferUsage:
+        {
+    	   pUsage = (OMX_TI_PARAMNATIVEBUFFERUSAGE*)ComponentParameterStructure;
+    	   		if(pComponentPrivate->pCompPort[pUsage->nPortIndex]->VIDDECBufferType == GrallocPointers)
+    	   		{
+    	   			//PROXY_CHK_VERSION(pParamStruct, OMX_TI_PARAMNATIVEBUFFERUSAGE);
+    	   			pUsage->nUsage = GRALLOC_USAGE_HW_RENDER;
+    	   			goto EXIT;
+    	   		}
+    	   	break;
+        }
+        case VideoDecodeGetAndroiduseAndroidNativeBuffer2 :
+    	  break;
+
         case OMX_IndexConfigVideoMBErrorReporting: /**< reference: OMX_CONFIG_MBERRORREPORTINGTYPE */
         {
             if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4 ||
@@ -1233,7 +1307,8 @@ OMX_ERRORTYPE VIDDEC_CheckSetParameter(VIDDEC_COMPONENT_PRIVATE* pComponentPriva
             case OMX_IndexConfigVideoMBErrorReporting:
             case OMX_IndexParamCommonDeblocking:
             case OMX_IndexConfigCommonImageFilter:
-                if (pTempFormat->nPortIndex ==  pComponentPrivate->pInPortDef->nPortIndex) {
+            case VideoDecodeEnableAndroidNativeBuffers:
+            	if (pTempFormat->nPortIndex ==  pComponentPrivate->pInPortDef->nPortIndex) {
                     if (pComponentPrivate->pInPortDef->bEnabled){
                         eError = OMX_ErrorIncorrectStateOperation;
                         goto EXIT;
@@ -1295,13 +1370,33 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
     pHandle= (OMX_COMPONENTTYPE*)hComp;
     pComponentPrivate = pHandle->pComponentPrivate;
 
+#ifdef ENABLE_GRALLOC_BUFFERS
+	OMX_TI_PARAMUSENATIVEBUFFER *pParamNativeBuffer = NULL;
+#endif
+
     eError = VIDDEC_CheckSetParameter(pComponentPrivate, pCompParam, nParamIndex);
     if(eError != OMX_ErrorNone) {
         eError = OMX_ErrorIncorrectStateOperation;
         goto EXIT;
     }
 
-    switch (nParamIndex) {
+     switch (nParamIndex) {
+
+#ifdef ENABLE_GRALLOC_BUFFERS
+        case VideoDecodeEnableAndroidNativeBuffers:
+        {
+            LOGV(" In VideoDecodeEnableAndroidNativeBuffers in VIDDEC_SetParameter\n");
+            pParamNativeBuffer = (OMX_TI_PARAMUSENATIVEBUFFER* )pCompParam;
+			if(pParamNativeBuffer->bEnable == OMX_TRUE)
+			{
+				LOGV("IN VIDDEC_SetParameter, in if-condition\n ");
+				pComponentPrivate->pCompPort[pParamNativeBuffer->nPortIndex]->VIDDECBufferType = GrallocPointers;
+				pComponentPrivate->pCompPort[pParamNativeBuffer->nPortIndex]->IsBuffer2D = OMX_TRUE;
+			}
+			break;
+        }
+#endif
+
         case OMX_IndexParamVideoPortFormat:
             {
                 OMX_VIDEO_PARAM_PORTFORMATTYPE* pPortFormat = (OMX_VIDEO_PARAM_PORTFORMATTYPE*)pCompParam;
@@ -2229,6 +2324,8 @@ static OMX_ERRORTYPE VIDDEC_FillThisBuffer (OMX_HANDLETYPE pComponent,
     OMX_COMPONENTTYPE *pHandle = NULL;
     VIDDEC_COMPONENT_PRIVATE *pComponentPrivate = NULL;
     VIDDEC_BUFFER_PRIVATE* pBufferPrivate = NULL;
+	IMG_native_handle_t*  grallocHandle;
+	OMX_PARAM_PORTDEFINITIONTYPE sPortDef;
     ssize_t bytesWritten = 0;
     VIDDEC_BUFFER_OWNER oldBufferOwner;
     OMX_CONF_CHECK_CMD(pComponent, pBuffHead, OMX_TRUE);
@@ -2275,6 +2372,28 @@ static OMX_ERRORTYPE VIDDEC_FillThisBuffer (OMX_HANDLETYPE pComponent,
         pBuffHead->nFilledLen = pBuffHead->nAllocLen;
     }
 
+  
+	if(pComponentPrivate->pCompPort[OMX_VIDEODECODER_OUTPUT_PORT]->VIDDECBufferType
+			== GrallocPointers)
+	{
+		/* Lock the Gralloc buffer till it gets rendered completely */
+		/* Extract the Gralloc handle from the Header and then call lock on that */
+		/* Note# There is no error check for the pBufferHdr here*/
+		grallocHandle = (IMG_native_handle_t*)pBuffHead->pBuffer;
+		/*Initializing Structure */
+		sPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
+		sPortDef.nVersion.s.nVersionMajor = OMX_VER_MAJOR;
+		sPortDef.nVersion.s.nVersionMinor = OMX_VER_MINOR;
+		sPortDef.nVersion.s.nRevision = 0x0;
+		sPortDef.nVersion.s.nStep = 0x0;
+		sPortDef.nPortIndex = OMX_VIDEODECODER_INPUT_PORT;
+		eError = VIDDEC_GetParameter(pHandle,OMX_IndexParamPortDefinition,
+				&sPortDef);
+
+		pComponentPrivate->grallocModule->lock((gralloc_module_t const *) pComponentPrivate->grallocModule,
+				(buffer_handle_t)grallocHandle, GRALLOC_USAGE_HW_RENDER,
+				0,0,sPortDef.format.video.nFrameWidth, sPortDef.format.video.nFrameHeight,NULL);
+	}
     pBufferPrivate = (VIDDEC_BUFFER_PRIVATE* )pBuffHead->pOutputPortPrivate;
     oldBufferOwner = pBufferPrivate->eBufferOwner;
     pBufferPrivate->eBufferOwner = VIDDEC_BUFFER_WITH_COMPONENT;
@@ -2406,6 +2525,11 @@ static OMX_ERRORTYPE VIDDEC_ComponentDeInit(OMX_HANDLETYPE hComponent)
             }
         }
     }
+   if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->VIDDECBufferType == GrallocPointers)
+	{
+           ion_close(pComponentPrivate->ion_fd);
+           //close(map_fd);
+	}
 
 #ifdef RESOURCE_MANAGER_ENABLED
     if(pComponentPrivate->eRMProxyState == VidDec_RMPROXY_State_Registered){
@@ -2664,6 +2788,13 @@ static OMX_ERRORTYPE VIDDEC_UseBuffer(OMX_IN OMX_HANDLETYPE hComponent,
     pHandle = (OMX_COMPONENTTYPE*)hComponent;
     pComponentPrivate = (VIDDEC_COMPONENT_PRIVATE*)pHandle->pComponentPrivate;
 
+
+#ifdef  ENABLE_GRALLOC_BUFFERS
+	OMX_PTR buff_t;
+	struct ion_map_gralloc_to_ionhandle_data data;
+#endif
+
+
     OMX_PRBUFFER1(pComponentPrivate->dbg, "+++Entering pHandle 0x%p ppBufferHdr 0x%p pBuffer 0x%p nPortIndex 0x%lx nSizeBytes 0x%lx\n",
         hComponent, *ppBufferHdr, pBuffer, nPortIndex, nSizeBytes);
 
@@ -2733,6 +2864,29 @@ static OMX_ERRORTYPE VIDDEC_UseBuffer(OMX_IN OMX_HANDLETYPE hComponent,
         (*ppBufferHdr)->nOffset = VIDDEC_WMV_BUFFER_OFFSET;
     }
 #endif
+
+#ifdef  ENABLE_GRALLOC_BUFFERS
+
+    if (nPortIndex == VIDDEC_OUTPUT_PORT) {
+
+		if(pComponentPrivate->pCompPort[1]->VIDDECBufferType == GrallocPointers) {
+			data.gralloc_handle = ((IMG_native_handle_t*)(*ppBufferHdr)->pBuffer)->fd[0];
+
+                   
+        if (ion_ioctl(pComponentPrivate->ion_fd, ION_IOC_MAP_GRALLOC, &data)) {
+				LOGV("ion_ioctl fail");
+			}
+
+		if (ion_map(pComponentPrivate->ion_fd, data.handleY, (*ppBufferHdr)->nAllocLen, PROT_READ | PROT_WRITE,
+								MAP_SHARED, 0, &buff_t, &map_fd) < 0) {
+						LOGV("ION map failed");
+		}
+
+		(*ppBufferHdr)->pPlatformPrivate = buff_t;
+		}
+    }
+#endif
+
     if (pCompPort->hTunnelComponent != NULL) {
         if (pPortDef->eDir == OMX_DirInput) {
             (*ppBufferHdr)->nInputPortIndex  = nPortIndex;
@@ -2870,6 +3024,10 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
         goto EXIT;
     }
 
+    if(pComponentPrivate->pCompPort[OMX_VIDEODECODER_OUTPUT_PORT]->VIDDECBufferType == GrallocPointers)
+    {   //work around
+    	//munmap(pBuffHead->pPlatformPrivate, pBuffHead->nAllocLen);
+    }
 
     if (pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4 ||
         pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
