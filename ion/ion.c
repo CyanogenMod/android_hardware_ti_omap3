@@ -44,7 +44,7 @@ int ion_close(int fd)
     return close(fd);
 }
 
-static int ion_ioctl(int fd, int req, void *arg)
+int ion_ioctl(int fd, int req, void *arg)
 {
         int ret = ioctl(fd, req, arg);
         if (ret < 0) {
