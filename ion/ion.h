@@ -21,6 +21,9 @@
 #include <linux/ion.h>
 #include <linux/omap_ion.h>
 
+#ifdef __cplusplus
+extern "C" {
+
 int ion_open();
 int ion_close(int fd);
 int ion_alloc(int fd, size_t len, size_t align, unsigned int flags,
@@ -33,3 +36,5 @@ int ion_map(int fd, struct ion_handle *handle, size_t length, int prot,
 int ion_share(int fd, struct ion_handle *handle, int *share_fd);
 int ion_import(int fd, int share_fd, struct ion_handle **handle);
 int ion_ioctl(int fd, int req, void *arg);
+}
+#endif
