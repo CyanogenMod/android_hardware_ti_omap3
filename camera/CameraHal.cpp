@@ -700,14 +700,17 @@ void CameraHal::previewThread()
              //pfd[1].fd = camera_device;
              //pfd[1].events = POLLIN;
 
-             poll(pfd, 1, 1000);
+             poll(pfd, 1, 20);
 
              if (pfd[0].revents & POLLIN) {
                  previewThreadCommandQ.get(&msg);
                  has_message = true;
              }
 
-             nextPreview();
+             if(mPreviewRunning)
+             {
+                  nextPreview();
+             }
 
 #ifdef FW3A
 
