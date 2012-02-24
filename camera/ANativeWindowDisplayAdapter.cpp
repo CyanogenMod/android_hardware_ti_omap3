@@ -17,7 +17,7 @@
 
 
 
-#define LOG_TAG "CameraHAL"
+#define LOG_TAG "ANativeWindowDisplayAdapter"
 
 #include "ANativeWindowDisplayAdapter.h"
 #include <OMX_IVCommon.h>

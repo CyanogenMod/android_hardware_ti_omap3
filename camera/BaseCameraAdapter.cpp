@@ -550,25 +550,32 @@ status_t BaseCameraAdapter::sendCommand(CameraCommands operation, int value1, in
             {
 
                 CAMHAL_LOGDA("Start Preview");
+            if( true == value1 )
+            {
 
-            if ( ret == NO_ERROR )
-                {
-                ret = setState(operation);
-                }
+                if ( ret == NO_ERROR )
+                    {
+                    ret = setState(operation);
+                    }
 
-            if ( ret == NO_ERROR )
-                {
+                if ( ret == NO_ERROR )
+                    {
+                    ret = startPreview();
+                    }
+
+                if ( ret == NO_ERROR )
+                    {
+                    ret = commitState();
+                    }
+                else
+                    {
+                    ret = rollbackState();
+                    }
+             }
+             else
+             {
                 ret = startPreview();
-                }
-
-            if ( ret == NO_ERROR )
-                {
-                ret = commitState();
-                }
-            else
-                {
-                ret |= rollbackState();
-                }
+             }
 
             break;
 
@@ -578,25 +585,31 @@ status_t BaseCameraAdapter::sendCommand(CameraCommands operation, int value1, in
             {
 
             CAMHAL_LOGDA("Stop Preview");
+            if( true == value1 )
+            {
+		    if ( ret == NO_ERROR )
+		        {
+		        ret = setState(operation);
+		        }
 
-            if ( ret == NO_ERROR )
-                {
-                ret = setState(operation);
-                }
+		    if ( ret == NO_ERROR )
+		        {
+                            ret = stopPreview();
+		        }
 
-            if ( ret == NO_ERROR )
-                {
-                ret = stopPreview();
-                }
-
-            if ( ret == NO_ERROR )
-                {
-                ret = commitState();
-                }
-            else
-                {
-                ret |= rollbackState();
-                }
+		    if ( ret == NO_ERROR )
+		        {
+		        ret = commitState();
+		        }
+		    else
+		        {
+		        ret |= rollbackState();
+		        }
+	     }
+	     else
+	     {
+	            ret = stopPreview();
+	     }
 
             break;
 

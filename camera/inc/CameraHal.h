@@ -41,7 +41,6 @@
 #include "binder/MemoryBase.h"
 #include "binder/MemoryHeapBase.h"
 #include <utils/threads.h>
-//#include <ui/Overlay.h>
 #include <camera/CameraParameters.h>
 #include <hardware/camera.h>
 #include <MessageQueue.h>
@@ -60,7 +59,7 @@
 #endif
 
 //Uncomment to enable more verbose/debug logs
-#define DEBUG_LOG
+//#define DEBUG_LOG
 
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG
@@ -1180,9 +1179,9 @@ public:
     void initDefaultParameters();
 
 /*--------------------Eclair HAL---------------------------------------*/
-    virtual void        enableMsgType(int32_t msgType);
-    virtual void        disableMsgType(int32_t msgType);
-    virtual bool        msgTypeEnabled(int32_t msgType);
+    void        enableMsgType(int32_t msgType);
+    void        disableMsgType(int32_t msgType);
+    int         msgTypeEnabled(int32_t msgType);
 /*--------------------Eclair HAL---------------------------------------*/
 
     virtual status_t sendCommand(int32_t cmd, int32_t arg1, int32_t arg2);
@@ -1346,7 +1345,7 @@ public:
 
     int CameraCreate();
 
-    int CameraDestroy(bool destroyOverlay);
+    int CameraDestroy(bool destroyWindow);
     int CameraConfigure();
     int CameraSetFrameRate();
     int CameraStart();
@@ -1360,6 +1359,8 @@ public:
     status_t freePreviewBufs();
     void forceStopPreview();
 
+    //Signals the end of image capture
+    status_t signalEndImageCapture();
 
     int allocatePictureBuffers(size_t length, int burstCount);
     int freePictureBuffers(void);
@@ -1395,13 +1396,14 @@ public:
     unsigned int mYuvBufferLen[MAX_BURST];
     void *mYuvBuffer[MAX_BURST];
     int  mPreviewFrameSize;
-  //  sp<Overlay>  mOverlay;
+    bool mPreviewBuffersAllocated;
     CameraProperties::Properties* mCameraProperties;
     uint32_t *mPreviewOffsets;
     int mPreviewFd;
     int mPreviewLength;
     int32_t *mPreviewBufs;
     int mPreviewBufCount;
+	sp<MemoryBase> mPictureBuffer;
 
     BufferProvider *mBufProvider;
     sp<DisplayAdapter> mDisplayAdapter; 
@@ -1414,6 +1416,7 @@ public:
     sp<SnapshotThread> mSnapshotThread;
 
     bool mPreviewRunning;
+    bool mDisplayPaused;
     bool mIPPInitAlgoState;
     bool mIPPToEnable;
     Mutex mRecordingLock;

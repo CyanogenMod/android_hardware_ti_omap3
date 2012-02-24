@@ -37,22 +37,17 @@
 #include <sys/select.h>
 #include <linux/videodev.h>
 
-
 #include <cutils/properties.h>
 #define UNLIKELY( exp ) (__builtin_expect( (exp) != 0, false ))
 static int mDebugFps = 0;
 
 #define Q16_OFFSET 16
 
-//added by sasken - start
-#define ENABLE_GRALLOC_BUFFERS
 #include <sys/mman.h>
 #include <sys/eventfd.h>
 #include <ion.h>
 
 #include "../../omap3/hwc/hal_public.h"
-//added by sasken - end
-
 #define HERE(Msg) {CAMHAL_LOGEB("--===line %d, %s===--\n", __LINE__, Msg);}
 
 namespace android {
@@ -101,8 +96,6 @@ static float zoom_step [ZOOM_STAGES] = {  1.0000, 1.0353, 1.0718, 1.1096, 1.1487
 
 #undef LOG_TAG
 ///Maintain a separate tag for V4LCameraAdapter logs to isolate issues OMX specific
-//#define LOG_TAG "CameraHAL" //Kirti Commented
-
 #define LOG_TAG "V4LCameraAdapter"
 
 //frames skipped before recalculating the framerate
@@ -164,15 +157,28 @@ status_t V4LCameraAdapter::initialize(int CameraHandle)
 
 status_t V4LCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType)
 {
-
     status_t ret = NO_ERROR;
+
+    if((NO_ERROR == ret) && ((frameType == CameraFrame::IMAGE_FRAME) || (CameraFrame::RAW_FRAME == frameType)))
+    {
+    	CAMHAL_LOGEA(" This is an image capture frame ");
+        
+        // Signal end of image capture
+        if ( NULL != mEndImageCaptureCallback) {
+            mEndImageCaptureCallback(mEndCaptureData);
+        }
+
+        return NO_ERROR;
+    }
+
 
     if ( !mVideoInfo->isStreaming )
     {
         return NO_ERROR;
     }
 
-    int i = mPreviewBufs.valueFor(( unsigned int )frameBuf);
+    int i =  mPreviewBufs.valueFor(( unsigned int )frameBuf);
+
     if(i<0)
     {
         return BAD_VALUE;
@@ -180,7 +186,9 @@ status_t V4LCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType
 
     mVideoInfo->buf.index = i;
     mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->buf.memory = V4L2_MEMORY_MMAP;
+    mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
+    mVideoInfo->buf.m.userptr = (unsigned long)mIonHandle.keyAt(i);
+    CAMHAL_LOGEB(" fillThisBuffer queueing buffer with index %d \n", i);
 
     ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
     if (ret < 0) {
@@ -256,13 +264,14 @@ status_t V4LCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, si
             ret = UseBuffersPreview(bufArr, num);
             break;
 
-        //@todo Insert Image capture case here
+        case CAMERA_IMAGE_CAPTURE:
+        	ret = UseBuffersImageCapture(bufArr, num);
+        	break;
 
         case CAMERA_VIDEO:
             //@warn Video capture is not fully supported yet
             ret = UseBuffersPreview(bufArr, num);
             break;
-
         }
 
     LOG_FUNCTION_NAME_EXIT;
@@ -272,6 +281,8 @@ status_t V4LCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, si
 
 status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 {
+    LOG_FUNCTION_NAME;
+    
     int ret = NO_ERROR;
     int width, height;
 
@@ -280,11 +291,9 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return BAD_VALUE;
     }
 
-    //First allocate adapter internal buffers at V4L level for USB Cam
-    //These are the buffers from which we will copy the data into overlay buffers
     /* Check if camera can handle NB_BUFFER buffers */
     mVideoInfo->rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->rb.memory = V4L2_MEMORY_MMAP;
+    mVideoInfo->rb.memory = V4L2_MEMORY_USERPTR;
     mVideoInfo->rb.count = num;
 
     ret = ioctl(mCameraHandle, VIDIOC_REQBUFS, &mVideoInfo->rb);
@@ -293,114 +302,155 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
         return ret;
     }
 
-    /******* added by sasken - saving ion handles **********/
 
-#ifdef ENABLE_GRALLOC_BUFFERS
-    void* buff_t;
-    int map_fd;
-    struct ion_map_gralloc_to_ionhandle_data data;
-#endif
-
-    int fd = ion_open();
-    LOGE(" Ion open success ");
-    LOGE("ion_fd = %d", fd);
-    /******* added by sasken - end **********/
-
-    for (int i = 0; i < num; i++) {
-
+    for (int i = 0; i < num; i++)
+    {
         memset (&mVideoInfo->buf, 0, sizeof (struct v4l2_buffer));
 
         mVideoInfo->buf.index = i;
         mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        mVideoInfo->buf.memory = V4L2_MEMORY_MMAP;
+        mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
 
         ret = ioctl (mCameraHandle, VIDIOC_QUERYBUF, &mVideoInfo->buf);
         if (ret < 0) {
             CAMHAL_LOGEB("Unable to query buffer (%s)", strerror(errno));
             return ret;
         }
+    }
 
-        mVideoInfo->mem[i] = mmap (0,
-               mVideoInfo->buf.length,
-               PROT_READ | PROT_WRITE,
-               MAP_SHARED,
-               mCameraHandle,
-               mVideoInfo->buf.m.offset);
+    if( mIonHandle.isEmpty() )
+    {
+	    void* buff_t;
+	    int map_fd;
+	    struct ion_map_gralloc_to_ionhandle_data data;
 
-        if (mVideoInfo->mem[i] == MAP_FAILED) {
-            CAMHAL_LOGEB("Unable to map buffer (%s)", strerror(errno));
-            return -1;
-        }
+	    int fd = ion_open();
+	    CAMHAL_LOGEB( "ion_fd = %d", fd );
 
-        uint32_t *ptr = (uint32_t*) bufArr;
+	    for (int i = 0; i < num; i++) {
 
-        //Associate each Camera internal buffer with the one from Overlay
-        mPreviewBufs.add((int)ptr[i], i);
+		uint32_t *ptr = (uint32_t*) bufArr;
 
-        /******* added by sasken - start - saving ion handles **********/
-        mParams.getPreviewSize(&width, &height);
+		//Associate each Camera internal buffer with the one from Overlay
+		mPreviewBufs.add((int)ptr[i], i);
 
-	data.gralloc_handle = (int*)((IMG_native_handle_t*)ptr[i])->fd[0];  // your gralloc fd;
-	LOGE("data.gralloc_handle = %d", data.gralloc_handle);
+		mParams.getPreviewSize(&width, &height);
 
-	if (ion_ioctl(fd, ION_IOC_MAP_GRALLOC, &data)) {
-		LOGE("ion_ioctl fail");
-	}
+		data.gralloc_handle = (int *)((IMG_native_handle_t*)ptr[i])->fd[0];
+		CAMHAL_LOGEB("data.gralloc_handle = %d", data.gralloc_handle);
 
-	LOGE("data.handleY = %x", data.handleY);
+		if (ion_ioctl(fd, ION_IOC_MAP_GRALLOC, &data)) {
+			LOGE("ion_ioctl fail");
+			return BAD_VALUE;
+		}
 
-	if (ion_map(fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
-				MAP_SHARED, 0, (unsigned char **)&buff_t, &map_fd) < 0) {
-		LOGE("ION map failed");
-	}
-	mIonHandle.add((void*)buff_t,i);
+		LOGE("data.handleY = %x", data.handleY);
 
-        /******* added by sasken - end **********/
+		if (ion_map(fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
+					MAP_SHARED, 0, (unsigned char **)&buff_t, &map_fd) < 0) {
+			LOGE("ION map failed");
+			return BAD_VALUE;
+		}
+		CAMHAL_LOGEB(" buff_t is %x ", buff_t);
+
+		mIonHandle.add((void*)buff_t,i);
+	   }
     }
 
     // Update the preview buffer count
     mPreviewBufferCount = num;
+    LOG_FUNCTION_NAME_EXIT;
 
     return ret;
 }
 
-/*status_t V4LCameraAdapter::queueToCamera(int index)
+
+status_t V4LCameraAdapter::UseBuffersImageCapture(void* bufArr, int num)
 {
-   status_t ret = NO_ERROR;
+    LOG_FUNCTION_NAME;
+    
+	status_t ret = NO_ERROR;
+    mVideoInfo->buf.index = 0;
+    mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
+    mVideoInfo->buf.m.userptr = (unsigned long)bufArr;
 
-   Mutex::Autolock lock(mPreviewBufsLock);
+    ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
+    if (ret < 0) {
+        CAMHAL_LOGEA("VIDIOC_QBUF Failed");
+        return -EINVAL;
+    }
+    nQueued++;
+    
+    LOG_FUNCTION_NAME_EXIT;
+    return ret;
+}
 
-   mVideoInfo->buf.index = index;
-   mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-   mVideoInfo->buf.memory = V4L2_MEMORY_MMAP;
+status_t V4LCameraAdapter::takePicture()
+{
+    LOG_FUNCTION_NAME;
+    
+    status_t ret = NO_ERROR;
+    /* turn on streaming */
+    enum v4l2_buf_type bufType;
+    if (!mVideoInfo->isStreaming)
+    {
+        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-   ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
-   if (ret < 0) {
-	   CAMHAL_LOGEA("VIDIOC_QBUF Failed");
-	   return -EINVAL;
-   }
+        ret = ioctl (mCameraHandle, VIDIOC_STREAMON, &bufType);
+        if (ret < 0)
+        {
+            CAMHAL_LOGEB("StartStreaming: Unable to start capture: %s", strerror(errno));
+            return ret;
+        }
+        mVideoInfo->isStreaming = true;
+    }
 
-   return ret;
+    CAMHAL_LOGEA("takePicture : De-queue the next avaliable buffer");
 
-}*/
+    /* De-queue the next avaliable buffer */
+    mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
+
+    /* DQ */
+    ret = ioctl(mCameraHandle, VIDIOC_DQBUF, &mVideoInfo->buf);
+    if (ret < 0) {
+        CAMHAL_LOGEA("GetFrame: VIDIOC_DQBUF Failed");
+        return NULL;
+    }
+    nDequeued++;
+
+    /* turn off streaming */
+    bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (ioctl(mCameraHandle, VIDIOC_STREAMOFF, &bufType) < 0) {
+        LOGE("VIDIOC_STREAMON Failed");
+        return -1;
+    }
+    mVideoInfo->isStreaming = false;
+    
+    LOG_FUNCTION_NAME_EXIT;
+
+    return ret;
+}
 
 status_t V4LCameraAdapter::startPreview()
 {
-	LOGE(" V4LCameraAdapter::startPreview");
     status_t ret = NO_ERROR;
 
-  Mutex::Autolock lock(mPreviewBufsLock);
+    Mutex::Autolock lock(mPreviewBufsLock);
 
-  if(mPreviewing)
+    if(mPreviewing)
     {
-    return BAD_VALUE;
+        return BAD_VALUE;
     }
 
-   for (int i = 0; i < mPreviewBufferCount; i++) {
-
+   for (int i = 0; i < mPreviewBufferCount; i++)
+   {
        mVideoInfo->buf.index = i;
        mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-       mVideoInfo->buf.memory = V4L2_MEMORY_MMAP;
+       mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
+
+       mVideoInfo->buf.m.userptr = (unsigned long)mIonHandle.keyAt(i);
 
        ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
        if (ret < 0) {
@@ -411,8 +461,9 @@ status_t V4LCameraAdapter::startPreview()
        nQueued++;
    }
 
-    enum v4l2_buf_type bufType;
-   if (!mVideoInfo->isStreaming) {
+   enum v4l2_buf_type bufType;
+   if (!mVideoInfo->isStreaming)
+   {
        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
        ret = ioctl (mCameraHandle, VIDIOC_STREAMON, &bufType);
@@ -428,7 +479,6 @@ status_t V4LCameraAdapter::startPreview()
    mPreviewing = true;
 
    return ret;
-
 }
 
 status_t V4LCameraAdapter::stopPreview()
@@ -439,9 +489,9 @@ status_t V4LCameraAdapter::stopPreview()
     Mutex::Autolock lock(mPreviewBufsLock);
 
     if(!mPreviewing)
-        {
+    {
         return NO_INIT;
-        }
+    }
 
     if (mVideoInfo->isStreaming) {
         bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -454,30 +504,18 @@ status_t V4LCameraAdapter::stopPreview()
 
         mVideoInfo->isStreaming = false;
     }
-
-    mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->buf.memory = V4L2_MEMORY_MMAP;
-
-    nQueued = 0;
-    nDequeued = 0;
-
-    /* Unmap buffers */
-    for (int i = 0; i < mPreviewBufferCount; i++)
-        if (munmap(mVideoInfo->mem[i], mVideoInfo->buf.length) < 0)
-            CAMHAL_LOGEA("Unmap failed");
-
-    mPreviewBufs.clear();
+    mPreviewing = false;
 
     return ret;
 
 }
 
-char * V4LCameraAdapter::GetFrame(int &index)
+char* V4LCameraAdapter::GetFrame(int &index)
 {
     int ret;
 
     mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->buf.memory = V4L2_MEMORY_MMAP;
+    mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
 
     /* DQ */
     ret = ioctl(mCameraHandle, VIDIOC_DQBUF, &mVideoInfo->buf);
@@ -485,11 +523,13 @@ char * V4LCameraAdapter::GetFrame(int &index)
         CAMHAL_LOGEA("GetFrame: VIDIOC_DQBUF Failed");
         return NULL;
     }
-    nDequeued++;
+     nDequeued++;
 
     index = mVideoInfo->buf.index;
 
-    return (char *)mVideoInfo->mem[mVideoInfo->buf.index];
+    CAMHAL_LOGEB(" V4LCameraAdapter::GetFrame returning index %d ", index);
+
+    return (char *)mIonHandle.keyAt(index);
 }
 
 //API to get the frame size required to be allocated. This size is used to override the size passed
@@ -515,7 +555,69 @@ status_t V4LCameraAdapter::getFrameDataSize(size_t &dataFrameSize, size_t buffer
 
 status_t V4LCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCount)
 {
-    // We don't support image capture yet, safely return from here without messing up
+    int ret = NO_ERROR;
+    int image_width , image_height ;
+    int preview_width, preview_height;
+    v4l2_streamparm parm;
+    
+    mImagebuffer = true;
+
+    mParams.getPictureSize(&image_width, &image_height);
+    mParams.getPreviewSize(&preview_width, &preview_height);
+
+    CAMHAL_LOGEB("Picture Size: Width = %d \tHeight = %d", image_width, image_height);
+
+    mVideoInfo->format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->format.fmt.pix.width = image_width;
+    mVideoInfo->format.fmt.pix.height = image_height ;
+    mVideoInfo->format.fmt.pix.pixelformat = DEFAULT_PIXEL_FORMAT;
+
+    ret = ioctl(mCameraHandle, VIDIOC_S_FMT, &mVideoInfo->format);
+    if (ret < 0) {
+        CAMHAL_LOGEB("Open: VIDIOC_S_FMT Failed: %s", strerror(errno));
+        return ret;
+    }
+
+    //Set 10 fps for 8MP case
+	if( ( image_height == CAPTURE_8MP_HEIGHT ) && ( image_width == CAPTURE_8MP_WIDTH ) ) {
+		LOGE("8MP Capture setting framerate to 10");
+		parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		ret = ioctl(mCameraHandle, VIDIOC_G_PARM, &parm);
+		if(ret != 0) {
+			LOGE("VIDIOC_G_PARM ");
+			return -1;
+		}
+
+		parm.parm.capture.timeperframe.numerator = 1;
+		parm.parm.capture.timeperframe.denominator = 10;
+		ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &parm);
+		if(ret != 0) {
+			LOGE("VIDIOC_S_PARM ");
+			return -1;
+		}
+	}
+
+	/* Check if the camera driver can accept 1 buffer */
+    mVideoInfo->rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->rb.memory = V4L2_MEMORY_USERPTR;
+    mVideoInfo->rb.count = 1;
+
+	if (ioctl(mCameraHandle, VIDIOC_REQBUFS,  &mVideoInfo->rb) < 0){
+		LOGE ("VIDIOC_REQBUFS Failed. errno = %d", errno);
+		return -1;
+	}
+
+	mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	mVideoInfo->buf.memory =  V4L2_MEMORY_USERPTR;
+	mVideoInfo->buf.index = 0;
+
+	if (ioctl(mCameraHandle, VIDIOC_QUERYBUF, &mVideoInfo->buf) < 0) {
+		LOGE("VIDIOC_QUERYBUF Failed");
+		return -1;
+	}
+
+	length = mVideoInfo->buf.length ;
+
     return NO_ERROR;
 }
 
@@ -579,6 +681,8 @@ void V4LCameraAdapter::onOrientationEvent(uint32_t orientation, uint32_t tilt)
 V4LCameraAdapter::V4LCameraAdapter(size_t sensor_index)
 {
     LOG_FUNCTION_NAME;
+    mImageCaptureBuffer = NULL;
+    mImagebuffer = false;
 
     // Nothing useful to do in the constructor
 
@@ -590,19 +694,25 @@ V4LCameraAdapter::~V4LCameraAdapter()
     LOG_FUNCTION_NAME;
 
     // Close the camera handle and free the video info structure
-    close(mCameraHandle);
+    //close(mCameraHandle);
+
+    mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
+
+    nQueued = 0;
+    nDequeued = 0;
+
+    mPreviewBufs.clear();
+    mIonHandle.clear();
 
     if (mVideoInfo)
-      {
+    {
         free(mVideoInfo);
         mVideoInfo = NULL;
-      }
+    }
 
     LOG_FUNCTION_NAME_EXIT;
 }
-
-/* Preview Thread */
-// ---------------------------------------------------------------------------
 
 int V4LCameraAdapter::queueToGralloc(int index, char* fp)
 {
@@ -612,14 +722,13 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp)
     int i;
     VideoInfo* buf;
 
-    if(!fp)
+    if(!fp )
     {
-	return BAD_VALUE;
+    	return BAD_VALUE;
     }
 
-    uint16_t* src = (uint16_t*) fp;
     mParams.getPreviewSize(&width, &height);
-    LOGE(" Inside V4LCameraAdapter width = %d , height = %d ",width, height);
+    CAMHAL_LOGEB(" Inside V4LCameraAdapter width = %d , height = %d ",width, height);
 
 #if 0
     LOGE(" dumping source data at queuetogralloc ");
@@ -629,53 +738,46 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp)
     LOGE(" dumping source data complete queuetogralloc ");
 #endif
 
-//added by sasken - start
-
     uint8_t* grallocPtr = (uint8_t*) mPreviewBufs.keyAt(index);
-    uint16_t* dest = (uint16_t*)mIonHandle.keyAt(index);
-
-    for(int i=0;i<height;i++)
-    {
-	for(int j=0;j<width;j++)
-	{
-	  //Renuka remove
-		*dest = *src;
-		//convert from YUYV to UYVY supported in Camera service
-		/**dest = (((*src & 0xFF000000)>>24)<<16)|(((*src & 0x00FF0000)>>16)<<24) |
-				(((*src & 0xFF00)>>8)<<0)|(((*src & 0x00FF)>>0)<<8);*/
-
-		src++;
-	    dest++;
-	}
-		//dest += 4096/2-width;
-    }
-
-    LOGE(" Inside V4LCameraAdapter completed frame conversion");
 
 	recalculateFPS();
 
-   // Mutex::Autolock lock(mSubscriberLock);
+    Mutex::Autolock lock(mSubscriberLock);
 
-	mParams.getPreviewSize(&width, &height);
-	frame.mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
-	frame.mFrameMask = CameraFrame::PREVIEW_FRAME_SYNC;
-	frame.mBuffer = grallocPtr;
-	frame.mLength = width*height*2;
-	frame.mAlignment = width*2;
+	if (true == mImagebuffer )
+	{
+	      int image_width , image_height ;
+	      mParams.getPictureSize(&image_width, &image_height);
+	    
+		  frame.mFrameType = CameraFrame::SNAPSHOT_FRAME;
+		  frame.mQuirks |= CameraFrame::ENCODE_RAW_YUV422I_TO_JPEG;
+		  frame.mFrameMask = CameraFrame::IMAGE_FRAME;
+          frame.mBuffer = fp;
+          frame.mLength = image_width * image_height * 2;
+	      frame.mAlignment = image_width * 2;
+	      frame.mWidth = image_width;
+	      frame.mHeight = image_height;
+          mImagebuffer = false;
+	}
+	else
+	{
+		frame.mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
+		frame.mFrameMask = CameraFrame::PREVIEW_FRAME_SYNC;
+		frame.mBuffer = grallocPtr;
+		frame.mLength = width*height*2;
+	    frame.mAlignment = width*2;
+	    frame.mWidth = width;
+	    frame.mHeight = height;
+	}
+
 	frame.mOffset = 0;
-	frame.mWidth = width;
-	frame.mHeight = height;
 	frame.mYuv[0] = NULL;
 	frame.mYuv[1] = NULL;
 	frame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
 
 	ret = setInitFrameRefCount(frame.mBuffer, frame.mFrameMask);
 
-	LOGE(" setInitFrameRefCount is %d", ret);
-
-	LOGE(" Before sendFrameToSubscribers");
 	ret = sendFrameToSubscribers(&frame);
-	LOGE(" After sendFrameToSubscribers");
 
     return ret;
 }

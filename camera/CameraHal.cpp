@@ -44,7 +44,6 @@ static int mDebugFps = 0;
 
 #define RES_720P    1280
 
-/* Added by sasken - 19th Jan */
 #define COMPENSATION_MIN        -20
 #define COMPENSATION_MAX        20
 #define COMPENSATION_STEP       "0.1"
@@ -86,6 +85,7 @@ const uint32_t MessageNotifier::FRAME_BIT_FIELD_POSITION = 0;
 struct timeval CameraHal::mStartPreview;
 struct timeval CameraHal::mStartFocus;
 struct timeval CameraHal::mStartCapture;
+#endif
 
 
 int CameraHal::camera_device = 0;
@@ -174,6 +174,7 @@ CameraHal::CameraHal(int cameraId)
     mPreviewOffsets = NULL;
     mPreviewFd = 0;
     mPreviewLength = 0;   
+    mDisplayPaused = false;
 
 #ifdef HARDWARE_OMX
 
@@ -647,6 +648,19 @@ CameraHal::~CameraHal()
 
     CameraDestroy(true);
 
+    /// Free the callback notifier
+    mAppCallbackNotifier.clear();
+
+    /// Free the display adapter
+    mDisplayAdapter.clear();
+
+    if ( NULL != mCameraAdapter ) {
+        int strongCount = mCameraAdapter->getStrongCount();
+
+        mCameraAdapter->decStrong(mCameraAdapter);
+
+        mCameraAdapter = NULL;
+    }
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 
@@ -691,7 +705,6 @@ void CameraHal::previewThread()
     while(shouldLive) {
 
         has_message = false;
-        LOGV("sasken - Entering CameraHal::previewThread :: mPreviewRunning %d", mPreviewRunning);
 
         if( mPreviewRunning )
         {
@@ -765,11 +778,11 @@ void CameraHal::previewThread()
 
             case PREVIEW_START:
             {
-                LOGV("Receive Command: PREVIEW_START");
+                CAMHAL_LOGEA("Receive Command: PREVIEW_START");
                 err = 0;
 
                 if ( mCaptureRunning ) {
-                LOGE("PREVIEW_START :: mCaptureRunning");
+                CAMHAL_LOGEA("PREVIEW_START :: mCaptureRunning");
 
 #ifdef FW3A
 
@@ -779,12 +792,12 @@ void CameraHal::previewThread()
                             err = -1;
                         }
                     }
-
 #endif
+                    err = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW , false /*not need to set state */ );
                 }
 
                 else if( ! mPreviewRunning ) {
-                LOGE("PREVIEW_START :: ! mPreviewRunning");
+                CAMHAL_LOGEA("PREVIEW_START :: ! mPreviewRunning");
 
                     if( CameraCreate() < 0){
                         LOGE("ERROR CameraCreate()");
@@ -836,8 +849,8 @@ void CameraHal::previewThread()
                         PPM("Shot to Shot", &ppm_receiveCmdToTakePicture);
 
 #endif
-
                     }
+                    err = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW , true /* need to set state */ );
                 } else {
                     err = -1;
                 }
@@ -858,7 +871,7 @@ void CameraHal::previewThread()
 
             case PREVIEW_STOP:
             {
-                LOGE("Receive Command: PREVIEW_STOP");
+                CAMHAL_LOGEA("Receive Command: PREVIEW_STOP");
                 err = 0;
                 if( mPreviewRunning ) {
 
@@ -947,7 +960,7 @@ void CameraHal::previewThread()
 
             case PREVIEW_AF_START:
             {
-                LOGE("Receive Command: PREVIEW_AF_START");
+                LOGD("Receive Command: PREVIEW_AF_START");
                 err = 0;
 
                 if( !mPreviewRunning ){
@@ -979,7 +992,10 @@ void CameraHal::previewThread()
                     }
                     } else {
                         if(msgTypeEnabled(CAMERA_MSG_FOCUS))
-                            mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+                        {
+                            //mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+                        	mAppCallbackNotifier->enableMsgType (CAMERA_MSG_FOCUS);
+                        }
                     }
 
                     msg.command = err ? PREVIEW_NACK : PREVIEW_ACK;
@@ -987,7 +1003,10 @@ void CameraHal::previewThread()
 #else
 
                     if( msgTypeEnabled(CAMERA_MSG_FOCUS) )
-                        mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+		    {
+                        //mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+                    	mAppCallbackNotifier->enableMsgType (CAMERA_MSG_FOCUS);
+		    }
 
                     msg.command = PREVIEW_ACK;
 
@@ -1001,7 +1020,7 @@ void CameraHal::previewThread()
 
             case PREVIEW_AF_STOP:
             {
-                LOGE("Receive Command: PREVIEW_AF_STOP");
+                LOGD("Receive Command: PREVIEW_AF_STOP");
                 err = 0;
 
                 if( !mPreviewRunning ){
@@ -1039,7 +1058,7 @@ void CameraHal::previewThread()
 
             case PREVIEW_CAF_START:
             {
-                LOGE("Receive Command: PREVIEW_CAF_START");
+                LOGD("Receive Command: PREVIEW_CAF_START");
                 err=0;
 
                 if( !mPreviewRunning ) {
@@ -1065,7 +1084,7 @@ void CameraHal::previewThread()
 
            case PREVIEW_CAF_STOP:
            {
-                LOGE("Receive Command: PREVIEW_CAF_STOP");
+                LOGD("Receive Command: PREVIEW_CAF_STOP");
                 err = 0;
 
                 if( !mPreviewRunning )
@@ -1087,7 +1106,7 @@ void CameraHal::previewThread()
 
            case PREVIEW_CAPTURE:
            {
-        	   LOGE("sasken :: Previewthread :: PREVIEW_CAPTURE");
+        	   LOGD("sasken :: Previewthread :: PREVIEW_CAPTURE");
 
                 if ( mCaptureRunning ) {
                     LOGE("Capture is already running. Returning.");
@@ -1283,7 +1302,7 @@ exit:
 }
 
 
-int CameraHal::CameraDestroy(bool destroyOverlay)
+int CameraHal::CameraDestroy(bool destroyWindow)
 {
     int err, buffer_count;
 
@@ -1292,24 +1311,7 @@ int CameraHal::CameraDestroy(bool destroyOverlay)
     close(camera_device);
     camera_device = -1;
 
-    if ( /* (mOverlay != NULL) && */ (destroyOverlay)) {
-        buffer_count = 0; //sasken - mOverlay->getBufferCount();
-
-        for ( int i = 0 ; i < buffer_count ; i++ )
-        {
-            // need to free buffers and heaps mapped using overlay fd before it is destroyed
-            // otherwise we could create a resource leak
-            // a segfault could occur if we try to free pointers after overlay is destroyed
-            mPreviewBuffers[i].clear();
-            mPreviewHeaps[i].clear();
-            mVideoBuffer[i].clear();
-            mVideoHeaps[i].clear();
-            mVideoBufferStatus[i] = BUFF_IDLE;
-        }
-      /*  mOverlay->destroy();
-        mOverlay = NULL; */ //sasken
-        nOverlayBuffersQueued = 0;
-    }
+    forceStopPreview();
 
     LOG_FUNCTION_NAME_EXIT
     return 0;
@@ -1396,8 +1398,6 @@ s_fmt_fail:
 status_t CameraHal::allocPreviewBufs(int width, int height, const char* previewFormat,
                                         unsigned int buffercount, unsigned int &max_queueable)
 {
-    LOGE("CameraHal::allocPreviewBufs");
-
     status_t ret = NO_ERROR;
 
     LOG_FUNCTION_NAME;
@@ -1591,20 +1591,43 @@ void releaseImageBuffers(void *userData)
     LOG_FUNCTION_NAME_EXIT;
 }
 
-void endImageCapture( void *userData)
+void endImageCapture( void *userData )
 {
     LOG_FUNCTION_NAME;
 
     if ( NULL != userData )
         {
         CameraHal *c = reinterpret_cast<CameraHal *>(userData);
-        //c->signalEndImageCapture(); - sasken remove
+        c->signalEndImageCapture();
         }
 
     LOG_FUNCTION_NAME_EXIT;
 }
 
+status_t CameraHal::signalEndImageCapture()
+{
+    status_t ret = NO_ERROR;
+    int w,h;
+    CameraParameters adapterParams = mParameters;
+    Mutex::Autolock lock(mLock);
 
+    LOG_FUNCTION_NAME;
+
+    /*if ( mBracketingRunning ) {
+        stopImageBracketing();
+    } else {
+        mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_IMAGE_CAPTURE);
+    }*/
+
+    mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_IMAGE_CAPTURE);
+
+    mPictureBuffer.clear();
+    mPictureHeap.clear();
+
+    LOG_FUNCTION_NAME_EXIT;
+
+    return ret;
+}
 
 status_t CameraHal::storeMetaDataInBuffers(bool enable)
 {
@@ -1622,7 +1645,6 @@ void CameraHal::putParameters(char *parms)
 
 status_t CameraHal::setPreviewWindow(struct preview_stream_ops *window)
 {
-    LOGE("CameraHal::setPreviewWindow");
     status_t ret = NO_ERROR;    
 
     LOG_FUNCTION_NAME;
@@ -1638,12 +1660,12 @@ status_t CameraHal::setPreviewWindow(struct preview_stream_ops *window)
             mDisplayAdapter.clear();
            
         }
-        LOGE("NULL ANativeWindow passed to setPreviewWindow");
+        LOGD("NULL ANativeWindow passed to setPreviewWindow");
         return NO_ERROR;
     }
     else if(mDisplayAdapter.get() == NULL)
     {
-        LOGE("CameraHal::setPreviewWindow :: mDisplayAdapter is NULL");
+        LOGD("CameraHal::setPreviewWindow :: mDisplayAdapter is NULL");
         // Need to create the display adapter since it has not been created
         // Create display adapter
         mDisplayAdapter = new ANativeWindowDisplayAdapter();
@@ -1677,9 +1699,9 @@ status_t CameraHal::setPreviewWindow(struct preview_stream_ops *window)
         // Update the display adapter with the new window that is passed from CameraService
         ret  = mDisplayAdapter->setPreviewWindow(window);
         if(ret!=NO_ERROR)
-            {
+        {
             LOGE("DisplayAdapter setPreviewWindow returned error %d", ret);
-            }
+        }
 
         if(mPreviewRunning)
         {
@@ -1701,7 +1723,6 @@ status_t CameraHal::setPreviewWindow(struct preview_stream_ops *window)
     return ret;
 
 }
-#endif // sasken
 
 int CameraHal::CameraStart()
 {
@@ -1713,7 +1734,7 @@ int CameraHal::CameraStart()
     enum v4l2_buf_type type;
     struct v4l2_requestbuffers creqbuf;
     unsigned int required_buffer_count = 6;//sasken remove
-    unsigned int max_queueble_buffers;
+    unsigned int max_queueble_buffers = 6;//sasken remove
     status_t ret; 
     CameraAdapter::BuffersDescriptor desc;
 
@@ -1733,97 +1754,89 @@ int CameraHal::CameraStart()
 
 	buffer_count = 6;
 
-    ret = allocPreviewBufs(width, height, mParameters.getPreviewFormat(), required_buffer_count, max_queueble_buffers);
-    if ( NO_ERROR != ret )
-    {
-    	CAMHAL_LOGDA("Couldn't allocate buffers for Preview");
-    	return ret;
-    }
-
-    ///Pass the buffers to Camera Adapter
-    desc.mBuffers = mPreviewBufs;
-    desc.mOffsets = mPreviewOffsets;
-    desc.mFd = mPreviewFd;
-    desc.mLength = mPreviewLength;
-    desc.mCount = ( size_t ) required_buffer_count;
-    desc.mMaxQueueable = (size_t) max_queueble_buffers;
-
-    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_USE_BUFFERS_PREVIEW,
-                                      ( int ) &desc);
-
-    if ( NO_ERROR != ret )
-    {
-        CAMHAL_LOGEB("Failed to register preview buffers: 0x%x", ret);
-        freePreviewBufs();
-        return ret;
-    }
-
-    mAppCallbackNotifier->startPreviewCallbacks(mParameters, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, required_buffer_count);
-
-    ///Start the callback notifier
-    ret = mAppCallbackNotifier->start();
-    if( ALREADY_EXISTS == ret )
-    {
-        //Already running, do nothing
-        CAMHAL_LOGDA("AppCallbackNotifier already running");
-        ret = NO_ERROR;
-    }
-    else if ( NO_ERROR == ret )
-    {
-        CAMHAL_LOGDA("Started AppCallbackNotifier..");
-        mAppCallbackNotifier->setMeasurements(false);
-    }
-    else
-    {
-        CAMHAL_LOGDA("Couldn't start AppCallbackNotifier");
-        return -1;
-    }
-
-    if( ioctl(camera_device, VIDIOC_G_CROP, &mInitialCrop) < 0 ){
-        LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
-        return -1;
-    }
-
-    LOGE("Initial Crop: crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d", mInitialCrop.c.top, mInitialCrop.c.left, mInitialCrop.c.width, mInitialCrop.c.height);
-
-
-    if ( mZoomTargetIdx != mZoomCurrentIdx ) {
-
-      //  if( ZoomPerform(zoom_step[mZoomTargetIdx]) < 0 )
-            LOGE("Error while applying zoom");
-
-        mZoomCurrentIdx = mZoomTargetIdx;
-        mParameters.set("zoom", (int) mZoomCurrentIdx);
-    }
-
-    if(mDisplayAdapter.get() != NULL)
-    {
-		CAMHAL_LOGDA("Enabling display");
-		bool isS3d = false;
-		DisplayAdapter::S3DParameters s3dParams;
-		int width, height;
-		mParameters.getPreviewSize(&width, &height);
-
-#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-		ret = mDisplayAdapter->enableDisplay(width, height, &mStartPreview, isS3d ? &s3dParams : NULL);
-
-#else
-
-		ret = mDisplayAdapter->enableDisplay(width, height, NULL, isS3d ? &s3dParams : NULL);
-
-#endif
-
-		if ( ret != NO_ERROR )
+	if(mPreviewBufs == NULL)
+	{
+		ret = allocPreviewBufs(width, height, mParameters.getPreviewFormat(), required_buffer_count, max_queueble_buffers);
+		if ( NO_ERROR != ret )
 		{
-			CAMHAL_LOGEA("Couldn't enable display");
-			goto error;
+			CAMHAL_LOGDA("Couldn't allocate buffers for Preview");
+			return ret;
 		}
 
-	    ///Send START_PREVIEW command to adapter
-	    CAMHAL_LOGDA("Starting CameraAdapter preview mode");
+		///Pass the buffers to Camera Adapter
+		desc.mBuffers = mPreviewBufs;
+		desc.mOffsets = mPreviewOffsets;
+		desc.mFd = mPreviewFd;
+		desc.mLength = mPreviewLength;
+		desc.mCount = ( size_t ) required_buffer_count;
+		desc.mMaxQueueable = (size_t) max_queueble_buffers;
 
-	    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW);
+		ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_USE_BUFFERS_PREVIEW,
+										  ( int ) &desc);
+
+		if ( NO_ERROR != ret )
+		{
+			CAMHAL_LOGEB("Failed to register preview buffers: 0x%x", ret);
+			freePreviewBufs();
+			return ret;
+		}
+
+		mAppCallbackNotifier->startPreviewCallbacks(mParameters, mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, required_buffer_count);
+
+		///Start the callback notifier
+		ret = mAppCallbackNotifier->start();
+		if( ALREADY_EXISTS == ret )
+		{
+			//Already running, do nothing
+			CAMHAL_LOGDA("AppCallbackNotifier already running");
+			ret = NO_ERROR;
+		}
+		else if ( NO_ERROR == ret )
+		{
+			CAMHAL_LOGDA("Started AppCallbackNotifier..");
+			mAppCallbackNotifier->setMeasurements(false);
+		}
+		else
+		{
+			CAMHAL_LOGDA("Couldn't start AppCallbackNotifier");
+			return -1;
+		}
+
+		if( ioctl(camera_device, VIDIOC_G_CROP, &mInitialCrop) < 0 ){
+			LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
+			return -1;
+		}
+
+		LOGE("Initial Crop: crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d", mInitialCrop.c.top, mInitialCrop.c.left, mInitialCrop.c.width, mInitialCrop.c.height);
+
+
+        if(mDisplayAdapter.get() != NULL)
+		{
+			CAMHAL_LOGDA("Enabling display");
+			bool isS3d = false;
+			DisplayAdapter::S3DParameters s3dParams;
+			int width, height;
+			mParameters.getPreviewSize(&width, &height);
+
+	#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+			ret = mDisplayAdapter->enableDisplay(width, height, &mStartPreview, isS3d ? &s3dParams : NULL);
+
+	#else
+
+			ret = mDisplayAdapter->enableDisplay(width, height, NULL, isS3d ? &s3dParams : NULL);
+
+	#endif
+
+			if ( ret != NO_ERROR )
+			{
+				CAMHAL_LOGEA("Couldn't enable display");
+				goto error;
+			}
+
+			///Send START_PREVIEW command to adapter
+			CAMHAL_LOGDA("Starting CameraAdapter preview mode");
+		}
 
 	    if(ret!=NO_ERROR)
 	    {
@@ -1831,6 +1844,17 @@ int CameraHal::CameraStart()
 	        goto error;
 	    }
     }
+	else
+	{
+		///Pass the buffers to Camera Adapter
+		desc.mBuffers = mPreviewBufs;
+		desc.mOffsets = mPreviewOffsets;
+		desc.mFd = mPreviewFd;
+		desc.mLength = mPreviewLength;
+		desc.mCount = ( size_t ) required_buffer_count;
+		desc.mMaxQueueable = (size_t) max_queueble_buffers;
+		ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_USE_BUFFERS_PREVIEW, ( int ) &desc);
+	}
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -1842,7 +1866,7 @@ error:
 
 	//Do all the cleanup
 	freePreviewBufs();
-	mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW);
+	mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW , true );
 	if(mDisplayAdapter.get() != NULL)
 	{
 		mDisplayAdapter->disableDisplay(false);
@@ -1862,6 +1886,34 @@ int CameraHal::CameraStop()
 
     nCameraBuffersQueued = 0;
 
+    if ( NULL != mCameraAdapter )
+    {
+		CameraAdapter::AdapterState currentState;
+		CameraAdapter::AdapterState nextState;
+
+		currentState = mCameraAdapter->getState();
+		nextState = mCameraAdapter->getNextState();
+
+
+		// only need to send these control commands to state machine if we are
+		// passed the LOADED_PREVIEW_STATE
+		if (currentState > CameraAdapter::LOADED_PREVIEW_STATE) {
+		   // according to javadoc...FD should be stopped in stopPreview
+		   // and application needs to call startFaceDection again
+		   // to restart FD
+		   mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_FD);
+		   mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_AUTOFOCUS);
+		}
+
+		// only need to send these control commands to state machine if we are
+		// passed the INITIALIZED_STATE
+		if (currentState > CameraAdapter::INTIALIZED_STATE) {
+		   //Stop the source of frames
+			LOGE("stopping the preview");
+		   mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW , false );
+		}
+    }
+
     /*struct v4l2_requestbuffers creqbuf;
     creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
@@ -1871,8 +1923,6 @@ int CameraHal::CameraStop()
 
     //Force the zoom to be updated next time preview is started.
     mZoomCurrentIdx = 0;
-
-    forceStopPreview();
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -1919,34 +1969,8 @@ int CameraHal::dequeueFromOverlay()
 return 0;
 } 
 
-/*
-int CameraHal::dequeueFromCamera(nsecs_t *timestamp)
-{
-
-
-    struct v4l2_buffer cfilledbuffer;
-    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-
-    if (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
-        LOGE("VIDIOC_DQBUF Failed!!!");
-        return -1;
-    }
-
-    nCameraBuffersQueued--;
-
-    int index = cfilledbuffer.index;
-    if (NULL != timestamp) {
-        *timestamp = s2ns(cfilledbuffer.timestamp.tv_sec) + us2ns(cfilledbuffer.timestamp.tv_usec);
-    }
-    //SaveFile(NULL, (char*)"yuv", (void *)cfilledbuffer.m.userptr, mPreviewFrameSize);
-
-    return index;
-}*/
-
 void CameraHal::nextPreview()
 {
-	LOGE(" CameraHal::nextPreview Inside ");
     static int frame_count = 0;
     int zoom_inc, err;
     struct timeval lowLightTime;
@@ -2034,16 +2058,7 @@ void CameraHal::nextPreview()
 #endif
 
     int index = 0;
-    LOGE(" Inside next preview GetFrame ");
     char *fp = mCameraAdapter->GetFrame(index);
-
-    if(msgTypeEnabled(CAMERA_MSG_PREVIEW_FRAME))
-     {
-       LOGE("CameraHal::nextPreview :: msgTypeEnabled is true ");
-        //mDataCb(CAMERA_MSG_PREVIEW_FRAME,
-              // mPreviewBuffers[index], mCallbackCookie);
-
-     }
 
     mRecordingLock.lock();
     //sasken remove
@@ -2469,93 +2484,100 @@ fail_process:
 #else
 
 //TODO: Update the normal in according the PPM Changes
-int CameraHal::ICapturePerform(){
-
-    int image_width, image_height;
-    int image_rotation;
-    double image_zoom;
-    int preview_width, preview_height;
-    unsigned long base, offset;
-    struct v4l2_buffer buffer;
-    struct v4l2_format format;
-    struct v4l2_buffer cfilledbuffer;
-    struct v4l2_requestbuffers creqbuf;
-    sp<MemoryBase> mPictureBuffer;
-    sp<MemoryBase> memBase;
-    int jpegSize;
-    void * outBuffer;
-    sp<MemoryHeapBase>  mJPEGPictureHeap;
-    sp<MemoryBase>          mJPEGPictureMemBase;
-    unsigned int vppMessage[3];
-    int err, i;
-    int snapshot_buffer_index;
-    void* snapshot_buffer;
-    int ipp_reconfigure=0;
-    int ippTempConfigMode;
-    int jpegFormat = PIX_YUV422I;
-    v4l2_streamparm parm;
+int CameraHal::ICapturePerform() {
+	int image_width , image_height ;
+	int image_rotation;
+	double image_zoom;
+	int preview_width, preview_height;
+	unsigned long base, offset;
+	struct v4l2_buffer buffer;
+	struct v4l2_format format;
+	struct v4l2_buffer cfilledbuffer;
+	struct v4l2_requestbuffers creqbuf;
+	sp<MemoryBase> memBase;
+	int jpegSize;
+	void * outBuffer;
+	sp<MemoryHeapBase> mJPEGPictureHeap;
+	sp<MemoryBase> mJPEGPictureMemBase;
+	unsigned int vppMessage[3];
+	int err, i;
+	int snapshot_buffer_index;
+	void* snapshot_buffer;
+	int ipp_reconfigure=0;
+	int ippTempConfigMode;
+	int jpegFormat = PIX_YUV422I;
+	v4l2_streamparm parm;
+	CameraFrame frame;
+	status_t ret = NO_ERROR;
+	CameraAdapter::BuffersDescriptor desc;
+	int buffCount = 1;
 
     LOG_FUNCTION_NAME
-    LOGE("CameraHal::ICapturePerform()");
 
-    LOGD("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
+    LOGE("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
 
     if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && mShutterEnable)
-        mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
+    {
+        //mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
+        mAppCallbackNotifier->enableMsgType(CAMERA_MSG_SHUTTER);
+    }
 
     mParameters.getPictureSize(&image_width, &image_height);
     mParameters.getPreviewSize(&preview_width, &preview_height);
 
-    LOGD("Picture Size: Width = %d \tHeight = %d", image_width, image_height);
+    CAMHAL_LOGEB("Picture Size: Width = %d \tHeight = %d", image_width, image_height);
 
     image_rotation = rotation;
     image_zoom = zoom_step[mZoomTargetIdx];
 
-    format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    format.fmt.pix.width = image_width;
-    format.fmt.pix.height = image_height;
-    format.fmt.pix.pixelformat = PIXEL_FORMAT;
+    // pause preview during normal image capture
+    // do not pause preview if recording (video state)
+    if ( NULL != mDisplayAdapter.get() )
+    {
+	    if (mCameraAdapter->getState() != CameraAdapter::VIDEO_STATE)
+	    {
+		    CAMHAL_LOGEA(" Pausing the display ");
+		    mDisplayPaused = true;
+		    ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
+		    // since preview is paused we should stop sending preview frames too
+		    if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
+			    mAppCallbackNotifier->disableMsgType (CAMERA_MSG_PREVIEW_FRAME);
+		    }
+	    }
+	    else
+	    {
+		    CAMHAL_LOGEA(" ICapturePerform not pausing the display ");
+	    }
 
-    /* set size & format of the video image */
-    if (ioctl(camera_device, VIDIOC_S_FMT, &format) < 0){
-        LOGE ("Failed to set VIDIOC_S_FMT.");
-        return -1;
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+	    mDisplayAdapter->setSnapshotTimeRef(&mStartCapture);
+#endif
     }
 
-    //Set 10 fps for 8MP case
-    if( ( image_height == CAPTURE_8MP_HEIGHT ) && ( image_width == CAPTURE_8MP_WIDTH ) ) {
-        LOGE("8MP Capture setting framerate to 10");
-        parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        err = ioctl(camera_device, VIDIOC_G_PARM, &parm);
-        if(err != 0) {
-            LOGD("VIDIOC_G_PARM ");
-            return -1;
-        }
-
-        parm.parm.capture.timeperframe.numerator = 1;
-        parm.parm.capture.timeperframe.denominator = 10;
-        err = ioctl(camera_device, VIDIOC_S_PARM, &parm);
-        if(err != 0) {
-            LOGE("VIDIOC_S_PARM ");
-            return -1;
-        }
+    if((mMsgEnabled & CAMERA_MSG_POSTVIEW_FRAME) == 0)
+    {
+	    mAppCallbackNotifier->enableMsgType(CAMERA_MSG_POSTVIEW_FRAME);
     }
 
-    /* Check if the camera driver can accept 1 buffer */
-    creqbuf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    creqbuf.memory = V4L2_MEMORY_USERPTR;
-    creqbuf.count  = 1;
-    if (ioctl(camera_device, VIDIOC_REQBUFS, &creqbuf) < 0){
-        LOGE ("VIDIOC_REQBUFS Failed. errno = %d", errno);
-        return -1;
+    if ( ( NULL != mCameraAdapter ) )
+    {
+	    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_QUERY_BUFFER_SIZE_IMAGE_CAPTURE,
+			    ( int ) &frame,( buffCount ));
+
+	    if ( NO_ERROR != ret )
+	    {
+		    CAMHAL_LOGEB("CAMERA_QUERY_BUFFER_SIZE_IMAGE_CAPTURE returned error 0x%x", ret);
+	    }
     }
 
     yuv_len = image_width * image_height * 2;
     if (yuv_len & 0xfff)
     {
-        yuv_len = (yuv_len & 0xfffff000) + 0x1000;
+	    yuv_len = (yuv_len & 0xfffff000) + 0x1000;
     }
-    LOGD("pictureFrameSize = 0x%x = %d", yuv_len, yuv_len);
+
+    CAMHAL_LOGEB ("pictureFrameSize = 0x%x = %d", yuv_len, yuv_len);
+
 #define ALIGMENT 1
 #if ALIGMENT
     mPictureHeap = new MemoryHeapBase(yuv_len);
@@ -2580,63 +2602,39 @@ int CameraHal::ICapturePerform(){
 
     offset = base - (unsigned long)mPictureHeap->getBase();
 
-    buffer.type = creqbuf.type;
-    buffer.memory = creqbuf.memory;
-    buffer.index = 0;
+    yuv_len = frame.mLength;
+    CAMHAL_LOGEB("image yuv_len = %d \n",yuv_len);
 
-    if (ioctl(camera_device, VIDIOC_QUERYBUF, &buffer) < 0) {
-        LOGE("VIDIOC_QUERYBUF Failed");
-        return -1;
+    if ( (NO_ERROR == ret) && ( NULL != mCameraAdapter ) )
+    {
+	    desc.mBuffers = (void *)base;
+	    desc.mLength = frame.mLength;
+	    desc.mCount = ( size_t ) buffCount;
+	    desc.mMaxQueueable = ( size_t ) buffCount;
+
+	    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_USE_BUFFERS_IMAGE_CAPTURE,
+			    ( int ) &desc);
     }
 
-    yuv_len = buffer.length;
-
-    buffer.m.userptr = base;
     mPictureBuffer = new MemoryBase(mPictureHeap, offset, yuv_len);
-    LOGD("Picture Buffer: Base = %p Offset = 0x%x", (void *)base, (unsigned int)offset);
+    CAMHAL_LOGEB("Picture Buffer: Base = %p Offset = 0x%x", (void *)base, (unsigned int)offset);
 
-    if (ioctl(camera_device, VIDIOC_QBUF, &buffer) < 0) {
-        LOGE("CAMERA VIDIOC_QBUF Failed");
-        return -1;
-    }
+    if ((NO_ERROR == ret) && (NULL != mCameraAdapter)) {
 
-    /* turn on streaming */
-    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (ioctl(camera_device, VIDIOC_STREAMON, &creqbuf.type) < 0) {
-        LOGE("VIDIOC_STREAMON Failed");
-        return -1;
-    }
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
-    LOGD("De-queue the next avaliable buffer");
+	    //pass capture timestamp along with the camera adapter command
+	    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE, (int) &mStartCapture);
 
-    /* De-queue the next avaliable buffer */
-    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-#if ALIGMENT
-    cfilledbuffer.memory = creqbuf.memory;
 #else
-    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
+
+	    ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_IMAGE_CAPTURE);
+
 #endif
-    while (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
-        LOGE("VIDIOC_DQBUF Failed");
     }
-
-    PPM("AFTER CAPTURE YUV IMAGE");
-
-    /* turn off streaming */
-    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) < 0) {
-        LOGE("VIDIOC_STREAMON Failed");
-        return -1;
-    }
-#if 0 // sasken
-    if( msgTypeEnabled(CAMERA_MSG_RAW_IMAGE) ){
-        mDataCb(CAMERA_MSG_RAW_IMAGE, mPictureBuffer,mCallbackCookie);
-    }
-#endif
-
-    yuv_buffer = (uint8_t*)buffer.m.userptr;
-    LOGD("PictureThread: generated a picture, yuv_buffer=%p yuv_len=%d",yuv_buffer,yuv_len);
+    yuv_buffer = (uint8_t*)base;
+    
+    CAMHAL_LOGEB("PictureThread: generated a picture, yuv_buffer=%p yuv_len=%d ",yuv_buffer,yuv_len );
 
 #ifdef HARDWARE_OMX
 #if VPP
@@ -2652,37 +2650,40 @@ int CameraHal::ICapturePerform(){
 
 #else
 
-   // mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
-    mapping_data_t* data = NULL; // sasken (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
-    if ( data == NULL ) {
-        LOGE(" getBufferAddress returned NULL skipping snapshot");
-    } else{
-        snapshot_buffer = data->ptr;
+    // mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
+    /* mapping_data_t* data = NULL; // sasken (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
+       if ( data == NULL ) {
+       LOGE(" getBufferAddress returned NULL skipping snapshot");
+       } else {
+       snapshot_buffer = data->ptr;
 
-        scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
+       scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
 
-        err = scale_process(yuv_buffer, image_width, image_height,
-                             snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[/*mZoomTargetIdx*/ 0], 0, 0, image_width, image_height);
+       err = scale_process(yuv_buffer, image_width, image_height,
+       snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[ 0], 0, 0, image_width, image_height);
 
 #ifdef DEBUG_LOG
-       PPM("After vpp downscales:");
-       if( err )
-            LOGE("scale_process() failed");
-       else
-            LOGD("scale_process() OK");
+	PPM("After vpp downscales:");
+	if( err )
+	LOGE("scale_process() failed");
+	else
+	LOGD("scale_process() OK");
 #endif
 
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
         PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 #endif
-       scale_deinit(); 
+        scale_deinit(); 
+        }
+     */
+#endif
+#endif
+#endif
 
-       // queueToOverlay(lastOverlayBufferDQ); // sasken remove - not needed for preview now
-       // dequeueFromOverlay(); // sasken remove - not needed for preview now
+
+    if ((NO_ERROR == ret) && (NULL != mCameraAdapter)) {
+	    mCameraAdapter->queueToGralloc(0,(char*)yuv_buffer);
     }
-#endif
-#endif
-#endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE
 #if 1
@@ -2718,83 +2719,84 @@ int CameraHal::ICapturePerform(){
 
     if(mippMode){
 
-        if(mippMode != IPP_CromaSupression_Mode && mippMode != IPP_EdgeEnhancement_Mode){
-            LOGE("ERROR ippMode unsupported");
-            return -1;
-        }
-        PPM("Before init IPP");
+	    if(mippMode != IPP_CromaSupression_Mode && mippMode != IPP_EdgeEnhancement_Mode){
+		    LOGE("ERROR ippMode unsupported");
+		    return -1;
+	    }
+	    PPM("Before init IPP");
 
-        if(mIPPToEnable)
-        {
-            err = InitIPP(image_width,image_height, jpegFormat, mippMode);
-            if( err ) {
-                LOGE("ERROR InitIPP() failed");
-                return -1;
-            }
-            PPM("After IPP Init");
-            mIPPToEnable = false;
-        }
+	    if(mIPPToEnable)
+	    {
+		    err = InitIPP(image_width,image_height, jpegFormat, mippMode);
+		    if( err ) {
+			    LOGE("ERROR InitIPP() failed");
+			    return -1;
+		    }
+		    PPM("After IPP Init");
+		    mIPPToEnable = false;
+	    }
 
-        err = PopulateArgsIPP(image_width,image_height, jpegFormat, mippMode);
-        if( err ) {
-            LOGE("ERROR PopulateArgsIPP() failed");
-            return -1;
-        }
-        PPM("BEFORE IPP Process Buffer");
+	    err = PopulateArgsIPP(image_width,image_height, jpegFormat, mippMode);
+	    if( err ) {
+		    LOGE("ERROR PopulateArgsIPP() failed");
+		    return -1;
+	    }
+	    PPM("BEFORE IPP Process Buffer");
 
-        LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
-    err = ProcessBufferIPP(yuv_buffer, yuv_len,
-                    jpegFormat,
-                    mippMode,
-                    -1, // EdgeEnhancementStrength
-                    -1, // WeakEdgeThreshold
-                    -1, // StrongEdgeThreshold
-                    -1, // LowFreqLumaNoiseFilterStrength
-                    -1, // MidFreqLumaNoiseFilterStrength
-                    -1, // HighFreqLumaNoiseFilterStrength
-                    -1, // LowFreqCbNoiseFilterStrength
-                    -1, // MidFreqCbNoiseFilterStrength
-                    -1, // HighFreqCbNoiseFilterStrength
-                    -1, // LowFreqCrNoiseFilterStrength
-                    -1, // MidFreqCrNoiseFilterStrength
-                    -1, // HighFreqCrNoiseFilterStrength
-                    -1, // shadingVertParam1
-                    -1, // shadingVertParam2
-                    -1, // shadingHorzParam1
-                    -1, // shadingHorzParam2
-                    -1, // shadingGainScale
-                    -1, // shadingGainOffset
-                    -1, // shadingGainMaxValue
-                    -1); // ratioDownsampleCbCr
-        if( err ) {
-            LOGE("ERROR ProcessBufferIPP() failed");
-            return -1;
-        }
-        PPM("AFTER IPP Process Buffer");
+	    LOGD("Calling ProcessBufferIPP(buffer=%p , len=0x%x)", yuv_buffer, yuv_len);
+	    err = ProcessBufferIPP(yuv_buffer, yuv_len,
+			    jpegFormat,
+			    mippMode,
+			    -1, // EdgeEnhancementStrength
+			    -1, // WeakEdgeThreshold
+			    -1, // StrongEdgeThreshold
+			    -1, // LowFreqLumaNoiseFilterStrength
+			    -1, // MidFreqLumaNoiseFilterStrength
+			    -1, // HighFreqLumaNoiseFilterStrength
+			    -1, // LowFreqCbNoiseFilterStrength
+			    -1, // MidFreqCbNoiseFilterStrength
+			    -1, // HighFreqCbNoiseFilterStrength
+			    -1, // LowFreqCrNoiseFilterStrength
+			    -1, // MidFreqCrNoiseFilterStrength
+			    -1, // HighFreqCrNoiseFilterStrength
+			    -1, // shadingVertParam1
+			    -1, // shadingVertParam2
+			    -1, // shadingHorzParam1
+			    -1, // shadingHorzParam2
+			    -1, // shadingGainScale
+			    -1, // shadingGainOffset
+			    -1, // shadingGainMaxValue
+			    -1); // ratioDownsampleCbCr
+	    if( err ) {
+		    LOGE("ERROR ProcessBufferIPP() failed");
+		    return -1;
+	    }
+	    PPM("AFTER IPP Process Buffer");
 
-      if(!(pIPP.ippconfig.isINPLACE)){
-        yuv_buffer = pIPP.pIppOutputBuffer;
-    }
+	    if(!(pIPP.ippconfig.isINPLACE)){
+		    yuv_buffer = pIPP.pIppOutputBuffer;
+	    }
 
-    #if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
-        jpegFormat = PIX_YUV422I;
-        LOGD("YUV422 !!!!");
-    #else
-        yuv_len=  ((image_width * image_height *3)/2);
-        jpegFormat = PIX_YUV420P;
-        LOGD("YUV420 !!!!");
-    #endif
+#if ( IPP_YUV422P || IPP_YUV420P_OUTPUT_YUV422I )
+	    jpegFormat = PIX_YUV422I;
+	    LOGD("YUV422 !!!!");
+#else
+	    yuv_len=  ((image_width * image_height *3)/2);
+	    jpegFormat = PIX_YUV420P;
+	    LOGD("YUV420 !!!!");
+#endif
 
     }
     //SaveFile(NULL, (char*)"yuv", yuv_buffer, yuv_len);
 
 #endif
 
-    if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
-    {
+	if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) )
+	{
 
 #ifdef HARDWARE_OMX
 #if JPEG
+        bool check = false;
         int jpegSize = (image_width * image_height) + 12288;
         mJPEGPictureHeap = new MemoryHeapBase(jpegSize+ 256);
         outBuffer = (void *)((unsigned long)(mJPEGPictureHeap->getBase()) + 128);
@@ -2811,11 +2813,8 @@ int CameraHal::ICapturePerform(){
                 image_rotation, image_zoom, 0, 0, image_width, image_height);
         PPM("AFTER JPEG Encode Image");
 
-        mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
-    if ( msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE) ){
-        //mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,mJPEGPictureMemBase,mCallbackCookie);
-    }
+        //mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
 
         PPM("Shot to Save", &ppm_receiveCmdToTakePicture);
@@ -2843,24 +2842,19 @@ int CameraHal::ICapturePerform(){
     // Release constraint to DSP OPP by setting lowest Hz
     SetDSPKHz(DSP3630_KHZ_MIN);
 
-    mPictureBuffer.clear();
-    mPictureHeap.clear();
-
 #ifdef HARDWARE_OMX
 #if VPP_THREAD
-    LOGD("CameraHal thread before waiting increment in semaphore\n");
-    sem_wait(&mIppVppSem);
-    LOGD("CameraHal thread after waiting increment in semaphore\n");
+	LOGD("CameraHal thread before waiting increment in semaphore\n");
+	sem_wait(&mIppVppSem);
+	LOGD("CameraHal thread after waiting increment in semaphore\n");
 #endif
 #endif
 
-    PPM("END OF ICapturePerform");
-    LOG_FUNCTION_NAME_EXIT
+	PPM("END OF ICapturePerform");
+	LOG_FUNCTION_NAME_EXIT
 
-    return NO_ERROR;
-
+	return NO_ERROR;
 }
-
 #endif
 
 void *CameraHal::getLastOverlayAddress()
@@ -2868,7 +2862,7 @@ void *CameraHal::getLastOverlayAddress()
     void *res = NULL;
 
    // mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
- mapping_data_t* data = NULL; // sasken (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
+    mapping_data_t* data = NULL; // sasken (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
     if ( data == NULL ) {
         LOGE(" getBufferAddress returned NULL");
     } else {
@@ -2884,8 +2878,8 @@ size_t CameraHal::getLastOverlayLength()
 {
     size_t res = 0;
 
-  //  mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
-mapping_data_t* data = NULL; // sasken - (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
+    //  mapping_data_t* data = (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
+    mapping_data_t* data = NULL; // sasken - (mapping_data_t*) mOverlay->getBufferAddress( (void*) (lastOverlayBufferDQ) );
     if ( data == NULL ) {
         LOGE(" getBufferAddress returned NULL");
     } else {
@@ -2993,15 +2987,15 @@ void CameraHal::snapshotThread()
 
                 //scale_deinit();
 
-                //queueToOverlay(lastOverlayBufferDQ);// sasken remove - not needed for preview now
-                //dequeueFromOverlay(); // sasken remove - not needed for preview now
+                //queueToOverlay(lastOverlayBufferDQ);// sasken replace with get frame 
+                //dequeueFromOverlay(); // sasken replace with queue to gralloc 
 
 EXIT:
 
                 write(snapshotReadyPipe[1], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
           } else if (snapshotMessage[0] == SNAPSHOT_THREAD_START_GEN) {
 
-                //queueToOverlay(lastOverlayBufferDQ);//sasken
+                //queueToOverlay(lastOverlayBufferDQ);//sasken replace with get frame 
                 mParameters.getPreviewSize(&preview_width, &preview_height);
 
 #ifdef DUMP_SNAPSHOT
@@ -3013,7 +3007,7 @@ EXIT:
                PPM("Shot to Snapshot", &ppm_receiveCmdToTakePicture);
 
 #endif
-                //dequeueFromOverlay();//sasken // don't bother for preview
+                //dequeueFromOverlay();//sasken replace with queue to gralloc 
                 write(snapshotReadyPipe[1], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
 
           } else if (snapshotMessage[0] == SNAPSHOT_THREAD_EXIT) {
@@ -3073,10 +3067,7 @@ void CameraHal::rawThread()
                 PictureCallbackCookie = (void *) rawMessage[2];
                 rawData = (MemoryBase *) rawMessage[3];
 
-
-                LOGE("sasken - Before RAW_THREAD_CALL \n");
                // RawCallback(CAMERA_MSG_RAW_IMAGE, rawData, PictureCallbackCookie);
-                LOGE("sasken - After RAW_THREAD_CALL \n");
 
 #ifdef DEBUG_LOG
 
@@ -3659,6 +3650,15 @@ status_t CameraHal::startPreview()
         return NO_ERROR;
     }
 
+    if ( mZoomTargetIdx != mZoomCurrentIdx )
+    {
+        if( ZoomPerform(zoom_step[mZoomTargetIdx]) < 0 )
+		LOGE("Error while applying zoom");
+
+	mZoomCurrentIdx = mZoomTargetIdx;
+	mParameters.set("zoom", (int) mZoomCurrentIdx);
+    }
+
     if ( NULL != mCameraAdapter )
     {
     	CAMHAL_LOGEA( "mCameraAdapter->setParameters - start preview ");
@@ -3683,6 +3683,29 @@ status_t CameraHal::startPreview()
 		return NO_ERROR;
     }*/
 
+
+    if( (mDisplayAdapter.get() != NULL) && ( !mPreviewRunning ) && ( mDisplayPaused ) )
+    {
+        CAMHAL_LOGDA("Preview is in paused state");
+
+        mDisplayPaused = false;
+
+        if ( NO_ERROR == ret )
+        {
+            ret = mDisplayAdapter->pauseDisplay(mDisplayPaused);
+
+            if ( NO_ERROR != ret )
+            {
+                CAMHAL_LOGEB("Display adapter resume failed %x", ret);
+            }
+        }
+        //restart preview callbacks
+        if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME)
+        {
+            mAppCallbackNotifier->enableMsgType (CAMERA_MSG_PREVIEW_FRAME);
+        }
+    }
+
     mFalsePreview = false;   //Eclair HAL
 
     TIUTILS::Message msg;
@@ -3698,7 +3721,7 @@ void CameraHal::stopPreview()
 {
     LOG_FUNCTION_NAME
 
-	forceStopPreview();
+	//forceStopPreview();
 
 	// Reset Capture-Mode to default, so that when we switch from VideoRecording
 	// to ImageCapture, CAPTURE_MODE is not left to VIDEO_MODE.
@@ -3775,13 +3798,52 @@ status_t CameraHal::autoFocus()
 {
     LOG_FUNCTION_NAME
 
+    status_t ret = NO_ERROR;
+
+#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+    gettimeofday(&mStartFocus, NULL);
+#endif
+
+    {
+    Mutex::Autolock lock(mLock);
+    mMsgEnabled |= CAMERA_MSG_FOCUS;
+    }
+
     TIUTILS::Message msg;
     msg.command = PREVIEW_AF_START;
     previewThreadCommandQ.put(&msg);
     previewThreadAckQ.get(&msg);
 
+    if(msg.command == PREVIEW_ACK)
+    {
+		if ( NULL != mCameraAdapter )
+		{
+
+	#if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
+
+			//pass the autoFocus timestamp along with the command to camera adapter
+			ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_PERFORM_AUTOFOCUS, ( int ) &mStartFocus);
+
+	#else
+
+			ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_PERFORM_AUTOFOCUS);
+
+	#endif
+			return ret;
+
+		}
+		else
+		{
+			return INVALID_OPERATION;
+		}
+    }
+    else
+    {
+    	return INVALID_OPERATION ;
+    }
+
     LOG_FUNCTION_NAME_EXIT
-    return msg.command == PREVIEW_ACK ? NO_ERROR : INVALID_OPERATION;
 }
 
 bool CameraHal::previewEnabled()
@@ -3924,7 +3986,8 @@ sp<IMemoryHeap>  CameraHal::getRawHeap() const
 
 status_t CameraHal::takePicture( )
 {
-    LOG_FUNCTION_NAME
+	LOG_FUNCTION_NAME
+	enableMsgType(CAMERA_MSG_COMPRESSED_IMAGE);
 
     TIUTILS::Message msg;
     msg.command = PREVIEW_CAPTURE;
@@ -4191,11 +4254,18 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     }
 
-    if ( params.get(KEY_SHUTTER_ENABLE) != NULL ) {
+    if ( params.get(KEY_SHUTTER_ENABLE) != NULL )
+    {
         if ( strcmp(params.get(KEY_SHUTTER_ENABLE), (const char *) "true") == 0 )
+        {
+            mMsgEnabled |= CAMERA_MSG_SHUTTER;
             mShutterEnable = true;
+        }
         else if ( strcmp(params.get(KEY_SHUTTER_ENABLE), (const char *) "false") == 0 )
+        {
             mShutterEnable = false;
+            mMsgEnabled &= ~CAMERA_MSG_SHUTTER;
+        }
     }
 
 #ifdef FW3A
@@ -5335,22 +5405,102 @@ sp<IMemoryHeap> CameraHal::getPreviewHeap() const
     return 0;
 }
 
+
 /*--------------------Eclair HAL---------------------------------------*/
+/**
+   @brief Enable a message, or set of messages.
+
+   @param[in] msgtype Bitmask of the messages to enable (defined in include/ui/Camera.h)
+   @return none
+
+ */
 void CameraHal::enableMsgType(int32_t msgType)
 {
+    LOG_FUNCTION_NAME;
+
+    if ( ( msgType & CAMERA_MSG_SHUTTER ) && ( !mShutterEnable ))
+    {
+        msgType &= ~CAMERA_MSG_SHUTTER;
+    }
+
+    // ignoring enable focus message from camera service
+    // we will enable internally in autoFocus call
+    if (msgType & CAMERA_MSG_FOCUS) {
+        msgType &= ~CAMERA_MSG_FOCUS;
+    }
+
+    {
     Mutex::Autolock lock(mLock);
     mMsgEnabled |= msgType;
+    }
+
+    if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME)
+    {
+        if(mDisplayPaused)
+        {
+            CAMHAL_LOGDA("Preview currently paused...will enable preview callback when restarted");
+            msgType &= ~CAMERA_MSG_PREVIEW_FRAME;
+        }else
+        {
+            CAMHAL_LOGDA("Enabling Preview Callback");
+        }
+    }
+    else
+    {
+        CAMHAL_LOGDB("Preview callback not enabled %x", msgType);
+    }
+
+
+    ///Configure app callback notifier with the message callback required
+    mAppCallbackNotifier->enableMsgType (msgType);
+
+    LOG_FUNCTION_NAME_EXIT;
 }
 
+/**
+   @brief Disable a message, or set of messages.
+
+   @param[in] msgtype Bitmask of the messages to disable (defined in include/ui/Camera.h)
+   @return none
+
+ */
 void CameraHal::disableMsgType(int32_t msgType)
 {
-    Mutex::Autolock lock(mLock);
-    mMsgEnabled &= ~msgType;
+    LOG_FUNCTION_NAME;
+
+        {
+        Mutex::Autolock lock(mLock);
+        mMsgEnabled &= ~msgType;
+        }
+
+    if( msgType & CAMERA_MSG_PREVIEW_FRAME)
+        {
+        CAMHAL_LOGDA("Disabling Preview Callback");
+        }
+
+    ///Configure app callback notifier
+    mAppCallbackNotifier->disableMsgType (msgType);
+
+    LOG_FUNCTION_NAME_EXIT;
 }
 
-bool CameraHal::msgTypeEnabled(int32_t msgType)
+
+/**
+   @brief Query whether a message, or a set of messages, is enabled.
+
+   Note that this is operates as an AND, if any of the messages queried are off, this will
+   return false.
+
+   @param[in] msgtype Bitmask of the messages to query (defined in include/ui/Camera.h)
+   @return true If all message types are enabled
+          false If any message type
+
+ */
+int CameraHal::msgTypeEnabled(int32_t msgType)
 {
+    LOG_FUNCTION_NAME;
     Mutex::Autolock lock(mLock);
+    LOG_FUNCTION_NAME_EXIT;
     return (mMsgEnabled & msgType);
 }
 
@@ -5377,6 +5527,13 @@ status_t CameraHal::cancelAutoFocus()
         LOGE("AF Stop Failed or AF already stopped");
     else
         LOGD("AF Stopped");
+
+    if( NULL != mCameraAdapter )
+    {
+        //adapterParams.set(TICameraParameters::KEY_AUTO_FOCUS_LOCK, CameraParameters::FALSE);
+        //mCameraAdapter->setParameters(adapterParams);
+        mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_AUTOFOCUS);
+    }
 
     p = getParameters();
 

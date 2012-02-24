@@ -230,9 +230,9 @@ void AppCallbackNotifier::setMeasurements(bool enable)
     mMeasurementEnabled = enable;
 
     if (  enable  )
-        {
-         mFrameProvider->enableFrameNotification(CameraFrame::FRAME_DATA_SYNC);
-        }
+    {
+        mFrameProvider->enableFrameNotification(CameraFrame::FRAME_DATA_SYNC);
+    }
 
     LOG_FUNCTION_NAME_EXIT;
 }

@@ -30,6 +30,8 @@ namespace android {
 #define NB_BUFFER 10
 //#define DEVICE "/dev/video4"
 #define DEVICE "/dev/video5" //added by sasken
+#define CAPTURE_8MP_WIDTH        3280
+#define CAPTURE_8MP_HEIGHT       2464
 
 struct VideoInfo {
     struct v4l2_capability cap;
@@ -78,6 +80,7 @@ public:
 
     // API
     virtual status_t UseBuffersPreview(void* bufArr, int num);
+    virtual status_t UseBuffersImageCapture(void* bufArr, int num);
 
     //API to flush the buffers for preview
     status_t flushBuffers();
@@ -95,6 +98,7 @@ protected:
     virtual status_t getPictureBufferSize(size_t &length, size_t bufferCount);
     virtual status_t getFrameDataSize(size_t &dataFrameSize, size_t bufferCount);
     virtual void onOrientationEvent(uint32_t orientation, uint32_t tilt);
+    virtual status_t takePicture();
 //-----------------------------------------------------------------------------
 
 
@@ -135,7 +139,8 @@ private:
 
     int nQueued;
     int nDequeued;
-
+    char* mImageCaptureBuffer;
+    bool mImagebuffer;
 };
 }; //// namespace
 #endif //V4L_CAMERA_ADAPTER_H
