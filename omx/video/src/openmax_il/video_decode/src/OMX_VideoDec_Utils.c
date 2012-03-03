@@ -2347,7 +2347,7 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
                     pDynParams->size = sizeof(H264VDEC_UALGDynamicParams);
 #endif
                     pDynParams->ulDecodeHeader = 1;
-                    pDynParams->ulDisplayWidth = 0;
+                    pDynParams->ulDisplayWidth = pComponentPrivate->nDisplayWidth;
                     pDynParams->ulFrameSkipMode = 0;
                     pDynParams->ulPPType = 0;
                     pDynParams->ulInputBitStreamFormat = (pComponentPrivate->H264BitStreamFormat>0?1:0);
@@ -4517,6 +4517,11 @@ OMX_ERRORTYPE VIDDEC_ParseHeader(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OM
             nPadHeight = VIDDEC_MULTIPLE16 ( nHeight);
         }
 
+#if 1
+        nWidth = VIDDEC_MULTIPLE32(nWidth);
+        pComponentPrivate->nDisplayWidth = nWidth;
+#endif
+
         /*TODO: Get minimum INPUT buffer size & verify if the actual size is enough*/
         /*Verify correct values in the initial setup*/
 
@@ -4637,8 +4642,9 @@ OMX_ERRORTYPE VIDDEC_ParseHeader(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OM
                                                 pComponentPrivate->pHandle->pApplicationPrivate,
                                                 OMX_EventPortSettingsChanged,
                                                 bOutPortSettingsChanged ? VIDDEC_OUTPUT_PORT : VIDDEC_INPUT_PORT,
-                                                0,
+                                                OMX_IndexParamPortDefinition,
                                                 NULL);
+		pComponentPrivate->bUsePortReconfigForCrop = OMX_TRUE;              
                 eError = OMX_ErrorBadParameter;
                 goto EXIT;
             }
@@ -5185,6 +5191,18 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
         OMX_VidDec_Return (pComponentPrivate, VIDDEC_OUTPUT_PORT, OMX_TRUE);
     }
 #endif
+    if(pComponentPrivate->bUsePortReconfigForCrop  ==  OMX_TRUE)
+    {
+	pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+	                                       pComponentPrivate->pHandle->pApplicationPrivate,
+	                                       OMX_EventPortSettingsChanged,
+	                                       VIDDEC_OUTPUT_PORT,
+	                                       OMX_IndexConfigCommonOutputCrop,
+	                                       NULL);
+	 pComponentPrivate->bUsePortReconfigForCrop = OMX_FALSE;
+	 eError = OMX_ErrorNone;
+    }
+
     OMX_PRBUFFER1(pComponentPrivate->dbg, "pBuffHead 0x%p eExecuteToIdle 0x%x\n", pBuffHead,pComponentPrivate->eExecuteToIdle);
     OMX_PRBUFFER1(pComponentPrivate->dbg, "nFilledLen 0x%lx nFlags 0x%lx\n", pBuffHead->nFilledLen,pBuffHead->nFlags);
     pBufferPrivate = (VIDDEC_BUFFER_PRIVATE* )pBuffHead->pInputPortPrivate;
@@ -6031,7 +6049,7 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromDsp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                 OMX_PRDSP4(pComponentPrivate->dbg, "Applied Concealment in buffer %p %lu(int# %lx/%lu)\n",
                         pBuffHead, ulFrameIndex, nInternalErrorCode, pBuffHead->nFilledLen);
             }
-            /*if(VIDDEC_ISFLAGSET(nErrorCode,VIDDEC_XDM_INSUFFICIENTDATA)){
+            if(VIDDEC_ISFLAGSET(nErrorCode,VIDDEC_XDM_INSUFFICIENTDATA)){
                 pBuffHead->nFlags |= OMX_BUFFERFLAG_DATACORRUPT;
                 pBuffHead->nFilledLen = 0;
                 OMX_PRDSP4(pComponentPrivate->dbg, "Insufficient Data in buffer %p %lu(int# %lx/%lu)\n",
@@ -6048,7 +6066,7 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromDsp(VIDDEC_COMPONENT_PRIVATE *pComponentP
                 pBuffHead->nFilledLen = 0;
                 OMX_PRDSP4(pComponentPrivate->dbg, "Corrupted Header in buffer %p %lu(int# %lx/%lu)\n",
                         pBuffHead, ulFrameIndex, nInternalErrorCode, pBuffHead->nFilledLen);
-            }*/
+            }
             if(VIDDEC_ISFLAGSET(nErrorCode,VIDDEC_XDM_UNSUPPORTEDINPUT)){
                 pBuffHead->nFlags |= OMX_BUFFERFLAG_DATACORRUPT;
                 pBuffHead->nFilledLen = 0;
@@ -8168,7 +8186,7 @@ OMX_ERRORTYPE VIDDEC_LoadCodec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate)
         pDynParams->size = sizeof(H264VDEC_UALGDynamicParams);
 #endif
         pDynParams->ulDecodeHeader = 1;
-        pDynParams->ulDisplayWidth = 0;
+        pDynParams->ulDisplayWidth = pComponentPrivate->nDisplayWidth;
         pDynParams->ulFrameSkipMode = 0;
         pDynParams->ulPPType = 0;
 
@@ -8634,7 +8652,7 @@ OMX_ERRORTYPE VIDDEC_SetMpeg4_Parameters(VIDDEC_COMPONENT_PRIVATE* pComponentPri
     pDynParams->size = sizeof(MP4VDEC_UALGDynamicParams);
 #endif
     pDynParams->ulDecodeHeader = 0;
-    pDynParams->ulDisplayWidth = 0;
+    pDynParams->ulDisplayWidth = pComponentPrivate->nDisplayWidth;
     pDynParams->ulFrameSkipMode = 0;
     pDynParams->useHighPrecIdctQp1 = 0;
 

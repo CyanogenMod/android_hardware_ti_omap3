@@ -155,7 +155,7 @@ typedef enum VIDDEC_ENUM_MEMLEVELS{
 #define VIDDEC_MULT16MASK 0xFFFFFFF0
 #define VIDDEC_MULT16 15
 #define VIDDEC_MULTIPLE16(x) ((x + VIDDEC_MULT16) & VIDDEC_MULT16MASK)
-
+#define VIDDEC_MULTIPLE32(x) ((x + 31) & ~(31));
 #define VIDDEC_COMPONENTROLES_H263           "video_decoder.h263"
 #define VIDDEC_COMPONENTROLES_H264           "video_decoder.avc"
 #define VIDDEC_COMPONENTROLES_MPEG2          "video_decoder.mpeg2"
@@ -1058,6 +1058,7 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 	int ion_fd;
 	OMX_BOOL bUseIon;
 	OMX_BOOL bMapIonBuffers;
+	OMX_BOOL bUsePortReconfigForCrop;
 //#endif
 
 

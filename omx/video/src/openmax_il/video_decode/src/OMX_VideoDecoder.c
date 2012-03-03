@@ -344,7 +344,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
 #ifdef KHRONOS_1_1
     pHandle->ComponentRoleEnum              = ComponentRoleEnum;
 #endif
-
+    pComponentPrivate->bUsePortReconfigForCrop = OMX_FALSE;
     /*mutex protection*/
     if (pthread_mutex_init(&(pComponentPrivate->mutexInputBFromApp), NULL) != 0) {
         eError = OMX_ErrorUndefined;
@@ -2002,6 +2002,23 @@ static OMX_ERRORTYPE VIDDEC_GetConfig (OMX_HANDLETYPE hComp,
                 }
                 break;
             }
+            case OMX_IndexConfigCommonOutputCrop:
+            {
+ 		OMX_CONFIG_RECTTYPE *crop2 = (OMX_CONFIG_RECTTYPE*)ComponentConfigStructure;
+                if (((OMX_CONFIG_RECTTYPE*)(ComponentConfigStructure))->nPortIndex == 
+                            pComponentPrivate->pOutPortDef->nPortIndex) {
+     		        crop2->nLeft   =  0;
+            		crop2->nWidth  =  pComponentPrivate->pInPortDef->format.video.nFrameWidth ;
+            		crop2->nTop    =  0;
+            		crop2->nHeight =  pComponentPrivate->pInPortDef->format.video.nFrameHeight;
+
+                } 
+                  	
+
+            	break;
+	    }
+           
+           
 #endif
             /* Vendor specific structures should be in the range of 0xFF000000
                to 0xFFFFFFFF.  This range is not broken out by vendor, so
