@@ -23,7 +23,7 @@
 
 //temporarily define format here
 #define HAL_PIXEL_FORMAT_TI_NV12 0x100
-#define TRIAL_YUV_FORMAT         0x1B  //added by sasken
+#define HAL_PIXEL_FORMAT_YUV     0x1B
 
 namespace android {
 

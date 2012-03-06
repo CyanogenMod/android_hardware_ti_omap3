@@ -35,8 +35,13 @@ LOCAL_SRC_FILES:= \
 	$(OMAP3_CAMERA_USB_SRC) \
 	$(OMAP3_CAMERA_COMMON_SRC)
 
-LOCAL_C_INCLUDES += \
-    $(LOCAL_PATH)/inc/ \
+LOCAL_C_INCLUDES := hardware/ti/omap3/dspbridge/inc \
+    hardware/ti/omap3/omx/system/src/openmax_il/lcml/inc \
+    $(HARDWARE_TI_OMAP3_BASE)/omx/system/src/openmax_il/omx_core/inc \
+    hardware/ti/omap3/omx/system/src/openmax_il/common/inc \
+    hardware/ti/omap3/omx/image/src/openmax_il/jpeg_enc/inc \
+    external/libexif \
+    $(LOCAL_PATH)/inc \
     $(LOCAL_PATH)/../hwc \
     $(LOCAL_PATH)/../include \
     $(LOCAL_PATH)/inc/V4LCameraAdapter \
@@ -65,6 +70,25 @@ LOCAL_SHARED_LIBRARIES:= \
     libdl
 
 LOCAL_CFLAGS := -fno-short-enums -DCOPY_IMAGE_BUFFER
+
+ifdef HARDWARE_OMX
+
+LOCAL_SRC_FILES += \
+    scale.c \
+    JpegEncoder.cpp \
+    JpegEncoderEXIF.cpp \
+
+LOCAL_CFLAGS += -O0 -g3 -fpic -fstrict-aliasing -DIPP_LINUX -D___ANDROID___ -DHARDWARE_OMX
+
+LOCAL_SHARED_LIBRARIES += \
+    libbridge \
+    libLCML \
+    libOMX_Core
+
+LOCAL_STATIC_LIBRARIES := \
+        libexifgnu
+
+endif
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)

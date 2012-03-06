@@ -808,7 +808,7 @@ void AppCallbackNotifier::notifyFrame()
                           (NULL != mDataCb) &&
                           (CameraFrame::ENCODE_RAW_YUV422I_TO_JPEG & frame->mQuirks) )
                     {
-
+#if (!JPEG)
                     int encode_quality = 100, tn_quality = 100;
                     int tn_width, tn_height;
                     unsigned int current_snapshot = 0;
@@ -887,6 +887,35 @@ void AppCallbackNotifier::notifyFrame()
                     encoder->run();
                     gEncoderQueue.add(frame->mBuffer, encoder);
                     encoder.clear();
+#else
+					int jpegSize = 0;
+					mCameraHal->getCaptureSize(&jpegSize);
+
+					camera_memory_t* picture = NULL;
+
+					picture = mRequestMemory(-1, jpegSize, 1, NULL);
+					if (picture && picture->data) {
+						mCameraHal->copyJpegImage( picture->data );
+					}
+
+					// Send the callback to the application only if the notifier is started and the message is enabled
+					if(picture && (mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED) &&
+								  (mCameraHal->msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE)))
+					{
+						LOGV( " sending the CAMERA_MSG_COMPRESSED_IMAGE callback to the app \n");
+						mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, picture , 0, NULL, mCallbackCookie);
+					}
+
+					if (picture) {
+						picture->release(picture);
+					}
+
+					if (mNotifierState == AppCallbackNotifier::NOTIFIER_STARTED)
+					{
+						mFrameProvider->returnFrame(frame->mBuffer,
+                                                ( CameraFrame::FrameType ) frame->mFrameType);
+					}
+#endif
                     }
                 else if ( ( CameraFrame::IMAGE_FRAME == frame->mFrameType ) &&
                              ( NULL != mCameraHal ) &&

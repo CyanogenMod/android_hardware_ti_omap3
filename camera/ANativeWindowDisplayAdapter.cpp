@@ -562,23 +562,12 @@ void* ANativeWindowDisplayAdapter::allocateBuffer(int width, int height, const c
     CAMHAL_LOGDB("Configuring %d buffers for ANativeWindow", numBufs);
     mBufferCount = numBufs;
 
-
-    // Set window geometry
-    /*err = mANativeWindow->set_buffers_geometry(
-            mANativeWindow,
-            width,
-            height,
-            toOMXPixFormat(format) HAL_PIXEL_FORMAT_TI_NV12);  // Gralloc only supports NV12 alloc! */
-
-//added by sasken - start
+    //Changing Pixel format to YUV for OMAP3
     err = mANativeWindow->set_buffers_geometry(
             mANativeWindow,
             width,
             height,
-            TRIAL_YUV_FORMAT);
-
-//added by sasken - end
-
+            HAL_PIXEL_FORMAT_YUV /*toOMXPixFormat(format) HAL_PIXEL_FORMAT_TI_NV12*/);
 
     if (err != 0) {
         LOGE("native_window_set_buffers_geometry failed: %s (%d)", strerror(-err), -err);

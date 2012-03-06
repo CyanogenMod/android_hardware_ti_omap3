@@ -51,15 +51,15 @@
 
 #include <ui/GraphicBufferAllocator.h>
 #include <ui/GraphicBuffer.h>
-//#include "JpegEncoder.h"
+#include "JpegEncoder.h"
 
 
 #ifdef HARDWARE_OMX
-//#include <JpegEncoderEXIF.h>
+#include <JpegEncoderEXIF.h>
 #endif
 
 //Uncomment to enable more verbose/debug logs
-//#define DEBUG_LOG
+#define DEBUG_LOG
 
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG
@@ -193,7 +193,7 @@ private:
 };
 
 #define RESIZER 1
-#define JPEG 0
+#define JPEG 1
 #define VPP 1
 
 #define PPM_INSTRUMENTATION 1
@@ -204,7 +204,7 @@ private:
                              GRALLOC_USAGE_SW_WRITE_NEVER
 #define LOCK_BUFFER_TRIES 5
 
-static const int32_t MAX_BUFFERS = 6; //sasken remove
+static const int32_t MAX_BUFFERS = 6; //check this - in ICS it is 8
 
 //#undef FW3A
 //#undef ICAP
@@ -218,7 +218,7 @@ extern "C" {
 #endif
 
 #ifdef HARDWARE_OMX
-//#include "JpegEncoder.h"
+#include "JpegEncoder.h"
 #endif
 
 #ifdef IMAGE_PROCESSING_PIPELINE
@@ -249,10 +249,8 @@ extern "C" {
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
 #define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
 #define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
-//#define VIDEO_FRAME_COUNT_MAX    NUM_OVERLAY_BUFFERS_REQUESTED
-//#define MAX_CAMERA_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
-#define VIDEO_FRAME_COUNT_MAX    6 //sasken remove
-#define MAX_CAMERA_BUFFERS    6 //sasken remove
+#define VIDEO_FRAME_COUNT_MAX    MAX_BUFFERS
+#define MAX_CAMERA_BUFFERS    MAX_BUFFERS
 #define COMPENSATION_OFFSET 20
 #define CONTRAST_OFFSET 100
 #define BRIGHTNESS_OFFSET 100
@@ -1151,6 +1149,11 @@ public:
     virtual sp<IMemoryHeap> getRawHeap() const;
     virtual void stopRecording();
 
+#if JPEG
+    void getCaptureSize(int *jpegSize);
+	void copyJpegImage(void *imageBuf);
+#endif
+
     virtual status_t startRecording();  // Eclair HAL
     virtual bool recordingEnabled();
     virtual void releaseRecordingFrame(const sp<IMemory>& mem);
@@ -1391,7 +1394,7 @@ public:
     bool useMaxCrop;
     float zoomAspRatio;
     CameraParameters mParameters;
-    sp<MemoryHeapBase> mPictureHeap, mJPEGPictureHeap;
+    sp<MemoryHeapBase> mPictureHeap;
     int mJPEGOffset, mJPEGLength;
     unsigned int mYuvBufferLen[MAX_BURST];
     void *mYuvBuffer[MAX_BURST];
@@ -1414,6 +1417,12 @@ public:
     sp<ShutterThread> mShutterThread;
     sp<RawThread> mRawThread;
     sp<SnapshotThread> mSnapshotThread;
+#if JPEG
+	int mTotalJpegsize;
+	void* mJpegBuffAddr;
+	sp<MemoryBase> mJPEGPictureMemBase;
+	sp<MemoryHeapBase> mJPEGPictureHeap;
+#endif
 
     bool mPreviewRunning;
     bool mDisplayPaused;

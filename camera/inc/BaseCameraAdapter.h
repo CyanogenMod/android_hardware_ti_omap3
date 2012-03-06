@@ -50,7 +50,6 @@ public:
     //API to send a command to the camera
     virtual status_t sendCommand(CameraCommands operation, int value1 = 0, int value2 = 0, int value3 = 0 );
 
-    /* -- added by sasken --- */
     virtual int queueToGralloc(int index, char* fp) = 0;
     virtual char * GetFrame(int &index) = 0;
 

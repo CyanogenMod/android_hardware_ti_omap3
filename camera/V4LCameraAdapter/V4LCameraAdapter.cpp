@@ -52,48 +52,6 @@ static int mDebugFps = 0;
 
 namespace android {
 
-//Added by sasken start
-
-#define COMPENSATION_MIN        -20
-#define COMPENSATION_MAX        20
-#define COMPENSATION_STEP       "0.1"
-#define PARM_ZOOM_SCALE         100
-
-#define ZOOM_STAGES 41
-#define IMX046_FOCALLENGTH 4.68
-#define IMX046_HORZANGLE 62.9
-#define IMX046_VERTANGLE 24.8
-#define STRINGIZE_(x) #x
-#define STRINGIZE(x) STRINGIZE_(x)
-
-static const char supportedPictureSizes [] = "3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240";
-const char supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
-const char supportedFPS [] = "33,30,25,24,20,15,10";
-const char supportedThumbnailSizes []= "320x240,80x60,0x0";
-const char supportedFpsRanges [] = "(8000,8000),(8000,10000),(10000,10000),(8000,15000),(15000,15000),(8000,20000),(20000,20000),(24000,24000),(25000,25000),(8000,30000),(30000,30000)";
-const char PARAMS_DELIMITER []= ",";
-
-const supported_resolution supportedPictureRes[] = { {3264, 2448} , {2560, 2048} ,
-                                                     {2048, 1536} , {1600, 1200} ,
-                                                     {1280, 1024} , {1152, 968} ,
-                                                     {1280, 960} , {800, 600},
-                                                     {640, 480}   , {320, 240} };
-
-const supported_resolution supportedPreviewRes[] = { {1280, 720}, {800, 480},
-                                                     {720, 576}, {720, 480},
-                                                     {992, 560}, {864, 480}, {848, 480},
-                                                     {768, 576}, {640, 480},
-                                                     {320, 240}, {352, 288}, {240, 160},
-                                                     {176, 144}, {128, 96}};
-
-static float zoom_step [ZOOM_STAGES] = {  1.0000, 1.0353, 1.0718, 1.1096, 1.1487, 1.1892, 1.2311, 1.2746,
-                                          1.3195, 1.3660, 1.4142, 1.4641, 1.5157, 1.5692, 1.6245, 1.6818,
-                                          1.7411, 1.8025, 1.8661, 1.9319, 2.0000, 2.0705, 2.1435, 2.2191,
-                                          2.2974, 2.3784, 2.4623, 2.5491, 2.6390, 2.7321, 2.8284, 2.9282,
-                                          3.0314, 3.1383, 3.2490, 3.3636, 3.4822, 3.6050, 3.7321, 3.8637,
-                                          4.0000};
-//added by sasken end
-
 #undef LOG_TAG
 ///Maintain a separate tag for V4LCameraAdapter logs to isolate issues OMX specific
 #define LOG_TAG "V4LCameraAdapter"
@@ -744,7 +702,7 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp)
 
     Mutex::Autolock lock(mSubscriberLock);
 
-	if (true == mImagebuffer )
+	if ( true == mImagebuffer )
 	{
 	      int image_width , image_height ;
 	      mParams.getPictureSize(&image_width, &image_height);
@@ -820,44 +778,6 @@ extern "C" int CameraAdapter_Capabilities(CameraProperties::Properties* properti
         properties = properties_array + starting_camera;
         properties->set(CameraProperties::CAMERA_NAME, "USBCamera");
 
-        //added by sasken start - setting the default properties
-        properties->set(CameraProperties::PREVIEW_FRAME_RATE, 30);
-        properties->set(CameraProperties::PREVIEW_FORMAT,CameraParameters::PIXEL_FORMAT_YUV422I );
-        properties->set(CameraProperties::PICTURE_FORMAT, CameraParameters::PIXEL_FORMAT_JPEG);
-        properties->set(CameraProperties::JPEG_QUALITY, 100);
-        properties->set(CameraProperties::EV_COMPENSATION, 0);
-        properties->set(CameraProperties::ZOOM, 0);
-        char fpsRange[32];
-        sprintf(fpsRange, "%d,%d", 30000,30000);
-        properties->set(CameraProperties::FOCAL_LENGTH, STRINGIZE(IMX046_FOCALLENGTH));
-        properties->set(CameraProperties::HOR_ANGLE, STRINGIZE(IMX046_HORZANGLE) );
-        properties->set(CameraProperties::VER_ANGLE, STRINGIZE(IMX046_VERTANGLE));
-        properties->set(CameraProperties::FRAMERATE_RANGE, fpsRange);
-        properties->set(CameraProperties::JPEG_THUMBNAIL_QUALITY, 100);
-        char str[32];
-        sprintf(str, "%dx%d", PICTURE_WIDTH, PICTURE_HEIGHT);
-        properties->set(CameraProperties::PICTURE_SIZE , str);
-        char strsize[32];
-        sprintf(strsize, "%dx%d", MIN_WIDTH, MIN_HEIGHT);
-        properties->set(CameraProperties::PREVIEW_SIZE, strsize);
-
-        properties->set(CameraProperties::SUPPORTED_PICTURE_SIZES, supportedPictureSizes );
-        properties->set(CameraProperties::SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
-        properties->set(CameraProperties::SUPPORTED_PREVIEW_SIZES, supportedPreviewSizes);
-        properties->set(CameraProperties::SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV422I);
-        properties->set(CameraProperties::SUPPORTED_PREVIEW_FRAME_RATES, supportedFPS);
-        properties->set(CameraProperties::SUPPORTED_THUMBNAIL_SIZES, supportedThumbnailSizes);
-
-        properties->set(CameraProperties::SUPPORTED_EV_MAX, COMPENSATION_MAX);
-        properties->set(CameraProperties::SUPPORTED_EV_MIN, COMPENSATION_MIN);
-        properties->set(CameraProperties::SUPPORTED_EV_STEP, COMPENSATION_STEP);
-
-        properties->set(CameraProperties::SUPPORTED_ZOOM_STAGES, ZOOM_STAGES-1);
-        properties->set(CameraProperties::ZOOM_SUPPORTED, "true");
-        properties->set(CameraProperties::SMOOTH_ZOOM_SUPPORTED, "true");
-        properties->set(CameraProperties::FRAMERATE_RANGE_SUPPORTED, supportedFpsRanges);
-
-        //added by sasken end
     }
 
     LOG_FUNCTION_NAME_EXIT;

@@ -29,7 +29,7 @@ namespace android {
 #define DEFAULT_PIXEL_FORMAT V4L2_PIX_FMT_UYVY
 #define NB_BUFFER 10
 //#define DEVICE "/dev/video4"
-#define DEVICE "/dev/video5" //added by sasken
+#define DEVICE "/dev/video5"
 #define CAPTURE_8MP_WIDTH        3280
 #define CAPTURE_8MP_HEIGHT       2464
 
