@@ -1461,10 +1461,10 @@ status_t BaseCameraAdapter::stopVideoCapture()
 
     LOG_FUNCTION_NAME;
 
-    if ( !mRecording )
+   /* if ( !mRecording )
         {
         ret = NO_INIT;
-        }
+        }*/
 
     if ( NO_ERROR == ret )
         {

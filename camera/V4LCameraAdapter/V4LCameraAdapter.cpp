@@ -119,7 +119,7 @@ status_t V4LCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType
 
     if((NO_ERROR == ret) && ((frameType == CameraFrame::IMAGE_FRAME) || (CameraFrame::RAW_FRAME == frameType)))
     {
-    	CAMHAL_LOGEA(" This is an image capture frame ");
+    CAMHAL_LOGEA(" This is an image capture frame ");
         
         // Signal end of image capture
         if ( NULL != mEndImageCaptureCallback) {
@@ -223,8 +223,8 @@ status_t V4LCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, si
             break;
 
         case CAMERA_IMAGE_CAPTURE:
-        	ret = UseBuffersImageCapture(bufArr, num);
-        	break;
+        ret = UseBuffersImageCapture(bufArr, num);
+        break;
 
         case CAMERA_VIDEO:
             //@warn Video capture is not fully supported yet
@@ -235,6 +235,17 @@ status_t V4LCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, si
     LOG_FUNCTION_NAME_EXIT;
 
     return ret;
+}
+
+char** V4LCameraAdapter:: getVirtualAddress()
+{
+    char** buf = new char*[6];
+
+    for(int i = 0; i < 6; i ++)
+    {
+        buf[i] = (char *)mIonHandle.keyAt(i);
+    }
+    return buf;
 }
 
 status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
@@ -278,41 +289,41 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 
     if( mIonHandle.isEmpty() )
     {
-	    void* buff_t;
-	    int map_fd;
-	    struct ion_map_gralloc_to_ionhandle_data data;
+        void* buff_t;
+        int map_fd;
+        struct ion_map_gralloc_to_ionhandle_data data;
 
-	    int fd = ion_open();
-	    CAMHAL_LOGEB( "ion_fd = %d", fd );
+        int fd = ion_open();
+        CAMHAL_LOGEB( "ion_fd = %d", fd );
 
-	    for (int i = 0; i < num; i++) {
+        for (int i = 0; i < num; i++) {
 
-		uint32_t *ptr = (uint32_t*) bufArr;
+        uint32_t *ptr = (uint32_t*) bufArr;
 
-		//Associate each Camera internal buffer with the one from Overlay
-		mPreviewBufs.add((int)ptr[i], i);
+        //Associate each Camera internal buffer with the one from Overlay
+        mPreviewBufs.add((int)ptr[i], i);
 
-		mParams.getPreviewSize(&width, &height);
+        mParams.getPreviewSize(&width, &height);
 
-		data.gralloc_handle = (int *)((IMG_native_handle_t*)ptr[i])->fd[0];
-		CAMHAL_LOGEB("data.gralloc_handle = %d", data.gralloc_handle);
+        data.gralloc_handle = (int *)((IMG_native_handle_t*)ptr[i])->fd[0];
+        CAMHAL_LOGEB("data.gralloc_handle = %d", data.gralloc_handle);
 
-		if (ion_ioctl(fd, ION_IOC_MAP_GRALLOC, &data)) {
-			LOGE("ion_ioctl fail");
-			return BAD_VALUE;
-		}
+        if (ion_ioctl(fd, ION_IOC_MAP_GRALLOC, &data)) {
+            LOGE("ion_ioctl fail");
+            return BAD_VALUE;
+        }
 
-		LOGE("data.handleY = %x", data.handleY);
+        LOGE("data.handleY = %x", data.handleY);
 
-		if (ion_map(fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
-					MAP_SHARED, 0, (unsigned char **)&buff_t, &map_fd) < 0) {
-			LOGE("ION map failed");
-			return BAD_VALUE;
-		}
-		CAMHAL_LOGEB(" buff_t is %x ", buff_t);
+        if (ion_map(fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
+                    MAP_SHARED, 0, (unsigned char **)&buff_t, &map_fd) < 0) {
+            LOGE("ION map failed");
+            return BAD_VALUE;
+        }
+        CAMHAL_LOGEB(" buff_t is %x ", buff_t);
 
-		mIonHandle.add((void*)buff_t,i);
-	   }
+        mIonHandle.add((void*)buff_t,i);
+       }
     }
 
     // Update the preview buffer count
@@ -327,7 +338,7 @@ status_t V4LCameraAdapter::UseBuffersImageCapture(void* bufArr, int num)
 {
     LOG_FUNCTION_NAME;
     
-	status_t ret = NO_ERROR;
+    status_t ret = NO_ERROR;
     mVideoInfo->buf.index = 0;
     mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
@@ -463,6 +474,8 @@ status_t V4LCameraAdapter::stopPreview()
         mVideoInfo->isStreaming = false;
     }
     mPreviewing = false;
+    mPreviewBufs.clear();
+    mIonHandle.clear();
 
     return ret;
 
@@ -537,44 +550,44 @@ status_t V4LCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCou
     }
 
     //Set 10 fps for 8MP case
-	if( ( image_height == CAPTURE_8MP_HEIGHT ) && ( image_width == CAPTURE_8MP_WIDTH ) ) {
-		LOGE("8MP Capture setting framerate to 10");
-		parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		ret = ioctl(mCameraHandle, VIDIOC_G_PARM, &parm);
-		if(ret != 0) {
-			LOGE("VIDIOC_G_PARM ");
-			return -1;
-		}
+    if( ( image_height == CAPTURE_8MP_HEIGHT ) && ( image_width == CAPTURE_8MP_WIDTH ) ) {
+        LOGE("8MP Capture setting framerate to 10");
+        parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        ret = ioctl(mCameraHandle, VIDIOC_G_PARM, &parm);
+        if(ret != 0) {
+            LOGE("VIDIOC_G_PARM ");
+            return -1;
+        }
 
-		parm.parm.capture.timeperframe.numerator = 1;
-		parm.parm.capture.timeperframe.denominator = 10;
-		ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &parm);
-		if(ret != 0) {
-			LOGE("VIDIOC_S_PARM ");
-			return -1;
-		}
-	}
+        parm.parm.capture.timeperframe.numerator = 1;
+        parm.parm.capture.timeperframe.denominator = 10;
+        ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &parm);
+        if(ret != 0) {
+            LOGE("VIDIOC_S_PARM ");
+            return -1;
+        }
+    }
 
-	/* Check if the camera driver can accept 1 buffer */
+    /* Check if the camera driver can accept 1 buffer */
     mVideoInfo->rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     mVideoInfo->rb.memory = V4L2_MEMORY_USERPTR;
     mVideoInfo->rb.count = 1;
 
-	if (ioctl(mCameraHandle, VIDIOC_REQBUFS,  &mVideoInfo->rb) < 0){
-		LOGE ("VIDIOC_REQBUFS Failed. errno = %d", errno);
-		return -1;
-	}
+    if (ioctl(mCameraHandle, VIDIOC_REQBUFS,  &mVideoInfo->rb) < 0){
+        LOGE ("VIDIOC_REQBUFS Failed. errno = %d", errno);
+        return -1;
+    }
 
-	mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	mVideoInfo->buf.memory =  V4L2_MEMORY_USERPTR;
-	mVideoInfo->buf.index = 0;
+    mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->buf.memory =  V4L2_MEMORY_USERPTR;
+    mVideoInfo->buf.index = 0;
 
-	if (ioctl(mCameraHandle, VIDIOC_QUERYBUF, &mVideoInfo->buf) < 0) {
-		LOGE("VIDIOC_QUERYBUF Failed");
-		return -1;
-	}
+    if (ioctl(mCameraHandle, VIDIOC_QUERYBUF, &mVideoInfo->buf) < 0) {
+        LOGE("VIDIOC_QUERYBUF Failed");
+        return -1;
+    }
 
-	length = mVideoInfo->buf.length ;
+    length = mVideoInfo->buf.length ;
 
     return NO_ERROR;
 }
@@ -641,6 +654,7 @@ V4LCameraAdapter::V4LCameraAdapter(size_t sensor_index)
     LOG_FUNCTION_NAME;
     mImageCaptureBuffer = NULL;
     mImagebuffer = false;
+    mVideoBuffer = false;
 
     // Nothing useful to do in the constructor
 
@@ -672,7 +686,7 @@ V4LCameraAdapter::~V4LCameraAdapter()
     LOG_FUNCTION_NAME_EXIT;
 }
 
-int V4LCameraAdapter::queueToGralloc(int index, char* fp)
+int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
 {
     status_t ret = NO_ERROR;
     int width, height;
@@ -680,62 +694,65 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp)
     int i;
     VideoInfo* buf;
 
+    mRecording = isVideo;
+
     if(!fp )
-    {
-    	return BAD_VALUE;
-    }
+        {
+        return BAD_VALUE;
+        }
 
     mParams.getPreviewSize(&width, &height);
     CAMHAL_LOGEB(" Inside V4LCameraAdapter width = %d , height = %d ",width, height);
 
-#if 0
-    LOGE(" dumping source data at queuetogralloc ");
-    FILE *fileptr = fopen("/data/camera_src_new.raw", "ab");
-    fwrite((const void *)src,1, width*height*2,  fileptr);
-    fclose(fileptr);
-    LOGE(" dumping source data complete queuetogralloc ");
-#endif
-
     uint8_t* grallocPtr = (uint8_t*) mPreviewBufs.keyAt(index);
 
-	recalculateFPS();
+    recalculateFPS();
 
     Mutex::Autolock lock(mSubscriberLock);
 
-	if ( true == mImagebuffer )
-	{
-	      int image_width , image_height ;
-	      mParams.getPictureSize(&image_width, &image_height);
-	    
-		  frame.mFrameType = CameraFrame::SNAPSHOT_FRAME;
-		  frame.mQuirks |= CameraFrame::ENCODE_RAW_YUV422I_TO_JPEG;
-		  frame.mFrameMask = CameraFrame::IMAGE_FRAME;
-          frame.mBuffer = fp;
-          frame.mLength = image_width * image_height * 2;
-	      frame.mAlignment = image_width * 2;
-	      frame.mWidth = image_width;
-	      frame.mHeight = image_height;
-          mImagebuffer = false;
-	}
-	else
-	{
-		frame.mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
-		frame.mFrameMask = CameraFrame::PREVIEW_FRAME_SYNC;
-		frame.mBuffer = grallocPtr;
-		frame.mLength = width*height*2;
-	    frame.mAlignment = width*2;
-	    frame.mWidth = width;
-	    frame.mHeight = height;
-	}
+    if (true == mImagebuffer )
+        {
+        int image_width , image_height ;
+        mParams.getPictureSize(&image_width, &image_height);
 
-	frame.mOffset = 0;
-	frame.mYuv[0] = NULL;
-	frame.mYuv[1] = NULL;
-	frame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+        frame.mFrameType = CameraFrame::SNAPSHOT_FRAME;
+        frame.mQuirks |= CameraFrame::ENCODE_RAW_YUV422I_TO_JPEG;
+        frame.mFrameMask = CameraFrame::IMAGE_FRAME;
+        frame.mBuffer = fp;
+        frame.mLength = image_width * image_height * 2;
+        frame.mAlignment = image_width * 2;
+        frame.mWidth = image_width;
+        frame.mHeight = image_height;
+        mImagebuffer = false;
+        }
+    else if (true == mRecording) {
+        frame.mFrameType = CameraFrame::VIDEO_FRAME_SYNC;
+        frame.mFrameMask = CameraFrame::VIDEO_FRAME_SYNC;
+        frame.mBuffer = grallocPtr;
+        frame.mLength = width*height*2;
+        frame.mAlignment = width*2;
+        frame.mWidth = width;
+        frame.mHeight = height;
+        mRecording = false;
+        }
+    else
+        {
+        frame.mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
+        frame.mFrameMask = CameraFrame::PREVIEW_FRAME_SYNC;
+        frame.mBuffer = grallocPtr;
+        frame.mLength = width*height*2;
+        frame.mAlignment = width*2;
+        frame.mWidth = width;
+        frame.mHeight = height;
+        }
 
-	ret = setInitFrameRefCount(frame.mBuffer, frame.mFrameMask);
+    frame.mOffset = 0;
+    frame.mYuv[0] = NULL;
+    frame.mYuv[1] = NULL;
+    frame.mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
 
-	ret = sendFrameToSubscribers(&frame);
+    ret = setInitFrameRefCount(frame.mBuffer, frame.mFrameMask);
+    ret = sendFrameToSubscribers(&frame);
 
     return ret;
 }

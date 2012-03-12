@@ -59,7 +59,7 @@
 #endif
 
 //Uncomment to enable more verbose/debug logs
-#define DEBUG_LOG
+//#define DEBUG_LOG
 
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG
@@ -247,8 +247,8 @@ extern "C" {
 #define CAPTURE_8MP_WIDTH        3280
 #define CAPTURE_8MP_HEIGHT       2464
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
-#define LOG_FUNCTION_NAME    LOGD("%d: %s() ENTER", __LINE__, __FUNCTION__);
-#define LOG_FUNCTION_NAME_EXIT    LOGD("%d: %s() EXIT", __LINE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME    LOGV("%d: %s() ENTER", __LINE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME_EXIT    LOGV("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    MAX_BUFFERS
 #define MAX_CAMERA_BUFFERS    MAX_BUFFERS
 #define COMPENSATION_OFFSET 20
@@ -814,10 +814,10 @@ public:
     //Notifications from CameraHal for video recording case
     status_t startRecording();
     status_t stopRecording();
-    status_t initSharedVideoBuffers(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count, void *vidBufs);
+    status_t initSharedVideoBuffers(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count, void **vidBufs);
     status_t releaseRecordingFrame(const void *opaque);
 
-	status_t useMetaDataBufferMode(bool enable);
+    status_t useMetaDataBufferMode(bool enable);
 
     void EncoderDoneCb(void*, void*, CameraFrame::FrameType type, void* cookie1, void* cookie2);
 
@@ -911,6 +911,8 @@ private:
 
     int mVideoWidth;
     int mVideoHeight;
+    KeyedVector<uint32_t, uint32_t> mPreviewBufIndex;
+    KeyedVector<char*,uint32_t > mVirtualBuffer;
 
 };
 
@@ -1064,7 +1066,8 @@ public:
 
     //API to send a command to the camera
     virtual status_t sendCommand(CameraCommands operation, int value1=0, int value2=0, int value3=0) = 0;
-    virtual int queueToGralloc(int index, char* fp) = 0;
+    virtual int queueToGralloc(int index, char* fp, bool isVideo) = 0;
+    virtual char** getVirtualAddress() = 0;
     virtual char * GetFrame(int &index) = 0;
 
     virtual ~CameraAdapter() {};
@@ -1143,20 +1146,20 @@ public:
                         camera_request_memory get_memory,
                         void *user);
 
-	status_t storeMetaDataInBuffers(bool enable);
-	void putParameters(char *parms);
+    status_t storeMetaDataInBuffers(bool enable);
+    void putParameters(char *parms);
 
     virtual sp<IMemoryHeap> getRawHeap() const;
     virtual void stopRecording();
 
 #if JPEG
     void getCaptureSize(int *jpegSize);
-	void copyJpegImage(void *imageBuf);
+    void copyJpegImage(void *imageBuf);
 #endif
 
     virtual status_t startRecording();  // Eclair HAL
-    virtual bool recordingEnabled();
-    virtual void releaseRecordingFrame(const sp<IMemory>& mem);
+    virtual int recordingEnabled();
+    virtual void releaseRecordingFrame(const void *opaque);
     virtual sp<IMemoryHeap> getPreviewHeap() const ;
 
     virtual status_t startPreview();   //  Eclair HAL
@@ -1497,7 +1500,7 @@ public:
     void                 *mCallbackCookie;
 
     int32_t             mMsgEnabled;
-    bool                mRecordEnabled;
+    bool                mRecordingEnabled;
     bool mFalsePreview;
 
 
@@ -1582,6 +1585,7 @@ public:
 
     FILE *foutYUV;
     FILE *foutJPEG;
+    bool mCaptureMode;
 };
 
 }; // namespace android

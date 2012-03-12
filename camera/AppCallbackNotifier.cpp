@@ -888,33 +888,33 @@ void AppCallbackNotifier::notifyFrame()
                     gEncoderQueue.add(frame->mBuffer, encoder);
                     encoder.clear();
 #else
-					int jpegSize = 0;
-					mCameraHal->getCaptureSize(&jpegSize);
+                    int jpegSize = 0;
+                    mCameraHal->getCaptureSize(&jpegSize);
 
-					camera_memory_t* picture = NULL;
+                    camera_memory_t* picture = NULL;
 
-					picture = mRequestMemory(-1, jpegSize, 1, NULL);
-					if (picture && picture->data) {
-						mCameraHal->copyJpegImage( picture->data );
-					}
+                    picture = mRequestMemory(-1, jpegSize, 1, NULL);
+                    if (picture && picture->data) {
+                        mCameraHal->copyJpegImage( picture->data );
+                    }
 
-					// Send the callback to the application only if the notifier is started and the message is enabled
-					if(picture && (mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED) &&
-								  (mCameraHal->msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE)))
-					{
-						LOGV( " sending the CAMERA_MSG_COMPRESSED_IMAGE callback to the app \n");
-						mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, picture , 0, NULL, mCallbackCookie);
-					}
+                    // Send the callback to the application only if the notifier is started and the message is enabled
+                    if(picture && (mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED) &&
+                                  (mCameraHal->msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE)))
+                    {
+                        LOGV( " sending the CAMERA_MSG_COMPRESSED_IMAGE callback to the app \n");
+                        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, picture , 0, NULL, mCallbackCookie);
+                    }
 
-					if (picture) {
-						picture->release(picture);
-					}
+                    if (picture) {
+                        picture->release(picture);
+                    }
 
-					if (mNotifierState == AppCallbackNotifier::NOTIFIER_STARTED)
-					{
-						mFrameProvider->returnFrame(frame->mBuffer,
+                    if (mNotifierState == AppCallbackNotifier::NOTIFIER_STARTED)
+                    {
+                        mFrameProvider->returnFrame(frame->mBuffer,
                                                 ( CameraFrame::FrameType ) frame->mFrameType);
-					}
+                    }
 #endif
                     }
                 else if ( ( CameraFrame::IMAGE_FRAME == frame->mFrameType ) &&
@@ -1008,7 +1008,9 @@ void AppCallbackNotifier::notifyFrame()
                             else
                               {
                                 videoMetadataBuffer->metadataBufferType = (int) kMetadataBufferTypeCameraSource;
-                                videoMetadataBuffer->handle = frame->mBuffer;
+                                int index = mPreviewBufIndex.valueFor((uint32_t) frame->mBuffer);
+
+                                videoMetadataBuffer->handle = (char*)mVirtualBuffer.keyAt(index); //frame->mBuffer;
                                 videoMetadataBuffer->offset = frame->mOffset;
                               }
 
@@ -1028,7 +1030,8 @@ void AppCallbackNotifier::notifyFrame()
                                 break;
                                 }
 
-                            fakebuf->data = frame->mBuffer;
+                            int index = mPreviewBufIndex.valueFor((uint32_t) frame->mBuffer);    
+                            fakebuf->data = (char*)mVirtualBuffer.keyAt(index);
                             mDataCbTimestamp(frame->mTimestamp, CAMERA_MSG_VIDEO_FRAME, fakebuf, 0, mCallbackCookie);
                             fakebuf->release(fakebuf);
                             }
@@ -1530,7 +1533,7 @@ status_t AppCallbackNotifier::startRecording()
 }
 
 //Allocate metadata buffers for video recording
-status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count, void *vidBufs)
+status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *offsets, int fd, size_t length, size_t count, void **vidBufs)
 {
     status_t ret = NO_ERROR;
     LOG_FUNCTION_NAME;
@@ -1561,12 +1564,25 @@ status_t AppCallbackNotifier::initSharedVideoBuffers(void *buffers, uint32_t *of
             CAMHAL_LOGDB("bufArr[%d]=0x%x, videoMedatadaBufferMemory=0x%x, videoMedatadaBufferMemory->data=0x%x",
                     i, bufArr[i], videoMedatadaBufferMemory, videoMedatadaBufferMemory->data);
 
+            mPreviewBufIndex.add(bufArr[i],i);
+
             if (vidBufs != NULL)
-              {
-                uint32_t *vBufArr = (uint32_t *) vidBufs;
-                mVideoMap.add(bufArr[i], vBufArr[i]);
-                CAMHAL_LOGVB("bufArr[%d]=0x%x, vBuffArr[%d]=0x%x", i, bufArr[i], i, vBufArr[i]);
-              }
+                {
+                char** vBufArr = (char**) vidBufs;
+                mVirtualBuffer.add(vBufArr[i],i);
+                mVideoMap.add(bufArr[i], (unsigned int)vBufArr[i]);
+                }
+            }
+        }
+    else
+        {
+        uint32_t *bufArr = (uint32_t *) buffers;
+        char** vBufArr = (char**) vidBufs;
+
+        for (uint32_t i = 0; i < 6; i++)
+            {
+            mPreviewBufIndex.add(bufArr[i],i);
+            mVirtualBuffer.add(vBufArr[i],i);
             }
         }
 
@@ -1597,7 +1613,8 @@ status_t AppCallbackNotifier::stopRecording()
 
     if ( NO_ERROR == ret )
         {
-         mFrameProvider->disableFrameNotification(CameraFrame::VIDEO_FRAME_SYNC);
+        mFrameProvider->disableFrameNotification(CameraFrame::PREVIEW_FRAME_SYNC);
+        mFrameProvider->disableFrameNotification(CameraFrame::VIDEO_FRAME_SYNC);
         }
 
     ///Release the shared video buffers

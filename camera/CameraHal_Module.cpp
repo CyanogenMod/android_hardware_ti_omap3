@@ -274,7 +274,7 @@ void camera_release_recording_frame(struct camera_device * device,
 
     ti_dev = (ti_camera_device_t*) device;
 
-//    gCameraHals[ti_dev->cameraid]->releaseRecordingFrame(opaque);
+    gCameraHals[ti_dev->cameraid]->releaseRecordingFrame(opaque);
 }
 
 int camera_auto_focus(struct camera_device * device)

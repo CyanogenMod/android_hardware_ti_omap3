@@ -50,7 +50,8 @@ public:
     //API to send a command to the camera
     virtual status_t sendCommand(CameraCommands operation, int value1 = 0, int value2 = 0, int value3 = 0 );
 
-    virtual int queueToGralloc(int index, char* fp) = 0;
+    virtual int queueToGralloc(int index, char* fp, bool isVideo) = 0;
+    virtual char** getVirtualAddress() = 0;
     virtual char * GetFrame(int &index) = 0;
 
     virtual status_t registerImageReleaseCallback(release_image_buffers_callback callback, void *user_data);
