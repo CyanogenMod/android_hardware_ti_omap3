@@ -150,7 +150,7 @@ include $(TI_OMX_VIDEO)/video_decode/Android.mk
 #include $(TI_OMX_VIDEO)/video_encode_ittiam/Android.mk
 
 #call to image
-#include $(TI_OMX_IMAGE)/jpeg_enc/Android.mk
+include $(TI_OMX_IMAGE)/jpeg_enc/Android.mk
 #include $(TI_OMX_IMAGE)/jpeg_dec/Android.mk
 
 #build these only for froyo

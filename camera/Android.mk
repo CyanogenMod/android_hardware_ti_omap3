@@ -40,7 +40,7 @@ LOCAL_C_INCLUDES := hardware/ti/omap3/dspbridge/inc \
     $(HARDWARE_TI_OMAP3_BASE)/omx/system/src/openmax_il/omx_core/inc \
     hardware/ti/omap3/omx/system/src/openmax_il/common/inc \
     hardware/ti/omap3/omx/image/src/openmax_il/jpeg_enc/inc \
-    external/libexif \
+    hardware/ti/omap3/libexif \
     $(LOCAL_PATH)/inc \
     $(LOCAL_PATH)/../hwc \
     $(LOCAL_PATH)/../include \
