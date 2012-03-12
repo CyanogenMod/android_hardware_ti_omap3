@@ -73,12 +73,12 @@
 
 /* this is the max of VIDENC_MAX_NUM_OF_IN_BUFFERS and VIDENC_MAX_NUM_OF_OUT_BUFFERS */
 #ifdef ANDROID
-#include "overlay_common.h"
-#define VIDENC_MAX_NUM_OF_BUFFERS       NUM_OVERLAY_BUFFERS_REQUESTED
-#define VIDENC_MAX_NUM_OF_IN_BUFFERS    NUM_OVERLAY_BUFFERS_REQUESTED
-#define VIDENC_MAX_NUM_OF_OUT_BUFFERS   NUM_OVERLAY_BUFFERS_REQUESTED
-#define VIDENC_NUM_OF_IN_BUFFERS        NUM_OVERLAY_BUFFERS_REQUESTED
-#define VIDENC_NUM_OF_OUT_BUFFERS       NUM_OVERLAY_BUFFERS_REQUESTED
+//#include "overlay_common.h"
+#define VIDENC_MAX_NUM_OF_BUFFERS       6 //NUM_OVERLAY_BUFFERS_REQUESTED
+#define VIDENC_MAX_NUM_OF_IN_BUFFERS    6 //NUM_OVERLAY_BUFFERS_REQUESTED
+#define VIDENC_MAX_NUM_OF_OUT_BUFFERS   6 //NUM_OVERLAY_BUFFERS_REQUESTED
+#define VIDENC_NUM_OF_IN_BUFFERS        6 // NUM_OVERLAY_BUFFERS_REQUESTED
+#define VIDENC_NUM_OF_OUT_BUFFERS       6 // NUM_OVERLAY_BUFFERS_REQUESTED
 #else
 #define VIDENC_MAX_NUM_OF_BUFFERS     5
 #define VIDENC_MAX_NUM_OF_IN_BUFFERS  5
@@ -492,6 +492,7 @@ typedef enum VIDENC_CUSTOM_INDEX
     VideoEncodeCustomParamIndexSliceRefreshRowNumber,
     VideoEncodeCustomParamIndexSliceRefreshRowStartNumber,
     VideoEncodeCustomParamIndexIntraRefreshMethod,
+    VideoEncoderStoreMetadatInBuffers,
     /* debug config */
     VideoEncodeCustomConfigIndexDebug
 } VIDENC_CUSTOM_INDEX;
@@ -529,6 +530,22 @@ typedef struct VIDENC_MPEG4_SEGMENTMODE_METADATA
     OMX_PTR pResyncData;/*pointer to unsigned char ResyncData[5408]*/
 }VIDENC_MPEG4_SEGMENTMODE_METADATA;
 
+
+typedef enum VIDENC_BUFFER_TYPE
+{
+    VirtualPointers,    /*Used when buffer pointers come from the normal A9 virtual space */
+    GrallocPointers,    /*Used when buffer pointers come from Gralloc allocations */
+    IONPointers,        /*Used when buffer pointers come from ION allocations */
+    EncoderMetadataPointers    /*Used when buffer pointers come from Stagefright in camcorder usecase */
+} VIDENC_BUFFER_TYPE;
+
+typedef struct OMX_VIDEO_STOREMETADATAINBUFFERSPARAMS {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_BOOL bStoreMetaData;
+} OMX_VIDEO_STOREMETADATAINBUFFERSPARAMS;
+
 typedef struct VIDEOENC_PORT_TYPE
 {
     OMX_U32 nBufferCnt;
@@ -548,6 +565,7 @@ typedef struct VIDEOENC_PORT_TYPE
 
     OMX_VIDEO_PARAM_BITRATETYPE* pBitRateType;
     VIDENC_BUFFER_PRIVATE* pBufferPrivate[VIDENC_MAX_NUM_OF_BUFFERS];
+    VIDENC_BUFFER_TYPE VIDEncBufferType;
 } VIDEOENC_PORT_TYPE;
 
 #ifndef KHRONOS_1_2

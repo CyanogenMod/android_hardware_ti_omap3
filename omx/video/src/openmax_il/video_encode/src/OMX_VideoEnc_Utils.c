@@ -78,6 +78,9 @@
 #include "OMX_VideoEnc_Utils.h"
 #include "OMX_VideoEnc_Thread.h"
 #include "OMX_VideoEnc_DSP.h"
+#include <MetadataBufferType.h>
+#include <VideoMetadata.h>
+
 
 #define DSP_MMU_FAULT_HANDLING
 
@@ -2593,14 +2596,46 @@ OMX_ERRORTYPE OMX_VIDENC_Queue_H264_Buffer(VIDENC_COMPONENT_PRIVATE* pComponentP
     OMX_PRBUFFER1(pComponentPrivate->dbg, " %p\n", (void*)pBufHead);
     pBufferPrivate->eBufferOwner = VIDENC_BUFFER_WITH_DSP;
     #ifdef TURN_ON_MAP_REUSE_INPUT
-    eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
-                              EMMCodecInputBufferMapReuse,
-                              pBufHead->pBuffer,
-                              pBufHead->nAllocLen,
-                              pBufHead->nFilledLen,
-                              (OMX_U8*)pUalgInpParams,
-                              sizeof(H264VE_GPP_SN_UALGInputParams),
-                              (OMX_U8*)pBufHead);
+    	if (pComponentPrivate->pCompPort[0]->VIDEncBufferType == EncoderMetadataPointers)
+    	{
+    		OMX_U32 *pTempBuffer;
+    		OMX_U32 nMetadataBufferType;
+    		OMX_PTR pBufferOrig;
+
+    		//LOGE("OMX_VIDENC_Queue_H264_Buffer :: pBufHead->pBuffer %p", pBufHead->pBuffer);
+    		pTempBuffer = (OMX_U32 *) (pBufHead->pBuffer);
+    		nMetadataBufferType = *pTempBuffer;
+
+    		if(nMetadataBufferType == kMetadataBufferTypeCameraSource)
+    		{
+    			//LOGE("OMX_VIDENC_Queue_H264_Buffer :: kMetadataBufferTypeCameraSource");
+    			video_metadata_t* pVideoMetadataBuffer;
+    			pVideoMetadataBuffer = (video_metadata_t*) ((OMX_U32 *)(pBufHead->pBuffer));
+    			pBufferOrig = pVideoMetadataBuffer->handle;
+    			pBufHead->nOffset = pVideoMetadataBuffer->offset;
+    		}
+    	    eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
+    	                              EMMCodecInputBufferMapReuse,
+    	                              pBufferOrig,
+    	                              pBufHead->nAllocLen,
+    	                              pBufHead->nFilledLen,
+    	                              (OMX_U8*)pUalgInpParams,
+    	                              sizeof(H264VE_GPP_SN_UALGInputParams),
+    	                              (OMX_U8*)pBufHead);
+    	}
+    	else
+    	{
+    		eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
+    		    	                              EMMCodecInputBufferMapReuse,
+    		    	                              pBufHead->pBuffer,
+    		    	                              pBufHead->nAllocLen,
+    		    	                              pBufHead->nFilledLen,
+    		    	                              (OMX_U8*)pUalgInpParams,
+    		    	                              sizeof(H264VE_GPP_SN_UALGInputParams),
+    		    	                              (OMX_U8*)pBufHead);
+    	}
+
+
     #else
     eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
                               EMMCodecInputBuffer,
