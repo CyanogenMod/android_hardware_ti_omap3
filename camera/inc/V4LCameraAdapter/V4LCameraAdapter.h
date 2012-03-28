@@ -136,7 +136,7 @@ private:
 
      struct VideoInfo *mVideoInfo;
      int mCameraHandle;
-
+     int mmap_fd[6];
 
     int nQueued;
     int nDequeued;

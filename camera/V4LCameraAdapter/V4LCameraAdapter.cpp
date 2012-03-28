@@ -119,7 +119,7 @@ status_t V4LCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType
 
     if((NO_ERROR == ret) && ((frameType == CameraFrame::IMAGE_FRAME) || (CameraFrame::RAW_FRAME == frameType)))
     {
-    CAMHAL_LOGEA(" This is an image capture frame ");
+        CAMHAL_LOGEA(" This is an image capture frame ");
         
         // Signal end of image capture
         if ( NULL != mEndImageCaptureCallback) {
@@ -128,7 +128,6 @@ status_t V4LCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType
 
         return NO_ERROR;
     }
-
 
     if ( !mVideoInfo->isStreaming )
     {
@@ -290,7 +289,7 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
     if( mIonHandle.isEmpty() )
     {
         void* buff_t;
-        int map_fd;
+
         struct ion_map_gralloc_to_ionhandle_data data;
 
         int fd = ion_open();
@@ -298,32 +297,33 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 
         for (int i = 0; i < num; i++) {
 
-        uint32_t *ptr = (uint32_t*) bufArr;
+            uint32_t *ptr = (uint32_t*) bufArr;
 
-        //Associate each Camera internal buffer with the one from Overlay
-        mPreviewBufs.add((int)ptr[i], i);
+            //Associate each Camera internal buffer with the one from Overlay
+            mPreviewBufs.add((int)ptr[i], i);
 
-        mParams.getPreviewSize(&width, &height);
+            mParams.getPreviewSize(&width, &height);
 
-        data.gralloc_handle = (int *)((IMG_native_handle_t*)ptr[i])->fd[0];
-        CAMHAL_LOGEB("data.gralloc_handle = %d", data.gralloc_handle);
+            data.gralloc_handle = (int *)((IMG_native_handle_t*)ptr[i])->fd[0];
+            CAMHAL_LOGEB("data.gralloc_handle = %d", data.gralloc_handle);
 
-        if (ion_ioctl(fd, ION_IOC_MAP_GRALLOC, &data)) {
-            LOGE("ion_ioctl fail");
-            return BAD_VALUE;
+            if (ion_ioctl(fd, ION_IOC_MAP_GRALLOC, &data)) {
+                LOGE("ion_ioctl fail");
+                return BAD_VALUE;
+            }
+
+            LOGE("data.handleY = %x", data.handleY);
+
+            if (ion_map(fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
+                    MAP_SHARED, 0, (unsigned char **)&buff_t, &mmap_fd[i]) < 0) {
+                LOGE("ION map failed");
+                return BAD_VALUE;
+            }
+
+            CAMHAL_LOGEB(" buff_t is %x ", buff_t);
+
+            mIonHandle.add((void*)buff_t,i);
         }
-
-        LOGE("data.handleY = %x", data.handleY);
-
-        if (ion_map(fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
-                    MAP_SHARED, 0, (unsigned char **)&buff_t, &map_fd) < 0) {
-            LOGE("ION map failed");
-            return BAD_VALUE;
-        }
-        CAMHAL_LOGEB(" buff_t is %x ", buff_t);
-
-        mIonHandle.add((void*)buff_t,i);
-       }
     }
 
     // Update the preview buffer count
@@ -337,7 +337,7 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 status_t V4LCameraAdapter::UseBuffersImageCapture(void* bufArr, int num)
 {
     LOG_FUNCTION_NAME;
-    
+
     status_t ret = NO_ERROR;
     mVideoInfo->buf.index = 0;
     mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -350,7 +350,7 @@ status_t V4LCameraAdapter::UseBuffersImageCapture(void* bufArr, int num)
         return -EINVAL;
     }
     nQueued++;
-    
+
     LOG_FUNCTION_NAME_EXIT;
     return ret;
 }
@@ -358,7 +358,7 @@ status_t V4LCameraAdapter::UseBuffersImageCapture(void* bufArr, int num)
 status_t V4LCameraAdapter::takePicture()
 {
     LOG_FUNCTION_NAME;
-    
+
     status_t ret = NO_ERROR;
     /* turn on streaming */
     enum v4l2_buf_type bufType;
@@ -396,7 +396,7 @@ status_t V4LCameraAdapter::takePicture()
         return -1;
     }
     mVideoInfo->isStreaming = false;
-    
+
     LOG_FUNCTION_NAME_EXIT;
 
     return ret;
@@ -454,11 +454,11 @@ status_t V4LCameraAdapter::stopPreview()
 {
     enum v4l2_buf_type bufType;
     int ret = NO_ERROR;
+    int width, height, i;
 
     Mutex::Autolock lock(mPreviewBufsLock);
 
-    if(!mPreviewing)
-    {
+    if(!mPreviewing) {
         return NO_INIT;
     }
 
@@ -470,15 +470,22 @@ status_t V4LCameraAdapter::stopPreview()
             CAMHAL_LOGEB("StopStreaming: Unable to stop capture: %s", strerror(errno));
             return ret;
         }
-
         mVideoInfo->isStreaming = false;
     }
+
     mPreviewing = false;
+
+    mParams.getPreviewSize(&width, &height);
+
+    for (i = 0; i < 6; i++) {
+        munmap(mIonHandle.keyAt(i), (width*height*2));
+        close(mmap_fd[i]);
+    }
+
     mPreviewBufs.clear();
     mIonHandle.clear();
 
     return ret;
-
 }
 
 char* V4LCameraAdapter::GetFrame(int &index)
@@ -530,7 +537,7 @@ status_t V4LCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCou
     int image_width , image_height ;
     int preview_width, preview_height;
     v4l2_streamparm parm;
-    
+
     mImagebuffer = true;
 
     mParams.getPictureSize(&image_width, &image_height);
@@ -573,7 +580,7 @@ status_t V4LCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCou
     mVideoInfo->rb.memory = V4L2_MEMORY_USERPTR;
     mVideoInfo->rb.count = 1;
 
-    if (ioctl(mCameraHandle, VIDIOC_REQBUFS,  &mVideoInfo->rb) < 0){
+    if (ioctl(mCameraHandle, VIDIOC_REQBUFS,  &mVideoInfo->rb) < 0) {
         LOGE ("VIDIOC_REQBUFS Failed. errno = %d", errno);
         return -1;
     }
