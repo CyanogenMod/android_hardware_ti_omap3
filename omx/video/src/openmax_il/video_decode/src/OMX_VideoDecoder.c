@@ -92,7 +92,6 @@
 
 /* For PPM fps measurements */
 static int mDebugFps = 0;
-int map_fd;
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
@@ -345,6 +344,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComponent)
     pHandle->ComponentRoleEnum              = ComponentRoleEnum;
 #endif
     pComponentPrivate->bUsePortReconfigForCrop = OMX_FALSE;
+    pComponentPrivate->bUseThumbnail = OMX_FALSE;
     /*mutex protection*/
     if (pthread_mutex_init(&(pComponentPrivate->mutexInputBFromApp), NULL) != 0) {
         eError = OMX_ErrorUndefined;
@@ -2542,10 +2542,10 @@ static OMX_ERRORTYPE VIDDEC_ComponentDeInit(OMX_HANDLETYPE hComponent)
             }
         }
     }
-   if(pComponentPrivate->pCompPort[VIDDEC_OUTPUT_PORT]->VIDDECBufferType == GrallocPointers)
+
+    if(pComponentPrivate->ion_fd != 0)
 	{
            ion_close(pComponentPrivate->ion_fd);
-           //close(map_fd);
 	}
 
 #ifdef RESOURCE_MANAGER_ENABLED
@@ -2895,13 +2895,13 @@ static OMX_ERRORTYPE VIDDEC_UseBuffer(OMX_IN OMX_HANDLETYPE hComponent,
 			}
 
 		if (ion_map(pComponentPrivate->ion_fd, data.handleY, (*ppBufferHdr)->nAllocLen, PROT_READ | PROT_WRITE,
-								MAP_SHARED, 0, &buff_t, &map_fd) < 0) {
+								MAP_SHARED, 0, &buff_t, &pComponentPrivate->mmap_fd[pBufferCnt]) < 0) {
 						LOGV("ION map failed");
 		}
-
 		(*ppBufferHdr)->pPlatformPrivate = buff_t;
 		}
     }
+    pComponentPrivate->bUseThumbnail = OMX_TRUE;
 #endif
 
     if (pCompPort->hTunnelComponent != NULL) {
@@ -3041,11 +3041,6 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
         goto EXIT;
     }
 
-    if(pComponentPrivate->pCompPort[OMX_VIDEODECODER_OUTPUT_PORT]->VIDDECBufferType == GrallocPointers)
-    {   //work around
-    	//munmap(pBuffHead->pPlatformPrivate, pBuffHead->nAllocLen);
-    }
-
     if (pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4 ||
         pPortDefIn->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) {
         if (nPortIndex == pComponentPrivate->pInPortFormat->nPortIndex) {
@@ -3144,6 +3139,18 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
         }
     }
 
+#ifdef USE_ION
+		if(pComponentPrivate->pCompPort[OMX_VIDEODECODER_OUTPUT_PORT]->VIDDECBufferType == GrallocPointers
+				&& nPortIndex == pComponentPrivate->pOutPortFormat->nPortIndex){
+			if(pComponentPrivate->bUseIon == OMX_TRUE){
+				if(pComponentPrivate->bMapIonBuffers == OMX_TRUE){
+					munmap(pBuffHead->pPlatformPrivate, pBuffHead->nAllocLen);
+					close(pComponentPrivate->mmap_fd[pOutBufferCnt-1]);
+				}
+			}
+		}
+#endif
+
     for(i = 0; i < pPortDef->nBufferCountActual; i++){
         if (pCompPort->pBufferPrivate[i]->pBufferHdr == pBuffHead){
             OMX_PRBUFFER1(pComponentPrivate->dbg, "buffcount %lu eBufferOwner 0x%x\n", i, pCompPort->pBufferPrivate[i]->eBufferOwner);
@@ -3200,8 +3207,8 @@ static OMX_ERRORTYPE VIDDEC_FreeBuffer (OMX_IN OMX_HANDLETYPE hComponent,
     }
 
     else if (nPortIndex == pComponentPrivate->pOutPortFormat->nPortIndex) {
-        pOutBufferCnt--;
-        pOutCompPort->nBufferCnt--;
+		pOutBufferCnt--;
+		pOutCompPort->nBufferCnt--;
         if (pOutBufferCnt == 0) {
             pPortDefOut->bPopulated = OMX_FALSE;
             if (nPortIndex == VIDDEC_INPUT_PORT) {

@@ -1059,6 +1059,8 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
 	OMX_BOOL bUseIon;
 	OMX_BOOL bMapIonBuffers;
 	OMX_BOOL bUsePortReconfigForCrop;
+    OMX_BOOL bUseThumbnail;
+	OMX_U8 mmap_fd[6];
 //#endif
 
 

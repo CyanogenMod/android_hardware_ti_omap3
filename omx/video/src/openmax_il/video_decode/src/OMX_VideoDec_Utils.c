@@ -2496,7 +2496,7 @@ OMX_ERRORTYPE VIDDEC_HandleCommand (OMX_HANDLETYPE phandle, OMX_U32 nParam1)
                         pDynParams->size = sizeof(SPARKVDEC_UALGDynamicParams);
     #endif
                         pDynParams->ulDecodeHeader = 0;
-                        pDynParams->ulDisplayWidth = 0;
+                        pDynParams->ulDisplayWidth = pComponentPrivate->nDisplayWidth;
                         pDynParams->ulFrameSkipMode = 0;
                         pDynParams->ulPPType = 0;
 
@@ -4517,11 +4517,6 @@ OMX_ERRORTYPE VIDDEC_ParseHeader(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OM
             nPadHeight = VIDDEC_MULTIPLE16 ( nHeight);
         }
 
-#if 1
-        nWidth = VIDDEC_MULTIPLE32(nWidth);
-        pComponentPrivate->nDisplayWidth = nWidth;
-#endif
-
         /*TODO: Get minimum INPUT buffer size & verify if the actual size is enough*/
         /*Verify correct values in the initial setup*/
 
@@ -4589,6 +4584,21 @@ OMX_ERRORTYPE VIDDEC_ParseHeader(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OM
                 OMX_PRINT1(pComponentPrivate->dbg, "Resolution: AVC new: %ldx%ld \n", nCroppedWidth, nCroppedHeight);
             }
         }
+        if((pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingMPEG4 ||
+              pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC ||
+              pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingH263) && pComponentPrivate->bUseThumbnail == OMX_TRUE){
+              nWidth = VIDDEC_MULTIPLE32(nWidth);
+                    if(pComponentPrivate->pOutPortDef->format.video.nFrameWidth != nWidth ||
+                        pComponentPrivate->pOutPortDef->format.video.nFrameHeight != nHeight) {
+
+                        pComponentPrivate->pOutPortDef->format.video.nFrameWidth = nWidth;
+                        pComponentPrivate->pOutPortDef->format.video.nFrameHeight = nHeight;
+                        pComponentPrivate->nDisplayWidth = nWidth;
+                        pComponentPrivate->bUseThumbnail = OMX_FALSE;
+                        bOutPortSettingsChanged = OMX_TRUE;
+                        OMX_PRINT1(pComponentPrivate->dbg, "Resolution: %ldx%ld\n", nWidth, nHeight);
+                    }
+                }
 
         /*Get minimum OUTPUT buffer size, 
          * verify if the actual allocated size is enought */
@@ -5877,7 +5887,6 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromDsp(VIDDEC_COMPONENT_PRIVATE *pComponentP
     OMX_PRBUFFER1(pComponentPrivate->dbg, "+++ENTERING\n");
     OMX_PRBUFFER1(pComponentPrivate->dbg, "pComponentPrivate 0x%p\n", (int*)pComponentPrivate);
     ret = read(pComponentPrivate->filled_outBuf_Q[0], &pBuffHead, sizeof(pBuffHead));
-
     if (ret == -1) {
         OMX_PRDSP4(pComponentPrivate->dbg, "Error while reading from dsp out pipe\n");
         eError = OMX_ErrorHardware;
@@ -6642,6 +6651,7 @@ OMX_ERRORTYPE VIDDEC_InitDSP_H264Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate
     OMX_PRINT3(pComponentPrivate->dbg, "Before Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
     if (nFrameWidth & 0xF) nFrameWidth = (nFrameWidth & 0xFFF0) + 0x10;
     if (nFrameHeight & 0xF) nFrameHeight = (nFrameHeight & 0xFFF0) + 0x10;
+    if (nFrameWidth & 0xFF) nFrameWidth = VIDDEC_MULTIPLE32(nFrameWidth);
     OMX_PRINT3(pComponentPrivate->dbg, "After Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
 
     pCreatePhaseArgs->unNumOfStreams            = 2;
@@ -6834,7 +6844,8 @@ OMX_ERRORTYPE VIDDEC_InitDSP_Mpeg4Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivat
     OMX_PRINT3(pComponentPrivate->dbg, "Before Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
     if (nFrameWidth & 0xF) nFrameWidth = (nFrameWidth & 0xFFF0) + 0x10;
     if (nFrameHeight & 0xF) nFrameHeight = (nFrameHeight & 0xFFF0) + 0x10;    
-    OMX_PRINT3(pComponentPrivate->dbg, "After Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
+    if (nFrameWidth & 0xFF) nFrameWidth = VIDDEC_MULTIPLE32(nFrameWidth);
+	OMX_PRINT3(pComponentPrivate->dbg, "After Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
 
     pCreatePhaseArgs->ulMaxWidth                = (OMX_U16)(nFrameWidth);
     pCreatePhaseArgs->ulMaxHeight               = (OMX_U16)(nFrameHeight);
@@ -7931,8 +7942,8 @@ OMX_ERRORTYPE VIDDEC_CopyBuffer(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate,
     OMX_PRINT1(pComponentPrivate->dbg, "pBufferHeader=%p pBuffer=%p\n", pBuffHead, pBuffHead->pBuffer);
     OMX_PTR pTemp = NULL;
     pComponentPrivate->eFirstBuffer.bSaveFirstBuffer = OMX_FALSE;
-
-    if (pBuffHead->nAllocLen >= pComponentPrivate->eFirstBuffer.pBufferHdr->nFilledLen + pBuffHead->nFilledLen) {
+    /* WA added to avoid the Not Enough Memory*/
+    if (pBuffHead->nAllocLen + pComponentPrivate->eFirstBuffer.pBufferHdr->nFilledLen >= pComponentPrivate->eFirstBuffer.pBufferHdr->nFilledLen + pBuffHead->nFilledLen) {
         OMX_MALLOC_STRUCT_SIZED(pTemp, OMX_U8, pBuffHead->nFilledLen, NULL);
         memcpy(pTemp, pBuffHead->pBuffer, pBuffHead->nFilledLen); /*copy somewere actual buffer*/
         memcpy(pBuffHead->pBuffer,
