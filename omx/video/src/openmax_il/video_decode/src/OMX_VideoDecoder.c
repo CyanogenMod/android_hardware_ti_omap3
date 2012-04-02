@@ -2008,14 +2008,11 @@ static OMX_ERRORTYPE VIDDEC_GetConfig (OMX_HANDLETYPE hComp,
                 if (((OMX_CONFIG_RECTTYPE*)(ComponentConfigStructure))->nPortIndex == 
                             pComponentPrivate->pOutPortDef->nPortIndex) {
      		        crop2->nLeft   =  0;
-            		crop2->nWidth  =  pComponentPrivate->pInPortDef->format.video.nFrameWidth ;
-            		crop2->nTop    =  0;
-            		crop2->nHeight =  pComponentPrivate->pInPortDef->format.video.nFrameHeight;
-
-                } 
-                  	
-
-            	break;
+            		crop2->nWidth  =  pComponentPrivate->pInPortDef->format.video.nFrameWidth - pComponentPrivate->nCropWidth;
+     		        crop2->nTop    =  0;
+            		crop2->nHeight =  pComponentPrivate->pInPortDef->format.video.nFrameHeight - pComponentPrivate->nCropHeight;
+            }
+               	break;
 	    }
            
            

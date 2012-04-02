@@ -921,6 +921,8 @@ case VIDDEC_INIT_IDLEEXECUTING:
             pComponentPrivate->pDeblockingParamType->bDeblocking            = OMX_FALSE;
             pComponentPrivate->pDeringingParamType->eImageFilter            = OMX_ImageFilterNone;
             pComponentPrivate->bIsSparkInput = OMX_FALSE;
+            pComponentPrivate->nCropWidth                                   = VIDDEC_ZERO;
+            pComponentPrivate->nCropHeight                                  = VIDDEC_ZERO;
             break;
 #ifdef VIDDEC_SPARK_CODE
         case VIDDEC_INIT_SPARK:
@@ -943,6 +945,8 @@ case VIDDEC_INIT_IDLEEXECUTING:
             pComponentPrivate->pDeblockingParamType->bDeblocking            = OMX_FALSE;
             pComponentPrivate->pDeringingParamType->eImageFilter            = OMX_ImageFilterNone;
             pComponentPrivate->bIsSparkInput = OMX_TRUE;
+            pComponentPrivate->nCropWidth                                   = VIDDEC_ZERO;
+            pComponentPrivate->nCropHeight                                  = VIDDEC_ZERO;
             break;
 #endif
 
@@ -972,6 +976,8 @@ case VIDDEC_INIT_IDLEEXECUTING:
             pComponentPrivate->pDeblockingParamType->bDeblocking            = OMX_TRUE; /* Always enable */
             pComponentPrivate->pDeringingParamType->eImageFilter            = OMX_ImageFilterNone;
             pComponentPrivate->bIsSparkInput                                = OMX_FALSE;
+            pComponentPrivate->nCropWidth                                   = VIDDEC_ZERO;
+            pComponentPrivate->nCropHeight                                  = VIDDEC_ZERO;
             break;
 
         case VIDDEC_INIT_MPEG2:
@@ -1031,6 +1037,8 @@ case VIDDEC_INIT_IDLEEXECUTING:
             pComponentPrivate->pDeblockingParamType->bDeblocking            = OMX_FALSE;
             pComponentPrivate->pDeringingParamType->eImageFilter            = OMX_ImageFilterNone;
             pComponentPrivate->bIsSparkInput                                = OMX_FALSE;
+            pComponentPrivate->nCropWidth                                   = VIDDEC_ZERO;
+            pComponentPrivate->nCropHeight                                  = VIDDEC_ZERO;
             break;
 
         case VIDDEC_INIT_WMV9:
@@ -4580,6 +4588,8 @@ OMX_ERRORTYPE VIDDEC_ParseHeader(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OM
 
                 pComponentPrivate->pOutPortDef->format.video.nFrameWidth = nCroppedWidth;
                 pComponentPrivate->pOutPortDef->format.video.nFrameHeight = nCroppedHeight;
+                pComponentPrivate->nCropWidth = nCropWidth;
+                pComponentPrivate->nCropHeight = nCropHeight;
                 bOutPortSettingsChanged = OMX_TRUE;
                 OMX_PRINT1(pComponentPrivate->dbg, "Resolution: AVC new: %ldx%ld \n", nCroppedWidth, nCroppedHeight);
             }
