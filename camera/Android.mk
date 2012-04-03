@@ -90,6 +90,39 @@ LOCAL_STATIC_LIBRARIES := \
 
 endif
 
+ifdef FW3A
+
+LOCAL_C_INCLUDES += \
+	hardware/ti/omap3/fw3A/include/fw/api/linux
+
+LOCAL_CFLAGS += -DFW3A
+
+LOCAL_SHARED_LIBRARIES += \
+	libcapl \
+	libicamera \
+	libicapture \
+	libImagePipeline
+
+endif
+
+ifdef ICAP
+
+LOCAL_C_INCLUDES += \
+	hardware/ti/omap3/mm_isp/capl/inc/
+
+LOCAL_CFLAGS += -DICAP
+
+endif
+
+ifdef IMAGE_PROCESSING_PIPELINE
+
+LOCAL_C_INCLUDES += \
+	hardware/ti/omap3/mm_isp/ipp/inc/
+
+LOCAL_CFLAGS += -DIMAGE_PROCESSING_PIPELINE
+
+endif
+
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS:= optional

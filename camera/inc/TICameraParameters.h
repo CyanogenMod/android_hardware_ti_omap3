@@ -187,6 +187,12 @@ static const  char EXPOSURE_MODE_BEACH[];
 static const  char EXPOSURE_MODE_APERTURE[];
 static const  char EXPOSURE_MODE_SMALL_APERTURE[];
 static const  char EXPOSURE_MODE_FACE[];
+static const  char EXPOSURE_BACKLIGHTING[];
+static const  char EXPOSURE_MACRO[];
+static const  char EXPOSURE_LANDSCAPE[];
+static const  char EXPOSURE_MANUAL[];
+static const  char EXPOSURE_VERYLONG[];
+static const  char EXPOSURE_NIGHT_PORTRAIT[];
 
 // TI extensions to standard android focus presets.
 static const  char FOCUS_MODE_PORTRAIT[];
@@ -233,6 +239,10 @@ static const char ORIENTATION_SENSOR_270[];
 //TI values for camera direction
 static const char FACING_FRONT[];
 static const char FACING_BACK[];
+
+//TI values for Meter_Mode
+static const  char METER_MODE_AVERAGE[];
+static const  char METER_MODE_CENTER[];
 
 };
 

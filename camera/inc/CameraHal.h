@@ -52,14 +52,14 @@
 #include <ui/GraphicBufferAllocator.h>
 #include <ui/GraphicBuffer.h>
 #include "JpegEncoder.h"
-
+#include "TICameraParameters.h"
 
 #ifdef HARDWARE_OMX
 #include <JpegEncoderEXIF.h>
 #endif
 
 //Uncomment to enable more verbose/debug logs
-//#define DEBUG_LOG
+#define DEBUG_LOG 1
 
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG

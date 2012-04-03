@@ -53,11 +53,15 @@ static int mDebugFps = 0;
 #define EFFECT_COOL             "cool"
 #define EFFECT_EMBOSS           "emboss"
 #define PARM_ZOOM_SCALE  100
-#define KEY_SHUTTER_ENABLE      "shutter-enable"
+#define SATURATION_OFFSET       100
+//#define KEY_SHUTTER_ENABLE      "shutter-enable"
 #define FOCUS_MODE_MANUAL       "manual"
 #define KEY_GPS_ALTITUDE_REF    "gps-altitude-ref"
-#define KEY_GPS_VERSION         "gps-version"
-#define KEY_GPS_MAPDATUM        "gps-mapdatum"
+#define KEY_CAPTURE             "capture"
+#define CAPTURE_STILL           "still"
+#define KEY_TOUCH_FOCUS         "touch-focus"
+#define TOUCH_FOCUS_DISABLED    "disabled"
+#define KEY_IPP                 "ippMode"
 
 static android::CameraProperties gCameraProperties;
 
@@ -4241,8 +4245,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             }
 
             gpsLocation->altitudeRef = params.getInt(KEY_GPS_ALTITUDE_REF);
-            gpsLocation->mapdatum = (char *) params.get(KEY_GPS_MAPDATUM);
-            gpsLocation->versionId = (char *) params.get(KEY_GPS_VERSION);
+            gpsLocation->mapdatum = (char *) params.get(TICameraParameters::KEY_GPS_MAPDATUM);
+            gpsLocation->versionId = (char *) params.get(TICameraParameters::KEY_GPS_VERSION);
             gpsLocation->procMethod = (char *) params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD);
 
         } else {
@@ -4253,14 +4257,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     }
 
-    if ( params.get(KEY_SHUTTER_ENABLE) != NULL )
+    if ( params.get(TICameraParameters::KEY_SHUTTER_ENABLE) != NULL )
     {
-        if ( strcmp(params.get(KEY_SHUTTER_ENABLE), (const char *) "true") == 0 )
+        if ( strcmp(params.get(TICameraParameters::KEY_SHUTTER_ENABLE), (const char *) "true") == 0 )
         {
             mMsgEnabled |= CAMERA_MSG_SHUTTER;
             mShutterEnable = true;
         }
-        else if ( strcmp(params.get(KEY_SHUTTER_ENABLE), (const char *) "false") == 0 )
+        else if ( strcmp(params.get(TICameraParameters::KEY_SHUTTER_ENABLE), (const char *) "false") == 0 )
         {
             mShutterEnable = false;
             mMsgEnabled &= ~CAMERA_MSG_SHUTTER;
@@ -4269,10 +4273,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #ifdef FW3A
 
-    if ( params.get(KEY_CAPTURE_MODE) != NULL ) {
-        if (strcmp(params.get(KEY_CAPTURE_MODE), (const char *) HIGH_QUALITY) == 0) {
+    if ( params.get(TICameraParameters::KEY_CAP_MODE) != NULL ) {
+        if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::HIGH_QUALITY_MODE) == 0) {
             mcapture_mode = 2;
-        } else if (strcmp(params.get(KEY_CAPTURE_MODE), (const char *) HIGH_PERFORMANCE) == 0) {
+        } else if (strcmp(params.get(TICameraParameters::KEY_CAP_MODE), (const char *) TICameraParameters::HIGH_PERFORMANCE_MODE) == 0) {
             mcapture_mode = 1;
         } else {
             mcapture_mode = 1;
@@ -4281,7 +4285,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         mcapture_mode = 1;
     }
 
-    int burst_capture = params.getInt(KEY_BURST);
+    int burst_capture = params.getInt(TICameraParameters::KEY_BURST);
     if ( ( 0 >= burst_capture ) ){
         mBurstShots = 1;
     } else {
@@ -4295,8 +4299,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
     if ( NULL != fobj ){
 
-        if ( params.get(KEY_METER_MODE) != NULL ) {
-            if (strcmp(params.get(KEY_METER_MODE), (const char *) METER_MODE_CENTER) == 0) {
+        if ( params.get(TICameraParameters::KEY_METERING_MODE) != NULL ) {
+            if (strcmp(params.get(TICameraParameters::KEY_METERING_MODE), (const char *) TICameraParameters::METER_MODE_CENTER) == 0) {
                 fobj->settings.af.spot_weighting = ICAM_FOCUS_SPOT_SINGLE_CENTER;
                 fobj->settings.ae.spot_weighting = ICAM_EXPOSURE_SPOT_CENTER;
 
@@ -4306,7 +4310,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-            } else if (strcmp(params.get(KEY_METER_MODE), (const char *) METER_MODE_AVERAGE) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_METERING_MODE), (const char *) TICameraParameters::METER_MODE_AVERAGE) == 0) {
                 fobj->settings.af.spot_weighting = ICAM_FOCUS_SPOT_MULTI_AVERAGE;
                 fobj->settings.ae.spot_weighting = ICAM_EXPOSURE_SPOT_NORMAL;
 
@@ -4601,8 +4605,8 @@ status_t CameraHal::setParameters(const CameraParameters &params)
             mParameters.set(KEY_TOUCH_FOCUS, TOUCH_FOCUS_DISABLED);
         }
 
-        if ( params.get(KEY_ISO) != NULL ) {
-            if (strcmp(params.get(KEY_ISO), (const char *) ISO_AUTO ) == 0) {
+        if ( params.get(TICameraParameters::KEY_ISO) != NULL ) {
+            if (strcmp(params.get(TICameraParameters::KEY_ISO), (const char *) TICameraParameters::ISO_MODE_AUTO ) == 0) {
 
                 fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_AUTO;
 
@@ -4612,7 +4616,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_100 ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_ISO), (const char *) TICameraParameters::ISO_MODE_100 ) == 0) {
 
                 fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_100;
 
@@ -4622,7 +4626,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_200 ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_ISO), (const char *) TICameraParameters::ISO_MODE_200 ) == 0) {
 
                 fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_200;
 
@@ -4632,7 +4636,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_400 ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_ISO), (const char *) TICameraParameters::ISO_MODE_400 ) == 0) {
 
                 fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_400;
 
@@ -4642,7 +4646,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_800 ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_ISO), (const char *) TICameraParameters::ISO_MODE_800 ) == 0) {
 
                 fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_800;
 
@@ -4652,7 +4656,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_1000 ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_ISO), (const char *) TICameraParameters::ISO_MODE_1000 ) == 0) {
 
                 fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_1000;
 
@@ -4662,7 +4666,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_1200 ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_ISO), (const char *) TICameraParameters::ISO_MODE_1200 ) == 0) {
 
                 fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_1600;
 
@@ -4672,7 +4676,7 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
 #endif
 
-            } else if (strcmp(params.get(KEY_ISO), (const char *) ISO_1600 ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_ISO), (const char *) TICameraParameters::ISO_MODE_1600 ) == 0) {
 
                 fobj->settings.ae.iso = ICAM_EXPOSURE_ISO_1600;
 
@@ -4705,44 +4709,44 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
         }
 
-        if ( params.get(KEY_EXPOSURE_MODE) != NULL ) {
-            if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_AUTO ) == 0) {
+        if ( params.get(TICameraParameters::KEY_EXPOSURE_MODE) != NULL ) {
+            if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_MODE_AUTO ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_AUTO;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_MACRO ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_MACRO ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_MACRO;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_PORTRAIT ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::FOCUS_MODE_PORTRAIT ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_PORTRAIT;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_LANDSCAPE ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_LANDSCAPE ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_LANDSCAPE;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_SPORTS ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_MODE_SPORTS ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_SPORTS;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_NIGHT ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_MODE_NIGHT ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_NIGHT;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_NIGHT_PORTRAIT ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_NIGHT_PORTRAIT ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_NIGHT_PORTRAIT;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_BACKLIGHTING ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_BACKLIGHTING ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_BACKLIGHTING;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_MANUAL ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_MANUAL ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_MANUAL;
 
-            } else if (strcmp(params.get(KEY_EXPOSURE_MODE), (const char *) EXPOSURE_VERYLONG ) == 0) {
+            } else if (strcmp(params.get(TICameraParameters::KEY_EXPOSURE_MODE), (const char *) TICameraParameters::EXPOSURE_VERYLONG ) == 0) {
 
                 fobj->settings.ae.mode = ICAM_EXPOSURE_MODE_EXP_VERYLONG;
 
@@ -4758,10 +4762,10 @@ status_t CameraHal::setParameters(const CameraParameters &params)
         }
 
         compensation = mParameters.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION);
-        saturation = mParameters.getInt(KEY_SATURATION);
-        sharpness = mParameters.getInt(KEY_SHARPNESS);
-        contrast = mParameters.getInt(KEY_CONTRAST);
-        brightness = mParameters.getInt(KEY_BRIGHTNESS);
+        saturation = mParameters.getInt(TICameraParameters::KEY_SATURATION);
+        sharpness = mParameters.getInt(TICameraParameters::KEY_SHARPNESS);
+        contrast = mParameters.getInt(TICameraParameters::KEY_CONTRAST);
+        brightness = mParameters.getInt(TICameraParameters::KEY_BRIGHTNESS);
 
         if(contrast != -1) {
             contrast -= CONTRAST_OFFSET;
@@ -4898,61 +4902,61 @@ CameraParameters CameraHal::getParameters() const
 
         switch ( fobj->settings.ae.mode ) {
             case ICAM_EXPOSURE_MODE_EXP_AUTO:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_AUTO);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::EXPOSURE_MODE_AUTO);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_MACRO:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_MACRO);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::EXPOSURE_MACRO);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_PORTRAIT:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_PORTRAIT);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::FOCUS_MODE_PORTRAIT);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_LANDSCAPE:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_LANDSCAPE);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::EXPOSURE_LANDSCAPE);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_SPORTS:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_SPORTS);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::EXPOSURE_MODE_SPORTS);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_NIGHT:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_NIGHT);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::EXPOSURE_MODE_NIGHT);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_NIGHT_PORTRAIT:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_NIGHT_PORTRAIT);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters ::EXPOSURE_NIGHT_PORTRAIT);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_BACKLIGHTING:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_BACKLIGHTING);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::EXPOSURE_BACKLIGHTING);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_MANUAL:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_MANUAL);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::EXPOSURE_MANUAL);
                 break;
             case ICAM_EXPOSURE_MODE_EXP_VERYLONG:
-                params.set(KEY_EXPOSURE_MODE, EXPOSURE_VERYLONG);
+                params.set(TICameraParameters::KEY_EXPOSURE_MODE, TICameraParameters::EXPOSURE_VERYLONG);
                 break;
         };
 
         switch ( fobj->settings.ae.iso ) {
             case ICAM_EXPOSURE_ISO_AUTO:
-                params.set(KEY_ISO, ISO_AUTO);
+                params.set(TICameraParameters::KEY_ISO, TICameraParameters::ISO_MODE_AUTO);
                 break;
             case ICAM_EXPOSURE_ISO_100:
-                params.set(KEY_ISO, ISO_100);
+                params.set(TICameraParameters::KEY_ISO, TICameraParameters::ISO_MODE_100);
                 break;
             case ICAM_EXPOSURE_ISO_200:
-                params.set(KEY_ISO, ISO_200);
+                params.set(TICameraParameters::KEY_ISO, TICameraParameters::ISO_MODE_200);
                 break;
             case ICAM_EXPOSURE_ISO_400:
-                params.set(KEY_ISO, ISO_400);
+                params.set(TICameraParameters::KEY_ISO, TICameraParameters::ISO_MODE_400);
                 break;
             case ICAM_EXPOSURE_ISO_800:
-                params.set(KEY_ISO, ISO_800);
+                params.set(TICameraParameters::KEY_ISO, TICameraParameters::ISO_MODE_800);
                 break;
             case ICAM_EXPOSURE_ISO_1000:
-                params.set(KEY_ISO, ISO_1000);
+                params.set(TICameraParameters::KEY_ISO, TICameraParameters::ISO_MODE_1000);
                 break;
             case ICAM_EXPOSURE_ISO_1200:
-                params.set(KEY_ISO, ISO_1200);
+                params.set(TICameraParameters::KEY_ISO, TICameraParameters::ISO_MODE_1200);
                 break;
             case ICAM_EXPOSURE_ISO_1600:
-                params.set(KEY_ISO, ISO_1600);
+                params.set(TICameraParameters::KEY_ISO, TICameraParameters::ISO_MODE_1600);
                 break;
         };
 
@@ -5078,10 +5082,10 @@ CameraParameters CameraHal::getParameters() const
 
         switch ( fobj->settings.ae.spot_weighting ) {
             case ICAM_EXPOSURE_SPOT_NORMAL:
-                params.set(KEY_METER_MODE, METER_MODE_AVERAGE);
+                params.set(TICameraParameters::KEY_METERING_MODE, TICameraParameters::METER_MODE_AVERAGE);
                 break;
             case ICAM_EXPOSURE_SPOT_CENTER:
-                params.set(KEY_METER_MODE, METER_MODE_CENTER);
+                params.set(TICameraParameters::KEY_METERING_MODE, TICameraParameters::METER_MODE_CENTER);
                 break;
             //TODO: support this also
             case ICAM_EXPOSURE_SPOT_WIDE:
@@ -5089,10 +5093,10 @@ CameraParameters CameraHal::getParameters() const
         };
 
         params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, fobj->settings.ae.compensation);
-        params.set(KEY_SATURATION, ( fobj->settings.general.saturation + SATURATION_OFFSET ));
-        params.set(KEY_SHARPNESS, fobj->settings.general.sharpness);
-        params.set(KEY_CONTRAST, ( fobj->settings.general.contrast + CONTRAST_OFFSET ));
-        params.set(KEY_BRIGHTNESS, ( fobj->settings.general.brightness + BRIGHTNESS_OFFSET ));
+        params.set(TICameraParameters::KEY_SATURATION, ( fobj->settings.general.saturation + SATURATION_OFFSET ));
+        params.set(TICameraParameters::KEY_SHARPNESS, fobj->settings.general.sharpness);
+        params.set(TICameraParameters::KEY_CONTRAST, ( fobj->settings.general.contrast + CONTRAST_OFFSET ));
+        params.set(TICameraParameters::KEY_BRIGHTNESS, ( fobj->settings.general.brightness + BRIGHTNESS_OFFSET ));
 
         if (useFramerateRange) {
             //Gingerbread

@@ -198,5 +198,21 @@ const char TICameraParameters::ORIENTATION_SENSOR_NONE[] = "0";
 const char TICameraParameters::ORIENTATION_SENSOR_90[] = "90";
 const char TICameraParameters::ORIENTATION_SENSOR_180[] = "180";
 const char TICameraParameters::ORIENTATION_SENSOR_270[] = "270";
+
+// TI extensions to add exposure 
+const char TICameraParameters::EXPOSURE_BACKLIGHTING[] = "backlighting";
+const char TICameraParameters::EXPOSURE_MACRO[] = "macro";
+
+const char TICameraParameters::EXPOSURE_LANDSCAPE[] = "landscape";
+const char TICameraParameters::EXPOSURE_MANUAL[] = "manual";
+const char TICameraParameters::EXPOSURE_VERYLONG[] = "very-long";
+
+const char TICameraParameters::EXPOSURE_NIGHT_PORTRAIT[] = "night-portrait";
+
+// TI extensions to add meter mode
+const char TICameraParameters::METER_MODE_CENTER[] = "center";
+const char TICameraParameters::METER_MODE_AVERAGE[] = "average";
+
+
 };
 
