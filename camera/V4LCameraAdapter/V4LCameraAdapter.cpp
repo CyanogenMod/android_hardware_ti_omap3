@@ -700,25 +700,31 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
     CameraFrame frame;
     int i;
     VideoInfo* buf;
+    uint8_t* grallocPtr;
 
     mRecording = isVideo;
 
-    if(!fp )
-        {
+    if (!fp )
         return BAD_VALUE;
-        }
+        
 
     mParams.getPreviewSize(&width, &height);
     CAMHAL_LOGEB(" Inside V4LCameraAdapter width = %d , height = %d ",width, height);
 
-    uint8_t* grallocPtr = (uint8_t*) mPreviewBufs.keyAt(index);
+    //Get index corresponding to key, to fetch correct Gralloc Ptr.
+
+    for ( i = 0; i < mPreviewBufs.size(); i++) {
+            if(mPreviewBufs.valueAt(i) == index) {
+                grallocPtr = (uint8_t*) mPreviewBufs.keyAt(i);
+               break;
+        }
+    }
 
     recalculateFPS();
 
     Mutex::Autolock lock(mSubscriberLock);
 
-    if (true == mImagebuffer )
-        {
+    if (true == mImagebuffer ) {
         int image_width , image_height ;
         mParams.getPictureSize(&image_width, &image_height);
 
@@ -731,7 +737,7 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
         frame.mWidth = image_width;
         frame.mHeight = image_height;
         mImagebuffer = false;
-        }
+    }
     else if (true == mRecording) {
         frame.mFrameType = CameraFrame::VIDEO_FRAME_SYNC;
         frame.mFrameMask = CameraFrame::VIDEO_FRAME_SYNC;
@@ -741,9 +747,8 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
         frame.mWidth = width;
         frame.mHeight = height;
         mRecording = false;
-        }
-    else
-        {
+    }
+    else {
         frame.mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;
         frame.mFrameMask = CameraFrame::PREVIEW_FRAME_SYNC;
         frame.mBuffer = grallocPtr;
@@ -751,7 +756,7 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
         frame.mAlignment = width*2;
         frame.mWidth = width;
         frame.mHeight = height;
-        }
+    }
 
     frame.mOffset = 0;
     frame.mYuv[0] = NULL;
