@@ -4577,6 +4577,8 @@ OMX_ERRORTYPE VIDDEC_ParseHeader(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OM
             if (pComponentPrivate->pOutPortDef->format.video.eColorFormat == VIDDEC_COLORFORMAT422) {
                 nCroppedWidth = nWidth - nCropWidth;
                 nCroppedHeight = nHeight - nCropHeight;
+                pComponentPrivate->nCropWidth = nCropWidth;
+                pComponentPrivate->nCropHeight = nCropHeight;
             }
             else if (pComponentPrivate->pOutPortDef->format.video.eColorFormat == VIDDEC_COLORFORMAT420) {
                 nCroppedWidth = nWidth;
@@ -4588,8 +4590,6 @@ OMX_ERRORTYPE VIDDEC_ParseHeader(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate, OM
 
                 pComponentPrivate->pOutPortDef->format.video.nFrameWidth = nCroppedWidth;
                 pComponentPrivate->pOutPortDef->format.video.nFrameHeight = nCroppedHeight;
-                pComponentPrivate->nCropWidth = nCropWidth;
-                pComponentPrivate->nCropHeight = nCropHeight;
                 bOutPortSettingsChanged = OMX_TRUE;
                 OMX_PRINT1(pComponentPrivate->dbg, "Resolution: AVC new: %ldx%ld \n", nCroppedWidth, nCroppedHeight);
             }
@@ -6661,7 +6661,6 @@ OMX_ERRORTYPE VIDDEC_InitDSP_H264Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate
     OMX_PRINT3(pComponentPrivate->dbg, "Before Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
     if (nFrameWidth & 0xF) nFrameWidth = (nFrameWidth & 0xFFF0) + 0x10;
     if (nFrameHeight & 0xF) nFrameHeight = (nFrameHeight & 0xFFF0) + 0x10;
-    if (nFrameWidth & 0xFF) nFrameWidth = VIDDEC_MULTIPLE32(nFrameWidth);
     OMX_PRINT3(pComponentPrivate->dbg, "After Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
 
     pCreatePhaseArgs->unNumOfStreams            = 2;
@@ -6853,7 +6852,8 @@ OMX_ERRORTYPE VIDDEC_InitDSP_Mpeg4Dec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivat
     nFrameHeight = pComponentPrivate->pInPortDef->format.video.nFrameHeight;
     OMX_PRINT3(pComponentPrivate->dbg, "Before Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
     if (nFrameWidth & 0xF) nFrameWidth = (nFrameWidth & 0xFFF0) + 0x10;
-    if (nFrameHeight & 0xF) nFrameHeight = (nFrameHeight & 0xFFF0) + 0x10;    
+    if (nFrameHeight & 0xF) nFrameHeight = (nFrameHeight & 0xFFF0) + 0x10;
+    /* WA to avoid thumbnail crash for Mpeg4 PAL*/
     if (nFrameWidth & 0xFF) nFrameWidth = VIDDEC_MULTIPLE32(nFrameWidth);
 	OMX_PRINT3(pComponentPrivate->dbg, "After Rounding: nFrameWidth = %ld, nFrameHeight = %ld \n", nFrameWidth, nFrameHeight);
 

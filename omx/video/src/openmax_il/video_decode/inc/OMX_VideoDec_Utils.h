@@ -1051,8 +1051,9 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_U32 nTotalBuffers;
     gralloc_module_t const *grallocModule;
     OMX_U32 count_ion_buff;
-    OMX_U8 *ion_handle[6];
-    OMX_U8 *out_buff[6];
+    OMX_U32 nCropWidth;
+    OMX_U32 nCropHeight;
+
 
 //#ifdef USE_ION
 	int ion_fd;
@@ -1062,9 +1063,10 @@ typedef struct VIDDEC_COMPONENT_PRIVATE
     OMX_BOOL bUseThumbnail;
 	OMX_U8 mmap_fd[6];
 //#endif
+    OMX_U8 *ion_handle[6];
+    OMX_U8 *out_buff[6];
 
-    OMX_U32 nCropWidth;
-    OMX_U32 nCropHeight;
+
 
 } VIDDEC_COMPONENT_PRIVATE;
 
