@@ -292,8 +292,8 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
 
         struct ion_map_gralloc_to_ionhandle_data data;
 
-        int fd = ion_open();
-        CAMHAL_LOGEB( "ion_fd = %d", fd );
+        ion_fd = ion_open();
+        CAMHAL_LOGEB( "ion_fd = %d", ion_fd );
 
         for (int i = 0; i < num; i++) {
 
@@ -307,14 +307,14 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
             data.gralloc_handle = (int *)((IMG_native_handle_t*)ptr[i])->fd[0];
             CAMHAL_LOGEB("data.gralloc_handle = %d", data.gralloc_handle);
 
-            if (ion_ioctl(fd, ION_IOC_MAP_GRALLOC, &data)) {
+            if (ion_ioctl(ion_fd, ION_IOC_MAP_GRALLOC, &data)) {
                 LOGE("ion_ioctl fail");
                 return BAD_VALUE;
             }
 
             LOGE("data.handleY = %x", data.handleY);
 
-            if (ion_map(fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
+            if (ion_map(ion_fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
                     MAP_SHARED, 0, (unsigned char **)&buff_t, &mmap_fd[i]) < 0) {
                 LOGE("ION map failed");
                 return BAD_VALUE;
@@ -478,10 +478,12 @@ status_t V4LCameraAdapter::stopPreview()
     mParams.getPreviewSize(&width, &height);
 
     for (i = 0; i < 6; i++) {
-        munmap(mIonHandle.keyAt(i), (width*height*2));
+        if (munmap(mIonHandle.keyAt(i), (width*height*2)) < 0 )
+            LOGE("ION Unmap failed");
         close(mmap_fd[i]);
     }
 
+    ion_close(ion_fd);
     mPreviewBufs.clear();
     mIonHandle.clear();
 

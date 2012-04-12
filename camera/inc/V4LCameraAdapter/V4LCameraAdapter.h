@@ -1,4 +1,4 @@
-/*
+	/*
  * Copyright (C) Texas Instruments - http://www.ti.com/
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -137,6 +137,7 @@ private:
      struct VideoInfo *mVideoInfo;
      int mCameraHandle;
      int mmap_fd[6];
+     int ion_fd;
 
     int nQueued;
     int nDequeued;
