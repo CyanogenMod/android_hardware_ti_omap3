@@ -370,7 +370,7 @@ status_t V4LCameraAdapter::takePicture()
     /* turn off streaming */
     bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(mCameraHandle, VIDIOC_STREAMOFF, &bufType) < 0) {
-        LOGE("VIDIOC_STREAMON Failed");
+        LOGE("VIDIOC_STREAMOFF Failed");
         return -1;
     }
     mVideoInfo->isStreaming = false;
@@ -428,7 +428,7 @@ status_t V4LCameraAdapter::startPreview()
    return ret;
 }
 
-status_t V4LCameraAdapter::stopPreview()
+status_t V4LCameraAdapter::stopPreview(bool check)
 {
     enum v4l2_buf_type bufType;
     int ret = NO_ERROR;
@@ -455,15 +455,17 @@ status_t V4LCameraAdapter::stopPreview()
 
     mParams.getPreviewSize(&width, &height);
 
-    for (i = 0; i < 6; i++) {
-        if (munmap(mIonHandle.keyAt(i), (width*height*2)) < 0 )
-            LOGE("ION Unmap failed");
-        close(mmap_fd[i]);
-    }
+	if (check) {
+	    	for (i = 0; i < 6; i++) {
+        		if (munmap(mIonHandle.keyAt(i), (width*height*2)) < 0 )
+        	    	LOGE("ION Unmap failed");
+        		close(mmap_fd[i]);
+    		}
 
-    ion_close(ion_fd);
-    mPreviewBufs.clear();
-    mIonHandle.clear();
+    		ion_close(ion_fd);
+    		mPreviewBufs.clear();
+    		mIonHandle.clear();
+	}
 
     return ret;
 }

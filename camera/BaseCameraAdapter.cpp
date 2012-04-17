@@ -594,7 +594,7 @@ status_t BaseCameraAdapter::sendCommand(CameraCommands operation, int value1, in
 
 		    if ( ret == NO_ERROR )
 		        {
-                            ret = stopPreview();
+                            ret = stopPreview(value1);
 		        }
 
 		    if ( ret == NO_ERROR )
@@ -608,7 +608,7 @@ status_t BaseCameraAdapter::sendCommand(CameraCommands operation, int value1, in
 	     }
 	     else
 	     {
-	            ret = stopPreview();
+	            ret = stopPreview(value1);
 	     }
 
             break;
@@ -1590,7 +1590,7 @@ status_t BaseCameraAdapter::startPreview()
     return ret;
 }
 
-status_t BaseCameraAdapter::stopPreview()
+status_t BaseCameraAdapter::stopPreview(bool check)
 {
     status_t ret = NO_ERROR;
 

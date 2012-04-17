@@ -92,7 +92,7 @@ protected:
 
 //----------Parent class method implementation------------------------------------
     virtual status_t startPreview();
-    virtual status_t stopPreview();
+    virtual status_t stopPreview(bool check);
     virtual status_t useBuffers(CameraMode mode, void* bufArr, int num, size_t length, unsigned int queueable);
     virtual status_t fillThisBuffer(void* frameBuf, CameraFrame::FrameType frameType);
     virtual status_t getFrameSize(size_t &width, size_t &height);

@@ -107,7 +107,7 @@ protected:
     virtual status_t startPreview();
 
     //Should be implemented by deriving classes in order to stop camera preview
-    virtual status_t stopPreview();
+    virtual status_t stopPreview(bool check);
 
     //Should be implemented by deriving classes in order to start smooth zoom
     virtual status_t startSmoothZoom(int targetIdx);
