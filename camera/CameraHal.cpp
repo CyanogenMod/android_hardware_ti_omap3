@@ -93,7 +93,6 @@ struct timeval CameraHal::mStartCapture;
 
 
 int CameraHal::camera_device = 0;
-
 const char CameraHal::supportedPictureSizes [] ="3280x2464,3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240,2592x1936";
 const char CameraHal::supportedPreviewSizes [] = "1920x1080,1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
 
@@ -109,11 +108,11 @@ const supported_resolution CameraHal::supportedPictureRes[] = { {3264, 2448} , {
                                                      {640, 480}   , {320, 240} };
 
 const supported_resolution CameraHal::supportedPreviewRes[] = { {1280, 720}, {800, 480},
-                                                     {720, 576}, {720, 480},
+                                                     {736, 576}, {736, 480},{720, 576}, {720, 480},
                                                      {992, 560}, {864, 480}, {848, 480},
                                                      {768, 576}, {640, 480},
                                                      {320, 240}, {352, 288}, {240, 160},
-                                                     {176, 144}, {128, 96}};
+                                                     {192, 144}, {176, 144}, {128, 96}};
 
 int camerahal_strcat(char *dst, const char *src, size_t size)
 {
