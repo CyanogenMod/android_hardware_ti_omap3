@@ -23,7 +23,7 @@
 #include <stdint.h>
 
 ///Uncomment this macro to debug the message queue implementation
-#define DEBUG_LOG //Kirti Added
+//#define DEBUG_LOG
 
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG

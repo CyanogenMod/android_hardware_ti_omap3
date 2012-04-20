@@ -59,7 +59,7 @@
 #endif
 
 //Uncomment to enable more verbose/debug logs
-#define DEBUG_LOG 1
+//#define DEBUG_LOG 0
 
 ///Camera HAL Logging Functions
 #ifndef DEBUG_LOG
