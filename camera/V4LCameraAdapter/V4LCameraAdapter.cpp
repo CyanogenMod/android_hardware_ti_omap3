@@ -165,28 +165,6 @@ status_t V4LCameraAdapter::setParameters(const CameraParameters &params)
 
     status_t ret = NO_ERROR;
 
-    int width, height;
-
-    params.getPreviewSize(&width, &height);
-
-    CAMHAL_LOGDB("Width * Height %d x %d format 0x%x", width, height, DEFAULT_PIXEL_FORMAT);
-
-    mVideoInfo->width = width;
-    mVideoInfo->height = height;
-    mVideoInfo->framesizeIn = (width * height << 1);
-    mVideoInfo->formatIn = DEFAULT_PIXEL_FORMAT;
-
-    mVideoInfo->format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->format.fmt.pix.width = width;
-    mVideoInfo->format.fmt.pix.height = height;
-    mVideoInfo->format.fmt.pix.pixelformat = DEFAULT_PIXEL_FORMAT;
-
-    ret = ioctl(mCameraHandle, VIDIOC_S_FMT, &mVideoInfo->format);
-    if (ret < 0) {
-        CAMHAL_LOGEB("Open: VIDIOC_S_FMT Failed: %s", strerror(errno));
-        return ret;
-    }
-
     // Udpate the current parameter set
     mParams = params;
 

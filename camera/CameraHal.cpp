@@ -960,8 +960,7 @@ void CameraHal::previewThread()
             case STOP_SMOOTH_ZOOM:
 
                 LOGD("Receive Command: STOP_SMOOTH_ZOOM");
-                if(mSmoothZoomStatus == SMOOTH_START)
-                {
+                if(mSmoothZoomStatus == SMOOTH_START) {
                     mSmoothZoomStatus = SMOOTH_NOTIFY_AND_STOP;
                 }
                 msg.command = PREVIEW_ACK;
@@ -975,15 +974,15 @@ void CameraHal::previewThread()
                 LOGD("Receive Command: PREVIEW_AF_START");
                 err = 0;
 
-                if( !mPreviewRunning ){
+                if( !mPreviewRunning ) {
                     LOGD("WARNING PREVIEW NOT RUNNING!");
                     msg.command = PREVIEW_NACK;
                 } else {
 
 #ifdef FW3A
 
-                   if (isStart_FW3A_CAF!= 0){
-                        if( FW3A_Stop_CAF() < 0){
+                   if (isStart_FW3A_CAF!= 0) {
+                        if( FW3A_Stop_CAF() < 0) {
                             LOGE("ERROR FW3A_Stop_CAF();");
                             err = -1;
                         }
@@ -995,16 +994,15 @@ void CameraHal::previewThread()
 
 #endif
                     if (isStart_FW3A){
-                    if (isStart_FW3A_AF == 0){
-                        if( FW3A_Start_AF() < 0){
+                    if (isStart_FW3A_AF == 0) {
+                        if( FW3A_Start_AF() < 0) {
                             LOGE("ERROR FW3A_Start_AF()");
                             err = -1;
                          }
 
                     }
                     } else {
-                        if(msgTypeEnabled(CAMERA_MSG_FOCUS))
-                        {
+                        if(msgTypeEnabled(CAMERA_MSG_FOCUS)) {
                             //mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
                             mAppCallbackNotifier->enableMsgType (CAMERA_MSG_FOCUS);
                         }
@@ -1014,11 +1012,10 @@ void CameraHal::previewThread()
 
 #else
 
-                    if( msgTypeEnabled(CAMERA_MSG_FOCUS) )
-            {
+                    if( msgTypeEnabled(CAMERA_MSG_FOCUS) ) {
                         //mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
                         mAppCallbackNotifier->enableMsgType (CAMERA_MSG_FOCUS);
-            }
+            	    }
 
                     msg.command = PREVIEW_ACK;
 
@@ -1194,7 +1191,7 @@ void CameraHal::previewThread()
 
 #endif
 
-            if( ICapturePerform() < 0){
+			if( ICapturePerform() < 0){
             LOGE("ERROR ICapturePerform()");
             err = -1;
             }
@@ -1331,28 +1328,38 @@ int CameraHal::CameraDestroy(bool destroyWindow)
 
 int CameraHal::CameraConfigure()
 {
-    int framerate;
+    int w, h, framerate;
     int err;
     int framerate_min = 0, framerate_max = 0;
     enum v4l2_buf_type type;
     struct v4l2_control vc;
     struct v4l2_streamparm parm;
+    struct v4l2_format format;
 
     LOG_FUNCTION_NAME
 
-    if ( NULL != mCameraAdapter )
-    {
-        CAMHAL_LOGEA( "mCameraAdapter->setParameters - start preview ");
-        err = mCameraAdapter->setParameters(mParameters);
-        if( NO_ERROR != err)
-        {
+    if ( NULL != mCameraAdapter ) {
+        mCameraAdapter->setParameters(mParameters);
+	mParameters.getPreviewSize(&w, &h);
+
+	/* Set preview format */        
+    	format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    	format.fmt.pix.width = w;
+    	format.fmt.pix.height = h;
+    	format.fmt.pix.pixelformat = PIXEL_FORMAT;
+
+    	CAMHAL_LOGDB("Width * Height %d x %d format 0x%x", w, h, PIXEL_FORMAT);
+
+        err = ioctl(camera_device, VIDIOC_S_FMT, &format);
+        if ( err < 0 ){
             LOGE ("Failed to set VIDIOC_S_FMT.");
             goto s_fmt_fail;
         }
+	LOGI("CameraConfigure PreviewFormat: w=%d h=%d", format.fmt.pix.width, format.fmt.pix.height);
+     
     }
-    else
-    {
-        LOGE( " Can't set the resolution return as CameraAdapter is NULL ");
+    else {
+        LOGE( "Can't set the resolution return as CameraAdapter is NULL ");
         goto s_fmt_fail;
     }
 
@@ -2514,6 +2521,10 @@ int CameraHal::ICapturePerform() {
 
     LOGE("\n\n\n PICTURE NUMBER =%d\n\n\n",++pictureNumber);
 
+    if ( NULL != mCameraAdapter ) {
+	mCameraAdapter->setParameters(mParameters);
+    }
+		
     if( ( msgTypeEnabled(CAMERA_MSG_SHUTTER) ) && mShutterEnable)
     {
         //mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
