@@ -2465,7 +2465,23 @@ OMX_ERRORTYPE OMX_VIDENC_Queue_H264_Buffer(VIDENC_COMPONENT_PRIVATE* pComponentP
     *  else use given capture width for
     *  pitch provided it is greater than
     *  image width.*/
-    pUalgInpParams->H264VENC_TI_DYNAMICPARAMS.videncDynamicParams.captureWidth = 0;
+
+    if(pPortDefIn->format.video.nFrameWidth == 192)
+    {
+        pUalgInpParams->H264VENC_TI_DYNAMICPARAMS.videncDynamicParams.captureWidth = 176;
+        pUalgInpParams->H264VENC_TI_DYNAMICPARAMS.videncDynamicParams.inputWidth = 192;
+    }
+    else if(pPortDefIn->format.video.nFrameWidth == 736)
+    {
+            pUalgInpParams->H264VENC_TI_DYNAMICPARAMS.videncDynamicParams.captureWidth = 720;
+            pUalgInpParams->H264VENC_TI_DYNAMICPARAMS.videncDynamicParams.inputWidth = 736;
+    }
+    else
+    {
+        pUalgInpParams->H264VENC_TI_DYNAMICPARAMS.videncDynamicParams.captureWidth = 0;
+        pUalgInpParams->H264VENC_TI_DYNAMICPARAMS.videncDynamicParams.inputWidth = pPortDefIn->format.video.nFrameWidth;
+    }
+
     /*  Force given frame as I or IDR (in H.264)  frame    */
     pUalgInpParams->H264VENC_TI_DYNAMICPARAMS.videncDynamicParams.forceIFrame = pComponentPrivate->bForceIFrame;
 
@@ -2602,13 +2618,11 @@ OMX_ERRORTYPE OMX_VIDENC_Queue_H264_Buffer(VIDENC_COMPONENT_PRIVATE* pComponentP
     		OMX_U32 nMetadataBufferType;
     		OMX_PTR pBufferOrig;
 
-    		//LOGE("OMX_VIDENC_Queue_H264_Buffer :: pBufHead->pBuffer %p", pBufHead->pBuffer);
     		pTempBuffer = (OMX_U32 *) (pBufHead->pBuffer);
     		nMetadataBufferType = *pTempBuffer;
 
     		if(nMetadataBufferType == kMetadataBufferTypeCameraSource)
     		{
-    			//LOGE("OMX_VIDENC_Queue_H264_Buffer :: kMetadataBufferTypeCameraSource");
     			video_metadata_t* pVideoMetadataBuffer;
     			pVideoMetadataBuffer = (video_metadata_t*) ((OMX_U32 *)(pBufHead->pBuffer));
     			pBufferOrig = pVideoMetadataBuffer->handle;
@@ -2731,7 +2745,19 @@ OMX_ERRORTYPE OMX_VIDENC_Queue_Mpeg4_Buffer(VIDENC_COMPONENT_PRIVATE* pComponent
     }
     pUalgInpParams->ulQPInter           = 8;
     pUalgInpParams->ulLastFrame         = 0;
-    pUalgInpParams->ulcapturewidth      = 0;
+
+    if(pPortDefIn->format.video.nFrameWidth == 192)
+    {
+        pUalgInpParams->ulcapturewidth = 192;
+    }
+    else if(pPortDefIn->format.video.nFrameWidth == 736)
+    {
+            pUalgInpParams->ulcapturewidth = 736;
+    }
+    else
+    {
+    	pUalgInpParams->ulcapturewidth = 0;
+    }
     pUalgInpParams->ulQpMax             = pComponentPrivate->nQpMax;
     pUalgInpParams->ulQpMin             = pComponentPrivate->nQpMin;
 
@@ -2785,6 +2811,33 @@ OMX_ERRORTYPE OMX_VIDENC_Queue_Mpeg4_Buffer(VIDENC_COMPONENT_PRIVATE* pComponent
         OMX_PRBUFFER1(pComponentPrivate->dbg, " %p\n", (void*)pBufHead);
         pBufferPrivate->eBufferOwner = VIDENC_BUFFER_WITH_DSP;
         #ifdef TURN_ON_MAP_REUSE_INPUT
+    	if (pComponentPrivate->pCompPort[0]->VIDEncBufferType == EncoderMetadataPointers)
+    	{
+    		OMX_U32 *pTempBuffer;
+    		OMX_U32 nMetadataBufferType;
+    		OMX_PTR pBufferOrig;
+
+    		pTempBuffer = (OMX_U32 *) (pBufHead->pBuffer);
+    		nMetadataBufferType = *pTempBuffer;
+
+    		if(nMetadataBufferType == kMetadataBufferTypeCameraSource)
+    		{
+    			video_metadata_t* pVideoMetadataBuffer;
+    			pVideoMetadataBuffer = (video_metadata_t*) ((OMX_U32 *)(pBufHead->pBuffer));
+    			pBufferOrig = pVideoMetadataBuffer->handle;
+    			pBufHead->nOffset = pVideoMetadataBuffer->offset;
+    		}
+    	    eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
+    	                              EMMCodecInputBufferMapReuse,
+    	                              pBufferOrig,
+    	                              pBufHead->nAllocLen,
+    	                              pBufHead->nFilledLen,
+    	                              (OMX_U8*)pUalgInpParams,
+    	                              sizeof(MP4VE_GPP_SN_UALGInputParams),
+    	                              (OMX_U8*)pBufHead);
+    	}
+    	else
+    	{
         eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
                                   EMMCodecInputBufferMapReuse,
                                   pBufHead->pBuffer,
@@ -2793,6 +2846,7 @@ OMX_ERRORTYPE OMX_VIDENC_Queue_Mpeg4_Buffer(VIDENC_COMPONENT_PRIVATE* pComponent
                                   (OMX_U8*)pUalgInpParams,
                                   sizeof(MP4VE_GPP_SN_UALGInputParams),
                                   (OMX_U8*)pBufHead);
+    	}
         #else
         eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
                                   EMMCodecInputBuffer,
@@ -3265,7 +3319,6 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_H264Enc(VIDENC_COMPONENT_PRIVATE* pComponentPri
     pCreatePhaseArgs->usStreamId2             = VIDENC_OUTPUT_PORT;
     pCreatePhaseArgs->usBuffTypeInStream2     = 0;
     pCreatePhaseArgs->usMaxBuffsInStream2     = (OMX_U16)pPortDefOut->nBufferCountActual;
-
     pCreatePhaseArgs->ulWidth                 = pPortDefIn->format.video.nFrameWidth;
     pCreatePhaseArgs->ulHeight                = pPortDefIn->format.video.nFrameHeight;
     pCreatePhaseArgs->ulTargetBitRate         = pPortDefOut->format.video.nBitrate;
@@ -3564,7 +3617,18 @@ OMX_ERRORTYPE OMX_VIDENC_InitDSP_Mpeg4Enc(VIDENC_COMPONENT_PRIVATE* pComponentPr
     pCreatePhaseArgs->usBuffTypeInStream2     = 0;
     pCreatePhaseArgs->usMaxBuffsInStream2     = (OMX_U16)pPortDefOut->nBufferCountActual;
 
-    pCreatePhaseArgs->ulWidth                 = pPortDefIn->format.video.nFrameWidth;
+    if(pPortDefIn->format.video.nFrameWidth == 192)
+    {
+        pCreatePhaseArgs->ulWidth = 176;
+    }
+    else if(pPortDefIn->format.video.nFrameWidth == 736)
+    {
+            pCreatePhaseArgs->ulWidth = 720;
+    }
+    else
+    {
+        pCreatePhaseArgs->ulWidth = pPortDefIn->format.video.nFrameWidth;
+    }
     pCreatePhaseArgs->ulHeight                = pPortDefIn->format.video.nFrameHeight;
     pCreatePhaseArgs->ulTargetBitRate         = pPortDefOut->format.video.nBitrate;
     pCreatePhaseArgs->ulVBVSize               = pComponentPrivate->nVBVSize;
