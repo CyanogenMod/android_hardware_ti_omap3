@@ -3811,6 +3811,7 @@ status_t CameraHal::autoFocus()
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
 
     gettimeofday(&mStartFocus, NULL);
+
 #endif
 
     {
@@ -3823,35 +3824,8 @@ status_t CameraHal::autoFocus()
     previewThreadCommandQ.put(&msg);
     previewThreadAckQ.get(&msg);
 
-    if(msg.command == PREVIEW_ACK)
-    {
-        if ( NULL != mCameraAdapter )
-        {
-
-    #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
-
-            //pass the autoFocus timestamp along with the command to camera adapter
-            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_PERFORM_AUTOFOCUS, ( int ) &mStartFocus);
-
-    #else
-
-            ret = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_PERFORM_AUTOFOCUS);
-
-    #endif
-            return ret;
-
-        }
-        else
-        {
-            return INVALID_OPERATION;
-        }
-    }
-    else
-    {
-        return INVALID_OPERATION ;
-    }
-
     LOG_FUNCTION_NAME_EXIT
+    return msg.command == PREVIEW_ACK ? NO_ERROR : INVALID_OPERATION;
 }
 
 bool CameraHal::previewEnabled()
