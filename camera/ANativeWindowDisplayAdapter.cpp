@@ -25,6 +25,13 @@
 #include <ui/GraphicBufferMapper.h>
 #include <hal_public.h>
 
+#define QCIF_192    192
+#define QCIF_176    176
+
+#define DVD_736     736
+#define DVD_720     720
+
+
 namespace android {
 
 ///Constant declarations
@@ -1089,6 +1096,19 @@ status_t ANativeWindowDisplayAdapter::PostFrame(ANativeWindowDisplayAdapter::Dis
             mXOff = xOff;
             mYOff = yOff;
         }
+
+	//Cropping Odd Dimensions for QCIF, DVD-PAL, DVD-NTSC
+
+	if (mPreviewWidth == QCIF_192) {
+		mPreviewWidth = QCIF_176;
+                mANativeWindow->set_crop(mANativeWindow, 0, 0,
+					mPreviewWidth, mPreviewHeight);
+        }
+        else if (mPreviewWidth == DVD_736) {
+		mPreviewWidth = DVD_720;
+		mANativeWindow->set_crop(mANativeWindow, 0, 0,
+					mPreviewWidth, mPreviewHeight);
+	}
 
         // unlock buffer before sending to display
         mapper.unlock((buffer_handle_t) mGrallocHandleMap[i]);
