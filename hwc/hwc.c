@@ -928,6 +928,7 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
     struct dsscomp_setup_dispc_data *dsscomp = &hwc_dev->dsscomp_data;
     struct counts num = { .composited_layers = list ? list->numHwLayers : 0 };
     unsigned int i, ix;
+    int num_fb = 0;
 
     pthread_mutex_lock(&hwc_dev->lock);
     memset(dsscomp, 0x0, sizeof(*dsscomp));
@@ -967,11 +968,14 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
                 hwc_dev->force_sgx = 0;
         }
     }
-
+    /* hack for OMAP3: OMAP3 doesn't support z-order hence whenever
+     * more than one FB and overlay comes then this has to go from SGX
+     */
+    num_fb = num.BGR + num.RGB;
     /* hack for omap3, overlay can be active only for YUV format */
     /* For other formats everything has to go through frame buffer */ 
 
-    if (num.NV12)
+    if (num.NV12 && num_fb <= 1)
     {
           hwc_dev->force_sgx = 0;
     }
@@ -1030,7 +1034,10 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
             layer->compositionType = HWC_OVERLAY;
 
             /* clear FB above all opaque layers if rendering via SGX */
-            if (hwc_dev->use_sgx && !is_BLENDED(layer))
+	    /* for OMAP3: if FB layer data comes on top of overlay area then that area
+	     * need to clear after every transaction.
+	     */
+            if (hwc_dev->use_sgx)
                 layer->hints |= HWC_HINT_CLEAR_FB;
             /* see if any of the (non-backmost) overlays are doing blending */
             else if (is_BLENDED(layer) && i > 0)
