@@ -1544,6 +1544,7 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
                 }
                 else if (pComponentParam->nPortIndex == pComponentPrivate->pOutPortDef->nPortIndex) {
                     OMX_U32 nMinOutputBufferSize = 0;
+                    OMX_U32 nWidth = 0;
                     OMX_PARAM_PORTDEFINITIONTYPE *pPortDefParam = (OMX_PARAM_PORTDEFINITIONTYPE *)pComponentParam;
                     OMX_PARAM_PORTDEFINITIONTYPE *pPortDef = pComponentPrivate->pOutPortDef;
                     if( pPortDefParam->format.video.eCompressionFormat == OMX_VIDEO_CodingAVC) {
@@ -1569,12 +1570,20 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
                             break;
                     }
 
+                if (pComponentPrivate->pInPortDef->format.video.eCompressionFormat == OMX_VIDEO_CodingWMV) {
+						nWidth = pPortDef->format.video.nFrameWidth;
+						nWidth = VIDDEC_MULTIPLE32(nWidth);
+						pPortDef->format.video.nFrameWidth = nWidth;
+						pComponentPrivate->pOutPortDef->format.video.nFrameWidth = nWidth;
+						pPortDefParam->format.video.nFrameWidth = nWidth;
+                    }
+
                     /* OMX VD defines the minimum required output size */
                     nMinOutputBufferSize = pPortDef->format.video.nFrameWidth *
                         pPortDef->format.video.nFrameHeight *
                         ((pPortDef->format.video.eColorFormat == VIDDEC_COLORFORMAT420) ? VIDDEC_FACTORFORMAT420 : VIDDEC_FACTORFORMAT422);
                     pPortDef->nBufferSize = nMinOutputBufferSize;
-
+                    pComponentPrivate->pOutPortDef->nBufferSize = pPortDef->nBufferSize;
                     OMX_PRINT3(pComponentPrivate->dbg, "Set OUT/p resolution: %ldx%ld, nBufferSize: %ld", pPortDefParam->format.video.nFrameWidth, pPortDefParam->format.video.nFrameHeight, pPortDef->nBufferSize);
                 }
                 else {

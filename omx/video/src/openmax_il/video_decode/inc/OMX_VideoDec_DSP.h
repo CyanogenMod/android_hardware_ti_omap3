@@ -154,6 +154,7 @@ typedef struct WMV9DEC_SNCreatePhArg {
     OMX_U32 ulProcessMode;
     OMX_S32 lPreRollBufConfig;
     OMX_U32 usIsElementaryStream;
+    OMX_U32 ulStridedWidth;
     OMX_U32 bCopiedCCDBuffer;
     OMX_U16 endArgs;
 } WMV9DEC_SNCreatePhArg;

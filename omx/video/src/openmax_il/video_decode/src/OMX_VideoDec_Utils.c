@@ -1066,6 +1066,8 @@ case VIDDEC_INIT_IDLEEXECUTING:
             pComponentPrivate->pDeblockingParamType->bDeblocking            = OMX_TRUE; /* Always enable */
             pComponentPrivate->pDeringingParamType->eImageFilter            = OMX_ImageFilterNone;
             pComponentPrivate->bIsSparkInput                                = OMX_FALSE;
+            pComponentPrivate->nCropWidth                                   = VIDDEC_ZERO;
+            pComponentPrivate->nCropHeight                                  = VIDDEC_ZERO;
             break;
 
         case VIDDEC_INIT_PLANAR420:
@@ -4763,9 +4765,10 @@ OMX_ERRORTYPE VIDDEC_HandleDataBuf_FromApp(VIDDEC_COMPONENT_PRIVATE *pComponentP
 
                 if((nWidth != (OMX_U32)pComponentPrivate->pOutPortDef->format.video.nFrameWidth) || 
                         (nHeight != (OMX_U32)pComponentPrivate->pOutPortDef->format.video.nFrameHeight)){
-                    pComponentPrivate->pOutPortDef->format.video.nFrameWidth = nWidth;
-                    pComponentPrivate->pOutPortDef->format.video.nFrameHeight = nHeight;
+             //  	pComponentPrivate->pOutPortDef->format.video.nFrameWidth = nWidth;
+             //       pComponentPrivate->pOutPortDef->format.video.nFrameHeight = nHeight;
                     pComponentPrivate->bOutPortSettingsChanged = OMX_TRUE;
+                    pComponentPrivate->bUsePortReconfigForCrop = OMX_TRUE;
                 }
 
                 pData += 4; /*Position to compression type*/
@@ -6459,6 +6462,8 @@ OMX_ERRORTYPE VIDDEC_InitDSP_WMVDec(VIDDEC_COMPONENT_PRIVATE* pComponentPrivate)
     pCreatePhaseArgs->unOutputNumBufsPerStream  = (OMX_U16)nOutBuff;
     pCreatePhaseArgs->ulMaxWidth                = (OMX_U16)(pComponentPrivate->pInPortDef->format.video.nFrameWidth);
     pCreatePhaseArgs->ulMaxHeight               = (OMX_U16)(pComponentPrivate->pInPortDef->format.video.nFrameHeight);
+
+    pCreatePhaseArgs->ulStridedWidth            = VIDDEC_MULTIPLE32(pComponentPrivate->pInPortDef->format.video.nFrameWidth);
 
     if (pComponentPrivate->nWMVFileType != VIDDEC_WMV_ELEMSTREAM) {
         pComponentPrivate->pBufferRCV.sStructRCV->nVertSize = (OMX_U32)(pComponentPrivate->pInPortDef->format.video.nFrameHeight);
