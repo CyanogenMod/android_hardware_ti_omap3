@@ -55,7 +55,7 @@ static int mDebugFps = 0;
 #define PARM_ZOOM_SCALE  100
 #define SATURATION_OFFSET       100
 //#define KEY_SHUTTER_ENABLE      "shutter-enable"
-#define FOCUS_MODE_MANUAL       "manual"
+//#define FOCUS_MODE_MANUAL       "manual"
 #define KEY_GPS_ALTITUDE_REF    "gps-altitude-ref"
 #define KEY_CAPTURE             "capture"
 #define CAPTURE_STILL           "still"
@@ -4536,11 +4536,6 @@ status_t CameraHal::setParameters(const CameraParameters &params)
 
                 fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_CONTINUOUS;
 
-            } else if (strcmp(params.get(CameraParameters::KEY_FOCUS_MODE), (const char *) FOCUS_MODE_MANUAL) == 0) {
-
-                fobj->settings.af.focus_mode = ICAM_FOCUS_MODE_AF_MANUAL;
-                fobj->settings.af.focus_manual = MANUAL_FOCUS_DEFAULT_POSITION;
-
             }
 
             //Disable touch focus if enabled
@@ -4953,9 +4948,6 @@ CameraParameters CameraHal::getParameters() const
                 break;
             case ICAM_FOCUS_MODE_AF_MACRO:
                 params.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_MACRO);
-                break;
-            case ICAM_FOCUS_MODE_AF_MANUAL:
-                params.set(CameraParameters::KEY_FOCUS_MODE, FOCUS_MODE_MANUAL);
                 break;
             //TODO: Extend support for those
             case ICAM_FOCUS_MODE_AF_CONTINUOUS:
@@ -5526,7 +5518,6 @@ status_t CameraHal::cancelAutoFocus()
 
     // Get current focus mode
     mFocusMode = p.get(CameraParameters::KEY_FOCUS_MODE);
-    p.set(CameraParameters::KEY_FOCUS_MODE, FOCUS_MODE_MANUAL);
 
     if (setParameters(p) != NO_ERROR) {
         LOGE("Failed to set parameters");
