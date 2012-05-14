@@ -1043,7 +1043,6 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
             else if (is_BLENDED(layer) && i > 0)
                 hwc_dev->ovls_blending = 1;
 
-            LOGD("In fordsscomp->num_ovls = %d handle = %x *handle = %x\n", dsscomp->num_ovls, handle, *handle);
             hwc_dev->buffers[dsscomp->num_ovls] = handle;
 
             omap3_hwc_setup_layer(hwc_dev,
