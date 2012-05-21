@@ -606,11 +606,35 @@ status_t BaseCameraAdapter::sendCommand(CameraCommands operation, int value1, in
 		        ret |= rollbackState();
 		        }
 	     }
+#ifdef ICAP
+		 else
+		{//enters here during image capture with ICAP
+
+			if ( ret == NO_ERROR )
+		        {
+		        ret = setState(operation);
+		        }
+
+		    if ( ret == NO_ERROR )
+		        {
+                     ret = stopPreview(value1);
+		        }
+
+		    if ( ret == NO_ERROR )
+		        {
+		        ret = commitState();
+		        }
+		    else
+		        {
+		        ret |= rollbackState();
+		        }
+		}
+#else
 	     else
-	     {
+	     {//enters here during image capture without ICAP
 	            ret = stopPreview(value1);
 	     }
-
+#endif
             break;
 
             }
@@ -1461,10 +1485,10 @@ status_t BaseCameraAdapter::stopVideoCapture()
 
     LOG_FUNCTION_NAME;
 
-   /* if ( !mRecording )
-        {
+    if ( !mRecording )
+    {
         ret = NO_INIT;
-        }*/
+    }
 
     if ( NO_ERROR == ret )
         {
@@ -1795,7 +1819,7 @@ status_t BaseCameraAdapter::setState(CameraCommands operation)
                 case CAMERA_CANCEL_AUTOFOCUS:
                 case CAMERA_QUERY_BUFFER_SIZE_IMAGE_CAPTURE:
                 case CAMERA_STOP_SMOOTH_ZOOM:
-                    CAMHAL_LOGDB("Adapter state switch PREVIEW_ACTIVE->PREVIEW_ACTIVE event = 0x%x",
+                    CAMHAL_LOGDB("Adapter state switch PREVIEW_ACTIVE->PREVIEW_STATE event = 0x%x",
                                  operation);
                     mNextState = PREVIEW_STATE;
                     break;

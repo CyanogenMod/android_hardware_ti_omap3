@@ -106,7 +106,6 @@ status_t V4LCameraAdapter::initialize(int CameraHandle)
     // Initialize flags
     mPreviewing = false;
     mVideoInfo->isStreaming = false;
-    mRecording = false;
 
     LOG_FUNCTION_NAME_EXIT;
 
@@ -145,7 +144,6 @@ status_t V4LCameraAdapter::fillThisBuffer(void* frameBuf, CameraFrame::FrameType
     mVideoInfo->buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
     mVideoInfo->buf.m.userptr = (unsigned long)mIonHandle.keyAt(i);
-    CAMHAL_LOGEB(" fillThisBuffer queueing buffer with index %d \n", i);
 
     ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
     if (ret < 0) {
@@ -214,11 +212,11 @@ status_t V4LCameraAdapter::useBuffers(CameraMode mode, void* bufArr, int num, si
     return ret;
 }
 
-char** V4LCameraAdapter:: getVirtualAddress()
+char** V4LCameraAdapter:: getVirtualAddress(int count)
 {
     char** buf = new char*[6];
 
-    for(int i = 0; i < 6; i ++)
+    for(int i = 0; i < count; i ++)
     {
         buf[i] = (char *)mIonHandle.keyAt(i);
     }
@@ -283,7 +281,7 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
             mParams.getPreviewSize(&width, &height);
 
             data.gralloc_handle = (int *)((IMG_native_handle_t*)ptr[i])->fd[0];
-            CAMHAL_LOGEB("data.gralloc_handle = %d", data.gralloc_handle);
+            LOGV("data.gralloc_handle = %d", data.gralloc_handle);
 
             if (ion_ioctl(ion_fd, ION_IOC_MAP_GRALLOC, &data)) {
                 LOGE("ion_ioctl fail");
@@ -487,8 +485,6 @@ char* V4LCameraAdapter::GetFrame(int &index)
 
     index = mVideoInfo->buf.index;
 
-    CAMHAL_LOGEB(" V4LCameraAdapter::GetFrame returning index %d ", index);
-
     return (char *)mIonHandle.keyAt(index);
 }
 
@@ -519,8 +515,6 @@ status_t V4LCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCou
     int image_width , image_height ;
     int preview_width, preview_height;
     v4l2_streamparm parm;
-
-    mImagebuffer = true;
 
     mParams.getPictureSize(&image_width, &image_height);
     mParams.getPreviewSize(&preview_width, &preview_height);
@@ -641,10 +635,6 @@ void V4LCameraAdapter::onOrientationEvent(uint32_t orientation, uint32_t tilt)
 V4LCameraAdapter::V4LCameraAdapter(size_t sensor_index)
 {
     LOG_FUNCTION_NAME;
-    mImageCaptureBuffer = NULL;
-    mImagebuffer = false;
-    mVideoBuffer = false;
-
     // Nothing useful to do in the constructor
 
     LOG_FUNCTION_NAME_EXIT;
@@ -675,7 +665,7 @@ V4LCameraAdapter::~V4LCameraAdapter()
     LOG_FUNCTION_NAME_EXIT;
 }
 
-int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
+int V4LCameraAdapter::queueToGralloc(int index, char* fp, int frameType)
 {
     status_t ret = NO_ERROR;
     int width, height;
@@ -684,17 +674,15 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
     VideoInfo* buf;
     uint8_t* grallocPtr;
 
-    mRecording = isVideo;
-
+#ifndef ICAP
     if (!fp )
         return BAD_VALUE;
+#endif
         
 
     mParams.getPreviewSize(&width, &height);
-    CAMHAL_LOGEB(" Inside V4LCameraAdapter width = %d , height = %d ",width, height);
 
     //Get index corresponding to key, to fetch correct Gralloc Ptr.
-
     for ( i = 0; i < mPreviewBufs.size(); i++) {
             if(mPreviewBufs.valueAt(i) == index) {
                 grallocPtr = (uint8_t*) mPreviewBufs.keyAt(i);
@@ -706,21 +694,24 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
 
     Mutex::Autolock lock(mSubscriberLock);
 
-    if (true == mImagebuffer ) {
+    if ( CameraFrame::IMAGE_FRAME == frameType ) {
         int image_width , image_height ;
         mParams.getPictureSize(&image_width, &image_height);
 
         frame.mFrameType = CameraFrame::SNAPSHOT_FRAME;
         frame.mQuirks |= CameraFrame::ENCODE_RAW_YUV422I_TO_JPEG;
         frame.mFrameMask = CameraFrame::IMAGE_FRAME;
+#ifdef ICAP
+		frame.mBuffer = grallocPtr;
+#else
         frame.mBuffer = fp;
+#endif
         frame.mLength = image_width * image_height * 2;
         frame.mAlignment = image_width * 2;
         frame.mWidth = image_width;
         frame.mHeight = image_height;
-        mImagebuffer = false;
     }
-    else if (true == mRecording) {
+    else if ( CameraFrame::VIDEO_FRAME_SYNC == frameType ) {
         frame.mFrameType = CameraFrame::VIDEO_FRAME_SYNC;
         frame.mFrameMask = CameraFrame::VIDEO_FRAME_SYNC;
         frame.mBuffer = grallocPtr;
@@ -728,7 +719,6 @@ int V4LCameraAdapter::queueToGralloc(int index, char* fp, bool isVideo)
         frame.mAlignment = width*2;
         frame.mWidth = width;
         frame.mHeight = height;
-        mRecording = false;
     }
     else {
         frame.mFrameType = CameraFrame::PREVIEW_FRAME_SYNC;

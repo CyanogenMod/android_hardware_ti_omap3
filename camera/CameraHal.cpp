@@ -180,10 +180,9 @@ CameraHal::CameraHal(int cameraId)
     mPreviewFd = 0;
     mPreviewLength = 0;   
     mDisplayPaused = false;
-#if JPEG
     mTotalJpegsize = 0;
     mJpegBuffAddr = NULL;
-#endif
+	mJPEGPictureHeap = NULL;
 
 #ifdef HARDWARE_OMX
 
@@ -655,6 +654,12 @@ CameraHal::~CameraHal()
     FW3A_Destroy();
 #endif
 
+	if( mJPEGPictureHeap != NULL )
+	{
+		mJPEGPictureHeap.clear();
+		mJPEGPictureHeap = NULL;
+	}
+
     CameraDestroy(true);
 
     /// Free the callback notifier
@@ -803,7 +808,12 @@ void CameraHal::previewThread()
                         }
                     }
 #endif
-                    err = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW , false /*not need to set state */ );
+
+#ifdef ICAP
+					err = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW , true /*need to set state */ );
+#else
+                    err = mCameraAdapter->sendCommand(CameraAdapter::CAMERA_START_PREVIEW , false /*no need to set state */ );
+#endif
                 }
 
                 else if( ! mPreviewRunning ) {
@@ -1115,7 +1125,6 @@ void CameraHal::previewThread()
            case PREVIEW_CAPTURE:
            {
                mCaptureMode = true;
-               LOGD("sasken :: Previewthread :: PREVIEW_CAPTURE");
 
                 if ( mCaptureRunning ) {
                 msg.command = PREVIEW_NACK;
@@ -1745,7 +1754,6 @@ int CameraHal::CameraStart()
     int width, height;
     int err;
     int nSizeBytes;
-    int buffer_count;
     struct v4l2_format format;
     enum v4l2_buf_type type;
     struct v4l2_requestbuffers creqbuf;
@@ -1761,14 +1769,6 @@ int CameraHal::CameraStart()
     nCameraBuffersQueued = 0;
 
     mParameters.getPreviewSize(&width, &height);
-
-    mPreviewFrameSize = width * height * 2;
-    if (mPreviewFrameSize & 0xfff)
-    {
-        mPreviewFrameSize = (mPreviewFrameSize & 0xfffff000) + 0x1000;
-    }
-
-    buffer_count = 6;
 
     if(mPreviewBufs == NULL)
     {
@@ -1905,10 +1905,8 @@ int CameraHal::CameraStop()
     if ( NULL != mCameraAdapter )
     {
         CameraAdapter::AdapterState currentState;
-        CameraAdapter::AdapterState nextState;
 
         currentState = mCameraAdapter->getState();
-        nextState = mCameraAdapter->getNextState();
 
         // only need to send these control commands to state machine if we are
         // passed the LOADED_PREVIEW_STATE
@@ -1916,7 +1914,7 @@ int CameraHal::CameraStop()
         // according to javadoc...FD should be stopped in stopPreview
         // and application needs to call startFaceDection again
         // to restart FD
-        mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_FD);
+        //mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_FD);
         mCameraAdapter->sendCommand(CameraAdapter::CAMERA_CANCEL_AUTOFOCUS);
         }
 
@@ -1927,13 +1925,6 @@ int CameraHal::CameraStop()
         mCameraAdapter->sendCommand(CameraAdapter::CAMERA_STOP_PREVIEW , !mCaptureMode );
         }
     }
-
-    /*struct v4l2_requestbuffers creqbuf;
-    creqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
-        LOGE("VIDIOC_STREAMOFF Failed");
-        return -1;
-    }*/
 
     //Force the zoom to be updated next time preview is started.
     mZoomCurrentIdx = 0;
@@ -2075,11 +2066,11 @@ void CameraHal::nextPreview()
 
     mRecordingLock.lock();
 
-    mCameraAdapter->queueToGralloc(index,fp, false);
+    mCameraAdapter->queueToGralloc(index,fp, CameraFrame::PREVIEW_FRAME_SYNC);
 
     if(mRecordingEnabled)
     {
-    mCameraAdapter->queueToGralloc(index,fp, true);
+    mCameraAdapter->queueToGralloc(index,fp, CameraFrame::VIDEO_FRAME_SYNC);
     }
 
 /*queue_and_exit:
@@ -2166,7 +2157,7 @@ int  CameraHal::ICapturePerform()
     snapshotBuffer.alloc_size = 0;
     LOGE("mBurstShots %d", mBurstShots);
     if ( 1 >= mBurstShots ) {
-        if ( mcapture_mode == 1 ) {
+        //if ( mcapture_mode == 1 ) {
             spec_res.capture_mode = ICAP_CAPTURE_MODE_HP;
             iobj->cfg.capture_mode = ICAP_CAPTURE_MODE_HP;
             iobj->cfg.notify.cb_capture = onSnapshot;
@@ -2176,7 +2167,7 @@ int  CameraHal::ICapturePerform()
             iobj->cfg.zoom.enable = ICAP_ENABLE;
             iobj->cfg.zoom.vertical = fixedZoom;
             iobj->cfg.zoom.horizontal = fixedZoom;
-        } else {
+        /*} else {
             snapshotBuffer.buffer = getLastOverlayAddress();
             snapshotBuffer.alloc_size = getLastOverlayLength();
             spec_res.capture_mode = ICAP_CAPTURE_MODE_HQ;
@@ -2189,7 +2180,7 @@ int  CameraHal::ICapturePerform()
             iobj->cfg.zoom.enable = ICAP_ENABLE;
             iobj->cfg.zoom.vertical = fixedZoom;
             iobj->cfg.zoom.horizontal = fixedZoom;
-        }
+        }*/
         iobj->cfg.notify.cb_mknote = onMakernote;
 #ifdef IMAGE_PROCESSING_PIPELINE
         iobj->cfg.notify.cb_ipp = (mippMode != IPP_Disabled_Mode) ? onIPP : NULL;
@@ -2330,7 +2321,7 @@ int  CameraHal::ICapturePerform()
 
 #endif
 
-        status = icap_process(iobj->lib_private, mode, NULL);
+    status = icap_process(iobj->lib_private, mode, NULL);
 
     if( ICAP_STATUS_FAIL == status ) {
         LOGE("ICapture Process failed");
@@ -2825,7 +2816,7 @@ int CameraHal::ICapturePerform() {
         PPM("AFTER JPEG Encode Image");
 
         mJpegBuffAddr = outBuffer;
-        mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
+        //mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, 128, jpegEncoder->jpegSize);
 
         mTotalJpegsize = jpegEncoder->jpegSize;
 
@@ -2849,7 +2840,7 @@ int CameraHal::ICapturePerform() {
     }
 
     if ((NO_ERROR == ret) && (NULL != mCameraAdapter)) {
-    mCameraAdapter->queueToGralloc(0,(char*)yuv_buffer, false);
+    mCameraAdapter->queueToGralloc(0,(char*)yuv_buffer, CameraFrame::IMAGE_FRAME);
     }
 
     // Release constraint to DSP OPP by setting lowest Hz
@@ -2873,17 +2864,28 @@ int CameraHal::ICapturePerform() {
 #if JPEG
 void CameraHal::getCaptureSize(int *jpegSize)
 {
+    LOG_FUNCTION_NAME
+
     *jpegSize = mTotalJpegsize;
+
+    LOG_FUNCTION_NAME_EXIT
     return ;
 }
 
 void CameraHal::copyJpegImage(void *imageBuf)
 {
+    LOG_FUNCTION_NAME
+
     memcpy(imageBuf, mJpegBuffAddr, mTotalJpegsize);
     mTotalJpegsize = 0;
     mJpegBuffAddr = NULL;
-    mJPEGPictureMemBase.clear();
+    //mJPEGPictureMemBase.clear();
+#ifndef ICAP
     mJPEGPictureHeap.clear();
+#endif
+
+    LOG_FUNCTION_NAME_EXIT
+
     return ;
 }
 #endif
@@ -2981,21 +2983,22 @@ void CameraHal::snapshotThread()
 
 #endif
 
-                snapshot_buffer = getLastOverlayAddress();
+		        char** buf = mCameraAdapter->getVirtualAddress(1);
+                snapshot_buffer = *buf ;
                 if ( NULL == snapshot_buffer )
                     goto EXIT;
 
                 LOGE("Snapshot buffer 0x%x, yuv_buffer = 0x%x, zoomTarget = %5.2f", ( unsigned int ) snapshot_buffer, ( unsigned int ) yuv_buffer, ZoomTarget);
 
-                //status = scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
+                status = scale_init(image_width, image_height, preview_width, preview_height, PIX_YUV422I, PIX_YUV422I);
 
                 if ( status < 0 ) {
                     LOGE("VPP init failed");
                     goto EXIT;
                 }
 
-                //status = scale_process(yuv_buffer, image_width, image_height,
-                //         snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[0], crop_top, crop_left, crop_width, crop_height);
+                status = scale_process(yuv_buffer, image_width, image_height,
+                        snapshot_buffer, preview_width, preview_height, 0, PIX_YUV422I, zoom_step[0], crop_top, crop_left, crop_width, crop_height);
 
 #ifdef DEBUG_LOG
 
@@ -3014,7 +3017,7 @@ void CameraHal::snapshotThread()
 
 #endif
 
-                //scale_deinit();
+                scale_deinit();
 
                 //queueToOverlay(lastOverlayBufferDQ);//  replace with get frame 
                 //dequeueFromOverlay(); //  replace with queue to gralloc 
@@ -3024,6 +3027,7 @@ EXIT:
                 write(snapshotReadyPipe[1], &snapshotReadyMessage, sizeof(snapshotReadyMessage));
           } else if (snapshotMessage[0] == SNAPSHOT_THREAD_START_GEN) {
 
+				mCameraAdapter->queueToGralloc(0, NULL, CameraFrame::IMAGE_FRAME);
                 //queueToOverlay(lastOverlayBufferDQ);// replace with get frame 
                 mParameters.getPreviewSize(&preview_width, &preview_height);
 
@@ -3192,8 +3196,6 @@ void CameraHal::procThread()
     unsigned int jpegQuality, jpegSize, size, base, tmpBase, offset, yuv_len, image_rotation;
     unsigned int crop_top, crop_left, crop_width, crop_height;
     double image_zoom;
-    sp<MemoryHeapBase> JPEGPictureHeap;
-    sp<MemoryBase> JPEGPictureMemBase;
     camera_data_callback RawPictureCallback;
     camera_data_callback JpegPictureCallback;
     void *yuv_buffer, *outBuffer, *PictureCallbackCookie;
@@ -3225,7 +3227,7 @@ void CameraHal::procThread()
     mJPEGLength  = MAX_THUMB_WIDTH*MAX_THUMB_HEIGHT + PICTURE_WIDTH*PICTURE_HEIGHT + ((2*PAGE) - 1);
     mJPEGLength &= ~((2*PAGE) - 1);
     mJPEGLength  += 2*PAGE;
-    JPEGPictureHeap = new MemoryHeapBase(mJPEGLength);
+    mJPEGPictureHeap = new MemoryHeapBase(mJPEGLength);
 
     while(1){
 
@@ -3303,19 +3305,20 @@ void CameraHal::procThread()
                 exif_buf = (exif_buffer *)procMessage[PROC_MSG_IDX_EXIF_BUFF];
 #endif
 
-                LOGD("JPEGPictureHeap->getStrongCount() = %d, base = 0x%x",
-                        JPEGPictureHeap->getStrongCount(), (unsigned int)JPEGPictureHeap->getBase());
+                LOGD("mJPEGPictureHeap->getStrongCount() = %d, base = 0x%x",
+                        mJPEGPictureHeap->getStrongCount(), (unsigned int)mJPEGPictureHeap->getBase());
                 jpegSize = mJPEGLength;
 
-                if(JPEGPictureHeap->getStrongCount() > 1 )
+                if(mJPEGPictureHeap->getStrongCount() > 1 )
                 {
-                    JPEGPictureHeap.clear();
-                    JPEGPictureHeap = new MemoryHeapBase(jpegSize);
+					LOGE(" Reducing the strong pointer count ");
+                    mJPEGPictureHeap.clear();
+                    mJPEGPictureHeap = new MemoryHeapBase(jpegSize);
                 }
 
-                base = (unsigned long) JPEGPictureHeap->getBase();
+                base = (unsigned long) mJPEGPictureHeap->getBase();
                 base = (unsigned long) NEXT_4K_ALIGN_ADDR(base);
-                offset = base - (unsigned long) JPEGPictureHeap->getBase();
+                offset = base - (unsigned long) mJPEGPictureHeap->getBase();
                 outBuffer = (void *) base;
 
                 pixelFormat = PIX_YUV422I;
@@ -3432,6 +3435,10 @@ void CameraHal::procThread()
                     err = -1;
                     LOGE("JPEG Encoding failed");
                 }
+
+		        mJpegBuffAddr = outBuffer;
+		        mTotalJpegsize = jpegEncoder->jpegSize;
+
 #if PPM_INSTRUMENTATION || PPM_INSTRUMENTATION_ABS
                 PPM("AFTER JPEG Encode Image");
                 if ( 0 != image_rotation )
@@ -3440,30 +3447,12 @@ void CameraHal::procThread()
                     PPM("Shot to JPEG", &ppm_receiveCmdToTakePicture);
 #endif
 
-                JPEGPictureMemBase = new MemoryBase(JPEGPictureHeap, offset, jpegEncoder->jpegSize);
+                //mJPEGPictureMemBase = new MemoryBase(mJPEGPictureHeap, offset, jpegEncoder->jpegSize);
 #endif
-                /* Disable the jpeg message enabled check for now */
-                if(/*JpegPictureCallback*/ true) {
-
-#if JPEG
-
-                    if ( mBurstShots > 1 ){
-                        //JpegPictureCallback(CAMERA_MSG_BURST_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
-                    }
-                    else {
-                        //JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, JPEGPictureMemBase, PictureCallbackCookie);
-                    }
-#else
-
-                    //JpegPictureCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, PictureCallbackCookie);
-
-#endif
-
-                }
 
 #ifdef DEBUG_LOG
 
-               // LOGD("jpegEncoder->jpegSize=%d jpegSize=%d", jpegEncoder->jpegSize, jpegSize);
+                LOGD("jpegEncoder->jpegSize=%d jpegSize=%d", jpegEncoder->jpegSize, jpegSize);
 
 #endif
 
@@ -3474,20 +3463,20 @@ void CameraHal::procThread()
 
 #endif
 
-                JPEGPictureMemBase.clear();
+				if (NULL != mCameraAdapter) {
+					mCameraAdapter->queueToGralloc(0,NULL, CameraFrame::IMAGE_FRAME);
+				}
 
                 // Release constraint to DSP OPP by setting lowest Hz
                 SetDSPKHz(DSP3630_KHZ_MIN);
 
             } else if(procMessage[PROC_MSG_IDX_ACTION] == PROC_THREAD_EXIT) {
                 LOGD("PROC_THREAD_EXIT_RECEIVED");
-                JPEGPictureHeap.clear();
+                mJPEGPictureHeap.clear();
                 break;
             }
         }
     }
-
-    JPEGPictureHeap.clear();
 
     LOG_FUNCTION_NAME_EXIT
 }
@@ -3744,7 +3733,7 @@ void CameraHal::stopPreview()
     // Reset Capture-Mode to default, so that when we switch from VideoRecording
     // to ImageCapture, CAPTURE_MODE is not left to VIDEO_MODE.
     CAMHAL_LOGDA("Resetting Capture-Mode to default");
-    //mParameters.set(TICameraParameters::KEY_CAP_MODE, "");
+    mParameters.set(TICameraParameters::KEY_CAP_MODE, "");
 
     mFalsePreview = false;  //Eclair HAL
     TIUTILS::Message msg;
@@ -3862,11 +3851,11 @@ status_t CameraHal::startRecording( )
         {
         int count = atoi(mCameraProperties->get(CameraProperties::REQUIRED_PREVIEW_BUFS));
         mParameters.getPreviewSize(&w, &h);
-
+        count = MAX_CAMERA_BUFFERS;
         mAppCallbackNotifier->useVideoBuffers(false);
         mAppCallbackNotifier->setVideoRes(w, h);
-        char** buf = mCameraAdapter->getVirtualAddress();
-        count = 6;
+        char** buf = mCameraAdapter->getVirtualAddress(count);
+
 
         ret = mAppCallbackNotifier->initSharedVideoBuffers(mPreviewBufs, mPreviewOffsets, mPreviewFd, mPreviewLength, count, (void**)buf);
         }

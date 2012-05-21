@@ -1066,8 +1066,8 @@ public:
 
     //API to send a command to the camera
     virtual status_t sendCommand(CameraCommands operation, int value1=0, int value2=0, int value3=0) = 0;
-    virtual int queueToGralloc(int index, char* fp, bool isVideo) = 0;
-    virtual char** getVirtualAddress() = 0;
+    virtual int queueToGralloc(int index, char* fp, int frameType) = 0;
+    virtual char** getVirtualAddress(int count) = 0;
     virtual char * GetFrame(int &index) = 0;
 
     virtual ~CameraAdapter() {};
@@ -1401,7 +1401,6 @@ public:
     int mJPEGOffset, mJPEGLength;
     unsigned int mYuvBufferLen[MAX_BURST];
     void *mYuvBuffer[MAX_BURST];
-    int  mPreviewFrameSize;
     bool mPreviewBuffersAllocated;
     CameraProperties::Properties* mCameraProperties;
     uint32_t *mPreviewOffsets;
@@ -1420,12 +1419,10 @@ public:
     sp<ShutterThread> mShutterThread;
     sp<RawThread> mRawThread;
     sp<SnapshotThread> mSnapshotThread;
-#if JPEG
 	int mTotalJpegsize;
 	void* mJpegBuffAddr;
-	sp<MemoryBase> mJPEGPictureMemBase;
+	//sp<MemoryBase> mJPEGPictureMemBase;
 	sp<MemoryHeapBase> mJPEGPictureHeap;
-#endif
 
     bool mPreviewRunning;
     bool mDisplayPaused;

@@ -85,8 +85,8 @@ public:
     //API to flush the buffers for preview
     status_t flushBuffers();
 
-    int queueToGralloc(int index, char* fp, bool isVideo);
-    char** getVirtualAddress();
+    int queueToGralloc(int index, char* fp, int frameType);
+    char** getVirtualAddress(int count);
 
 protected:
 
@@ -141,9 +141,6 @@ private:
 
     int nQueued;
     int nDequeued;
-    char* mImageCaptureBuffer;
-    bool mImagebuffer;
-    bool mVideoBuffer;
 };
 }; //// namespace
 #endif //V4L_CAMERA_ADAPTER_H
