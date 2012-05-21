@@ -118,7 +118,7 @@ void AppCallbackNotifier::EncoderDoneCb(void* main_jpeg, void* thumb_jpeg, Camer
 #if 0 //TODO: enable burst mode later
         if ( mBurst )
         {
-            `(CAMERA_MSG_BURST_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+            mDataCb(CAMERA_MSG_COMPRESSED_BURST_IMAGE, JPEGPictureMemBase, mCallbackCookie);
         }
         else
 #endif
@@ -898,14 +898,19 @@ void AppCallbackNotifier::notifyFrame()
                         mCameraHal->copyJpegImage( picture->data );
                     }
 
-                    // Send the callback to the application only if the notifier is started and the message is enabled
-                    if(picture && (mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED) &&
-                                  (mCameraHal->msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE)))
-                    {
-                        LOGV( " sending the CAMERA_MSG_COMPRESSED_IMAGE callback to the app \n");
-                        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, picture , 0, NULL, mCallbackCookie);
-                    }
+#if defined(TARGET_OMAP3) && defined(OMAP_ENHANCEMENT)
+		   if ( mBurst )
+		   {
+			mDataCb(CAMERA_MSG_COMPRESSED_BURST_IMAGE, picture, 0, NULL, mCallbackCookie);
+		   }
+		   else if(picture && (mNotifierState==AppCallbackNotifier::NOTIFIER_STARTED) &&
+                            (mCameraHal->msgTypeEnabled(CAMERA_MSG_COMPRESSED_IMAGE)))
+#endif
+		  {
+			mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, picture, 0, NULL, mCallbackCookie);
+		  }
 
+                    // Send the callback to the application only if the notifier is started and the message is enabled
                     if (picture) {
                         picture->release(picture);
                     }
@@ -938,7 +943,7 @@ void AppCallbackNotifier::notifyFrame()
 #if 0 //TODO: enable burst mode later
                         if ( mBurst )
                         {
-                            `(CAMERA_MSG_BURST_IMAGE, JPEGPictureMemBase, mCallbackCookie);
+                            mDataCb(CAMERA_MSG_COMPRESSED_BURST_IMAGE, JPEGPictureMemBase, mCallbackCookie);
                         }
                         else
 #endif

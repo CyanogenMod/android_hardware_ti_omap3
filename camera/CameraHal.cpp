@@ -4272,7 +4272,14 @@ status_t CameraHal::setParameters(const CameraParameters &params)
     int burst_capture = params.getInt(TICameraParameters::KEY_BURST);
     if ( ( 0 >= burst_capture ) ){
         mBurstShots = 1;
+        if(mAppCallbackNotifier!= NULL) {
+		mAppCallbackNotifier->setBurst(false);
+        }
     } else {
+	if(mAppCallbackNotifier!= NULL) {
+		mAppCallbackNotifier->setBurst(true);
+	}
+
         // hardcoded in HP mode
         mcapture_mode = 1;
         mBurstShots = burst_capture;
