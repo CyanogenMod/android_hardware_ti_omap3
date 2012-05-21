@@ -191,9 +191,9 @@ CameraHal::CameraHal(int cameraId)
 
 #endif
 
-    // Disable ISP resizer on overlay (use DSS resizer)
-    system("echo manual > "
-            "/sys/devices/platform/omap_vout/video4linux/video1/isprsz_mode");
+    // Disable ISP resizer (use DSS resizer)
+    system("echo 0 > "
+            "/sys/devices/platform/dsscomp/isprsz/enable");
 
     mShutterEnable = true;
     sStart_FW3A_CAF:mCAFafterPreview = false;
@@ -691,9 +691,9 @@ CameraHal::~CameraHal()
 
     //singleton[mCameraIndex].clear();
 
-    // Re-enable ISP resizer on overlay for 720P playback
-    system("echo auto > "
-            "/sys/devices/platform/omap_vout/video4linux/video1/isprsz_mode");
+    // Re-enable ISP resizer for 720P playback
+    system("echo 1 > "
+            "/sys/devices/platform/dsscomp/isprsz/enable");
 
     LOGD("<<< Release");
 }
