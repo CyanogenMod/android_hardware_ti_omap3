@@ -979,7 +979,6 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
     {
           hwc_dev->force_sgx = 0;
     }
-     hwc_dev->force_sgx = 1; // work around to fix black screen display when switched to video Recording 
 
     /* phase 3 logic */
     if (!hwc_dev->force_sgx && can_dss_render_all(hwc_dev, &num)) {
