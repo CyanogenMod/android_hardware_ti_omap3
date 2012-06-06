@@ -147,6 +147,7 @@ struct omap3_hwc_device {
 typedef struct omap3_hwc_device omap3_hwc_device_t;
 
 static int debug = 0;
+static int hdmi_enabled = 0;
 
 static void dump_layer(hwc_layer_t const* l)
 {
@@ -361,6 +362,15 @@ omap3_hwc_setup_layer(omap3_hwc_device_t *hwc_dev, struct dss2_ovl_info *ovl,
     oc->win.y = layer->displayFrame.top;
     oc->win.w = WIDTH(layer->displayFrame);
     oc->win.h = HEIGHT(layer->displayFrame);
+
+    if (hdmi_enabled && (width == 1280) && (height == 720)) {
+        oc->win.w = width;
+        oc->win.h = height;
+    } else {
+		oc->win.x = 0;
+		oc->win.y = 0;
+	}
+
 
     /* crop */
     oc->crop.x = layer->sourceCrop.left;
@@ -1469,7 +1479,19 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
     pthread_mutex_lock(&hwc_dev->lock);
     ext->dock.enabled = ext->mirror.enabled = 0;
     if (state) {
+	hdmi_enabled = 1;
+
+	system("echo 0 >" "/sys/devices/platform/dsscomp/isprsz/enable");
+	system("echo 0 >" "/sys/devices/platform/omapdss/display1/enabled");
+	system("echo 0 >" "/sys/devices/platform/omapdss/overlay0/enabled");
+	system("echo 0 >" "/sys/devices/platform/omapdss/display0/enabled");
+	system("echo hdmi >" "/sys/devices/platform/omapdss/manager0/display");
+	system("echo 1 >" "/sys/devices/platform/omapdss/display1/enabled");
+	system("echo 1 >" "/sys/devices/platform/omapdss/overlay0/enabled");
+
+
         /* check whether we can clone and/or dock */
+#if 0 // its OMAP4 specific code not required for OMAP3.
         char value[PROPERTY_VALUE_MAX];
         property_get("persist.hwc.docking.enabled", value, "1");
         ext->dock.enabled = atoi(value) > 0;
@@ -1502,8 +1524,22 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
             } else
                 ext->mirror.enabled = 0;
         }
+#endif
     } else {
+        hdmi_enabled = 0;
         ext->last_mode = 0;
+
+		system("echo 1 >" "/sys/devices/platform/dsscomp/isprsz/enable");
+        system("echo 0 >" "/sys/devices/platform/omapdss/display1/enabled");
+        system("echo 0 >" "/sys/devices/platform/omapdss/overlay0/enabled");
+		system("echo 0 >" "/sys/devices/platform/omapdss/overlay1/enabled");
+		system("echo 800,450 >" "/sys/devices/platform/omapdss/overlay1/output_size");
+        system("echo lcd >" "/sys/devices/platform/omapdss/manager0/display");
+        system("echo 1 >" "/sys/devices/platform/omapdss/display0/enabled");
+		system("echo 1 >" "/sys/devices/platform/omapdss/overlay1/enabled");
+        system("echo 1 >" "/sys/devices/platform/omapdss/overlay0/enabled");
+
+
     }
     omap3_hwc_create_ext_matrix(ext);
     LOGI("external display changed (state=%d, mirror={%s tform=%ddeg%s}, dock={%s tform=%ddeg%s}, tv=%d", state,
@@ -1523,7 +1559,7 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
 
 static void handle_uevents(omap3_hwc_device_t *hwc_dev, const char *s)
 {
-    if (strcmp(s, "change@/devices/virtual/switch/hdmi"))
+    if (strcmp(s, "change@/devices/virtual/switch/display_hdmi"))
         return;
 
     s += strlen(s) + 1;
@@ -1729,7 +1765,7 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
          hwc_dev->ext.mirror_region.right, hwc_dev->ext.mirror_region.bottom);
 
     /* read switch state */
-    int sw_fd = open("/sys/class/switch/hdmi/state", O_RDONLY);
+    int sw_fd = open("/sys/class/switch/display_hdmi/state", O_RDONLY);
     int hpd = 0;
     if (sw_fd >= 0) {
         char value;
