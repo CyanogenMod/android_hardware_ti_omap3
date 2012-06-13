@@ -93,12 +93,11 @@ struct timeval CameraHal::mStartCapture;
 
 
 int CameraHal::camera_device = 0;
-const char CameraHal::supportedPictureSizes [] ="3280x2464,3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240,2592x1936";
-const char CameraHal::supportedPreviewSizes [] = "1920x1080,1280x720,992x560,864x480,800x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,176x144,128x96";
-
+const char CameraHal::supportedPictureSizes [] = "3280x2464,3264x2448,2560x2048,2048x1536,1600x1200,1280x1024,1152x968,1280x960,800x600,640x480,320x240,2592x1936";
+const char CameraHal::supportedPreviewSizes [] = "1280x720,992x560,864x480,800x480,736x576,736x480,720x576,720x480,768x576,640x480,320x240,352x288,240x160,192x144,176x144,128x96";
 const char CameraHal::supportedFPS [] = "33,30,25,24,20,15,10";
 const char CameraHal::supportedThumbnailSizes []= "320x240,80x60,0x0";
-const char CameraHal::supportedFpsRanges [] = "(8000,8000),(8000,10000),(10000,10000),(8000,15000),(15000,15000),(8000,20000),(20000,20000),(24000,24000),(25000,25000),(8000,30000),(30000,30000)";
+const char CameraHal::supportedFpsRanges [] = "(8000,10000),(8000,15000),(8000,20000),(8000,30000)";
 //const char CameraHal::PARAMS_DELIMITER []= ",";
 
 const supported_resolution CameraHal::supportedPictureRes[] = { {3264, 2448} , {2560, 2048} ,
@@ -111,7 +110,7 @@ const supported_resolution CameraHal::supportedPreviewRes[] = { {1280, 720}, {80
                                                      {736, 576}, {736, 480},{720, 576}, {720, 480},
                                                      {992, 560}, {864, 480}, {848, 480},
                                                      {768, 576}, {640, 480},
-                                                     {320, 240}, {352, 288}, {240, 160},
+                                                     {320, 240}, {352, 288}, {240, 160}, {256, 160},
                                                      {192, 144}, {176, 144}, {128, 96}};
 
 int camerahal_strcat(char *dst, const char *src, size_t size)
@@ -381,7 +380,7 @@ void CameraHal::initDefaultParameters()
     //Application will decide which to use.
     //If application does not decide, framerate will be used in CameraHAL
     char fpsRange[32];
-    sprintf(fpsRange, "%d,%d", 30000, 30000);
+    sprintf(fpsRange, "%d,%d", 8000, 30000);
     p.set(KEY_PREVIEW_FPS_RANGE, fpsRange);
     p.setPreviewFrameRate(30);
 
@@ -1376,7 +1375,8 @@ int CameraHal::CameraConfigure()
         LOGD("CameraConfigure: framerate to set: min = %d, max = %d",framerate_min, framerate_max);
     }
     else {
-        framerate_max = mParameters.getPreviewFrameRate();
+        mParameters.getPreviewFpsRange(&framerate_min, &framerate_max);
+        framerate_max = framerate_max/1000;
         LOGD("CameraConfigure: framerate to set = %d", framerate_max);
     }
 
