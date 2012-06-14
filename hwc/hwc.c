@@ -366,11 +366,7 @@ omap3_hwc_setup_layer(omap3_hwc_device_t *hwc_dev, struct dss2_ovl_info *ovl,
     if (hdmi_enabled && (width == 1280) && (height == 720)) {
         oc->win.w = width;
         oc->win.h = height;
-    } else {
-		oc->win.x = 0;
-		oc->win.y = 0;
-	}
-
+    }
 
     /* crop */
     oc->crop.x = layer->sourceCrop.left;
