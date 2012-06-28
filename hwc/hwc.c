@@ -148,6 +148,7 @@ typedef struct omap3_hwc_device omap3_hwc_device_t;
 
 static int debug = 0;
 static int hdmi_enabled = 0;
+static int tv_enabled = 0;
 
 static void dump_layer(hwc_layer_t const* l)
 {
@@ -1070,6 +1071,11 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
             dsscomp->ovls[dsscomp->num_ovls].addressing = OMAP_DSS_BUFADDR_LAYER_IX;
             dsscomp->ovls[dsscomp->num_ovls].ba = dsscomp->num_ovls;
 
+	    if(tv_enabled)
+		dsscomp->ovls[dsscomp->num_ovls].cfg.mgr_ix = 1;
+	    else
+		dsscomp->ovls[dsscomp->num_ovls].cfg.mgr_ix = 0;
+
             /* ensure GFX layer is never scaled */
             if (dsscomp->num_ovls == 0) {
                 scaled_gfx = scaled(layer) || is_NV12(handle->iFormat);
@@ -1225,11 +1231,10 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
     dsscomp->mgrs[0].swap_rb = hwc_dev->swap_rb;
     dsscomp->num_mgrs = 1;
 
-    if (hwc_dev->ext.current.enabled || hwc_dev->last_ext_ovls) {
+    if (tv_enabled) {
         dsscomp->mgrs[1] = dsscomp->mgrs[0];
         dsscomp->mgrs[1].ix = 1;
         dsscomp->num_mgrs++;
-        hwc_dev->ext_ovls = dsscomp->num_ovls - hwc_dev->post2_layers;
     }
     pthread_mutex_unlock(&hwc_dev->lock);
     return 0;
@@ -1482,8 +1487,10 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
 
     pthread_mutex_lock(&hwc_dev->lock);
     ext->dock.enabled = ext->mirror.enabled = 0;
-    if (state) {
+
+    if (state == 1) { /* hdmi panel enable */
 	hdmi_enabled = 1;
+	tv_enabled = 0;
 
 	system("echo 0 >" "/sys/devices/platform/dsscomp/isprsz/enable");
 	system("echo 0 >" "/sys/devices/platform/omapdss/display1/enabled");
@@ -1492,59 +1499,29 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
 	system("echo hdmi >" "/sys/devices/platform/omapdss/manager0/display");
 	system("echo 1 >" "/sys/devices/platform/omapdss/display1/enabled");
 	system("echo 1 >" "/sys/devices/platform/omapdss/overlay0/enabled");
-
-
-        /* check whether we can clone and/or dock */
-#if 0 // its OMAP4 specific code not required for OMAP3.
-        char value[PROPERTY_VALUE_MAX];
-        property_get("persist.hwc.docking.enabled", value, "1");
-        ext->dock.enabled = atoi(value) > 0;
-        property_get("persist.hwc.mirroring.enabled", value, "1");
-        ext->mirror.enabled = atoi(value) > 0;
-        property_get("persist.hwc.avoid_mode_change", value, "1");
-        ext->avoid_mode_change = atoi(value) > 0;
-
-        /* get cloning transformation */
-        property_get("persist.hwc.docking.transform", value, "0");
-        ext->dock.rotation = atoi(value) & EXT_ROTATION;
-        ext->dock.hflip = (atoi(value) & EXT_HFLIP) > 0;
-        ext->dock.docking = 1;
-        property_get("persist.hwc.mirroring.transform", value, hwc_dev->fb_dev->base.height > hwc_dev->fb_dev->base.width ? "3" : "0");
-        ext->mirror.rotation = atoi(value) & EXT_ROTATION;
-        ext->mirror.hflip = (atoi(value) & EXT_HFLIP) > 0;
-        ext->mirror.docking = 0;
-
-        /* select best mode for mirroring */
-        if (ext->mirror.enabled) {
-            __u32 xres = WIDTH(ext->mirror_region);
-            __u32 yres = HEIGHT(ext->mirror_region);
-            if (ext->mirror.rotation & 1)
-               swap(xres, yres);
-	    ext->mirror_mode = 0;
-            int res = omap3_hwc_set_best_hdmi_mode(hwc_dev, xres, yres, 1.);
-            if (!res) {
-                ext->mirror_mode = ext->last_mode;
-                ioctl(hwc_dev->hdmi_fb_fd, FBIOBLANK, FB_BLANK_UNBLANK);
-            } else
-                ext->mirror.enabled = 0;
-        }
-#endif
-    } else {
+    } else if(state == 2) { /* tv-out enable */
+	hdmi_enabled = 0;
+	tv_enabled = 1;
+	system("echo 0 >" "/sys/devices/platform/omapdss/overlay1/enabled");
+	system("echo tv >" "/sys/devices/platform/omapdss/overlay1/manager");
+	system("echo 1 >" "/sys/devices/platform/omapdss/overlay1/enabled");
+	system("echo 1 >" "/sys/devices/platform/omapdss/display2/enabled");
+    } else { /* lcd enable */
         hdmi_enabled = 0;
         ext->last_mode = 0;
+	tv_enabled = 0;
 
-		system("echo 1 >" "/sys/devices/platform/dsscomp/isprsz/enable");
+	system("echo 1 >" "/sys/devices/platform/dsscomp/isprsz/enable");
         system("echo 0 >" "/sys/devices/platform/omapdss/display1/enabled");
         system("echo 0 >" "/sys/devices/platform/omapdss/overlay0/enabled");
-		system("echo 0 >" "/sys/devices/platform/omapdss/overlay1/enabled");
-		system("echo 800,450 >" "/sys/devices/platform/omapdss/overlay1/output_size");
+	system("echo 0 >" "/sys/devices/platform/omapdss/overlay1/enabled");
+	system("echo 800,450 >" "/sys/devices/platform/omapdss/overlay1/output_size");
         system("echo lcd >" "/sys/devices/platform/omapdss/manager0/display");
         system("echo 1 >" "/sys/devices/platform/omapdss/display0/enabled");
-		system("echo 1 >" "/sys/devices/platform/omapdss/overlay1/enabled");
+	system("echo 1 >" "/sys/devices/platform/omapdss/overlay1/enabled");
         system("echo 1 >" "/sys/devices/platform/omapdss/overlay0/enabled");
-
-
     }
+
     omap3_hwc_create_ext_matrix(ext);
     LOGI("external display changed (state=%d, mirror={%s tform=%ddeg%s}, dock={%s tform=%ddeg%s}, tv=%d", state,
          ext->mirror.enabled ? "enabled" : "disabled",
@@ -1563,7 +1540,7 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
 
 static void handle_uevents(omap3_hwc_device_t *hwc_dev, const char *s)
 {
-    if (strcmp(s, "change@/devices/virtual/switch/display_hdmi"))
+    if (strcmp(s, "change@/devices/virtual/switch/display_support"))
         return;
 
     s += strlen(s) + 1;
@@ -1769,7 +1746,7 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
          hwc_dev->ext.mirror_region.right, hwc_dev->ext.mirror_region.bottom);
 
     /* read switch state */
-    int sw_fd = open("/sys/class/switch/display_hdmi/state", O_RDONLY);
+    int sw_fd = open("/sys/class/switch/display_support/state", O_RDONLY);
     int hpd = 0;
     if (sw_fd >= 0) {
         char value;
