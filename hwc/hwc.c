@@ -987,14 +987,6 @@ static int omap3_hwc_prepare(struct hwc_composer_device *dev, hwc_layer_list_t* 
           hwc_dev->force_sgx = 0;
     }
 
-    /* Fix for lenovo tablet, during rotation the transition was rendered
-       by DSS. Added condition to force transition to happed through SGX.
-    */
-    if (num.NV12 && (num.possible_overlay_layers == 1))
-    {
-          hwc_dev->force_sgx = 1;
-    }
-
     /* phase 3 logic */
     if (!hwc_dev->force_sgx && can_dss_render_all(hwc_dev, &num)) {
         /* All layers can be handled by the DSS -- don't use SGX for composition */
