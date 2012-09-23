@@ -59,9 +59,9 @@
         #define RM_DPRINT LOGD
 #define DSP_ERROR_EXIT(err, msg, label)                \
     if (DSP_FAILED (err)) {                        \
-        LOGD("\n****************RM ERROR : DSP ************************\n");\
-        LOGD("Error: %s : Err Num = %lx", msg, err);  \
-        LOGD("\n****************RM ERROR : DSP ************************\n");\
+        ALOGD("\n****************RM ERROR : DSP ************************\n");\
+        ALOGD("Error: %s : Err Num = %lx", msg, err);  \
+        ALOGD("\n****************RM ERROR : DSP ************************\n");\
         goto label;                               \
     }                                              /**/
 //    fprintf(stdout,__VA_ARGS__)

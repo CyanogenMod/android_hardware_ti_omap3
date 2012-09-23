@@ -165,7 +165,7 @@ void CameraProperties::Properties::dump()
 {
     for (size_t i = 0; i < mProperties->size(); i++)
     {
-        LOGE("%s = %s\n",
+        ALOGE("%s = %s\n",
                         mProperties->keyAt(i).string(),
                         mProperties->valueAt(i).string());
     }

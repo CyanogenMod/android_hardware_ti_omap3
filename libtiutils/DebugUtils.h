@@ -20,14 +20,14 @@
 #define DEBUG_UTILS_H
 
 ///Defines for debug statements - Macro LOG_TAG needs to be defined in the respective files
-#define DBGUTILS_LOGVA(str)         LOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
-#define DBGUTILS_LOGVB(str,...)     LOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
-#define DBGUTILS_LOGDA(str)         LOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
-#define DBGUTILS_LOGDB(str, ...)    LOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
-#define DBGUTILS_LOGEA(str)         LOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__);
-#define DBGUTILS_LOGEB(str, ...)    LOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__, __VA_ARGS__);
-#define LOG_FUNCTION_NAME           LOGE("%d: %s() ENTER", __LINE__, __FUNCTION__);
-#define LOG_FUNCTION_NAME_EXIT      LOGE("%d: %s() EXIT", __LINE__, __FUNCTION__);
+#define DBGUTILS_LOGVA(str)         ALOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
+#define DBGUTILS_LOGVB(str,...)     ALOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
+#define DBGUTILS_LOGDA(str)         ALOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__);
+#define DBGUTILS_LOGDB(str, ...)    ALOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
+#define DBGUTILS_LOGEA(str)         ALOGE("%s:%d %s - " str,__FILE__, __LINE__, __FUNCTION__);
+#define DBGUTILS_LOGEB(str, ...)    ALOGE("%s:%d %s - " str,__FILE__, __LINE__,__FUNCTION__, __VA_ARGS__);
+#define LOG_FUNCTION_NAME           ALOGE("%d: %s() ENTER", __LINE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME_EXIT      ALOGE("%d: %s() EXIT", __LINE__, __FUNCTION__);
 
 
 

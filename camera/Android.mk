@@ -1,3 +1,4 @@
+ifeq (1,2) # DISABLED. API NEEDS UPDATING TO JB
 ifeq ($(TARGET_BOARD_PLATFORM),omap3)
 
 LOCAL_PATH:= $(call my-dir)
@@ -48,7 +49,7 @@ LOCAL_C_INCLUDES := hardware/ti/omap3/dspbridge/inc \
     $(LOCAL_PATH)/../libtiutils \
     hardware/ti/omap3/ion \
     frameworks/base/include/ui \
-    frameworks/base/include/utils \
+    frameworks/native/include/utils \
     frameworks/base/include \
     frameworks/base/include/camera \
     frameworks/base/include/media/stagefright \
@@ -128,4 +129,5 @@ LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_HEAPTRACKED_SHARED_LIBRARY)
+endif
 endif

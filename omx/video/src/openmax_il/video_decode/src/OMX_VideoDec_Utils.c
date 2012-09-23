@@ -317,12 +317,12 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Add( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFERHE
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     VIDDEC_CBUFFER_BUFFERFLAGS *pBufferFlags = NULL;
 #ifdef VIDDEC_PROPAGATELOGD
-    LOGD( "+++ENTERING\n");
+    ALOGD( "+++ENTERING\n");
 #endif
     OMX_CONF_CHECK_CMD(pCBuffer, pBufferHeader, OMX_TRUE);
     if (pBufferHeader->nFlags & OMX_BUFFERFLAG_CODECCONFIG) {
 #ifdef VIDDEC_PROPAGATELOGD
-        LOGD("returning CC buffer nTimeStamp %lld nTickCount %d nFlags %x hMarkTargetComponent %x pMarkData %x\n"
+        ALOGD("returning CC buffer nTimeStamp %lld nTickCount %d nFlags %x hMarkTargetComponent %x pMarkData %x\n"
             ,pBufferHeader->nTimeStamp
             ,pBufferHeader->nTickCount
             ,pBufferHeader->nFlags
@@ -354,7 +354,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Add( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFERHE
         pBufferFlags->pMarkData = pBufferHeader->pMarkData;
     }
 #ifdef VIDDEC_PROPAGATELOGD
-    LOGD( "Adding nTimeStamp %lld nTickCount %d nFlags %x hMarkTargetComponent %x pMarkData %x\n"
+    ALOGD( "Adding nTimeStamp %lld nTickCount %d nFlags %x hMarkTargetComponent %x pMarkData %x\n"
         ,pBufferHeader->nTimeStamp
         ,pBufferHeader->nTickCount
         ,pBufferHeader->nFlags
@@ -374,7 +374,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Add( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFERHE
 #endif
 EXIT:
 #ifdef VIDDEC_PROPAGATELOGD
-    LOGD( "---Exiting\n");
+    ALOGD( "---Exiting\n");
 #endif
     return eError;
 }
@@ -395,7 +395,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Remove( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFE
     nTempBytesconsumed = (OMX_S32)nBytesconsumed;
     nDiffBytesconsumed = (OMX_S32)nBytesconsumed;
 #ifdef VIDDEC_PROPAGATELOGD
-    LOGD( "+++ENTERING\n");
+    ALOGD( "+++ENTERING\n");
 #endif
     OMX_CONF_CHECK_CMD(pCBuffer, pBufferHeader, OMX_TRUE);
 #ifdef VIDDEC_CBUFFER_LOCK
@@ -424,7 +424,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Remove( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFE
     pBufferHeader->hMarkTargetComponent = pBufferFlags->hMarkTargetComponent;
     pBufferHeader->pMarkData = pBufferFlags->pMarkData;
 #ifdef VIDDEC_PROPAGATELOGD
-    LOGD( "removing nTimeStamp %lld nTickCount %d nFlags %x hMarkTarget %x pMarkData %x  tail %d head %d nTempBytes %d nCount %d BConsumed %d\n"
+    ALOGD( "removing nTimeStamp %lld nTickCount %d nFlags %x hMarkTarget %x pMarkData %x  tail %d head %d nTempBytes %d nCount %d BConsumed %d\n"
         ,pBufferHeader->nTimeStamp
         ,pBufferHeader->nTickCount
         ,pBufferHeader->nFlags
@@ -437,7 +437,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Remove( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFE
             nDiffBytesconsumed -= (int)pBufferFlags->nBytesConsumed;
             if ( (pCBuffer->nCount <= 0)) {
 #ifdef VIDDEC_PROPAGATELOGD
-                LOGD( "Exiting CB with zero elements\n");
+                ALOGD( "Exiting CB with zero elements\n");
 #endif
                 bKeepLoop = OMX_FALSE;
                 break;
@@ -450,7 +450,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Remove( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFE
                 }
                 pCBuffer->nCount--;
 #ifdef VIDDEC_PROPAGATELOGD
-                LOGD( "removing tail no complete temp %d Bytesconsumed %d tail %d head %d\n",
+                ALOGD( "removing tail no complete temp %d Bytesconsumed %d tail %d head %d\n",
                     nTempBytesconsumed,
                     pBufferFlags->nBytesConsumed,
                     pCBuffer->nTail,
@@ -460,7 +460,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Remove( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFE
             else if (nDiffBytesconsumed < 0) {
                 pBufferFlags->nBytesConsumed -= nTempBytesconsumed;
 #ifdef VIDDEC_PROPAGATELOGD
-                LOGD( "updating CB values temp %d storeBytesconsumed %d tail %d head %d\n",
+                ALOGD( "updating CB values temp %d storeBytesconsumed %d tail %d head %d\n",
                     nTempBytesconsumed,
                     pBufferFlags->nBytesConsumed,
                     pCBuffer->nTail,
@@ -473,7 +473,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Remove( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFE
                 pBufferFlags->nBytesConsumed -= nTempBytesconsumed;
                 bKeepLoop = OMX_FALSE;
 #ifdef VIDDEC_PROPAGATELOGD
-                LOGD( "end loop temp %d Bytesconsumed %d tail %d head %d\n",
+                ALOGD( "end loop temp %d Bytesconsumed %d tail %d head %d\n",
                     nTempBytesconsumed,
                     pBufferFlags->nBytesConsumed,
                     pCBuffer->nTail,
@@ -503,7 +503,7 @@ OMX_ERRORTYPE VIDDEC_CircBuf_Remove( VIDDEC_CIRCULAR_BUFFER* pCBuffer, OMX_BUFFE
 #endif
 EXIT:
 #ifdef VIDDEC_PROPAGATELOGD
-    LOGD( "---Exiting\n");
+    ALOGD( "---Exiting\n");
 #endif
     return eError;
 }
@@ -8703,9 +8703,9 @@ OMX_ERRORTYPE VIDDEC_SetMpeg4_Parameters(VIDDEC_COMPONENT_PRIVATE* pComponentPri
         /* Loop back the application regarding DSP's capabilities by not
          * changing the bDeblocking status.
          * */
-        LOGD("Deblocking ENABLED\n");
+        ALOGD("Deblocking ENABLED\n");
     } else {
-        LOGD("Deblocking DISABLED\n");
+        ALOGD("Deblocking DISABLED\n");
         /* Loop back the application regarding current DSP's capabilities
          * by informing the bDeblocking status is off.
          * */

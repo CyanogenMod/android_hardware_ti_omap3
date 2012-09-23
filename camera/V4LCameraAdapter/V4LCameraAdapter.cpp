@@ -281,18 +281,18 @@ status_t V4LCameraAdapter::UseBuffersPreview(void* bufArr, int num)
             mParams.getPreviewSize(&width, &height);
 
             data.gralloc_handle = (int *)((IMG_native_handle_t*)ptr[i])->fd[0];
-            LOGV("data.gralloc_handle = %d", data.gralloc_handle);
+            ALOGV("data.gralloc_handle = %d", data.gralloc_handle);
 
             if (ion_ioctl(ion_fd, ION_IOC_MAP_GRALLOC, &data)) {
-                LOGE("ion_ioctl fail");
+                ALOGE("ion_ioctl fail");
                 return BAD_VALUE;
             }
 
-            LOGE("data.handleY = %x", data.handleY);
+            ALOGE("data.handleY = %x", data.handleY);
 
             if (ion_map(ion_fd, data.handleY, (width*height*2), PROT_READ | PROT_WRITE,
                     MAP_SHARED, 0, (unsigned char **)&buff_t, &mmap_fd[i]) < 0) {
-                LOGE("ION map failed");
+                ALOGE("ION map failed");
                 return BAD_VALUE;
             }
 
@@ -368,7 +368,7 @@ status_t V4LCameraAdapter::takePicture()
     /* turn off streaming */
     bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(mCameraHandle, VIDIOC_STREAMOFF, &bufType) < 0) {
-        LOGE("VIDIOC_STREAMOFF Failed");
+        ALOGE("VIDIOC_STREAMOFF Failed");
         return -1;
     }
     mVideoInfo->isStreaming = false;
@@ -456,7 +456,7 @@ status_t V4LCameraAdapter::stopPreview(bool check)
 	if (check) {
 	    	for (i = 0; i < 6; i++) {
         		if (munmap(mIonHandle.keyAt(i), (width*height*2)) < 0 )
-        	    	LOGE("ION Unmap failed");
+        	    	ALOGE("ION Unmap failed");
         		close(mmap_fd[i]);
     		}
 
@@ -534,11 +534,11 @@ status_t V4LCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCou
 
     //Set 10 fps for 8MP case
     if( ( image_height == CAPTURE_8MP_HEIGHT ) && ( image_width == CAPTURE_8MP_WIDTH ) ) {
-        LOGE("8MP Capture setting framerate to 10");
+        ALOGE("8MP Capture setting framerate to 10");
         parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         ret = ioctl(mCameraHandle, VIDIOC_G_PARM, &parm);
         if(ret != 0) {
-            LOGE("VIDIOC_G_PARM ");
+            ALOGE("VIDIOC_G_PARM ");
             return -1;
         }
 
@@ -546,7 +546,7 @@ status_t V4LCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCou
         parm.parm.capture.timeperframe.denominator = 10;
         ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &parm);
         if(ret != 0) {
-            LOGE("VIDIOC_S_PARM ");
+            ALOGE("VIDIOC_S_PARM ");
             return -1;
         }
     }
@@ -566,7 +566,7 @@ status_t V4LCameraAdapter::getPictureBufferSize(size_t &length, size_t bufferCou
     mVideoInfo->buf.index = 0;
 
     if (ioctl(mCameraHandle, VIDIOC_QUERYBUF, &mVideoInfo->buf) < 0) {
-        LOGE("VIDIOC_QUERYBUF Failed");
+        ALOGE("VIDIOC_QUERYBUF Failed");
         return -1;
     }
 
@@ -588,7 +588,7 @@ static void debugShowFPS()
         mFps = ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
         mLastFpsTime = now;
         mLastFrameCount = mFrameCount;
-        LOGD("Camera %d Frames, %f FPS", mFrameCount, mFps);
+        ALOGD("Camera %d Frames, %f FPS", mFrameCount, mFps);
     }
     // XXX: mFPS has the value we want
 }

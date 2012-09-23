@@ -1385,11 +1385,11 @@ static OMX_ERRORTYPE VIDDEC_SetParameter (OMX_HANDLETYPE hComp,
 #ifdef ENABLE_GRALLOC_BUFFERS
         case VideoDecodeEnableAndroidNativeBuffers:
         {
-            LOGV(" In VideoDecodeEnableAndroidNativeBuffers in VIDDEC_SetParameter\n");
+            ALOGV(" In VideoDecodeEnableAndroidNativeBuffers in VIDDEC_SetParameter\n");
             pParamNativeBuffer = (OMX_TI_PARAMUSENATIVEBUFFER* )pCompParam;
 			if(pParamNativeBuffer->bEnable == OMX_TRUE)
 			{
-				LOGV("IN VIDDEC_SetParameter, in if-condition\n ");
+				ALOGV("IN VIDDEC_SetParameter, in if-condition\n ");
 				pComponentPrivate->pCompPort[pParamNativeBuffer->nPortIndex]->VIDDECBufferType = GrallocPointers;
 				pComponentPrivate->pCompPort[pParamNativeBuffer->nPortIndex]->IsBuffer2D = OMX_TRUE;
 			}
@@ -2897,12 +2897,12 @@ static OMX_ERRORTYPE VIDDEC_UseBuffer(OMX_IN OMX_HANDLETYPE hComponent,
 
                    
         if (ion_ioctl(pComponentPrivate->ion_fd, ION_IOC_MAP_GRALLOC, &data)) {
-				LOGV("ion_ioctl fail");
+				ALOGV("ion_ioctl fail");
 			}
 
 		if (ion_map(pComponentPrivate->ion_fd, data.handleY, (*ppBufferHdr)->nAllocLen, PROT_READ | PROT_WRITE,
 								MAP_SHARED, 0, &buff_t, &pComponentPrivate->mmap_fd[pBufferCnt]) < 0) {
-						LOGV("ION map failed");
+						ALOGV("ION map failed");
 		}
 		(*ppBufferHdr)->pPlatformPrivate = buff_t;
 		}

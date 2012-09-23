@@ -1,5 +1,6 @@
 LOCAL_PATH:= $(call my-dir)
 
+HARDWARE_TI_OMAP3_BASE:=hardware/ti/omap3
 include $(CLEAR_VARS)
 
 LOCAL_PRELINK_MODULE := false

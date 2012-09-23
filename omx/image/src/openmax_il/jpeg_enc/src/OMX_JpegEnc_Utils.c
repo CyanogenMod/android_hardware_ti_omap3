@@ -3303,7 +3303,7 @@ void Jpeg_Enc_FatalErrorRecover(JPEGENC_COMPONENT_PRIVATE *pComponentPrivate)
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     int nDestroyCodec = 1;
 
-    LOGD("Jpeg_Enc_FatalErrorRecover nCurState = %d nToState=%d", pComponentPrivate->nCurState,  pComponentPrivate->nToState);
+    ALOGD("Jpeg_Enc_FatalErrorRecover nCurState = %d nToState=%d", pComponentPrivate->nCurState,  pComponentPrivate->nToState);
    // if (pComponentPrivate->nCurState != OMX_StateWaitForResources &&
      //   pComponentPrivate->nCurState != OMX_StateInvalid &&
        // (pComponentPrivate->nCurState != OMX_StateLoaded))

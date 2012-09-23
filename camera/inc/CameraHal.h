@@ -69,8 +69,8 @@
 #define CAMHAL_LOGVA(str)
 #define CAMHAL_LOGVB(str, ...)
 
-#define CAMHAL_LOGEA LOGE
-#define CAMHAL_LOGEB LOGE
+#define CAMHAL_LOGEA ALOGE
+#define CAMHAL_LOGEB ALOGE
 
 #else
 
@@ -247,8 +247,8 @@ extern "C" {
 #define CAPTURE_8MP_WIDTH        3280
 #define CAPTURE_8MP_HEIGHT       2464
 #define PIXEL_FORMAT           V4L2_PIX_FMT_UYVY
-#define LOG_FUNCTION_NAME    LOGV("%d: %s() ENTER", __LINE__, __FUNCTION__);
-#define LOG_FUNCTION_NAME_EXIT    LOGV("%d: %s() EXIT", __LINE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME    ALOGV("%d: %s() ENTER", __LINE__, __FUNCTION__);
+#define LOG_FUNCTION_NAME_EXIT    ALOGV("%d: %s() EXIT", __LINE__, __FUNCTION__);
 #define VIDEO_FRAME_COUNT_MAX    MAX_BUFFERS
 #define MAX_CAMERA_BUFFERS    MAX_BUFFERS
 #define COMPENSATION_OFFSET 20

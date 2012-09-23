@@ -112,7 +112,7 @@ int aspect_ratio_calc(
     int error = 0;
 
 #ifdef DEBUG_LOG
-    LOGE("aspect_ratio_calc Enter");
+    ALOGE("aspect_ratio_calc Enter");
 #endif
 
     if ((crop_src_width==NULL) || (crop_src_height==NULL) ||
@@ -120,25 +120,25 @@ int aspect_ratio_calc(
 
         error = -1;
 
-        LOGE("aspect_ratio_calc Invalid arguments");
+        ALOGE("aspect_ratio_calc Invalid arguments");
         goto fail;
     }
 
 #ifdef DEBUG_LOG
-    LOGE("Input Parameters:");
-    LOGE("\tSensor      : Width = %5d,  Height = %5d",
+    ALOGE("Input Parameters:");
+    ALOGE("\tSensor      : Width = %5d,  Height = %5d",
         (int)sens_width, (int)sens_height);
-    LOGE("\tPixel Aspect: Width = %5d,  Height = %5d",
+    ALOGE("\tPixel Aspect: Width = %5d,  Height = %5d",
         (int)pix_width, (int)pix_height);
-    LOGE("\tSource      : Width = %5d,  Height = %5d",
+    ALOGE("\tSource      : Width = %5d,  Height = %5d",
         (int)src_width, (int)src_height);
-    LOGE("\tDestination : Width = %5d,  Height = %5d",
+    ALOGE("\tDestination : Width = %5d,  Height = %5d",
         (int)dst_width, (int)dst_height);
-    LOGE("\tAlign Crop  : Width = %5d,  Height = %5d",
+    ALOGE("\tAlign Crop  : Width = %5d,  Height = %5d",
         (int)align_crop_width, (int)align_crop_height);
-    LOGE("\tAlign Pos   : Width = %5d,  Height = %5d",
+    ALOGE("\tAlign Pos   : Width = %5d,  Height = %5d",
         (int)align_pos_width, (int)align_pos_height);
-    LOGE("\tFlags       : %s,%s,%s,%s,%s",
+    ALOGE("\tFlags       : %s,%s,%s,%s,%s",
         (flags & ASPECT_RATIO_FLAG_KEEP_ASPECT_RATIO)?"Keep Aspect Ratio":"-",
         (flags & ASPECT_RATIO_FLAG_SHRINK_WHOLE_SRC )?"Shrink Whole Src":"-",
         (flags & ASPECT_RATIO_FLAG_CROP_BY_PHYSICAL)?"Crop rect by Physical area":"-",
@@ -151,7 +151,7 @@ int aspect_ratio_calc(
     phys_height = sens_height * pix_height;
 
 #ifdef DEBUG_LOG
-    LOGE("\tPhisical    : Width = %5d,  Height = %5d",
+    ALOGE("\tPhisical    : Width = %5d,  Height = %5d",
         (int)phys_width, (int)phys_height);
 #endif
 
@@ -165,7 +165,7 @@ int aspect_ratio_calc(
     dst_rate = (dst_width <<16) / dst_height;
 
 #ifdef DEBUG_LOG
-    LOGE( "\tScale       : Phys  = %5d,  Src    = %5d,  Dst   = %5d",
+    ALOGE( "\tScale       : Phys  = %5d,  Src    = %5d,  Dst   = %5d",
         (int)phys_rate>>10, (int)src_rate>>10, (int)dst_rate>>10);
 #endif
 
@@ -233,14 +233,14 @@ int aspect_ratio_calc(
         break;
 
     default:
-        LOGE( "Invalid setting for Cropping by...");
+        ALOGE( "Invalid setting for Cropping by...");
         error = -1;
         goto fail;
     }
 
 #ifdef DEBUG_LOG
-    LOGE( "Output Parameters:");
-    LOGE( "\tCrop        : "
+    ALOGE( "Output Parameters:");
+    ALOGE( "\tCrop        : "
         "Top   = %5d,  Left   = %5d,  Width = %5d,  Height = %5d",
         (int)((max_height-((csheight>max_height)?max_height:csheight))>>1),
         (int)((max_width -((cswidth >max_width )?max_width :cswidth ))>>1),
@@ -264,7 +264,7 @@ int aspect_ratio_calc(
     *crop_src_top    = (max_height - *crop_src_height) >> 1;
 
 #ifdef DEBUG_LOG
-    LOGE( "\tCrop Align  : "
+    ALOGE( "\tCrop Align  : "
         "Top   = %5d,  Left   = %5d,  Width = %5d,  Height = %5d",
         (int)*crop_src_top, (int)*crop_src_left,
         (int)*crop_src_width, (int)*crop_src_height);
@@ -279,7 +279,7 @@ int aspect_ratio_calc(
     }
 
 #ifdef DEBUG_LOG
-    LOGE( "\tPos         : "
+    ALOGE( "\tPos         : "
         "Top   = %5d,  Left   = %5d,  Width = %5d,  Height = %5d",
         (int)((dst_height-((pdheight>dst_height)?dst_height:pdheight))>>1),
         (int)((dst_width -((pdwidth >dst_width )?dst_width :pdwidth ))>>1),
@@ -310,7 +310,7 @@ int aspect_ratio_calc(
         *pos_dst_top = (dst_height - pdheight) >> 1;
 
 #ifdef DEBUG_LOG
-    LOGE( "\tPos Align   : "
+    ALOGE( "\tPos Align   : "
         "Top   = %5d,  Left   = %5d,  Width = %5d,  Height = %5d",
         (int)((pos_dst_top)?*pos_dst_top:-1),
         (int)((pos_dst_left)?*pos_dst_left:-1),
@@ -318,7 +318,7 @@ int aspect_ratio_calc(
         (int)((pos_dst_height)?*pos_dst_height:-1));
 
 
-    LOGE( "Exit ( %d x %d x %d x %d)",
+    ALOGE( "Exit ( %d x %d x %d x %d)",
         (int)*crop_src_top, (int)*crop_src_left, (int)*crop_src_width, (int)*crop_src_height);
 #endif
 
@@ -340,20 +340,20 @@ int CameraHal::FW3A_Create()
 
     fobj = (lib3atest_obj*)malloc(sizeof(*fobj));
     if (!fobj) {
-        LOGE("cannot alloc fobj");
+        ALOGE("cannot alloc fobj");
         goto exit;
     }
     memset(fobj, 0 , sizeof(*fobj));
 
     err = ICam_Create(&fobj->hnd);
     if (err < 0) {
-        LOGE("Can't Create2A");
+        ALOGE("Can't Create2A");
         goto exit;
     }
 
 #ifdef DEBUG_LOG
 
-    LOGD("FW3A Create - %d   fobj=%p", err, fobj);
+    ALOGD("FW3A Create - %d   fobj=%p", err, fobj);
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -362,7 +362,7 @@ int CameraHal::FW3A_Create()
     return 0;
 
 exit:
-    LOGD("Can't create 3A FW");
+    ALOGD("Can't create 3A FW");
     return -1;
 }
 
@@ -379,12 +379,12 @@ int CameraHal::FW3A_Init()
     /* Init 2A framework */
     err = ICam_Init(fobj->hnd);
     if (err < 0) {
-        LOGE("Can't ICam_Init, will try to release first");
+        ALOGE("Can't ICam_Init, will try to release first");
         err = ICam_Release(fobj->hnd, ICAM_RELEASE);
         if (!err) {
             err = ICam_Init(fobj->hnd);
             if (err < 0) {
-                LOGE("Can't ICam_Init");
+                ALOGE("Can't ICam_Init");
 
                 err = ICam_Destroy(fobj->hnd);
                 goto exit;
@@ -401,7 +401,7 @@ int CameraHal::FW3A_Init()
     return 0;
 
 exit:
-    LOGE("Can't init 3A FW");
+    ALOGE("Can't init 3A FW");
     return -1;
 }
 
@@ -417,10 +417,10 @@ int CameraHal::FW3A_Release()
 
     ret = ICam_Release(fobj->hnd, ICAM_RESTART);
     if (ret < 0) {
-        LOGE("Cannot Release2A");
+        ALOGE("Cannot Release2A");
         goto exit;
     } else {
-        LOGD("2A released");
+        ALOGD("2A released");
     }
 
 #ifdef DEBUG_LOG
@@ -448,9 +448,9 @@ int CameraHal::FW3A_Destroy()
 
     ret = ICam_Destroy(fobj->hnd);
     if (ret < 0) {
-        LOGE("Cannot Destroy2A");
+        ALOGE("Cannot Destroy2A");
     } else {
-        LOGD("2A destroyed");
+        ALOGD("2A destroyed");
     }
 
     free(fobj->mnote.buffer);
@@ -478,17 +478,17 @@ int CameraHal::FW3A_Start()
 #endif
 
     if (isStart_FW3A!=0) {
-        LOGE("3A FW is already started");
+        ALOGE("3A FW is already started");
         return -1;
     }
 
     //Start 3AFW
     ret = ICam_ViewFinder(fobj->hnd, ICAM_ENABLE);
     if (0 > ret) {
-        LOGE("Cannot Start 2A");
+        ALOGE("Cannot Start 2A");
         return -1;
     } else {
-        LOGE("3A FW Start - success");
+        ALOGE("3A FW Start - success");
     }
 
 #ifdef DEBUG_LOG
@@ -512,20 +512,20 @@ int CameraHal::FW3A_Stop()
 #endif
 
     if (isStart_FW3A==0) {
-        LOGE("3A FW is already stopped");
+        ALOGE("3A FW is already stopped");
         return -1;
     }
 
     //Stop 3AFW
     ret = ICam_ViewFinder(fobj->hnd, ICAM_DISABLE);
     if (0 > ret) {
-        LOGE("Cannot Stop 3A");
+        ALOGE("Cannot Stop 3A");
         return -1;
     }
 
 #ifdef DEBUG_LOG
      else {
-        LOGE("3A FW Stop - success");
+        ALOGE("3A FW Stop - success");
     }
 #endif
 
@@ -549,24 +549,24 @@ int CameraHal::FW3A_Start_CAF()
 #endif
 
     if (isStart_FW3A_CAF!=0) {
-        LOGE("3A FW CAF is already started");
+        ALOGE("3A FW CAF is already started");
         return -1;
     }
 
     if (isStart_FW3A == 0) {
-        LOGE("3A FW is not started");
+        ALOGE("3A FW is not started");
         return -1;
     }
 
     ret = ICam_CFocus(fobj->hnd, ICAM_ENABLE);
 
     if (ret != 0) {
-        LOGE("Cannot Start CAF");
+        ALOGE("Cannot Start CAF");
         return -1;
     } else {
         isStart_FW3A_CAF = 1;
 #ifdef DEBUG_LOG
-        LOGD("3A FW CAF Start - success");
+        ALOGD("3A FW CAF Start - success");
 #endif
     }
 
@@ -590,13 +590,13 @@ int CameraHal::FW3A_Stop_CAF()
 #endif
 
     if (isStart_FW3A_CAF==0) {
-        LOGE("3A FW CAF is already stopped");
+        ALOGE("3A FW CAF is already stopped");
         return prev;
     }
 
     ret = ICam_CFocus(fobj->hnd, ICAM_DISABLE);
     if (0 > ret) {
-        LOGE("Cannot Stop CAF");
+        ALOGE("Cannot Stop CAF");
         return -1;
     }
 
@@ -604,7 +604,7 @@ int CameraHal::FW3A_Stop_CAF()
      else {
         isStart_FW3A_CAF = 0;
 #ifdef DEBUG_LOG
-        LOGD("3A FW CAF Stop - success");
+        ALOGD("3A FW CAF Stop - success");
 #endif
     }
 
@@ -629,23 +629,23 @@ int CameraHal::FW3A_Start_AF()
 
 #endif
     if (isStart_FW3A == 0) {
-        LOGE("3A FW is not started");
+        ALOGE("3A FW is not started");
         return -1;
     }
 
     if (isStart_FW3A_AF!=0) {
-        LOGE("3A FW AF is already started");
+        ALOGE("3A FW AF is already started");
         return -1;
     }
 
     ret = ICam_AFocus(fobj->hnd, ICAM_ENABLE);
 
     if (0 != ret) {
-        LOGE("Cannot Start AF");
+        ALOGE("Cannot Start AF");
         return -1;
     } else {
         isStart_FW3A_AF = 1;
-        LOGD("3A FW AF Start - success");
+        ALOGD("3A FW AF Start - success");
     }
 
 #ifdef DEBUG_LOG
@@ -668,18 +668,18 @@ int CameraHal::FW3A_Stop_AF()
 #endif
 
     if (isStart_FW3A_AF == 0) {
-        LOGE("3A FW AF is already stopped");
+        ALOGE("3A FW AF is already stopped");
         return isStart_FW3A_AF;
     }
 
     //Stop 3AFW
     ret = ICam_AFocus(fobj->hnd, ICAM_DISABLE);
     if (0 > ret) {
-        LOGE("Cannot Stop AF");
+        ALOGE("Cannot Stop AF");
         return -1;
     } else {
         isStart_FW3A_AF = 0;
-        LOGE("3A FW AF Stop - success");
+        ALOGE("3A FW AF Stop - success");
     }
 
 #ifdef DEBUG_LOG
@@ -742,15 +742,15 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
     int eError = 0;
 
 	if( (ippMode != IPP_CromaSupression_Mode) && (ippMode != IPP_EdgeEnhancement_Mode) ){
-		LOGE("Error unsupported mode=%d", ippMode);
+		ALOGE("Error unsupported mode=%d", ippMode);
 		return -1;
 	}
 
     pIPP.hIPP = IPP_Create();
-    LOGD("IPP Handle: %p",pIPP.hIPP);
+    ALOGD("IPP Handle: %p",pIPP.hIPP);
 
 	if( !pIPP.hIPP ){
-		LOGE("ERROR IPP_Create");
+		ALOGE("ERROR IPP_Create");
 		return -1;
 	}
 
@@ -787,10 +787,10 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 
 	pIPP.outputBufferSize = (w*h*2);
 
-    LOGD("IPP_SetProcessingConfiguration");
+    ALOGD("IPP_SetProcessingConfiguration");
     eError = IPP_SetProcessingConfiguration(pIPP.hIPP, pIPP.ippconfig);
 	if(eError != 0){
-		LOGE("ERROR IPP_SetProcessingConfiguration");
+		ALOGE("ERROR IPP_SetProcessingConfiguration");
 	}
 
 	if(ippMode == IPP_CromaSupression_Mode ){
@@ -799,10 +799,10 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 		pIPP.CRCBptr.maxHeight = h;
 		pIPP.CRCBptr.errorCode = 0;
 
-		LOGD("IPP_SetAlgoConfig CRBS");
+		ALOGD("IPP_SetAlgoConfig CRBS");
 		eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_CRCBS_CREATEPRMS_CFGID, &(pIPP.CRCBptr));
 		if(eError != 0){
-			LOGE("ERROR IPP_SetAlgoConfig");
+			ALOGE("ERROR IPP_SetAlgoConfig");
 		}
 	}else if(ippMode == IPP_EdgeEnhancement_Mode ){
 		pIPP.EENFcreate.size = sizeof(IPP_EENFAlgoCreateParams);
@@ -812,10 +812,10 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
 		pIPP.EENFcreate.inPlace = 0;
 		pIPP.EENFcreate.inputBufferSizeForInPlace = 0;
 
-		LOGD("IPP_SetAlgoConfig EENF");
+		ALOGD("IPP_SetAlgoConfig EENF");
 		eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_EENF_CREATEPRMS_CFGID, &(pIPP.EENFcreate));
 		if(eError != 0){
-			LOGE("ERROR IPP_SetAlgoConfig");
+			ALOGE("ERROR IPP_SetAlgoConfig");
 		}
 	}
 
@@ -825,23 +825,23 @@ int CameraHal::InitIPP(int w, int h, int fmt, int ippMode)
     pIPP.YUVCcreate.errorCode = 0;
 
     if ( fmt != PIX_YUV420P ) {
-        LOGD("IPP_SetAlgoConfig: IPP_YUVC_422TO420_CREATEPRMS_CFGID");
+        ALOGD("IPP_SetAlgoConfig: IPP_YUVC_422TO420_CREATEPRMS_CFGID");
         eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_YUVC_422TO420_CREATEPRMS_CFGID, &(pIPP.YUVCcreate));
 	    if(eError != 0){
-		    LOGE("ERROR IPP_SetAlgoConfig: IPP_YUVC_422TO420_CREATEPRMS_CFGID");
+		    ALOGE("ERROR IPP_SetAlgoConfig: IPP_YUVC_422TO420_CREATEPRMS_CFGID");
 	    }
 	}
 
-    LOGD("IPP_SetAlgoConfig: IPP_YUVC_420TO422_CREATEPRMS_CFGID");
+    ALOGD("IPP_SetAlgoConfig: IPP_YUVC_420TO422_CREATEPRMS_CFGID");
     eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_YUVC_420TO422_CREATEPRMS_CFGID, &(pIPP.YUVCcreate));
     if(eError != 0){
-        LOGE("ERROR IPP_SetAlgoConfig: IPP_YUVC_420TO422_CREATEPRMS_CFGID");
+        ALOGE("ERROR IPP_SetAlgoConfig: IPP_YUVC_420TO422_CREATEPRMS_CFGID");
     }
 
-    LOGD("IPP_InitializeImagePipe");
+    ALOGD("IPP_InitializeImagePipe");
     eError = IPP_InitializeImagePipe(pIPP.hIPP);
 	if(eError != 0){
-		LOGE("ERROR IPP_InitializeImagePipe");
+		ALOGE("ERROR IPP_InitializeImagePipe");
 	} else {
         mIPPInitAlgoState = true;
     }
@@ -891,16 +891,16 @@ int CameraHal::DeInitIPP(int ippMode)
     int eError = 0;
 
     if(mIPPInitAlgoState){
-        LOGD("IPP_DeinitializePipe");
+        ALOGD("IPP_DeinitializePipe");
         eError = IPP_DeinitializePipe(pIPP.hIPP);
-        LOGD("IPP_DeinitializePipe");
+        ALOGD("IPP_DeinitializePipe");
         if( eError != 0){
-            LOGE("ERROR IPP_DeinitializePipe");
+            ALOGE("ERROR IPP_DeinitializePipe");
         }
         mIPPInitAlgoState = false;
     }
 
-    LOGD("IPP_Delete");
+    ALOGD("IPP_Delete");
     IPP_Delete(&(pIPP.hIPP));
 
     free(((char*)pIPP.iStarInArgs));
@@ -929,7 +929,7 @@ int CameraHal::DeInitIPP(int ippMode)
 		free(pIPP.pIppOutputBuffer);
 	}
 
-    LOGD("Terminating IPP");
+    ALOGD("Terminating IPP");
 
     return eError;
 }
@@ -938,7 +938,7 @@ int CameraHal::PopulateArgsIPP(int w, int h, int fmt, int ippMode)
 {
     int eError = 0;
 
-    LOGD("IPP: PopulateArgs ENTER");
+    ALOGD("IPP: PopulateArgs ENTER");
 
 	//configuring size of input and output structures
     pIPP.iStarInArgs->size = sizeof(IPP_StarAlgoInArgs);
@@ -1024,7 +1024,7 @@ int CameraHal::PopulateArgsIPP(int w, int h, int fmt, int ippMode)
     pIPP.statusDesc.algoNum[1] = 1;
     pIPP.statusDesc.algoNum[1] = 1;
 
-    LOGD("IPP: PopulateArgs EXIT");
+    ALOGD("IPP: PopulateArgs EXIT");
 
     return eError;
 }
@@ -1065,10 +1065,10 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
         1//  ratioDownsampleCbCr;
     };//2
 
-    LOGD("IPP_StartProcessing");
+    ALOGD("IPP_StartProcessing");
     eError = IPP_StartProcessing(pIPP.hIPP);
     if(eError != 0){
-        LOGE("ERROR IPP_SetAlgoConfig");
+        ALOGE("ERROR IPP_SetAlgoConfig");
     }
 
 	if(ippMode == IPP_EdgeEnhancement_Mode){
@@ -1094,28 +1094,28 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
         NONNEG_ASSIGN(shadingGainMaxValue, IPPEENFAlgoDynamicParamsCfg.shadingGainMaxValue);
         NONNEG_ASSIGN(ratioDownsampleCbCr, IPPEENFAlgoDynamicParamsCfg.ratioDownsampleCbCr);
 
-        LOGD("Set EENF Dynamics Params:");
-        LOGD("\tInPlace                      = %d", (int)IPPEENFAlgoDynamicParamsCfg.inPlace);
-        LOGD("\tEdge Enhancement Strength    = %d", (int)IPPEENFAlgoDynamicParamsCfg.EdgeEnhancementStrength);
-        LOGD("\tWeak Edge Threshold          = %d", (int)IPPEENFAlgoDynamicParamsCfg.WeakEdgeThreshold);
-        LOGD("\tStrong Edge Threshold        = %d", (int)IPPEENFAlgoDynamicParamsCfg.StrongEdgeThreshold);
-        LOGD("\tLuma Noise Filter Low Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqLumaNoiseFilterStrength );
-        LOGD("\tLuma Noise Filter Mid Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqLumaNoiseFilterStrength );
-        LOGD("\tLuma Noise Filter High Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqLumaNoiseFilterStrength );
-        LOGD("\tChroma Noise Filter Low Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqCbNoiseFilterStrength);
-        LOGD("\tChroma Noise Filter Mid Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqCbNoiseFilterStrength);
-        LOGD("\tChroma Noise Filter High Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqCbNoiseFilterStrength);
-        LOGD("\tChroma Noise Filter Low Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqCrNoiseFilterStrength);
-        LOGD("\tChroma Noise Filter Mid Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqCrNoiseFilterStrength);
-        LOGD("\tChroma Noise Filter High Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqCrNoiseFilterStrength);
-        LOGD("\tShading Vert 1 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingVertParam1);
-        LOGD("\tShading Vert 2 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingVertParam2);
-        LOGD("\tShading Horz 1 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingHorzParam1);
-        LOGD("\tShading Horz 2 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingHorzParam2);
-        LOGD("\tShading Gain Scale = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainScale);
-        LOGD("\tShading Gain Offset = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainOffset);
-        LOGD("\tShading Gain Max Val = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainMaxValue);
-        LOGD("\tRatio Downsample CbCr = %d", (int)IPPEENFAlgoDynamicParamsCfg.ratioDownsampleCbCr);
+        ALOGD("Set EENF Dynamics Params:");
+        ALOGD("\tInPlace                      = %d", (int)IPPEENFAlgoDynamicParamsCfg.inPlace);
+        ALOGD("\tEdge Enhancement Strength    = %d", (int)IPPEENFAlgoDynamicParamsCfg.EdgeEnhancementStrength);
+        ALOGD("\tWeak Edge Threshold          = %d", (int)IPPEENFAlgoDynamicParamsCfg.WeakEdgeThreshold);
+        ALOGD("\tStrong Edge Threshold        = %d", (int)IPPEENFAlgoDynamicParamsCfg.StrongEdgeThreshold);
+        ALOGD("\tLuma Noise Filter Low Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqLumaNoiseFilterStrength );
+        ALOGD("\tLuma Noise Filter Mid Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqLumaNoiseFilterStrength );
+        ALOGD("\tLuma Noise Filter High Freq Strength   = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqLumaNoiseFilterStrength );
+        ALOGD("\tChroma Noise Filter Low Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqCbNoiseFilterStrength);
+        ALOGD("\tChroma Noise Filter Mid Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqCbNoiseFilterStrength);
+        ALOGD("\tChroma Noise Filter High Freq Cb Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqCbNoiseFilterStrength);
+        ALOGD("\tChroma Noise Filter Low Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.LowFreqCrNoiseFilterStrength);
+        ALOGD("\tChroma Noise Filter Mid Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.MidFreqCrNoiseFilterStrength);
+        ALOGD("\tChroma Noise Filter High Freq Cr Strength = %d", (int)IPPEENFAlgoDynamicParamsCfg.HighFreqCrNoiseFilterStrength);
+        ALOGD("\tShading Vert 1 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingVertParam1);
+        ALOGD("\tShading Vert 2 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingVertParam2);
+        ALOGD("\tShading Horz 1 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingHorzParam1);
+        ALOGD("\tShading Horz 2 = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingHorzParam2);
+        ALOGD("\tShading Gain Scale = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainScale);
+        ALOGD("\tShading Gain Offset = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainOffset);
+        ALOGD("\tShading Gain Max Val = %d", (int)IPPEENFAlgoDynamicParamsCfg.shadingGainMaxValue);
+        ALOGD("\tRatio Downsample CbCr = %d", (int)IPPEENFAlgoDynamicParamsCfg.ratioDownsampleCbCr);
 
 
 		/*Set Dynamic Parameter*/
@@ -1124,10 +1124,10 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
 		       sizeof(IPPEENFAlgoDynamicParamsCfg));
 
 
-		LOGD("IPP_SetAlgoConfig");
+		ALOGD("IPP_SetAlgoConfig");
 		eError = IPP_SetAlgoConfig(pIPP.hIPP, IPP_EENF_DYNPRMS_CFGID, (void*)pIPP.dynEENF);
 		if( eError != 0){
-			LOGE("ERROR IPP_SetAlgoConfig");
+			ALOGE("ERROR IPP_SetAlgoConfig");
 		}
 	}
 
@@ -1193,7 +1193,7 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
         pIPP.iOutputArgs.argsArray[2] = pIPP.iYuvcOutArgs2;
     }
 
-    LOGD("IPP_ProcessImage");
+    ALOGD("IPP_ProcessImage");
 	if((pIPP.ippconfig.isINPLACE)){
 		eError = IPP_ProcessImage(pIPP.hIPP, &(pIPP.iInputBufferDesc), &(pIPP.iInputArgs), NULL, &(pIPP.iOutputArgs));
 	}
@@ -1201,16 +1201,16 @@ int CameraHal::ProcessBufferIPP(void *pBuffer, long int nAllocLen, int fmt, int 
 		eError = IPP_ProcessImage(pIPP.hIPP, &(pIPP.iInputBufferDesc), &(pIPP.iInputArgs), &(pIPP.iOutputBufferDesc),&(pIPP.iOutputArgs));
 	}
     if( eError != 0){
-		LOGE("ERROR IPP_ProcessImage");
+		ALOGE("ERROR IPP_ProcessImage");
 	}
 
-    LOGD("IPP_StopProcessing");
+    ALOGD("IPP_StopProcessing");
     eError = IPP_StopProcessing(pIPP.hIPP);
     if( eError != 0){
-        LOGE("ERROR IPP_StopProcessing");
+        ALOGE("ERROR IPP_StopProcessing");
     }
 
-	LOGD("IPP_ProcessImage Done");
+	ALOGD("IPP_ProcessImage Done");
 
     return eError;
 }
@@ -1235,7 +1235,7 @@ int CameraHal::CorrectPreview()
 
     ret = ioctl(camera_device, VIDIOC_CROPCAP, &cropcap);
     if ( ret < 0) {
-        LOGE("Error while retrieving crop capabilities");
+        ALOGE("Error while retrieving crop capabilities");
 
         return EINVAL;
     }
@@ -1250,20 +1250,20 @@ int CameraHal::CorrectPreview()
                          &pos_l, &pos_t, &pos_w, &pos_h,
                          ASPECT_RATIO_FLAG_KEEP_ASPECT_RATIO|ASPECT_RATIO_FLAG_CROP_BY_SOURCE)) {
 
-        LOGE("Error while calculating crop");
+        ALOGE("Error while calculating crop");
 
         return -1;
     }
 
     ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
     if (ret < 0) {
-      LOGE("[%s]: ERROR VIDIOC_S_CROP failed", strerror(errno));
+      ALOGE("[%s]: ERROR VIDIOC_S_CROP failed", strerror(errno));
       return -1;
     }
 
     ret = ioctl(camera_device, VIDIOC_G_CROP, &crop);
     if (ret < 0) {
-      LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
+      ALOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
       return -1;
     }
 
@@ -1289,7 +1289,7 @@ int CameraHal::CorrectPreview()
 
 #ifdef DEBUG_LOG
 
-    LOGE("VIDIOC_G_CROP: top = %d, left = %d, width = %d, height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
+    ALOGE("VIDIOC_G_CROP: top = %d, left = %d, width = %d, height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -1333,21 +1333,21 @@ int CameraHal::ZoomPerform(float zoom)
     crop.c.left += delta_x >> 1;
     crop.c.top += delta_y >> 1;
 
-    LOGE("Perform ZOOM: zoom_top = %d, zoom_left = %d, zoom_width = %d, zoom_height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
+    ALOGE("Perform ZOOM: zoom_top = %d, zoom_left = %d, zoom_width = %d, zoom_height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
 
     ret = ioctl(camera_device, VIDIOC_S_CROP, &crop);
     if (ret < 0) {
-      LOGE("[%s]: ERROR VIDIOC_S_CROP failed", strerror(errno));
+      ALOGE("[%s]: ERROR VIDIOC_S_CROP failed", strerror(errno));
       return -1;
     }
 
     ret = ioctl(camera_device, VIDIOC_G_CROP, &crop);
     if (ret < 0) {
-      LOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
+      ALOGE("[%s]: ERROR VIDIOC_G_CROP failed", strerror(errno));
       return -1;
     }
 
-    LOGE("Perform ZOOM G_GROP: crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
+    ALOGE("Perform ZOOM G_GROP: crop_top = %d, crop_left = %d, crop_width = %d, crop_height = %d", crop.c.top, crop.c.left, crop.c.width, crop.c.height);
 
     LOG_FUNCTION_NAME_EXIT
 
@@ -1359,7 +1359,7 @@ void CameraHal::SetDSPKHz(unsigned int KHz)
     char command[100];
     sprintf(command, "echo %u > /sys/power/dsp_freq", KHz);
     system(command);
-    // LOGD("command: %s", command);
+    // ALOGD("command: %s", command);
 }
 
 };

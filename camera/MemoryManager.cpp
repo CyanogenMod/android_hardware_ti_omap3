@@ -114,7 +114,7 @@ void* MemoryManager::allocateBuffer(int width, int height, const char* format, i
         return (void*)bufsArr;
 
 error:
-    LOGE("Freeing buffers already allocated after error occurred");
+    ALOGE("Freeing buffers already allocated after error occurred");
     freeBuffer(bufsArr);
 
     if ( NULL != mErrorNotifier.get() )

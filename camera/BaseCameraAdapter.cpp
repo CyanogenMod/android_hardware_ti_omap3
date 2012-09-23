@@ -314,8 +314,8 @@ void BaseCameraAdapter::returnFrame(void* frameBuf, CameraFrame::FrameType frame
 #ifdef DEBUG_LOG
             if(mBuffersWithDucati.indexOfKey((int)frameBuf)>=0)
                 {
-                LOGE("Buffer already with Ducati!! 0x%x", frameBuf);
-                for(int i=0;i<mBuffersWithDucati.size();i++) LOGE("0x%x", mBuffersWithDucati.keyAt(i));
+                ALOGE("Buffer already with Ducati!! 0x%x", frameBuf);
+                for(int i=0;i<mBuffersWithDucati.size();i++) ALOGE("0x%x", mBuffersWithDucati.keyAt(i));
                 }
             mBuffersWithDucati.add((int)frameBuf,1);
 #endif
@@ -1250,7 +1250,7 @@ status_t BaseCameraAdapter::__sendFrameToSubscribers(CameraFrame* frame,
     
     if(frame == NULL)
     {
-      LOGE(" BaseCameraAdapter::__sendFrameToSubscribers :: frame is NULL");
+      ALOGE(" BaseCameraAdapter::__sendFrameToSubscribers :: frame is NULL");
       return -EINVAL;
     }
 

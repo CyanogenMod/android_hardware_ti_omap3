@@ -157,7 +157,7 @@
 #endif
 
 #ifdef ANDROID
-  #define MP3DEC_EPRINT ALOGE
+  #define MP3DEC_EPRINT LOGE
 #else
   #define MP3DEC_EPRINT printf
 #endif

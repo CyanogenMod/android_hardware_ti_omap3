@@ -2076,10 +2076,10 @@ OMX_ERRORTYPE WMADECLCML_Callback (TUsnCodecEvent event,void * args [10])
                 /* If the buffer we get back from the DSP is not valid call FillBufferDone
                    on a valid buffer */
 #ifdef __PERF_INSTRUMENTATION__
-                PERF_SendingFrame(pComponentPrivate_CC->pPERFcomp,
+                /*PERF_SendingFrame(pComponentPrivate_CC->pPERFcomp,
                                   pComponentPrivate_CC->pOutputBufferList->pBufHdr[pComponentPrivate_CC->nInvalidFrameCount++]->pBuffer,
                                   pComponentPrivate_CC->pOutputBufferList->pBufHdr[pComponentPrivate_CC->nInvalidFrameCount++]->nFilledLen,
-                                  PERF_ModuleHLMM);
+                                  PERF_ModuleHLMM);*/
 #endif
                 pComponentPrivate_CC->cbInfo.FillBufferDone (pComponentPrivate_CC->pHandle,
                                                              pComponentPrivate_CC->pHandle->pApplicationPrivate,

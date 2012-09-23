@@ -2466,7 +2466,7 @@ void JpegDec_FatalErrorRecover(JPEGDEC_COMPONENT_PRIVATE *pComponentPrivate, con
 
     pTemp = ((LCML_DSP_INTERFACE*)pComponentPrivate->pLCML)->pCodecinterfacehandle;
     phandle = (LCML_DSP_INTERFACE *)(((LCML_CODEC_INTERFACE *)pTemp)->pCodec);
-    LOGD("\n%s()::%d::=====phandle->iDspOpenCount=%d=====\n",__FUNCTION__,__LINE__,phandle->iDspOpenCount);
+    ALOGD("\n%s()::%d::=====phandle->iDspOpenCount=%d=====\n",__FUNCTION__,__LINE__,phandle->iDspOpenCount);
 
     if (bDestroyCodec) {
         eError = LCML_ControlCodec(((

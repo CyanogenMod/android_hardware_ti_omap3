@@ -194,7 +194,7 @@ OMX_ERRORTYPE GetHandle(OMX_HANDLETYPE *hInterface )
     pthread_mutex_init (&pHandle->mutex, NULL);
 
 #ifdef CAM_FIX
-    LOGD("LCML PATCH init");
+    ALOGD("LCML PATCH init");
     if(AVOID_DSPMMU_mutex == NULL)
     {
         LCML_MALLOC(AVOID_DSPMMU_mutex, sizeof(pthread_mutex_t), pthread_mutex_t, err);
@@ -452,7 +452,7 @@ static OMX_ERRORTYPE InitMMCodecEx(OMX_HANDLETYPE hInt,
             }
         }
 #ifdef  CAM_FIX
-        LOGD("LCML PATCH create");
+        ALOGD("LCML PATCH create");
         pthread_mutex_lock(AVOID_DSPMMU_mutex);
 #endif
         status = DSPNode_Create(phandle->dspCodec->hNode);
@@ -462,7 +462,7 @@ static OMX_ERRORTYPE InitMMCodecEx(OMX_HANDLETYPE hInt,
         DSP_ERROR_EXIT(status, "Create the Node", ERROR, hInt);
         OMX_PRDSP1 (((LCML_CODEC_INTERFACE *)hInt)->dbg, "%d :: After DSPNode_Create !!! \n", __LINE__);
 #ifdef  CAM_FIX
-        LOGD("LCML PATCH run");
+        ALOGD("LCML PATCH run");
         pthread_mutex_lock(AVOID_DSPMMU_mutex);
 #endif
         status = DSPNode_Run(phandle->dspCodec->hNode);
@@ -790,7 +790,7 @@ static OMX_ERRORTYPE InitMMCodec(OMX_HANDLETYPE hInt,
         }
     }
 #ifdef CAM_FIX
-    LOGD("LCML PATCH create");
+    ALOGD("LCML PATCH create");
     pthread_mutex_lock(AVOID_DSPMMU_mutex);
 #endif
     status = DSPNode_Create(phandle->dspCodec->hNode);
@@ -801,7 +801,7 @@ static OMX_ERRORTYPE InitMMCodec(OMX_HANDLETYPE hInt,
     OMX_PRDSP2 (((LCML_CODEC_INTERFACE *)hInt)->dbg, "%d :: After DSPNode_Create !!! \n", __LINE__);
 
 #ifdef  CAM_FIX
-    LOGD("LCML PATCH run");
+    ALOGD("LCML PATCH run");
     pthread_mutex_lock(AVOID_DSPMMU_mutex);
 #endif
     status = DSPNode_Run (phandle->dspCodec->hNode);
@@ -1716,7 +1716,7 @@ OMX_ERRORTYPE FreeResources (LCML_DSP_INTERFACE *hInterface)
                 codec->g_aNotificationObjects[2] = NULL;
             }
  #endif
-            OMX_DBG_CLOSE((struct OMX_TI_Debug )(((LCML_CODEC_INTERFACE*)hInterface->pCodecinterfacehandle)->dbg));
+            //OMX_DBG_CLOSE((struct OMX_TI_Debug )(((LCML_CODEC_INTERFACE*)hInterface->pCodecinterfacehandle)->dbg));
             LCML_FREE(((LCML_CODEC_INTERFACE*)hInterface->pCodecinterfacehandle));
             hInterface->pCodecinterfacehandle = NULL;
         }
@@ -1748,7 +1748,7 @@ OMX_ERRORTYPE DeleteDspResource(LCML_DSP_INTERFACE *hInterface)
     /* Get current state of node, if it is running, then only terminate it */
 
 #ifdef CAM_FIX
-    LOGD("DeleteDspResource Enter");
+    ALOGD("DeleteDspResource Enter");
     pthread_mutex_lock(AVOID_DSPMMU_mutex);
 #endif
 
@@ -1792,7 +1792,7 @@ OMX_ERRORTYPE DeleteDspResource(LCML_DSP_INTERFACE *hInterface)
 EXIT:
 #ifdef CAM_FIX
     pthread_mutex_unlock(AVOID_DSPMMU_mutex);
-    LOGD("DeleteDspResource Exit");
+    ALOGD("DeleteDspResource Exit");
 #endif
 
     /* always call DSPManager_Close() even if DSPBridge API is not accessible.

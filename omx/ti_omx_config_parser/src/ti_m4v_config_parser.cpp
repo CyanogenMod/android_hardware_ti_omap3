@@ -915,8 +915,8 @@ OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *widt
 
     status = DecodePPS(&psBits, entropy_coding_mode_flag);
 
-    LOGV("%s:: %d: profile_idc = %d", __FUNCTION__, __LINE__, *profile_idc);
-    LOGI("%s:: %d: entropy_coding_mode_flag = %d", __FUNCTION__, __LINE__, *entropy_coding_mode_flag);
+    ALOGV("%s:: %d: profile_idc = %d", __FUNCTION__, __LINE__, *profile_idc);
+    ALOGI("%s:: %d: entropy_coding_mode_flag = %d", __FUNCTION__, __LINE__, *entropy_coding_mode_flag);
 
     OSCL_FREE(temp);
 

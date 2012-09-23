@@ -18,7 +18,7 @@
 
 #include <dlfcn.h>
 
-#include <media/stagefright/HardwareAPI.h>
+#include <media/hardware/HardwareAPI.h>
 #include <media/stagefright/MediaDebug.h>
 
 namespace android {
@@ -124,15 +124,12 @@ OMX_ERRORTYPE TIOMXPlugin::getRolesOfComponent(
         err = (*mGetRolesOfComponentHandle)(
                 const_cast<OMX_STRING>(name), &numRoles2, array);
 
-        if (err == OMX_ErrorNone && numRoles != numRoles2) {
-            err = OMX_ErrorUndefined;
-        }
+        CHECK_EQ(err, OMX_ErrorNone);
+        CHECK_EQ(numRoles, numRoles2);
 
         for (OMX_U32 i = 0; i < numRoles; ++i) {
-            if (err == OMX_ErrorNone) {
-                String8 s((const char *)array[i]);
-                roles->push(s);
-            }
+            String8 s((const char *)array[i]);
+            roles->push(s);
 
             delete[] array[i];
             array[i] = NULL;

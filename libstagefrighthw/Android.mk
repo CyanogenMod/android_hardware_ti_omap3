@@ -7,7 +7,9 @@ LOCAL_SRC_FILES := \
 LOCAL_CFLAGS := $(PV_CFLAGS_MINUS_VISIBILITY)
 
 LOCAL_C_INCLUDES:= \
-        $(TOP)/frameworks/base/include/media/stagefright/openmax
+        $(TOP)/frameworks/native/include/media/openmax \
+        $(TOP)/frameworks/av/include \
+        $(TOP)/frameworks/native/include
 
 LOCAL_SHARED_LIBRARIES :=       \
         libbinder               \
