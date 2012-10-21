@@ -37,7 +37,7 @@
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dbdefs.h>
-#include <errbase.h>
+#include <errno.h>
 
 /*  ----------------------------------- Others */
 #include <dsptrap.h>
@@ -63,7 +63,7 @@
 DBAPI DSPProcessor_Ctrl(DSP_HPROCESSOR hProcessor, ULONG dwCmd,
 		  IN OPTIONAL struct DSP_CBDATA *pArgs)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION, (TEXT("PROC: DSPProcessor_Ctrl\r\n")));
@@ -76,7 +76,7 @@ DBAPI DSPProcessor_Ctrl(DSP_HPROCESSOR hProcessor, ULONG dwCmd,
 		status = DSPTRAP_Trap(&tempStruct, CMD_PROC_CTRL_OFFSET);
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Invalid Handle \r\n")));
 	}
@@ -94,7 +94,7 @@ DBAPI DSPProcessor_Ctrl(DSP_HPROCESSOR hProcessor, ULONG dwCmd,
 DBAPI DSPProcessor_Load(DSP_HPROCESSOR hProcessor, IN CONST INT iArgc,
 		  IN CONST CHAR **aArgv, IN CONST CHAR **aEnvp)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
@@ -122,18 +122,18 @@ DBAPI DSPProcessor_Load(DSP_HPROCESSOR hProcessor, IN CONST INT iArgc,
 				status = DSPTRAP_Trap(&tempStruct,
 						CMD_PROC_LOAD_OFFSET);
 			} else {
-				status = DSP_EPOINTER;
+				status = -EFAULT;
 				DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Null pointer in input \r\n")));
 			}
 		} else {
-			status = DSP_EINVALIDARG;
+			status = -EINVAL;
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
 					(TEXT("PROC: iArgc is invalid. \r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Invalid Handle \r\n")));
 	}
@@ -154,7 +154,7 @@ DBAPI DSPProcessor_Load(DSP_HPROCESSOR hProcessor, IN CONST INT iArgc,
  */
 DBAPI DSPProcessor_Start(DSP_HPROCESSOR hProcessor)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION, (TEXT("PROC: DSPProcessor_Start\r\n")));
@@ -165,7 +165,7 @@ DBAPI DSPProcessor_Start(DSP_HPROCESSOR hProcessor)
 		status = DSPTRAP_Trap(&tempStruct, CMD_PROC_START_OFFSET);
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Invalid Handle \r\n")));
 	}
@@ -180,7 +180,7 @@ DBAPI DSPProcessor_Start(DSP_HPROCESSOR hProcessor)
  */
 DBAPI DSPProcessor_Stop(DSP_HPROCESSOR hProcessor)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION, (TEXT("PROC: DSPProcessor_Stop\r\n")));
@@ -191,7 +191,7 @@ DBAPI DSPProcessor_Stop(DSP_HPROCESSOR hProcessor)
 		status = DSPTRAP_Trap(&tempStruct, CMD_PROC_STOP_OFFSET);
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Invalid Handle \r\n")));
 	}

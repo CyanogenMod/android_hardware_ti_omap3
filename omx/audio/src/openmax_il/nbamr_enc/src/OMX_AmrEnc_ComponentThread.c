@@ -61,11 +61,6 @@
 ****************************************************************/
 /* ----- system and platform files ----------------------------*/
 
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#else
 #include <wchar.h>
 #include <dbapi.h>
 #include <unistd.h>
@@ -73,13 +68,13 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
+#include <sys/prctl.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
-#endif
 /*-------program files ----------------------------------------*/
 #include "OMX_AmrEnc_Utils.h"
 #include "OMX_AmrEnc_ComponentThread.h"
@@ -104,6 +99,8 @@ void* NBAMRENC_CompThread(void* pThreadData)
     OMX_BUFFERHEADERTYPE *pBufHeader = NULL;
     AMRENC_COMPONENT_PRIVATE* pComponentPrivate = (AMRENC_COMPONENT_PRIVATE*)pThreadData;
     OMX_COMPONENTTYPE *pHandle = pComponentPrivate->pHandle;
+
+    prctl(PR_SET_NAME, (unsigned long) "OMX-NBAMRENC", 0, 0, 0);
     OMX_PRINT1(pComponentPrivate->dbg, "%d :: Entering NBAMRENC_CompThread\n", __LINE__);
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -125,14 +122,10 @@ void* NBAMRENC_CompThread(void* pThreadData)
         tv.tv_sec = 1;
         tv.tv_nsec = 0;
 
-#ifndef UNDER_CE
         sigset_t set;
         sigemptyset (&set);
         sigaddset (&set, SIGALRM);
         status = pselect (fdmax+1, &rfds, NULL, NULL, &tv, &set);
-#else
-        status = select (fdmax+1, &rfds, NULL, NULL, &tv);
-#endif
 
         if (pComponentPrivate->bIsThreadstop == 1) {
             OMX_ERROR2(pComponentPrivate->dbg, ":: Comp Thrd Exiting here...\n");
@@ -198,18 +191,12 @@ void* NBAMRENC_CompThread(void* pThreadData)
 #endif
 
                 if(pComponentPrivate->bPreempted==0){
-
-                    if(RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
-                        return OMX_ErrorUndefined;
-                    }
-
-                    pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                                           pComponentPrivate->pHandle->pApplicationPrivate,
-                                                           OMX_EventCmdComplete,
-                                                           OMX_CommandStateSet,
-                                                           pComponentPrivate->curState,
-                                                           NULL);
-
+                    pComponentPrivate->cbInfo.EventHandler( pHandle,
+                                                            pHandle->pApplicationPrivate,
+                                                            OMX_EventCmdComplete,
+                                                            OMX_ErrorNone,
+                                                            pComponentPrivate->curState,
+                                                            NULL);
                 }
                 else{
                     pComponentPrivate->cbInfo.EventHandler( pHandle,
@@ -220,7 +207,9 @@ void* NBAMRENC_CompThread(void* pThreadData)
                                                             NULL);
                     pComponentPrivate->bPreempted = 0;
                 }
-                goto EXIT;
+
+
+                    
             }
         }
     

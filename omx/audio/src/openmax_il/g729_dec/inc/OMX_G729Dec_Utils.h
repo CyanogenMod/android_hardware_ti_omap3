@@ -111,11 +111,7 @@
  *                                           at initialization
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G729DEC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define G729DEC_USN_DLL_NAME "usn.dll64P"
-#endif
 
 /* ======================================================================= */
 /**
@@ -123,11 +119,7 @@
  *                                           at initialization
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G729DEC_DLL_NAME "\\windows\\g729dec_sn.dll64P"
-#else
 #define G729DEC_DLL_NAME "g729dec_sn.dll64P"
-#endif
 
 /****************************************************************
  *  INCLUDE FILES                                                 
@@ -136,6 +128,7 @@
 
 /*-------program files ----------------------------------------*/
 #include <OMX_Component.h>
+#include <OMX_TI_Common.h>
 #include "OMX_G729Decoder.h"
 /****************************************************************
  * EXTERNAL REFERENCES NOTE : only use if not found in header file
@@ -189,6 +182,18 @@ OMX_U32 G729DEC_IsPending(G729DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BUFF
 OMX_ERRORTYPE G729DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent);
 OMX_U32 G729DEC_IsValid(G729DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pBuffer, OMX_DIRTYPE eDir) ;
 OMX_ERRORTYPE G729DEC_TransitionToIdle(G729DEC_COMPONENT_PRIVATE *pComponentPrivate);
+/*  ==============================================================*/
+/* G729DEC_FatalErrorRecover
+*
+* @desc    handles the clean up and sets OMX_StateInvalid in reaction to fatal errors
+*
+* @param pComponentPrivate    Component private data
+*
+* @return n/a
+*/
+/* ===============================================================*/
+
+void G729DEC_FatalErrorRecover(G729DEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /*--------macros ----------------------------------------------*/
 

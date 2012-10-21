@@ -53,13 +53,13 @@ extern "C" {
  *      dwCmd:          Private driver IOCTL cmd ID.
  *      pArgs:          Ptr to a driver defined argument structure.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EHANDLE:    Invalid processor handle.
- *      DSP_ETIMEOUT:   A timeout occured before the control information
+ *      0:              Success.
+ *      -EFAULT:        Invalid processor handle.
+ *      -ETIME:         A timeout occured before the control information
  *                      could be sent.
  *      DSP_ERESTART:   A critical error has occured and the DSP is being
  *                      restarted.
- *      DSP_EFAIL:      Unable to Send the control information.
+ *      -EPERM:         Unable to Send the control information.
  *  Details:
  *      This function Calls the WMD_BRD_IOCTL.
  */
@@ -79,15 +79,15 @@ extern "C" {
  *      aArgv:              An array of arguments (ANSI Strings)
  *      aEnvp:              An array of environment settings (ANSI Strings)
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid processor handle.
- *      DSP_EFILE:          The DSP executable was not found
+ *      0:                  Success.
+ *      -EFAULT:            Invalid processor handle.
+ *      -ENOENT:            The DSP executable was not found
  *      DSP_ECORRUTFILE:    Unable to Parse the DSP Executable
- *      DSP_EINVALIDARG:    iArgc should be > 0.
- *      DSP_EPOINTER:       aArgv is invalid
+ *      -EINVAL:            iArgc should be > 0.
+ *      -EFAULT:            aArgv is invalid
  *      DSP_EATTACHED:      Abort because a GPP Client is attached to the
  *                          specified processor
- *      DSP_EFAIL:          Unable to load the processor
+ *      -EPERM:             Unable to load the processor
  *  Details:
  *      Does not implement access rights to control which GPP application
  *      can load the processor.  
@@ -107,12 +107,12 @@ extern "C" {
  *  Parameters:
  *      hProcessor:         The processor handle.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid processor handle.
- *      DSP_EWRONGSTATE:    Processor is not in PROC_LOADED state.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid processor handle.
+ *      -EBADR:             Processor is not in PROC_LOADED state.
  *      DSP_EACCESSDENIED:  Client does not have the required access rights
  *                          to start the Processor
- *      DSP_EFAIL:          Unable to start the processor.
+ *      -EPERM:             Unable to start the processor.
  *  Details:
  */
 	extern DBAPI DSPProcessor_Start(DSP_HPROCESSOR hProcessor);
@@ -127,12 +127,12 @@ extern "C" {
  *  Parameters:
  *      hProcessor:         The processor handle.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid processor handle.
- *      DSP_EWRONGSTATE:    Processor is not in PROC_LOADED state.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid processor handle.
+ *      -EBADR:             Processor is not in PROC_LOADED state.
  *      DSP_EACCESSDENIED:  Client does not have the required access rights
  *                          to start the Processor
- *      DSP_EFAIL:          Unable to start the processor.
+ *      -EPERM:             Unable to start the processor.
  *  Details:
  */
 	extern DBAPI DSPProcessor_Stop(DSP_HPROCESSOR hProcessor);

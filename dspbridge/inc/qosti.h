@@ -1,22 +1,18 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
- 
-/*
- * Qosti.h
+ * dspbridge/mpu_api/inc/qosti.h
+ *
  * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 
@@ -59,19 +55,19 @@ void DbgMsg(DWORD dwZone, char *szFormat, ...);
 /*  ============================================================================
   func   MsgToDsp
   desc   Send Message to DSP
-  ret    DSP_SOK if Message was transferred to DSP successfully.
+  ret    0 if Message was transferred to DSP successfully.
  ============================================================================*/
 
-DSP_STATUS QosTI_DspMsg(DWORD dwCmd, DWORD dwArg1, DWORD dwArg2, DWORD *dwOut1,
+int QosTI_DspMsg(DWORD dwCmd, DWORD dwArg1, DWORD dwArg2, DWORD *dwOut1,
 																DWORD *dwOut2);
 
 /*  ========================================================================
   func   Create
   desc   Create the Qos service.
-  ret    DSP_SOK if successfully created.
+  ret    0 if successfully created.
   ========================================================================*/
 
-DSP_STATUS QosTI_Create();
+int QosTI_Create();
 
 /* ========================================================================
   func   Delete
@@ -94,12 +90,25 @@ void QosTI_Delete();
   arg   OUT memLargestFreeBlockSize: size of largest contiguous free memory
   arg   OUT memFreeBlocks:           number of free blocks in heap
   arg   OUT memAllocBlocks:          number of allocated blocks in heap
-  ret   DSP_SOK if successful.
+  ret   0 if successful.
   ========================================================================*/
 
-DSP_STATUS QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize, 
+int QosTI_GetDynLoaderMemStat(UINT heapDesc, UINT *memInitSize,
 								UINT *memUsed, UINT *memLargestFreeBlockSize,
 								UINT *memFreeBlocks, UINT *memAllocBlocks);
+
+
+/*  ========================================================================
+    func   QosTI_GetProcLoadStat
+    desc   Get the Processor load statistics
+    arg   OUT currentLoad:             
+    arg   OUT predLoad:               
+    arg   OUT currDspFreq: 
+    arg   OUT predictedFreq:  
+    ret   0 if successful.
+    ======================================================================== */
+int QosTI_GetProcLoadStat(UINT *currentLoad, UINT *predLoad,
+									    UINT *currDspFreq, UINT *predictedFreq);
 
 #endif				/* _RQOSTI_H*/
 

@@ -73,12 +73,9 @@
 #include <OMX_Component.h>
 #include "OMX_TI_Common.h"
 #include "OMX_TI_Debug.h"
+#include "usn.h"
 #ifdef DSP_RENDERING_ON
 #include <AudioManagerAPI.h>
-#endif
-
-#ifdef UNDER_CE
-#define sleep Sleep
 #endif
 
 #ifndef ANDROID
@@ -144,6 +141,14 @@
     OMXDBG_PRINT(stderr, ERROR, 4, OMX_DBG_BASEMASK, "Error Name: %s : Error Num = %x", _s_, _e_);\
     goto EXIT;
 
+#define WBAMRENC_OMX_CONF_CHECK_CMD(_ptr1, _ptr2, _ptr3)   \
+    {                                                   \
+        if(!_ptr1 || !_ptr2 || !_ptr3){                 \
+            OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d : WBAMRENC_OMX_CONF_CHECK_CMD - Invalid Pointer",__LINE__);\
+            return OMX_ErrorBadParameter;             \
+        }                                               \
+    }
+
 /* ======================================================================= */
 /**
  * @def    WBAMRENC_SAMPLING_FREQUENCY   Sampling frequency
@@ -162,6 +167,12 @@
  */
 /* ======================================================================= */
 #define WBAMRENC_MAX_NUM_OF_BUFS 15
+/* ======================================================================= */
+/**
+ * @def    NBAMRENC_MAX_NUM_OF_FRAMES   Maximum number of frames
+ */
+/* ======================================================================= */
+#define WBAMRENC_MAX_NUM_OF_FRAMES 5
 /* ======================================================================= */
 /**
  * @def    WBAMRENC_NUM_OF_PORTS   Number of ports
@@ -216,22 +227,14 @@
  * @def    WBAMRENC_USN_DLL_NAME   USN DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define WBAMRENC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define WBAMRENC_USN_DLL_NAME "usn.dll64P"
-#endif
 
 /* ======================================================================= */
 /**
  * @def    WBAMRENC_DLL_NAME   WBAMR Encoder socket node dll name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define WBAMRENC_DLL_NAME "\\windows\\wbamrenc_sn.dll64P"
-#else
 #define WBAMRENC_DLL_NAME "wbamrenc_sn.dll64P"
-#endif
 
 /* ======================================================================= */
 /** WBAMRENC_StreamType  Stream types
@@ -519,19 +522,6 @@ typedef struct WBAMRENC_PORT_TYPE {
     OMX_AUDIO_PARAM_PORTFORMATTYPE* pPortFormat;
 } WBAMRENC_PORT_TYPE;
 
-#ifdef UNDER_CE
-#ifndef _OMX_EVENT_
-#define _OMX_EVENT_
-typedef struct OMX_Event {
-    HANDLE event;
-} OMX_Event;
-#endif
-int OMX_CreateEvent(OMX_Event *event);
-int OMX_SignalEvent(OMX_Event *event);
-int OMX_WaitForEvent(OMX_Event *event);
-int OMX_DestroyEvent(OMX_Event *event);
-#endif
-
 typedef struct WBAMRENC_BUFDATA {
     OMX_U8 nFrames;
 } WBAMRENC_BUFDATA;
@@ -699,7 +689,9 @@ typedef struct WBAMRENC_COMPONENT_PRIVATE {
 
     OMX_S32 nOutStandingEmptyDones;
 
-#ifndef UNDER_CE
+    // Flag to set when mutexes are initialized
+    OMX_BOOL bMutexInitialized;
+
     pthread_mutex_t AlloBuf_mutex;
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -718,16 +710,6 @@ typedef struct WBAMRENC_COMPONENT_PRIVATE {
           sem_t inloaded;
           sem_t inidle;
     */
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded;
-#endif
 
     OMX_U8 nNumOfFramesSent;
 
@@ -742,6 +724,7 @@ typedef struct WBAMRENC_COMPONENT_PRIVATE {
     OMX_BUFFERHEADERTYPE *LastOutbuf;
     OMX_BOOL bIsInvalidState;
 
+    OMX_BOOL MMUFault;
     OMX_STRING* sDeviceString;
     void* ptrLibLCML;
 
@@ -766,11 +749,6 @@ typedef struct WBAMRENC_COMPONENT_PRIVATE {
 
     struct OMX_TI_Debug dbg;
 
-    /* Reference count for pending state change requests */
-    OMX_U32 nPendingStateChangeRequests;
-    pthread_mutex_t mutexStateChangeRequest;
-    pthread_cond_t StateChangeCondition;
-    
 } WBAMRENC_COMPONENT_PRIVATE;
 
 
@@ -1038,26 +1016,12 @@ void WBAMRENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 
 void WBAMRENC_HandleUSNError (WBAMRENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
-/*===============================================================*/
-
-typedef enum {
-    IUALG_CMD_STOP             = 0,
-    IUALG_CMD_PAUSE            = 1,
-    IUALG_CMD_GETSTATUS        = 2,
-    IUALG_CMD_SETSTATUS        = 3,
-    IUALG_CMD_USERSETCMDSTART  = 100,
-    IUALG_CMD_USERGETCMDSTART  = 150,
-    IUALG_CMD_FLUSH            = 0x100
-} IUALG_Cmd;
+void WBAMRENC_FatalErrorRecover(WBAMRENC_COMPONENT_PRIVATE *pComponentPrivate);
 
 typedef enum {
     ALGCMD_BITRATE = IUALG_CMD_USERSETCMDSTART,
     ALGCMD_DTX
 
 } eSPEECHENCODE_AlgCmd;
-
-OMX_ERRORTYPE AddStateTransition(WBAMRENC_COMPONENT_PRIVATE* pComponentPrivate);
-OMX_ERRORTYPE RemoveStateTransition(WBAMRENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
-
 
 #endif  /* OMX_WBAMRENC_UTILS__H */

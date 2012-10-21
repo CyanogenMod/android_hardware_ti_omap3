@@ -73,7 +73,7 @@
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dbdefs.h>
-#include <errbase.h>
+#include <errno.h>
 
 /*  ----------------------------------- Others */
 #include <dsptrap.h>
@@ -96,7 +96,7 @@ DBAPI DSPProcessor_Attach(UINT uProcessor,
 		    OPTIONAL CONST struct DSP_PROCESSORATTRIN *pAttrIn,
 		    OUT DSP_HPROCESSOR *phProcessor)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION, (TEXT("PROC: DSPProcessor_Attach\r\n")));
@@ -109,13 +109,13 @@ DBAPI DSPProcessor_Attach(UINT uProcessor,
 			status = DSPTRAP_Trap(&tempStruct,
 					CMD_PROC_ATTACH_OFFSET);
 		} else {
-			status = DSP_EINVALIDARG;
+			status = -EINVAL;
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: invalid processor number\r\n")));
 		}
 	} else {
 		/* Invalid pointer */
-		status = DSP_EPOINTER;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Invalid Pointer \r\n")));
 	}
@@ -130,7 +130,7 @@ DBAPI DSPProcessor_Attach(UINT uProcessor,
  */
 DBAPI DSPProcessor_Detach(DSP_HPROCESSOR hProcessor)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION, (TEXT("PROC: DSPProcessor_Detach\r\n")));
@@ -140,7 +140,7 @@ DBAPI DSPProcessor_Detach(DSP_HPROCESSOR hProcessor)
 		status = DSPTRAP_Trap(&tempStruct, CMD_PROC_DETACH_OFFSET);
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 			(TEXT("PROC: Invalid Handle \r\n")));
 	}
@@ -158,7 +158,7 @@ DBAPI DSPProcessor_EnumNodes(DSP_HPROCESSOR hProcessor,
 		       IN DSP_HNODE *aNodeTab, IN UINT uNodeTabSize,
 		       OUT UINT *puNumNodes, OUT UINT *puAllocated)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION,
@@ -186,16 +186,16 @@ DBAPI DSPProcessor_EnumNodes(DSP_HPROCESSOR hProcessor,
 			    !DSP_ValidWritePtr(puNumNodes, sizeof(UINT)) &&
 			    !DSP_ValidWritePtr(puAllocated, sizeof(UINT)) &&
 			    !DSP_ValidWritePtr(aNodeTab, sizeof(DSP_HNODE)*1)) {
-				status = DSP_ESIZE;
+				status = -EINVAL;
 			} else
-				status = DSP_EPOINTER;
+				status = -EFAULT;
 
 			DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("PROC: "
 					"pNodeInfo is invalid \r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Invalid Handle \r\n")));
 	}
@@ -211,7 +211,7 @@ DBAPI DSPProcessor_EnumNodes(DSP_HPROCESSOR hProcessor,
 DBAPI DSPProcessor_FlushMemory(DSP_HPROCESSOR hProcessor, PVOID pMpuAddr,
 			 ULONG ulSize, ULONG ulFlags)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
@@ -235,7 +235,7 @@ timeRetVal = getTimeStamp(&tv_beg);
 		status = DSPTRAP_Trap(&tempStruct, CMD_PROC_FLUSHMEMORY_OFFSET);
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("PROC: Invalid Handle\r\n")));
 	}
 #ifdef DEBUG_BRIDGE_PERF
@@ -255,7 +255,7 @@ timeRetVal = getTimeStamp(&tv_end);
 DBAPI DSPProcessor_InvalidateMemory(DSP_HPROCESSOR hProcessor,
 					PVOID pMpuAddr, ULONG ulSize)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
@@ -278,7 +278,7 @@ DBAPI DSPProcessor_InvalidateMemory(DSP_HPROCESSOR hProcessor,
 				CMD_PROC_INVALIDATEMEMORY_OFFSET);
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("PROC: Invalid Handle\r\n")));
 	}
 #ifdef DEBUG_BRIDGE_PERF
@@ -300,7 +300,7 @@ DBAPI DSPProcessor_GetResourceInfo(DSP_HPROCESSOR hProcessor,
 	     UINT uResourceType, OUT struct DSP_RESOURCEINFO *pResourceInfo,
 	     UINT uResourceInfoSize)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION, (TEXT("PROC: DSPProcessor_Ctrl\r\n")));
@@ -321,20 +321,20 @@ DBAPI DSPProcessor_GetResourceInfo(DSP_HPROCESSOR hProcessor,
 				status = DSPTRAP_Trap(&tempStruct,
 						CMD_PROC_ENUMRESOURCES_OFFSET);
 			} else {
-				status = DSP_ESIZE;
+				status = -EINVAL;
 				DEBUGMSG(DSPAPI_ZONE_ERROR,
 					 (TEXT("PROC: uResourceInfoSize "
 							"is small \r\n")));
 			}
 		} else {
 			/* Invalid pointer */
-			status = DSP_EPOINTER;
+			status = -EFAULT;
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: pResourceInfo is invalid \r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 			 (TEXT("PROC: Invalid Handle \r\n")));
 	}
@@ -350,7 +350,7 @@ DBAPI DSPProcessor_GetResourceInfo(DSP_HPROCESSOR hProcessor,
 DBAPI DSPProcessor_GetState(DSP_HPROCESSOR hProcessor,
 	      OUT struct DSP_PROCESSORSTATE *pProcStatus, UINT uStateInfoSize)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION, (TEXT("PROC: DSPProcessor_Ctrl\r\n")));
@@ -370,18 +370,18 @@ DBAPI DSPProcessor_GetState(DSP_HPROCESSOR hProcessor,
 				status = DSPTRAP_Trap(&tempStruct,
 						CMD_PROC_GETSTATE_OFFSET);
 			} else {
-				status = DSP_ESIZE;
+				status = -EINVAL;
 				DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: uStateInfoSize is small \r\n")));
 			}
 		} else {
-			status = DSP_EPOINTER;
+			status = -EFAULT;
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: pProcStatus is invalid \r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 			(TEXT("PROC: Invalid Handle \r\n")));
 	}
@@ -397,7 +397,7 @@ DBAPI DSPProcessor_GetState(DSP_HPROCESSOR hProcessor,
 DBAPI DSPProcessor_Map(DSP_HPROCESSOR hProcessor, PVOID pMpuAddr,
 		ULONG ulSize, PVOID pReqAddr, PVOID *ppMapAddr, ULONG ulMapAttr)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
@@ -445,19 +445,19 @@ DBAPI DSPProcessor_Map(DSP_HPROCESSOR hProcessor, PVOID pMpuAddr,
 				status = DSPTRAP_Trap(&tempStruct,
 						CMD_PROC_MAPMEM_OFFSET);
 			} else {
-				status = DSP_ESIZE;
+				status = -EINVAL;
 				DEBUGMSG(DSPAPI_ZONE_ERROR,
 					(TEXT("PROC:size is zero\r\n")));
 			}
 		} else {
-			status = DSP_EPOINTER;
+			status = -EFAULT;
 			DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT
 				  ("PROC: Atleast one pointer argument "
 					"is invalid\r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("PROC: Invalid Handle\r\n")));
 	}
 
@@ -478,7 +478,7 @@ DBAPI DSPProcessor_Map(DSP_HPROCESSOR hProcessor, PVOID pMpuAddr,
 DBAPI DSPProcessor_RegisterNotify(DSP_HPROCESSOR hProcessor, UINT uEventMask,
 		    UINT uNotifyType, struct DSP_NOTIFICATION *hNotification)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 
 	DEBUGMSG(DSPAPI_ZONE_FUNCTION,
@@ -500,18 +500,18 @@ DBAPI DSPProcessor_RegisterNotify(DSP_HPROCESSOR hProcessor, UINT uEventMask,
 				status = DSPTRAP_Trap(&tempStruct,
 						CMD_PROC_REGISTERNOTIFY_OFFSET);
 			} else {
-				status = DSP_ENOTIMPL;
+				status = -ENOSYS;
 				DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Invalid Notify Mask \r\n")));
 			}
 		} else {
-			status = DSP_EVALUE;
+			status = -EINVAL;
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: Invalid Evnet Mask \r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR,
 			(TEXT("PROC: Invalid Handle \r\n")));
 	}
@@ -527,7 +527,7 @@ DBAPI DSPProcessor_RegisterNotify(DSP_HPROCESSOR hProcessor, UINT uEventMask,
 DBAPI DSPProcessor_ReserveMemory(DSP_HPROCESSOR hProcessor, ULONG ulSize,
 		PVOID *ppRsvAddr)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
@@ -556,24 +556,24 @@ DBAPI DSPProcessor_ReserveMemory(DSP_HPROCESSOR hProcessor, ULONG ulSize,
 					status = DSPTRAP_Trap(&tempStruct,
 							CMD_PROC_RSVMEM_OFFSET);
 				} else {
-					status = DSP_EINVALIDARG;
+					status = -EINVAL;
 					DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT
 						("PROC: size is not 4KB "
 							"page-aligned\r\n")));
 				}
 			} else {
-				status = DSP_ESIZE;
+				status = -EINVAL;
 				DEBUGMSG(DSPAPI_ZONE_ERROR,
 					(TEXT("PROC:size is zero\r\n")));
 			}
 		} else {
-			status = DSP_EPOINTER;
+			status = -EFAULT;
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC:ppRsvAddr is invalid\r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("PROC: Invalid Handle\r\n")));
 	}
 
@@ -591,7 +591,7 @@ DBAPI DSPProcessor_ReserveMemory(DSP_HPROCESSOR hProcessor, ULONG ulSize,
  */
 DBAPI DSPProcessor_UnMap(DSP_HPROCESSOR hProcessor, PVOID pMapAddr)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
@@ -612,13 +612,13 @@ DBAPI DSPProcessor_UnMap(DSP_HPROCESSOR hProcessor, PVOID pMapAddr)
 			status = DSPTRAP_Trap(&tempStruct,
 				CMD_PROC_UNMAPMEM_OFFSET);
 		} else {
-			status = DSP_EPOINTER;
+			status = -EFAULT;
 			DEBUGMSG(DSPAPI_ZONE_ERROR,
 				(TEXT("PROC: pMapAddr is invalid\r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("PROC: Invalid Handle\r\n")));
 	}
 
@@ -637,7 +637,7 @@ DBAPI DSPProcessor_UnMap(DSP_HPROCESSOR hProcessor, PVOID pMapAddr)
  */
 DBAPI DSPProcessor_UnReserveMemory(DSP_HPROCESSOR hProcessor, PVOID pRsvAddr)
 {
-	DSP_STATUS status = DSP_SOK;
+	int status = 0;
 	Trapped_Args tempStruct;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
@@ -659,13 +659,13 @@ DBAPI DSPProcessor_UnReserveMemory(DSP_HPROCESSOR hProcessor, PVOID pRsvAddr)
 			status = DSPTRAP_Trap(&tempStruct,
 					CMD_PROC_UNRSVMEM_OFFSET);
 		} else {
-			status = DSP_EPOINTER;
+			status = -EFAULT;
 			DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT(
 					"PROC: pRsvAddr is invalid\r\n")));
 		}
 	} else {
 		/* Invalid handle */
-		status = DSP_EHANDLE;
+		status = -EFAULT;
 		DEBUGMSG(DSPAPI_ZONE_ERROR, (TEXT("PROC: Invalid Handle\r\n")));
 	}
 #ifdef DEBUG_BRIDGE_PERF

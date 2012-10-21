@@ -41,17 +41,14 @@
 #ifndef OMX_G722DEC_UTILS__H
 #define OMX_G722DEC_UTILS__H
 
-#include <OMX_Component.h>
+#include "OMX_TI_Common.h"
 
 #include "LCML_DspCodec.h"
 
-    #ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#include <stdlib.h>
-#else
 #include <pthread.h>
+
+#ifdef RESOURCE_MANAGER_ENABLED
+#include <ResourceManagerProxyAPI.h>
 #endif
 
 /*#define G722DEC_DEBUG  **/         /* See all debug statement of the component */
@@ -81,36 +78,13 @@
 #define OMX_G722DEC_SN_PRIORITY     (10) /* Priority used by DSP */
 #define G722DEC_CPU                 50 /* TBD, 50MHz for the moment */
 
-#ifdef UNDER_CE
-#define USN_DLL_NAME "\\windows\\usn.dll64P" /* Path of USN DLL */
-#define G722DEC_DLL_NAME "\\windows\\g722dec_sn.dll64P" /* Path of G722 SN DLL */
-#else
 #define USN_DLL_NAME "usn.dll64P" /* Path of USN DLL */
 #define G722DEC_DLL_NAME "g722dec_sn.dll64P" /* Path of G722 SN DLL */
-#endif
 
 #define DONT_CARE 0 /* Value unused or ignored */
 
 /** Default timeout used to come out of blocking calls*/
 #define G722D_TIMEOUT (1000) /* millisecs */
-
-#ifdef UNDER_CE
-
-#ifdef DEBUG
-#define G722DEC_DPRINT       printf
-#define G722DEC_EPRINT       printf
-#define G722DEC_MEMPRINT     printf
-#define G722DEC_STATEPRINT   printf
-#define G722DEC_BUFPRINT     printf
-#else
-#define G722DEC_DPRINT
-#define G722DEC_EPRINT
-#define G722DEC_MEMPRINT
-#define G722DEC_STATEPRINT
-#define G722DEC_BUFPRINT
-#endif
-
-#else /* for Linux */
 
 #ifdef  G722DEC_DEBUG
 
@@ -147,34 +121,6 @@
 
 #endif
 
-#endif /*for UNDER_CE*/
-
-#define G722D_OMX_MALLOC(_pStruct_, _sName_)                        \
-    _pStruct_ = (_sName_*)malloc(sizeof(_sName_));                  \
-    if(_pStruct_ == NULL){                                          \
-        printf("***********************************\n");            \
-        printf("%d :: Malloc Failed\n",__LINE__);                   \
-        printf("***********************************\n");            \
-        eError = OMX_ErrorInsufficientResources;                    \
-        goto EXIT;                                                  \
-    }                                                               \
-    memset(_pStruct_,0,sizeof(_sName_));                            \
-    G722DEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_pStruct_);
-
-
-
-#define G722D_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)             \
-    _ptr_ = (_name_ *)malloc(_size_);                           \
-    if(_ptr_ == NULL){                                          \
-        printf("***********************************\n");        \
-        printf("%d :: Malloc Failed\n",__LINE__);               \
-        printf("***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_ptr_,0,_size_);                                     \
-    G722DEC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_ptr_);
-
 #define G722D_OMX_ERROR_EXIT(_e_, _c_, _s_)                             \
     _e_ = _c_;                                                          \
     printf("\n**************** OMX ERROR ************************\n");  \
@@ -191,13 +137,6 @@
         }                                               \
     }
 
-#define G722D_OMX_FREE(ptr)                                             \
-    if(NULL != ptr) {                                                   \
-        G722DEC_MEMPRINT("%d :: Freeing Address = %p\n",__LINE__,ptr);  \
-        free(ptr);                                                      \
-        ptr = NULL;                                                     \
-    }
-
 #define OMX_CONF_INIT_STRUCT(_s_, _name_)       \
     memset((_s_), 0x0, sizeof(_name_));         \
     (_s_)->nSize = sizeof(_name_);              \
@@ -206,6 +145,12 @@
     (_s_)->nVersion.s.nRevision = 0x0;          \
     (_s_)->nVersion.s.nStep = 0x0
 
+/* ======================================================================= */
+/**
+ *   @def    G722DEC_CPU_LOAD                    CPU Load in MHz
+ */
+/* ======================================================================= */
+#define G722DEC_CPU_LOAD 10
     
 /* ======================================================================= */
 /** OMX_G722DEC_INDEXAUDIOTYPE  Defines the custom configuration settings
@@ -345,19 +290,6 @@ struct _G722D_BUFFERLIST{
 
 typedef struct _G722D_BUFFERLIST G722D_BUFFERLIST;
 
-#ifdef UNDER_CE
-#ifndef _OMX_EVENT_
-#define _OMX_EVENT_
-typedef struct OMX_Event {
-    HANDLE event;
-} OMX_Event;
-#endif
-int OMX_CreateEvent(OMX_Event *event);
-int OMX_SignalEvent(OMX_Event *event);
-int OMX_WaitForEvent(OMX_Event *event);
-int OMX_DestroyEvent(OMX_Event *event);
-#endif
-
 /* ======================================================================= */
 /** G722DEC_COMPONENT_PRIVATE: This is the major and main structure of the
  * component which contains all type of information of buffers, ports etc
@@ -459,6 +391,9 @@ typedef struct G722DEC_COMPONENT_PRIVATE
     /** This is LCML handle  */
     OMX_HANDLETYPE pLcmlHandle;
 
+    /* backup pointer for LCML */
+    void* ptrLibLCML;
+
     /** Contains pointers to LCML Buffer Headers */
     G722D_LCML_BUFHEADERTYPE *pLcmlBufHeader[2];
     OMX_U32 bBufferIsAllocated;
@@ -533,7 +468,6 @@ typedef struct G722DEC_COMPONENT_PRIVATE
     OMX_U32 bIdleCommandPending;
     OMX_U32 nOutStandingFillDones;
     
-#ifndef UNDER_CE        
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -545,17 +479,8 @@ typedef struct G722DEC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif    
 
+    OMX_BOOL DSPMMUFault;
     OMX_BOOL bLoadedCommandPending;
     OMX_PARAM_COMPONENTROLETYPE *componentRole;
     OMX_VERSIONTYPE ComponentVersion;
@@ -568,7 +493,13 @@ typedef struct G722DEC_COMPONENT_PRIVATE
     /** Index to arrTimestamp[], used for input buffer timestamps */ 
     OMX_U8 IpBufindex; 
     /** Index to arrTimestamp[], used for output buffer timestamps */ 
-    OMX_U8 OpBufindex; 
+    OMX_U8 OpBufindex;
+
+#ifdef RESOURCE_MANAGER_ENABLED
+    RMPROXY_CALLBACKTYPE rmproxyCallback;
+#endif
+    OMX_BOOL bPreempted;
+
 } G722DEC_COMPONENT_PRIVATE;
 
 
@@ -591,13 +522,7 @@ typedef struct G722DEC_COMPONENT_PRIVATE
  *  @see          G722Dec_StartCompThread()
  */
 /* ================================================================================ * */
-#ifndef UNDER_CE
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
 
 /* ================================================================================= * */
 /**
@@ -816,6 +741,30 @@ OMX_ERRORTYPE G722DEC_FreeCompResources(OMX_HANDLETYPE pComponent);
  */
 /* ================================================================================ * */
 void G722DEC_CleanupInitParams(OMX_HANDLETYPE pComponent);
+
+/* =================================================================================== */
+/*
+ * G722DEC_ResourceManagerCallback() Callback from Resource Manager
+ *
+ * @param cbData    RM Proxy command data
+ *
+ * @return None
+ */
+/* =================================================================================== */
+#ifdef RESOURCE_MANAGER_ENABLED
+void G722DEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
+#endif
+
+/*  =========================================================================*/
+/*  func    G722DEC_FatalErrorRecover
+*
+*   desc    handles the clean up and sets OMX_StateInvalid
+*           in reaction to fatal errors
+*
+*   @return n/a
+*
+*  =========================================================================*/
+void G722DEC_FatalErrorRecover(G722DEC_COMPONENT_PRIVATE *pComponentPrivate);
 
 /* ================================================================================= * */
 /**

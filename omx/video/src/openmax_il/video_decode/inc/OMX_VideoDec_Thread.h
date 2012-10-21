@@ -44,5 +44,5 @@
 #define EXIT_COMPONENT_THRD  10
 
 void* OMX_VidDec_Thread (void* pThreadData);
-void* OMX_VidDec_Return (void* pThreadData);
+void* OMX_VidDec_Return (void* pThreadData, OMX_U32 nPortId, OMX_BOOL bReturnOnlyOne);
 #endif

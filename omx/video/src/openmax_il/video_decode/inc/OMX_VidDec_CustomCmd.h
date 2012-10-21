@@ -48,6 +48,13 @@
 #define VIDDEC_CUSTOMPARAM_PARSERENABLED "OMX.TI.VideoDecode.Param.ParserEnabled"
 #define VIDDEC_CUSTOMPARAM_ISNALBIGENDIAN "OMX.TI.VideoDecode.Param.IsNALBigEndian"
 #define VIDDEC_CUSTOMCONFIG_DEBUG "OMX.TI.VideoDecode.Debug"
+#define VIDDEC_CUSTOMCONFIG_CACHEABLEBUFFERS "OMX.TI.VideoDecode.CacheableBuffers"
+
+#define VIDDEC_ENABLE_ANDROID_NATIVE_BUFFERS "OMX.google.android.index.enableAndroidNativeBuffers"
+#define VIDDEC_GET_ANDROID_NATIVE_BUFFER_USAGE "OMX.google.android.index.getAndroidNativeBufferUsage"
+#define VIDDEC_ANDROID_USE_ANDROID_NATIVE_BUFFER2 "OMX.google.android.index.useAndroidNativeBuffer2"
+
+
 #ifdef VIDDEC_SPARK_CODE 
  #define VIDDEC_CUSTOMPARAM_ISSPARKINPUT "OMX.TI.VideoDecode.Param.IsSparkInput"
 #endif

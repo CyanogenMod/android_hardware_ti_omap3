@@ -1,24 +1,18 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
- 
-
-/*
- * qosregistry.h
+ * dspbridge/mpu_api/inc/qosregistry.h
  *
  * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 
@@ -253,8 +247,8 @@ struct QOSRESOURCE_PROCESSOR {
 
 	UINT predictedFreq;
 
-
-} ;
+};
+	
 
 /*  ============================================================================
 
@@ -433,11 +427,11 @@ void DSPRegistry_Delete(struct QOSREGISTRY *registry);
 
 	Return
 
-		DSP_OK			successful
+		0			successful
 
-		DSP_ESIZE		block for results is too small
+		-EINVAL		        block for results is too small
 
-		DSP_ENOTFOUND	item not found
+		-ENOENT	                item not found
 
 	Requirement Coverage
 
@@ -445,7 +439,7 @@ void DSPRegistry_Delete(struct QOSREGISTRY *registry);
 
 */
 
-DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
+int DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 									struct QOSDATA **ResultList, ULONG *Size);
 
 /*  ============================================================================
@@ -461,16 +455,16 @@ DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 	Parameters
 
 		listhead		system registry (in the case of adding resources or
-		components to the system)
+					components to the system)
 
-						or component (in the case of adding required resources
-						to a component)
+					or component (in the case of adding required resources
+					to a component)
 
 		entry			entry to add in list
 
 	Return
 
-		DSP_STATUS		Error code or DSP_SOK for success
+		int			Error code or 0 for success
 
 	Requirement Coverage
 
@@ -478,7 +472,7 @@ DSP_STATUS DSPRegistry_Find(UINT Id, struct QOSREGISTRY *registry,
 
 */
 
-DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry);
+int DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry);
 
 /* ============================================================================
 
@@ -492,17 +486,17 @@ DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry);
 
 	Parameters
 
-		listhead		system registry (in the case of removing resources or
-		components from the system)
+		listhead	        system registry (in the case of removing resources or
+				        components from the system)
 
-						or component (in the case of removing required
-						resources from a component)
+					or component (in the case of removing required
+					resources from a component)
 
 		entry			resource or component to remove
 
 	Return
 
-		DSP_STATUS	Error code or DSP_SOK for success
+		int			Error code or 0 for success
 
 	Requirement Coverage
 
@@ -510,7 +504,7 @@ DSP_STATUS DSPRegistry_Add(struct QOSDATA *listhead, struct QOSDATA *entry);
 
 */
 
-DSP_STATUS DSPRegistry_Remove(struct QOSDATA *listhead, struct QOSDATA *entry);
+int DSPRegistry_Remove(struct QOSDATA *listhead, struct QOSDATA *entry);
 
 /*  ============================================================================
 
@@ -567,7 +561,7 @@ ULONG DSPQos_TypeSpecific(struct QOSDATA *DataObject, ULONG FunctionCode,
 
 	Return
 
-		DSP_STATUS		Error code or DSP_SOK for success
+		int			Error code or 0 for success
 
 	Requirement Coverage
 
@@ -575,7 +569,7 @@ ULONG DSPQos_TypeSpecific(struct QOSDATA *DataObject, ULONG FunctionCode,
 
 */
 
-DSP_STATUS DSPComponent_Register(struct QOSREGISTRY *registry,
+int DSPComponent_Register(struct QOSREGISTRY *registry,
 													struct QOSCOMPONENT *comp);
 
 /*  ============================================================================
@@ -599,7 +593,7 @@ DSP_STATUS DSPComponent_Register(struct QOSREGISTRY *registry,
 
 	Return
 
-		DSP_STATUS		Error code or DSP_SOK for success
+		int			Error code or 0 for success
 
 	Requirement Coverage
 
@@ -607,7 +601,7 @@ DSP_STATUS DSPComponent_Register(struct QOSREGISTRY *registry,
 
 */
 
-DSP_STATUS DSPComponent_Unregister(struct QOSREGISTRY *registry,
+int DSPComponent_Unregister(struct QOSREGISTRY *registry,
 													struct QOSCOMPONENT *comp);
 
 /*  ============================================================================
@@ -652,7 +646,7 @@ struct QOSDATA *DSPData_Create(ULONG id);
 
 	Return
 
-		DSP_STATUS		Error code or DSP_SOK for success
+		int			Error code or 0 for success
 
 	Requirement Coverage
 
@@ -660,7 +654,7 @@ struct QOSDATA *DSPData_Create(ULONG id);
 
 */
 
-DSP_STATUS DSPData_Delete(struct QOSDATA *data);
+int DSPData_Delete(struct QOSDATA *data);
 
 /*  ============================================================================
 

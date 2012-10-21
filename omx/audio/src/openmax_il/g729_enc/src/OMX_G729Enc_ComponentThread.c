@@ -61,11 +61,6 @@
  ****************************************************************/
 /* ----- system and platform files ----------------------------*/
 
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#else
 #include <dbapi.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -80,7 +75,6 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/select.h>
-#endif
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
 #endif
@@ -134,14 +128,10 @@ void* G729ENC_CompThread(void* pThreadData)
         tv.tv_sec = 1;
         tv.tv_nsec = 0;
 
-#ifndef UNDER_CE
         sigset_t set;
         sigemptyset (&set);
         sigaddset (&set, SIGALRM);
         status = pselect (fdmax+1, &rfds, NULL, NULL, &tv, &set);
-#else
-        status = select (fdmax+1, &rfds, NULL, NULL, &tv);
-#endif        
         if (0 == status)
         {
             G729ENC_DPRINT("bIsThreadstop=%ld\n", pComponentPrivate->bIsThreadstop);

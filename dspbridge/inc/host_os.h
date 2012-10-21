@@ -1,23 +1,23 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * dspbridge/mpu_api/inc/host_os.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 
 /*
  *  ======== windows.h ========
- *  DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *
  *! Revision History
  *! ================
@@ -58,14 +58,10 @@
 #include <linux/platform_device.h>
 //#include <asm/arch/bus.h>
 
-
-#if defined (OMAP_2430) || defined (OMAP_3430)
+ 
 #include <asm/arch/clock.h>
-#ifdef OMAP_3430
 #include <linux/clk.h>
 //  #include <asm-arm/hardware/clock.h>
-#endif
-#endif
 
 #include <linux/pagemap.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
@@ -85,10 +81,8 @@
 
 
 /* TODO -- Remove, once BP defines them */
-#ifdef OMAP_3430
 #define INT_MAIL_MPU_IRQ        26
 #define INT_DSP_MMU_IRQ        28
-#endif
 
 
 #else
@@ -98,11 +92,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include  <stdbool.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <stdbool.h>
+#ifdef DEBUG_BRIDGE_PERF
+#include <sys/time.h>
+#endif
 #endif
 
 #include <dbtype.h>

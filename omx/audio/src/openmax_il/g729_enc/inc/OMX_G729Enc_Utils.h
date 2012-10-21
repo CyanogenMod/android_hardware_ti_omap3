@@ -63,6 +63,7 @@
 #include "LCML_DspCodec.h"
 #include <OMX_Component.h>
 #include <TIDspOmx.h>
+#include "OMX_TI_Common.h"
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
@@ -71,11 +72,9 @@
 #undef __G729_EPRINT__
 
 
-#ifndef UNDER_CE
 /* For printing errors */
 #define __OMX_EPRINT__
 #undef __G729_EPRINT__
-#endif
 
 #ifdef __PERF_INSTRUMENTATION__
 #include "perf.h"
@@ -94,7 +93,6 @@
 /* ======================================================================= */
 #undef G729ENC_MEMCHECK
 
-#ifndef UNDER_CE
 /*
  *  ANSI escape sequences for outputing text in various colors
  */
@@ -159,36 +157,6 @@ void G729ENC_Log(const char *szFileName, int iLineNum, const char *szFunctionNam
 #endif
 
 
-#else   /*UNDER_CE*/
-/* ======================================================================= */
-/**
- * @def    G729ENC_DEBUG   Debug print macro
- */
-/* ======================================================================= */
-#ifdef  G729ENC_DEBUG
-#define G729ENC_DPRINT(STR, ARG...) printf()
-#endif
-/* ======================================================================= */
-/**
- * @def    G729ENC_MEMCHECK   Memory print macro
- */
-/* ======================================================================= */
-#ifdef  G729ENC_MEMCHECK
-#define G729ENC_MEMPRINT(STR, ARG...) printf()
-#endif
-
-#define G729ENC_EPRINT         printf
-#define OMX_EPRINT             G729ENC_EPRINT
-    
-#ifdef DEBUG
-#define G729ENC_DPRINT     printf
-#define G729ENC_MEMPRINT   printf
-#else
-#define G729ENC_DPRINT
-#define G729ENC_MEMPRINT
-#endif
-
-#endif/*UNDER_CE*/
 
 /* ======================================================================= */
 /**
@@ -204,14 +172,6 @@ void G729ENC_Log(const char *szFileName, int iLineNum, const char *szFunctionNam
     (_s_)->nVersion.s.nRevision = 0x0;          \
     (_s_)->nVersion.s.nStep = 0x0
 
-#define OMX_G729MEMFREE_STRUCT(_pStruct_)                       \
-    if(_pStruct_ != NULL)                                       \
-    {                                                           \
-        G729ENC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
-        free(_pStruct_);                                        \
-        _pStruct_ = NULL;                                       \
-    }
-
 #define OMX_G729CLOSE_PIPE(_pStruct_,err)                       \
     G729ENC_DPRINT("%d :: CLOSING PIPE \n", __LINE__);          \
     err = close (_pStruct_);                                    \
@@ -221,20 +181,6 @@ void G729ENC_Log(const char *szFileName, int iLineNum, const char *szFunctionNam
         printf("%d :: Error while closing pipe\n", __LINE__);   \
         goto EXIT;                                              \
     }
-
-#define OMX_G729MALLOC_STRUCT(_pStruct_, _sName_)                   \
-    _pStruct_ = (_sName_*)malloc(sizeof(_sName_));                  \
-    if(_pStruct_ == NULL)                                           \
-    {                                                               \
-        printf("***********************************\n");            \
-        printf("%d :: Malloc Failed\n", __LINE__);                  \
-        printf("***********************************\n");            \
-        eError = OMX_ErrorInsufficientResources;                    \
-        goto EXIT;                                                  \
-    }                                                               \
-    memset(_pStruct_, 0x0, sizeof(_sName_));                        \
-    G729ENC_MEMPRINT("%d :: [ALLOC] %p\n", __LINE__, _pStruct_);
-
 
 /* ======================================================================= */
 /**
@@ -356,22 +302,14 @@ void G729ENC_Log(const char *szFileName, int iLineNum, const char *szFunctionNam
  * @def    G729ENC_USN_DLL_NAME   USN DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G729ENC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define G729ENC_USN_DLL_NAME "usn.dll64P"
-#endif
 
 /* ======================================================================= */
 /**
  * @def    G729ENC_DLL_NAME   G729 Encoder socket node dll name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G729ENC_DLL_NAME "\\windows\\g729enc_sn.dll64P"
-#else
 #define G729ENC_DLL_NAME "g729enc_sn.dll64P"
-#endif
 
 /* ======================================================================= */
 /**
@@ -630,22 +568,6 @@ typedef struct G729ENC_PORT_TYPE
     OMX_AUDIO_PARAM_PORTFORMATTYPE* pPortFormat;
 } G729ENC_PORT_TYPE;
 
-#ifdef UNDER_CE
-/* =================================================================================== */
-/**
- * OMX_Event Structure for Mutex application under WinCE
- */
-/* =================================================================================== */
-typedef struct OMX_Event
-{
-    HANDLE event;
-} OMX_Event;
-
-int OMX_CreateEvent(OMX_Event *event);
-int OMX_SignalEvent(OMX_Event *event);
-int OMX_WaitForEvent(OMX_Event *event);
-int OMX_DestroyEvent(OMX_Event *event);
-#endif
 
 /* =================================================================================== */
 /**
@@ -828,7 +750,8 @@ typedef struct G729ENC_COMPONENT_PRIVATE
     /** Number of outstanding FillBufferDone() calls */
     OMX_U32 nOutStandingFillDones;
 
-#ifndef UNDER_CE
+    /** Tells whether mutex have been initialized or not */
+    OMX_U32 bMutexInit;
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -840,16 +763,6 @@ typedef struct G729ENC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif
 #ifdef __PERF_INSTRUMENTATION__
     PERF_OBJHANDLE pPERF, pPERFcomp;
     OMX_U32 nLcml_nCntIp;         
@@ -872,6 +785,9 @@ typedef struct G729ENC_COMPONENT_PRIVATE
     OMX_PARAM_COMPONENTROLETYPE componentRole;
     OMX_STRING* sDeviceString;
 
+    /* backup pointer for LCML */
+    void* ptrLibLCML;
+
     /** Keep buffer timestamps **/
     OMX_S64 arrTimestamp[G729ENC_MAX_NUM_OF_BUFS];
 
@@ -886,6 +802,8 @@ typedef struct G729ENC_COMPONENT_PRIVATE
 
     OMX_BOOL bPreempted;
 
+    OMX_BOOL DSPMMUFault;
+
     /** Pointer to RM callback **/
 #ifdef RESOURCE_MANAGER_ENABLED
     RMPROXY_CALLBACKTYPE rmproxyCallback;
@@ -894,11 +812,6 @@ typedef struct G729ENC_COMPONENT_PRIVATE
 } G729ENC_COMPONENT_PRIVATE;
 
 
-#ifndef UNDER_CE
-OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
 /* =================================================================================== */
 /**
  *  OMX_ComponentInit()  Initializes component
@@ -911,8 +824,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
  *
  */
 /* =================================================================================== */
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
+OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 /* =================================================================================== */
 /**
  *  G729ENC_StartComponentThread()  Starts component thread
@@ -1207,6 +1119,18 @@ OMX_ERRORTYPE G729ENC_TransitionToIdle(G729ENC_COMPONENT_PRIVATE *pComponentPriv
  ***********************************/
 void G729ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 #endif
+
+/*  =========================================================================*/
+/*  func    G729ENC_FatalErrorRecover
+*
+*   desc    handles the clean up and sets OMX_StateInvalid
+*           in reaction to fatal errors
+*
+*@return n/a
+*
+*  =========================================================================*/
+void G729ENC_FatalErrorRecover(G729ENC_COMPONENT_PRIVATE *pComponentPrivate);
+
 
 #endif  /* OMX_G729ENC_UTILS__H */
 

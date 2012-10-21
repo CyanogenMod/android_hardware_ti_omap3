@@ -46,6 +46,9 @@
 
 /*------- Structures ----------------------------------------*/
 
+#ifndef __JPEG_OMX_PPLIB_ENABLED__
+#define __JPEG_OMX_PPLIB_ENABLED__
+#endif
 
 typedef struct JPEGENC_CUSTOM_HUFFMAN_TABLE {
 
@@ -92,5 +95,42 @@ typedef struct JPEG_APP13_MARKER {
 	OMX_U32 nMarkerSize;			/* This variable holds the size of the marker buffer */
 } JPEG_APP13_MARKER;
 
+typedef enum JPE_CONVERSION_FLAG_TYPE  {
+    JPE_CONV_NONE = 0,
+    JPE_CONV_RGB32_YUV422I = 1,
+    JPE_CONV_YUV422I_90ROT_YUV422I = 5,
+    JPE_CONV_YUV422I_270ROT_YUV422I = 6,
+    JPE_CONV_YUV422I_90ROT_YUV420P = 7,
+    JPE_CONV_YUV420P_YUV422ILE = 10,
+    JPE_CONV_YUV422I_180ROT_YUV422I = 12
+}JPE_CONVERSION_FLAG_TYPE;
+
+#ifdef __JPEG_OMX_PPLIB_ENABLED__
+typedef struct JPGE_PPLIB_DynamicParams {
+    OMX_U32 nSize; // size of this structure
+    OMX_U32 ulOutPitch;
+    OMX_U32 ulPPLIBVideoGain;
+    OMX_U32 ulPPLIBInWidth;
+    OMX_U32 ulPPLIBOutWidth;
+    OMX_U32 ulPPLIBInHeight;
+    OMX_U32 ulPPLIBOutHeight;
+    OMX_U32 ulPPLIBEnableCropping;
+    OMX_U32 ulPPLIBXstart;
+    OMX_U32 ulPPLIBYstart;
+    OMX_U32 ulPPLIBXsize;
+    OMX_U32 ulPPLIBYsize;
+    OMX_U32 ulPPLIBEnableZoom;
+    OMX_U32 ulPPLIBZoomFactor;
+    OMX_U32 ulPPLIBZoomLimit;
+    OMX_U32 ulPPLIBZoomSpeed;
+    OMX_U32 ulPPLIBLightChroma;
+    OMX_U32 ulPPLIBLockedRatio;
+    OMX_U32 ulPPLIBMirroring;
+    OMX_U32 ulPPLIBRGBrotation;
+    OMX_U32 ulPPLIBYUVRotation;
+    OMX_U32 ulPPLIBIORange;
+    OMX_U32 ulPPLIBDithering;
+} JPGE_PPLIB_DynamicParams;
+#endif
 #endif /* OMX_JPEGENC_CUSTOMCMD_H */
 

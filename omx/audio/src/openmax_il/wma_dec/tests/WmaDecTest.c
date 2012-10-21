@@ -174,6 +174,8 @@ fd_set rfds;
 int done = 0;
 int whileloopdone = 0;
 int frameMode = 0;
+/* Flag to remember that file is re read again for decoding from beginning */
+OMX_U8 fileReRead =0;
 /******************************************************************************/
 OMX_S16 numInputBuffers = 0;
 OMX_S16 numOutputBuffers = 0;
@@ -270,23 +272,25 @@ static OMX_ERRORTYPE WaitForState(OMX_HANDLETYPE* pHandle,
      OMX_ERRORTYPE eError1 = OMX_ErrorNone;
      /*int nCnt = 0;*/
      OMX_COMPONENTTYPE *pComponent = (OMX_COMPONENTTYPE *)pHandle;
-     eError1 = pComponent->GetState(pHandle, &CurState);
-	 if (CurState == OMX_StateInvalid && bInvalidState == OMX_TRUE)
-	 {
-		 	eError1 = OMX_ErrorInvalidState;
-	 }
- 	if( (eError1 == OMX_ErrorNone) &&
-            (CurState != DesiredState) )
+
+    if (bInvalidState == OMX_TRUE)
+    {
+        eError1 = OMX_ErrorInvalidState;
+        return eError1;
+    }
+    pthread_mutex_lock(&WaitForState_mutex);
+    eError1 = pComponent->GetState(pHandle, &CurState);
+    APP_DPRINT("eError=%x,CurState= %d,DesiredState=%d\n",eError1,CurState,DesiredState);
+    if( (eError1 == OMX_ErrorNone) &&(CurState != DesiredState) )
     {
         APP_DPRINT( "%d :: App: WaitForState\n", __LINE__);
         WaitForState_flag = 1;
         TargetedState = DesiredState;
-        pthread_mutex_lock(&WaitForState_mutex); 
         pthread_cond_wait(&WaitForState_threshold, &WaitForState_mutex);/*Going to sleep till signal arrives*/
-        pthread_mutex_unlock(&WaitForState_mutex); 
         APP_DPRINT( "%d :: App: WaitForState\n", __LINE__);
+    }
+    pthread_mutex_unlock(&WaitForState_mutex);
 
-     }
      if( eError1 != OMX_ErrorNone ) return eError1;
      return OMX_ErrorNone;
 }
@@ -320,27 +324,26 @@ OMX_ERRORTYPE EventHandler(OMX_HANDLETYPE hComponent, OMX_PTR pAppData,
        APP_DPRINT("%d :: App: Error returned from GetState\n",__LINE__);
    }
 
-   switch (eEvent) {
-       case OMX_EventCmdComplete:
-			if (nData1 == OMX_CommandPortDisable) {
-				if (nData2 == OMX_DirInput) {
-					APP_DPRINT ( "%d Component State Changed To %d\n", __LINE__,state);
-				}
-				if (nData2 == OMX_DirOutput) {
-					APP_DPRINT ( "%d Component State Changed To %d\n", __LINE__,state);
-				}
-			}
+    switch (eEvent) {
+    case OMX_EventCmdComplete:
+        if (nData1 == OMX_CommandPortDisable) {
+            if (nData2 == OMX_DirInput) {
+                APP_DPRINT ( "%d Component State Changed To %d\n", __LINE__,state);
+            }
+            if (nData2 == OMX_DirOutput) {
+                APP_DPRINT ( "%d Component State Changed To %d\n", __LINE__,state);
+            }
+        }
+        pthread_mutex_lock(&WaitForState_mutex);
+        if ((nData1 == OMX_CommandStateSet) && (TargetedState == nData2) && (WaitForState_flag))
+        {
+            APP_DPRINT( "%d :: App: Component State Changed To %d\n", __LINE__,state);
+            WaitForState_flag = 0;
+            /*Sending Waking Up Signal*/
+            pthread_cond_signal(&WaitForState_threshold);
+        }
+        pthread_mutex_unlock(&WaitForState_mutex);
 
-            if ((nData1 == OMX_CommandStateSet) && 
-				(TargetedState == nData2) && (WaitForState_flag))
-            {
-                APP_DPRINT( "%d :: App: Component State Changed To %d\n", __LINE__,state);
-                WaitForState_flag = 0;
-                pthread_mutex_lock(&WaitForState_mutex);
-                /*Sending Waking Up Signal*/
-                pthread_cond_signal(&WaitForState_threshold);
-                pthread_mutex_unlock(&WaitForState_mutex);
-            }        
             APP_DPRINT( "%d :: App: Component State Changed To %d\n", __LINE__,state);
             break;
 		case OMX_EventResourcesAcquired:
@@ -367,27 +370,27 @@ OMX_ERRORTYPE EventHandler(OMX_HANDLETYPE hComponent, OMX_PTR pAppData,
            }
 	   if (nData1 == OMX_ErrorInvalidState) {
 	   		bInvalidState =OMX_TRUE;
+            if (WaitForState_flag == 1){
+                WaitForState_flag = 0;
+                pthread_mutex_lock(&WaitForState_mutex);
+                pthread_cond_signal(&WaitForState_threshold);
+                pthread_mutex_unlock(&WaitForState_mutex);
+            }
 	   }
            break;
        case OMX_EventMax:
            break;
        case OMX_EventMark:
            break;
-		case OMX_EventBufferFlag:
-			APP_DPRINT( "%d :: App: EOS Event Received\n", __LINE__);
-            if((int)pEventData == OMX_BUFFERFLAG_EOS)
-            {
-                playCompleted = 1;
-				writeValue = 2;  
-				write(Event_Pipe[1], &writeValue, sizeof(OMX_U8));
-            }
-			if(nData2 == (OMX_U32)OMX_BUFFERFLAG_EOS) { 
-				if(nData1 == (OMX_U32)NULL)
-					puts("IN Buffer flag received!");
-				else if(nData1 == (OMX_U32)NULL)
-					puts("OUT Buffer flag received!");
-			}
-			break;
+       case OMX_EventBufferFlag:
+           APP_DPRINT( "%d :: App: EOS Event Received\n", __LINE__);
+           if((nData1 & 0x01) && (nData2 & (OMX_U32)OMX_BUFFERFLAG_EOS))
+           {
+               playCompleted = 1;
+               writeValue = 2;
+               write(Event_Pipe[1], &writeValue, sizeof(OMX_U8));
+           }
+           break;
        default:
            break;
    }
@@ -468,7 +471,7 @@ printf("\n**********************************************************************
     OMX_PARAM_PORTDEFINITIONTYPE* pCompPrivateStruct;
     OMX_AUDIO_PARAM_WMATYPE *pWmaParam;
     OMX_COMPONENTTYPE *pComponent_dasf;
-	OMX_COMPONENTTYPE *pComponent = (OMX_COMPONENTTYPE *)pHandle;
+    OMX_COMPONENTTYPE *pComponent;
     OMX_STATETYPE state;
     /* TODO: Set a max number of buffers */
     OMX_BUFFERHEADERTYPE* pInputBufferHeader[10];
@@ -491,14 +494,12 @@ printf("\n**********************************************************************
     struct timeval tv;
     int retval, i, j;
     int frmCount = 0;
-    int frmCnt = 1;
     int testcnt = 1;
     int testcnt1 = 1;
     int dasfmode = 0;
     int stress = 0;
     OMX_U64 outBuffSize;
-    char fname[15] = "output";
-	
+
     pthread_mutex_init(&WaitForState_mutex, NULL);
     pthread_cond_init (&WaitForState_threshold, NULL);
     WaitForState_flag = 0;    
@@ -623,7 +624,6 @@ printf("\n**********************************************************************
                printf ("-------------------------------------\n");
                printf ("Testing Stop and Play \n");
                printf ("-------------------------------------\n");
-               strcat(fname,"_tc2.pcm");
                testcnt = 2;
                break;
         case 3:
@@ -640,37 +640,34 @@ printf("\n**********************************************************************
                printf ("-------------------------------------------------\n");
                printf ("Testing Repeated PLAY without Deleting Component\n");
                printf ("-------------------------------------------------\n");
-               strcat(fname,"_tc5.pcm");
-				if (stress)
-				{
-					testcnt = 100;
-					printf("******   Stress testing selected, running 100 iterations   ******\n");
-				}
-				else
-				{
-					testcnt = STRESS_TEST_INTERATIONS;
-				}
+               if (stress)
+               {
+                    testcnt = 100;
+                    printf("******   Stress testing selected, running 100 iterations   ******\n");
+               }
+               else
+               {
+                    testcnt = STRESS_TEST_INTERATIONS;
+               }
                break;
         case 6:
                printf ("------------------------------------------------\n");
                printf ("Testing Repeated PLAY with Deleting Component\n");
                printf ("------------------------------------------------\n");
-               strcat(fname,"_tc6.pcm");
-			   	if (stress)
-				{
-					testcnt1 = 100;
-					printf("******   Stress testing selected, running 100 iterations   ******\n");
-				}
-				else
-				{
-					testcnt1 = STRESS_TEST_INTERATIONS;
-				}
+               if (stress)
+               {
+                    testcnt1 = 100;
+                    printf("******   Stress testing selected, running 100 iterations   ******\n");
+               }
+               else
+               {
+                    testcnt1 = STRESS_TEST_INTERATIONS;
+               }
                break;
         case 7:
                printf ("------------------------------------------------\n");
                printf ("Testing Window Play\n");
                printf ("------------------------------------------------\n");
-               strcat(fname,"_tc6.pcm");
                break;
         case 8:
             printf ("------------------------------------------------\n");
@@ -678,13 +675,12 @@ printf("\n**********************************************************************
             printf ("------------------------------------------------\n");
             sampleRateChange = 1;
             break;
-		case 9:
-		   printf ("------------------------------------------------------------\n");
-		   printf ("Testing Ringtone test\n");
-		   printf ("------------------------------------------------------------\n");
-		   strcat(fname,"_tc9.pcm");
-		   testcnt = 10;
-		   break;	
+        case 9:
+            printf ("------------------------------------------------------------\n");
+            printf ("Testing Ringtone test\n");
+            printf ("------------------------------------------------------------\n");
+            testcnt = 10;
+            break;
     }
 
     APP_DPRINT("%d :: WmaTest\n",__LINE__);
@@ -707,6 +703,7 @@ printf("\n**********************************************************************
         whileloopdone = 0;
         if(j > 0) {
             printf ("=Decoding the file %d Time\n",j+1);
+            fileReRead =1;
             close(IpBuf_Pipe[0]);
             close(IpBuf_Pipe[1]);
             close(OpBuf_Pipe[0]);
@@ -736,11 +733,12 @@ printf("\n**********************************************************************
                                                                    access\n", argv[1]);
                 goto EXIT;
             }
-            fOut = fopen(fname, "w");
+            fOut = fopen(argv[2], "w");
             if( fOut == NULL ) {
                 fprintf(stderr, "Error:  failed to create the output file \n");
                 goto EXIT;
             }
+
             error = TIOMX_Init();
 			if(error != OMX_ErrorNone) {
 			APP_DPRINT("%d [GSMFRTEST] Error returned by OMX_Init()\n",__LINE__);
@@ -785,6 +783,10 @@ printf("\n**********************************************************************
 
     APP_DPRINT("%d :: WmaTest\n",__LINE__);
     pCompPrivateStruct = newmalloc (sizeof (OMX_PARAM_PORTDEFINITIONTYPE));
+    if (pCompPrivateStruct == NULL) {
+        printf("Could not allocate pCompPrivateStruct\n");
+        goto EXIT;
+    }
     ArrayOfPointers[0]=(OMX_PARAM_PORTDEFINITIONTYPE*)pCompPrivateStruct;
     APP_MEMPRINT("%d:::[TESTAPPALLOC] %p\n",__LINE__,pCompPrivateStruct);
 
@@ -941,6 +943,10 @@ printf("\n**********************************************************************
     }
 
     pWmaParam = newmalloc (sizeof (OMX_AUDIO_PARAM_WMATYPE));
+    if (pWmaParam == NULL) {
+        printf("Could not allocate pWmaParam\n");
+        goto EXIT;
+    }
     ArrayOfPointers[2]=(OMX_AUDIO_PARAM_WMATYPE*)pWmaParam;
     APP_MEMPRINT("%d:::[TESTAPPALLOC] %p\n",__LINE__,pWmaParam);
     pWmaParam->nSize = sizeof (OMX_AUDIO_PARAM_WMATYPE);
@@ -1032,6 +1038,7 @@ printf("\n**********************************************************************
             whileloopdone = 0;
         if(i > 0) {
             printf ("Decoding the file %d Time\n",i+1);
+            fileReRead =1;
 
             close(IpBuf_Pipe[0]);
             close(IpBuf_Pipe[1]);
@@ -1056,7 +1063,7 @@ printf("\n**********************************************************************
                 fprintf(stderr, "Error:  failed to open the file %s for readonly access\n", argv[1]);
                 goto EXIT;
             }
-            fOut = fopen(fname, "w");
+            fOut = fopen(argv[2], "w");
             if(fOut == NULL) {
                 fprintf(stderr, "Error:  failed to create the output file \n");
                 goto EXIT;
@@ -1200,10 +1207,9 @@ printf("\n**********************************************************************
                            printf ("Error While reading input pipe\n");
                            goto EXIT;
                        }
-                       frmCnt++;
                     }
                     break;
-					
+
             case 7:
                     if(FD_ISSET(IpBuf_Pipe[0], &rfds)) {
                        OMX_BUFFERHEADERTYPE* pBuffer;
@@ -1213,25 +1219,14 @@ printf("\n**********************************************************************
                            printf ("Error While reading input pipe\n");
                            goto EXIT;
                        }
-                       frmCnt++;
                     }
                     break;
-					
-            case 2:
+
+            case 2: /* Stop and play again */
                     if(frmCount == 10) {
                         printf (" Sending Stop command to Codec \n");
-                        
-#ifdef OMX_GETTIME
-                        GT_START();
-                        error = OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateIdle, NULL);
-                        GT_END("Call to SendCommand <OMX_StateIdle> ");
-#else
-                        error = OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateIdle, NULL);
-#endif
-                        if(error != OMX_ErrorNone) {
-                            fprintf (stderr,"Error from SendCommand-Pasue State function\n");
-                            goto EXIT;
-                        }
+                        StopComponent(pHandle);
+                        break;
                     }
                     if(FD_ISSET(IpBuf_Pipe[0], &rfds)) {
                        OMX_BUFFERHEADERTYPE* pBuffer;
@@ -1242,43 +1237,43 @@ printf("\n**********************************************************************
                            printf ("Error While reading input pipe\n");
                            goto EXIT;
                        }
-                       frmCnt++;
                     }
                     break;
-					
             case 4:
-                if(FD_ISSET(IpBuf_Pipe[0], &rfds)) {
+                    if (FD_ISSET(IpBuf_Pipe[0], &rfds)) {
 
-                    OMX_BUFFERHEADERTYPE* pBuffer;
-                    read(IpBuf_Pipe[0], &pBuffer, sizeof(pBuffer));
-                    
-                    if(frmCount >= 5) {
-                        fprintf(stderr, "Shutting down ---------- \n");
+                        if (!done) {
+                            OMX_BUFFERHEADERTYPE* pBuffer;
+                            read(IpBuf_Pipe[0], &pBuffer, sizeof(pBuffer));
+                            if (frmCount >= 5) {
+                                fprintf(stderr, "Shutting down ---------- \n");
 #ifdef OMX_GETTIME
-                        GT_START();
-                        error = OMX_SendCommand(pHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
-                        GT_END("Call to SendCommand <OMX_StateIdle>");
+                                GT_START();
+                                error = OMX_SendCommand(pHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);
+                                GT_END("Call to SendCommand <OMX_StateIdle>");
 #else
-                        error = OMX_SendCommand(pHandle,OMX_CommandStateSet, OMX_StateIdle, NULL);;
+                                error = OMX_SendCommand(pHandle,
+                                        OMX_CommandStateSet, OMX_StateIdle,
+                                        NULL);
 #endif
-                        
-                        if(error != OMX_ErrorNone) {
-                            fprintf (stderr,"Error from SendCommand-Idle(Stop) State function\n");
-                            goto EXIT;
+                                if (error != OMX_ErrorNone) {
+                                    fprintf(stderr,
+                                            "Error from SendCommand-Idle(Stop) State function\n");
+                                    goto EXIT;
+                                }
+                                done = 1;
+                            } else {
+                                error
+                                        = send_input_buffer(pHandle, pBuffer,
+                                                fIn);
+                                if (error != OMX_ErrorNone) {
+                                    printf("Error While reading input pipe\n");
+                                    goto EXIT;
+                                }
+                            }
                         }
-                        done = 1;
                     }
-                    else {
-                        error = send_input_buffer (pHandle, pBuffer, fIn);
-                        if (error != OMX_ErrorNone) {
-                            printf ("Error While reading input pipe\n");
-                            goto EXIT;
-                        }
-                    }
-                    frmCnt++;
-                }
-                 break;
-				 
+                    break;
             case 3:
                     if (frmCount == 8) {
                         printf (" Sending Resume command to Codec \n");
@@ -1332,25 +1327,24 @@ printf("\n**********************************************************************
                            printf ("Error While reading input pipe\n");
                            goto EXIT;
                        }
-                       frmCnt++;
                     }
                     break;
-			case 9:
-					if(FD_ISSET(IpBuf_Pipe[0], &rfds)) {
-						OMX_BUFFERHEADERTYPE* pBuffer;
-						read(IpBuf_Pipe[0], &pBuffer, sizeof(pBuffer));
-						if(!playCompleted && pBuffer->nFlags!=OMX_BUFFERFLAG_EOS){
-							pBuffer->nFlags = 0;
-                            error = send_input_buffer (pHandle, pBuffer, fIn);
-                        }
-						
-						if (error != OMX_ErrorNone) {
-							goto EXIT;
-						}
-						frmCnt++;
-					}
-					break;
-					
+            case 9:
+                if(FD_ISSET(IpBuf_Pipe[0], &rfds)) {
+                    OMX_BUFFERHEADERTYPE* pBuffer;
+                    read(IpBuf_Pipe[0], &pBuffer, sizeof(pBuffer));
+
+                    if(!playCompleted && pBuffer->nFlags!=OMX_BUFFERFLAG_EOS){
+                        pBuffer->nFlags = 0;
+                        error = send_input_buffer (pHandle, pBuffer, fIn);
+                    }
+
+                    if (error != OMX_ErrorNone) {
+                        goto EXIT;
+                    }
+                }
+                break;
+
             default:
                     APP_DPRINT("%d :: ### Running Simple DEFAULT Case Here ###\n",__LINE__);
             }
@@ -1377,7 +1371,6 @@ printf("\n**********************************************************************
 			
             if(done == 1) {
                 error = pComponent->GetState(pHandle, &state);
-    			printf("done\n");
                 if(error != OMX_ErrorNone) {
                     APP_DPRINT("%d:: Warning:  hWmaEncoder->GetState has returned status %X\n",
                                                                                       __LINE__, error);
@@ -1471,7 +1464,7 @@ printf("\n**********************************************************************
     if(error != OMX_ErrorNone) {
         APP_DPRINT( "Error:  hWmaEncoder->WaitForState reports an error %X\n", error);
         goto EXIT;
-    }	
+    }
 
 #ifdef USE_BUFFER
     APP_MEMPRINT("%d:::[TESTAPPFREE] %p\n",__LINE__,pInputBuffer);
@@ -1541,7 +1534,16 @@ EXIT:
 									numOutputBuffers,
 									fIn,fOut);
 #endif
-	}else{	
+	}
+	else{
+	    if(fOut != NULL)	{
+                fclose(fOut);
+                fOut=NULL;
+	    }
+	    if(fIn != NULL){
+	        fclose(fIn);
+                fIn=NULL;
+	    }
 	}
 #ifdef OMX_GETTIME
   GT_END("WMA_DEC test <End>");
@@ -1576,7 +1578,7 @@ OMX_ERRORTYPE send_input_buffer(OMX_HANDLETYPE pHandle, OMX_BUFFERHEADERTYPE* pB
         lastBufferSent = 1;
     }
     else {
-        APP_DPRINT("Send input buffer nRead = %d\n",nRead);
+      //  APP_DPRINT("Send input buffer nRead = %d\n",nRead);
         pBuffer->nFilledLen = nRead;
         if(!(pBuffer->nFlags & OMX_BUFFERFLAG_CODECCONFIG)){
           pBuffer->nFlags = 0;
@@ -1633,11 +1635,19 @@ int fill_data (OMX_BUFFERHEADERTYPE *pBuf,FILE *fIn)
     static OMX_U8 first_buff = 0;
     static int totalRead = 0;
     static int fileHdrReadFlag = 0;
-    static int ccnt = 1;
     static int payload=0;
     OMX_U8 temp = 0;
     nRead = 0;
     byteOffset = 0;
+    if(fileReRead)
+    {
+        first_cap = 0;
+        first_buff = 0;
+        totalRead = 0;
+        fileHdrReadFlag = 0;
+        payload=0;
+        fileReRead =0;
+    }
     if(frameMode)
     {
       /* TODO: Update framemode TC to match component */
@@ -1680,7 +1690,6 @@ int fill_data (OMX_BUFFERHEADERTYPE *pBuf,FILE *fIn)
     APP_DPRINT("%d :: App:: Read IpBuff = %p pBuf->nAllocLen = * %ld, nRead = %ld\n",
                    __LINE__, pBuf->pBuffer, pBuf->nAllocLen, nRead);
     APP_DPRINT("\n*****************************************************\n");    
-    ccnt++;
     return nRead;
 }
 
@@ -1697,13 +1706,22 @@ int fill_data_tc7 (OMX_BUFFERHEADERTYPE *pBuf,FILE *fIn)
     int nRead;
     static int totalRead = 0;
     static int fileHdrReadFlag = 0;
-    static int ccnt = 1;
     OMX_U8* tempBuffer; 
     OMX_U8* pBufferOffset;
 
+    if(fileReRead)
+    {
+        totalRead = 0;
+        fileHdrReadFlag = 0;
+        fileReRead =0;
+    }
     if (!fileHdrReadFlag) {
         nRead = fread(pBuf->pBuffer, 1,75 , fIn);
         tempBuffer = newmalloc(19500*sizeof(OMX_U8));
+	 if (tempBuffer == NULL) {
+              printf("Could not allocate tempBuffer\n");
+		return nRead;
+        }
         fread(tempBuffer, 1, 19500, fIn);
         newfree(tempBuffer);
         pBufferOffset = pBuf->pBuffer;
@@ -1721,7 +1739,6 @@ int fill_data_tc7 (OMX_BUFFERHEADERTYPE *pBuf,FILE *fIn)
 
     totalRead += nRead;
     pBuf->nFilledLen = nRead;
-    ccnt++;
     return nRead;
 }
 
@@ -1736,7 +1753,12 @@ float calc_buff_size(FILE *fIn)
     float outBuffSize;
     OMX_U8* pBuffer;
     pBuffer = newmalloc((OMX_U8) 100); 
-        
+
+    if (pBuffer == NULL) {
+        printf("Could not allocate pBuffer\n");
+	 return 0;
+    }
+
     /*Read first 70 bytes header + 5 bytes first packet header*/
     nRead = fread(pBuffer, 1, 70, fIn);
     /*for(i = 0; i < 70; i++)
@@ -1824,9 +1846,6 @@ void fill_init_params(OMX_HANDLETYPE pHandle,const char * filename,int dasfmode,
 		goto EXIT;
     }
 #endif    
-    /*dspDefinition.streamId = cmd_data.streamID; */
-    if(dspDefinition.dasfMode)
-        printf("***************StreamId=%d******************\n", (int)dspDefinition.streamId);
 
     error = OMX_SetConfig(pHandle,index,&dspDefinition);
 	if (error != OMX_ErrorNone) {
@@ -2056,6 +2075,10 @@ int freeAllUseResources(OMX_HANDLETYPE pHandle,
 int unParse_Header (OMX_U8* pBuffer, FILE *fIn, int * payload){
 
   OMX_U8* tempBuffer= malloc(75);
+  if (tempBuffer == NULL) {
+      printf("Could not allocate tempBuffer\n");
+      return 0;
+  }
   memset(pBuffer,0x00,75);
   memset(tempBuffer,0x00,75);
   fread(tempBuffer,75,1,fIn);

@@ -47,22 +47,12 @@
 #include "LCML_DspCodec.h"
 #include <pthread.h>
 #include <sched.h>
-
+#include "usn.h"
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
 #endif
 
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#include <stdlib.h>
-#endif
-#ifndef UNDER_CE
 #define AUDIO_MANAGER
-#else
-#undef AUDIO_MANAGER
-#endif
 
 #ifdef __PERF_INSTRUMENTATION__
 #include "perf.h"
@@ -144,34 +134,17 @@
 
 /* ======================================================================= */
 /**
- * Wince #define
- *
- */
-/* ======================================================================= */
-#ifdef UNDER_CE
-#define sleep Sleep
-#endif
-/* ======================================================================= */
-/**
  * @def    AACDEC_USN_DLL_NAME   USN DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define AACDEC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define AACDEC_USN_DLL_NAME "usn.dll64P"
-#endif
 
 /* ======================================================================= */
 /**
  * @def    AACDEC_DLL_NAME   AAC Dec Decoder socket node DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define AACDEC_DLL_NAME "\\windows\\mpeg4aacdec_sn.dll64P"
-#else
 #define AACDEC_DLL_NAME "mpeg4aacdec_sn.dll64P"
-#endif
 
 #define DONT_CARE 0
 
@@ -210,44 +183,18 @@
 #undef AACDEC_DEBUG 
 #define _ERROR_PROPAGATION__
 
-#ifdef UNDER_CE
-
 /* ======================================================================= */
 /**
  * @def    DEBUG   Memory print macro
  */
 /* ======================================================================= */
-#if DEBUG
-#define AACDEC_DPRINT printf
-#define AACDEC_MEMPRINT printf
-#define AACDEC_STATEPRINT printf
-#define AACDEC_BUFPRINT printf
-#define AACDEC_MEMPRINT printf
-#define AACDEC_EPRINT printf
-#else
-#define AACDEC_DPRINT
-#define AACDEC_MEMPRINT
-#define AACDEC_STATEPRINT
-#define AACDEC_BUFPRINT
-#define AACDEC_MEMPRINT
-#define AACDEC_EPRINT
-#endif
-
-#else /* for Linux */
 
 #ifdef  AACDEC_DEBUG
     #define AACDEC_DPRINT printf
     #undef AACDEC_BUFPRINT printf
     #undef AACDEC_MEMPRINT printf
-    #define AACDEC_STATEPRINT printf
 #else
     #define AACDEC_DPRINT(...)
-#endif
-
-#ifdef AACDEC_STATEDETAILS
-    #define AACDEC_STATEPRINT printf
-#else
-    #define AACDEC_STATEPRINT(...)
 #endif
 
 #ifdef AACDEC_BUFDETAILS
@@ -265,9 +212,6 @@
 #endif
 
 #define AACDEC_EPRINT ALOGE
-
-#endif
-
 
 /* ======================================================================= */
 /**
@@ -289,8 +233,8 @@
 #define AACDEC_OMX_CONF_CHECK_CMD(_ptr1, _ptr2, _ptr3)  \
     {                                                   \
         if(!_ptr1 || !_ptr2 || !_ptr3){                 \
-            eError = OMX_ErrorBadParameter;             \
-            goto EXIT;                                  \
+            OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d : AACDEC_OMX_CONF_CHECK_CMD - Invalid Pointer",__LINE__);\
+            return OMX_ErrorBadParameter;             \
         }                                               \
     }
 
@@ -400,13 +344,6 @@
 #define STEREO_INTERLEAVED_STREAM_AACDEC     2
 #define STEREO_NONINTERLEAVED_STREAM_AACDEC  3
 
-/* ======================================================================= */
-/**
- * pthread variable to indicate OMX returned all buffers to app 
- */
-/* ======================================================================= */
-pthread_mutex_t bufferReturned_mutex; 
-pthread_cond_t bufferReturned_condition;
 
 /**
  *
@@ -453,7 +390,8 @@ typedef enum OMX_INDEXAUDIOTYPE_AACDEC {
     OMX_IndexCustomAacDecHeaderInfoConfig = 0xFF000001,
     OMX_IndexCustomAacDecStreamIDConfig,
     OMX_IndexCustomAacDecDataPath,
-    OMX_IndexCustomDebug
+    OMX_IndexCustomDebug,
+    OMX_IndexCustomAacDecFrameModeConfig
 }OMX_INDEXAUDIOTYPE_AACDEC;
 
 /* ======================================================================= */
@@ -498,61 +436,23 @@ typedef struct {
     long       dualMonoMode;
 } MPEG4AACDEC_UALGParams;
 
+
 /* ======================================================================= */
-/** IUALG_Cmd_AAC_DEC: This enum type describes the standard set of commands that
- * will be passed to iualg control API at DSP. This enum is taken as it is from
- * DSP side USN source code.
- *
- * @param IUALG_CMD_STOP: This command indicates that higher layer framework
- * has received a stop command and no more process API will be called for the
- * current data stream. The iualg layer is expected to ensure that all processed
- * output as is put in the output IUALG_Buf buffers and the state of all buffers
- * changed as to free or DISPATCH after this function call.
- *
- * @param IUALG_CMD_PAUSE: This command indicates that higher layer framework
- * has received a PAUSE command on the current data stream. The iualg layer
- * can change the state of some of its output IUALG_Bufs to DISPATCH to enable
- * high level framework to use the processed data until the command was received.
- *
- * @param IUALG_CMD_GETSTATUS: This command indicates that some algo specific
- * status needs to be returned to the framework. The pointer to the status
- * structure will be in IALG_status * variable passed to the control API.
- * The interpretation of the content of this pointer is left to IUALG layer.
- *
- * @param IUALG_CMD_SETSTATUS: This command indicates that some algo specific
- * status needs to be set. The pointer to the status structure will be in
- * IALG_status * variable passed to the control API. The interpretation of the
- * content of this pointer is left to IUALG layer.
- *
- * @param IUALG_CMD_USERCMDSTART: The algorithm specific control commands can
- * have the enum type set from this number.
+/** IAAC_WARN_MSG:  The first two warnings are used when SBR and PS content
+ *  is detected. The INVALID type of warnings indicate the ARM side that
+ *  dynamic parameters are out of range.  These warnings are defined as
+ *  macros in mpeg4aacdec_ualg.h.
  */
-/* ==================================================================== */
-
-typedef enum {
-    IUALG_CMD_STOP          = 0,
-    IUALG_CMD_PAUSE         = 1,
-    IUALG_CMD_GETSTATUS     = 2,
-    IUALG_CMD_SETSTATUS     = 3,
-    IUALG_CMD_USERCMDSTART_AACDEC  = 100
-}IUALG_Cmd_AAC_DEC;
-
+/* ======================================================================= */
 typedef enum{
-  IAAC_WARN_DATA_CORRUPT = 0x0804
+    IAAC_WARN_SBR_PRESENT = 0x0601,
+    IAAC_WARN_PS_PRESENT,
+    IAAC_WARN_INVALID_DNSAMPLESBR= 0x0800,
+    IAAC_WARN_INVALID_ENABLEPS,
+    IAAC_WARN_INVALID_DUALMONOMODE, /* Invalid dual mono rendering mode */
+    IAAC_WARN_ENABLEPS_NOTSET, /* to indicate in case of PS stream and EnablePS not set */
+    IAAC_WARN_DATA_CORRUPT /*to indicate that the input buffer sent to DSP has corrupted data */
 }IAAC_WARN_MSG;
-
-#ifdef UNDER_CE
-#ifndef _OMX_EVENT_
-#define _OMX_EVENT_
-typedef struct OMX_Event {
-    HANDLE event;
-} OMX_Event;
-#endif
-int OMX_CreateEvent(OMX_Event *event);
-int OMX_SignalEvent(OMX_Event *event);
-int OMX_WaitForEvent(OMX_Event *event);
-int OMX_DestroyEvent(OMX_Event *event);
-#endif
 
 /* ======================================================================= */
 /** IUALG_PCMDCmd: This enum specifies the command to DSP.
@@ -561,7 +461,7 @@ int OMX_DestroyEvent(OMX_Event *event);
  */
 /* ==================================================================== */
 typedef enum {
-    IULAG_CMD_SETSTREAMTYPE = IUALG_CMD_USERCMDSTART_AACDEC
+    IULAG_CMD_SETSTREAMTYPE = IUALG_CMD_USERSETCMDSTART
 }IUALG_PCMDCmd;
 
 /* ======================================================================= */
@@ -573,6 +473,7 @@ typedef struct {
     /* Set to 1 if buffer is last buffer */
     unsigned short bLastBuffer;
     unsigned short bConcealBuffer;
+    unsigned long ulFrameIndex;
 }AACDEC_UAlgInBufParamStruct;
 
 /* ======================================================================= */
@@ -597,6 +498,7 @@ typedef struct USN_AudioCodecParams{
 typedef struct {
     unsigned long ulFrameCount;
     unsigned long isLastBuffer;
+    unsigned long ulFrameIndex;
 }AACDEC_UAlgOutBufParamStruct;
 
 typedef struct AACDEC_UALGParams{
@@ -761,7 +663,8 @@ typedef struct AACDEC_COMPONENT_PRIVATE
 
     /** This is LCML handle  */
     OMX_HANDLETYPE pLcmlHandle;
-
+    /** Needed to free LCML lib dll **/
+    void* ptrLibLCML;
     /** ID stream ID**/
     OMX_U32 streamID;
     /** Contains pointers to LCML Buffer Headers */
@@ -869,7 +772,6 @@ typedef struct AACDEC_COMPONENT_PRIVATE
     OMX_S32 nOutStandingFillDones;
     OMX_BOOL bIsInvalidState;
     OMX_STRING* sDeviceString;
-#ifndef UNDER_CE    
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -890,22 +792,14 @@ typedef struct AACDEC_COMPONENT_PRIVATE
     pthread_cond_t codecFlush_threshold;
     OMX_U8 codecFlush_waitingsignal;
 
-    OMX_U32 nUnhandledFillThisBuffers;
+    /* pthread variable to indicate OMX returned all buffers to app */
+    pthread_mutex_t bufferReturned_mutex;
+    pthread_cond_t bufferReturned_condition;
+
     OMX_U32 nHandledFillThisBuffers;
-    OMX_U32 nUnhandledEmptyThisBuffers;
     OMX_U32 nHandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif
 
     OMX_BOOL bLoadedCommandPending;
     OMX_PARAM_COMPONENTROLETYPE *componentRole;
@@ -940,11 +834,13 @@ typedef struct AACDEC_COMPONENT_PRIVATE
     OMX_BOOL reconfigInputPort;
     OMX_BOOL reconfigOutputPort;
     OMX_U8 OutPendingPR;
-
+    OMX_U8 multiframeMode;
     struct OMX_TI_Debug dbg;
 
-    /** Indicate when first output buffer received from DSP **/
+      /** Indicate when first output buffer received from DSP **/
     OMX_U32 first_output_buf_rcv;
+    OMX_BOOL bFlushing;
+    OMX_BOOL DSPMMUFault;
 
 } AACDEC_COMPONENT_PRIVATE;
 
@@ -966,25 +862,7 @@ typedef struct AACDEC_COMPONENT_PRIVATE
  *  @see          AacDec_StartCompThread()
  */
 /* ================================================================================ * */
-#ifndef UNDER_CE
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
-/* ===========================================================  */
-/**
- *  OMX_ComponentInit()  Initializes component
- *
- *
- *  @param hComp            OMX Handle
- *
- *  @return OMX_ErrorNone = Successful
- *          Other error code = fail
- *
- */
-/*================================================================== */
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
 
 /* ================================================================================= * */
 /**
@@ -1295,7 +1173,7 @@ void AACDEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
  */
 /*=======================================================================*/
 int AACDec_GetSampleRateIndexL( const int aRate);
-int AACDec_GetSampleRatebyIndex( const int index);
+OMX_U32 AACDec_GetSampleRatebyIndex( const int index);
 void* AACDEC_ComponentThread (void* pThreadData);
 
 OMX_U32 AACDEC_ParseHeader(OMX_BUFFERHEADERTYPE* pBufHeader,
@@ -1314,18 +1192,28 @@ OMX_U32 AACDEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BO
  *
  *  desc    Handles error messages returned by the dsp
  *
- * @Return n/a
- *
- *  =========================================================================*/
+ *  @return n/a
+ */
+/*  =========================================================================*/
 void AACDEC_HandleUSNError (AACDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
 /*=======================================================================*/
-/*! @fn SignalIfAllBuffersAreReturned 
+/*! @fn AACDEC_SignalIfAllBuffersAreReturned
  * @brief Sends pthread signal to indicate OMX has returned all buffers to app 
  * @param  none 
  * @Return void 
  */
 /*=======================================================================*/
-void SignalIfAllBuffersAreReturned(AACDEC_COMPONENT_PRIVATE *pComponentPrivate);
+void AACDEC_SignalIfAllBuffersAreReturned(AACDEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 counterport);
 
+/*  =========================================================================*/
+/*  func    AACDEC_FatalErrorRecover
+*
+*   desc    handles the clean up and sets OMX_StateInvalid
+*           in reaction to fatal errors
+*
+*@return n/a
+*
+*  =========================================================================*/
+void AACDEC_FatalErrorRecover(AACDEC_COMPONENT_PRIVATE *pComponentPrivate);
 #endif

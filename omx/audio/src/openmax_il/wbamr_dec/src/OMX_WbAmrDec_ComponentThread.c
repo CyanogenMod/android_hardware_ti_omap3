@@ -50,9 +50,6 @@
  *  INCLUDE FILES
  ****************************************************************/
 /* ----- system and platform files ----------------------------*/
-#ifdef UNDER_CE
-#include <windows.h>
-#else
 #include <wchar.h>
 #include <unistd.h>
 #include <dbapi.h>
@@ -62,12 +59,11 @@
 #include <stdio.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/prctl.h>
 #include <signal.h>
-#endif
-#ifdef ANDROID
 #include <sys/resource.h>
+#ifdef ANDROID
 #include <utils/threads.h>
-#include <linux/prctl.h>
 #endif
 #include "OMX_WbAmrDec_Utils.h"
 #include "OMX_WbAmrDecoder.h"
@@ -94,11 +90,8 @@ void* WBAMR_DEC_ComponentThread (void* pThreadData)
     OMX_BUFFERHEADERTYPE *pBufHeader = NULL;
     ssize_t ret;
 
-#ifdef ANDROID
     setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_AUDIO);
-    prctl(PR_SET_NAME, (unsigned long)"WBAMRComponent", 0, 0, 0);
-#endif
-
+    prctl(PR_SET_NAME, (unsigned long) "OMX-WBAMRDEC", 0, 0, 0);
     OMX_PRINT1(pComponentPrivate->dbg, "Entering\n");
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -122,14 +115,10 @@ void* WBAMR_DEC_ComponentThread (void* pThreadData)
         tv.tv_nsec = 0;
 
         OMX_PRINT1(pComponentPrivate->dbg, "AmrComponentThread \n");
-#ifndef UNDER_CE
         sigset_t set;
         sigemptyset (&set);
         sigaddset (&set, SIGALRM);
         status = pselect (fdmax+1, &rfds, NULL, NULL, &tv, &set);
-#else
-        status = select (fdmax+1, &rfds, NULL, NULL, &tv);
-#endif
 
         if (pComponentPrivate->bIsStopping == 1) {
             OMX_ERROR4(pComponentPrivate->dbg, "Comp Thrd Exiting here...\n");

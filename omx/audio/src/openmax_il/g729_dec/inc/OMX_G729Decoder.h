@@ -157,20 +157,6 @@
 
 /* ======================================================================= */
 /**
- * @def    EXTRA_BUFFBYTES                Num of Extra Bytes to be allocated
- */
-/* ======================================================================= */
-#define EXTRA_BUFFBYTES (256)
-
-/* ======================================================================= */
-/**
- * @def  CACHE_ALIGNMENT                           Buffer Cache Alignment
- */
-/* ======================================================================= */
-#define CACHE_ALIGNMENT 128
-
-/* ======================================================================= */
-/**
  * @def    NUM_OF_PORTS                       Number of Comunication Port
  */
 /* ======================================================================= */
@@ -179,21 +165,9 @@
 /* ======================================================================= */
 #define G729DEC_CPU 50 /* TBD, 50MHz for the moment */
 /* ======================================================================= 
- * @def OMX_G729MALLOC_STRUCT                          structure allocation macro
+ *  macros
  */
 /* ======================================================================= */
-#define OMX_G729MALLOC_STRUCT(_pStruct_, _sName_)               \
-    _pStruct_ = (_sName_*)malloc(sizeof(_sName_));              \
-    if(_pStruct_ == NULL){                                      \
-        printf("***********************************\n");        \
-        printf("%d :: Malloc Failed\n",__LINE__);               \
-        printf("***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_pStruct_, 0x0, sizeof(_sName_));                    \
-    G729DEC_MEMPRINT("%d :: [ALLOC] %p\n",__LINE__,_pStruct_);
-
 #define OMX_G729CONF_INIT_STRUCT(_s_, _name_)   \
     memset((_s_), 0x0, sizeof(_name_));         \
     (_s_)->nSize = sizeof(_name_);              \
@@ -202,14 +176,6 @@
     (_s_)->nVersion.s.nRevision = 0x0;          \
     (_s_)->nVersion.s.nStep = 0x0;
 
-#define OMX_G729MEMFREE_STRUCT(_pStruct_)                       \
-    if(_pStruct_ != NULL)                                       \
-    {                                                           \
-        G729DEC_MEMPRINT("%d :: [FREE] %p\n", __LINE__, _pStruct_); \
-        free(_pStruct_);                                        \
-        _pStruct_ = NULL;                                       \
-    }
-    
 /****************************************************************
  *  INCLUDE FILES                                                 
  ****************************************************************/
@@ -586,9 +552,11 @@ typedef struct G729DEC_COMPONENT_PRIVATE
 
     OMX_STRING* sDeviceString;
 
+    /* backup pointer for LCML */
+    void* ptrLibLCML;
+
     OMX_U32 nPacketsPerBuffer;
 
-#ifndef UNDER_CE
     pthread_mutex_t AlloBuf_mutex;
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -600,16 +568,6 @@ typedef struct G729DEC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif
 
     /** Holds the value of RT Mixer mode  */
     OMX_U32 rtmx;
@@ -631,13 +589,20 @@ typedef struct G729DEC_COMPONENT_PRIVATE
     /** Index to arrBufIndex[], used for output buffer timestamps */
     OMX_U8 OpBufindex;
 
+    /* counts the number of unhandled FillThisBuffer() calls */
     OMX_U8 nUnhandledFillThisBuffers;
+    /* counts the number of handled FillThisBuffer() calls */
+    OMX_U8 nHandledFillThisBuffers;
+    /* counts the number of unhandled EmptyThisBuffer() calls */
     OMX_U8 nUnhandledEmptyThisBuffers;
+    /* counts the number of handled EmptyThisBuffer() calls */
+    OMX_U8 nHandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
+    OMX_BOOL DSPMMUFault;
 
     /* array to hold buffer parameters */
-    unsigned long int* bufParamsArray;
+    OMX_U32* bufParamsArray;
 
     OMX_BOOL bPreempted;
 
@@ -681,23 +646,8 @@ typedef enum OMX_G729DEC_INDEXAUDIOTYPE {
 
 
 /*--------function prototypes ---------------------------------*/
-#ifndef UNDER_CE
 
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-
-#else
-/* =================================================================================== */
-/**
- *   OMX_EXPORT                                           WinCE Implicit Export Syntax 
- */
-/* ================================================================================== */
-#define OMX_EXPORT __declspec(dllexport)
-
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-
-#endif
-
-
 OMX_ERRORTYPE G729DEC_StartComponentThread(OMX_HANDLETYPE pHandle);
 OMX_ERRORTYPE G729DEC_StopComponentThread(OMX_HANDLETYPE pHandle);
 OMX_ERRORTYPE G729DEC_FreeCompResources(OMX_HANDLETYPE pComponent);
@@ -711,7 +661,6 @@ void G729DEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 #endif
 
 /*--------macros ----------------------------------------------*/
-#ifndef UNDER_CE
 #ifdef  G729DEC_DEBUG
 #define G729DEC_DPRINT(...)    fprintf(stderr,__VA_ARGS__)
 #define G729DEC_EPRINT(...)    fprintf(stderr,__VA_ARGS__)
@@ -738,24 +687,5 @@ void G729DEC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 #else
 #define G729DEC_PRINT_INFO(...)
 #endif
-
-
-#else /*UNDER_CE*/
-#ifdef DEBUG
-#define G729DEC_DPRINT   printf
-#define G729DEC_EPRINT   printf     
-#define G729DEC_MEMPRINT   printf
-#define G729DEC_PRINT_INFO printf
-#else
-#define G729DEC_DPRINT
-#define G729DEC_EPRINT      
-#define G729DEC_MEMPRINT
-#define G729DEC_PRINT_INFO
-#endif
-
-#endif
-
-
-
 
 #endif /* OMX_G729DECODER_H */

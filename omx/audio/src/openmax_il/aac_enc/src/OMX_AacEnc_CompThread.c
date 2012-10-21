@@ -50,9 +50,6 @@
 *  INCLUDE FILES
 ****************************************************************/
 /* ----- system and platform files ----------------------------*/
-#ifdef UNDER_CE
-#include <windows.h>
-#else
 #include <wchar.h>
 #include <dbapi.h>
 #include <unistd.h>
@@ -60,13 +57,13 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
+#include <sys/prctl.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
-#endif
 #include "OMX_AacEncoder.h"
 #include "OMX_AacEnc_Utils.h"
 #include "OMX_AacEnc_CompThread.h"
@@ -85,8 +82,10 @@ void* AACENC_ComponentThread (void* pThreadData)
 
     /* Recover the pointer to my component specific data */
     AACENC_COMPONENT_PRIVATE* pComponentPrivate = (AACENC_COMPONENT_PRIVATE*)pThreadData;
+    OMX_CONF_CHECK_CMD(pComponentPrivate, 1, 1);
     OMX_COMPONENTTYPE *pHandle = pComponentPrivate->pHandle;
 
+   prctl(PR_SET_NAME, (unsigned long) "OMX-AACENC", 0, 0, 0);
 
 #ifdef __PERF_INSTRUMENTATION__
     pComponentPrivate->pPERFcomp = PERF_Create(PERF_FOURCC('A', 'A', 'C', 'E'),
@@ -108,18 +107,17 @@ void* AACENC_ComponentThread (void* pThreadData)
         tv.tv_sec = 1;
         tv.tv_nsec = 0;
 
-#ifndef UNDER_CE
         sigset_t set;
         sigemptyset (&set);
         sigaddset (&set, SIGALRM);
         status = pselect (fdmax+1, &rfds, NULL, NULL, &tv, &set);
-#else
-        status = select (fdmax+1, &rfds, NULL, NULL, &tv);
-#endif
 
         if (pComponentPrivate->bIsThreadstop == 1) {
+#ifdef __PERF_INSTRUMENTATION__
+            PERF_Done(pComponentPrivate->pPERFcomp);
+#endif
             OMX_ERROR4(pComponentPrivate->dbg, ":: Comp Thrd Exiting here...\n");
-            goto EXIT;
+            return (void*)eError;
         }
 
         if (status == 0) 
@@ -144,8 +142,11 @@ void* AACENC_ComponentThread (void* pThreadData)
                 OMX_PRINT1(pComponentPrivate->dbg, "%d :: OMX_AACENC_ComponentThread \n",__LINE__);
                 if (pComponentPrivate->curState != OMX_StateIdle) 
                 {
+#ifdef __PERF_INSTRUMENTATION__
+                    PERF_Done(pComponentPrivate->pPERFcomp);
+#endif
                     OMX_PRINT1(pComponentPrivate->dbg, "%d ::OMX_AACENC_ComponentThread \n",__LINE__);
-                    goto EXIT;
+                    return (void*)eError;
                 }
              }
              OMX_PRINT2(pComponentPrivate->dbg, "%d :: Component Time Out !!!!! \n",__LINE__);
@@ -172,9 +173,12 @@ void* AACENC_ComponentThread (void* pThreadData)
             ret = read(pComponentPrivate->dataPipe[0], &pBufHeader, sizeof(pBufHeader));
             if (ret == -1) 
             {
+#ifdef __PERF_INSTRUMENTATION__
+                PERF_Done(pComponentPrivate->pPERFcomp);
+#endif
                 OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error while reading from the pipe\n",__LINE__);
                 eError = OMX_ErrorHardware;
-                goto EXIT;
+                return (void*)eError;
             }
             OMX_PRBUFFER2(pComponentPrivate->dbg, "%d :: pBufHeader:%p \n",__LINE__, pBufHeader);
             eError = AACENCHandleDataBuf_FromApp(pBufHeader,pComponentPrivate);
@@ -201,8 +205,11 @@ void* AACENC_ComponentThread (void* pThreadData)
                 AACENC_CleanupInitParams(pHandle);
                 if(eError != OMX_ErrorNone) 
                 {
+#ifdef __PERF_INSTRUMENTATION__
+                    PERF_Done(pComponentPrivate->pPERFcomp);
+#endif
                     OMX_ERROR4(pComponentPrivate->dbg, "%d :: AACENC_CleanupInitParams returned error\n",__LINE__);
-                    goto EXIT;
+                    return (void*)eError;
                 }
                 OMX_PRBUFFER2(pComponentPrivate->dbg, "%d :: ARM Side Resources Have Been Freed\n",__LINE__);
 
@@ -212,15 +219,12 @@ void* AACENC_ComponentThread (void* pThreadData)
                 PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryComplete | PERF_BoundaryCleanup);
 #endif  
 
+
                 if(pComponentPrivate->bPreempted==0){
-                    if (RemoveStateTransition(pComponentPrivate, OMX_TRUE) != OMX_ErrorNone) {
-                        return OMX_ErrorUndefined;
-                    }
-                    pComponentPrivate->cbInfo.EventHandler(pHandle,
+                    pComponentPrivate->cbInfo.EventHandler(pHandle, 
                                                            pHandle->pApplicationPrivate,
                                                            OMX_EventCmdComplete,
-                                                           OMX_CommandStateSet,
-                                                           pComponentPrivate->curState,
+                                                           OMX_ErrorNone,pComponentPrivate->curState, 
                                                            NULL);
 
                 }
@@ -234,19 +238,20 @@ void* AACENC_ComponentThread (void* pThreadData)
                     pComponentPrivate->bPreempted = 0;
                 }
 
-                pComponentPrivate->bLoadedCommandPending = OMX_FALSE;
-                goto EXIT;
+            pComponentPrivate->bLoadedCommandPending = OMX_FALSE;
             }
 
-        }
+        }  
     }
 
 EXIT:
+    if (pComponentPrivate) {
 
 #ifdef __PERF_INSTRUMENTATION__
-    PERF_Done(pComponentPrivate->pPERFcomp);
+        PERF_Done(pComponentPrivate->pPERFcomp);
 #endif
-    OMX_PRINT1(pComponentPrivate->dbg, "%d :: Exiting ComponentThread\n", __LINE__);
+        OMX_PRINT1(pComponentPrivate->dbg, "%d :: Exiting ComponentThread\n", __LINE__);
+    }
     return (void*)eError;
 }
 

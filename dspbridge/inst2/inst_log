@@ -1,0 +1,36 @@
+#storage output file names
+file=$1
+
+#get the GPP addresses needed
+set `cat /sys/devices/platform/C6410/mpu_address`
+mempoolOffset=$2;
+GppPaOffset=$4;
+
+#get the DSP addressses needed
+while read -r dspSymbols;
+do
+	case $dspSymbols in
+	*LOG_A_TABBEG*)
+		set $dspSymbols
+		logaddr=$1
+		;;
+	*LOG_A_TABLEN*)
+		set $dspSymbols
+		loglen=$1
+		;;
+	*_tInstArmAdapter*)
+		 set $dspSymbols
+		 globalObj=$1
+		 ;;
+	esac
+done < "/system/lib/dsp/baseimage.map"
+
+#informative prints
+echo phys_mempool_base offset: $mempoolOffset;
+echo GPP Physical address offset: $GppPaOffset;
+echo _tInstGlobal_Obj: $globalObj;
+echo LOG table address: $logaddr count: $loglen;
+
+#Run INST2
+/system/bin/instutility.out $GppPaOffset 0x$globalObj 0xffffffff 0x4000 0x48320010 0x48320010 $mempoolOffset 0x$logaddr $loglen /mnt/${file}log.bin 0x8000 2>/mnt/dbg-${file}.txt
+

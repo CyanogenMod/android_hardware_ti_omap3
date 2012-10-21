@@ -1,14 +1,14 @@
-ifneq ($(BUILD_WITHOUT_PV),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 $(call add-prebuilt-files, ETC)
-
+LOCAL_PRELINK_MODULE := false
 LOCAL_SRC_FILES := \
 	src/ti_video_config_parser.cpp \
 	src/ti_m4v_config_parser.cpp \
 	src/ti_omx_config_parser.cpp
 
 LOCAL_MODULE := libVendor_ti_omx_config_parser
+LOCAL_MODULE_TAGS:= optional
 
 PV_TOP := external/opencore
 
@@ -55,4 +55,3 @@ LOCAL_C_INCLUDES := \
 LOCAL_SHARED_LIBRARIES += libopencore_common
 
 include $(BUILD_SHARED_LIBRARY)
-endif

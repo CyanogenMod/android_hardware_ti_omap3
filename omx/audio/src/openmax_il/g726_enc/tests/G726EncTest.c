@@ -267,6 +267,21 @@ OMX_ERRORTYPE StopComponent(OMX_HANDLETYPE *pHandle);
 OMX_ERRORTYPE PauseComponent(OMX_HANDLETYPE *pHandle);
 OMX_ERRORTYPE PlayComponent(OMX_HANDLETYPE *pHandle);
 OMX_ERRORTYPE send_input_buffer(OMX_HANDLETYPE pHandle, OMX_BUFFERHEADERTYPE* pBuffer, FILE *fIn);
+#ifndef USE_BUFFER
+int FreeAllResources( OMX_HANDLETYPE pHandle,
+                      OMX_BUFFERHEADERTYPE* pBufferIn,
+                      OMX_BUFFERHEADERTYPE* pBufferOut,
+                      int NIB, int NOB,
+                      FILE* fIn, FILE* fOut);
+
+#else
+int  FreeAllResources(OMX_HANDLETYPE pHandle,
+                         OMX_U8* UseInpBuf[],
+                         OMX_U8* UseOutBuf[],
+                         int NIB, int NOB,
+                         FILE* fIn, FILE* fOut);
+
+#endif
 
 int maxint(int a, int b);
 
@@ -310,11 +325,12 @@ static OMX_ERRORTYPE WaitForState(OMX_HANDLETYPE* pHandle,
      OMX_STATETYPE CurState = OMX_StateInvalid;
      OMX_ERRORTYPE eError = OMX_ErrorNone;
      OMX_COMPONENTTYPE *pComponent = (OMX_COMPONENTTYPE *)pHandle;
-     eError = OMX_GetState(pComponent, &CurState);
-     if (CurState == OMX_StateInvalid && bInvalidState == OMX_TRUE)
+     if (bInvalidState == OMX_TRUE)
 	 {
-		 eError = OMX_ErrorInvalidState;
-	 }
+         eError = OMX_ErrorInvalidState;
+         return eError;
+     }
+     eError = OMX_GetState(pComponent, &CurState);
      if(CurState != DesiredState){
             WaitForState_flag = 1;
             TargetedState = DesiredState;
@@ -379,8 +395,14 @@ OMX_ERRORTYPE EventHandler(
            break;
        case OMX_EventError:
 		   if (nData1 == OMX_ErrorInvalidState) {
-		   		bInvalidState =OMX_TRUE;
-		   }            
+                bInvalidState =OMX_TRUE;
+                if (WaitForState_flag){
+                    WaitForState_flag = 0;
+                    pthread_mutex_lock(&WaitForState_mutex);
+                    pthread_cond_signal(&WaitForState_threshold);/*Sending Waking Up Signal*/
+                    pthread_mutex_unlock(&WaitForState_mutex);
+                }
+           }
 		   else if(nData1 == OMX_ErrorResourcesPreempted) {
                       preempted=1;
 
@@ -1373,7 +1395,7 @@ int main(int argc, char* argv[])
 	GT_END("Call to SendCommand <OMX_StateLoaded>");
 #endif
     if(eError != OMX_ErrorNone) {
-        APP_DPRINT( "%d :: Error:  WaitForState reports an eError %X\n",__LINE__, error);
+        APP_DPRINT( "%d :: Error:  WaitForState reports an eError %X\n",__LINE__, eError);
 				        printf("goto EXIT %d\n",__LINE__);
         
         goto EXIT;
@@ -1575,6 +1597,23 @@ SHUTDOWN:
         printf("%d :: *********************************************************************\n",__LINE__);
     }
 EXIT:
+if (bInvalidState == OMX_TRUE) {
+#ifndef USE_BUFFER
+    eError = FreeAllResources(pHandle,
+                             pInputBufferHeader[0],
+                             pOutputBufferHeader[0],
+                             numInputBuffers,
+                             numOutputBuffers,
+                             fIn, fOut);
+#else
+    eError = FreeAllResources(pHandle,
+                                pInputBuffer,
+                                pOutputBuffer,
+                                numInputBuffers,
+                                numOutputBuffers,
+                                fIn, fOut);
+#endif
+}
 #ifdef APP_DEBUGMEM    
     printf("\n__ Printing memory not deleted\n");
     for(i=0;i<500;i++){
@@ -1716,3 +1755,94 @@ EXIT:
     return error;
 
 }
+/*=================================================================
+    Freeing All allocated resources
+==================================================================*/
+#ifndef USE_BUFFER
+int FreeAllResources( OMX_HANDLETYPE pHandle,
+                      OMX_BUFFERHEADERTYPE* pBufferIn,
+                      OMX_BUFFERHEADERTYPE* pBufferOut,
+                      int NIB, int NOB,
+FILE* fIn, FILE* fOut) {
+    printf("%d::Freeing all resources by state invalid \n", __LINE__);
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_U16 i = 0;
+
+    for (i = 0; i < NIB; i++) {
+        printf("%d :: APP: About to free pInputBufferHeader[%d]\n", __LINE__, i);
+        eError = OMX_FreeBuffer(pHandle, OMX_DirInput, pBufferIn + i);
+    }
+
+    for (i = 0; i < NOB; i++) {
+        printf("%d :: APP: About to free pOutputBufferHeader[%d]\n", __LINE__, i);
+        eError = OMX_FreeBuffer(pHandle, OMX_DirOutput, pBufferOut + i);
+    }
+
+    eError = close (IpBuf_Pipe[0]);
+    eError = close (IpBuf_Pipe[1]);
+    eError = close (OpBuf_Pipe[0]);
+    eError = close (OpBuf_Pipe[1]);
+    eError = close (Event_Pipe[0]);
+    eError = close (Event_Pipe[1]);
+
+    if (fOut != NULL) {
+        fclose(fOut);
+        fOut = NULL;
+    }
+
+    if (fIn != NULL) {
+        fclose(fIn);
+        fIn = NULL;
+    }
+
+    TIOMX_FreeHandle(pHandle);
+
+    return eError;
+}
+
+/*=================================================================
+    Freeing the resources with USE_BUFFER define
+==================================================================*/
+#else
+int FreeAllResources(OMX_HANDLETYPE pHandle,
+                        OMX_U8* UseInpBuf[],
+                        OMX_U8* UseOutBuf[],
+                        int NIB, int NOB,
+FILE* fIn, FILE* fOut) {
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    OMX_U16 i;
+    printf("%d::Freeing all resources by state invalid \n", __LINE__);
+    /* free the UseBuffers */
+
+    for (i = 0; i < NIB; i++) {
+        OMX_MEMFREE_STRUCT_DSPALIGN(UseInpBuf[i],OMX_U8);
+    }
+
+    for (i = 0; i < NOB; i++) {
+        OMX_MEMFREE_STRUCT_DSPALIGN(UseOutBuf[i],OMX_U8);
+    }
+
+    eError = close (IpBuf_Pipe[0]);
+    eError = close (IpBuf_Pipe[1]);
+    eError = close (OpBuf_Pipe[0]);
+    eError = close (OpBuf_Pipe[1]);
+    eError = close (Event_Pipe[0]);
+    eError = close (Event_Pipe[1]);
+
+    if (fOut != NULL) {
+        fclose(fOut);
+        fOut = NULL;
+    }
+
+    if (fIn != NULL) {
+        fclose(fIn);
+        fIn = NULL;
+    }
+
+    TIOMX_FreeHandle(pHandle);
+
+    return eError;
+}
+
+#endif
+

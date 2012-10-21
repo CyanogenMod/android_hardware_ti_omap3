@@ -554,6 +554,7 @@ char file[mem_array_size][50];
 
 #define newmalloc(x) mymalloc(__LINE__,__FILE__,x)
 #define newfree(z) myfree(z,__LINE__,__FILE__)
+#define newmemalign(x) mymemalign(__LINE__,__FILE__,x,y)
 
 void * mymalloc(int line, char *s, int size);
 int myfree(void *dp, int line, char *s);
@@ -599,10 +600,34 @@ int myfree(void *dp, int line, char *s){
      }
 }
 
+void * mymemalign(int line, char *s, int alignment, int size)
+{
+   void *p;
+   int e=0;
+   p = memalign(alignment,size);
+   if(p==NULL){
+       OMXDBG_PRINT(stderr, ERROR, 4, 0, "Memory not available\n");
+       /* ddexit(1); */
+       }
+   else{
+         while((lines[e]!=0)&& (e<(mem_array_size - 1)) ){
+              e++;
+         }
+         arr[e]=p;
+         lines[e]=line;
+         bytes[e]=size;
+         strcpy(file[e],s);
+         OMXDBG_PRINT(stderr, BUFFER, 2, 0,
+            "Allocating %d bytes on address %p, line %d file %s pos %d\n", size, p, line, s, e);
+   }
+   return p;
+}
+
 #else
 
 #define newmalloc(x) malloc(x)
 #define newfree(z) free(z)
+#define newmemalign(x,y) memalign(x,y)
 
 #endif
 

@@ -1,22 +1,22 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * dspbridge/mpu_api/inc/DSPNode.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published 
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 /*
  *  ======== DSPNode.h ========
- *  DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *  Description:
  *      This is the header for the DSP/BIOS Bridge node module.
  *
@@ -75,16 +75,16 @@ extern "C" {
  *      pAttrIn:            Ptr to optional node attributes.
  *      phNode:             Ptr to location to store node handle on return.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EPOINTER:       One of the input parameters pointers is invalid.
- *      DSP_EHANDLE:        Invalid processor handle.
- *      DSP_EMEMORY:        Memory is not available to allocate a node
- *      DSP_EUUID:          The node with the specified UUID is not registered.
- *      DSP_EWRONGSTATE:    The specified processor is in the wrong state
+ *      0:                  Success.
+ *      -EFAULT:            One of the input parameters pointers is invalid.
+ *      -EFAULT:            Invalid processor handle.
+ *      -ENOMEM:            Memory is not available to allocate a node
+ *      -ENOKEY:            The node with the specified UUID is not registered.
+ *      -EBADR:             The specified processor is in the wrong state
  *                          (not running)
- *      DSP_ERANGE:         The iPriority field specified in pAttrIn is out
+ *      -EDOM:              The iPriority field specified in pAttrIn is out
  *                          of range.
- *      DSP_EFAIL:          General failure.
+ *      -EPERM:             General failure.
  */
 extern DBAPI
 DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
@@ -105,14 +105,14 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      pBuffer:            Location to store the address of the allocated
  *                          buffer on output.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_EMEMORY:        Insufficent memory.
- *      DSP_EPOINTER:       pBuffer is not a valid address.
- *      DSP_EFAIL:          General Failure.
- *      DSP_EALIGNMENT:     Alignment value not supported.(Must be 0, 1, 2, 4)
- *      DSP_EBADSEGID:      Invalid Segment Id.
- *      DSP_ESIZE:          Invalid Size. Must be greater than zero.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -ENOMEM:            Insufficent memory.
+ *      -EFAULT:            pBuffer is not a valid address.
+ *      -EPERM:             General Failure.
+ *      -EPERM:             Alignment value not supported.(Must be 0, 1, 2, 4)
+ *      -EBADR:             Invalid Segment Id.
+ *      -EINVAL:            Invalid Size. Must be greater than zero.
  */
 	extern DBAPI DSPNode_AllocMsgBuf(DSP_HNODE hNode, UINT uSize,
 					 IN OPTIONAL struct DSP_BUFFERATTR * pAttr,
@@ -126,15 +126,15 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      hNode:              The node handle.
  *      iPriority:          New runtime priority level.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_ERANGE:         iPriority is out of range.
- *      DSP_ENODETYPE:      Operation is invalid for this node type.
- *      DSP_ETIMEOUT:       A timeout occured before DSP responded.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -EDOM:              iPriority is out of range.
+ *      -EPERM:             Operation is invalid for this node type.
+ *      -ETIME:             A timeout occured before DSP responded.
  *      DSP_ERESTART:       A critical error occurred and the DSP is being
  *                          restarted.
- *      DSP_EWRONGSTATE:    The node is not allocated, paused, or running.
- *      DSP_EFAIL:          Unable to change the priority level.
+ *      -EBADR:             The node is not allocated, paused, or running.
+ *      -EPERM:             Unable to change the priority level.
  */
 	extern DBAPI DSPNode_ChangePriority(DSP_HNODE hNode, INT iPriority);
 
@@ -150,17 +150,17 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      uOtherStream:           Input stream index on second node (0 based).
  *      pAttrs:                 Stream attributes. If NULL, defaults used.
  *  Returns:
- *      DSP_SOK:                Success.
- *      DSP_EHANDLE:            Invalid node handle.
- *      DSP_EMEMORY:            GPP memory allocation failure.
+ *      0:                      Success.
+ *      -EFAULT:                Invalid node handle.
+ *      -ENOMEM:                GPP memory allocation failure.
  *      DSP_EALREADYCONNCECTED: One of the specified connections has already
  *                              been made.
- *      DSP_EWRONGSTATE:        The node is not in the NODE_ALLOCATED state.
- *      DSP_EVALUE:             A Stream index is not valid.
- *      DSP_ENOMORECONNECTIONS: No more connections are allowed
- *      DSP_EFAIL:              Unable to make connection.
- *      DSP_ENOTIMPL:           Stream mode valid but not supported.
- *      DSP_ESTRMMODE           Illegal Stream mode specified.
+ *      -EBADR:                 The node is not in the NODE_ALLOCATED state.
+ *      -EINVAL:                A Stream index is not valid.
+ *      -ECONNREFUSED:          No more connections are allowed
+ *      -EPERM:                 Unable to make connection.
+ *      -ENOSYS:                Stream mode valid but not supported.
+ *      -EPERM                  Illegal Stream mode specified.
  *
  */
 	extern DBAPI DSPNode_Connect(DSP_HNODE hNode, UINT uStream,
@@ -186,17 +186,17 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *                              This can be extended in future to pass binary data.
  *
  *  Returns:
- *      DSP_SOK:                Success.
- *      DSP_EHANDLE:            Invalid node handle.
- *      DSP_EMEMORY:            GPP memory allocation failure.
+ *      0:                      Success.
+ *      -EFAULT:                Invalid node handle.
+ *      -ENOMEM:                GPP memory allocation failure.
  *      DSP_EALREADYCONNCECTED: One of the specified connections has already
  *                              been made.
- *      DSP_EWRONGSTATE:        The node is not in the NODE_ALLOCATED state.
- *      DSP_EVALUE:             A Stream index is not valid.
- *      DSP_ENOMORECONNECTIONS: No more connections are allowed
- *      DSP_EFAIL:              Unable to make connection.
- *      DSP_ENOTIMPL:           Stream mode valid but not supported.
- *      DSP_ESTRMMODE           Illegal Stream mode specified.
+ *      -EBADR:                 The node is not in the NODE_ALLOCATED state.
+ *      -EINVAL:                A Stream index is not valid.
+ *      -ECONNREFUSED:          No more connections are allowed
+ *      -EPERM:                 Unable to make connection.
+ *      -ENOSYS:                Stream mode valid but not supported.
+ *      -EPERM                  Illegal Stream mode specified.
  *
  */
 	extern DBAPI DSPNode_ConnectEx(DSP_HNODE hNode, UINT uStream,
@@ -211,23 +211,23 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *  Parameters:
  *      hNode:              The node handle.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_ESYMBOL:        Create function, or iAlg, not found in the COFF file
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -ESPIPE:            Create function, or iAlg, not found in the COFF file
  *      DSP_WRONGSTATE:     Operation is invalid for the current node state.
  *      DSP_ETASK:          Unable to create the task or process on the DSP.
- *      DSP_EMEMORY:        Memory Allocation failure on the DSP.
+ *      -ENOMEM:            Memory Allocation failure on the DSP.
  *      DSP_ERESOURCE:      A requested resource is not available.
  *      DSP_EMULINST:       Multiple instances are not allowed.
- *      DSP_ENOTFOUND:      A specified entity was not found.
+ *      -ENOENT:            A specified entity was not found.
  *      DSP_EOUTOFIO:       An I/O resource is not available.
  *      DSP_ESTREAM:        Stream creation failure on the DSP.
- *      DSP_ETIMEOUT:       A timeout occurred before the DSP responded.
+ *      -ETIME:             A timeout occurred before the DSP responded.
  *      DSP_ERESTART:       A critical error has occurred and the DSP is
  *                          being restarted.
- *      DSP_EOVERLAYMEMORY: Overlay region for this phase in use by another node
+ *      -ENXIO:           Overlay region for this phase in use by another node
  *      DSP_EUSER1-16:      A node-specific failure occurred on the DSP.
- *      DSP_EFAIL:          Unable to Create the node.
+ *      -EPERM:             Unable to Create the node.
  *  Details:
  */
 
@@ -240,18 +240,18 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *  Parameters:
  *      hNode:              The node handle.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
  *      DSP_EDELETE:        A Deletion failure occured.
  *      DSP_EFREE:          A DSP memory free operation failed.
  *      DSP_EIOFREE:        A DSP I/O free operation failed.
- *      DSP_ETIMEOUT:       Timeout occured before the DSP responded.
+ *      -ETIME:             Timeout occured before the DSP responded.
  *      DSP_ERESTART:       A critical error has occurred and the DSP is
  *                          being restarted.
  *      DSP_EUSER1-16:      A node-specific failure occurred on the DSP.
- *      DSP_EOVERLAYMEMORY: Overlay region for this phase in use by another node
- *      DSP_EFAIL:          Unable to delete the node.
- *      DSP_ESYMBOL:        Delete function not found in the COFF file.
+ *      -ENXIO:           Overlay region for this phase in use by another node
+ *      -EPERM:             Unable to delete the node.
+ *      -ESPIPE:            Delete function not found in the COFF file.
  */
 	extern DBAPI DSPNode_Delete(DSP_HNODE hNode);
 
@@ -264,11 +264,11 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      pBuffer:            (Address) Buffer allocated by DSP_AllocMsgBuf.
  *      pAttr:              Same buffer attributes passed to DSP_AllocMsgBuf.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_EPOINTER:       pBuffer is not valid.
- *      DSP_EBADSEGID:      Invalid Segment Id.
- *      DSP_EFAIL:          Failure to free the buffer.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -EFAULT:            pBuffer is not valid.
+ *      -EBADR:             Invalid Segment Id.
+ *      -EPERM:             Failure to free the buffer.
  */
 	extern DBAPI DSPNode_FreeMsgBuf(DSP_HNODE hNode, IN BYTE * pBuffer,
 					IN OPTIONAL struct DSP_BUFFERATTR * pAttr);
@@ -282,11 +282,11 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      pAttr:              Location to store the node attributes.
  *      uAttrSize:          The size of structure.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_EPOINTER:       Parameter pAttr is not valid.
- *      DSP_EFAIL:          Unable to retrieve node attributes.
- *      DSP_ESIZE:          The size of the specified DSP_NODEATTR structure
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -EFAULT:            Parameter pAttr is not valid.
+ *      -EPERM:             Unable to retrieve node attributes.
+ *      -EINVAL:            The size of the specified DSP_NODEATTR structure
  *                          is too small to hold all node information.
  */
 	extern DBAPI DSPNode_GetAttr(DSP_HNODE hNode,
@@ -301,16 +301,16 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      pMessage:           The message structure.
  *      uTimeout:           Timeout to wait for message.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_EPOINTER:       Parameter pMessage is not valid.
- *      DSP_ENODETYPE:      Messages cannot be retrieved from this type of
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -EFAULT:            Parameter pMessage is not valid.
+ *      -EPERM:             Messages cannot be retrieved from this type of
  *                          node (eg a device node).
- *      DSP_ETIMEOUT:       A timeout occurred and there is no message ready.
+ *      -ETIME:             A timeout occurred and there is no message ready.
  *      DSP_ERESTART:       A critical error has occurred and the DSP is
  *                          being restarted.
- *      DSP_EFAIL:          An error occurred trying to retrieve a message.
- *      DSP_ETRANSLATE      Message contains a shared memory buffer and unable
+ *      -EPERM:             An error occurred trying to retrieve a message.
+ *      -ESRCH              Message contains a shared memory buffer and unable
  *                          to map buffer to process.
  */
 	extern DBAPI DSPNode_GetMessage(DSP_HNODE hNode, OUT struct DSP_MSG * pMessage,
@@ -324,14 +324,14 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *  Parameters:
  *      hNode:              The node handle.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_ENODETYPE:      Invalid operation for this node type.
- *      DSP_ETIMEOUT:       A timeout occured before the DSP responded.
- *      DSP_EWRONGSTATE:    Operation is invalid for the current node state.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -EPERM:             Invalid operation for this node type.
+ *      -ETIME:             A timeout occured before the DSP responded.
+ *      -EBADR:             Operation is invalid for the current node state.
  *      DSP_ERESTART:       A critical error has occurred and the DSP is
  *                          being restarted.
- *      DSP_EFAIL:          General failure.
+ *      -EPERM:             General failure.
  */
 	extern DBAPI DSPNode_Pause(DSP_HNODE hNode);
 
@@ -344,17 +344,17 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      pMessage:           The message structure.
  *      uTimeout:           Timeout (msecs) waiting for message to be queued.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_EPOINTER:       Parameter pMessage is not valid.
- *      DSP_ENODETYPE:      Invalid operation for this node type
- *      DSP_EWRONGSTATE:    Node is in an invalid state to send a message.
- *      DSP_ETIMEOUT:       Time out occured.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -EFAULT:            Parameter pMessage is not valid.
+ *      -EPERM:             Invalid operation for this node type
+ *      -EBADR:             Node is in an invalid state to send a message.
+ *      -ETIME:             Time out occured.
  *      DSP_ERESTART:       A critical error has occurred and the DSP is
  *                          being restarted.
- *      DSP_ETRANSLATE      The shared memory buffer contained in the message
+ *      -ESRCH              The shared memory buffer contained in the message
  *                          could not be mapped into the clients address space.
- *      DSP_EFAIL:          General failure.
+ *      -EPERM:             General failure.
  */
 	extern DBAPI DSPNode_PutMessage(DSP_HNODE hNode,
 					IN CONST struct DSP_MSG * pMessage,
@@ -370,11 +370,11 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      uNotifyType:        Type of notification to be sent.
  *      hNotification:      Handle of DSP_NOTIFICATION object.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle or hNotification.
- *      DSP_EVALUE:         Invalid uEventMask.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle or hNotification.
+ *      -EINVAL:            Invalid uEventMask.
  *      DSP_ENOTIMP:        The specifed uNotifyType is not supported.
- *      DSP_EFAIL:          Unable to register for notification.
+ *      -EPERM:             Unable to register for notification.
  */
 	extern DBAPI DSPNode_RegisterNotify(DSP_HNODE hNode, UINT uEventMask,
 					    UINT uNotifyType,
@@ -387,16 +387,16 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *  Parameters:
  *      hNode:              The node handle.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_ENODETYPE:      Invalid operation for this type of node.
- *      DSP_ESYMBOL:        Execute function not found in the COFF file.
- *      DSP_EWRONGSTATE:    The node is not in the Created or Paused state.
- *      DSP_ETIMEOUT:       A timeout occured before the DSP responded.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -EPERM:             Invalid operation for this type of node.
+ *      -ESPIPE:            Execute function not found in the COFF file.
+ *      -EBADR:             The node is not in the Created or Paused state.
+ *      -ETIME:             A timeout occured before the DSP responded.
  *      DSP_ERESTART:       A critical error has occurred and the DSP is
  *                          being restarted.
- *      DSP_EOVERLAYMEMORY: Overlay region for this phase in use by another node
- *      DSP_EFAIL:          Unable to start or resume execution.
+ *      -ENXIO:           Overlay region for this phase in use by another node
+ *      -EPERM:             Unable to start or resume execution.
  */
 	extern DBAPI DSPNode_Run(DSP_HNODE hNode);
 
@@ -410,18 +410,16 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      pStatus:            Location to execute-phase function return value.
  *                          Possible values are between DSP_EUSER1-16.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EHANDLE:        Invalid node handle.
- *      DSP_ENODETYPE:      Invalid operation for this type of node.
- *      DSP_EWRONGSTATE:    The node is not in the Created or Paused state.
- *      DSP_ETIMEOUT:       A timeout occured before the DSP responded.
+ *      0:                  Success.
+ *      -EFAULT:            Invalid node handle.
+ *      -EPERM:             Invalid operation for this type of node.
+ *      -EBADR:             The node is not in the Created or Paused state.
+ *      -ETIME:             A timeout occured before the DSP responded.
  *      DSP_ERESTART:       A critical error has occurred and the DSP is
  *                          being restarted.
- *      DSP_EFAIL:          Unable to Terminate the node.
+ *      -EPERM:             Unable to Terminate the node.
  */
-	extern DBAPI DSPNode_Terminate(DSP_HNODE hNode, DSP_STATUS * pStatus);
-
-
+	extern DBAPI DSPNode_Terminate(DSP_HNODE hNode, int * pStatus);
 
 /*
  *  ======== DSPNode_GetUUIDProps ========
@@ -432,16 +430,16 @@ DSPNode_Allocate(DSP_HPROCESSOR hProcessor,
  *      pNodeID:            Ptr to DSP_UUID for the node.
  *      pNodeProps:         Ptr to location to store node properties.
  *  Returns:
- *      DSP_SOK:            Success.
- *      DSP_EPOINTER:       One of the input parameters pointers is invalid.
- *      DSP_EHANDLE:        Invalid processor handle.
- *      DSP_EMEMORY:        Memory is not available to allocate a node
- *      DSP_EUUID:          The node with the specified UUID is not registered.
- *      DSP_EWRONGSTATE:    The specified processor is in the wrong state
+ *      0:                  Success.
+ *      -EFAULT:            One of the input parameters pointers is invalid.
+ *      -EFAULT:            Invalid processor handle.
+ *      -ENOMEM:            Memory is not available to allocate a node
+ *      -ENOKEY:            The node with the specified UUID is not registered.
+ *      -EBADR:             The specified processor is in the wrong state
  *                          (not running)
- *      DSP_ERANGE:         The iPriority field specified in pAttrIn is out
+ *      -EDOM:              The iPriority field specified in pAttrIn is out
  *                          of range.
- *      DSP_EFAIL:          General failure.
+ *      -EPERM:             General failure.
  */
 	extern DBAPI DSPNode_GetUUIDProps(DSP_HPROCESSOR hProcessor,
 				      IN CONST struct DSP_UUID * pNodeID,

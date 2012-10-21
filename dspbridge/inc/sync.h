@@ -1,22 +1,22 @@
 /*
- *  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
- * 
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * dspbridge/mpu_api/inc/sync.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Copyright (C) 2007 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation version 2.1 of the License.
+ *
+ * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
+ * whether express or implied; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  */
 
 /*
  *  ======== sync.h ========
- *  DSP-BIOS Bridge driver support functions for TI OMAP processors.
  *  Purpose:
  *      Provide synchronization services.
  * 
@@ -96,15 +96,15 @@ extern "C" {
  *      hEvent: Handle to a synchronization event, created/opened in
  *              SYNC_OpenEvent.
  *  Returns:
- *      DSP_SOK:        Success;
- *      DSP_EFAIL:      Failed to close event handle.
- *      DSP_EHANDLE:    Invalid handle.
+ *      0:              Success;
+ *      -EPERM:         Failed to close event handle.
+ *      -EFAULT:        Invalid handle.
  *  Requires:
  *      SYNC initialized.
  *  Ensures:
  *      Any subsequent usage of hEvent would be invalid.
  */
-	extern DSP_STATUS SYNC_CloseEvent(IN struct SYNC_OBJECT* hEvent);
+	extern int SYNC_CloseEvent(IN struct SYNC_OBJECT* hEvent);
 
 /* 
  *  ======== SYNC_DeleteCS ========
@@ -113,12 +113,12 @@ extern "C" {
  *  Parameters:
  *      hCSObj: critical section handle.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EHANDLE:    Invalid handle.
+ *      0:              Success.
+ *      -EFAULT:        Invalid handle.
  *  Requires:
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_DeleteCS(IN struct SYNC_CSOBJECT* hCSObj);
+	extern int SYNC_DeleteCS(IN struct SYNC_CSOBJECT* hCSObj);
 
 /* 
  *  ======== SYNC_EnterCS ========
@@ -127,12 +127,12 @@ extern "C" {
  *  Parameters:
  *      hCSObj: critical section handle.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EHANDLE:    Invalid handle.
+ *      0:              Success.
+ *      -EFAULT:        Invalid handle.
  *  Requires:
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_EnterCS(IN struct SYNC_CSOBJECT* hCSObj);
+	extern int SYNC_EnterCS(IN struct SYNC_CSOBJECT* hCSObj);
 
 /* 
  *  ======== SYNC_Exit ========
@@ -168,12 +168,12 @@ extern "C" {
  *  Parameters:
  *      hCSObj: critical section handle.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EMEMORY:    Out of memory.
+ *      0:              Success.
+ *      -ENOMEM:        Out of memory.
  *  Requires:
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_InitializeCS(OUT struct SYNC_CSOBJECT* * phCSObj);
+	extern int SYNC_InitializeCS(OUT struct SYNC_CSOBJECT* * phCSObj);
 
 /* 
  *  ======== SYNC_InitializeDPCCS ========
@@ -182,12 +182,12 @@ extern "C" {
  *  Parameters:
  *      hCSObj: critical section handle.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EMEMORY:    Out of memory.
+ *      0:              Success.
+ *      -ENOMEM:        Out of memory.
  *  Requires:
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_InitializeDPCCS(OUT struct SYNC_CSOBJECT** phCSObj);
+	extern int SYNC_InitializeDPCCS(OUT struct SYNC_CSOBJECT** phCSObj);
 
 /* 
  *  ======== SYNC_LeaveCS ========
@@ -196,12 +196,12 @@ extern "C" {
  *  Parameters:
  *      hCSObj: critical section handle.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EHANDLE:    Invalid handle.
+ *      0:          Success.
+ *      -EFAULT:    Invalid handle.
  *  Requires:
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_LeaveCS(IN struct SYNC_CSOBJECT* hCSObj);
+	extern int SYNC_LeaveCS(IN struct SYNC_CSOBJECT* hCSObj);
 
 /* 
  *  ======== SYNC_OpenEvent ========
@@ -224,17 +224,17 @@ extern "C" {
  *      2. (hUserEvent != NULL):
  *          A user mode event is supplied by the caller of SYNC_OpenEvent().
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EFAIL:      Unable to create user mode event.
- *      DSP_EMEMORY:    Insufficient memory.
- *      DSP_EINVALIDARG SYNC_ATTRS values are invalid.
+ *      0:            Success.
+ *      -EPERM:       Unable to create user mode event.
+ *      -ENOMEM:      Insufficient memory.
+ *      -EINVAL       SYNC_ATTRS values are invalid.
  *  Requires:
  *      - SYNC initialized.
  *      - phEvent != NULL.
  *  Ensures:
  *      If function succeeded, pEvent->hEvent must be a valid event handle.
  */
-	extern DSP_STATUS SYNC_OpenEvent(OUT struct SYNC_OBJECT* * phEvent,
+	extern int SYNC_OpenEvent(OUT struct SYNC_OBJECT* * phEvent,
 					 IN OPTIONAL struct SYNC_ATTRS * pAttrs);
 
 /* 
@@ -245,14 +245,14 @@ extern "C" {
  *      hWindow:    Handle to the window
  *      uMsg:       Message to be posted
  *  Returns:
- *      DSP_SOK:        Success
- *      DSP_EFAIL:      Post message failed
- *      DSP_EHANDLE:    Invalid Window handle
+ *      0:            Success
+ *      -EPERM:       Post message failed
+ *      -EFAULT:      Invalid Window handle
  *  Requires:
  *      SYNC initialized
  *  Ensures
  */
-	extern DSP_STATUS SYNC_PostMessage(IN HANDLE hWindow, IN UINT uMsg);
+	extern int SYNC_PostMessage(IN HANDLE hWindow, IN UINT uMsg);
 
 /* 
  *  ======== SYNC_ResetEvent ========
@@ -261,14 +261,14 @@ extern "C" {
  *  Parameters:
  *      hEvent:         Handle to a sync event.
  *  Returns:
- *      DSP_SOK:        Success;
- *      DSP_EFAIL:      Failed to reset event.
- *      DSP_EHANDLE:    Invalid handle.
+ *      0:            Success;
+ *      -EPERM:       Failed to reset event.
+ *      -EFAULT:      Invalid handle.
  *  Requires:
  *      SYNC initialized.
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_ResetEvent(IN struct SYNC_OBJECT* hEvent);
+	extern int SYNC_ResetEvent(IN struct SYNC_OBJECT* hEvent);
 
 /* 
  *  ======== SYNC_SetEvent ========
@@ -277,14 +277,14 @@ extern "C" {
  *  Parameters:
  *      hEvent:         Handle to an event object.
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EFAIL:      Failed to signal event.
- *      DSP_EHANDLE:    Invalid handle.
+ *      0:            Success.
+ *      -EPERM:       Failed to signal event.
+ *      -EFAULT:      Invalid handle.
  *  Requires:
  *      SYNC initialized.
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_SetEvent(IN struct SYNC_OBJECT* hEvent);
+	extern int SYNC_SetEvent(IN struct SYNC_OBJECT* hEvent);
 
 /* 
  *  ======== SYNC_WaitOnEvent ========
@@ -300,14 +300,14 @@ extern "C" {
  *                      If SYNC_INFINITE, the function's time-out interval 
  *                      never elapses. 
  *  Returns:
- *      DSP_SOK:        The object was signalled.
- *      DSP_EHANDLE:    Invalid handle.
+ *      0:              The object was signalled.
+ *      -EFAULT:        Invalid handle.
  *      SYNC_E_FAIL:    Wait failed, possibly because the process terminated.
  *      SYNC_E_TIMEOUT: Timeout expired while waiting for event to be signalled.
  *  Requires:
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_WaitOnEvent(IN struct SYNC_OBJECT* hEvent,
+	extern int SYNC_WaitOnEvent(IN struct SYNC_OBJECT* hEvent,
 					   IN DWORD dwTimeOut);
 
 /* 
@@ -328,14 +328,14 @@ extern "C" {
  *                      never elapses.
  *      puIndex:        Location to store index of event that was signalled.
  *  Returns:
- *      DSP_SOK:        The object was signalled.
+ *      0:              The object was signalled.
  *      SYNC_E_FAIL:    Wait failed, possibly because the process terminated.
  *      SYNC_E_TIMEOUT: Timeout expired before event was signalled.
- *      DSP_EMEMORY:    Memory allocation failed.
+ *      -ENOMEM:        Memory allocation failed.
  *  Requires:
  *  Ensures:
  */
-	extern DSP_STATUS SYNC_WaitOnMultipleEvents(IN struct SYNC_OBJECT**
+	extern int SYNC_WaitOnMultipleEvents(IN struct SYNC_OBJECT**
 						    hSyncEvents, IN UINT uCount,
 						    IN DWORD dwTimeout,
 						    OUT UINT * puIndex);

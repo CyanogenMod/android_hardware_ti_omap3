@@ -50,14 +50,6 @@
  ****************************************************************/
 /* ----- system and platform files ----------------------------*/
 
-
-
-#ifdef UNDER_CE
-#include <windows.h>
-#include <oaf_osal.h>
-#include <omx_core.h>
-#include <stdlib.h>
-#else
 #include <wchar.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -68,7 +60,6 @@
 #include <malloc.h>
 #include <memory.h>
 #include <fcntl.h>
-#endif
 
 #include <dbapi.h>
 #include <string.h>
@@ -84,16 +75,6 @@
 
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
-#endif
-
-#ifdef UNDER_CE
-#define HASHINGENABLE 1
-HINSTANCE g_hLcmlDllHandle = NULL;
-void sleep(DWORD Duration)
-{
-    Sleep(Duration);
-
-}
 #endif
 
 /* ================================================================================= * */
@@ -148,7 +129,6 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
     nIpBufSize = pComponentPrivate->pPortDef[MP3D_INPUT_PORT]->nBufferSize;
     nOpBufSize = pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->nBufferSize;
 
-
     OMX_PRBUFFER2(pComponentPrivate->dbg, "Input Buffer Count = %ld\n",nIpBuf);
     OMX_PRBUFFER2(pComponentPrivate->dbg, "Input Buffer Size = %ld\n",nIpBufSize);
     OMX_PRBUFFER2(pComponentPrivate->dbg, "Output Buffer Count = %ld\n",nOpBuf);
@@ -160,7 +140,6 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
     plcml_Init->Out_BufInfo.nBuffers = nOpBuf;
     plcml_Init->Out_BufInfo.nSize = nOpBufSize;
     plcml_Init->Out_BufInfo.DataTrMethod = DMM_METHOD;
-
 
     plcml_Init->NodeInfo.nNumOfDLLs = 3;
 
@@ -202,17 +181,17 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
         strmAttr->uAlignment = 0;
         strmAttr->uTimeout = -1;
 
-	strmAttr->uBufsize = MP3D_OUTPUT_BUFFER_SIZE;
-	
-	OMX_PRBUFFER2(pComponentPrivate->dbg, "::strmAttr->uBufsize:%d\n",strmAttr->uBufsize);
+    strmAttr->uBufsize = MP3D_OUTPUT_BUFFER_SIZE;
 
-        strmAttr->uNumBufs = 2;
-        strmAttr->lMode = STRMMODE_PROCCOPY;
-        plcml_Init->DeviceInfo.TypeofDevice = 1;
-        plcml_Init->DeviceInfo.TypeofRender = 0;
+    OMX_PRBUFFER2(pComponentPrivate->dbg, "::strmAttr->uBufsize:%d\n",strmAttr->uBufsize);
 
-        plcml_Init->DeviceInfo.AllUUIDs[0].uuid = &DCTN_TI_UUID;
-        plcml_Init->DeviceInfo.DspStream = strmAttr;
+    strmAttr->uNumBufs = 2;
+    strmAttr->lMode = STRMMODE_PROCCOPY;
+    plcml_Init->DeviceInfo.TypeofDevice = 1;
+    plcml_Init->DeviceInfo.TypeofRender = 0;
+
+    plcml_Init->DeviceInfo.AllUUIDs[0].uuid = &DCTN_TI_UUID;
+    plcml_Init->DeviceInfo.DspStream = strmAttr;
 #endif
     } else {
         plcml_Init->DeviceInfo.TypeofDevice = 0;
@@ -223,18 +202,10 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
         arr[0] = 2;            /* Number of Streams */
         arr[1] = 0;            /* ID of the Input Stream */
         arr[2] = 0;            /* Type of Input Stream DMM (0) / STRM (1) */
-#ifndef UNDER_CE
         arr[3] = 4;            /* Number of buffers for Input Stream */
-#else
-        arr[3] = 1;            /* WinCE Number of buffers for Input Stream */
-#endif
         arr[4] = 1;            /* ID of the Output Stream */
         arr[5] = 0;            /* Type of Output Stream  */
-#ifndef UNDER_CE
         arr[6] = 4;            /* Number of buffers for Output Stream */
-#else
-        arr[6] = 1;            /* WinCE Number of buffers for Output Stream */
-#endif
 
         if(pComponentPrivate->pcmParams->nBitPerSample == 24){
             OMX_PRCOMM2(pComponentPrivate->dbg, " PCM 24 bit output\n");
@@ -243,7 +214,7 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
             OMX_PRCOMM2(pComponentPrivate->dbg, " PCM 16 bit output\n");
             arr[7] = 16;
         }
-    
+
         if(pComponentPrivate->frameMode) {
             OMX_PRMGR2(pComponentPrivate->dbg, " frame mode is on\n");
             arr[8] = 1;   /* frame mode is on */
@@ -251,6 +222,7 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
             arr[8] = 0;
             OMX_PRMGR2(pComponentPrivate->dbg, " frame mode is off\n");
         }
+
         arr[9] = END_OF_CR_PHASE_ARGS;
     } else {
         OMX_PRDSP2(pComponentPrivate->dbg, ":: DASF MODE CREATE PHASE PARAMETERS\n");
@@ -263,7 +235,6 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
         arr[6] = 2;        /* Number of buffers for Output Stream */
         arr[7] = 16;       /*Decoder Output PCM width is 24-bit or 16-bit */
         arr[8] = 0;        /* frame mode off */
-
         arr[9] = END_OF_CR_PHASE_ARGS;
     }
 
@@ -291,10 +262,18 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
         pTemp_lcml->pBufHdr = pTemp;
         pTemp_lcml->eDir = OMX_DirInput;
         pTemp_lcml->pOtherParams[i] = NULL;
+
         OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pIpParam,
                              sizeof(MP3DEC_UAlgInBufParamStruct),
                              MP3DEC_UAlgInBufParamStruct);
-        pTemp_lcml->pIpParam->bLastBuffer = 0;
+        if (NULL == pTemp_lcml->pIpParam) {
+            MP3DEC_CleanupInitParams(pHandle);
+            return OMX_ErrorInsufficientResources;
+        }
+        else {
+            pTemp_lcml->pIpParam->bLastBuffer = 0;
+            pTemp_lcml->pIpParam->ulFrameIndex = 0;
+        }
 
         pTemp->nFlags = NORMAL_BUFFER;
         ((MP3DEC_COMPONENT_PRIVATE *) pTemp->pPlatformPrivate)->pHandle = pHandle;
@@ -326,11 +305,19 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
         pTemp_lcml->pBufHdr = pTemp;
         pTemp_lcml->eDir = OMX_DirOutput;
         pTemp_lcml->pOtherParams[i] = NULL;
+
         OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pOpParam,
                              sizeof(MP3DEC_UAlgOutBufParamStruct),
                              MP3DEC_UAlgOutBufParamStruct);
-        pTemp_lcml->pOpParam->ulFrameCount = DONT_CARE;
-        pTemp_lcml->pOpParam->ulIsLastBuffer = 0;
+        if (NULL == pTemp_lcml->pOpParam) {
+            MP3DEC_CleanupInitParams(pHandle);
+            return OMX_ErrorInsufficientResources;
+        }
+        else {
+            pTemp_lcml->pOpParam->ulFrameCount = DONT_CARE;
+            pTemp_lcml->pOpParam->ulIsLastBuffer = 0;
+            pTemp_lcml->pOpParam->ulFrameIndex = 0;
+        }
 
         pTemp->nFlags = NORMAL_BUFFER;
         ((MP3DEC_COMPONENT_PRIVATE *)pTemp->pPlatformPrivate)->pHandle = pHandle;
@@ -352,9 +339,8 @@ OMX_ERRORTYPE MP3DEC_Fill_LCMLInitParams(OMX_HANDLETYPE pComponent,LCML_DSP *plc
 
     pComponentPrivate->bInitParamsInitialized = 1;
 
- EXIT:
+EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, "Exiting MP3DEC_Fill_LCMLInitParams. error=%d\n", eError);
-
     return eError;
 }
 
@@ -384,13 +370,6 @@ OMX_ERRORTYPE Mp3Dec_StartCompThread(OMX_HANDLETYPE pComponent)
         (MP3DEC_COMPONENT_PRIVATE *)pHandle->pComponentPrivate;
     int nRet = 0;
 
-#ifdef UNDER_CE
-    pthread_attr_t attr;
-    memset(&attr, 0, sizeof(attr));
-    attr.__inheritsched = PTHREAD_EXPLICIT_SCHED;
-    attr.__schedparam.__sched_priority = OMX_AUDIO_DECODER_THREAD_PRIORITY;
-#endif
-
     OMX_PRINT1(pComponentPrivate->dbg, ":: Enetering  Mp3Dec_StartCompThread()\n");
 
     pComponentPrivate->lcml_nOpBuf = 0;
@@ -419,14 +398,8 @@ OMX_ERRORTYPE Mp3Dec_StartCompThread(OMX_HANDLETYPE pComponent)
                             "Pipe Creation Failed");
     }
 
-
-#ifdef UNDER_CE
-    nRet = pthread_create (&(pComponentPrivate->ComponentThread), &attr,
-                           MP3DEC_ComponentThread, pComponentPrivate);
-#else
     nRet = pthread_create (&(pComponentPrivate->ComponentThread), NULL,
                            MP3DEC_ComponentThread, pComponentPrivate);
-#endif                                       
     if ((0 != nRet) || (!pComponentPrivate->ComponentThread)) {
         MP3D_OMX_ERROR_EXIT(eError, OMX_ErrorInsufficientResources,
                             "Thread Creation Failed");
@@ -503,7 +476,6 @@ OMX_ERRORTYPE MP3DEC_FreeCompResources(OMX_HANDLETYPE pComponent)
 
     nRet = close (pComponentPrivate->cmdDataPipe[1]);
 
-
     if (0 != nRet && OMX_ErrorNone == eError) {
         eError = OMX_ErrorHardware;
     }
@@ -526,11 +498,10 @@ OMX_ERRORTYPE MP3DEC_FreeCompResources(OMX_HANDLETYPE pComponent)
 
     pComponentPrivate->bPortDefsAllocated = 0;
 
-#ifndef UNDER_CE
     OMX_PRDSP2(pComponentPrivate->dbg, "\n\n FreeCompResources: Destroying mutexes.\n\n");
     pthread_mutex_destroy(&pComponentPrivate->InLoaded_mutex);
     pthread_cond_destroy(&pComponentPrivate->InLoaded_threshold);
-    
+
     pthread_mutex_destroy(&pComponentPrivate->InIdle_mutex);
     pthread_cond_destroy(&pComponentPrivate->InIdle_threshold);
     
@@ -542,32 +513,20 @@ OMX_ERRORTYPE MP3DEC_FreeCompResources(OMX_HANDLETYPE pComponent)
 
     pthread_mutex_destroy(&pComponentPrivate->codecFlush_mutex);
     pthread_cond_destroy(&pComponentPrivate->codecFlush_threshold);
-#else
-    OMX_DestroyEvent(&(pComponentPrivate->InLoaded_event));
-    OMX_DestroyEvent(&(pComponentPrivate->InIdle_event));
-    OMX_DestroyEvent(&(pComponentPrivate->AlloBuf_event));
-#endif
+
+    pthread_mutex_destroy(&pComponentPrivate->bufferReturned_mutex);
+    pthread_cond_destroy(&pComponentPrivate->bufferReturned_condition);
+    if (NULL != pComponentPrivate->ptrLibLCML && pComponentPrivate->DSPMMUFault){
+        eError = LCML_ControlCodec(((
+                                     LCML_DSP_INTERFACE*)pComponentPrivate->pLcmlHandle)->pCodecinterfacehandle,
+                                   EMMCodecControlDestroy, NULL);
+        OMX_ERROR4(pComponentPrivate->dbg,
+                   "%d ::EMMCodecControlDestroy: error = %d\n",__LINE__, eError);
+        dlclose(pComponentPrivate->ptrLibLCML);
+        pComponentPrivate->ptrLibLCML=NULL;
+    }
 
     return eError;
-}
-
-static void signalAlloBufThresholdIfNecessary(
-        MP3DEC_COMPONENT_PRIVATE *pComponentPrivate) {
-#ifndef UNDER_CE
-    pthread_mutex_lock(&pComponentPrivate->AlloBuf_mutex);
-    if (pComponentPrivate->AlloBuf_waitingsignal) {
-        pComponentPrivate->AlloBuf_waitingsignal = 0;
-        pthread_cond_signal(&pComponentPrivate->AlloBuf_threshold);
-    }
-    pthread_mutex_unlock(&pComponentPrivate->AlloBuf_mutex);
-#else
-    if (pComponentPrivate->AlloBuf_waitingsignal) {
-        // I am fairly sure this will suffer from similar issues without
-        // proper mutex protection and a loop under WinCE...
-        pComponentPrivate->AlloBuf_waitingsignal = 0;
-        OMX_SignalEvent(&(pComponentPrivate->AlloBuf_event));
-    }
-#endif
 }
 
 
@@ -594,22 +553,22 @@ static void signalAlloBufThresholdIfNecessary(
 
 OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
 {
-    OMX_U32 i,ret = 0;
+    OMX_U32 i;
+    OMX_S32 ret = 0;
     OMX_U16 arr[24];
     OMX_ERRORTYPE eError = OMX_ErrorNone;
-    char *pArgs = "damedesuStr";
-    OMX_U32 pValues[4];
+    char *pArgs = "";
     OMX_U32 pValues1[4];
     OMX_COMPONENTTYPE *pHandle =(OMX_COMPONENTTYPE *) pComponentPrivate->pHandle;
     OMX_COMMANDTYPE command;
     OMX_STATETYPE commandedState;
-    OMX_U32 commandData;
+    OMX_S32 commandData;
     OMX_HANDLETYPE pLcmlHandle = pComponentPrivate->pLcmlHandle;
 
 #ifdef RESOURCE_MANAGER_ENABLED
     OMX_ERRORTYPE rm_error = OMX_ErrorNone;
 #endif
-    
+
     OMX_PRINT1(pComponentPrivate->dbg, ":: >>> Entering HandleCommand Function\n");
 
     ret = read(pComponentPrivate->cmdPipe[0], &command, sizeof (command));
@@ -644,7 +603,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                          command,
                          commandData,
                          PERF_ModuleLLMM);
-#endif  
+#endif
     if (command == OMX_CommandStateSet){
         commandedState = (OMX_STATETYPE)commandData;
         if (pComponentPrivate->curState == commandedState) {
@@ -654,7 +613,6 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                     OMX_ErrorSameState,
                                                     OMX_TI_ErrorMinor,
                                                     NULL);
-
             OMX_ERROR4(pComponentPrivate->dbg, ":: Error: Same State Given by Application\n");
         } else {
 
@@ -665,7 +623,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 if (pComponentPrivate->curState == OMX_StateLoaded || pComponentPrivate->curState == OMX_StateWaitForResources) {
                     LCML_CALLBACKTYPE cb;
                     LCML_DSP *pLcmlDsp;
-                    char *p = "damedesuStr";
+                    char *p = "";
 #ifdef __PERF_INSTRUMENTATION__
                     PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryStart | PERF_BoundarySetup);
 #endif
@@ -687,9 +645,8 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                                    OMX_TI_ErrorMajor, 
                                                                    "AM: No Stream ID Available");                 
                             goto EXIT; 
-                        } 
+                        }
                     }
-
 
                     OMX_PRINT2(pComponentPrivate->dbg, "In while loop: IP : %p OP: %p\n",pComponentPrivate->pPortDef[MP3D_INPUT_PORT], 
                                   pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]);
@@ -701,7 +658,6 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                   pComponentPrivate->pPortDef[MP3D_INPUT_PORT]->bEnabled);
                     OMX_PRCOMM2(pComponentPrivate->dbg, "pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled = %d\n",
                                   pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled);
-                     
 
                     if (pComponentPrivate->pPortDef[MP3D_INPUT_PORT]->bPopulated && 
                         pComponentPrivate->pPortDef[MP3D_INPUT_PORT]->bEnabled)  {
@@ -724,14 +680,9 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     }
 
                     if(!(inputPortFlag && outputPortFlag)) {
-                        pComponentPrivate->InLoaded_readytoidle = 1;
-#ifndef UNDER_CE        
-                        pthread_mutex_lock(&pComponentPrivate->InLoaded_mutex); 
-                        pthread_cond_wait(&pComponentPrivate->InLoaded_threshold, &pComponentPrivate->InLoaded_mutex);
-                        pthread_mutex_unlock(&pComponentPrivate->InLoaded_mutex);
-#else
-                        OMX_WaitForEvent(&(pComponentPrivate->InLoaded_event));
-#endif
+                        omx_mutex_wait(&pComponentPrivate->InLoaded_mutex,
+                                          &pComponentPrivate->InLoaded_threshold,
+                                          &pComponentPrivate->InLoaded_readytoidle);
                     }
 
                     pLcmlHandle = (OMX_HANDLETYPE) MP3DEC_GetLCMLHandle(pComponentPrivate);
@@ -750,6 +701,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
 
                     pLcmlDsp = (((LCML_DSP_INTERFACE*)pLcmlHandle)->dspCodec);
                     eError = MP3DEC_Fill_LCMLInitParams(pHandle, pLcmlDsp,arr);
+
                     if(eError != OMX_ErrorNone) {
                         OMX_ERROR4(pComponentPrivate->dbg, ":: Error returned from Fill_LCMLInitParams()\n");
                         pComponentPrivate->curState = OMX_StateInvalid;
@@ -763,13 +715,12 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     }
                     pComponentPrivate->pLcmlHandle = (LCML_DSP_INTERFACE *)pLcmlHandle;
                     cb.LCML_Callback = (void *) MP3DEC_LCML_Callback;
-
-#ifndef UNDER_CE
                     eError = LCML_InitMMCodecEx(((LCML_DSP_INTERFACE *)pLcmlHandle)->pCodecinterfacehandle,
                                                 p,&pLcmlHandle,(void *)p,&cb, (OMX_STRING)pComponentPrivate->sDeviceString);
                     if (eError != OMX_ErrorNone){
                         OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error : InitMMCodec failed...>>>>>> \n",__LINE__);
                         /* send an event to client */
+                        eError = OMX_ErrorInvalidState;
                         /* client should unload the component if the codec is not able to load */
                         pComponentPrivate->cbInfo.EventHandler (pHandle, 
                                                 pHandle->pApplicationPrivate,
@@ -779,23 +730,6 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                 NULL);
                         goto EXIT;
                     }
-#else
-                    eError = LCML_InitMMCodec(((LCML_DSP_INTERFACE *)pLcmlHandle)->pCodecinterfacehandle,
-                                              p,&pLcmlHandle,(void *)p,&cb);
-                    if (eError != OMX_ErrorNone){
-                        OMX_ERROR4(pComponentPrivate->dbg, "%d :: Error : InitMMCodec failed...>>>>>> \n",__LINE__);
-                        goto EXIT;
-                    }
-
-#endif
-#ifdef HASHINGENABLE
-                    /* Enable the Hashing Code */
-                    eError = LCML_SetHashingState(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle, OMX_TRUE);
-                    if (eError != OMX_ErrorNone) {
-                        OMX_ERROR4(pComponentPrivate->dbg, "Failed to set Mapping State\n");
-                        goto EXIT;
-                    }
-#endif
 
 #ifdef RESOURCE_MANAGER_ENABLED
                     /* Need check the resource with RM */
@@ -877,17 +811,12 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
 #endif          
                     pComponentPrivate->bDspStoppedWhileExecuting = OMX_TRUE;                    
                     OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec STOP %d\n", __LINE__);
-                    if (pComponentPrivate->codecStop_waitingsignal == 0){
-                        pthread_mutex_lock(&pComponentPrivate->codecStop_mutex); 
-                    } 
+
                     eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                                MMCodecControlStop,(void *)pArgs);
-                    if (pComponentPrivate->codecStop_waitingsignal == 0){
-                        pthread_cond_wait(&pComponentPrivate->codecStop_threshold, &pComponentPrivate->codecStop_mutex);
-                        pComponentPrivate->codecStop_waitingsignal = 0;
-                        pthread_mutex_unlock(&pComponentPrivate->codecStop_mutex);
-                    }
-                    
+
+                    omx_mutex_wait(&pComponentPrivate->codecStop_mutex, &pComponentPrivate->codecStop_threshold,
+                                      &pComponentPrivate->codecStop_waitingsignal);
 
                     if(eError != OMX_ErrorNone) {
                         OMX_ERROR4(pComponentPrivate->dbg, ": Error Occurred in Codec Stop..\n");
@@ -910,7 +839,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     }
 #endif
                 } else if(pComponentPrivate->curState == OMX_StatePause) {
-                    char *pArgs = "damedesuStr";
+                    char *pArgs = "";
                     OMX_PRCOMM2(pComponentPrivate->dbg, ":: Comp: Stop Command Received\n");
 #ifdef HASHINGENABLE
                     /*Hashing Change*/
@@ -925,17 +854,12 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryComplete | PERF_BoundarySteadyState);
 #endif              
                     OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec %d\n", __LINE__);
-                    if (pComponentPrivate->codecStop_waitingsignal == 0){
-                        pthread_mutex_lock(&pComponentPrivate->codecStop_mutex); 
-                    } 
+
                     eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                                MMCodecControlStop,(void *)pArgs);
                     // lock mutex here, wait for stop ack. from lcml
-                    if (pComponentPrivate->codecStop_waitingsignal == 0){
-                        pthread_cond_wait(&pComponentPrivate->codecStop_threshold, &pComponentPrivate->codecStop_mutex);
-                        pComponentPrivate->codecStop_waitingsignal = 0; // reset the wait condition for next time
-                        pthread_mutex_unlock(&pComponentPrivate->codecStop_mutex);
-                    }
+                    omx_mutex_wait(&pComponentPrivate->codecStop_mutex, &pComponentPrivate->codecStop_threshold,
+                                      &pComponentPrivate->codecStop_waitingsignal);
                     if(eError != OMX_ErrorNone) {
                         OMX_ERROR4(pComponentPrivate->dbg, ": Error Occurred in Codec Stop..\n");
                         pComponentPrivate->curState = OMX_StateInvalid;
@@ -956,7 +880,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                       OMX_StateIdle, 
                                                       3456, 
                                                       NULL);
-#endif                  
+#endif
                     OMX_PRDSP2(pComponentPrivate->dbg, ":: The component is stopped\n");
                     pComponentPrivate->cbInfo.EventHandler(pHandle, 
                                                            pHandle->pApplicationPrivate,
@@ -979,7 +903,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
             case OMX_StateExecuting:
                 OMX_PRDSP2(pComponentPrivate->dbg, ": HandleCommand: Cmd Executing \n");
                 if (pComponentPrivate->curState == OMX_StateIdle) {
-                    char *pArgs = "damedesuStr";
+                    char *pArgs = "";
                     OMX_U32 pValues[4];
                     OMX_U32 pValues1[4];
 
@@ -1020,11 +944,11 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                         } else {
                             pComponentPrivate->ptAlgDynParams->lOutputFormat  = IAUDIO_BLOCK;
                         }
-                    
+
                         pComponentPrivate->ptAlgDynParams->lMonoToStereoCopy = 0;
                         pComponentPrivate->ptAlgDynParams->lStereoToMonoCopy = 0;
                         pComponentPrivate->ptAlgDynParams->size = sizeof(MP3DEC_UALGParams);
-                
+
                         pValues1[0] = IUALG_CMD_SETSTATUS;
                         pValues1[1] = (OMX_U32) pComponentPrivate->ptAlgDynParams;
                         pValues1[2] = sizeof(MP3DEC_UALGParams);
@@ -1042,7 +966,6 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                                    NULL);
                             goto EXIT;
                         }
-                        pComponentPrivate->bDspStoppedWhileExecuting = OMX_FALSE;
                         OMX_PRDSP2(pComponentPrivate->dbg, ":: Algcontrol has been sent to DSP\n");
                         OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec START %d\n", __LINE__);
                         eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
@@ -1057,11 +980,10 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                         pComponentPrivate->SendAfterEOS = 1;
                     } 
                 } else if (pComponentPrivate->curState == OMX_StatePause) {
-                    char *pArgs = "damedesuStr";
+                    char *pArgs = "";
                     OMX_PRDSP2(pComponentPrivate->dbg, ": Comp: Resume Command Came from App\n");
                     OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec\n");
                     OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec  START %d\n", __LINE__);
-                    pComponentPrivate->bDspStoppedWhileExecuting = OMX_FALSE;
                     eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                                EMMCodecControlStart,(void *)pArgs);
 
@@ -1084,7 +1006,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                                pComponentPrivate->pInputBufHdrPending[i]->pBuffer, OMX_DirInput, &pLcmlHdr);
                             MP3DEC_SetPending(pComponentPrivate,pComponentPrivate->pInputBufHdrPending[i],OMX_DirInput,__LINE__);
                             eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                                      EMMCodecInputBuffer,
+                                                      EMMCodecInputBufferMapReuse,
                                                       pComponentPrivate->pInputBufHdrPending[i]->pBuffer,
                                                       pComponentPrivate->pInputBufHdrPending[i]->nAllocLen,
                                                       pComponentPrivate->pInputBufHdrPending[i]->nFilledLen,
@@ -1107,7 +1029,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                               OMX_DirOutput,
                                               __LINE__);
                             eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                                      EMMCodecOuputBuffer,
+                                                      EMMCodecOutputBufferMapReuse,
                                                       pComponentPrivate->pOutputBufHdrPending[i]->pBuffer,
                                                       pComponentPrivate->pOutputBufHdrPending[i]->nAllocLen,
                                                       0,
@@ -1131,19 +1053,19 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 OMX_PRSTATE2(pComponentPrivate->dbg, "****************** Component State Set to Executing\n\n");
 #ifdef RESOURCE_MANAGER_ENABLED         
                 rm_error = RMProxy_NewSendCommand(pHandle, RMProxy_StateSet, OMX_MP3_Decoder_COMPONENT, OMX_StateExecuting, 3456, NULL);
-#endif          
+#endif
+                pComponentPrivate->bDspStoppedWhileExecuting = OMX_FALSE;
                 pComponentPrivate->curState = OMX_StateExecuting;
 
 #ifdef __PERF_INSTRUMENTATION__
                 PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryStart | PERF_BoundarySteadyState);
-#endif          
+#endif
                 pComponentPrivate->cbInfo.EventHandler(pHandle, 
                                                        pHandle->pApplicationPrivate,
                                                        OMX_EventCmdComplete,
                                                        OMX_CommandStateSet, 
                                                        pComponentPrivate->curState, 
                                                        NULL);
-
                 break;
 
             case OMX_StateLoaded:
@@ -1153,11 +1075,11 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     OMX_PRSTATE2(pComponentPrivate->dbg, "****************** Component State Set to Loaded\n\n");
 #ifdef __PERF_INSTRUMENTATION__
                     PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryStart | PERF_BoundaryCleanup); 
-#endif              
+#endif
                     pComponentPrivate->curState = OMX_StateLoaded;
 #ifdef __PERF_INSTRUMENTATION__
                     PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryComplete | PERF_BoundaryCleanup);
-#endif              
+#endif
                     pComponentPrivate->cbInfo.EventHandler (pHandle, 
                                                             pHandle->pApplicationPrivate,
                                                             OMX_EventCmdComplete, 
@@ -1181,34 +1103,31 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 }
 #ifdef __PERF_INSTRUMENTATION__
                 PERF_Boundary(pComponentPrivate->pPERFcomp,PERF_BoundaryStart | PERF_BoundaryCleanup);
-#endif          
-
+#endif
                 OMX_PRSTATE2(pComponentPrivate->dbg, "Current State = %d\n",pComponentPrivate->curState);
                 OMX_PRSTATE2(pComponentPrivate->dbg, "pComponentPrivate->pInputBufferList->numBuffers = %ld\n",pComponentPrivate->pInputBufferList->numBuffers);
                 OMX_PRSTATE2(pComponentPrivate->dbg, "pComponentPrivate->pOutputBufferList->numBuffers = %ld\n",pComponentPrivate->pOutputBufferList->numBuffers);
 
                 if (pComponentPrivate->pInputBufferList->numBuffers || pComponentPrivate->pOutputBufferList->numBuffers) {
-                    pComponentPrivate->InIdle_goingtoloaded = 1;
-#ifndef UNDER_CE
-                    pthread_mutex_lock(&pComponentPrivate->InIdle_mutex); 
-                    pthread_cond_wait(&pComponentPrivate->InIdle_threshold, &pComponentPrivate->InIdle_mutex);
-                    pthread_mutex_unlock(&pComponentPrivate->InIdle_mutex);
-#else
-                    OMX_WaitForEvent(&(pComponentPrivate->InIdle_event));
-#endif
+                    omx_mutex_wait(&pComponentPrivate->InIdle_mutex, &pComponentPrivate->InIdle_threshold,
+                                      &pComponentPrivate->InIdle_goingtoloaded);
                     /* Send StateChangeNotification to application */
                     pComponentPrivate->bLoadedCommandPending = OMX_FALSE;
                 }
                 OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec DESTROY %d\n", __LINE__);
                 eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                            EMMCodecControlDestroy,(void *)pArgs);
-#ifdef UNDER_CE
-                FreeLibrary(g_hLcmlDllHandle);
-                g_hLcmlDllHandle = NULL;
-#endif
+
+                /*Closing LCML Lib*/
+                if (pComponentPrivate->ptrLibLCML != NULL)
+                {
+                    OMX_PRDSP2(pComponentPrivate->dbg, "Closing LCML library\n");
+                    dlclose( pComponentPrivate->ptrLibLCML  );
+                    pComponentPrivate->ptrLibLCML = NULL;
+                }
 #ifdef __PERF_INSTRUMENTATION__
                 PERF_SendingCommand(pComponentPrivate->pPERF, -1, 0, PERF_ModuleComponent);
-#endif        
+#endif
                 eError = EXIT_COMPONENT_THRD;
                 pComponentPrivate->bInitParamsInitialized = 0;
                 break;
@@ -1255,21 +1174,20 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                   OMX_StatePause,
                                                   3456,
                                                   NULL);
-#endif  
-
+#endif
                 break;
 
             case OMX_StateWaitForResources:
                 OMX_PRDSP2(pComponentPrivate->dbg, ": HandleCommand: Cmd : OMX_StateWaitForResources\n");
                 if (pComponentPrivate->curState == OMX_StateLoaded) {
-#ifdef RESOURCE_MANAGER_ENABLED         
+#ifdef RESOURCE_MANAGER_ENABLED
                     rm_error = RMProxy_NewSendCommand(pHandle, 
                                                       RMProxy_StateSet, 
                                                       OMX_MP3_Decoder_COMPONENT, 
                                                       OMX_StateWaitForResources, 
                                                       3456, 
                                                       NULL);
-#endif  
+#endif
 
                     pComponentPrivate->curState = OMX_StateWaitForResources;
                     OMX_PRDSP2(pComponentPrivate->dbg, ": Transitioning from Loaded to OMX_StateWaitForResources\n");
@@ -1307,11 +1225,14 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                        OMX_TI_ErrorSevere,
                                                        NULL);
                 MP3DEC_CleanupInitParams(pHandle);
-
                 break;
 
             case OMX_StateMax:
                 OMX_PRSTATE2(pComponentPrivate->dbg, ": HandleCommand: Cmd OMX_StateMax::\n");
+                break;
+            default:
+                OMX_PRSTATE2(pComponentPrivate->dbg, ": HandleCommand: commandedState: \
+                                                         nothing to do for this case::\n");
                 break;
             } /* End of Switch */
         }
@@ -1342,8 +1263,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                         pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
                                                                    pComponentPrivate->pHandle->pApplicationPrivate,
                                                                    pComponentPrivate->pInputBufferList->pBufHdr[i]);
-                        pComponentPrivate->nEmptyBufferDoneCount++;
-                        SignalIfAllBuffersAreReturned(pComponentPrivate);
+                        MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
                     }
                 }
 
@@ -1354,7 +1274,6 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 pComponentPrivate->pPortDef[MP3D_INPUT_PORT]->bEnabled = OMX_FALSE;
             }
             if(commandData == 0x1 || commandData == -1){
-                char *pArgs = "damedesuStr";
                 pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled = OMX_FALSE;
             }
         }
@@ -1460,7 +1379,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
             OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec start %d\n", __LINE__);
             eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                          EMMCodecControlStart,(void *)pArgs);
-            
+
             if(eError != OMX_ErrorNone) {
                 OMX_ERROR4(pComponentPrivate->dbg, "%d: Error Occurred in Codec Start..\n", __LINE__);
                 goto EXIT;
@@ -1488,8 +1407,9 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                 pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled = OMX_TRUE;
                 OMX_PRCOMM2(pComponentPrivate->dbg, "pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled = %d\n",
                               pComponentPrivate->pPortDef[MP3D_OUTPUT_PORT]->bEnabled);
-
-                signalAlloBufThresholdIfNecessary(pComponentPrivate);
+                omx_mutex_signal(&pComponentPrivate->AlloBuf_mutex,
+                           &pComponentPrivate->AlloBuf_threshold,
+                           &pComponentPrivate->AlloBuf_waitingsignal);
                 OMX_PRCOMM2(pComponentPrivate->dbg, "setting output port to enabled\n");
             }
         }
@@ -1502,9 +1422,10 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                        OMX_CommandPortEnable,
                                                        MP3D_INPUT_PORT,
                                                        NULL);
-                
-                signalAlloBufThresholdIfNecessary(pComponentPrivate);
 
+                omx_mutex_signal(&pComponentPrivate->AlloBuf_mutex,
+                           &pComponentPrivate->AlloBuf_threshold,
+                           &pComponentPrivate->AlloBuf_waitingsignal);
                 //MP3DECFill_LCMLInitParamsEx(pHandle, 0);
                 // queue the pending buffers received while doing the config
                 for (i=0; i < pComponentPrivate->nNumInputBufPending; i++) {
@@ -1516,7 +1437,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                         MP3DEC_SetPending(pComponentPrivate,pComponentPrivate->pInputBufHdrPending[i],OMX_DirInput,__LINE__);
                         OMX_PRBUFFER2(pComponentPrivate->dbg, "QueueBuffer pending port config line %d\n", __LINE__);
                         eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                                  EMMCodecInputBuffer,
+                                                  EMMCodecInputBufferMapReuse,
                                                   pComponentPrivate->pInputBufHdrPending[i]->pBuffer,
                                                   pComponentPrivate->pInputBufHdrPending[i]->nAllocLen,
                                                   pComponentPrivate->pInputBufHdrPending[i]->nFilledLen,
@@ -1545,14 +1466,15 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                         MP3D_OUTPUT_PORT, 
                                                         NULL);
 
-                signalAlloBufThresholdIfNecessary(pComponentPrivate);
+                omx_mutex_signal(&pComponentPrivate->AlloBuf_mutex,
+                           &pComponentPrivate->AlloBuf_threshold,
+                           &pComponentPrivate->AlloBuf_waitingsignal);
                 OMX_PRINT2(pComponentPrivate->dbg, "reconfigOut = %d!, but should be true!\n",pComponentPrivate->reconfigOutputPort);
                 if(pComponentPrivate->reconfigOutputPort){
                     //make sure new VA's are used
                     MP3DEC_CleanupInitParamsEx(pHandle,commandData);
                     MP3DECFill_LCMLInitParamsEx(pHandle, 1);
                     OMX_PRDSP2(pComponentPrivate->dbg, "completed MP3DEC_MapLCMLParamsEx! %d\n", __LINE__);
-                    
                 }
 
                 for (i=0; i < pComponentPrivate->nNumOutputBufPending; i++) {
@@ -1568,7 +1490,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                           __LINE__);
                         OMX_PRCOMM2(pComponentPrivate->dbg, "QueueBuffer pending port config line %d\n", __LINE__);
                         eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                                  EMMCodecOuputBuffer,
+                                                  EMMCodecOutputBufferMapReuse,
                                                   pComponentPrivate->pOutputBufHdrPending[i]->pBuffer,
                                                   pComponentPrivate->pOutputBufHdrPending[i]->nAllocLen,
                                                   0,
@@ -1589,7 +1511,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                         MP3DEC_SetPending(pComponentPrivate,pComponentPrivate->pInputBufHdrPending[i],OMX_DirInput,__LINE__);
                         OMX_PRCOMM2(pComponentPrivate->dbg, "QueueBuffer pending port config line %d\n", __LINE__);
                         eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                                  EMMCodecInputBuffer,
+                                                  EMMCodecInputBufferMapReuse,
                                                   pComponentPrivate->pInputBufHdrPending[i]->pBuffer,
                                                   pComponentPrivate->pInputBufHdrPending[i]->nAllocLen,
                                                   pComponentPrivate->pInputBufHdrPending[i]->nFilledLen,
@@ -1625,7 +1547,10 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                        MP3D_OUTPUT_PORT, 
                                                        NULL);
 
-                signalAlloBufThresholdIfNecessary(pComponentPrivate);
+                omx_mutex_signal(&pComponentPrivate->AlloBuf_mutex,
+                           &pComponentPrivate->AlloBuf_threshold,
+                           &pComponentPrivate->AlloBuf_waitingsignal);
+
                 MP3DEC_CleanupInitParamsEx(pHandle,commandData);
                 MP3DECFill_LCMLInitParamsEx(pHandle, -1);
 
@@ -1642,7 +1567,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                           OMX_DirOutput,
                                           __LINE__);
                         eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                                  EMMCodecOuputBuffer,
+                                                  EMMCodecOutputBufferMapReuse,
                                                   pComponentPrivate->pOutputBufHdrPending[i]->pBuffer,
                                                   pComponentPrivate->pOutputBufHdrPending[i]->nAllocLen,
                                                   0,
@@ -1661,7 +1586,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                         MP3DEC_SetPending(pComponentPrivate,pComponentPrivate->pInputBufHdrPending[i],OMX_DirInput,__LINE__);
                         OMX_PRCOMM2(pComponentPrivate->dbg, "QueueBuffer pending port config line %d\n", __LINE__);
                         eError = LCML_QueueBuffer(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
-                                                  EMMCodecInputBuffer,
+                                                  EMMCodecInputBufferMapReuse,
                                                   pComponentPrivate->pInputBufHdrPending[i]->pBuffer,
                                                   pComponentPrivate->pInputBufHdrPending[i]->nAllocLen,
                                                   pComponentPrivate->pInputBufHdrPending[i]->nFilledLen,
@@ -1694,18 +1619,13 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     aParam[1] = 0x0; 
                     aParam[2] = 0x0; 
 
-                    OMX_ERROR4(pComponentPrivate->dbg, "Flushing input port\n");
+                    OMX_PRCOMM2(pComponentPrivate->dbg, "Flushing input port\n");
                     OMX_ERROR2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec FLUSH in %d\n", __LINE__);
-                    if (pComponentPrivate->codecFlush_waitingsignal == 0){
-                        pthread_mutex_lock(&pComponentPrivate->codecFlush_mutex);
-                    }
                     eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                                EMMCodecControlStrmCtrl, (void*)aParam);
-                    if (pComponentPrivate->codecFlush_waitingsignal == 0){
-                        pthread_cond_wait(&pComponentPrivate->codecFlush_threshold, &pComponentPrivate->codecFlush_mutex);
-                        pComponentPrivate->codecFlush_waitingsignal = 0;
-                        pthread_mutex_unlock(&pComponentPrivate->codecFlush_mutex);
-                    }
+                    omx_mutex_wait(&pComponentPrivate->codecFlush_mutex,
+                                      &pComponentPrivate->codecFlush_threshold,
+                                      &pComponentPrivate->codecFlush_waitingsignal);
                     if (eError != OMX_ErrorNone) {
                         goto EXIT;
                     }
@@ -1724,8 +1644,7 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                                                    pComponentPrivate->pHandle->pApplicationPrivate,
                                                                    pComponentPrivate->pInputBufHdrPending[i]);
                         pComponentPrivate->pInputBufHdrPending[i] = NULL;
-                        pComponentPrivate->nEmptyBufferDoneCount++;
-                        SignalIfAllBuffersAreReturned(pComponentPrivate);
+                        MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
                     }
                     pComponentPrivate->nNumInputBufPending=0;    
                     pComponentPrivate->cbInfo.EventHandler(pHandle, 
@@ -1752,18 +1671,13 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                     aParam[1] = 0x1; 
                     aParam[2] = 0x0; 
 
-                    OMX_ERROR4(pComponentPrivate->dbg, "Flushing output port\n");
+                    OMX_PRCOMM2(pComponentPrivate->dbg, "Flushing output port\n");
                     OMX_PRDSP2(pComponentPrivate->dbg, ": MP3DECUTILS::About to call LCML_ControlCodec FLUSH out %d\n", __LINE__);
-                    if (pComponentPrivate->codecFlush_waitingsignal == 0){
-                        pthread_mutex_lock(&pComponentPrivate->codecFlush_mutex);
-                    }
                     eError = LCML_ControlCodec(((LCML_DSP_INTERFACE*)pLcmlHandle)->pCodecinterfacehandle,
                                                EMMCodecControlStrmCtrl, (void*)aParam);
-                    if (pComponentPrivate->codecFlush_waitingsignal == 0){
-                        pthread_cond_wait(&pComponentPrivate->codecFlush_threshold, &pComponentPrivate->codecFlush_mutex);
-                        pComponentPrivate->codecFlush_waitingsignal = 0;
-                        pthread_mutex_unlock(&pComponentPrivate->codecFlush_mutex);
-                    }
+                    omx_mutex_wait(&pComponentPrivate->codecFlush_mutex,
+                                      &pComponentPrivate->codecFlush_threshold,
+                                      &pComponentPrivate->codecFlush_waitingsignal);
                     if (eError != OMX_ErrorNone) {
                         goto EXIT;
                     }
@@ -1775,15 +1689,14 @@ OMX_U32 MP3DEC_HandleCommand (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
                                           PREF(pComponentPrivate->pOutputBufHdrPending[i],pBuffer),
                                           PREF(pComponentPrivate->pOutputBufHdrPending[i],nFilledLen),
                                           PERF_ModuleHLMM);
-#endif  
-
+#endif
                         pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
                                                                   pComponentPrivate->pHandle->pApplicationPrivate,
                                                                   pComponentPrivate->pOutputBufHdrPending[i]
                                                                   );
-                        pComponentPrivate->nFillBufferDoneCount++;
+                        pComponentPrivate->nOutStandingFillDones--;
                         pComponentPrivate->pOutputBufHdrPending[i] = NULL;
-                        SignalIfAllBuffersAreReturned(pComponentPrivate);
+                        MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirOutput);
                     }
                     pComponentPrivate->nNumOutputBufPending=0;
 
@@ -1842,7 +1755,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_DIRTYPE eDir;
     OMX_PARAM_PORTDEFINITIONTYPE* pPortDefIn = NULL;
-    char *pArgs = "damedesuStr";
+    char *pArgs = "";
     OMX_U32 pValues[4];
     OMX_U32 pValues1[4];
     OMX_U32 nBitPosition = 0;
@@ -1868,8 +1781,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
                                                        pBufHeader);
             OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s In idle state return input buffers\n", __LINE__, __FUNCTION__);
-            pComponentPrivate->nEmptyBufferDoneCount++;
-            SignalIfAllBuffersAreReturned(pComponentPrivate);
+            MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
             goto EXIT;
         }
         LCML_DSP_INTERFACE *pLcmlHandle = (LCML_DSP_INTERFACE *)pComponentPrivate->pLcmlHandle;
@@ -1881,7 +1793,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             OMX_ERROR4(pComponentPrivate->dbg, ":: Error: Invalid Buffer Came ...\n");
             goto EXIT;
         }
- 
+
         if ((pBufHeader->nFilledLen > 0) || (pBufHeader->nFlags & OMX_BUFFERFLAG_EOS)) {
             pComponentPrivate->bBypassDSP = 0;
             OMX_PRBUFFER2(pComponentPrivate->dbg, ":: HandleDataBuf_FromApp Function\n");
@@ -1926,7 +1838,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                 }
 
                 if(pBufHeader->nFlags & OMX_BUFFERFLAG_CODECCONFIG || pComponentPrivate->bConfigData){
-		    OMX_PRBUFFER2(pComponentPrivate->dbg, "Detected OMX_BUFFERFLAG_CODECCONFIG\n, \tproceed with parsing config data\n"); 
+                    OMX_PRBUFFER2(pComponentPrivate->dbg, "Detected OMX_BUFFERFLAG_CODECCONFIG\n, \tproceed with parsing config data\n");
                     // parse the frame header
                     pComponentPrivate->pStreamData.nSyncWord = MP3DEC_GetBits(&nBitPosition, 11, pHeaderStream, OMX_TRUE);
                     pComponentPrivate->pStreamData.nMpegVersion = MP3DEC_GetBits(&nBitPosition, 2, pHeaderStream, OMX_TRUE);
@@ -2003,7 +1915,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                     pComponentPrivate->ptAlgDynParams->lMonoToStereoCopy = 0;
                     pComponentPrivate->ptAlgDynParams->lStereoToMonoCopy = 0;
                     pComponentPrivate->ptAlgDynParams->size = sizeof(MP3DEC_UALGParams);
-                
+
                     pValues1[0] = IUALG_CMD_SETSTATUS;
                     pValues1[1] = (OMX_U32) pComponentPrivate->ptAlgDynParams;
                     pValues1[2] = sizeof(MP3DEC_UALGParams);
@@ -2021,7 +1933,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                                                                NULL);
                         goto EXIT;
                     }
-                    
+
                     // adding port config
                     if(pComponentPrivate->reconfigOutputPort){
                         OMX_PRCOMM2(pComponentPrivate->dbg, ": send event PortSettingsChanged for ouput port...\n");
@@ -2063,7 +1975,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             pComponentPrivate->IpBufindex++;
             pComponentPrivate->IpBufindex %= pPortDefIn->nBufferCountActual;
             
-	    if(!pComponentPrivate->frameMode){
+            if(!pComponentPrivate->frameMode){
                 if(pComponentPrivate->first_buff == 0){
                     pComponentPrivate->first_buff = 1;
                     pComponentPrivate->first_TS = pBufHeader->nTimeStamp;
@@ -2071,7 +1983,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             }
 
             OMX_PRCOMM2(pComponentPrivate->dbg, "Comp:: Sending Filled Input buffer = %p, %ld\
-                               to LCML\n",pBufHeader,pBufHeader->nFilledLen);
+                        to LCML\n",pBufHeader,pBufHeader->nFilledLen);
 
             if (pComponentPrivate->curState == OMX_StateExecuting) {
                 if (!MP3DEC_IsPending(pComponentPrivate,pBufHeader,OMX_DirInput)) {
@@ -2079,7 +1991,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                         if(!(pComponentPrivate->reconfigInputPort || pComponentPrivate->reconfigOutputPort)){
                             MP3DEC_SetPending(pComponentPrivate,pBufHeader,OMX_DirInput,__LINE__);
                             eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
-                                                  EMMCodecInputBuffer,
+                                                  EMMCodecInputBufferMapReuse,
                                                   pBufHeader->pBuffer,
                                                   pBufHeader->nAllocLen,
                                                   pBufHeader->nFilledLen,
@@ -2111,13 +2023,16 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                                            pComponentPrivate->pHandle,
                                            pComponentPrivate->pHandle->pApplicationPrivate,
                                            pBufHeader);
-                        pComponentPrivate->nEmptyBufferDoneCount++;
-                        SignalIfAllBuffersAreReturned(pComponentPrivate);
+                        MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
                     }
                     pComponentPrivate->lcml_nCntIp++;
                     pComponentPrivate->lcml_nIpBuf++;
                     pComponentPrivate->num_Sent_Ip_Buff++;
                     OMX_PRBUFFER2(pComponentPrivate->dbg, "Sending Input buffer to Codec\n");
+                }
+                else{
+                    OMX_PRBUFFER2(pComponentPrivate->dbg, "App sent an input buffer that OMX or DSP already owns");
+                    MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
                 }
             }
             else if (pComponentPrivate->curState == OMX_StatePause) {
@@ -2134,9 +2049,8 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
 #endif
             pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
-                                                       pComponentPrivate->pInputBufferList->pBufHdr[0]);
-            pComponentPrivate->nEmptyBufferDoneCount++;
-            SignalIfAllBuffersAreReturned(pComponentPrivate);
+                                                       pBufHeader);
+            MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
         }
         if(pBufHeader->pMarkData){
             OMX_PRBUFFER2(pComponentPrivate->dbg, ":Detected pBufHeader->pMarkData\n");
@@ -2145,7 +2059,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
             pComponentPrivate->hMarkTargetComponent = pBufHeader->hMarkTargetComponent;
             pComponentPrivate->pOutputBufferList->pBufHdr[0]->pMarkData = pBufHeader->pMarkData;
             pComponentPrivate->pOutputBufferList->pBufHdr[0]->hMarkTargetComponent = pBufHeader->hMarkTargetComponent;
-        
+
             if(pBufHeader->hMarkTargetComponent == pComponentPrivate->pHandle && pBufHeader->pMarkData){
                 pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
@@ -2166,8 +2080,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                                                       pComponentPrivate->pHandle->pApplicationPrivate,
                                                       pBufHeader);
             OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s In idle state return output buffers\n", __LINE__, __FUNCTION__);
-            pComponentPrivate->nFillBufferDoneCount++;
-            SignalIfAllBuffersAreReturned(pComponentPrivate);
+            MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirOutput);
             goto EXIT;
         }
         LCML_DSP_INTERFACE *pLcmlHandle = (LCML_DSP_INTERFACE *)pComponentPrivate->pLcmlHandle;
@@ -2194,7 +2107,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                         if(!pComponentPrivate->bDspStoppedWhileExecuting){  
                             MP3DEC_SetPending(pComponentPrivate,pBufHeader,OMX_DirOutput,__LINE__);
                             eError = LCML_QueueBuffer(pLcmlHandle->pCodecinterfacehandle,
-                                                  EMMCodecOuputBuffer,
+                                                  EMMCodecOutputBufferMapReuse,
                                                   pBufHeader->pBuffer,
                                                   pBufHeader->nAllocLen,
                                                   0,
@@ -2211,9 +2124,19 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
                             pComponentPrivate->lcml_nCntOp++;
                             pComponentPrivate->lcml_nOpBuf++;
                             pComponentPrivate->num_Op_Issued++;
+                        }else{
+                            OMX_PRBUFFER2(pComponentPrivate->dbg, ":: %d %s DSP is stopping, returning output buffer \n",
+                                      __LINE__, __FUNCTION__);
+                            pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
+                                                                  pComponentPrivate->pHandle->pApplicationPrivate,
+                                                                  pBufHeader);
+                            MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirOutput);
                         }
                     }
-                       
+                    else{
+                        OMX_PRBUFFER2(pComponentPrivate->dbg, "App sent an output buffer that OMX or DSP already owns");
+                        MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirOutput);
+                    }
                 } else{
                     pComponentPrivate->pOutputBufHdrPending[pComponentPrivate->nNumOutputBufPending++] = pBufHeader;
                     OMX_PRBUFFER2(pComponentPrivate->dbg, "Don't queue while doing a reconfig:: output buffer, num pending = %ld\n", pComponentPrivate->nNumOutputBufPending);
@@ -2233,12 +2156,7 @@ OMX_ERRORTYPE MP3DEC_HandleDataBuf_FromApp(OMX_BUFFERHEADERTYPE* pBufHeader,
  EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, ": Exiting from  HandleDataBuf_FromApp: %x \n",eError);
     if (eError != OMX_ErrorNone ) {
-        pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                               pComponentPrivate->pHandle->pApplicationPrivate,
-                                               OMX_EventError,
-                                               eError,
-                                               OMX_TI_ErrorSevere,
-                                               NULL);
+        MP3DEC_FatalErrorRecover(pComponentPrivate);
     }
     return eError;
 }
@@ -2333,7 +2251,6 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
     OMX_U8 *pBuffer = args[1];
     MP3D_LCML_BUFHEADERTYPE *pLcmlHdr;
     OMX_COMPONENTTYPE *pHandle;
-    LCML_DSP_INTERFACE *pLcmlHandle;
     OMX_U32 i;
     MP3DEC_BUFDATA *OutputFrames;
     MP3DEC_COMPONENT_PRIVATE* pComponentPrivate = NULL;
@@ -2397,7 +2314,6 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
         break;
     }
 
-
     if(event == EMMCodecBufferProcessed) {
         if( args[0] == (void *)EMMCodecInputBuffer) {
             OMX_PRBUFFER2(pComponentPrivate->dbg, " :: Inside the LCML_Callback EMMCodecInputBuffer\n");
@@ -2420,7 +2336,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                                PERF_ModuleCommonLayer);
 #endif
             pComponentPrivate->lcml_nCntIpRes++;
-            
+
             MP3DEC_ClearPending(pComponentPrivate,pLcmlHdr->pBufHdr,OMX_DirInput,__LINE__);
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -2432,8 +2348,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
             pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
                                                        pLcmlHdr->pBufHdr);
-            pComponentPrivate->nEmptyBufferDoneCount++;
-            SignalIfAllBuffersAreReturned(pComponentPrivate);
+            MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
             pComponentPrivate->lcml_nIpBuf--;
             pComponentPrivate->app_nBuf++;
 
@@ -2459,10 +2374,11 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                                                           pComponentPrivate->pHandle->pApplicationPrivate,
                                                           pComponentPrivate->pOutputBufferList->pBufHdr[pComponentPrivate->nInvalidFrameCount++]
                                                           );
-                pComponentPrivate->nFillBufferDoneCount++;
+                /*pComponentPrivate->nOutStandingFillDones--;*/
                 pComponentPrivate->numPendingBuffers--;
-                SignalIfAllBuffersAreReturned(pComponentPrivate);
+                MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirOutput);
             }else {
+                pComponentPrivate->nOutStandingFillDones++;
                 eError = MP3DEC_GetCorresponding_LCMLHeader(pComponentPrivate, pBuffer, OMX_DirOutput, &pLcmlHdr);
                 if (eError != OMX_ErrorNone) {
                     OMX_ERROR4(pComponentPrivate->dbg, ":: Error: Invalid Buffer Came ...\n");
@@ -2497,7 +2413,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                 }
                 pComponentPrivate->num_Reclaimed_Op_Buff++;
 
-                if (pLcmlHdr->pOpParam->ulIsLastBuffer){ 		
+                if (pLcmlHdr->pOpParam->ulIsLastBuffer){
                     OMX_PRBUFFER2(pComponentPrivate->dbg, "Adding EOS flag to the output buffer\n");
                     pLcmlHdr->pBufHdr->nFlags |= OMX_BUFFERFLAG_EOS;
                     pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
@@ -2519,7 +2435,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                         pComponentPrivate->temp_TS = pLcmlHdr->pBufHdr->nTimeStamp;
                         OMX_PRBUFFER2(pComponentPrivate->dbg, "first_ts = %lld\n",
                                    pComponentPrivate->temp_TS);
-                    }else{ 
+                    }else{
                         time_stmp = pLcmlHdr->pBufHdr->nFilledLen / (pComponentPrivate->pcmParams->nChannels * 
                                                                      (pComponentPrivate->pcmParams->nBitPerSample / 8));
                         time_stmp = (time_stmp / pComponentPrivate->pcmParams->nSamplingRate) * 1000000;
@@ -2535,7 +2451,6 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                 pComponentPrivate->OpBufindex++;
                 pComponentPrivate->OpBufindex %= pComponentPrivate->pPortDef[OMX_DirInput]->nBufferCountActual;
 
-
 #ifdef __PERF_INSTRUMENTATION__
                 PERF_SendingBuffer(pComponentPrivate->pPERFcomp,
                                    pLcmlHdr->pBufHdr->pBuffer,
@@ -2546,40 +2461,34 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                 pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
                                                           pComponentPrivate->pHandle->pApplicationPrivate,
                                                           pLcmlHdr->pBufHdr);
+                pComponentPrivate->nOutStandingFillDones--;
                 pComponentPrivate->lcml_nOpBuf--;
                 pComponentPrivate->app_nBuf++;
-                pComponentPrivate->nFillBufferDoneCount++;
-                SignalIfAllBuffersAreReturned(pComponentPrivate);
+                MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirOutput);
             }
         }
     }else if(event == EMMCodecProcessingStoped) { 
-                        for (i = 0; i < pComponentPrivate->nNumInputBufPending; i++) {
-					pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
-					pComponentPrivate->pHandle->pApplicationPrivate,
-					pComponentPrivate->pInputBufHdrPending[i]);
-                    pComponentPrivate->nEmptyBufferDoneCount++;
-			        pComponentPrivate->pInputBufHdrPending[i] = NULL;
-                    SignalIfAllBuffersAreReturned(pComponentPrivate);
-			}
-			pComponentPrivate->nNumInputBufPending = 0;
-			for (i=0; i < pComponentPrivate->nNumOutputBufPending; i++) {
-					pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
-					pComponentPrivate->pHandle->pApplicationPrivate,
-						  pComponentPrivate->pOutputBufHdrPending[i]
-						  );
-                    pComponentPrivate->nFillBufferDoneCount++;
-			        pComponentPrivate->pOutputBufHdrPending[i] = NULL;
-                    SignalIfAllBuffersAreReturned(pComponentPrivate);
-			}
-			pComponentPrivate->nNumOutputBufPending=0;
+             for (i = 0; i < pComponentPrivate->nNumInputBufPending; i++) {
+                  pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
+                                                             pComponentPrivate->pHandle->pApplicationPrivate,
+                                                             pComponentPrivate->pInputBufHdrPending[i]);
+                                                             pComponentPrivate->pInputBufHdrPending[i] = NULL;
+                  MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
+             }
+             pComponentPrivate->nNumInputBufPending = 0;
+             for (i=0; i < pComponentPrivate->nNumOutputBufPending; i++) {
+                  pComponentPrivate->cbInfo.FillBufferDone (pComponentPrivate->pHandle,
+                                                            pComponentPrivate->pHandle->pApplicationPrivate,
+                                                            pComponentPrivate->pOutputBufHdrPending[i]);
+                                                            pComponentPrivate->nOutStandingFillDones--;
+                                                            pComponentPrivate->pOutputBufHdrPending[i] = NULL;
+                  MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate,OMX_DirOutput);
+             }
+             pComponentPrivate->nNumOutputBufPending=0;
+             omx_mutex_signal(&pComponentPrivate->codecStop_mutex,
+                              &pComponentPrivate->codecStop_threshold,
+                              &pComponentPrivate->codecStop_waitingsignal);
 
-        pthread_mutex_lock(&pComponentPrivate->codecStop_mutex);
-        if(pComponentPrivate->codecStop_waitingsignal == 0){
-            pComponentPrivate->codecStop_waitingsignal = 1;             
-            pthread_cond_signal(&pComponentPrivate->codecStop_threshold);
-            OMX_ERROR4(pComponentPrivate->dbg, "stop ack. received. stop waiting for sending disable command completed\n");
-        }
-        pthread_mutex_unlock(&pComponentPrivate->codecStop_mutex);
         if (!pComponentPrivate->bNoIdleOnStop) {
             pComponentPrivate->curState = OMX_StateIdle;
 
@@ -2590,24 +2499,10 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                                               OMX_StateIdle, 
                                               3456,
                                               NULL);
-#endif  
-            if((pComponentPrivate->nEmptyThisBufferCount != pComponentPrivate->nEmptyBufferDoneCount) || (pComponentPrivate->nFillThisBufferCount != pComponentPrivate->nFillBufferDoneCount)) {
-                if(pthread_mutex_lock(&bufferReturned_mutex) != 0) 
-                {
-                    OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: bufferReturned_mutex mutex lock error\n",__LINE__);
-                }
-                OMX_PRINT2(pComponentPrivate->dbg, ":: pthread_cond_waiting for OMX to return all input and outbut buffers\n");
-                pthread_cond_wait(&bufferReturned_condition, &bufferReturned_mutex);
-                OMX_PRINT2(pComponentPrivate->dbg, ":: OMX has returned all input and output buffers\n");
-                if(pthread_mutex_unlock(&bufferReturned_mutex) != 0)
-                {
-                    OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: bufferReturned_mutex mutex unlock error\n",__LINE__);
-                }
-            }
-            else
-            {
-                OMX_PRINT2(pComponentPrivate->dbg, ":: OMX has returned all input and output buffers\n");
-            }
+#endif
+
+            MP3DEC_waitForAllBuffersToReturn(pComponentPrivate);
+
             if(pComponentPrivate->bPreempted==0){
                 pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                        pComponentPrivate->pHandle->pApplicationPrivate,
@@ -2671,11 +2566,18 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
             case USN_ERR_PROCESS:
                 MP3DEC_HandleUSNError (pComponentPrivate, (OMX_U32)args[5]);
                 break;
+            case USN_ERR_NONE:
+            {
+                if( (args[5] == (void*)NULL)) {
+                    OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: MMU_Fault \n",__LINE__);
+                    MP3DEC_FatalErrorRecover(pComponentPrivate);
+                }
+                break;
+            }
             default:
                 break;
         }
     } else if (event == EMMCodecStrmCtrlAck) {
- 
 
         OMX_PRDSP2(pComponentPrivate->dbg, ":: GOT MESSAGE USN_DSPACK_STRMCTRL ----\n");
         if (args[1] == (void *)USN_STRMCMD_FLUSH) {
@@ -2694,20 +2596,14 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                         pComponentPrivate->cbInfo.EmptyBufferDone (pComponentPrivate->pHandle,
                                                                    pComponentPrivate->pHandle->pApplicationPrivate,
                                                                    pComponentPrivate->pInputBufHdrPending[i]);
-                        pComponentPrivate->nEmptyBufferDoneCount++;
                         pComponentPrivate->pInputBufHdrPending[i] = NULL;
-                        SignalIfAllBuffersAreReturned(pComponentPrivate);
+                        MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirInput);
                     }
                     pComponentPrivate->nNumInputBufPending=0;
 
-                    pthread_mutex_lock(&pComponentPrivate->codecFlush_mutex);
-                    if(pComponentPrivate->codecFlush_waitingsignal == 0){
-                        pComponentPrivate->codecFlush_waitingsignal = 1; 
-                        pthread_cond_signal(&pComponentPrivate->codecFlush_threshold);
-                        OMX_ERROR4(pComponentPrivate->dbg, "flush ack. received. for input port\n");
-                    }     
-                    pthread_mutex_unlock(&pComponentPrivate->codecFlush_mutex);
-
+                    omx_mutex_signal(&pComponentPrivate->codecFlush_mutex,
+                                     &pComponentPrivate->codecFlush_threshold,
+                                     &pComponentPrivate->codecFlush_waitingsignal);
                     pComponentPrivate->cbInfo.EventHandler(pHandle, 
                                                            pHandle->pApplicationPrivate,
                                                            OMX_EventCmdComplete, 
@@ -2721,9 +2617,7 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
             }
             else if ( args[2] == (void *)EMMCodecOuputBuffer) { 
 
-  
-
-                if (args[0] == (void *)USN_ERR_NONE ) {                      
+                if (args[0] == (void *)USN_ERR_NONE ) {
                     OMX_PRCOMM2(pComponentPrivate->dbg, "Flushing output port %d\n",__LINE__);
                     for (i=0; i < pComponentPrivate->nNumOutputBufPending; i++) {
 #ifdef __PERF_INSTRUMENTATION__
@@ -2737,19 +2631,15 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                                                                   pComponentPrivate->pHandle->pApplicationPrivate,
                                                                   pComponentPrivate->pOutputBufHdrPending[i]
                                                                   );
-                        pComponentPrivate->nFillBufferDoneCount++;
+                        pComponentPrivate->nOutStandingFillDones--;
                         pComponentPrivate->pOutputBufHdrPending[i] = NULL;
-                        SignalIfAllBuffersAreReturned(pComponentPrivate);
+                        MP3DEC_SignalIfAllBuffersAreReturned(pComponentPrivate, OMX_DirOutput);
                     }
                     pComponentPrivate->nNumOutputBufPending=0;
 
-                    pthread_mutex_lock(&pComponentPrivate->codecFlush_mutex);
-                    if(pComponentPrivate->codecFlush_waitingsignal == 0){
-                        pComponentPrivate->codecFlush_waitingsignal = 1; 
-                        pthread_cond_signal(&pComponentPrivate->codecFlush_threshold);
-                        OMX_ERROR4(pComponentPrivate->dbg, "flush ack. received. for output port\n");
-                    }     
-                    pthread_mutex_unlock(&pComponentPrivate->codecFlush_mutex);
+                    omx_mutex_signal(&pComponentPrivate->codecFlush_mutex,
+                                     &pComponentPrivate->codecFlush_threshold,
+                                     &pComponentPrivate->codecFlush_waitingsignal);
                     pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle, 
                                                            pComponentPrivate->pHandle->pApplicationPrivate,
                                                            OMX_EventCmdComplete, 
@@ -2758,12 +2648,12 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
                                                            NULL);
                 } else {
                     OMX_ERROR4(pComponentPrivate->dbg, "LCML reported error while flushing output port\n");
-                    goto EXIT;                            
+                    goto EXIT;
                 }
             }
         }
     }
-    else if (event == EMMCodecProcessingPaused) { 
+    else if (event == EMMCodecProcessingPaused) {
 
         pComponentPrivate->curState = OMX_StatePause;
         pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle, 
@@ -2773,7 +2663,6 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
     }
 #ifdef _ERROR_PROPAGATION__
     else if (event == EMMCodecInitError){
- 
 
         /* Cheking for MMU_fault */
         if((args[4] == (void*)USN_ERR_UNKNOWN_MSG) && (args[5] == (void*)NULL)) {
@@ -2781,37 +2670,25 @@ OMX_ERRORTYPE MP3DEC_LCML_Callback (TUsnCodecEvent event,void * args [10])
             pComponentPrivate->bIsInvalidState = OMX_TRUE;
             pComponentPrivate->curState = OMX_StateInvalid;
             pHandle = pComponentPrivate->pHandle;
-            pComponentPrivate->cbInfo.EventHandler(pHandle, 
+            pComponentPrivate->cbInfo.EventHandler(pHandle,
                                                    pHandle->pApplicationPrivate,
                                                    OMX_EventError,
-                                                   OMX_ErrorHardware, 
-                                                   OMX_TI_ErrorSevere,
-                                                   NULL);
-        }   
-    }
-    else if (event == EMMCodecInternalError){
-
- 
-
-        /* Cheking for MMU_fault */
-        if((args[4] == (void*)USN_ERR_UNKNOWN_MSG) && (args[5] == (void*)NULL)) {
-            OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: MMU_Fault \n",__LINE__);
-            pComponentPrivate->bIsInvalidState = OMX_TRUE;
-            pComponentPrivate->curState = OMX_StateInvalid;
-            pHandle = pComponentPrivate->pHandle;
-            pComponentPrivate->cbInfo.EventHandler(pHandle, 
-                                                   pHandle->pApplicationPrivate,
-                                                   OMX_EventError,
-                                                   OMX_ErrorHardware, 
+                                                   OMX_ErrorHardware,
                                                    OMX_TI_ErrorSevere,
                                                    NULL);
         }
+    }
+    else if (event == EMMCodecInternalError){
 
+        /* Cheking for MMU_fault */
+        if((args[4] == (void*)USN_ERR_UNKNOWN_MSG) && (args[5] == (void*)NULL)) {
+            OMX_ERROR4(pComponentPrivate->dbg, "%d :: UTIL: MMU_Fault \n",__LINE__);
+            MP3DEC_FatalErrorRecover(pComponentPrivate);
+        }
     }
 #endif
  EXIT:
     OMX_PRINT1(pComponentPrivate->dbg, ":: Exiting the LCML_Callback() \n");
- 
     return eError;
 }
 
@@ -2851,13 +2728,8 @@ OMX_ERRORTYPE MP3DEC_GetCorresponding_LCMLHeader(MP3DEC_COMPONENT_PRIVATE* pComp
     OMX_PRINT2(pComponentPrivate->dbg, ":: eDir = %d\n",eDir);
 
     while (!pComponentPrivate->bInitParamsInitialized) {
-#ifndef UNDER_CE
         sched_yield();
-#else
-        Sleep(0);
-#endif
     }
-
 
     if(eDir == OMX_DirInput) {
         OMX_PRDSP2(pComponentPrivate->dbg, ":: In GetCorresponding_LCMLHeader()\n");
@@ -2922,83 +2794,56 @@ OMX_ERRORTYPE MP3DEC_GetCorresponding_LCMLHeader(MP3DEC_COMPONENT_PRIVATE* pComp
  *  @see         None
  */
 /* ================================================================================ * */
-#ifndef UNDER_CE
 OMX_HANDLETYPE MP3DEC_GetLCMLHandle(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
 {
     /* This must be taken care by WinCE */
     OMX_HANDLETYPE pHandle = NULL;
-    OMX_ERRORTYPE eError;
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
     void *handle;
     OMX_ERRORTYPE (*fpGetHandle)(OMX_HANDLETYPE);
-    char *error;
+    const char *error;
 
+    dlerror();
     handle = dlopen("libLCML.so", RTLD_LAZY);
     if (!handle) {
-        fputs(dlerror(), stderr);
-        goto EXIT;
+        if ((error = dlerror()) != NULL) {
+            fputs(error, stderr);
+        }
+        return pHandle;
     }
 
+    dlerror();
     fpGetHandle = dlsym (handle, "GetHandle");
-    if ((error = dlerror()) != NULL) {
-        fputs(error, stderr);
-        goto EXIT;
+    if(NULL == fpGetHandle){
+        if ((error = dlerror()) != NULL) {
+            fputs(error, stderr);
+        }
+        dlclose(handle);
+        return pHandle;
     }
-    eError = (*fpGetHandle)(&pHandle);
+
+    if (NULL != fpGetHandle) {
+        eError = (*fpGetHandle)(&pHandle);
+    }
+
     if(eError != OMX_ErrorNone) {
         eError = OMX_ErrorUndefined;
         OMXDBG_PRINT(stderr, ERROR, 4, 0, "eError != OMX_ErrorNone...\n");
         pHandle = NULL;
-        goto EXIT;
+        dlclose(handle);
+        return pHandle;
     }
 
-    ((LCML_DSP_INTERFACE*)pHandle)->pComponentPrivate = pComponentPrivate;
+    /* saving LCML lib pointer  */
+    pComponentPrivate->ptrLibLCML=handle;
 
- EXIT:
-    return pHandle;
-}
-#else
-/* WINDOWS Explicit dll load procedure */
-OMX_HANDLETYPE MP3DEC_GetLCMLHandle(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
-{
-    typedef OMX_ERRORTYPE (*LPFNDLLFUNC1)(OMX_HANDLETYPE);
-    OMX_HANDLETYPE pHandle = NULL;
-    OMX_ERRORTYPE eError;
-    LPFNDLLFUNC1 fpGetHandle1;
-
-    g_hLcmlDllHandle = LoadLibraryEx(TEXT("OAF_BML.dll"), NULL,0);
-    if (g_hLcmlDllHandle == NULL)
-        {
-            /* fputs(dlerror(), stderr); */
-	    OMXDBG_PRINT(stderr, ERROR, 4, 0, "BML Load Failed!!!\n");
-            return pHandle;
-        }
-    fpGetHandle1 = (LPFNDLLFUNC1)GetProcAddress(g_hLcmlDllHandle,TEXT("GetHandle"));
-    if (!fpGetHandle1)
-        {
-            /* handle the error*/
-            FreeLibrary(g_hLcmlDllHandle);
-            g_hLcmlDllHandle = NULL;
-            return pHandle;
-        }
-    /* call the function */
-    eError = fpGetHandle1(&pHandle);
-    if(eError != OMX_ErrorNone) 
-        {
-            eError = OMX_ErrorUndefined;
-            OMXDBG_PRINT(stderr, ERROR, 4, 0, "eError != OMX_ErrorNone...\n");
-            FreeLibrary(g_hLcmlDllHandle);
-            g_hLcmlDllHandle = NULL;
-            pHandle = NULL;
-            return pHandle;
-        }
-
-    ((LCML_DSP_INTERFACE*)pHandle)->pComponentPrivate = pComponentPrivate;
+    if (NULL != pHandle) {
+        ((LCML_DSP_INTERFACE*)pHandle)->pComponentPrivate = pComponentPrivate;
+    }
 
     return pHandle;
 }
-#endif
 
-#ifndef UNDER_CE
 OMX_ERRORTYPE MP3DECFreeLCMLHandle(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
 {
 
@@ -3016,25 +2861,6 @@ OMX_ERRORTYPE MP3DECFreeLCMLHandle(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
 
     return eError;
 }
-#else
-OMX_ERRORTYPE MP3DECFreeLCMLHandle(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
-{
-
-    OMX_S16 retValue;
-    OMX_ERRORTYPE eError = OMX_ErrorNone;
-
-    if (pComponentPrivate->bLcmlHandleOpened) {
-
-        retValue = FreeLibrary(pComponentPrivate->pLcmlHandle);
-        if (retValue == 0) {          /* Zero Indicates failure */
-            eError = OMX_ErrorUndefined;
-        }
-        pComponentPrivate->bLcmlHandleOpened = 0;
-    }
-
-    return eError;
-}
-#endif
 
 /* ========================================================================== */
 /**
@@ -3069,7 +2895,7 @@ void MP3DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     OMX_MEMFREE_STRUCT(pComponentPrivate->strmAttr); 
 
     pTemp_lcml = pComponentPrivate->pLcmlBufHeader[MP3D_INPUT_PORT];
-	
+
     for(i=0; i<nIpBuf; i++) {
         OMX_PRBUFFER2(pComponentPrivate->dbg, ":: Freeing: pTemp_lcml->pIpParam = %p\n",pTemp_lcml->pIpParam);
         OMX_MEMFREE_STRUCT_DSPALIGN(pTemp_lcml->pIpParam, MP3DEC_UAlgInBufParamStruct);
@@ -3077,8 +2903,6 @@ void MP3DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
         pTemp_lcml++;
     }
 
-
-    
     OMX_PRBUFFER2(pComponentPrivate->dbg, ":: Freeing pComponentPrivate->pLcmlBufHeader[MP3D_INPUT_PORT] = %p\n",
                     pComponentPrivate->pLcmlBufHeader[MP3D_INPUT_PORT]);
     OMX_MEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[MP3D_INPUT_PORT]);
@@ -3093,11 +2917,11 @@ void MP3DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
     OMX_PRBUFFER2(pComponentPrivate->dbg, ":: Freeing: pComponentPrivate->pLcmlBufHeader[MP3D_OUTPUT_PORT] = %p\n",
                     pComponentPrivate->pLcmlBufHeader[MP3D_OUTPUT_PORT]);
     OMX_MEMFREE_STRUCT(pComponentPrivate->pLcmlBufHeader[MP3D_OUTPUT_PORT]);
-    
+
     OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->pParams, USN_AudioCodecParams);
-    
+
     OMX_MEMFREE_STRUCT_DSPALIGN(pComponentPrivate->ptAlgDynParams, MP3DEC_UALGParams);
-    
+
     OMX_PRINT1(pComponentPrivate->dbg, "Exiting Successfully MP3DEC_CleanupInitParams()\n");
 
 }
@@ -3117,7 +2941,7 @@ void MP3DEC_CleanupInitParams(OMX_HANDLETYPE pComponent)
 */
 /* ========================================================================== */
 
-void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_U32 indexport)
+void MP3DEC_CleanupInitParamsEx(OMX_HANDLETYPE pComponent,OMX_S32 indexport)
 {
     OMX_COMPONENTTYPE *pHandle = (OMX_COMPONENTTYPE *)pComponent;
     MP3DEC_COMPONENT_PRIVATE *pComponentPrivate =
@@ -3338,7 +3162,7 @@ OMX_U32 MP3DEC_IsValid(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 *pBuf
  */
 /* ========================================================================== */
 
-OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent, OMX_U32 indexport)
+OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent, OMX_S32 indexport)
 
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
@@ -3393,7 +3217,14 @@ OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent, OMX_U32 ind
             OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pIpParam,
                                  sizeof(MP3DEC_UAlgInBufParamStruct),
                                  MP3DEC_UAlgInBufParamStruct);
-            pTemp_lcml->pIpParam->bLastBuffer = 0;
+            if (NULL == pTemp_lcml->pIpParam) {
+                MP3DEC_CleanupInitParams(pHandle);
+                return OMX_ErrorInsufficientResources;
+            }
+            else {
+                pTemp_lcml->pIpParam->bLastBuffer = 0;
+                pTemp_lcml->pIpParam->ulFrameIndex = 0;
+            }
 
             pTemp->nFlags = NORMAL_BUFFER;
             ((MP3DEC_COMPONENT_PRIVATE *) pTemp->pPlatformPrivate)->pHandle = pHandle;
@@ -3401,7 +3232,7 @@ OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent, OMX_U32 ind
             OMX_PRBUFFER2(pComponentPrivate->dbg, "::Comp: InBuffHeader[%d] = %p\n", i, pTemp);
             OMX_PRBUFFER2(pComponentPrivate->dbg, "::Comp:  >>>> InputBuffHeader[%d]->pBuffer = %p\n", i, pTemp->pBuffer);
             OMX_PRBUFFER2(pComponentPrivate->dbg, "::Comp: Ip : pTemp_lcml[%d] = %p\n", i, pTemp_lcml);
-  
+
             pTemp_lcml++;
         }
     }
@@ -3429,8 +3260,15 @@ OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent, OMX_U32 ind
             OMX_MALLOC_SIZE_DSPALIGN(pTemp_lcml->pOpParam,
                                  sizeof(MP3DEC_UAlgOutBufParamStruct),
                                  MP3DEC_UAlgOutBufParamStruct);
-            pTemp_lcml->pOpParam->ulFrameCount = DONT_CARE;
-            pTemp_lcml->pOpParam->ulIsLastBuffer = 0;
+            if (NULL == pTemp_lcml->pOpParam) {
+                MP3DEC_CleanupInitParams(pHandle);
+                return OMX_ErrorInsufficientResources;
+            }
+            else {
+                pTemp_lcml->pOpParam->ulFrameCount = DONT_CARE;
+                pTemp_lcml->pOpParam->ulIsLastBuffer = 0;
+                pTemp_lcml->pOpParam->ulFrameIndex = 0;
+            }
 
             pTemp->nFlags = NORMAL_BUFFER;
             ((MP3DEC_COMPONENT_PRIVATE *)pTemp->pPlatformPrivate)->pHandle = pHandle;
@@ -3441,12 +3279,10 @@ OMX_ERRORTYPE MP3DECFill_LCMLInitParamsEx(OMX_HANDLETYPE pComponent, OMX_U32 ind
         }
     }
     pComponentPrivate->bPortDefsAllocated = 1;
-
     OMX_PRINT1(pComponentPrivate->dbg, ":: Exiting Fill_LCMLInitParams");
-
     pComponentPrivate->bInitParamsInitialized = 1;
 
- EXIT:
+EXIT:
     return eError;
 }
 
@@ -3464,30 +3300,46 @@ OMX_U32 MP3DEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BO
         *nPosition += nBits;
     nOutput = ((OMX_U32)pBuffer[nBytePosition] << (24+nBitPosition) );
     nNumBitsRead = nNumBitsRead + (8 - nBitPosition);
-    if (nNumBitsRead < nBits)
-    {
+    if (nNumBitsRead < nBits){
         nOutput = nOutput | ( pBuffer[nBytePosition + 1] << (16+nBitPosition));
         nNumBitsRead = nNumBitsRead + 8;
     }
-    if (nNumBitsRead < nBits)
-    {
+    if (nNumBitsRead < nBits){
         nOutput = nOutput | ( pBuffer[nBytePosition + 2] << (8+nBitPosition));
         nNumBitsRead = nNumBitsRead + 8;
     }
-    if (nNumBitsRead < nBits)
-    {
+    if (nNumBitsRead < nBits){
         nOutput = nOutput | ( pBuffer[nBytePosition + 3] << (nBitPosition));
         nNumBitsRead = nNumBitsRead + 8;
     }
-    nOutput = nOutput >> (32 - nBits) ;
+    nOutput = nOutput >> (32 - nBits);
     return nOutput;
+}
+
+/**
+* @MP3DEC_waitForAllBuffersToReturn This function waits for all buffers to return
+*
+* @param MP3DEC_COMPONENT_PRIVATE *pComponentPrivate
+*
+* @return None
+*/
+void MP3DEC_waitForAllBuffersToReturn(
+        MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
+{
+    pthread_mutex_lock(&pComponentPrivate->bufferReturned_mutex);
+    while (pComponentPrivate->nEmptyThisBufferCount != pComponentPrivate->nEmptyBufferDoneCount ||
+           pComponentPrivate->nFillThisBufferCount  != pComponentPrivate->nFillBufferDoneCount) {
+        pthread_cond_wait(&pComponentPrivate->bufferReturned_condition, &pComponentPrivate->bufferReturned_mutex);
+    }
+    pthread_mutex_unlock(&pComponentPrivate->bufferReturned_mutex);
+    OMX_PRINT2(pComponentPrivate->dbg, ":: OMX has returned all input and output buffers\n");
 }
 
 /* ========================================================================== */
 /**
-* @SignalIfAllBuffersAreReturned() This function send signals if OMX returned all buffers to app 
+* @MP3DEC_SignalIfAllBuffersAreReturned() This function send signals if OMX returned all buffers to app
 *
-* @param AACDEC_COMPONENT_PRIVATE *pComponentPrivate
+* @param MP3DEC_COMPONENT_PRIVATE *pComponentPrivate
 *
 * @pre None
 *
@@ -3496,52 +3348,50 @@ OMX_U32 MP3DEC_GetBits(OMX_U32* nPosition, OMX_U8 nBits, OMX_U8* pBuffer, OMX_BO
 * @return None
 */
 /* ========================================================================== */
-void SignalIfAllBuffersAreReturned(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate)
+void MP3DEC_SignalIfAllBuffersAreReturned(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate,
+                                          OMX_U8 counterport)
 {
-    if((pComponentPrivate->nEmptyThisBufferCount == pComponentPrivate->nEmptyBufferDoneCount) && (pComponentPrivate->nFillThisBufferCount == pComponentPrivate->nFillBufferDoneCount))
-    {
-        if(pthread_mutex_lock(&bufferReturned_mutex) != 0) 
-        {
-            OMX_ERROR4(pComponentPrivate->dbg, "%d :: bufferReturned_mutex mutex lock error\n",__LINE__);
-        }
-        pthread_cond_broadcast(&bufferReturned_condition);
+    if(pthread_mutex_lock(&pComponentPrivate->bufferReturned_mutex) != 0){
+        OMX_ERROR4(pComponentPrivate->dbg, "%d ::bufferReturned_mutex mutex lock error\n",__LINE__);
+    }
+    if(!counterport)
+        pComponentPrivate->nEmptyBufferDoneCount++;
+    else
+        pComponentPrivate->nFillBufferDoneCount++;
+    if((pComponentPrivate->nEmptyThisBufferCount == pComponentPrivate->nEmptyBufferDoneCount)
+       && (pComponentPrivate->nFillThisBufferCount == pComponentPrivate->nFillBufferDoneCount)){
+        pthread_cond_broadcast(&pComponentPrivate->bufferReturned_condition);
         OMX_PRINT2(pComponentPrivate->dbg, ":: Sending pthread signal that OMX has returned all buffers to app\n");
-        if(pthread_mutex_unlock(&bufferReturned_mutex) != 0)
-        {
-            OMX_ERROR4(pComponentPrivate->dbg, "%d :: bufferReturned_mutex mutex unlock error\n",__LINE__);
-        }
-        return;
+     }
+    if(pthread_mutex_unlock(&pComponentPrivate->bufferReturned_mutex) != 0){
+        OMX_ERROR4(pComponentPrivate->dbg, "%d ::bufferReturned_mutex mutex unlock error\n",__LINE__);
     }
 }
 
 /*  =========================================================================*/
 /*  func    MP3DEC_HandleUSNError
-/*
-/*  desc    Handles error messages returned by the dsp
-/*
-/*@return n/a
-/*
-/*  =========================================================================*/
+*
+*  desc    Handles error messages returned by the dsp
+*
+*@return n/a
+*
+*  =========================================================================*/
 void MP3DEC_HandleUSNError (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg)
 {
     OMX_COMPONENTTYPE *pHandle = NULL;
-    OMX_U8 pending_buffers = OMX_FALSE;
-    OMX_U32 i;
     switch (arg)
     {
         case IUALG_WARN_CONCEALED:
         case IUALG_WARN_UNDERFLOW:
         case IUALG_WARN_OVERFLOW:
         case IUALG_WARN_ENDOFDATA:
+        case IUALG_WARN_ALG_ERR:
             OMX_ERROR4(pComponentPrivate->dbg,  "Algorithm Error" );
             /* all of these are informative messages, Algo can recover, no need to notify the
              * IL Client at this stage of the implementation */
             break;
-        case IUALG_WARN_PLAYCOMPLETED:
-
-            {
-            OMX_ERROR4(pComponentPrivate->dbg, "IUALG_WARN_PLAYCOMPLETED!\n");
-#ifndef UNDER_CE
+        case IUALG_WARN_PLAYCOMPLETED:{
+            OMX_PRINT2(pComponentPrivate->dbg, "IUALG_WARN_PLAYCOMPLETED!\n");
             pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
                                                    pComponentPrivate->pHandle->pApplicationPrivate,
                                                    OMX_EventBufferFlag,
@@ -3557,15 +3407,6 @@ void MP3DEC_HandleUSNError (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32
                                                        NULL);
             }
             pComponentPrivate->pLcmlBufHeader[0]->pIpParam->bLastBuffer = 0;
-#else
-            /* add callback to application to indicate SN/USN has completed playing of current set of date */
-            pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
-                                                   pComponentPrivate->pHandle->pApplicationPrivate,
-                                                   OMX_EventBufferFlag,
-                                                   (OMX_U32)NULL,
-                                                   OMX_BUFFERFLAG_EOS,
-                                                   NULL);
-#endif
             }
             break;
 
@@ -3575,9 +3416,7 @@ void MP3DEC_HandleUSNError (MP3DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32
         case IUALG_ERR_NOT_SUPPORTED:
         case IUALG_ERR_ARGUMENT:
         case IUALG_ERR_NOT_READY:
-        case IUALG_ERR_GENERAL:
-
-            {
+        case IUALG_ERR_GENERAL:{
                 /* all of these are fatal messages, Algo can not recover
                  * hence return an error */
                 OMX_ERROR4(pComponentPrivate->dbg,  "Algorithm Error, cannot recover" );
@@ -3622,5 +3461,38 @@ void MP3_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData)
                                            OMX_EventResourcesAcquired, 0,0,
                                            NULL);
     }
+    else if (*(cbData.RM_Error) == OMX_RmProxyCallback_FatalError) {
+        OMX_ERROR4(pCompPrivate->dbg, "%d :RM Fatal Error:\n",__LINE__);
+        MP3DEC_FatalErrorRecover(pCompPrivate);
+    }
 }
 #endif
+
+void MP3DEC_FatalErrorRecover(MP3DEC_COMPONENT_PRIVATE *pComponentPrivate){
+#ifdef RESOURCE_MANAGER_ENABLED
+    OMX_ERRORTYPE eError = OMX_ErrorNone;
+    eError = RMProxy_NewSendCommand(pComponentPrivate->pHandle,
+             RMProxy_FreeResource,
+             OMX_MP3_Decoder_COMPONENT, 0, 3456, NULL);
+
+    eError = RMProxy_Deinitalize();
+    if (eError != OMX_ErrorNone) {
+        OMX_ERROR4(pComponentPrivate->dbg, "::From RMProxy_Deinitalize\n");
+    }
+#endif
+
+    pComponentPrivate->curState = OMX_StateInvalid;
+    pComponentPrivate->cbInfo.EventHandler(pComponentPrivate->pHandle,
+                                       pComponentPrivate->pHandle->pApplicationPrivate,
+                                       OMX_EventError,
+                                       OMX_ErrorInvalidState,
+                                       OMX_TI_ErrorSevere,
+                                       NULL);
+    if (pComponentPrivate->DSPMMUFault == OMX_FALSE) {
+        MP3DEC_CleanupInitParams(pComponentPrivate->pHandle);
+        pComponentPrivate->DSPMMUFault = OMX_TRUE;
+    }
+
+    OMX_ERROR4(pComponentPrivate->dbg, "Completed FatalErrorRecover \
+               \nEntering Invalid State\n");
+}

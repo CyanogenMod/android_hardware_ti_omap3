@@ -116,14 +116,15 @@ OSCL_EXPORT_REF int16 iGetM4VConfigInfo(uint8 *buffer, int32 length, int32 *widt
         return MP4_INVALID_VOL_PARAM;
     }
     int32 profilelevel = 0; // dummy value discarded here
-    status = iDecodeVOLHeader(&psBits, width, height, display_width, display_height, &profilelevel);
+    uint32 interlaced = 0;
+    status = iDecodeVOLHeader(&psBits, width, height, display_width, display_height, &profilelevel, &interlaced);
     return status;
 }
 
 // name: iDecodeVOLHeader
 // Purpose: decode VOL header
 // return:  error code
-OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profilelevel)
+OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profilelevel, uint32 *interlaced)
 {
     int16 iErrorStat;
     uint32 codeword;
@@ -407,6 +408,14 @@ decode_vol:
 
         *width = (*display_width + 15) & -16;
         *height = (*display_height + 15) & -16;
+
+        /* marker */
+        ReadBits(psBits, 1, &codeword);
+
+        /* interlaced */
+        ReadBits(psBits, 1, &codeword);
+
+        *interlaced = codeword;
     }
     else
     {
@@ -794,7 +803,8 @@ int16 DecodeUserData(mp4StreamType *pStream)
 }
 
 
-OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc, uint32 *entropy_coding_mode_flag)
+OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc,
+                                          uint32 *entropy_coding_mode_flag, uint32 *frame_mb_only_flag)
 {
     int16 status;
     mp4StreamType psBits;
@@ -886,7 +896,7 @@ OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *widt
     psBits.bytePos = 0;
     psBits.dataBitPos = 0;
 
-    if (DecodeSPS(&psBits, width, height, display_width, display_height, profile_idc, level_idc))
+    if (DecodeSPS(&psBits, width, height, display_width, display_height, profile_idc, level_idc, frame_mb_only_flag))
     {
         OSCL_FREE(temp);
         return MP4_INVALID_VOL_PARAM;
@@ -905,6 +915,9 @@ OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *widt
 
     status = DecodePPS(&psBits, entropy_coding_mode_flag);
 
+    LOGV("%s:: %d: profile_idc = %d", __FUNCTION__, __LINE__, *profile_idc);
+    LOGI("%s:: %d: entropy_coding_mode_flag = %d", __FUNCTION__, __LINE__, *entropy_coding_mode_flag);
+
     OSCL_FREE(temp);
 
     return status;
@@ -912,7 +925,7 @@ OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *widt
 
 void scaling_list_h264(int32 i4_list_size, mp4StreamType *psBits)
 {
-    int32 i4_j, i4_delta_scale, i4_lastScale = 8, i4_nextScale =8;
+    int32 i4_j, i4_delta_scale=0, i4_lastScale = 8, i4_nextScale =8;
 
 
     for(i4_j = 0; i4_j < i4_list_size; i4_j++)
@@ -927,7 +940,7 @@ void scaling_list_h264(int32 i4_list_size, mp4StreamType *psBits)
     }
 }
 
-int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc)
+int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc,uint32* frame_mb_only_flag)
 {
     uint32 temp;
     int32 temp0;
@@ -1055,9 +1068,18 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
     ReadBits(psBits, 1, &temp);
     if (!temp)
     {
+#ifdef TARGET_OMAP4
+        *frame_mb_only_flag = 0;
+        (*height) = (*height) *2;
+        ReadBits(psBits,1, &temp);
+#else
         // we do not support if frame_mb_only_flag is off
         return MP4_INVALID_VOL_PARAM;
-        //ReadBits(psBits,1, &temp);
+#endif
+    }
+    else
+    {
+        *frame_mb_only_flag = 1;
     }
 
     ReadBits(psBits, 1, &temp);

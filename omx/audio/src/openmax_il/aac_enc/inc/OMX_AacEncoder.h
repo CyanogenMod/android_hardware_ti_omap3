@@ -52,9 +52,9 @@
  *     M A C R O S
  */
 #define AACENC_TIMEOUT (1000) /* millisecs, default timeout used to come out of blocking calls*/
-#define NUM_AACENC_INPUT_BUFFERS 8
+#define NUM_AACENC_INPUT_BUFFERS 1
 #define NUM_AACENC_INPUT_BUFFERS_DASF 2
-#define NUM_AACENC_OUTPUT_BUFFERS 8
+#define NUM_AACENC_OUTPUT_BUFFERS 1
 #define INPUT_AACENC_BUFFER_SIZE 8192
 #define INPUT_AACENC_BUFFER_SIZE_DASF 8192
 #define OUTPUT_AACENC_BUFFER_SIZE 9200

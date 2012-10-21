@@ -46,8 +46,6 @@
 #include <OMX_Component.h>
 #include <pthread.h>
 
-#ifndef UNDER_CE
-
 #ifdef DSP_RENDERING_ON
 #include <AudioManagerAPI.h>
 #endif
@@ -55,9 +53,6 @@
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
 #endif
-
-#endif
-
 
 /* ======================================================================= */
 /**
@@ -158,7 +153,6 @@
 #define EmptyBufferDone(handle, appPrivate, buffer) EmptyBufferDone(handle, appPrivate, buffer); \
     printf("EmptyBufferDone :: line %d, buffer %p\n", __LINE__, buffer)
 #endif
-#ifndef UNDER_CE
 #ifdef  G711DEC_DEBUG
 #define G711DEC_DPRINT(...)    fprintf(stderr,__VA_ARGS__)
 #else
@@ -176,30 +170,6 @@
 #define G711DEC_MCP_DPRINT(...)    fprintf(stderr,__VA_ARGS__)
 #else
 #define G711DEC_MCP_DPRINT(...)
-#endif
-#else /*UNDER_CE*/
-#ifdef  G711DEC_DEBUG
-#define G711DEC_DPRINT(STR, ARG...) printf()
-#else
-#endif
-
-#ifdef G711DEC_MEMCHECK
-#define G711DEC_MEMPRINT(STR, ARG...) printf()
-#else
-#endif
-#ifdef UNDER_CE
-
-#ifdef DEBUG
-#define G711DEC_DPRINT   printf
-#define G711DEC_MEMPRINT   printf
-
-#else
-#define G711DEC_DPRINT
-#define G711DEC_MEMPRINT
-#endif
-
-#endif  //UNDER_CE
-
 #endif
 
 /* ======================================================================= */
@@ -391,21 +361,12 @@ typedef struct LCML_G711DEC_BUFHEADERTYPE {
     DMM_BUFFER_OBJ* pDmmBuf;
 }LCML_G711DEC_BUFHEADERTYPE;
 
-#ifndef UNDER_CE
-
-OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-
-#else
 /* =================================================================================== */
 /**
- *   OMX_EXPORT                                           WinCE Implicit Export Syntax 
+ * OMX_ComponentInit
  */
 /* ================================================================================== */
-#define OMX_EXPORT __declspec(dllexport)
-
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-
-#endif
+OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 
 OMX_ERRORTYPE G711DEC_StartComponentThread(OMX_HANDLETYPE pHandle);
 OMX_ERRORTYPE G711DEC_StopComponentThread(OMX_HANDLETYPE pHandle);
@@ -449,10 +410,6 @@ OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr,
 /* ================================================================================== */
 typedef struct G711DEC_COMPONENT_PRIVATE
 {
-#ifdef UNDER_CE
-    OMX_BUFFERHEADERTYPE* pBufHeader[NUM_OF_PORTS]; 
-#endif
-
     /** Structure of callback pointers */
     OMX_CALLBACKTYPE cbInfo;
 
@@ -676,7 +633,6 @@ typedef struct G711DEC_COMPONENT_PRIVATE
     /* Device string */
     OMX_STRING* sDeviceString;
     /* Removing sleep() calls. Definition. */
-#ifndef UNDER_CE
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -688,16 +644,6 @@ typedef struct G711DEC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif    
     // /**************************/
     OMX_U8 nUnhandledFillThisBuffers;
 

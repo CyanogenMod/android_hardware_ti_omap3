@@ -259,18 +259,18 @@ struct PROCESS_CONTEXT{
  *  Parameters:
  *      phDrvObject:    Location to store created DRV Object handle.
  *  Returns:
- *      DSP_SOK:        Sucess
- *      DSP_EMEMORY:    Failed in Memory allocation
- *      DSP_EFAIL:      General Failure
+ *      0:              Sucess
+ *      -ENOMEM:        Failed in Memory allocation
+ *      -EPERM:         General Failure
  *  Requires:
  *      DRV Initialized (cRefs > 0 )
  *      phDrvObject != NULL.
  *  Ensures:
- *      DSP_SOK:        - *phDrvObject is a valid DRV interface to the device.
+ *      0:              - *phDrvObject is a valid DRV interface to the device.
  *                      - List of DevObject Created and Initialized.
  *                      - List of DevNode String created and intialized.
  *                      - Registry is updated with the DRV Object.
- *      !DSP_SOK:       DRV Object not created
+ *      !0:            DRV Object not created
  *  Details:
  *      There is one Driver Object for the Driver representing
  *      the driver itself. It contains the list of device
@@ -278,7 +278,7 @@ struct PROCESS_CONTEXT{
  *      Also it can hold other neccessary
  *      information in its storage area.
  */
-	extern DSP_STATUS DRV_Create(struct DRV_OBJECT* * phDrvObject);
+	extern int DRV_Create(struct DRV_OBJECT* * phDrvObject);
 
 /*
  *  ======== DRV_Destroy ========
@@ -289,19 +289,19 @@ struct PROCESS_CONTEXT{
  *  Parameters:
  *      hDrvObject:     Handle to Driver object .
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EFAIL:      Failed to destroy DRV Object
+ *      0:              Success.
+ *      -EPERM:         Failed to destroy DRV Object
  *  Requires:
  *      DRV Initialized (cRegs > 0 )
  *      hDrvObject is not NULL and a valid DRV handle .
  *      List of DevObject is Empty.
  *      List of DrvExt is Empty
  *  Ensures:
- *      DSP_SOK:        - DRV Object destroyed and hDrvObject is not a valid
+ *      0:              - DRV Object destroyed and hDrvObject is not a valid
  *                        DRV handle.
  *                      - Registry is updated with "0" as the DRV Object.
  */
-	extern DSP_STATUS DRV_Destroy(struct DRV_OBJECT* hDrvObject);
+	extern int DRV_Destroy(struct DRV_OBJECT* hDrvObject);
 
 /*
  *  ======== DRV_Exit ========
@@ -356,13 +356,13 @@ struct PROCESS_CONTEXT{
  *      phDevObject is not NULL
  *      Device Object List not Empty
  *  Returns:
- *      DSP_SOK:        Success
- *      DSP_EFAIL:      Failed to Get the Dev Object
+ *      0:           Success
+ *      -EPERM:      Failed to Get the Dev Object
  *  Ensures:
- *      DSP_SOK:        *phDevObject != NULL
- *      DSP_EFAIL:      *phDevObject = NULL
+ *      0:           *phDevObject != NULL
+ *      -EPERM:      *phDevObject = NULL
  */
-	extern DSP_STATUS DRV_GetDevObject(UINT uIndex, struct DRV_OBJECT* hDrvObject,
+	extern int DRV_GetDevObject(UINT uIndex, struct DRV_OBJECT* hDrvObject,
 					   struct DEV_OBJECT* * phDevObject);
 
 /*
@@ -407,7 +407,7 @@ struct PROCESS_CONTEXT{
  *  Requires:
  *  Ensures:
  */
-	extern DSP_STATUS DRV_Init();
+	extern int DRV_Init();
 
 /*
  *  ======== DRV_InsertDevObject ========
@@ -417,15 +417,15 @@ struct PROCESS_CONTEXT{
  *      hDrvObject:     Handle to DrvObject
  *      hDevObject:     Handle to DeviceObject to insert.
  *  Returns:
- *      DSP_SOK:        If successful.
- *      DSP_EFAIL:      General Failure:
+ *      0:              If successful.
+ *      -EPERM:         General Failure:
  *  Requires:
  *      hDrvObject != NULL and Valid DRV Handle.
  *      hDevObject != NULL.
  *  Ensures:
- *      DSP_SOK:        Device Object is inserted and the List is not empty.
+ *      0:              Device Object is inserted and the List is not empty.
  */
-	extern DSP_STATUS DRV_InsertDevObject(struct DRV_OBJECT* hDrvObject,
+	extern int DRV_InsertDevObject(struct DRV_OBJECT* hDrvObject,
 					      struct DEV_OBJECT* hDevObject);
 
 /*
@@ -437,8 +437,8 @@ struct PROCESS_CONTEXT{
  *      hDrvObject:     Handle to DrvObject
  *      hDevObject:     Handle to DevObject to Remove
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EFAIL:      Unable to find pDevObject.
+ *      0:              Success.
+ *      -EPERM:         Unable to find pDevObject.
  *  Requires:
  *      hDrvObject != NULL and a Valid DRV Handle.
  *      hDevObject != NULL.
@@ -446,7 +446,7 @@ struct PROCESS_CONTEXT{
  *  Ensures:
  *      List either does not exist (NULL), or is not empty if it does exist.
 */
-	extern DSP_STATUS DRV_RemoveDevObject(struct DRV_OBJECT* hDrvObject,
+	extern int DRV_RemoveDevObject(struct DRV_OBJECT* hDrvObject,
 					      struct DEV_OBJECT* hDevObject);
 
 /*
@@ -466,7 +466,7 @@ struct PROCESS_CONTEXT{
  *      Resource structure is stored in the registry which will be
  *      later used by the CFG module.
  */
-	extern DSP_STATUS DRV_RequestResources(IN DWORD dwContext,
+	extern int DRV_RequestResources(IN DWORD dwContext,
 					       OUT DWORD * pDevNodeString);
 
 /*
@@ -483,7 +483,7 @@ struct PROCESS_CONTEXT{
  *      The Resources are released based on Bus type.
  *      Resource structure is deleted from the registry
  */
-	extern DSP_STATUS DRV_ReleaseResources(IN DWORD dwContext,
+	extern int DRV_ReleaseResources(IN DWORD dwContext,
 					       struct DRV_OBJECT* hDrvObject);
 
 #ifdef __cplusplus

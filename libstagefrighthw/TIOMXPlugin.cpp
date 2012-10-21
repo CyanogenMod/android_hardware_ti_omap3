@@ -18,7 +18,8 @@
 
 #include <dlfcn.h>
 
-#include <HardwareAPI.h>
+#include <media/stagefright/HardwareAPI.h>
+#include <media/stagefright/MediaDebug.h>
 
 namespace android {
 
@@ -36,7 +37,7 @@ TIOMXPlugin::TIOMXPlugin()
       mGetRolesOfComponentHandle(NULL) {
     if (mLibHandle != NULL) {
         mInit = (InitFunc)dlsym(mLibHandle, "TIOMX_Init");
-        mDeinit = (DeinitFunc)dlsym(mLibHandle, "TIOMX_Deinit");
+        mDeinit = (DeinitFunc)dlsym(mLibHandle, "TIOMX_DeInit");
 
         mComponentNameEnum =
             (ComponentNameEnumFunc)dlsym(mLibHandle, "TIOMX_ComponentNameEnum");
@@ -71,9 +72,9 @@ OMX_ERRORTYPE TIOMXPlugin::makeComponentInstance(
     }
 
     return (*mGetHandle)(
-            reinterpret_cast<OMX_HANDLETYPE *>(component),
-            const_cast<char *>(name),
-            appData, const_cast<OMX_CALLBACKTYPE *>(callbacks));
+        reinterpret_cast<OMX_HANDLETYPE *>(component),
+        const_cast<char *>(name),
+        appData, const_cast<OMX_CALLBACKTYPE *>(callbacks));
 }
 
 OMX_ERRORTYPE TIOMXPlugin::destroyComponentInstance(
@@ -141,7 +142,7 @@ OMX_ERRORTYPE TIOMXPlugin::getRolesOfComponent(
         array = NULL;
     }
 
-    return err;
+    return OMX_ErrorNone;
 }
 
 }  // namespace android

@@ -48,6 +48,7 @@
 #define OMX_G711ENC_UTILS__H
 #include <OMX_Component.h>
 #include <pthread.h>
+#include <OMX_TI_Common.h>
 #include "LCML_DspCodec.h"
 #include <TIDspOmx.h>
 
@@ -58,22 +59,12 @@
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
 #endif
-
-#ifdef UNDER_CE
-#define sleep Sleep
-#endif
 /* ======================================================================= */
 /**
  * @def    G711ENC_DEBUG   Turns debug messaging on and off
  */
 /* ======================================================================= */
 #undef G711ENC_DEBUG
-/* ======================================================================= */
-/**
- * @def    G711ENC_MEMCHECK   Turns memory messaging on and off
- */
-/* ======================================================================= */
-#undef G711ENC_MEMCHECK
 /* ======================================================================= */
 /**
  * @def    G711ENC_PRINTS   Turns normal prints messaging on and off
@@ -83,7 +74,6 @@
 #undef G711ENC_PRINT
 /*========================================================================*/
 
-#ifndef UNDER_CE
 /* ======================================================================= */
 /**
  * @def    G711ENC_DEBUG   Debug print macro
@@ -107,105 +97,34 @@
 
 /* ======================================================================= */
 /**
- * @def    G711ENC_MEMCHECK   Memory print macro
- */
-/* ======================================================================= */
-#ifdef  G711ENC_MEMCHECK
-#define G711ENC_MEMPRINT(...)    fprintf(stderr,__VA_ARGS__)
-#else
-#define G711ENC_MEMPRINT(...)
-#endif
-
-#else   /*UNDER_CE*/
-/* ======================================================================= */
-/**
- * @def    G711ENC_DEBUG   Debug print macro
- */
-/* ======================================================================= */
-#ifdef  G711ENC_DEBUG
-#define G711ENC_DPRINT(STR, ARG...) printf()
-#else
-
-#endif
-/* ======================================================================= */
-/**
- * @def    G711ENC_MEMCHECK   Memory print macro
- */
-/* ======================================================================= */
-#ifdef  G711ENC_MEMCHECK
-#define G711ENC_MEMPRINT(STR, ARG...) printf()
-#else
-
-#endif
-
-#ifdef UNDER_CE
-
-#ifdef DEBUG
-#define G711ENC_DPRINT     printf
-#define G711ENC_MEMPRINT   printf
-#else
-#define G711ENC_DPRINT
-#define G711ENC_MEMPRINT
-#endif
-
-#endif  /*UNDER_CE*/
-
-#endif
-
-/* ======================================================================= */
-/**
  *  M A C R O S FOR MALLOC and MEMORY FREE and CLOSING PIPES
  */
 /* ======================================================================= */
+#define G711ENC_OMX_CONF_CHECK_CMD(_ptr1, _ptr2, _ptr3) \
+{                                               \
+    if(!(_ptr1) || !(_ptr2) || !(_ptr3)){             \
+        G711ENC_DPRINT("%d :: Received Bad Parameter ptr1: %x,  ptr2: %x, ptr3: %x \n",__LINE__,_ptr1, _ptr2, _ptr3); \
+        return  OMX_ErrorBadParameter;         \
+    } \
+}
 
 #define OMX_G711ENC_INIT_STRUCT(_s_, _name_)    \
     memset((_s_), 0x0, sizeof(_name_));         \
     (_s_)->nSize = sizeof(_name_);              \
     (_s_)->nVersion.s.nVersionMajor = 0x1;      \
-    (_s_)->nVersion.s.nVersionMinor = 0x0;      \
-    (_s_)->nVersion.s.nRevision = 0x0;          \
+    (_s_)->nVersion.s.nVersionMinor = 0x1;      \
+    (_s_)->nVersion.s.nRevision = 0x1;          \
     (_s_)->nVersion.s.nStep = 0x0
-
-#define OMX_G711ENC_MEMFREE_STRUCT(_pStruct_)                   \
-    if(_pStruct_ != NULL){                                      \
-    G711ENC_MEMPRINT("%d :: [FREE] %p\n",__LINE__,_pStruct_);   \
-        free(_pStruct_);                                        \
-        _pStruct_ = NULL;                                       \
-    }
 
 #define OMX_G711ENC_CLOSE_PIPE(_pStruct_,err)                   \
     G711ENC_DPRINT("%d :: CLOSING PIPE \n",__LINE__);           \
     err = close (_pStruct_);                                    \
     if(0 != err && OMX_ErrorNone == eError){                    \
         eError = OMX_ErrorHardware;                             \
-        printf("%d :: Error while closing pipe\n",__LINE__);    \
-        goto EXIT;                                              \
+        printf("%d :: Error while closing pipe; err:0x%x\n",__LINE__,err);    \
+        return eError;                                              \
     }
 
-#define G711ENC_OMX_MALLOC_STRUCT(_pStruct_, _sName_)           \
-    _pStruct_ = (_sName_*)malloc(sizeof(_sName_));              \
-    if(_pStruct_ == NULL){                                      \
-        printf("***********************************\n");        \
-        printf("%d :: Malloc Failed\n",__LINE__);               \
-        printf("***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_pStruct_,0,sizeof(_sName_));                        \
-    G711ENC_MEMPRINT("%d :: [ALLOC] %p\n",__LINE__,_pStruct_);
-
-#define G711ENC_OMX_MALLOC_SIZE(_ptr_, _size_,_name_)           \
-    _ptr_ = (_name_ *)malloc(_size_);                           \
-    if(_ptr_ == NULL){                                          \
-        printf("***********************************\n");        \
-        printf("%d :: Malloc Failed\n",__LINE__);               \
-        printf("***********************************\n");        \
-        eError = OMX_ErrorInsufficientResources;                \
-        goto EXIT;                                              \
-    }                                                           \
-    memset(_ptr_,0,_size_);                                     \
-    G711ENC_MEMPRINT("%d :: Malloced = %p\n",__LINE__,_ptr_);
-  
 /* ======================================================================= */
 /**
  * @def G711ENC_NUM_INPUT_BUFFERS   Default number of input buffers
@@ -325,7 +244,7 @@
  * @def    OMX_G711ENC_NUM_DLLS   number of DLL's
  */
 /* ======================================================================= */
-#define G711ENC_NUM_DLLS (2)
+#define G711ENC_NUM_DLLS (3)
 /* ======================================================================= */
 /**
  * @def    OMX_G711ENC_NUM_DLLS   number of DLL's
@@ -333,39 +252,18 @@
 /* ======================================================================= */
 #define G711ENC_EXIT_COMPONENT_THRD  10
 /* ======================================================================= */
-/**
- * @def    DSP cache alignment number of bytes
- */
-/* ======================================================================= */
-#define DSP_CACHE_ALIGNMENT  256
-/* ======================================================================= */
-/**
- * @def    Extra buffer bytes used for DSP alignment
- */
-/* ======================================================================= */
-#define EXTRA_BYTES  128
 /* ======================================================================= */
 /**
  * @def    G711ENC_USN_DLL_NAME   USN DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G711ENC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define G711ENC_USN_DLL_NAME "usn.dll64P"
-#endif
-
 /* ======================================================================= */
 /**
  * @def    G711ENC_DLL_NAME   G711 Encoder socket node dll name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define G711ENC_DLL_NAME "\\windows\\g711enc_sn.dll64P"
-#else
 #define G711ENC_DLL_NAME "g711enc_sn.dll64P"
-#endif
-
 /* ======================================================================= */
 /** G711ENC_StreamType  Stream types
  *
@@ -557,8 +455,6 @@ typedef struct {
 /* =================================================================================== */
 typedef struct G711ENC_LCML_BUFHEADERTYPE {
     G711ENC_BUFFER_Dir eDir;
-    G711ENC_ParamStruct *pIpParam;
-    G711ENC_UAlgOutBufParamStruct *pOpParam;
     OMX_BUFFERHEADERTYPE* buffer;
     G711ENC_FrameStruct *pFrameParam;
     G711ENC_ParamStruct *pBufferParam;
@@ -812,9 +708,6 @@ typedef struct G711ENC_COMPONENT_PRIVATE
     /** Number of output buffers at runtime **/
     OMX_U32 nRuntimeOutputBuffers;
 
-
-
-#ifndef UNDER_CE
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -826,9 +719,13 @@ typedef struct G711ENC_COMPONENT_PRIVATE
     pthread_mutex_t InLoaded_mutex;
     pthread_cond_t InLoaded_threshold;
     OMX_U8 InLoaded_readytoidle;
-#endif
+    /* To remeber Mutex Initialisation is done or not */
+    OMX_BOOL bMutexInit;
 
     OMX_BOOL bPreempted;
+
+    /** Dsp MMU Fault flag */
+    OMX_BOOL DSPMMUFault;
 
     /** Pointer to RM callback **/
 #ifdef RESOURCE_MANAGER_ENABLED
@@ -837,12 +734,6 @@ typedef struct G711ENC_COMPONENT_PRIVATE
 
 } G711ENC_COMPONENT_PRIVATE;
 
-
-#ifndef UNDER_CE
-OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
 /* =================================================================================== */
 /**
  *  OMX_ComponentInit()  Initializes component
@@ -855,8 +746,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
  *
  */
 /* =================================================================================== */
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
+OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 /* =================================================================================== */
 /**
  *  G711ENC_StartComponentThread()  Starts component thread
@@ -1146,5 +1036,18 @@ void* G711ENC_CompThread(void* pThreadData);
  ***********************************/
 void G711ENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 #endif
+
+/*  ==============================================================*/
+/* G711ENC_FatalErrorRecover
+*
+* @desc    handles the clean up and sets OMX_StateInvalid in reaction to fatal errors
+*
+* @param pComponentPrivate    Component private data
+*
+* @return n/a
+*/
+/* ===============================================================*/
+
+void G711ENC_FatalErrorRecover(G711ENC_COMPONENT_PRIVATE *pComponentPrivate);
 
 #endif  /* OMX_G711ENC_UTILS__H */

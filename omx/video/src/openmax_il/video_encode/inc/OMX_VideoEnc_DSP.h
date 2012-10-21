@@ -171,6 +171,22 @@ typedef enum
 
 } IH264VENC_SliceGroupChangeDirection ;
 
+typedef enum
+{
+   H264_IVIDEO_I_FRAME = 1,
+   H264_IVIDEO_P_FRAME,
+   H264_IVIDEO_B_FRAME,
+   H264_IVIDEO_IDR_FRAME
+} H264_IVIDEO_FrameType;
+
+typedef enum
+{
+   MPEG4_IVIDEO_I_FRAME = 1,
+   MPEG4_IVIDEO_P_FRAME,
+   MPEG4_IVIDEO_B_FRAME,
+   MPEG4_IVIDEO_IDR_FRAME
+} MPEG4_IVIDEO_FrameType;
+
 /* H264 Encoder DSP s/n create phase arguments */
 typedef struct H264VE_GPP_SN_Obj_CreatePhase {
     unsigned short usNumStreams;
@@ -290,6 +306,7 @@ typedef struct IH264VENC_DynamicParams {
                                                Second entry in the array specify the end position of foreground region in terms
                                                of macroblock number, valid values are [0, totalMbsInFrame-1] with following constrains:
                                                endPos > startPos && endPos%mbsInOneRow > startPos%mbsInOneRow*/
+    OMX_U32 max_delay; /* in units of 1/30 second or 33.3333 msec for CBR */
 } IH264VENC_DynamicParams;
 
 /* H264 Encoder DSP s/n run-time input parameters */
@@ -309,6 +326,7 @@ typedef struct H264VE_GPP_SN_UALGOutputParams {
     OMX_U32   ulNALUnitsSizes[240];
     OMX_U32   ulFrameIndex;         /*Gives the number of the input frame wich NAL unit belongs*/
     OMX_U32   ulNALUnitIndex;       /*Number of current NAL unit inside the frame*/
+    OMX_S32   lErrorCode;           /* Error code for robustness */
 } H264VE_GPP_SN_UALGOutputParams;
 
 /* MPEG4/H263 Encoder DSP s/n create phase arguments */
@@ -388,7 +406,7 @@ typedef struct MP4VE_GPP_SN_UALGInputParams {
 /* MPEG4/H263 Encoder DSP s/n run-time output parameters */
 typedef struct MP4VE_GPP_SN_UALGOutputParams {
     unsigned int   ulBitstreamSize;
-    unsigned int  cFrameType;/*changed from unsigned char  as SN did*/
+    signed   int   cFrameType;/*changed from unsigned char  as SN did*/
     unsigned int   mvDataSize;
     unsigned int   numPackets;
     #ifdef MODE_3410
@@ -398,6 +416,8 @@ typedef struct MP4VE_GPP_SN_UALGOutputParams {
     unsigned char   MVData[12960];
     unsigned int    ResyncData[1620];
     #endif
+    unsigned int    ulFrameIndex;
+    signed int      lErrorCode;
 } MP4VE_GPP_SN_UALGOutputParams;
 
 /*

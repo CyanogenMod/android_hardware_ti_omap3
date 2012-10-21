@@ -2,7 +2,7 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
-
+LOCAL_PRELINK_MODULE := false
 LOCAL_ARM_MODE := arm
 
 LOCAL_SRC_FILES:= \
@@ -21,6 +21,5 @@ LOCAL_CFLAGS += -pipe -fomit-frame-pointer -Wall  -Wno-trigraphs -Werror-implici
 
 LOCAL_MODULE:= libbridge
 LOCAL_MODULE_TAGS := optional
-
 include $(BUILD_SHARED_LIBRARY)
 

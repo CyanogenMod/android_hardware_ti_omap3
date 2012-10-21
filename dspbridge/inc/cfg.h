@@ -93,15 +93,15 @@ extern "C" {
  *      hDevNode:       Handle to the DevNode who's WMD we are querying.
  *      pdwAutoStart:   Ptr to location for 32 bit autostart mask.
  *  Returns:
- *      DSP_SOK:                Success.
- *      CFG_E_INVALIDHDEVNODE:  hDevNode is invalid.
- *      CFG_E_RESOURCENOTAVAIL: Unable to retreive resource.
+ *      0:              Success.
+ *      -EFAULT:  	hDevNode is invalid.
+ *      -ENODATA: 	Unable to retreive resource.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:        *pdwAutoStart contains autostart mask for this devnode.
+ *      0:            *pdwAutoStart contains autostart mask for this devnode.
  */
-	extern DSP_STATUS CFG_GetAutoStart(IN struct CFG_DEVNODE* hDevNode,
+	extern int CFG_GetAutoStart(IN struct CFG_DEVNODE* hDevNode,
 					   OUT DWORD * pdwAutoStart);
 
 /*
@@ -111,17 +111,17 @@ extern "C" {
  *  Parameters:
  *      pdwVersion: Ptr to DWORD to contain version number upon return.
  *  Returns:
- *      DSP_SOK:    Success.  pdwVersion contains Class Driver version in
+ *      0:          Success.  pdwVersion contains Class Driver version in
  *                  the form: 0xAABBCCDD where AABB is Major version and
  *                  CCDD is Minor.
- *      DSP_EFAIL:  Failure.
+ *      -EPERM:     Failure.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:    Success.
+ *      0:          Success.
  *      else:       *pdwVersion is NULL.
  */
-	extern DSP_STATUS CFG_GetCDVersion(OUT DWORD * pdwVersion);
+	extern int CFG_GetCDVersion(OUT DWORD * pdwVersion);
 
 /*
  *  ======== CFG_GetDevObject ========
@@ -131,17 +131,17 @@ extern "C" {
  *      hDevNode:       Platform's DevNode handle from which to retrieve value.
  *      pdwValue:       Ptr to location to store the value.
  *  Returns:
- *      DSP_SOK:                Success.
- *      CFG_E_INVALIDHDEVNODE:  hDevNode is invalid.
- *      CFG_E_INVALIDPOINTER:   phDevObject is invalid.
- *      CFG_E_RESOURCENOTAVAIL: The resource is not available.
+ *      0:              Success.
+ *      -EFAULT:        hDevNode is invalid.
+ *      -EFAULT:        phDevObject is invalid.
+ *      -ENODATA:       The resource is not available.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:    *pdwValue is set to the retrieved DWORD.
- *      else:       *pdwValue is set to 0L.
+ *      0:          	*pdwValue is set to the retrieved DWORD.
+ *      else:       	*pdwValue is set to 0L.
  */
-	extern DSP_STATUS CFG_GetDevObject(IN struct CFG_DEVNODE* hDevNode,
+	extern int CFG_GetDevObject(IN struct CFG_DEVNODE* hDevNode,
 					   OUT DWORD * pdwValue);
 
 /*
@@ -152,17 +152,17 @@ extern "C" {
  *      hDevNode:       Handle to the DEVNODE who's resources we are querying.
  *      pDSPResTable:   Ptr to a location to store the DSP resource table.
  *  Returns:
- *      DSP_SOK:                On success.
- *      CFG_E_INVALIDHDEVNODE:  hDevNode is invalid.
- *      CFG_E_RESOURCENOTAVAIL: The DSP Resource information is not
- *                              available
+ *      0:              On success.
+ *      -EFAULT:        hDevNode is invalid.
+ *      -ENODATA:       The DSP Resource information is not
+ *                      available
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:    pDSPResTable points to a filled table of resources allocated
+ *      0:    pDSPResTable points to a filled table of resources allocated
  *                  for the specified WMD.
  */
-	extern DSP_STATUS CFG_GetDSPResources(IN struct CFG_DEVNODE* hDevNode,
+	extern int CFG_GetDSPResources(IN struct CFG_DEVNODE* hDevNode,
 					      OUT struct CFG_DSPRES * pDSPResTable);
 
 
@@ -175,18 +175,18 @@ extern "C" {
  *      cBufSize:       Size of buffer.
  *      pstrExecFile:   Ptr to character buf to hold ExecFile.
  *  Returns:
- *      DSP_SOK:                Success.
- *      CFG_E_INVALIDHDEVNODE:  hDevNode is invalid.
- *      CFG_E_INVALIDPOINTER:   pstrExecFile is invalid.
- *      CFG_E_RESOURCENOTAVAIL: The resource is not available.
+ *      0:              Success.
+ *      -EFAULT:        hDevNode is invalid.
+ *      -EFAULT:        pstrExecFile is invalid.
+ *      -ENODATA:       The resource is not available.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:    Not more than cBufSize bytes were copied into pstrExecFile,
+ *      0:    Not more than cBufSize bytes were copied into pstrExecFile,
  *                  and *pstrExecFile contains default executable for this 
  *                  devnode.
  */
-	extern DSP_STATUS CFG_GetExecFile(IN struct CFG_DEVNODE* hDevNode,
+	extern int CFG_GetExecFile(IN struct CFG_DEVNODE* hDevNode,
 					  IN ULONG cBufSize,
 					  OUT PSTR pstrExecFile);
 
@@ -198,18 +198,18 @@ extern "C" {
  *      hDevNode:       Handle to the DEVNODE who's resources we are querying.
  *      pHostResTable:  Ptr to a location to store the host resource table.
  *  Returns:
- *      DSP_SOK:                On success.
- *      CFG_E_INVALIDPOINTER:   pHostResTable is invalid.
- *      CFG_E_INVALIDHDEVNODE:  hDevNode is invalid.
- *      CFG_E_RESOURCENOTAVAIL: The resource is not available.
+ *      0:              On success.
+ *      -EFAULT:        pHostResTable is invalid.
+ *      -EFAULT:        hDevNode is invalid.
+ *      -ENODATA:       The resource is not available.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:    pHostResTable points to a filled table of resources 
+ *      0:    pHostResTable points to a filled table of resources
  *                  allocated for the specified WMD.
  *
  */
-	extern DSP_STATUS CFG_GetHostResources(IN struct CFG_DEVNODE* hDevNode,
+	extern int CFG_GetHostResources(IN struct CFG_DEVNODE* hDevNode,
 					       OUT struct CFG_HOSTRES * pHostResTable);
 
 /*
@@ -220,14 +220,14 @@ extern "C" {
  *      pdwValue:   Ptr to location to store the value.
  *      dwType      Type of Object to Get
  *  Returns:
- *      DSP_SOK:    Success.
+ *      0:          Success.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:    *pdwValue is set to the retrieved DWORD(non-Zero).
+ *      0:          *pdwValue is set to the retrieved DWORD(non-Zero).
  *      else:       *pdwValue is set to 0L.
  */
-	extern DSP_STATUS CFG_GetObject(OUT DWORD * pdwValue, DWORD dwType);
+	extern int CFG_GetObject(OUT DWORD * pdwValue, DWORD dwType);
 
 /*
  *  ======== CFG_GetPerfValue ========
@@ -254,17 +254,17 @@ extern "C" {
  *      cBufSize:       Size of buffer.
  *      pWMDFileName:   Ptr to a character buffer to hold the WMD filename.
  *  Returns:
- *      DSP_SOK:                On success.
- *      CFG_E_INVALIDHDEVNODE:  hDevNode is invalid.
- *      CFG_E_RESOURCENOTAVAIL: The filename is not available.
+ *      0:              On success.
+ *      -EFAULT:        hDevNode is invalid.
+ *      -ENODATA:       The filename is not available.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:        Not more than cBufSize bytes were copied
+ *      0:              Not more than cBufSize bytes were copied
  *                      into pWMDFileName.
  *
  */
-	extern DSP_STATUS CFG_GetWMDFileName(IN struct CFG_DEVNODE* hDevNode,
+	extern int CFG_GetWMDFileName(IN struct CFG_DEVNODE* hDevNode,
 					     IN ULONG cBufSize,
 					     OUT PSTR pWMDFileName);
 
@@ -277,18 +277,18 @@ extern "C" {
  *      cBufSize:       Size of buffer.
  *      pstrZLFileName: Ptr to character buf to hold ZLFileName.
  *  Returns:
- *      DSP_SOK:                Success.
- *      CFG_E_INVALIDPOINTER:   pstrZLFileName is invalid.
- *      CFG_E_INVALIDHDEVNODE:  hDevNode is invalid.
- *      CFG_E_RESOURCENOTAVAIL: couldn't find the ZLFileName.
+ *      0:           	Success.
+ *      -EFAULT:     	pstrZLFileName is invalid.
+ *      -EFAULT:     	hDevNode is invalid.
+ *      -ENODATA:    	couldn't find the ZLFileName.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:    Not more than cBufSize bytes were copied into 
- *                  pstrZLFileName, and *pstrZLFileName contains ZLFileName 
- *                  for this devnode.
+ *      0:          	Not more than cBufSize bytes were copied into
+ *                  	pstrZLFileName, and *pstrZLFileName contains
+ *			ZLFileName for this devnode.
  */
-	extern DSP_STATUS CFG_GetZLFile(IN struct CFG_DEVNODE* hDevNode,
+	extern int CFG_GetZLFile(IN struct CFG_DEVNODE* hDevNode,
 					IN ULONG cBufSize,
 					OUT PSTR pstrZLFileName);
 
@@ -313,15 +313,15 @@ extern "C" {
  *      hDevNode:   Platform's DevNode handle we are storing value with.
  *      dwValue:    Arbitrary value to store.
  *  Returns:
- *      DSP_SOK:                Success.
- *      CFG_E_INVALIDHDEVNODE:  hDevNode is invalid.
- *      DSP_EFAIL:              Internal Error.
+ *      0:          Success.
+ *      -EFAULT:    hDevNode is invalid.
+ *      -EPERM:     Internal Error.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:    The Private DWORD was successfully set.
+ *      0:          The Private DWORD was successfully set.
  */
-	extern DSP_STATUS CFG_SetDevObject(IN struct CFG_DEVNODE* hDevNode,
+	extern int CFG_SetDevObject(IN struct CFG_DEVNODE* hDevNode,
 					   IN DWORD dwValue);
 
 /*
@@ -332,16 +332,16 @@ extern "C" {
  *      dwValue:        Arbitrary value to store.
  *      dwType          Type of Object to Store
  *  Returns:
- *      DSP_SOK:        Success.
- *      DSP_EFAIL:      Internal Error.
+ *      0:              Success.
+ *      -EPERM:         Internal Error.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      DSP_SOK:        The Private DWORD was successfully set.
+ *      0:              The Private DWORD was successfully set.
  */
-	extern DSP_STATUS CFG_SetObject(IN DWORD dwValue, IN DWORD dwType);
+	extern int CFG_SetObject(IN DWORD dwValue, IN DWORD dwType);
 
-	extern DSP_STATUS CFG_GetC55Procs(OUT DWORD * numProcs);
+	extern int CFG_GetC55Procs(OUT DWORD * numProcs);
 #ifdef __cplusplus
 }
 #endif

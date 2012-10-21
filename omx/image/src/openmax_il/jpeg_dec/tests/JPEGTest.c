@@ -38,6 +38,7 @@
 #include <time.h> 
 #include <OMX_Component.h>
 #include "JPEGTest.h"
+#include "OMX_JpegDec_Utils.h"
 
 /* DSP recovery includes */
 #include <qosregistry.h>
@@ -81,10 +82,6 @@ inline int maxint(int a, int b)
 
  /*Define prototypes*/
  
-#ifdef DSP_MMU_FAULT_HANDLING
-int LoadBaseImage();
-#endif
-
  static OMX_ERRORTYPE WaitForEvent_JPEG(OMX_HANDLETYPE* pHandle,
                                   OMX_EVENTTYPE DesiredEvent,
                                   OMX_U32 data,
@@ -645,7 +642,6 @@ int main(int argc, char** argv)
     OMX_S32 nPostProcCompId = 200; 
     /*int nDone = 0;*/
     int nExternal= 0;
-    OMX_U8 * pTemp;
     OMX_BUFFERHEADERTYPE* pInBuffHead[NUM_OF_BUFFERS];
     OMX_BUFFERHEADERTYPE* pOutBuffHead[NUM_OF_BUFFERS];
     OMX_U8* pInBuffer = NULL;
@@ -661,6 +657,7 @@ int main(int argc, char** argv)
     int  nMaxFrames = 1;
     OMX_BUFFERHEADERTYPE* pInBufferHdr;    
     struct timeval tv1, tv2;
+    OMX_U32 nTempSize = 0;
 
     /* validate command line args */
     if ( (argc < 5) || ((argc > 7) && (argc < 11)) ||(argc > 11)) {
@@ -736,6 +733,15 @@ int main(int argc, char** argv)
     pSubRegionDecode = (OMX_CUSTOM_IMAGE_DECODE_SUBREGION*)malloc(sizeof(OMX_CUSTOM_IMAGE_DECODE_SUBREGION));
 	pMaxResolution = (OMX_CUSTOM_RESOLUTION *)malloc(sizeof(OMX_CUSTOM_RESOLUTION ));
 
+    OMX_CONF_INIT_STRUCT(pPortParamType, OMX_PORT_PARAM_TYPE);
+    OMX_CONF_INIT_STRUCT(pParamPortDef, OMX_PARAM_PORTDEFINITIONTYPE);
+    OMX_CONF_INIT_STRUCT(pInPortDef, OMX_PARAM_PORTDEFINITIONTYPE);
+    OMX_CONF_INIT_STRUCT(pOutPortDef, OMX_PARAM_PORTDEFINITIONTYPE);
+    OMX_CONF_INIT_STRUCT(pScaleFactor, OMX_CONFIG_SCALEFACTORTYPE);
+    OMX_CONF_INIT_STRUCT(pPortType, OMX_PORT_PARAM_TYPE);
+    OMX_CONF_INIT_STRUCT(pSectionDecode, OMX_CUSTOM_IMAGE_DECODE_SECTION);
+    OMX_CONF_INIT_STRUCT(pSubRegionDecode, OMX_CUSTOM_IMAGE_DECODE_SUBREGION);
+
 
     printf("\n------------------------------------------------\n");
     printf("OMX JPEG Decoder Test App built on " __DATE__ ":" __TIME__ "\n");
@@ -767,11 +773,6 @@ int main(int argc, char** argv)
     /* save off the "max" of the handles for the selct statement */
     nFdmax = maxint(IpBuf_Pipe[0], OpBuf_Pipe[0]);
     nFdmax = maxint(Event_Pipe[0], nFdmax);
-
-#ifdef DSP_MMU_FAULT_HANDLING
-    /* LOAD BASE IMAGE FIRST TIME */
-    LoadBaseImage();
-#endif
 
     eError = TIOMX_Init();
     if ( eError != OMX_ErrorNone ) {
@@ -926,7 +927,6 @@ int main(int argc, char** argv)
         goto EXIT;
     }
     
-    memset(pOutPortDef, 0x0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));    
     eError = OMX_GetParameter (pHandle, OMX_IndexParamPortDefinition, pOutPortDef);
     if ( eError != OMX_ErrorNone ) {
         eError = OMX_ErrorBadParameter;
@@ -1224,12 +1224,21 @@ int main(int argc, char** argv)
     /********* EXTERNAL BUFFER ****************/
 
     if ( nExternal == 1 ) {
-        pTemp=(OMX_U8*)malloc(pInPortDef->nBufferSize+256);
-        pTemp+=128;
-        pInBuffer = pTemp;
-        pTemp=(OMX_U8*)malloc(pOutPortDef->nBufferSize+256);
-        pTemp+=128;
-        pOutBuffer = pTemp;
+        nTempSize = pInPortDef->nBufferSize;
+        OMX_MALLOC_SIZE_DSPALIGN ( pInBuffer, nTempSize, OMX_U8);
+        if(pInBuffer == NULL){
+            PRINT("ERROR:: pInBuffer Allocation Failed..\n");
+            eError = OMX_ErrorInsufficientResources;
+            goto EXIT;
+        }
+
+        nTempSize = pOutPortDef->nBufferSize;
+        OMX_MALLOC_SIZE_DSPALIGN ( pOutBuffer, nTempSize, OMX_U8);
+        if(pOutBuffer == NULL){
+            PRINT("ERROR:: pOutBuffer Allocation Failed..\n");
+            eError = OMX_ErrorInsufficientResources;
+            goto EXIT;
+        }
  
         eError = OMX_UseBuffer(pHandle, &pInBuffHead[0], nIndex1, pInBuffHead, pInPortDef->nBufferSize, pInBuffer);
         for(nBufferHdrSend = 0; (nBufferHdrSend < nNUM_OF_DECODING_BUFFERS); nBufferHdrSend++){
@@ -1445,8 +1454,6 @@ DEINIT2:
     /* Free buffers */
     if ( nExternal==1 )
     {
-        pOutBuffer-=128;
-        pInBuffer-=128;
         eError = OMX_FreeBuffer(pHandle, nIndex1, pInBuffHead[0]); 
         for(nBufferHdrSend = 0; nBufferHdrSend < nNUM_OF_DECODING_BUFFERS; nBufferHdrSend++){
             eError = OMX_FreeBuffer(pHandle, nIndex2, pOutBuffHead[nBufferHdrSend]); 
@@ -1534,12 +1541,6 @@ EXIT:
         }
     }
 
-#ifdef DSP_MMU_FAULT_HANDLING
-    if(bError) {
-        LoadBaseImage();
-    }
-#endif
-
     eError = TIOMX_Deinit();
     if ( eError != OMX_ErrorNone ) {
         PRINT("Error returned by OMX_Init()\n");
@@ -1550,59 +1551,4 @@ EXIT:
 }
 
 
-#ifdef DSP_MMU_FAULT_HANDLING
-
-int LoadBaseImage() {
-    unsigned int uProcId = 0;	/* default proc ID is 0. */
-    unsigned int index = 0;
-    
-    struct DSP_PROCESSORINFO dspInfo;
-    DSP_HPROCESSOR hProc;
-    DSP_STATUS status = DSP_SOK;
-    unsigned int numProcs;
-    char* argv[2];
-   
-    argv[0] = "/lib/dsp/baseimage.dof";
-    
-    status = (DBAPI)DspManager_Open(0, NULL);
-    if (DSP_FAILED(status)) {
-        printf("DSPManager_Open failed \n");
-        return -1;
-    } 
-    while (DSP_SUCCEEDED(DSPManager_EnumProcessorInfo(index,&dspInfo,
-        (unsigned int)sizeof(struct DSP_PROCESSORINFO),&numProcs))) {
-        if ((dspInfo.uProcessorType == DSPTYPE_55) || 
-            (dspInfo.uProcessorType == DSPTYPE_64)) {
-            uProcId = index;
-            status = DSP_SOK;
-            break;
-        }
-        index++;
-    }
-    status = DSPProcessor_Attach(uProcId, NULL, &hProc);
-    if (DSP_SUCCEEDED(status)) {
-        status = DSPProcessor_Stop(hProc);
-        if (DSP_SUCCEEDED(status)) {
-            status = DSPProcessor_Load(hProc,1,(const char **)argv,NULL);
-            if (DSP_SUCCEEDED(status)) {
-                status = DSPProcessor_Start(hProc);
-                if (DSP_SUCCEEDED(status)) {
-                } 
-                else {
-                }
-            } 
-			else {
-            }
-            DSPProcessor_Detach(hProc);
-        }
-        else {
-        }
-    }
-    else {
-    }
-    fprintf(stderr,"Baseimage Loaded\n");
-
-    return 0;		
-}
-#endif
 
