@@ -14,10 +14,10 @@ LOCAL_SHARED_LIBRARIES :=       \
         libbinder               \
         libutils                \
         libcutils               \
+        liblog                  \
         libui                   \
         libdl                   \
 
 LOCAL_MODULE := libstagefrighthw
 
 include $(BUILD_SHARED_LIBRARY)
-
