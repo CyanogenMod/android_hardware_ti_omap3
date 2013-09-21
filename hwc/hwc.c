@@ -63,6 +63,15 @@
 #define MAX(a,b)		  ((a)>(b)?(a):(b))
 #define CLAMP(x,low,high) (((x)>(high))?(high):(((x)<(low))?(low):(x)))
 
+#if defined(SCREEN_WIDTH) && defined(SCREEN_HEIGHT)
+/* This trickery is needed to get the preprocessor to stringify the expansion
+   of a macro */
+#define _STR(s)		#s
+#define STR(s)		_STR(s)
+
+#define SCREEN_RES STR(SCREEN_WIDTH) "," STR(SCREEN_HEIGHT)
+#endif
+
 struct ext_transform_t {
     __u8 rotation : 3;          /* 90-degree clockwise rotations */
     __u8 hflip    : 1;          /* flip l-r (after rotation) */
@@ -1493,7 +1502,9 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
         system("echo 0 >" "/sys/devices/platform/omapdss/display1/enabled");
         system("echo 0 >" "/sys/devices/platform/omapdss/overlay0/enabled");
 	system("echo 0 >" "/sys/devices/platform/omapdss/overlay1/enabled");
-	system("echo 800,450 >" "/sys/devices/platform/omapdss/overlay1/output_size");
+#ifdef SCREEN_RES
+	system("echo " SCREEN_RES " >" "/sys/devices/platform/omapdss/overlay1/output_size");
+#endif
         system("echo lcd >" "/sys/devices/platform/omapdss/manager0/display");
         system("echo 1 >" "/sys/devices/platform/omapdss/display0/enabled");
 	system("echo 1 >" "/sys/devices/platform/omapdss/overlay1/enabled");
