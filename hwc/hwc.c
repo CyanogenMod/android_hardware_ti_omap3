@@ -993,6 +993,7 @@ static int omap3_hwc_prepare(struct hwc_composer_device_1 *dev, size_t numDispla
      * more than one FB and overlay comes then this has to go from SGX
      */
     num_fb = num.BGR + num.RGB;
+#ifndef OMAP3_HWC_DISABLE_YUV_OVERLAY
     /* hack for omap3, overlay can be active only for YUV format */
     /* For other formats everything has to go through frame buffer */ 
 
@@ -1000,6 +1001,7 @@ static int omap3_hwc_prepare(struct hwc_composer_device_1 *dev, size_t numDispla
     {
           hwc_dev->force_sgx = 0;
     }
+#endif
 
     /* phase 3 logic */
     if (!hwc_dev->force_sgx && can_dss_render_all(hwc_dev, &num)) {
