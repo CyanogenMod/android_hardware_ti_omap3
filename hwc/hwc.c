@@ -1606,7 +1606,7 @@ static void *omap3_hwc_hdmi_thread(void *data)
     static char uevent_desc[4096];
     struct pollfd fds[2];
     int prev_force_sgx = 0;
-    int timeout;
+    int timeout = -1;
     int err;
 
     setpriority(PRIO_PROCESS, 0, HAL_PRIORITY_URGENT_DISPLAY);
@@ -1617,8 +1617,6 @@ static void *omap3_hwc_hdmi_thread(void *data)
     fds[0].events = POLLIN;
     fds[1].fd = hwc_dev->pipe_fds[0];
     fds[1].events = POLLIN;
-
-    timeout = hwc_dev->idle ? hwc_dev->idle : -1;
 
     memset(uevent_desc, 0, sizeof(uevent_desc));
 
