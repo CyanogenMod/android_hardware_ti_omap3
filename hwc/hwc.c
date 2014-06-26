@@ -1534,11 +1534,12 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
 
 static void *vsync_loop(void *param)
 {
-    static char buf[4096];
+    /* Needs to be long enough to hold an unsigned 64-bit int in decimal */
+    static char buf[32];
     int fb0_vsync_fd;
+    ssize_t len;
     fd_set exceptfds;
-    int res;
-    int64_t timestamp = 0;
+    uint64_t timestamp = 0;
     omap3_hwc_device_t *hwc_dev = param;
 
     fb0_vsync_fd = open("/sys/devices/platform/omapfb/graphics/fb0/vsync_time", O_RDONLY);
@@ -1554,13 +1555,14 @@ static void *vsync_loop(void *param)
     FD_SET(fb0_vsync_fd, &exceptfds);
 
     do {
-        ssize_t len = read(fb0_vsync_fd, buf, sizeof(buf));
+        len = read(fb0_vsync_fd, buf, sizeof(buf) - 1);
+        buf[len] = '\0';
         timestamp = strtoull(buf, NULL, 0);
         if (hwc_dev->procs && hwc_dev->procs->vsync) {
             hwc_dev->procs->vsync(hwc_dev->procs, 0, timestamp);
         }
-        select(fb0_vsync_fd + 1, NULL, NULL, &exceptfds, NULL);
         lseek(fb0_vsync_fd, 0, SEEK_SET);
+        select(fb0_vsync_fd + 1, NULL, NULL, &exceptfds, NULL);
     } while (1);
 
     return NULL;
