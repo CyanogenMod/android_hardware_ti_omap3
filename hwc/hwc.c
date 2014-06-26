@@ -1836,20 +1836,6 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
             goto done;
     }
 
-    if (pthread_create(&hwc_dev->hdmi_thread, NULL, omap3_hwc_hdmi_thread, hwc_dev))
-    {
-            ALOGE("failed to create uevent listening thread (%d): %m", errno);
-            err = -errno;
-            goto done;
-    }
-
-    if (pthread_create(&hwc_dev->vsync_thread, NULL, vsync_loop, hwc_dev))
-    {
-            ALOGE("failed to create vsync-sysfs listening thread (%d): %m", errno);
-            err = -errno;
-            goto done;
-    }
-
     /* get debug properties */
 
     /* see if hwc is enabled at all */
@@ -1875,6 +1861,20 @@ static int omap3_hwc_device_open(const hw_module_t* module, const char* name,
     ALOGI("clone region is set to (%d,%d) to (%d,%d)",
          hwc_dev->ext.mirror_region.left, hwc_dev->ext.mirror_region.top,
          hwc_dev->ext.mirror_region.right, hwc_dev->ext.mirror_region.bottom);
+
+    if (pthread_create(&hwc_dev->hdmi_thread, NULL, omap3_hwc_hdmi_thread, hwc_dev))
+    {
+            ALOGE("failed to create uevent listening thread (%d): %m", errno);
+            err = -errno;
+            goto done;
+    }
+
+    if (pthread_create(&hwc_dev->vsync_thread, NULL, vsync_loop, hwc_dev))
+    {
+            ALOGE("failed to create vsync-sysfs listening thread (%d): %m", errno);
+            err = -errno;
+            goto done;
+    }
 
     /* read switch state */
     int sw_fd = open("/sys/class/switch/display_support/state", O_RDONLY);
