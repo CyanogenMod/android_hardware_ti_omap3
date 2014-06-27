@@ -618,11 +618,11 @@ static struct dsscomp_dispc_limitations {
     __u8 min_width;
     __u16 integer_scale_ratio_limit;
 } limits = {
-    .max_xdecim_1d = 16,
-    .max_xdecim_2d = 16,
-    .max_ydecim_1d = 16,
-    .max_ydecim_2d = 2,
-    .fclk = 170666666,
+    .max_xdecim_1d = 1,
+    .max_xdecim_2d = 1,
+    .max_ydecim_1d = 1,
+    .max_ydecim_2d = 1,
+    .fclk = 173000000,
     .max_downscale = 4,
     .min_width = 2,
     .integer_scale_ratio_limit = 2048,
