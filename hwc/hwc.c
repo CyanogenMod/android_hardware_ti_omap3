@@ -1248,33 +1248,15 @@ static int omap3_hwc_prepare(struct hwc_composer_device_1 *dev, size_t numDispla
     return 0;
 }
 
-static int omap3_hwc_set(struct hwc_composer_device_1 *dev,
-        size_t numDisplays, hwc_display_contents_1_t** displays)
+static void dump_set_info(omap3_hwc_device_t *hwc_dev,
+        hwc_display_contents_1_t *list)
 {
-    if (!numDisplays || displays == NULL) {
-        ALOGD("set: empty display list");
-        return 0;
-    }
-    hwc_display_t dpy = NULL;
-    hwc_surface_t sur = NULL;
-    hwc_display_contents_1_t* list = displays[0];  // ignore displays beyond the first
-    if (list != NULL) {
-        dpy = list->dpy;
-        sur = list->sur;
-    }
-    omap3_hwc_device_t *hwc_dev = (omap3_hwc_device_t *)dev;
-    struct dsscomp_setup_dispc_data *dsscomp = &hwc_dev->dsscomp_data;
-    int err = 0;
-    unsigned int i;
-    int invalidate;
-
-    pthread_mutex_lock(&hwc_dev->lock);
-
-    invalidate = hwc_dev->ext_ovls_wanted && !hwc_dev->ext_ovls;
-
     char big_log[1024];
     int e = sizeof(big_log);
     char *end = big_log + e;
+    struct dsscomp_setup_dispc_data *dsscomp = &hwc_dev->dsscomp_data;
+    unsigned int i;
+
     e -= snprintf(end - e, e, "set H{");
     for (i = 0; list && i < list->numHwLayers; i++) {
         if (i)
@@ -1325,9 +1307,35 @@ static int omap3_hwc_set(struct hwc_composer_device_1 *dev,
         e -= snprintf(end - e, e, "%p", hwc_dev->buffers[i]);
     }
     e -= snprintf(end - e, e, "}%s\n", hwc_dev->use_sgx ? " swap" : "");
-    if (debug) {
-        ALOGD("%s", big_log);
+    ALOGD("%s", big_log);
+}
+
+static int omap3_hwc_set(struct hwc_composer_device_1 *dev,
+        size_t numDisplays, hwc_display_contents_1_t** displays)
+{
+    if (!numDisplays || displays == NULL) {
+        ALOGD("set: empty display list");
+        return 0;
     }
+    hwc_display_t dpy = NULL;
+    hwc_surface_t sur = NULL;
+    hwc_display_contents_1_t* list = displays[0];  // ignore displays beyond the first
+    if (list != NULL) {
+        dpy = list->dpy;
+        sur = list->sur;
+    }
+    omap3_hwc_device_t *hwc_dev = (omap3_hwc_device_t *)dev;
+    struct dsscomp_setup_dispc_data *dsscomp = &hwc_dev->dsscomp_data;
+    int err = 0;
+    unsigned int i;
+    int invalidate;
+
+    pthread_mutex_lock(&hwc_dev->lock);
+
+    invalidate = hwc_dev->ext_ovls_wanted && !hwc_dev->ext_ovls;
+
+    if (debug)
+        dump_set_info(hwc_dev, list);
 
     // ALOGD("set %d layers (sgx=%d)\n", dsscomp->num_ovls, hwc_dev->use_sgx);
 
