@@ -1368,15 +1368,6 @@ static int omap3_hwc_set(struct hwc_composer_device_1 *dev,
                                  hwc_dev->buffers,
                                  hwc_dev->post2_layers,
                                  dsscomp, sizeof(*dsscomp));
-
-        if (!hwc_dev->use_sgx) {
-            __u32 crt = 0;
-            int err2 = ioctl(hwc_dev->fb_fd, FBIO_WAITFORVSYNC, &crt);
-            if (err2) {
-                ALOGE("failed to wait for vsync (%d)", errno);
-                err = err ? : -errno;
-            }
-        }
     }
     hwc_dev->last_ext_ovls = hwc_dev->ext_ovls;
     hwc_dev->last_int_ovls = hwc_dev->post2_layers;
