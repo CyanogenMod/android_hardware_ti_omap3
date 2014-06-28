@@ -1909,8 +1909,10 @@ done:
         pthread_mutex_destroy(&hwc_dev->lock);
         free(hwc_dev->buffers);
         free(hwc_dev);
+#ifndef OMAP3_HWC_BOOTLOADER_DISPLAY_INIT
     } else {
         omap3_hwc_reset_screen(hwc_dev);
+#endif
     }
 
     return err;
