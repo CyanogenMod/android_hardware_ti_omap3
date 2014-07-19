@@ -67,7 +67,7 @@
 #ifdef ANDROID
 #include <sys/resource.h>
 #include <utils/threads.h>
-#include <linux/prctl.h>
+#include <sys/prctl.h>
 #endif
 #include "OMX_WbAmrDec_Utils.h"
 #include "OMX_WbAmrDecoder.h"

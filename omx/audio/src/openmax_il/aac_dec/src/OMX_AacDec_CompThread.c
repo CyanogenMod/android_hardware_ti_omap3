@@ -78,7 +78,7 @@
 
 #ifdef ANDROID
 #include <utils/threads.h>
-#include <linux/prctl.h>
+#include <sys/prctl.h>
 #endif
 
 #include "OMX_AacDec_Utils.h"

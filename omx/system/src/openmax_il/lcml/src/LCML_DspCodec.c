@@ -49,7 +49,7 @@
 #endif
 
 #ifdef ANDROID
-#include <linux/prctl.h>
+#include <sys/prctl.h>
 #endif
 
 #include <pthread.h>
