@@ -43,6 +43,8 @@
 #define WIDTH(rect) ((rect).right - (rect).left)
 #define HEIGHT(rect) ((rect).bottom - (rect).top)
 
+#define DIV_ROUND_UP(a, b) (((a) + (b) - 1) / (b))
+
 #include <video/dsscomp.h>
 
 #include "hal_public.h"
@@ -616,11 +618,11 @@ static struct dsscomp_dispc_limitations {
     __u8 min_width;
     __u16 integer_scale_ratio_limit;
 } limits = {
-    .max_xdecim_1d = 16,
-    .max_xdecim_2d = 16,
-    .max_ydecim_1d = 16,
-    .max_ydecim_2d = 2,
-    .fclk = 170666666,
+    .max_xdecim_1d = 1,
+    .max_xdecim_2d = 1,
+    .max_ydecim_1d = 1,
+    .max_ydecim_2d = 1,
+    .fclk = 173000000,
     .max_downscale = 4,
     .min_width = 2,
     .integer_scale_ratio_limit = 2048,
@@ -631,6 +633,8 @@ static int omap3_hwc_can_scale(int src_w, int src_h, int dst_w, int dst_h, int i
                                __u32 pclk)
 {
     __u32 fclk = limits->fclk / 1000;
+    __u32 min_src_w = DIV_ROUND_UP(src_w, is_2d ? limits->max_xdecim_2d : limits->max_xdecim_1d);
+    __u32 min_src_h = DIV_ROUND_UP(src_h, is_2d ? limits->max_ydecim_2d : limits->max_ydecim_1d);
 
     /* ERRATAs */
     /* cannot render 1-width layers on DSI video mode panels - we just disallow all 1-width LCD layers */
@@ -640,15 +644,15 @@ static int omap3_hwc_can_scale(int src_w, int src_h, int dst_w, int dst_h, int i
     /* NOTE: no support for checking YUV422 layers that are tricky to scale */
 
     /* max downscale */
-    if (dst_h < src_h / limits->max_downscale / (is_2d ? limits->max_ydecim_2d : limits->max_ydecim_1d))
+    if ((unsigned int) dst_h * limits->max_downscale < min_src_h)
         return 0;
 
     /* for manual panels pclk is 0, and there are no pclk based scaling limits */
     if (!pclk)
-        return (dst_w < src_w / limits->max_downscale / (is_2d ? limits->max_xdecim_2d : limits->max_xdecim_1d));
+        return !((unsigned int) dst_w * limits->max_downscale < min_src_w);
 
     /* :HACK: limit horizontal downscale well below theoretical limit as we saw display artifacts */
-    if (dst_w < src_w / 4)
+    if (dst_w * 4 < src_w)
         return 0;
 
     /* max horizontal downscale is 4, or the fclk/pixclk */
@@ -657,7 +661,7 @@ static int omap3_hwc_can_scale(int src_w, int src_h, int dst_w, int dst_h, int i
     /* for small parts, we need to use integer fclk/pixclk */
     if (src_w < limits->integer_scale_ratio_limit)
         fclk = fclk / pclk * pclk;
-    if (dst_w < src_w * pclk / fclk / (is_2d ? limits->max_xdecim_2d : limits->max_xdecim_1d))
+    if ((__u32) dst_w * fclk < min_src_w * pclk)
         return 0;
 
     return 1;
@@ -1364,15 +1368,6 @@ static int omap3_hwc_set(struct hwc_composer_device_1 *dev,
                                  hwc_dev->buffers,
                                  hwc_dev->post2_layers,
                                  dsscomp, sizeof(*dsscomp));
-
-        if (!hwc_dev->use_sgx) {
-            __u32 crt = 0;
-            int err2 = ioctl(hwc_dev->fb_fd, FBIO_WAITFORVSYNC, &crt);
-            if (err2) {
-                ALOGE("failed to wait for vsync (%d)", errno);
-                err = err ? : -errno;
-            }
-        }
     }
     hwc_dev->last_ext_ovls = hwc_dev->ext_ovls;
     hwc_dev->last_int_ovls = hwc_dev->post2_layers;
@@ -1539,11 +1534,12 @@ static void handle_hotplug(omap3_hwc_device_t *hwc_dev, int state)
 
 static void *vsync_loop(void *param)
 {
-    static char buf[4096];
+    /* Needs to be long enough to hold an unsigned 64-bit int in decimal */
+    static char buf[32];
     int fb0_vsync_fd;
+    ssize_t len;
     fd_set exceptfds;
-    int res;
-    int64_t timestamp = 0;
+    uint64_t timestamp = 0;
     omap3_hwc_device_t *hwc_dev = param;
 
     fb0_vsync_fd = open("/sys/devices/platform/omapfb/graphics/fb0/vsync_time", O_RDONLY);
@@ -1559,13 +1555,14 @@ static void *vsync_loop(void *param)
     FD_SET(fb0_vsync_fd, &exceptfds);
 
     do {
-        ssize_t len = read(fb0_vsync_fd, buf, sizeof(buf));
+        len = read(fb0_vsync_fd, buf, sizeof(buf) - 1);
+        buf[len] = '\0';
         timestamp = strtoull(buf, NULL, 0);
         if (hwc_dev->procs && hwc_dev->procs->vsync) {
             hwc_dev->procs->vsync(hwc_dev->procs, 0, timestamp);
         }
-        select(fb0_vsync_fd + 1, NULL, NULL, &exceptfds, NULL);
         lseek(fb0_vsync_fd, 0, SEEK_SET);
+        select(fb0_vsync_fd + 1, NULL, NULL, &exceptfds, NULL);
     } while (1);
 
     return NULL;
